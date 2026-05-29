@@ -1,0 +1,278 @@
+<section id="family-navigator" class="fnav-root">
+<style>
+  /* === Navigateur de familles — widget autonome (prefixe fnav_) ============
+     Reutilise palette & tokens du document hote, avec fallback si isole. === */
+  .fnav-root{
+    --fn-paper:var(--paper,#F4F6FA); --fn-card:var(--card,#FFFFFF);
+    --fn-ink:var(--ink,#15202E); --fn-ink-soft:var(--ink-soft,#43536A); --fn-ink-faint:var(--ink-faint,#7A889B);
+    --fn-blue:var(--blue,#23537F); --fn-blue-deep:var(--blue-deep,#142E49); --fn-blue-bright:var(--blue-bright,#2C77B6); --fn-blue-wash:var(--blue-wash,#E7EEF6);
+    --fn-bordeaux:var(--bordeaux,#7C2A38); --fn-bordeaux-bright:var(--bordeaux-bright,#9B3443); --fn-bordeaux-wash:var(--bordeaux-wash,#F3E3E6);
+    --fn-line:var(--line,#D7DFE9); --fn-line-soft:var(--line-soft,#E7ECF3);
+    margin:24px 0;
+  }
+  .fnav-root *{box-sizing:border-box;}
+
+  .fnav-shell{
+    background:var(--fn-card); border:1px solid var(--fn-line); border-left:3px solid var(--fn-blue-deep);
+    border-radius:7px; padding:22px 24px 20px; box-shadow:0 1px 2px rgba(20,46,73,.04);
+    font-family:"Spectral",Georgia,serif; color:var(--fn-ink);
+  }
+  .fnav-lbl{font-family:"Archivo",system-ui,sans-serif;font-size:11px;letter-spacing:.13em;
+    text-transform:uppercase;color:var(--fn-blue);font-weight:700;}
+  .fnav-shell h4{font-family:"Archivo",system-ui,sans-serif;margin:3px 0 5px;font-size:18px;
+    color:var(--fn-blue-deep);font-weight:800;letter-spacing:-.005em;}
+  .fnav-intro{margin:6px 0 0;font-size:14.5px;line-height:1.55;color:var(--fn-ink-soft);}
+
+  /* panneau signaux */
+  .fnav-signals{margin:18px 0 6px;}
+  .fnav-sk{font-family:"Archivo",system-ui,sans-serif;font-size:10.5px;letter-spacing:.12em;
+    text-transform:uppercase;font-weight:700;color:var(--fn-bordeaux);margin:0 0 9px;}
+  .fnav-chips{display:flex;flex-wrap:wrap;gap:9px;}
+  .fnav-chip{font-family:"Archivo",system-ui,sans-serif;font-size:12.5px;font-weight:600;
+    color:var(--fn-blue);background:var(--fn-card);border:1px solid var(--fn-line);
+    padding:7px 14px;border-radius:30px;cursor:pointer;transition:.15s;user-select:none;
+    display:inline-flex;align-items:center;gap:7px;}
+  .fnav-chip:hover{border-color:var(--fn-blue-bright);color:var(--fn-blue-bright);}
+  .fnav-chip:focus-visible{outline:2px solid var(--fn-blue-bright);outline-offset:2px;}
+  .fnav-chip .fnav-dot{width:9px;height:9px;border-radius:50%;border:1.5px solid var(--fn-line);
+    background:transparent;flex:none;transition:.15s;}
+  .fnav-chip[aria-pressed="true"]{background:var(--fn-blue-deep);color:#EAF1F8;border-color:var(--fn-blue-deep);}
+  .fnav-chip[aria-pressed="true"] .fnav-dot{background:#E7B3BD;border-color:#E7B3BD;}
+  .fnav-chip[aria-pressed="true"]:hover{background:var(--fn-blue);color:#fff;}
+  .fnav-hint{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--fn-ink-faint);
+    margin:11px 0 0;letter-spacing:.02em;}
+  .fnav-hint b{color:var(--fn-bordeaux);font-weight:700;}
+
+  /* familles */
+  .fnav-fam-head{font-family:"Archivo",system-ui,sans-serif;font-size:10.5px;letter-spacing:.12em;
+    text-transform:uppercase;font-weight:700;color:var(--fn-bordeaux);margin:20px 0 9px;
+    border-top:1px solid var(--fn-line-soft);padding-top:15px;}
+  .fnav-list{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  @media(max-width:620px){.fnav-list{grid-template-columns:1fr;}}
+  .fnav-fam{border:1px solid var(--fn-line);border-radius:6px;padding:12px 15px;background:#FBFCFE;
+    border-left:3px solid var(--fn-line);transition:.18s;}
+  .fnav-fam.fnav-on{border-left-color:var(--fn-blue);background:linear-gradient(0deg,var(--fn-blue-wash),#fff);}
+  .fnav-fam.fnav-off{opacity:.62;background:#F6F7F9;border-left-color:var(--fn-line);}
+  .fnav-fam-top{display:flex;align-items:baseline;gap:9px;}
+  .fnav-fam-name{font-family:"Archivo",system-ui,sans-serif;font-weight:700;font-size:14.5px;
+    color:var(--fn-blue-deep);line-height:1.25;}
+  .fnav-fam.fnav-off .fnav-fam-name{color:var(--fn-ink-faint);}
+  .fnav-state{font-family:"JetBrains Mono",monospace;font-size:9.5px;letter-spacing:.1em;
+    text-transform:uppercase;font-weight:700;margin-left:auto;padding:2px 7px;border-radius:3px;white-space:nowrap;}
+  .fnav-fam.fnav-on .fnav-state{background:var(--fn-blue-wash);color:var(--fn-blue);}
+  .fnav-fam.fnav-off .fnav-state{background:#ECEFF3;color:var(--fn-ink-faint);}
+  .fnav-reason{font-size:13px;line-height:1.5;color:var(--fn-ink-soft);margin:7px 0 0;}
+  .fnav-fam.fnav-off .fnav-reason{color:var(--fn-ink-faint);}
+  .fnav-req{font-family:"JetBrains Mono",monospace;font-size:11px;margin:8px 0 0;line-height:1.45;}
+  .fnav-req .fnav-rk{color:var(--fn-ink-faint);}
+  .fnav-req .fnav-miss{color:var(--fn-bordeaux);font-weight:700;}
+  .fnav-req .fnav-have{color:#1C6A4C;font-weight:700;}
+
+  /* lecture des chemins forces */
+  .fnav-path{background:var(--fn-bordeaux-wash);border:1px solid #E3C3C9;border-left:4px solid var(--fn-bordeaux);
+    border-radius:6px;padding:13px 17px;margin:18px 0 0;font-size:13px;line-height:1.55;color:var(--fn-ink);display:none;}
+  .fnav-path.fnav-vis{display:block;}
+  .fnav-path .fnav-ct{font-family:"Archivo",system-ui,sans-serif;font-weight:700;color:var(--fn-bordeaux);
+    font-size:11px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:5px;}
+  .fnav-path em{font-style:italic;color:var(--fn-ink);}
+  .fnav-path code{font-family:"JetBrains Mono",monospace;background:#fff;color:var(--fn-bordeaux);
+    padding:1px 5px;border-radius:3px;font-size:11.5px;border:1px solid #E3C3C9;}
+</style>
+
+  <div class="fnav-shell" role="group" aria-label="Navigateur : quelle famille selon le signal">
+    <span class="fnav-lbl">Navigateur interactif</span>
+    <h4>Quelle famille selon le signal de l'évaluateur</h4>
+    <p class="fnav-intro">Le déterminant n'est pas l'heuristique mais la <em style="font-style:italic">forme du signal</em> que l'évaluateur expose. Activez les signaux <strong>disponibles</strong> dans votre harnais : les familles jouables s'allument, les autres restent grisées avec la condition manquante.</p>
+
+    <div class="fnav-signals">
+      <p class="fnav-sk">Signaux disponibles</p>
+      <div class="fnav-chips" id="fnav_chips" role="group" aria-label="Signaux disponibles">
+        <button type="button" class="fnav-chip" data-fnav-sig="det" aria-pressed="false"><span class="fnav-dot"></span>métrique déterministe</button>
+        <button type="button" class="fnav-chip" data-fnav-sig="scalar" aria-pressed="false"><span class="fnav-dot"></span>scalaire absolu</button>
+        <button type="button" class="fnav-chip" data-fnav-sig="pairwise" aria-pressed="false"><span class="fnav-dot"></span>pairwise</button>
+        <button type="button" class="fnav-chip" data-fnav-sig="vector" aria-pressed="false"><span class="fnav-dot"></span>vecteur par-instance</button>
+        <button type="button" class="fnav-chip" data-fnav-sig="feedback" aria-pressed="false"><span class="fnav-dot"></span>feedback texte</button>
+      </div>
+      <p class="fnav-hint" id="fnav_hint">Aucun signal actif — <b>0 famille jouable</b>. Activez au moins un signal.</p>
+    </div>
+
+    <p class="fnav-fam-head">Familles · état en direct</p>
+    <div class="fnav-list" id="fnav_list" aria-live="polite"></div>
+
+    <div class="fnav-path" id="fnav_path">
+      <div class="fnav-ct">Chemin forcé · lecture</div>
+      <div id="fnav_path_body"></div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  "use strict";
+  var root = document.getElementById("family-navigator");
+  if(!root || root.dataset.fnavInit) return;
+  root.dataset.fnavInit = "1";
+
+  // Libelles des signaux (pour les messages de condition manquante)
+  var SIG = {
+    det:      "métrique déterministe",
+    scalar:   "scalaire absolu",
+    pairwise: "pairwise",
+    vector:   "vecteur par-instance",
+    feedback: "feedback texte"
+  };
+
+  // Familles + conditions, calquees sur les "chemins forces" du document.
+  // req: liste de groupes ; chaque groupe = OU de signaux ; toutes les groupes doivent etre satisfaits (ET).
+  // Un "score" au sens du doc = scalaire absolu OU pairwise (signal de classement exploitable).
+  var FAMS = [
+    {
+      id:"greedy", name:"Glouton + gradient textuel",
+      req:[["pairwise"],["feedback"]],
+      reqLabel:"pairwise + feedback texte",
+      on:"Le plus simple à câbler : <em>propose</em> + rollback. Le pairwise tranche l'accept, le feedback texte dirige la réécriture.",
+      off:"Sans verdict comparatif ni critique, la réécriture dirigée n'a pas de gradient."
+    },
+    {
+      id:"evo", name:"Évolutionnaire",
+      req:[["scalar","pairwise"]],
+      reqLabel:"score (scalaire ou pairwise)",
+      on:"Population + paraphrase/crossover, classée par score ou tournoi pairwise. Robuste, coûteux ; n'exige pas de feedback.",
+      off:"La sélection d'une population suppose un classement : il faut au moins un score."
+    },
+    {
+      id:"pareto", name:"Réflexif-Pareto",
+      req:[["vector"],["feedback"]],
+      reqLabel:"vecteur par-instance + feedback texte",
+      on:"Le plus sample-efficient : frontière de Pareto sur le vecteur par requête, réécriture réflexive sur les traces, merge.",
+      off:"Pareto a besoin de coordonnées par instance ; la réflexion a besoin du feedback texte."
+    },
+    {
+      id:"tree", name:"Tree search",
+      req:[["scalar","pairwise"]],
+      reqLabel:"score (scalaire ou pairwise)",
+      on:"MCTS : expansions par nœud, exploration dirigée par valeur. Lourd mais piloté par le score.",
+      off:"L'exploration dirigée par valeur exige un score pour évaluer chaque nœud."
+    },
+    {
+      id:"bayes", name:"Bayésien",
+      req:[["scalar","pairwise"]],
+      reqLabel:"score sur batch",
+      on:"Surrogate + acquisition sur combinaisons pré-générées. Beaucoup d'évals, plutôt boîte noire : score agrégé sur batch suffit.",
+      off:"Le surrogate s'entraîne sur des scores : sans score sur batch, aucune cible à modéliser."
+    },
+    {
+      id:"rl", name:"RL-based",
+      req:[["scalar"]],
+      reqLabel:"scalaire (récompense)",
+      on:"La politique apprend d'un signal de récompense scalaire dense, dérivé de l'évaluateur.",
+      off:"Pas de scalaire = pas de récompense : la mise à jour de politique n'a rien à maximiser."
+    }
+  ];
+
+  var active = Object.create(null); // signaux coches
+
+  function groupSatisfied(group){
+    for(var i=0;i<group.length;i++){ if(active[group[i]]) return true; }
+    return false;
+  }
+  function missingSignals(fam){
+    var miss = [];
+    fam.req.forEach(function(group){
+      if(!groupSatisfied(group)){
+        var alt = group.map(function(s){return SIG[s];}).join(" ou ");
+        miss.push(alt);
+      }
+    });
+    return miss;
+  }
+
+  var listEl = document.getElementById("fnav_list");
+  var hintEl = document.getElementById("fnav_hint");
+  var pathEl = document.getElementById("fnav_path");
+  var pathBody = document.getElementById("fnav_path_body");
+
+  function esc(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+  function render(){
+    var anySig = Object.keys(active).some(function(k){return active[k];});
+    var playable = 0;
+    var html = "";
+
+    FAMS.forEach(function(fam){
+      var miss = missingSignals(fam);
+      var ok = miss.length === 0;
+      if(ok) playable++;
+      var reqLine;
+      if(ok){
+        reqLine = '<span class="fnav-rk">requiert</span> <span class="fnav-have">'+esc(fam.reqLabel)+' ✓</span>';
+      }else{
+        reqLine = '<span class="fnav-rk">manque</span> <span class="fnav-miss">'+esc(miss.join(" + "))+'</span>';
+      }
+      html +=
+        '<div class="fnav-fam '+(ok?"fnav-on":"fnav-off")+'">'+
+          '<div class="fnav-fam-top">'+
+            '<span class="fnav-fam-name">'+esc(fam.name)+'</span>'+
+            '<span class="fnav-state">'+(ok?"jouable":"indisponible")+'</span>'+
+          '</div>'+
+          '<p class="fnav-reason">'+(ok?fam.on:fam.off)+'</p>'+
+          '<p class="fnav-req">'+reqLine+'</p>'+
+        '</div>';
+    });
+    listEl.innerHTML = html;
+
+    // bandeau de compte
+    if(!anySig){
+      hintEl.innerHTML = 'Aucun signal actif — <b>0 famille jouable</b>. Activez au moins un signal.';
+    }else{
+      var n = playable;
+      hintEl.innerHTML = '<b>'+n+' famille'+(n>1?'s':'')+' jouable'+(n>1?'s':'')+'</b> sur '+FAMS.length+' avec les signaux actifs.';
+    }
+
+    renderPath();
+  }
+
+  // Lecture des "chemins forces" : on commente la combinaison choisie.
+  function renderPath(){
+    var p = active.pairwise, v = active.vector, f = active.feedback,
+        s = active.scalar, d = active.det;
+    var msg = "";
+
+    if(p && f && !v){
+      msg = 'Signal <code>pairwise + feedback</code> sans vecteur : on démarre <em>glouton + gradient textuel</em> — une fonction <code>propose</code>, rollback simple, harnais validé de bout en bout avant tout.';
+    }else if(p && f && v){
+      msg = 'Signal complet <code>pairwise + vecteur + feedback</code> : on garde le démarrage glouton, mais le vecteur par requête débloque la bascule vers <em>réflexif-Pareto</em> dès que des requêtes hétérogènes créent des optima locaux.';
+    }else if(v && f && !p){
+      msg = 'Vecteur par-instance + feedback ouvrent <em>réflexif-Pareto</em> : Pareto a des coordonnées à comparer. Sans pairwise, l\'accept se décide par domination plutôt que par verdict direct.';
+    }else if(s && !p && !f && !v){
+      msg = 'Scalaire absolu seul : <em>évolutionnaire</em>, <em>tree search</em>, <em>bayésien</em> et <em>RL</em> deviennent possibles, mais le scalaire récompense la forme — il est <em>dupable</em> (préfixe « Analyse rigoureuse : » → +9 pts à contenu inchangé). Préférer le pairwise pour l\'accept.';
+    }else if(d){
+      msg = 'Métrique déterministe disponible : le gradient est non-dupable et gratuit. C\'est l\'idéal — mais la cible visée (comparatif fondé sur recherche) n\'en a pas en pratique, d\'où le repli sur pairwise + rubrique.';
+    }else if(p && !f && !v){
+      msg = 'Pairwise seul : l\'<em>évolutionnaire</em> et le <em>tree search</em> tournent (tournoi), mais sans feedback texte le glouton dirigé reste muet et Pareto manque de coordonnées.';
+    }else{
+      msg = "";
+    }
+
+    if(msg){
+      pathBody.innerHTML = msg;
+      pathEl.classList.add("fnav-vis");
+    }else{
+      pathEl.classList.remove("fnav-vis");
+    }
+  }
+
+  // Delegation d'evenements sur le conteneur de chips
+  document.getElementById("fnav_chips").addEventListener("click", function(ev){
+    var btn = ev.target.closest(".fnav-chip");
+    if(!btn) return;
+    var sig = btn.getAttribute("data-fnav-sig");
+    var now = btn.getAttribute("aria-pressed") !== "true";
+    btn.setAttribute("aria-pressed", now ? "true" : "false");
+    active[sig] = now;
+    render();
+  });
+
+  render();
+})();
+</script>
+</section>

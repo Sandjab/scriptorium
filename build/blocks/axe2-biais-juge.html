@@ -1,0 +1,77 @@
+<div id="axe2-biais-juge">
+<h4>Biais documentés du juge — décalages systématiques, pas du bruit</h4>
+<p>Le reward hacking exploite des failles ; mais le juge a aussi des biais <em class="term">de structure</em>, attestés et reproductibles. Ils ne s'effacent pas en moyennant : ce sont des <strong>décalages de moyenne</strong> (le juge se trompe toujours dans le même sens), distincts du bruit aléatoire <code>σ ≈ 0.08</code>. On ne peut donc pas les noyer dans le seuil de décision <code>ε = 2σ = 0.16</code> : il faut les <span class="hl">corriger en amont</span>, sinon ils se confondent avec un vrai signal entre versions <code>v0..v3</code>. Cinq familles, leur mécanisme, leur symptôme sur le comparatif d'outils Claude Code (requêtes <code>[CLI, MCP, IDE]</code>), et la parade.</p>
+
+<div class="tbl-w">
+<table>
+<thead>
+<tr><th>Biais</th><th>Mécanisme</th><th>Symptôme sur le fil-rouge</th><th>Parade</th></tr>
+</thead>
+<tbody>
+<tr>
+<td>Position / ordre</td>
+<td>Le verdict dépend de la place (A vs B) dans le prompt, pas du contenu. <span class="tag">2305.17926</span> <span class="tag">2306.05685</span></td>
+<td>Un même couple <code>v2</code> vs <code>v3</code> change de gagnant selon qui est présenté en premier — un faux gain de pur ordre.</td>
+<td>Évaluation symétrique <strong>A/B + B/A</strong> et agrégation des deux ordres (order-swap, déjà au protocole).</td>
+</tr>
+<tr>
+<td>Self-preference (auto-favoritisme)</td>
+<td>Le juge reconnaît ses propres sorties et les survalorise ; corrélation causale entre self-recognition et force du biais. <span class="tag">2404.13076</span></td>
+<td>Faire juger une version du skill par le modèle qui l'a produite gonfle son score sans gain réel de qualité.</td>
+<td>Juge <strong>tiers</strong> (jamais générateur = juge) ; mieux : <strong>jury inter-modèles</strong> (familles disjointes). <span class="tag b">2404.18796</span></td>
+</tr>
+<tr>
+<td>Longueur / verbosité</td>
+<td>À qualité égale, le juge préfère la réponse la plus longue. <span class="tag">2310.10076</span> <span class="tag">2306.05685</span></td>
+<td>Une sortie <code>MCP</code> verbeuse ou une doc <code>IDE</code> bavarde bat une réponse <code>CLI</code> concise et correcte.</td>
+<td><strong>Normalisation par longueur</strong> ou contrôle de longueur dans le prompt du juge, avant tout test contre <code>ε</code>.</td>
+</tr>
+<tr>
+<td>Format / sycophancy</td>
+<td>Manipulations superficielles — ton confiant, mise en forme, amorce « step by step », caractère « : » — produisent des faux positifs. <span class="tag">2306.05685</span></td>
+<td>Un préfixe « Analyse rigoureuse : » fait monter un scalaire absolu à contenu identique (cf. hack du bloc précédent).</td>
+<td><strong>Scoring comparatif</strong> (pairwise) plutôt qu'absolu ; rubrique décomposée + vérification de claims.</td>
+</tr>
+<tr>
+<td>Provenance / récence</td>
+<td>Biais non reconnus : préférence selon l'origine supposée de la réponse ou sa position récente dans le contexte ; vulnérabilité au prompt-injection. <span class="tag">2305.17926</span> <span class="tag">2306.05685</span></td>
+<td>L'étiquette d'un outil ou l'ordre des candidats récents oriente le verdict hors du contenu mesuré.</td>
+<td>Anonymisation des candidats ; <strong>held-out set</strong> distinct du set d'optimisation ; prompt du juge ≠ fonction de récompense.</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<div class="note">
+  <div class="ct">Biais ≠ bruit : deux traitements disjoints</div>
+  <p>Le bruit <code>σ ≈ 0.08</code> se réduit par répétition (l'erreur-type tombe en <code>σ/√k</code>) ; un biais de structure, lui, <strong>ne bouge pas</strong> quand on répète — il faut neutraliser sa cause (swap, juge tiers, contrôle de longueur). Sinon un décalage de +10 à +25 % d'auto-favoritisme passe pour un gain réel <code>v(n)→v(n+1)</code> alors qu'il dépasse <code>ε</code> sans aucune amélioration du skill.</p>
+</div>
+
+<details class="ex"><summary>Exemples<span class="cnt">biais de position, mesuré — le taux de flip d'ordre</span></summary>
+<div class="exbody">
+<p>On mesure le biais de position par un <em class="term">order-swap</em> : on juge chaque paire deux fois — <code>(A,B)</code> puis <code>(B,A)</code> — et on compte les paires dont le gagnant change. Sur le comparatif d'outils Claude Code, requêtes <code>[CLI, MCP, IDE]</code>, candidats <code>v0..v3</code>.</p>
+<div class="eg b"><span class="egk">Le diagnostic : taux de flip</span>
+<div class="calc">paires jugées (les deux ordres) : 50
+paires où le gagnant change au swap : 19
+taux de flip = 19 / 50 = <span class="r">0.38</span>   <span class="c"># 38 % décidés par l'ordre, pas le contenu</span>
+
+cohérence au swap = 1 − 0.38 = <span class="r">0.62</span>   <span class="c"># cf. Zheng 2023 : GPT-4 ~65,0 %</span></div>
+<p>Un flip à 38 % rend toute conclusion en <em>une seule passe</em> non fiable : l'écart mesuré entre deux versions est en partie un artefact de position, pas un vrai gradient de qualité.</p></div>
+<div class="eg"><span class="egk">La parade : order-swap + agrégation des deux ordres</span>
+<div class="calc">verdict(v2,v3) sur (A,B) : <span class="r">v3</span>
+verdict(v2,v3) sur (B,A) : <span class="r">v2</span>   <span class="c"># renversé → paire contaminée par la position</span>
+   → désaccord : on ne crédite NI v2 NI v3 (ex æquo)
+
+verdict(v0,v3) sur (A,B) : <span class="g">v3</span>
+verdict(v0,v3) sur (B,A) : <span class="g">v3</span>   <span class="c"># stable aux deux ordres</span>
+   → gain robuste : compté</div>
+<p>On ne garde que les verdicts <strong>stables aux deux ordres</strong> ; les paires qui flippent sont neutralisées avant tout calcul de score. Le 38 % de flip n'entre jamais dans la moyenne du juge.</p></div>
+<div class="eg"><span class="egk">Pourquoi ça précède le test contre ε</span>
+<div class="calc">σ ≈ 0.08   →   ε = 2σ = <span class="r">0.16</span>   <span class="c"># seuil de décision (bruit)</span>
+
+SANS swap : Δ(v3,v2) mesuré = 0.21 > ε   <span class="c"># « gain retenu » — mais 38 % est de l'ordre</span>
+AVEC swap : Δ(v3,v2) net   = 0.05 &lt; ε   <span class="g"># dans le bruit → NON significatif</span></div>
+<p>Le biais de position est un décalage systématique : on le neutralise <em>avant</em> de comparer l'écart à <code>ε</code>. Le confondre avec du bruit reviendrait à déclarer un faux gain entre <code>v2</code> et <code>v3</code>.</p></div>
+</div>
+</details>
+</div>

@@ -1,0 +1,27 @@
+<div class="note" id="axe4-bandits">
+  <div class="ct">L'allocation d'évaluations = identification du meilleur bras</div>
+  <p>Les <strong>répétitions adaptatives</strong> de la section bruit ne sont pas un détail d'implémentation : c'est, formellement, un problème de <em class="term">pure exploration</em> — <em class="term">best-arm identification</em>. On ne cherche pas à maximiser le score moyen <em>pendant</em> le tournoi (objectif de regret), mais à <strong>désigner correctement la meilleure version</strong> à la fin, sous un budget <code>B</code> de duels fixé. Chaque version du skill (<code>v0</code>…<code>v3</code>) est un <em class="term">bras</em> ; chaque jugement est un tirage bruité (σ ≈ 0.08) ; les <strong>cellules pivots à la marge</strong> — celles dont la coordonnée décide de l'entrée en frontière <em>et</em> dont l'écart frôle <code>ε = 2σ = 0.16</code> — sont exactement les <strong>bras incertains à ré-échantillonner</strong>. Concentrer le budget cher là où la marge effleure ε, et couper net les bras clairement dominés, c'est mot pour mot l'esprit de <em class="term">successive halving</em>, des <em class="term">Hoeffding races</em> et de <em class="term">Hyperband</em> : un bras dont l'intervalle de confiance ne chevauche plus celui du leader peut être éliminé — condition d'arrêt qui rend les répétitions adaptatives <em>correctes</em> face au bruit du juge, au lieu d'un flat-<code>k</code> qui re-tire tout, y compris l'évident.</p>
+</div>
+
+<details class="ex"><summary>Exemples<span class="cnt">successive halving, chiffré — n=8 candidats, log₂8 = 3 tours</span></summary>
+<div class="exbody">
+<p>Cible : le comparatif d'outils pour Claude Code fondé sur recherche, jeu de requêtes [CLI, MCP, IDE]. On part d'une frontière de <code>n = 8</code> candidats à départager sous un budget total <code>B</code> de duels jugés. Successive halving (Karnin–Koren–Somekh) procède en <code>log₂(8) = 3</code> tours : à chaque tour on dépense ≈ <code>B/3</code> duels, on classe les survivants par score moyen et on <strong>élimine la moitié la plus faible</strong>. Le budget par tour reste plat (≈ B/3), mais comme la population fond de moitié, le budget <em>par bras</em> double à chaque passage — il se concentre sur les candidats encore plausibles.</p>
+<ol class="steps">
+<li><b>Tour 1 — 8 bras.</b> ≈ B/3 duels répartis sur 8 → faibles répétitions par bras, juste assez pour éliminer les dominés évidents. On coupe 4 bras, il en reste <b>4</b>.</li>
+<li><b>Tour 2 — 4 bras.</b> Même ≈ B/3 duels, mais sur 4 bras → 2× plus de répétitions chacun. L'erreur-type du score moyen rétrécit (σ/√k). On coupe 2 bras, il en reste <b>2</b>.</li>
+<li><b>Tour 3 — 2 bras.</b> Encore ≈ B/3 duels sur les 2 finalistes → 4× le budget/bras du tour 1. La marge entre eux passe au crible : on ne déclare un gagnant que si l'écart dépasse <code>ε = 0.16</code>.</li>
+</ol>
+<div class="eg b"><span class="egk">Instanciation chiffrée — B = 48 duels</span>
+<div class="calc">tour 1 : 8 bras, 16 duels → 2 reps/bras   <span class="c">élimine 4 → reste 4</span>
+tour 2 : 4 bras, 16 duels → 4 reps/bras   <span class="c">élimine 2 → reste 2</span>
+tour 3 : 2 bras, 16 duels → 8 reps/bras   <span class="c">départage les finalistes</span>
+budget/bras : 2 → 4 → <span class="g">8</span>   (×4 sans dépasser B)</div></div>
+<div class="eg"><span class="egk">Pourquoi le verdict final devient fiable</span>
+<div class="calc">erreur-type à k reps : σ/√k,  σ ≈ 0.08
+k = 2  → 0.08/√2  ≈ <span class="r">0.057</span>   <span class="c">&gt; bande utile, encore flou</span>
+k = 8  → 0.08/√8  ≈ <span class="g">0.028</span>   <span class="c">≪ ε = 0.16 → tranche net</span></div>
+<p>À 8 répétitions sur les seuls finalistes, le bruit résiduel (≈ 0.028) est très en deçà du seuil de décision ε = 0.16 : l'écart mesuré reflète un vrai signal, pas un tirage chanceux.</p></div>
+<div class="eg"><span class="egk">Adaptatif &gt; uniforme</span><p>Allouer <code>B</code> à plat (B/n par bras, soit 6 duels chacun ici) gaspillerait des jugements sur les versions clairement dominées dès le tour 1. La réallocation aux survivants concentre le budget là où la décision est serrée — versions à moins de ε l'une de l'autre. C'est le même arbitrage que <strong>Hyperband</strong> arbitre automatiquement entre « peu de versions évaluées longtemps » et « beaucoup évaluées brièvement » quand on ignore d'avance combien de répétitions le bruit σ ≈ 0.08 exige réellement.</p></div>
+<div class="links"><a href="https://arxiv.org/abs/1603.06560">Hyperband · Li et al. (JMLR 2018)</a><a href="https://proceedings.neurips.cc/paper/1993/hash/02a32ad2669e6fe298e607fe7cc0e1a0-Abstract.html">Hoeffding Races · Maron &amp; Moore (NIPS 1993)</a><a href="https://proceedings.mlr.press/v28/karnin13.html">Successive Halving · Karnin et al. (ICML 2013)</a></div>
+</div>
+</details>

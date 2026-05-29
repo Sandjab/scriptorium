@@ -1,0 +1,114 @@
+{
+  "terms": [
+    {
+      "term": "Gradient textuel",
+      "definition": "Critique en langage naturel qui joue le rôle d'un gradient : elle explique pourquoi une sortie est mauvaise (∂eval/∂sortie) puis oriente la réécriture du skill dans la direction sémantique opposée au défaut (∂eval/∂skill). Comme le texte porte plus d'information qu'un scalaire, chaque pas d'optimisation est mieux informé.",
+      "see_also": "Réécriture dirigée, sample-efficiency, ProTeGi/TextGrad"
+    },
+    {
+      "term": "Automatic prompt optimization (APO)",
+      "definition": "Famille de méthodes qui réécrivent automatiquement un artefact textuel (prompt, skill) pour maximiser la qualité de ses sorties, sans gradient analytique : le LLM étant une boîte noire et le texte une variable discrète, le problème est traité comme une recherche guidée par un signal d'évaluation.",
+      "see_also": "Gradient textuel, LLM-as-judge"
+    },
+    {
+      "term": "Reward hacking",
+      "definition": "Dérive où l'optimisation apprend à exploiter les failles du juge plutôt qu'à améliorer la qualité réelle. Exemple chiffré : ajouter un simple préfixe << Analyse rigoureuse : >> à une sortie inchangée fait passer un score absolu de 72 à 81 (+9, zéro contenu ajouté).",
+      "see_also": "Scalaire absolu, self-preference bias, held-out set"
+    },
+    {
+      "term": "LLM-as-judge",
+      "definition": "Usage d'un LLM comme évaluateur des sorties (note, verdict ou feedback). Pratique à brancher mais bruité et manipulable : la forme du signal qu'il expose détermine quelles heuristiques d'optimisation sont jouables en aval.",
+      "see_also": "Pairwise, scalaire absolu, rubrique décomposée, reward hacking"
+    },
+    {
+      "term": "Pairwise / order-swap",
+      "definition": "Évaluation comparative où le juge ne note pas mais choisit le meilleur de deux candidats (A vs B) ; c'est exactement la décision accept/reject dont la boucle a besoin, et c'est plus robuste qu'un score absolu. L'order-swap rejoue la paire dans les deux ordres pour neutraliser le biais de position : un candidat n'est déclaré meilleur que s'il gagne les deux ordres.",
+      "see_also": "est_meilleur (verdict), self-preference bias"
+    },
+    {
+      "term": "Scalaire absolu",
+      "definition": "Note unique sur une échelle (p. ex. 0-100) attribuée par le juge à une sortie. Trivial à brancher mais c'est le signal le plus bruité et le plus gameable, avec une calibration instable d'un appel à l'autre, et il ne fournit aucune coordonnée pour un Pareto direct.",
+      "see_also": "Pairwise, reward hacking, vecteur par-instance"
+    },
+    {
+      "term": "Rubrique décomposée",
+      "definition": "Évaluation en sous-scores par critère (p. ex. couverture, ancrage, justification, clarté) au lieu d'une note globale. Signal plus riche et surface de hacking réduite : un sous-score bas (ancrage 2/5) devient un gradient ciblé qui dit quoi corriger.",
+      "see_also": "Gradient textuel, reference anchor"
+    },
+    {
+      "term": "Reference anchor",
+      "definition": "Réponse-or ou ensemble d'affirmations de référence, construit une fois et gelé, contre lequel chaque sortie est confrontée. Sert d'ancrage factuel le plus dur à hacker (chaque claim est-il dans l'evidence ?) et de fil-piège à l'overfit ; coût : la référence doit être construite et peut elle-même être incomplète.",
+      "see_also": "Held-out set, evidence gelée, reward hacking"
+    },
+    {
+      "term": "Held-out set",
+      "definition": "Jeu de tâches jamais vues pendant l'optimisation, réservé pour détecter le sur-apprentissage du juge. Diagnostic typique : un gain optimize de +0.18 contre +0.02 sur le held-out signale qu'on optimisait surtout le juge, pas le skill ; un gain held-out de +0.15 confirme au contraire un progrès réel.",
+      "see_also": "Reward hacking, reference anchor"
+    },
+    {
+      "term": "Vecteur par-instance",
+      "definition": "Sortie cardinale de scores_par_instance(candidat) : une valeur par tâche plutôt qu'un agrégat unique (p. ex. v3 = [0.80, 0.78, 0.66] sur [CLI, MCP, IDE]). Primitive inscrite au contrat dont tout dérive — agrégat (moyenne/min/quantile), tri, et frontière de Pareto — et condition nécessaire au Pareto.",
+      "see_also": "Domination de Pareto, scalaire absolu, agrégat min"
+    },
+    {
+      "term": "Domination de Pareto / frontière",
+      "definition": "X domine Y ssi X >= Y sur toutes les coordonnées du vecteur et > sur au moins une ; la frontière est l'ensemble des candidats non dominés (meilleurs sur au moins une instance). Elle évite l'effondrement en optimum local en gardant des spécialistes complémentaires : là où le glouton bloque (moy(A)=moy(B)=0.617 < moy(C0)=0.650, les deux rejetés), Pareto retient A=[0.90,0.40,0.55] et B=[0.45,0.90,0.55] le temps de les fusionner.",
+      "see_also": "Vecteur par-instance, epsilon-domination, crossover/merge, cellule pivot"
+    },
+    {
+      "term": "Epsilon-domination",
+      "definition": "Variante de la dominance qui refuse de compter un avantage de la taille du bruit comme une vraie domination, en exigeant un écart > epsilon. Premier filtre quasi-gratuit et toujours actif, calibré sur le plancher de bruit : avec sigma ~ 0.08 on pose epsilon = 2*sigma = 0.16, donc un avantage prétendu de 0.07 (0.85 - 0.78) ne compte pas et le faux non-dominé reste exclu.",
+      "see_also": "Domination de Pareto, cellule pivot, intervalle de Wilson, plancher de détectabilité"
+    },
+    {
+      "term": "Cellule pivot",
+      "definition": "Cellule (candidat x tâche) dont la coordonnée décide à elle seule de l'entrée du candidat dans la frontière, et dont la marge tombe dans la bande de bruit. C'est la seule à être rejugée : on concentre les répétitions coûteuses là où elles changent le verdict, les cellules clairement tranchées n'étant jamais re-tirées.",
+      "see_also": "Epsilon-domination, répétitions adaptatives, successive halving / best-arm"
+    },
+    {
+      "term": "Mémoïsation par hash",
+      "definition": "Mise en cache du vecteur d'un candidat indexée par le hash (sha256) de son texte de skill. Comme le texte est immuable et l'evidence/rubrique gelées, même hash implique même vecteur : on ne re-paie jamais les incumbents et chaque tour ne score que les nouveaux candidats, faisant chuter le coût de (taille de frontière)x(tâches) à (nouveaux)x(tâches) — p. ex. 160 evals/tour ramenées à 20.",
+      "see_also": "Frontière full-set, sample-efficiency"
+    },
+    {
+      "term": "Sample-efficiency",
+      "definition": "Capacité à progresser avec peu d'évaluations coûteuses. Le gradient textuel y excelle (chaque pas est informé par la critique) ; le Pareto-réflexif est le profil le plus sample-efficient, la paraphrase aveugle et le bayésien (40+ évaluations, 200+ exemples) les plus gourmands.",
+      "see_also": "Gradient textuel, mémoïsation par hash, répétitions adaptatives"
+    },
+    {
+      "term": "Crossover / merge",
+      "definition": "Opérateur qui fusionne deux candidats forts sur des tâches différentes pour combiner leurs forces complémentaires (cœur du merge de GEPA). Exemple : P=[0.90,0.50,0.60] (fort couverture) fusionné avec Q=[0.60,0.90,0.50] (fort justification) donne un enfant [0.85,0.85,0.60] qui hérite des deux consignes ; suppose une population diverse et la fusion peut être incohérente.",
+      "see_also": "Domination de Pareto, évolutionnaire, vecteur par-instance"
+    },
+    {
+      "term": "Recuit (acceptation tolérante)",
+      "definition": "Règle d'acceptation qui accepte parfois un candidat strictement pire pour s'échapper d'un optimum local, par opposition à la règle stricte (greedy) qui n'accepte que strictement mieux et se piège, et à la sélection de population qui ne rejette pas mais trie.",
+      "see_also": "Glouton, domination de Pareto"
+    },
+    {
+      "term": "Successive halving / best-arm",
+      "definition": "Stratégie d'allocation de budget d'évaluation issue du bandit multi-bras : on attribue peu d'essais à tous les candidats puis on concentre progressivement le budget sur les plus prometteurs (best-arm identification), élaguant les autres. Logique sous-jacente aux répétitions adaptatives, qui ne re-tirent que les cellules pivots à la marge jusqu'à un k_max petit (p. ex. 4) au lieu d'un flat-k qui re-tire tout, y compris l'évident.",
+      "see_also": "Cellule pivot, répétitions adaptatives, sample-efficiency"
+    },
+    {
+      "term": "Intervalle de Wilson",
+      "definition": "Intervalle de confiance pour une proportion (taux de succès ou de désaccord) fiable sur de petits échantillons, utile pour décider si un avantage observé entre deux candidats est statistiquement réel ou dans le bruit. Répond directement à l'invariant de détectabilité du document : sur 50 rejugements d'une même paire, un désaccord de 11 % borne ce qu'on peut affirmer, et tout accept sous ce plancher n'est pas un gain.",
+      "see_also": "Plancher de détectabilité, epsilon-domination, SPRT"
+    },
+    {
+      "term": "SPRT (sequential probability ratio test)",
+      "definition": "Test séquentiel qui accumule les observations une à une et s'arrête dès qu'une hypothèse (A meilleur que B, ou égalité) est tranchée avec la confiance voulue, minimisant le nombre d'essais. Formalise la répétition adaptative : on rejuge une cellule pivot tant que le verdict reste incertain, puis on stoppe, plutôt que de fixer k à l'avance.",
+      "see_also": "Répétitions adaptatives, cellule pivot, intervalle de Wilson, successive halving / best-arm"
+    },
+    {
+      "term": "FWER / FDR (multi-comparaisons)",
+      "definition": "Contrôles d'erreur quand on teste de nombreuses comparaisons à la fois : le FWER (family-wise error rate) borne la probabilité d'au moins un faux positif, le FDR (false discovery rate) borne la proportion attendue de faux positifs parmi les acceptations. Pertinent ici car comparer chaque nouveau candidat à toute la frontière (sur plusieurs requêtes, plusieurs tours) multiplie les chances qu'un tirage chanceux fabrique un faux non-dominé.",
+      "see_also": "Epsilon-domination, répétitions adaptatives, intervalle de Wilson"
+    },
+    {
+      "term": "Self-preference bias",
+      "definition": "Biais d'un LLM-juge qui privilégie systématiquement les sorties dont le style ou la provenance ressemblent aux siennes, voire ses propres productions ; variante des biais non reconnus du juge (recency, provenance) au même titre que la sensibilité à la verbosité, au ton confiant ou au formatage. Garde-fous : scoring comparatif plutôt qu'absolu, prompt du juge distinct de la fonction de récompense, et mesure de la variance du juge par répétitions.",
+      "see_also": "LLM-as-judge, reward hacking, pairwise / order-swap"
+    }
+  ]
+}

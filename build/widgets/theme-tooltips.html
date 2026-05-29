@@ -1,0 +1,326 @@
+<!-- ════════════════════════════════════════════════════════════════════
+     WIDGET autonome · id="theme-tooltips"
+     « Mode sombre + infobulles de glossaire »
+     Tout est préfixé theme_ / .theme- pour éviter toute collision.
+     Aucune dépendance externe. Aucun alert/confirm/prompt.
+     ════════════════════════════════════════════════════════════════════ -->
+
+<!-- ───────────────────────────────────────────────────────────────────
+     (A) THÈME SOMBRE — overrides des variables :root du document.
+         Tout le doc consomme ces variables : la bascule est automatique.
+     ─────────────────────────────────────────────────────────────────── -->
+<style id="theme_style_dark">
+  /* Transitions douces sur les surfaces principales lors de la bascule */
+  html.theme-anim body,
+  html.theme-anim .card,
+  html.theme-anim .callout,
+  html.theme-anim .note,
+  html.theme-anim figure.fig,
+  html.theme-anim .tbl-w,
+  html.theme-anim nav.toc a{
+    transition:background-color .25s ease, color .25s ease, border-color .25s ease;
+  }
+
+  html[data-theme="dark"]{
+    /* papier sombre, encre claire */
+    --paper:#0E1620; --card:#16212E;
+    --ink:#E4EBF3; --ink-soft:#AFC0D2; --ink-faint:#7C8DA1;
+    /* bleus : on éclaircit pour rester lisibles sur fond foncé */
+    --blue:#6FA8D8; --blue-deep:#0A1521; --blue-bright:#7FB6E4; --blue-wash:#1B2C3E;
+    /* bordeaux : accent gardé lisible, remonté en clarté */
+    --bordeaux:#C66875; --bordeaux-bright:#D67C88; --bordeaux-wash:#2C1A1F;
+    --line:#2A3848; --line-soft:#212E3C;
+    --code:#0A1521;
+    color-scheme:dark;
+  }
+
+  /* Ajustements ciblés sur surfaces déjà opaques du doc (non pilotées par les variables) */
+  html[data-theme="dark"] body{background:var(--paper);color:var(--ink);}
+  html[data-theme="dark"] header.top{
+    background:linear-gradient(165deg,#0A1521,#060D16 70%);
+    border-bottom-color:var(--bordeaux);
+  }
+  html[data-theme="dark"] th{background:#0A1521;color:#D7E6F4;}
+  html[data-theme="dark"] tr:hover td{background:#1B2735;}
+  html[data-theme="dark"] code{background:#0E1C2A;color:#CFE0F2;}
+  html[data-theme="dark"] .card{box-shadow:0 1px 2px rgba(0,0,0,.45);}
+  html[data-theme="dark"] details.ex{background:#101A25;}
+  html[data-theme="dark"] details.ex>summary{background:#142231;color:#CFE0F2;}
+  html[data-theme="dark"] details.ex>summary:hover{background:#1A2C3E;}
+  html[data-theme="dark"] .eg{background:#101A25;}
+  html[data-theme="dark"] .calc{background:#101A25;}
+  html[data-theme="dark"] .fork-h{background:#142231;}
+  html[data-theme="dark"] footer{background:#0A1521;color:#8CA6BE;}
+  /* la coloration de pre.code reste codée en dur dans le doc (déjà sombre, cohérente) */
+</style>
+
+<!-- ───────────────────────────────────────────────────────────────────
+     (B) BOUTON BASCULE — markup. Position fixe haut-droite.
+     ─────────────────────────────────────────────────────────────────── -->
+<button id="theme_toggle" type="button" aria-pressed="false"
+        title="Basculer le thème clair / sombre">
+  <span id="theme_toggle_ico" aria-hidden="true">☾</span>
+  <span id="theme_toggle_lbl">Sombre</span>
+</button>
+
+<style id="theme_style_btn">
+  #theme_toggle{
+    position:fixed; top:14px; right:14px; z-index:120;
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:"Archivo",system-ui,sans-serif; font-size:12px; font-weight:700;
+    letter-spacing:.08em; text-transform:uppercase;
+    color:var(--blue); background:var(--card);
+    border:1px solid var(--line); border-radius:30px;
+    padding:8px 14px; cursor:pointer; line-height:1;
+    box-shadow:0 2px 6px rgba(20,46,73,.14);
+    transition:background-color .15s, color .15s, border-color .15s, box-shadow .15s;
+  }
+  #theme_toggle:hover{
+    color:#fff; background:var(--blue-deep); border-color:var(--blue-deep);
+  }
+  #theme_toggle:focus-visible{
+    outline:2px solid var(--bordeaux); outline-offset:2px;
+  }
+  #theme_toggle #theme_toggle_ico{font-size:14px;}
+  html[data-theme="dark"] #theme_toggle{
+    box-shadow:0 2px 8px rgba(0,0,0,.5);
+  }
+  html[data-theme="dark"] #theme_toggle:hover{
+    color:#0A1521; background:var(--blue-bright); border-color:var(--blue-bright);
+  }
+  @media print{ #theme_toggle{display:none;} }
+</style>
+
+<!-- ───────────────────────────────────────────────────────────────────
+     (C) INFOBULLES ACCESSIBLES — CSS du popover + repère visuel des termes.
+         Baliser : <span class="theme-gloss" data-def="…">terme</span>
+                   <abbr class="theme-gloss" data-def="…">SIGLE</abbr>
+     ─────────────────────────────────────────────────────────────────── -->
+<style id="theme_style_gloss">
+  .theme-gloss{
+    cursor:help; text-decoration:none;
+    border-bottom:1px dotted var(--bordeaux);
+    color:inherit; outline:none;
+  }
+  .theme-gloss:focus-visible{
+    outline:2px solid var(--bordeaux); outline-offset:2px; border-radius:2px;
+  }
+  abbr.theme-gloss{text-decoration:none;}
+
+  #theme_tip{
+    position:absolute; z-index:130; max-width:300px;
+    background:var(--blue-deep); color:#EAF1F8;
+    border:1px solid var(--bordeaux);
+    border-radius:6px; padding:9px 12px;
+    font-family:"Archivo",system-ui,sans-serif; font-size:13px; line-height:1.45;
+    box-shadow:0 6px 20px rgba(10,21,33,.4);
+    opacity:0; transform:translateY(3px); pointer-events:none;
+    transition:opacity .14s ease, transform .14s ease;
+  }
+  #theme_tip[data-show="1"]{ opacity:1; transform:translateY(0); }
+  #theme_tip::after{
+    content:""; position:absolute; left:var(--theme-tip-ax,16px);
+    bottom:-6px; width:10px; height:10px;
+    background:var(--blue-deep);
+    border-right:1px solid var(--bordeaux); border-bottom:1px solid var(--bordeaux);
+    transform:rotate(45deg);
+  }
+  #theme_tip[data-below="1"]::after{
+    bottom:auto; top:-6px;
+    border-right:none; border-bottom:none;
+    border-left:1px solid var(--bordeaux); border-top:1px solid var(--bordeaux);
+  }
+  html[data-theme="dark"] #theme_tip{
+    background:#1B2C3E; color:#E4EBF3;
+  }
+  html[data-theme="dark"] #theme_tip::after{ background:#1B2C3E; }
+  @media print{ #theme_tip{display:none;} }
+</style>
+
+<!-- ── Démonstration repliable, au style du document (details.ex) ── -->
+<details class="ex"><summary>Mode d'emploi<span class="cnt">bascule de thème + balisage d'un terme</span></summary>
+<div class="exbody">
+<div class="note"><div class="ct">Bouton de thème</div><p>Le bouton flottant en haut à droite bascule clair / sombre et mémorise le choix (localStorage). Si le stockage est indisponible, la bascule reste fonctionnelle, sans persistance et sans erreur.</p></div>
+<p>Pour rendre un terme survolable, l'entourer d'un <code>span</code> ou d'un <code>abbr</code> portant la classe <code>theme-gloss</code> et l'attribut <code>data-def</code> :</p>
+<div class="eg"><span class="egk">Balisage d'un terme</span>
+<pre class="code"><span class="c">&lt;!-- mot courant --&gt;</span>
+Le &lt;span class="<span class="h">theme-gloss</span>" data-def="Attribuer un échec
+à la bonne section du skill."&gt;credit assignment&lt;/span&gt; reste dur.
+
+<span class="c">&lt;!-- sigle --&gt;</span>
+Voir &lt;abbr class="<span class="h">theme-gloss</span>" data-def="Multi-prompt
+Instruction PRoposal Optimizer v2."&gt;MIPROv2&lt;/abbr&gt;.</pre></div>
+<p>Survol <span class="arrow">→</span> popover ; au clavier, la tabulation donne le focus au terme et affiche la même infobulle (<code>role="tooltip"</code>) ; <code>Échap</code> referme. Essai en direct : le terme
+<span class="theme-gloss" data-def="Exploiter les failles du juge plutôt que la qualité réelle de la sortie.">reward hacking</span>
+et le sigle
+<abbr class="theme-gloss" data-def="Frontière de Pareto : ensemble des candidats non dominés.">Pareto</abbr>
+sont balisés ici.</p>
+</div>
+</details>
+
+<!-- ── Popover unique réutilisé (créé aussi par JS en secours) ── -->
+<div id="theme_tip" role="tooltip" aria-hidden="true"></div>
+
+<!-- ───────────────────────────────────────────────────────────────────
+     SCRIPT — (B) bascule + persistance, (C) infobulles accessibles.
+     Tout en IIFE, fonctions préfixées theme_. Aucun alert.
+     ─────────────────────────────────────────────────────────────────── -->
+<script>
+(function(){
+  "use strict";
+  var KEY = "theme_pref_v1";
+  var docEl = document.documentElement;
+
+  /* ---- stockage sûr : jamais d'erreur si localStorage indisponible ---- */
+  function theme_read(){
+    try { return window.localStorage.getItem(KEY); } catch(e){ return null; }
+  }
+  function theme_write(v){
+    try { window.localStorage.setItem(KEY, v); } catch(e){ /* silencieux */ }
+  }
+
+  /* ---- (B) application du thème ---- */
+  function theme_apply(mode, persist){
+    var dark = (mode === "dark");
+    if (dark) docEl.setAttribute("data-theme","dark");
+    else docEl.removeAttribute("data-theme");
+    var btn = document.getElementById("theme_toggle");
+    if (btn){
+      btn.setAttribute("aria-pressed", dark ? "true" : "false");
+      var ico = document.getElementById("theme_toggle_ico");
+      var lbl = document.getElementById("theme_toggle_lbl");
+      if (ico) ico.textContent = dark ? "☀" : "☾";
+      if (lbl) lbl.textContent = dark ? "Clair" : "Sombre";
+    }
+    if (persist) theme_write(dark ? "dark" : "light");
+  }
+
+  /* Appliquer la préférence au plus tôt (limite le flash). */
+  theme_apply(theme_read() === "dark" ? "dark" : "light", false);
+
+  function theme_initToggle(){
+    var btn = document.getElementById("theme_toggle");
+    if (!btn) return;
+    btn.addEventListener("click", function(){
+      docEl.classList.add("theme-anim"); /* transitions seulement sur action */
+      var nowDark = docEl.getAttribute("data-theme") === "dark";
+      theme_apply(nowDark ? "light" : "dark", true);
+    });
+  }
+
+  /* ---- (C) infobulles accessibles ---- */
+  var tip = null, current = null, uid = 0;
+
+  function theme_tipEl(){
+    if (tip) return tip;
+    tip = document.getElementById("theme_tip");
+    if (!tip){
+      tip = document.createElement("div");
+      tip.id = "theme_tip";
+      tip.setAttribute("role","tooltip");
+      tip.setAttribute("aria-hidden","true");
+      document.body.appendChild(tip);
+    }
+    return tip;
+  }
+
+  function theme_show(el){
+    var def = el.getAttribute("data-def");
+    if (!def) return;
+    var t = theme_tipEl();
+    t.textContent = def; /* textContent : aucune injection HTML possible */
+    if (!el.id) el.id = "theme_gloss_" + (++uid);
+    t.id = "theme_tip"; /* stable */
+    el.setAttribute("aria-describedby", "theme_tip");
+
+    /* mesure puis positionnement (au-dessus si la place le permet) */
+    t.style.left = "0px"; t.style.top = "0px";
+    t.setAttribute("aria-hidden","false");
+    t.setAttribute("data-show","1");
+
+    var r = el.getBoundingClientRect();
+    var tw = t.offsetWidth, th = t.offsetHeight;
+    var sx = window.pageXOffset, sy = window.pageYOffset;
+    var margin = 8;
+
+    var left = r.left + sx + (r.width/2) - (tw/2);
+    left = Math.max(sx + margin, Math.min(left, sx + document.documentElement.clientWidth - tw - margin));
+
+    var below = (r.top < th + 12); /* pas de place au-dessus → on passe dessous */
+    var top = below ? (r.bottom + sy + 8) : (r.top + sy - th - 8);
+    if (below) t.setAttribute("data-below","1"); else t.removeAttribute("data-below");
+
+    /* recentre la flèche sur le terme */
+    var ax = (r.left + sx + r.width/2) - left;
+    ax = Math.max(8, Math.min(ax, tw - 16));
+    t.style.setProperty("--theme-tip-ax", ax + "px");
+
+    t.style.left = left + "px";
+    t.style.top = top + "px";
+    current = el;
+  }
+
+  function theme_hide(){
+    if (!tip) return;
+    tip.removeAttribute("data-show");
+    tip.setAttribute("aria-hidden","true");
+    if (current){
+      current.removeAttribute("aria-describedby");
+      current = null;
+    }
+  }
+
+  function theme_wire(el){
+    if (el.getAttribute("data-theme-wired")) return;
+    el.setAttribute("data-theme-wired","1");
+    if (!el.hasAttribute("tabindex")) el.setAttribute("tabindex","0");
+    el.addEventListener("mouseenter", function(){ theme_show(el); });
+    el.addEventListener("mouseleave", theme_hide);
+    el.addEventListener("focus", function(){ theme_show(el); });
+    el.addEventListener("blur", theme_hide);
+  }
+
+  function theme_scan(root){
+    var nodes = (root || document).querySelectorAll(".theme-gloss[data-def]");
+    for (var i=0;i<nodes.length;i++) theme_wire(nodes[i]);
+  }
+
+  /* Échap referme ; un défilement masque l'infobulle (position figée sinon) */
+  document.addEventListener("keydown", function(e){
+    if (e.key === "Escape" || e.keyCode === 27) theme_hide();
+  });
+  window.addEventListener("scroll", theme_hide, true);
+
+  /* Termes ajoutés dynamiquement après coup */
+  function theme_observe(){
+    if (typeof MutationObserver === "undefined") return;
+    var mo = new MutationObserver(function(muts){
+      for (var i=0;i<muts.length;i++){
+        var added = muts[i].addedNodes;
+        for (var j=0;j<added.length;j++){
+          var n = added[j];
+          if (n.nodeType === 1){
+            if (n.classList && n.classList.contains("theme-gloss")) theme_wire(n);
+            if (n.querySelectorAll) theme_scan(n);
+          }
+        }
+      }
+    });
+    mo.observe(document.body, {childList:true, subtree:true});
+  }
+
+  /* ---- init ---- */
+  function theme_init(){
+    theme_apply(theme_read() === "dark" ? "dark" : "light", false);
+    theme_initToggle();
+    theme_scan(document);
+    theme_observe();
+  }
+  if (document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", theme_init);
+  } else {
+    theme_init();
+  }
+})();
+</script>
+<!-- ═══════════════ fin WIDGET theme-tooltips ═══════════════ -->

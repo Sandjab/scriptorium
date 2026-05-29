@@ -1,0 +1,78 @@
+<section id="d-rigueur">
+<h3>Rigueur statistique de l'accept</h3>
+<p>L'invariant de détectabilité fixe une <em>échelle</em> : avec un plancher de bruit du juge σ ≈ 0.08, on pose <code>ε = 2σ = 0.16</code>, et tout écart inférieur à ε est traité comme du bruit. Mais une échelle n'est pas une <strong>garantie</strong> : « l'écart observé dépasse ε » ne dit rien du nombre de duels qui le sous-tendent, ni du risque de déclarer un faux gagnant quand on teste plusieurs mutations à la fois. Trois outils ferment ces trous — un intervalle de confiance sur le win-rate, un critère d'arrêt qui économise des duels, et une correction pour comparaisons multiples — tous calibrés sur le même fil-rouge : le comparatif d'outils Claude Code sur les requêtes <code>[CLI, MCP, IDE]</code>, versions <code>v0..v3</code>.</p>
+
+<h4>a · Intervalle de Wilson sur le win-rate pairwise</h4>
+<p>La décision d'accept repose sur du <em>pairwise</em> (cf. §évaluateur) : sur <code>n</code> duels — chacun joué dans les <strong>deux ordres</strong> A/B et B/A pour neutraliser le biais de position (<a class="ref" href="https://arxiv.org/abs/2305.17926">Wang et&nbsp;al. 2023</a>) — la nouvelle version remporte <code>w</code> victoires, soit un win-rate observé <code>p̂ = w/n</code>. Un win-rate brut ne suffit pas : <code>7/10</code> « gagne » sans rien prouver. On borne <code>p̂</code> par l'intervalle de Wilson, qui — contrairement à l'IC de Wald — ne dégénère pas quand <code>p̂</code> vaut 0 ou 1 (<a class="ref" href="https://www.tandfonline.com/doi/abs/10.1080/01621459.1927.10502953">Wilson 1927</a>). <strong>Règle d'accept :</strong> ne retenir <code>v(n+1)</code> que si la <em>borne basse</em> de l'IC dépasse 0.5 — pas seulement le centre.</p>
+<div class="calc">centre   = (p̂ + z²/2n) / (1 + z²/n)        <span class="c"># z = 1.96 (95%)</span>
+demi-larg = (z/(1+z²/n))·√( p̂(1−p̂)/n + z²/4n² )
+
+v3 vs v2, n=10, w=7 → p̂ = 0.70
+   IC95 de Wilson ≈ [<span class="r">0.40</span>, 0.89]
+   borne basse 0.40 &lt; 0.5 → <span class="r">pas encore concluant</span>
+                            <span class="c"># 0.5 reste dans l'intervalle</span>
+
+mêmes proportions, n=100, w=70 → p̂ = 0.70
+   IC95 de Wilson ≈ [<span class="g">0.60</span>, 0.78]
+   borne basse 0.60 &gt; 0.5 → <span class="g">v3 &gt; v2 retenu</span></div>
+<p>Même p̂ = 0.70 : à 10 duels le verdict est dans le bruit, à 100 il est solide. La borne basse <em>est</em> le critère — elle remplace la lecture naïve du centre.</p>
+
+<h4>b · Arrêt séquentiel (SPRT) — moins de duels qu'un n fixe</h4>
+<p>Fixer <code>n</code> à l'avance gaspille des duels quand une version domine nettement. Le test séquentiel du rapport de vraisemblance accumule le log-rapport <code>LLR</code> duel après duel et tranche dès qu'une borne est franchie, sans <code>n</code> préfixé (<a class="ref" href="https://projecteuclid.org/journals/annals-of-mathematical-statistics/volume-16/issue-2/Sequential-Tests-of-Statistical-Hypotheses/10.1214/aoms/1177731118.full">Wald 1945</a>). En moyenne, il consomme bien moins de duels jugés qu'un plan à <code>n</code> fixe à niveaux d'erreur <code>(α, β)</code> identiques.</p>
+<ol class="steps">
+<li><b>Hypothèses.</b> <code>H₀</code> : v3 ≡ v2 (win-rate 0.5) ; <code>H₁</code> : v3 meilleure (win-rate ≥ 0.5 + une marge cohérente avec ε).</li>
+<li><b>Bornes.</b> <code>A = log((1−β)/α)</code> (accepter H₁), <code>B = log(β/(1−α))</code> (accepter H₀), depuis α et β choisis.</li>
+<li><b>Accumuler.</b> Après chaque duel A/B + B/A, ajouter son log-rapport de vraisemblance au cumul <code>LLR</code>.</li>
+<li><b>Continuer ou trancher.</b> Tant que <code>B &lt; LLR &lt; A</code>, jouer un duel de plus ; sinon arrêter — accept si <code>LLR ≥ A</code>, rejet si <code>LLR ≤ B</code>.</li>
+</ol>
+<div class="calc"><span class="c"># v3 domine franchement v2 : LLR franchit A après ~6–8 duels</span>
+plan fixe : n = 30 duels jugés, verdict à la fin
+SPRT      : arrêt à <span class="g">~8</span> duels en moyenne → <span class="g">−73%</span> d'appels juge
+<span class="c"># si l'écart est ténu, SPRT joue plus de duels — il alloue où c'est serré</span></div>
+
+<h4>c · Plusieurs mutations → faux gagnants (multi-comparaisons)</h4>
+<p>Une boucle d'auto-amélioration ne teste pas une mutation mais beaucoup. Tester <code>N</code> mutations indépendantes au seuil <code>α</code> gonfle mécaniquement le risque de déclarer au moins une amélioration par pur hasard du juge : <code>P(≥1 faux positif) = 1 − (1−α)ᴺ</code>. Le seuil par test ne contrôle <em>plus</em> le risque global.</p>
+<div class="calc">N = 6 mutations, α = 0.05 par test
+P(≥1 faux gagnant) = 1 − (1−0.05)⁶ = 1 − 0.95⁶ ≈ <span class="r">0.26</span>
+                     <span class="c"># ~1 chance sur 4 d'un faux « progrès »</span>
+
+parade Bonferroni : seuil local = α/N = 0.05/6 ≈ <span class="g">0.0083</span>
+   → P(≥1 faux positif) borné par α global (0.05)</div>
+<p>Bonferroni (<a class="ref" href="https://www.scirp.org/reference/referencespapers?referenceid=4098130">Bonferroni 1936</a>) contrôle le risque familial mais reste conservateur quand <code>N</code> grandit. Quand on screene beaucoup de mutations, la procédure de Benjamini–Hochberg contrôle le <em>taux de fausses découvertes</em> (FDR) plutôt que d'exiger zéro faux positif : on ordonne les p-values et on rejette tous les <code>k</code> tels que <code>p₍ₖ₎ ≤ (k/N)·α</code> — nettement plus puissant à grand <code>N</code> (<a class="ref" href="https://rss.onlinelibrary.wiley.com/doi/10.1111/j.2517-6161.1995.tb02031.x">Benjamini &amp; Hochberg 1995</a>).</p>
+
+<details class="ex"><summary>Exemples<span class="cnt">Wilson, SPRT &amp; Bonferroni sur v0..v3</span></summary>
+<div class="exbody">
+<p>Cible : comparatif d'outils Claude Code sur <code>[CLI, MCP, IDE]</code>. Plancher de bruit σ ≈ 0.08, donc <code>ε = 2σ = 0.16</code>. Les trois garde-fous opèrent sur le <em>même</em> tournoi.</p>
+<div class="eg"><span class="egk">Wilson — le piège du petit n</span>
+<div class="calc">v3 vs v2 : 7 victoires / 10 duels (order-swap inclus)
+   centre p̂ = 0.70 → semble « gagner »
+   borne basse Wilson ≈ <span class="r">0.40</span> &lt; 0.5 → <span class="r">refusé</span>
+on rejoue jusqu'à n=100 : 70/100
+   borne basse ≈ <span class="g">0.60</span> &gt; 0.5 → <span class="g">accepté</span></div>
+<p>La domination ε (0.16) dit « l'écart de score dépasse le bruit » ; Wilson dit « combien de duels appuient ce verdict ». Les deux conditions doivent tenir.</p></div>
+<div class="eg b"><span class="egk">SPRT — économiser les appels juge</span>
+<div class="calc">v1 vs v0 : v1 écrase v0 sur CLI/MCP/IDE
+   LLR franchit A après <span class="g">8</span> duels → accept anticipé
+   <span class="c"># un plan fixe à 30 duels aurait coûté 22 duels de plus</span>
+v2 vs v1 : écart ténu (~ε)
+   SPRT ne tranche pas vite → joue plus de duels,
+   exactement là où la décision est serrée</div></div>
+<div class="eg b"><span class="egk">Multi-comparaisons — six mutations, un faux gagnant attendu</span>
+<div class="calc">v0 → 6 mutations candidates, α = 0.05 chacune
+P(≥1 faux) = 1 − 0.95⁶ ≈ <span class="r">0.26</span>
+Bonferroni : chaque mutation testée à α/6 ≈ <span class="g">0.0083</span>
+   <span class="c"># sinon ~1 « amélioration » sur 4 est du bruit de juge</span></div>
+<p>Sans correction, la boucle « progresse » de v0 à v3 en accumulant des gains fantômes — chacun &gt; ε mais aucun réel.</p></div>
+</div>
+</details>
+
+<div class="callout">
+  <div class="ct">ε et la borne basse de Wilson : deux faces du même invariant</div>
+  <p>La <strong>domination ε</strong> et la <strong>borne basse de Wilson</strong> disent la même chose sous deux angles. ε est calibré sur le <em>plancher de bruit</em> (σ ≈ 0.08, ε = 2σ = 0.16) : il refuse qu'un écart de la taille du bruit du juge compte comme un avantage — c'est un seuil sur l'<em>amplitude</em> du signal. La borne basse de l'IC de Wilson refuse qu'un win-rate observé sur trop peu de duels compte comme une victoire — c'est un seuil sur la <em>quantité de preuve</em>. Un gain n'est retenu que s'il franchit les deux : assez <em>grand</em> (&gt; ε) <em>et</em> assez <em>appuyé</em> (borne basse &gt; 0.5). SPRT décide <em>quand on en a assez vu</em> pour trancher ; Bonferroni/BH empêchent que la multiplication des essais transforme du bruit en faux progrès. Ensemble, ils font de l'accept une décision <strong>statistiquement défendable</strong>, pas un seuil franchi par chance.</p>
+</div>
+<div class="links">
+  <a href="https://www.tandfonline.com/doi/abs/10.1080/01621459.1927.10502953">Wilson 1927 · score interval</a>
+  <a href="https://projecteuclid.org/journals/annals-of-mathematical-statistics/volume-16/issue-2/Sequential-Tests-of-Statistical-Hypotheses/10.1214/aoms/1177731118.full">Wald 1945 · SPRT</a>
+  <a href="https://rss.onlinelibrary.wiley.com/doi/10.1111/j.2517-6161.1995.tb02031.x">Benjamini–Hochberg 1995 · FDR</a>
+</div>
+</section>

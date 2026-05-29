@@ -1,0 +1,16 @@
+<h4 id="part2-cout">Modèle de coût (appels LLM par tour)</h4>
+<p>Le coût d'un tour est dominé par les appels d'<em>évaluation</em> (le juge note des candidats sur les <code>T</code> tâches) et par les appels de <em>mutation</em> (le mutateur fabrique les nouveaux candidats). Sur le fil-rouge, <code>T = 3</code> requêtes <span class="tag">CLI</span> <span class="tag">MCP</span> <span class="tag">IDE</span> et une poignée de versions <code>v0..v3</code> : les chiffres ci-dessous sont des <strong>ordres de grandeur</strong>, pas une comptabilité fine — un appel pairwise avec <em>order-swap</em> compte double, les répétitions adaptatives n'ajoutent qu'un <code>k_max</code> petit sur les seules cellules pivots.</p>
+<div class="tbl-w"><table>
+<thead><tr><th>Famille</th><th>Éval / tour</th><th>Mutation / tour</th><th>Note mémoïsation</th></tr></thead>
+<tbody>
+<tr><td>Glouton</td><td><span class="tag b">1 × T</span> — un seul candidat re-évalué.</td><td>1 mutation dirigée par la critique.</td><td>Sans objet : un seul incumbent, rien à re-payer.</td></tr>
+<tr><td>Beam <code>k</code></td><td><span class="tag b">k × T</span> — les <code>k</code> nouveaux faisceaux.</td><td><code>k</code> mutations (une par survivant étendu).</td><td>Les <code>k</code> retenus du tour précédent sont en cache ; seuls les <em>nouveaux</em> coûtent.</td></tr>
+<tr><td>Évolutionnaire (pop. <code>P</code>)</td><td><span class="tag b">nés × T</span> — uniquement les nouveau-nés.</td><td><code>P</code> opérateurs (mutation + croisement).</td><td>La population survivante est cachée par hash ; on ne re-juge pas les parents.</td></tr>
+<tr><td>Réflexif-Pareto (frontière <code>F</code>)</td><td><span class="tag b">nouveaux × T</span> — <strong>pas</strong> <code>|F| × T</code>, grâce au cache par hash.</td><td>1 sélection-depuis-frontière + 1 réécriture réflexive (merge).</td><td>Le levier décisif (cf. <a class="ref" href="#d-propre">§ Frontière propre</a>) : le coût passe de <code>|F| × T</code> à <code>nouveaux × T</code> ; les incumbents ne se re-paient jamais.</td></tr>
+<tr><td>Bayésien</td><td><span class="tag b">batch × répétitions</span> — moyennage du bruit (σ ≈ 0.08) avant chaque mise à jour du surrogate.</td><td>1 proposition (acquisition) ; + ~200 ex. d'amorçage du surrogate.</td><td>Cache utile sur les configs déjà vues ; mais les répétitions re-jugent volontairement pour estimer la variance.</td></tr>
+</tbody>
+</table></div>
+<div class="note">
+  <div class="ct">L'invariant qui rend le full-set abordable</div>
+  <p>Sans cache, une frontière naïve coûterait <code>|F| × T</code> évaluations <em>à chaque tour</em> — on re-paierait des incumbents dont le texte n'a pas bougé. Le texte d'un candidat étant immuable, son vecteur l'est aussi : avec la mémoïsation par <code>sha256(skill_text)</code> (cf. <a class="ref" href="#d-propre">§ Frontière propre</a>), le coût d'un tour tombe à <code>nouveaux × T</code>. Concrètement, une frontière de <code>|F| = 8</code> sur <code>T</code> tâches ne paie qu'<strong>une ligne neuve par tour</strong> au lieu de huit. C'est ce qui sépare le coût d'un ordre de grandeur, et pourquoi le full-set « propre » ne se traduit pas par un surcoût répété.</p>
+</div>

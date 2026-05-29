@@ -1,0 +1,217 @@
+<figure class="fig" id="pareto-explorer" style="margin:24px 0;">
+  <style scoped>
+    #pex_root{--pex-blue:var(--blue,#23537F);--pex-bordeaux:var(--bordeaux,#7C2A38);--pex-deep:var(--blue-deep,#142E49);--pex-ink:var(--ink,#15202E);--pex-line:var(--line,#D7DFE9);--pex-faint:var(--ink-faint,#7A889B);}
+    #pex_root{font-family:"Spectral",Georgia,serif;color:var(--pex-ink);font-size:15px;}
+    #pex_root *{box-sizing:border-box;}
+    .pex_grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:4px 0 8px;}
+    @media(max-width:620px){.pex_grid{grid-template-columns:1fr;}}
+    .pex_cand{border:1px solid var(--pex-line);border-radius:6px;padding:13px 15px;background:#fff;border-left:3px solid var(--pex-blue);transition:border-color .15s,box-shadow .15s;}
+    .pex_cand.pex_c0{border-left-style:dashed;background:#FBFCFE;}
+    .pex_cand.pex_front{border-left-color:var(--pex-blue);box-shadow:0 1px 3px rgba(35,83,127,.14);}
+    .pex_cand.pex_dom{border-left-color:var(--pex-bordeaux);}
+    .pex_head{display:flex;align-items:baseline;gap:9px;margin-bottom:9px;}
+    .pex_name{font-family:"Archivo",system-ui,sans-serif;font-weight:800;font-size:15px;letter-spacing:-.01em;color:var(--pex-deep);}
+    .pex_role{font-family:"JetBrains Mono",monospace;font-size:10px;letter-spacing:.06em;color:var(--pex-faint);text-transform:uppercase;}
+    .pex_badge{margin-left:auto;font-family:"Archivo",system-ui,sans-serif;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:3px 8px;border-radius:3px;white-space:nowrap;}
+    .pex_badge.pex_b_front{background:#E7EEF6;color:var(--pex-blue);}
+    .pex_badge.pex_b_dom{background:#F3E3E6;color:var(--pex-bordeaux);}
+    .pex_bar{height:14px;border-radius:3px;overflow:hidden;display:flex;width:100%;background:#EEF2F7;margin:9px 0 4px;border:1px solid var(--pex-line);}
+    .pex_seg{height:100%;}
+    .pex_seg.pex_cli{background:var(--pex-blue);}
+    .pex_seg.pex_mcp{background:var(--pex-bordeaux);}
+    .pex_seg.pex_ide{background:var(--pex-deep);}
+    .pex_axes{display:grid;grid-template-columns:repeat(3,1fr);gap:6px 10px;margin-top:9px;}
+    .pex_ax label{display:block;font-family:"Archivo",system-ui,sans-serif;font-size:10.5px;font-weight:700;letter-spacing:.04em;color:var(--pex-faint);text-transform:uppercase;margin-bottom:2px;}
+    .pex_ax .pex_axv{font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--pex-ink);}
+    .pex_ax input[type=range]{width:100%;margin:2px 0 0;accent-color:var(--pex-blue);cursor:pointer;}
+    .pex_ax.pex_disabled{opacity:.55;}
+    .pex_ax.pex_disabled input[type=range]{cursor:not-allowed;}
+    .pex_stats{display:flex;gap:14px;margin-top:9px;font-family:"JetBrains Mono",monospace;font-size:11.5px;color:var(--pex-ink);}
+    .pex_stats b{font-weight:700;}
+    .pex_stats .pex_lbl{color:var(--pex-faint);}
+    .pex_legend{display:flex;flex-wrap:wrap;gap:13px;margin:2px 0 10px;font-family:"JetBrains Mono",monospace;font-size:11px;color:var(--pex-faint);}
+    .pex_legend span{display:inline-flex;align-items:center;gap:6px;}
+    .pex_sw{width:11px;height:11px;border-radius:2px;display:inline-block;}
+    .pex_verdict{border:1px solid var(--pex-line);border-left:3px solid var(--pex-deep);border-radius:0 5px 5px 0;background:#fff;padding:10px 14px;margin:10px 0 2px;font-family:"JetBrains Mono",monospace;font-size:12px;line-height:1.7;color:var(--pex-ink);overflow-x:auto;white-space:pre-wrap;}
+    .pex_verdict .pex_r{color:var(--pex-bordeaux);font-weight:700;}
+    .pex_verdict .pex_g{color:#1C6A4C;font-weight:700;}
+    .pex_verdict .pex_c{color:var(--pex-faint);}
+    .pex_verdict .pex_hd{font-family:"Archivo",system-ui,sans-serif;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--pex-deep);display:block;margin-bottom:3px;}
+    .pex_verdict .pex_hd.pex_b{color:var(--pex-bordeaux);}
+  </style>
+
+  <div id="pex_root">
+    <div class="pex_legend">
+      <span><i class="pex_sw" style="background:var(--blue,#23537F)"></i> CLI</span>
+      <span><i class="pex_sw" style="background:var(--bordeaux,#7C2A38)"></i> MCP</span>
+      <span><i class="pex_sw" style="background:var(--blue-deep,#142E49)"></i> IDE</span>
+      <span class="pex_c" style="color:var(--ink-faint,#7A889B)">— bord plein = sur la frontière · bord pointillé = titulaire C0</span>
+    </div>
+
+    <div class="pex_grid" id="pex_cards"></div>
+
+    <div class="pex_verdict" id="pex_verdict" aria-live="polite"></div>
+  </div>
+
+  <figcaption>
+    <span class="fcap-k">Lecture</span> Trois candidats <strong>A, B, C</strong> et le titulaire <strong>C0</strong>, chacun un vecteur de scores <code>[CLI, MCP, IDE]</code>. Le <strong>glouton</strong> ne retient qu'une moyenne scalaire et tranche d'un seul chiffre ; la <strong>frontière de Pareto</strong> garde tout candidat qu'aucun autre ne bat sur toutes les coordonnées à la fois. Bougez un curseur : un A spécialiste du CLI et un B spécialiste du MCP coexistent sur la frontière là où la moyenne en sacrifierait un. C0 n'est qu'un repère — il ne participe pas au verdict.
+  </figcaption>
+
+  <script>
+  (function(){
+    var root = document.getElementById('pex_root');
+    if(!root || root.dataset.pexInit) return;
+    root.dataset.pexInit = '1';
+
+    var AXES = ['CLI','MCP','IDE'];
+    var SEG  = ['pex_cli','pex_mcp','pex_ide'];
+    // candidats évalués + titulaire repère C0 (eval:false)
+    var cands = [
+      {id:'A',  role:'candidat', eval:true,  v:[0.90,0.40,0.55]},
+      {id:'B',  role:'candidat', eval:true,  v:[0.45,0.90,0.55]},
+      {id:'C',  role:'candidat', eval:true,  v:[0.60,0.60,0.60]},
+      {id:'C0', role:'titulaire', eval:false, v:[0.70,0.70,0.55]}
+    ];
+
+    function fmt(x){ return x.toFixed(2); }
+    function mean(v){ return (v[0]+v[1]+v[2])/3; }
+    function minv(v){ return Math.min(v[0],v[1],v[2]); }
+
+    // a domine b : a >= b sur tous les axes, et strictement > sur au moins un
+    function dominates(a,b){
+      var ge=true, gt=false;
+      for(var i=0;i<3;i++){
+        if(a[i] < b[i]-1e-9){ ge=false; break; }
+        if(a[i] > b[i]+1e-9){ gt=true; }
+      }
+      return ge && gt;
+    }
+
+    // construit le DOM une fois
+    var cardsWrap = document.getElementById('pex_cards');
+    cands.forEach(function(c,ci){
+      var card = document.createElement('div');
+      card.className = 'pex_cand' + (c.eval ? '' : ' pex_c0');
+      card.id = 'pex_card_' + c.id;
+
+      var head = document.createElement('div');
+      head.className = 'pex_head';
+      head.innerHTML = '<span class="pex_name">'+c.id+'</span><span class="pex_role">'+c.role+'</span>'+
+                       '<span class="pex_badge" id="pex_badge_'+c.id+'"></span>';
+      card.appendChild(head);
+
+      var bar = document.createElement('div');
+      bar.className = 'pex_bar';
+      bar.setAttribute('role','img');
+      for(var i=0;i<3;i++){
+        var s = document.createElement('div');
+        s.className = 'pex_seg ' + SEG[i];
+        s.id = 'pex_seg_'+c.id+'_'+i;
+        bar.appendChild(s);
+      }
+      card.appendChild(bar);
+
+      var stats = document.createElement('div');
+      stats.className = 'pex_stats';
+      stats.innerHTML = '<span><span class="pex_lbl">moy.</span> <b id="pex_mean_'+c.id+'"></b></span>'+
+                        '<span><span class="pex_lbl">min</span> <b id="pex_min_'+c.id+'"></b></span>';
+      card.appendChild(stats);
+
+      var axes = document.createElement('div');
+      axes.className = 'pex_axes';
+      for(var j=0;j<3;j++){
+        (function(axIdx){
+          var ax = document.createElement('div');
+          ax.className = 'pex_ax' + (c.eval ? '' : ' pex_disabled');
+          var inputId = 'pex_in_'+c.id+'_'+axIdx;
+          ax.innerHTML = '<label for="'+inputId+'">'+AXES[axIdx]+' '+
+                         '<span class="pex_axv" id="pex_v_'+c.id+'_'+axIdx+'"></span></label>';
+          var inp = document.createElement('input');
+          inp.type = 'range'; inp.min='0'; inp.max='1'; inp.step='0.01';
+          inp.id = inputId;
+          inp.value = String(c.v[axIdx]);
+          inp.setAttribute('aria-label', c.id+' — score '+AXES[axIdx]);
+          if(!c.eval) inp.disabled = true;
+          inp.addEventListener('input', function(){
+            c.v[axIdx] = parseFloat(inp.value);
+            render();
+          });
+          ax.appendChild(inp);
+          axes.appendChild(ax);
+        })(j);
+      }
+      card.appendChild(axes);
+      cardsWrap.appendChild(card);
+    });
+
+    var verdictEl = document.getElementById('pex_verdict');
+
+    function render(){
+      var evald = cands.filter(function(c){return c.eval;});
+
+      // frontière de Pareto sur les candidats évalués
+      var onFront = {};
+      evald.forEach(function(c){
+        var dominated = evald.some(function(o){
+          return o.id!==c.id && dominates(o.v, c.v);
+        });
+        onFront[c.id] = !dominated;
+      });
+
+      // glouton : meilleure moyenne parmi les candidats; accepte si bat C0
+      var c0 = cands.filter(function(c){return c.id==='C0';})[0];
+      var bestG = evald.slice().sort(function(a,b){return mean(b.v)-mean(a.v);})[0];
+      var greedyAccept = mean(bestG.v) > mean(c0.v) + 1e-9;
+
+      cands.forEach(function(c){
+        // segments
+        for(var i=0;i<3;i++){
+          document.getElementById('pex_seg_'+c.id+'_'+i).style.width = (c.v[i]*100/3)+'%';
+          document.getElementById('pex_v_'+c.id+'_'+i).textContent = fmt(c.v[i]);
+        }
+        document.getElementById('pex_mean_'+c.id).textContent = fmt(mean(c.v));
+        document.getElementById('pex_min_'+c.id).textContent  = fmt(minv(c.v));
+
+        var card  = document.getElementById('pex_card_'+c.id);
+        var badge = document.getElementById('pex_badge_'+c.id);
+        card.classList.remove('pex_front','pex_dom');
+        badge.className = 'pex_badge';
+
+        if(c.eval){
+          if(onFront[c.id]){
+            card.classList.add('pex_front');
+            badge.classList.add('pex_b_front');
+            badge.textContent = 'sur la frontière';
+          } else {
+            card.classList.add('pex_dom');
+            badge.classList.add('pex_b_dom');
+            badge.textContent = 'dominé';
+          }
+        } else {
+          badge.classList.add('pex_b_front');
+          badge.style.background = '#EEF2F7';
+          badge.style.color = 'var(--pex-faint)';
+          badge.textContent = 'repère';
+        }
+      });
+
+      var kept = evald.filter(function(c){return onFront[c.id];}).map(function(c){return c.id;});
+
+      verdictEl.innerHTML =
+        '<span class="pex_hd">Glouton — moyenne scalaire</span>' +
+        'meilleur = ' + bestG.id + '  (moy. ' + fmt(mean(bestG.v)) + ')   vs   C0 (moy. ' + fmt(mean(c0.v)) + ')\n' +
+        '→ ' + (greedyAccept
+                  ? '<span class="pex_g">accepte ' + bestG.id + '</span>'
+                  : '<span class="pex_r">rejette ' + bestG.id + '</span>') +
+        '   <span class="pex_c"># un seul survivant, l\'autre spécialiste est écrasé</span>\n\n' +
+        '<span class="pex_hd pex_b">Pareto — domination par paire</span>' +
+        'garde {' + kept.join(', ') + '}' +
+        (kept.length>1
+            ? '   <span class="pex_c"># complémentaires : aucun n\'en domine un autre sur tous les axes</span>'
+            : '   <span class="pex_c"># un candidat domine les autres sur toutes les coordonnées</span>');
+    }
+
+    render();
+  })();
+  </script>
+</figure>
