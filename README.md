@@ -37,9 +37,14 @@ les 3 éditions de façon déterministe. Le modèle juge ; le code assemble.
   contrat d'architecture. Les 3 éditions sont dans `themes/automatic-prompt-optimization/dist/`.
   Cette édition a été construite à la main (avant le skill) ; son pipeline d'origine est
   conservé, gelé, sous `themes/automatic-prompt-optimization/legacy/`.
+- **bloom-filters** — premier thème **généré par `/triptych`** : panorama vérifié des filtres
+  de Bloom (principe, garanties, variantes, limites). 16 faits audités (10 confirmés, 6 corrigés)
+  appuyés sur 46 sources. Les 3 éditions sont dans `themes/bloom-filters/dist/`.
 
 ## Statut
 
 - Phase 0 — restructure & migration : ✅
 - Phase 1 — générateur déterministe (`.claude/skills/triptych/` : charte + `build.py`, 8 tests) : ✅
-- Phase 2 — workflow deep-research + `SKILL.md` du skill `triptych` : à venir
+- Phase 2 — workflow deep-research + `SKILL.md` du skill `triptych` : ✅
+  (validé sur `bloom-filters` : `SKILL.md` + `workflow.js` embarqué, 6 phases
+  Sweep→Plan→Extract→Verify→Author→Compose→Build)
