@@ -1,0 +1,162 @@
+<div class="widget kgcanon-widget">
+  <style>
+    .kgcanon-widget {
+      --kgcanon-bg: #fbfaf7;
+      --kgcanon-ink: #23201b;
+      --kgcanon-muted: #6b6459;
+      --kgcanon-line: #d9d3c7;
+      --kgcanon-accent: #8a5a2b;
+      --kgcanon-raw: #b04a3a;
+      --kgcanon-canon: #2f6b4f;
+      font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: var(--kgcanon-ink);
+      background: var(--kgcanon-bg);
+      border: 1px solid var(--kgcanon-line);
+      border-radius: 10px;
+      padding: 18px 20px 20px;
+      max-width: 720px;
+      box-sizing: border-box;
+    }
+    .kgcanon-widget * { box-sizing: border-box; }
+    .kgcanon-title { font-size: 17px; font-weight: 700; margin: 0 0 4px; }
+    .kgcanon-sub { font-size: 13px; color: var(--kgcanon-muted); margin: 0 0 14px; }
+    .kgcanon-controls {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 14px;
+      padding: 10px 12px; border: 1px solid var(--kgcanon-line);
+      border-radius: 8px; background: #fff; margin-bottom: 14px;
+    }
+    .kgcanon-toggle { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; font-weight: 600; }
+    .kgcanon-toggle input { width: 16px; height: 16px; accent-color: var(--kgcanon-canon); cursor: pointer; }
+    .kgcanon-counts { font-size: 13px; color: var(--kgcanon-muted); margin-left: auto; }
+    .kgcanon-counts b { color: var(--kgcanon-ink); font-variant-numeric: tabular-nums; }
+    .kgcanon-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 560px) { .kgcanon-grid { grid-template-columns: 1fr; } }
+    .kgcanon-panel h4 { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--kgcanon-muted); margin: 0 0 8px; }
+    .kgcanon-triple {
+      display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+      padding: 6px 8px; border-radius: 6px; margin-bottom: 6px;
+      background: #fff; border: 1px solid var(--kgcanon-line);
+      font-size: 13px; transition: opacity .25s ease, background .25s ease;
+    }
+    .kgcanon-tok { padding: 1px 6px; border-radius: 4px; white-space: nowrap; }
+    .kgcanon-ent { background: #efe7da; color: var(--kgcanon-accent); font-weight: 600; }
+    .kgcanon-rel { background: #f3eef6; color: #6a4a86; font-style: italic; }
+    .kgcanon-arrow { color: var(--kgcanon-muted); }
+    .kgcanon-canonform .kgcanon-ent { background: #e2efe7; color: var(--kgcanon-canon); }
+    .kgcanon-canonform .kgcanon-rel { background: #e8eef5; color: #355f8a; }
+    .kgcanon-dupe { opacity: .32; }
+    .kgcanon-dupe-tag { font-size: 11px; color: var(--kgcanon-raw); margin-left: 4px; }
+    .kgcanon-note { font-size: 12px; color: var(--kgcanon-muted); margin-top: 12px; border-top: 1px dashed var(--kgcanon-line); padding-top: 10px; }
+    .kgcanon-note code { background: #efeae0; padding: 1px 5px; border-radius: 4px; }
+  </style>
+
+  <p class="kgcanon-title">Avant le graphe : canonicaliser les triplets bruts</p>
+  <p class="kgcanon-sub">L'OpenIE extrait des triplets en <em>forme de surface</em>. Plusieurs formulations désignent la même entité ou la même relation. Activez la canonicalisation pour fusionner ces variantes vers des identifiants uniques — l'étape sans laquelle ce ne sont pas encore des faits exploitables.</p>
+
+  <div class="kgcanon-controls">
+    <label class="kgcanon-toggle">
+      <input type="checkbox" id="kgcanon-switch">
+      <span>Canonicaliser entités &amp; relations</span>
+    </label>
+    <span class="kgcanon-counts">faits distincts : <b id="kgcanon-distinct">7</b> / 7 triplets bruts</span>
+  </div>
+
+  <div class="kgcanon-grid">
+    <div class="kgcanon-panel">
+      <h4>Triplets extraits (OpenIE)</h4>
+      <div id="kgcanon-list"></div>
+    </div>
+    <div class="kgcanon-panel">
+      <h4 id="kgcanon-outhead">Sortie</h4>
+      <div id="kgcanon-out"></div>
+    </div>
+  </div>
+
+  <p class="kgcanon-note">Mécanisme : sept triplets bruts contiennent des doublons cachés — <code>Lovelace</code> / <code>Ada Lovelace</code> / <code>Augusta Ada King</code> sont une seule personne ; <code>né à</code> / <code>originaire de</code> / <code>vient de</code> sont une seule relation. La canonicalisation (p. ex. CESI, WWW 2018) replie chaque variante sur un identifiant unique, faisant tomber 7 mentions à un petit ensemble de faits. Sans cette étape, le graphe stocke le même fait plusieurs fois sous des arêtes différentes.</p>
+
+  <script>
+    (function () {
+      var root = document.currentScript.closest('.kgcanon-widget');
+
+      // Triplets bruts (sujet, relation, objet) avec leurs identifiants canoniques.
+      var raw = [
+        { s: "Lovelace",          r: "né à",          o: "Londres",     cs: "E:AdaLovelace", cr: "R:bornIn",   co: "E:London" },
+        { s: "Ada Lovelace",      r: "originaire de", o: "London",      cs: "E:AdaLovelace", cr: "R:bornIn",   co: "E:London" },
+        { s: "Augusta Ada King",  r: "vient de",      o: "Londres",     cs: "E:AdaLovelace", cr: "R:bornIn",   co: "E:London" },
+        { s: "Lovelace",          r: "a collaboré avec", o: "Babbage",  cs: "E:AdaLovelace", cr: "R:collabWith", co: "E:CharlesBabbage" },
+        { s: "Ada Lovelace",      r: "travaillait avec", o: "Charles Babbage", cs: "E:AdaLovelace", cr: "R:collabWith", co: "E:CharlesBabbage" },
+        { s: "Babbage",           r: "a conçu",       o: "Analytical Engine", cs: "E:CharlesBabbage", cr: "R:designed", co: "E:AnalyticalEngine" },
+        { s: "C. Babbage",        r: "inventa",       o: "la machine analytique", cs: "E:CharlesBabbage", cr: "R:designed", co: "E:AnalyticalEngine" }
+      ];
+
+      var listEl = root.querySelector('#kgcanon-list');
+      var outEl = root.querySelector('#kgcanon-out');
+      var outHead = root.querySelector('#kgcanon-outhead');
+      var distinctEl = root.querySelector('#kgcanon-distinct');
+      var sw = root.querySelector('#kgcanon-switch');
+
+      function tok(text, cls) {
+        var span = document.createElement('span');
+        span.className = 'kgcanon-tok ' + cls;
+        span.textContent = text;
+        return span;
+      }
+
+      function tripleRow(t, canon, dupe) {
+        var row = document.createElement('div');
+        row.className = 'kgcanon-triple' + (canon ? ' kgcanon-canonform' : '') + (dupe ? ' kgcanon-dupe' : '');
+        row.appendChild(tok(canon ? t.cs : t.s, 'kgcanon-ent'));
+        row.appendChild(tok(canon ? t.cr : t.r, 'kgcanon-rel'));
+        var arrow = document.createElement('span');
+        arrow.className = 'kgcanon-arrow';
+        arrow.textContent = '→';
+        row.appendChild(arrow);
+        row.appendChild(tok(canon ? t.co : t.o, 'kgcanon-ent'));
+        if (dupe) {
+          var tag = document.createElement('span');
+          tag.className = 'kgcanon-dupe-tag';
+          tag.textContent = 'doublon';
+          row.appendChild(tag);
+        }
+        return row;
+      }
+
+      function render() {
+        var canon = sw.checked;
+
+        // Colonne gauche : toujours les 7 triplets bruts (surlignés "doublon" si canon actif).
+        listEl.textContent = '';
+        var seenLeft = {};
+        raw.forEach(function (t) {
+          var key = t.cs + '|' + t.cr + '|' + t.co;
+          var isDupe = canon && seenLeft[key];
+          seenLeft[key] = true;
+          listEl.appendChild(tripleRow(t, false, isDupe));
+        });
+
+        // Colonne droite : sortie. Brut = 7 lignes ; canon = faits dédupliqués.
+        outEl.textContent = '';
+        if (!canon) {
+          outHead.textContent = 'Sortie brute (non canonicalisée)';
+          raw.forEach(function (t) { outEl.appendChild(tripleRow(t, false, false)); });
+          distinctEl.textContent = '7';
+        } else {
+          outHead.textContent = 'Faits canonicalisés';
+          var seen = {};
+          var n = 0;
+          raw.forEach(function (t) {
+            var key = t.cs + '|' + t.cr + '|' + t.co;
+            if (seen[key]) return;
+            seen[key] = true;
+            n++;
+            outEl.appendChild(tripleRow(t, true, false));
+          });
+          distinctEl.textContent = String(n);
+        }
+      }
+
+      sw.addEventListener('change', render);
+      render();
+    })();
+  </script>
+</div>
