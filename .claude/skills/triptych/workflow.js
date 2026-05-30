@@ -44,7 +44,8 @@ const S_SWEEP = { type:'object', additionalProperties:false, required:['sources'
 const S_ARCH = { type:'object', additionalProperties:false, required:['title','kicker','outline'], properties:{
   title:{type:'string'}, kicker:{type:'string'},
   outline:{ type:'array', items:{ type:'object', additionalProperties:false, required:['id','heading','angle'],
-    properties:{ id:{type:'string'}, heading:{type:'string'}, angle:{type:'string'} } } } } };
+    properties:{ id:{type:'string'}, heading:{type:'string'}, angle:{type:'string'},
+      kind:{ type:'string', enum:['normal','ecosystem'] } } } } } };
 
 const S_SECTION = { type:'object', additionalProperties:false, required:['id','heading','prose','claims'], properties:{
   id:{type:'string'}, heading:{type:'string'}, prose:{type:'string'},
@@ -52,7 +53,11 @@ const S_SECTION = { type:'object', additionalProperties:false, required:['id','h
     properties:{ statement:{type:'string'},
       candidate_sources:{ type:'array', items:{type:'string'} },
       examples:{ type:'array', items:{type:'string'} },
-      kind:{ type:'string', enum:['established','contestable'] } } } } } };
+      kind:{ type:'string', enum:['established','contestable'] } } } },
+  pointers:{ type:'array', items:{ type:'object', additionalProperties:false, required:['name','url'],
+    properties:{ name:{type:'string'}, url:{type:'string'},
+      kind:{ type:'string', enum:['library','package','tool','reading','implementation'] },
+      blurb:{type:'string'} } } } } };
 
 const S_VERDICT = { type:'object', additionalProperties:false, required:['holds','corrected_statement','independent_sources','note'], properties:{
   holds:{type:'boolean'},
@@ -118,6 +123,7 @@ const ANGLES = [
   { key:'variants',      label:'variantes, extensions et état de l’art' },
   { key:'applications',  label:'applications concrètes et systèmes réels qui l’utilisent' },
   { key:'misconceptions',label:'critiques, pièges et idées reçues fréquentes' },
+  { key:'ecosystem',     label:'outils, bibliothèques, packages, implémentations de référence et lectures pour aller plus loin' },
 ];
 
 const sweepPrompt = a => [
