@@ -52,3 +52,17 @@ def test_structural_defect_blocks_all_writes(tmp_path):
     with pytest.raises(SystemExit):
         build.build_theme(theme)
     assert list(dist.glob("*.html")) == []   # aucune écriture partielle
+
+def test_pointers_element_builds_and_is_structurally_sound(tmp_path):
+    theme = _mk_theme(tmp_path, [
+        {"type":"section","id":"a","heading":"A","prose":"<p>x</p>","claims":["claim:k"]},
+        {"type":"pointers","title":"Pour aller plus loin","items":[
+            {"name":"toolX","url":"https://example.org/x","kind":"package","blurb":"fait Y"}]},
+    ], claims=[{"id":"claim:k","statement":"s","sources":["src:1","src:2"],"audit":"confirmed"}])
+    build.build_theme(theme)
+    out = (pathlib.Path(theme)/"dist"/"demo-reference.html").read_text(encoding="utf-8")
+    assert '<section id="pointers">' in out
+    assert 'href="https://example.org/x"' in out
+    assert "toolX" in out
+    assert "<!--%" not in out            # aucun jeton résiduel
+    assert "file:///" not in out
