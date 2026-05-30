@@ -28,12 +28,12 @@ def test_toc_builds_anchor_links_from_sections_only():
 
 def test_pointers_renders_cards_with_badge_link_and_escaped_blurb():
     el = {"type":"pointers","title":"Pour aller plus loin","items":[
-        {"name":"neo4j-graphrag","url":"https://example.org/x","kind":"package","blurb":"d<x> & y"}]}
+        {"name":"neo4j <graphrag>","url":"https://example.org/x","kind":"package","blurb":"d<x> & y"}]}
     out = C.render_pointers(el)
     assert '<section id="pointers">' in out          # section équilibrée (structural_checks)
     assert "<h3>Pour aller plus loin</h3>" in out
     assert 'href="https://example.org/x"' in out      # lien rendu
-    assert "neo4j-graphrag" in out                     # nom
+    assert "neo4j &lt;graphrag&gt;" in out             # nom échappé via esc()
     assert "package" in out                            # badge kind
     assert "d&lt;x&gt; &amp; y" in out                 # blurb échappé via esc()
 
