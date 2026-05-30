@@ -138,9 +138,9 @@ const archPrompt = (findings, sources) => [
   `Sujet : « ${subject} ». Tu conçois le PLAN d'un document de référence à partir des données de recherche.`,
   `Findings (point → url) :\n${JSON.stringify(findings).slice(0, 12000)}`,
   `Sources :\n${JSON.stringify(sources.map(s => ({ title:s.title, url:s.url, kind:s.kind }))).slice(0, 6000)}`,
-  `Rends : title (titre du document, sans suffixe d'édition), kicker (sur-titre court), et outline = 3 à 5 sections logiques.`,
+  `Rends : title (titre du document, sans suffixe d'édition), kicker (sur-titre court), et outline = AUTANT de sections que la matière trouvée le justifie (typiquement 4 à 9). Propose LARGE : une section par sous-thème réellement documenté. Les sections sans matière vérifiable seront élaguées automatiquement — ne t'autocensure pas, mais n'invente pas de section creuse.`,
   `Chaque section : id (kebab-case ascii, unique), heading, angle (ce qu'elle couvre).`,
-  `Couvre fondations → propriétés → variantes/applications → limites. Pas de section "glossaire"/"biblio" (ajoutées à la composition).`,
+  `Couvre fondations → propriétés → variantes/applications → limites. Si le sujet a un écosystème d'outils/bibliothèques/packages/lectures, AJOUTE une section finale kind="ecosystem" (heading type « Écosystème & pour aller plus loin »). Les autres sections : kind="normal". Pas de section "glossaire"/"biblio" (ajoutées à la composition).`,
 ].join('\n');
 
 const extractPrompt = (sec, findings) => [
@@ -148,9 +148,10 @@ const extractPrompt = (sec, findings) => [
   `Findings disponibles (point → url) :\n${JSON.stringify(findings).slice(0, 12000)}`,
   WEB + ' (autorisé pour compléter/préciser une source.)',
   `Produis pour CETTE section :`,
-  `- prose : 1 à 3 paragraphes HTML (<p>…</p>), prose d'auteur, claire, sans inventer. Pas de titre (le heading est ajouté à l'assemblage).`,
+  `- prose : autant de paragraphes HTML (<p>…</p>) que la matière de la section l'exige, sans délayer. Prose d'auteur, claire, sans inventer. Pas de titre (le heading est ajouté à l'assemblage).`,
   `- claims : 2 à 4 énoncés factuels vérifiables portés par la section. Pour CHAQUE claim : statement (une phrase nette), candidate_sources (urls qui l'étayent), examples (0-2 exemples concrets), kind.`,
   `IMPORTANT pour exercer la vérification : inclure au moins UN claim kind="contestable" — un énoncé fréquemment affirmé mais possiblement imprécis ou faux (idée reçue), à départager par les jurés. Les autres = kind="established".`,
+  `Si CETTE section concerne l'écosystème (outils/bibliothèques/packages/lectures) : remplis "pointers" = liste {name, url (lien officiel réel), kind ∈ library|package|tool|reading|implementation, blurb (1 phrase)}. Les pointeurs ne sont PAS des claims (pas de seuil ≥2 sources) : ce sont des renvois curés. N'invente jamais d'URL.`,
 ].join('\n');
 
 const LENSES = [
