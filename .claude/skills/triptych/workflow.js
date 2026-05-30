@@ -93,6 +93,7 @@ const S_BUILD = { type:'object', additionalProperties:false, required:['success'
 
 // ── Helpers JS (transformations déterministes — pas de jugement) ─────────────
 const normUrl = u => (u||'').trim().replace(/^https?:\/\//i,'').replace(/[#?].*$/,'').replace(/\/+$/,'').toLowerCase();
+const SECTION_CLAIM_QUOTA = 2;  // claims survivants (audit ≠ rejected) requis pour qu'une section NORMALE survive à l'élagage
 
 function dedupSources(list) {
   const seen = new Map();
@@ -211,12 +212,13 @@ const ELEMENT_CHEATSHEET = [
   `- {"type":"widget","ref":<widget ref>}`,
   `- {"type":"callout","kind":"callout","title":<str>,"body":<html>}`,
   `- {"type":"biblio","entries":[{"label":<str>,"href":<url>}]}`,
+  `- {"type":"pointers","title":<str>,"items":[{"name":<str>,"url":<url>,"kind":<str>,"blurb":<str>}]}`,
   `- {"type":"glossary"}                       (tire de glossary.json)`,
   `Un manifeste = {"edition":<ed>,"slug":"${slug}","meta":{"title","kicker","h1","lede","meta_chips":[…],"footer"},"elements":[…ordonnés…]}`,
   `meta.title/kicker/h1/lede sont OBLIGATOIRES. Les claims référencés doivent exister ; le widget ref doit exister.`,
 ].join('\n');
 
-const composePrompt = (title, sections, biblioEntries, widget) => [
+const composePrompt = (title, sections, biblioEntries, widget, pointers) => [
   `Tu composes les 3 manifestes-vues du thème « ${title} » (slug ${slug}). Tu ÉCRIS 3 fichiers JSON.`,
   ELEMENT_CHEATSHEET,
   ``,
@@ -225,11 +227,12 @@ const composePrompt = (title, sections, biblioEntries, widget) => [
   `  ${JSON.stringify(sections)}`,
   `- entrées biblio (depuis les sources vérifiées) : ${JSON.stringify(biblioEntries)}`,
   `- widget : ${widget ? JSON.stringify(widget) : 'aucun'}`,
+  `- pointeurs « pour aller plus loin » (à rendre via un élément {"type":"pointers","title":"Pour aller plus loin","items":[…]}) : ${pointers && pointers.length ? JSON.stringify(pointers) : 'aucun'}`,
   ``,
   `Politique d'édition (guide de rédaction, pas une règle du code) :`,
-  `- ${themeDir}/editions/reference.manifest.json : tldr(part1) → toutes les sections (avec leurs claims)${widget ? ' → widget (après sa section)' : ''} → biblio → glossary. Édition dense, superset.`,
+  `- ${themeDir}/editions/reference.manifest.json : tldr(part1) → toutes les sections (avec leurs claims)${widget ? ' → widget (après sa section)' : ''}${pointers && pointers.length ? ' → pointers' : ''} → biblio → glossary. Édition dense, superset.`,
   `- ${themeDir}/editions/publication.manifest.json : abstract → toutes les sections → biblio → glossary. Lecture suivie.`,
-  `- ${themeDir}/editions/pedagogique.manifest.json : onramp (tu rédiges 3-4 étapes) → sections${widget ? ' → widget' : ''} → 1-2 exercise (tu rédiges question+réponse) → biblio → glossary. Apprentissage.`,
+  `- ${themeDir}/editions/pedagogique.manifest.json : onramp (tu rédiges 3-4 étapes) → sections${widget ? ' → widget' : ''}${pointers && pointers.length ? ' → pointers' : ''} → 1-2 exercise (tu rédiges question+réponse) → biblio → glossary. Apprentissage.`,
   ``,
   `meta par édition : title = "${title} — <référence|publication|pédagogique>", kicker = "<sujet court> · édition <…>", h1 = "${title}", lede = 1 phrase d'accroche propre à l'édition, meta_chips = ["Référence"]/["Publication"]/["Pédagogique"], footer = "${title} · scriptorium".`,
   `Crée le dossier editions/ si besoin (mkdir -p). Rends files_written + element_counts.`,
@@ -276,12 +279,43 @@ const sectionResults = await pipeline(
       return { sectionId: sec.id, statement: d.statement, audit: d.audit, note: d.note,
                examples: c.examples || [], sources: d.sources };
     }))).filter(Boolean);
-    return { section: { id: sec.id, heading: sec.heading, prose: ext.prose }, claims: auditedClaims };
+    return { section: { id: sec.id, heading: sec.heading, prose: ext.prose, kind: sec.kind || 'normal' },
+             claims: auditedClaims, pointers: ext.pointers || [] };
   }
 );
 const sectionData = sectionResults.filter(Boolean);
 const audited = sectionData.flatMap(r => r.claims);
 log(`Verify : ${audited.length} claims audités (${audited.filter(c=>c.audit==='confirmed').length} confirmés, ${audited.filter(c=>c.audit==='corrected').length} corrigés, ${audited.filter(c=>c.audit==='rejected').length} rejetés)`);
+
+// ── ÉLAGAGE déterministe (frontière code) : la longueur = matière survivante ──
+const enriched = sectionData.map(r => ({
+  ...r, kept: r.claims.filter(c => c.audit !== 'rejected'),
+}));
+const liveSet = new Set(enriched.filter(s =>
+  (s.section.kind === 'ecosystem')
+    ? ((s.pointers && s.pointers.length > 0) || s.kept.length > 0)   // écosystème : ≥1 pointeur OU ≥1 claim
+    : (s.kept.length >= SECTION_CLAIM_QUOTA)                          // normale : quota de faits
+));
+const liveSections = enriched.filter(s => liveSet.has(s));
+enriched.filter(s => !liveSet.has(s)).forEach(s =>
+  log(`[élagage] section « ${s.section.heading} » coupée : ${s.kept.length} claim(s) survivant(s) < ${SECTION_CLAIM_QUOTA}`));
+if (liveSections.length === enriched.length) log('[élagage] aucune section coupée — toute la matière survit.');
+log(`[élagage] ${liveSections.length}/${enriched.length} sections retenues.`);
+
+// Vérification légère des pointeurs (sur sections vivantes), pas de council ≥2 sources
+const liveOutlineIds = new Set(liveSections.map(s => s.section.id));
+const pointerCandidates = liveSections.flatMap(s => s.pointers || []);
+let verifiedPointers = [];
+if (pointerCandidates.length > 0) {
+  const pv = await A(pointersPrompt(pointerCandidates), { schema: S_POINTERS, phase: 'Verify', label: 'verify:pointers' });
+  const seenP = new Set();
+  for (const p of (pv.pointers || [])) {
+    const k = normUrl(p.url);
+    if (k && !seenP.has(k)) { seenP.add(k); verifiedPointers.push({ name: p.name, url: p.url, kind: p.kind || 'reading', blurb: p.blurb || '' }); }
+  }
+  log(`[pointeurs] ${verifiedPointers.length}/${pointerCandidates.length} vérifiés.`);
+}
+const auditedLive = liveSections.flatMap(r => r.kept);   // claims des sections retenues (rejected déjà exclus par kept)
 
 // Assemblage déterministe de knowledge.json (frontière code/jugement)
 const srcId = new Map();
@@ -296,7 +330,7 @@ function ensureSrc(s) {
   }
   return srcId.get(k);
 }
-const claims = audited.map((ac, i) => ({
+const claims = auditedLive.map((ac, i) => ({
   id: 'claim:' + (i + 1),
   statement: ac.statement,
   sources: (ac.sources || []).map(ensureSrc).filter(Boolean),
@@ -318,7 +352,7 @@ const knowledge = {
 const knowledgeJson = JSON.stringify(knowledge, null, 2);
 
 phase('Author');
-const sectionsBrief = arch.outline.map(o => `- ${o.id} : ${o.heading}`).join('\n');
+const sectionsBrief = arch.outline.filter(o => liveOutlineIds.has(o.id)).map(o => `- ${o.id} : ${o.heading}`).join('\n');
 const wantWidget = String(A0.widget) !== 'false';   // widget par défaut, sauf widget === false
 const authored = await A(authorPrompt(knowledgeJson, sectionsBrief, wantWidget), { schema: S_AUTHOR, phase: 'Author', label: 'author' });
 log(`Author : ${authored.files_written.length} fichiers écrits${authored.has_widget ? ' (widget inclus)' : ''}`);
@@ -326,7 +360,8 @@ log(`Author : ${authored.files_written.length} fichiers écrits${authored.has_wi
 phase('Compose');
 const proseById = {};
 sectionData.forEach(r => { proseById[r.section.id] = r.section.prose; });
-const sectionsForCompose = arch.outline.map(o => ({
+const liveOutline = arch.outline.filter(o => liveOutlineIds.has(o.id));
+const sectionsForCompose = liveOutline.map(o => ({
   id: o.id, heading: o.heading,
   prose: proseById[o.id] || '',
   claims: sectionClaims[o.id] || [],
@@ -334,7 +369,7 @@ const sectionsForCompose = arch.outline.map(o => ({
 const biblioEntries = sources.map(s => ({ label: s.title, href: s.url }));
 const widget = (authored.has_widget && authored.widget) ? authored.widget : null;
 const composed = await A(
-  composePrompt(arch.title, sectionsForCompose, biblioEntries, widget),
+  composePrompt(arch.title, sectionsForCompose, biblioEntries, widget, verifiedPointers),
   { schema: S_COMPOSE, phase: 'Compose', label: 'compose' }
 );
 log(`Compose : ${composed.files_written.length} manifestes écrits`);
