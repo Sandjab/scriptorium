@@ -169,7 +169,7 @@ const authorPrompt = (knowledgeJson, sectionsBrief, wantWidget) => [
   `1) ${themeDir}/knowledge.json — écris VERBATIM ce contenu, SANS rien modifier (c'est la base de faits vérifiée, déjà assemblée) :`,
   knowledgeJson,
   ``,
-  `2) ${themeDir}/glossary.json — un tableau JSON de 4 à 7 termes du sujet : {term, definition, see_also?}. Définitions exactes, propres au sujet « ${subject} ».`,
+  `2) ${themeDir}/glossary.json — un tableau JSON de 4 à 7 termes du sujet : {term, definition, see_also?}. Définitions exactes, propres au sujet « ${subject} ». "see_also" est une CHAÎNE (jamais une liste) : pour renvoyer vers plusieurs termes, une seule chaîne séparée par ", " — ex. "see_also": "Triplet, Property graph".`,
   ``,
   `3) ${themeDir}/tldr.json — { "these": "<la thèse du document en 1 phrase>", "part1": ["…","…"], "part2": ["…","…"] }. part1 et part2 = 2-4 puces chacune (idées clés ; part1 = principe, part2 = garanties/limites).`,
   ``,
