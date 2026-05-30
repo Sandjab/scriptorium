@@ -41,5 +41,5 @@ les 3 éditions de façon déterministe. Le modèle juge ; le code assemble.
 ## Statut
 
 - Phase 0 — restructure & migration : ✅
-- Phase 1 — générateur déterministe (`build.py` + charte) : en construction
-- Phase 2 — workflow deep-research du skill `triptych` : à venir
+- Phase 1 — générateur déterministe (`.claude/skills/triptych/` : charte + `build.py`, 8 tests) : ✅
+- Phase 2 — workflow deep-research + `SKILL.md` du skill `triptych` : à venir
