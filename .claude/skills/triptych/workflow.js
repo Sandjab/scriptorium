@@ -66,6 +66,11 @@ const S_VERDICT = { type:'object', additionalProperties:false, required:['holds'
     properties:{ title:{type:'string'}, url:{type:'string'} } } },
   note:{type:'string'} } };
 
+const S_POINTERS = { type:'object', additionalProperties:false, required:['pointers'], properties:{
+  pointers:{ type:'array', items:{ type:'object', additionalProperties:false, required:['name','url','blurb'],
+    properties:{ name:{type:'string'}, url:{type:'string'},
+      kind:{ type:'string' }, blurb:{type:'string'} } } } } };
+
 const S_AUTHOR = { type:'object', additionalProperties:false, required:['files_written','has_widget'], properties:{
   files_written:{ type:'array', items:{type:'string'} },
   has_widget:{type:'boolean'},
@@ -167,6 +172,13 @@ const verifyPrompt = (claim, lensIdx) => [
   WEB,
   `Rends un verdict HONNÊTE : holds (true si l'énoncé tient TEL QUEL), corrected_statement ("" si rien à corriger ; sinon l'énoncé corrigé minimal qui serait vrai), independent_sources (UNIQUEMENT les sources que TOI tu as vérifiées et qui sont indépendantes — title+url réels), note (1-2 phrases justifiant).`,
   `N'invente jamais d'URL. En cas de doute sur l'indépendance ou la véracité, penche vers holds=false.`,
+].join('\n');
+
+const pointersPrompt = (candidates) => [
+  `Voici des pointeurs candidats (outils/bibliothèques/packages/lectures) extraits de la recherche : ${JSON.stringify(candidates).slice(0, 8000)}`,
+  WEB,
+  `Pour CHAQUE pointeur, VÉRIFIE que l'URL existe réellement et pointe l'outil/la ressource annoncé(e). GARDE uniquement ceux dont l'URL résout et correspond. Corrige l'URL vers le lien officiel si nécessaire ; n'en invente aucun.`,
+  `Rends : pointers = liste finale {name, url (réel), kind, blurb (1 phrase factuelle)}. Liste vide si aucun ne tient.`,
 ].join('\n');
 
 const authorPrompt = (knowledgeJson, sectionsBrief, wantWidget) => [
