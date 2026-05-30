@@ -315,7 +315,7 @@ if (pointerCandidates.length > 0) {
   }
   log(`[pointeurs] ${verifiedPointers.length}/${pointerCandidates.length} vérifiés.`);
 }
-const auditedLive = liveSections.flatMap(r => r.kept);   // claims des sections retenues (rejected déjà exclus par kept)
+const liveClaims = liveSections.flatMap(r => r.claims);  // knowledge.json = audit COMPLET des sections retenues (rejected inclus) ; les vues filtrent ensuite
 
 // Assemblage déterministe de knowledge.json (frontière code/jugement)
 const srcId = new Map();
@@ -330,7 +330,7 @@ function ensureSrc(s) {
   }
   return srcId.get(k);
 }
-const claims = auditedLive.map((ac, i) => ({
+const claims = liveClaims.map((ac, i) => ({
   id: 'claim:' + (i + 1),
   statement: ac.statement,
   sources: (ac.sources || []).map(ensureSrc).filter(Boolean),
@@ -347,7 +347,7 @@ for (const c of claims) {
 const knowledge = {
   theme: { slug, title: arch.title },
   sources,
-  claims: claims.map(({ _section, ...c }) => c),    // knowledge.json conserve TOUT l'audit (y c. rejected)
+  claims: claims.map(({ _section, ...c }) => c),    // knowledge.json conserve l'audit complet des sections RETENUES (y c. rejected) ; sections élaguées retirées
 };
 const knowledgeJson = JSON.stringify(knowledge, null, 2);
 
