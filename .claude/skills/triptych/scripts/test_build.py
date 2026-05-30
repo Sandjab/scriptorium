@@ -33,3 +33,22 @@ def test_valid_theme_writes_html(tmp_path):
     assert "--blue" in out
     assert '<section id="a">' in out
     assert "<!--%" not in out
+
+def test_unknown_element_type_fails_loud(tmp_path):
+    theme = _mk_theme(tmp_path, [{"type":"bogus","id":"a"}])
+    with pytest.raises(SystemExit):
+        build.build_theme(theme)
+
+def test_missing_widget_ref_fails_loud(tmp_path):
+    theme = _mk_theme(tmp_path, [{"type":"widget","ref":"ghost"}])
+    with pytest.raises(SystemExit):
+        build.build_theme(theme)
+
+def test_structural_defect_blocks_all_writes(tmp_path):
+    # prose injects an unbalanced <section> → structural check must trip BEFORE any file is written
+    theme = _mk_theme(tmp_path,
+        [{"type":"section","id":"a","heading":"A","prose":"<section>oops"}])
+    dist = pathlib.Path(theme)/"dist"
+    with pytest.raises(SystemExit):
+        build.build_theme(theme)
+    assert list(dist.glob("*.html")) == []   # aucune écriture partielle

@@ -13,13 +13,25 @@ def load_widgets(theme):
     d = pathlib.Path(theme) / "widgets"
     return {p.stem: p.read_text(encoding="utf-8") for p in d.glob("*.html")} if d.exists() else {}
 
+REQUIRED_META = ("title", "kicker", "h1", "lede")
+
+def validate_manifest(manifest):
+    for k in ("slug", "meta", "elements"):
+        if k not in manifest:
+            die(f"clé de manifeste manquante : {k}")
+    for k in REQUIRED_META:
+        if k not in manifest["meta"]:
+            die(f"clé meta manquante : {k}")
+
 def validate_refs(manifest, kb, widgets):
     claim_ids = {c["id"] for c in kb.get("claims", [])}
     for el in manifest["elements"]:
+        if el.get("type") not in C.RENDERERS:
+            die(f"type d'élément inconnu : {el.get('type')}")
         for cid in el.get("claims", []):
             if cid not in claim_ids:
                 die(f"référence de fait inconnue : {cid} (élément {el.get('id', el['type'])})")
-        if el.get("type") == "widget" and el["ref"] not in widgets:
+        if el["type"] == "widget" and el["ref"] not in widgets:
             die(f"widget inconnu : {el['ref']}")
 
 def structural_checks(htmls):
@@ -58,6 +70,7 @@ def build_theme(theme):
         if not mp.exists():
             continue
         manifest = json.loads(read(mp))
+        validate_manifest(manifest)
         validate_refs(manifest, kb, ctx["widgets"])
         htmls[f"{manifest['slug']}-{ed}.html"] = render_edition(manifest, ctx)
     if not htmls:
