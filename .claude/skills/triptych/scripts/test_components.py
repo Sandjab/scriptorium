@@ -25,3 +25,19 @@ def test_toc_builds_anchor_links_from_sections_only():
     assert '<a href="#b">Beta</a>' in out
     assert out.count("<a ") == 2          # seules les 2 sections → 2 liens (le widget exclu)
     assert "#w" not in out                # le ref du widget ne fuit pas dans la TOC
+
+def test_pointers_renders_cards_with_badge_link_and_escaped_blurb():
+    el = {"type":"pointers","title":"Pour aller plus loin","items":[
+        {"name":"neo4j-graphrag","url":"https://example.org/x","kind":"package","blurb":"d<x> & y"}]}
+    out = C.render_pointers(el)
+    assert '<section id="pointers">' in out          # section équilibrée (structural_checks)
+    assert "<h3>Pour aller plus loin</h3>" in out
+    assert 'href="https://example.org/x"' in out      # lien rendu
+    assert "neo4j-graphrag" in out                     # nom
+    assert "package" in out                            # badge kind
+    assert "d&lt;x&gt; &amp; y" in out                 # blurb échappé via esc()
+
+def test_pointers_empty_items_still_balanced_section():
+    out = C.render_pointers({"type":"pointers","items":[]})
+    assert out.count("<section") == out.count("</section>")   # 1/1, jamais déséquilibré
+    assert "Pour aller plus loin" in out               # titre par défaut
