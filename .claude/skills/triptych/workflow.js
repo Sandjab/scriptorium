@@ -219,7 +219,8 @@ const ELEMENT_CHEATSHEET = [
 ].join('\n');
 
 const composePrompt = (title, sections, biblioEntries, widget, pointers) => [
-  `Tu composes les 3 manifestes-vues du thème « ${title} » (slug ${slug}). Tu ÉCRIS 3 fichiers JSON.`,
+  `Tu composes les 3 manifestes-vues du thème « ${title} » (slug ${slug}). Tu ÉCRIS (Write) 3 fichiers JSON.`,
+  `IMPÉRATIF — RÉÉCRITURE OBLIGATOIRE : des fichiers editions/*.manifest.json peuvent déjà exister sur disque ; ce sont des sorties PÉRIMÉES d'un run précédent et le knowledge.json courant a changé. Tu DOIS les écraser intégralement avec les manifestes ci-dessous. Ne les considère JAMAIS comme la source de vérité, ne les "préserve" pas, ne décide pas qu'ils sont déjà bons. Si un Write échoue avec « File has not been read yet », fais d'abord Read sur ce fichier PUIS refais le Write — n'abandonne pas. À la fin, les 3 manifestes DOIVENT avoir été (ré)écrits par toi dans CE run.`,
   ELEMENT_CHEATSHEET,
   ``,
   `Matériel partagé (réutilise la prose telle quelle ; ne ré-écris pas les faits) :`,
@@ -373,6 +374,15 @@ const composed = await A(
   { schema: S_COMPOSE, phase: 'Compose', label: 'compose' }
 );
 log(`Compose : ${composed.files_written.length} manifestes écrits`);
+
+// Garde fail-loud : les 3 manifestes DOIVENT avoir été (ré)écrits dans ce run.
+// Sinon build.py assemblerait des manifestes périmés (refs claim:N pointant des faits différents) → corruption silencieuse.
+const _need = ['reference', 'publication', 'pedagogique'];
+const _written = new Set((composed.files_written || []).map(p => (p.match(/([a-z]+)\.manifest\.json$/) || [])[1]).filter(Boolean));
+const _missing = _need.filter(ed => !_written.has(ed));
+if (_missing.length) throw new Error(
+  `Compose n'a pas (ré)écrit les manifestes : ${_missing.join(', ')}. files_written=${JSON.stringify(composed.files_written)}. ` +
+  `Abandon AVANT build pour ne pas assembler des manifestes périmés sur le knowledge.json courant.`);
 
 phase('Build');
 const built = await A(buildPrompt(), { schema: S_BUILD, phase: 'Build', label: 'build' });
