@@ -101,25 +101,39 @@ function dedupSources(list) {
   return [...seen.values()];
 }
 
-// Décision d'audit : le SEUIL est en code ; l'INDÉPENDANCE des sources est jugée par les jurés.
-function decideAudit(claim, verdicts) {
-  const supportive = [];
-  const seen = new Set();
+// Sources de SOUTIEN uniquement : on n'agrège QUE les independent_sources des verdicts passés.
+// Le juré réfutateur (lentille 0) ramène des sources CONTRADICTOIRES — ne jamais les compter
+// comme « sources indépendantes » du claim. On ne lui passe donc que les verdicts soutenants.
+function collectSources(verdicts) {
+  const out = [], seen = new Set();
   for (const v of verdicts) for (const s of (v.independent_sources || [])) {
     const k = normUrl(s.url);
-    if (k && !seen.has(k)) { seen.add(k); supportive.push({ title: s.title || s.url, url: s.url }); }
+    if (k && !seen.has(k)) { seen.add(k); out.push({ title: s.title || s.url, url: s.url }); }
   }
-  const nSrc = supportive.length;
+  return out;
+}
+
+// Décision d'audit : le SEUIL est en code ; l'INDÉPENDANCE des sources est jugée par les jurés.
+// Le décompte de sources se fait par branche, sur les SEULS verdicts qui appuient le claim
+// (confirment, ou corrigent) — d'où un audit strictement plus conservateur qu'avant ce fix.
+function decideAudit(claim, verdicts) {
   const holds = verdicts.filter(v => v.holds);
   const corrected = verdicts.filter(v => !v.holds && v.corrected_statement && v.corrected_statement.trim());
-  if (holds.length >= 2 && nSrc >= 2)
-    return { audit:'confirmed', statement: claim.statement, sources: supportive,
-             note: `Confirmé : ${holds.length}/${verdicts.length} jurés, ${nSrc} sources indépendantes.` };
-  if ((holds.length + corrected.length) >= 2 && nSrc >= 2)
-    return { audit:'corrected', statement: corrected[0].corrected_statement.trim(), sources: supportive,
-             note: `Énoncé d'origine imprécis, corrigé après vérification (${nSrc} sources indépendantes). Origine : « ${claim.statement} »` };
-  return { audit:'rejected', statement: claim.statement, sources: supportive,
-           note: `Rejeté : ${holds.length} confirmation(s), ${nSrc} source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté.` };
+  if (holds.length >= 2) {
+    const sources = collectSources(holds);                      // confirmé : sources des seuls jurés qui tiennent l'énoncé
+    if (sources.length >= 2)
+      return { audit:'confirmed', statement: claim.statement, sources,
+               note: `Confirmé : ${holds.length}/${verdicts.length} jurés, ${sources.length} sources indépendantes.` };
+  }
+  if ((holds.length + corrected.length) >= 2) {
+    const sources = collectSources([...holds, ...corrected]);   // corrigé : sources de ceux qui confirment OU corrigent
+    if (sources.length >= 2)
+      return { audit:'corrected', statement: corrected[0].corrected_statement.trim(), sources,
+               note: `Énoncé d'origine imprécis, corrigé après vérification (${sources.length} sources indépendantes). Origine : « ${claim.statement} »` };
+  }
+  const sources = collectSources([...holds, ...corrected]);     // rejeté : on garde le soutien réel (souvent 0-1) pour l'audit
+  return { audit:'rejected', statement: claim.statement, sources,
+           note: `Rejeté : ${holds.length} confirmation(s), ${sources.length} source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté.` };
 }
 
 // ── Prompts (le JUGEMENT du modèle vit ici) ──────────────────────────────────
@@ -272,7 +286,12 @@ const sectionResults = await pipeline(
   async (ext, sec) => {
     const claims = ext.claims || [];
     const auditedClaims = (await parallel(claims.map((c, ci) => async () => {
-      const verdicts = (await parallel([0, 1, 2].map(j => () =>
+      // Plafond de jurés (coût) : Verify domine le total. 'established' → 2 lentilles
+      // (réfutation + indépendance, on économise la source primaire) ; 'contestable'
+      // (idée reçue à départager) ou kind absent → les 3. Effet de bord à connaître :
+      // 'confirmed' exige holds≥2, donc un 'established' à 2 jurés requiert l'unanimité.
+      const lenses = (c.kind === 'established') ? [0, 1] : [0, 1, 2];
+      const verdicts = (await parallel(lenses.map(j => () =>
         A(verifyPrompt(c, j), { schema: S_VERDICT, phase: 'Verify', label: `verify:${sec.id}#${ci}/${j}` })
       ))).filter(Boolean);
       if (verdicts.length === 0) return null;

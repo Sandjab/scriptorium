@@ -27,7 +27,9 @@ lances le workflow, puis tu rapportes.
    mkdir -p themes/<slug>/editions themes/<slug>/widgets
    ```
    Écris `themes/<slug>/brief.md` : le sujet tel que fourni + 1-2 lignes de cadrage.
-4. **Lance le Workflow** avec le script embarqué et le dossier en **chemin absolu** :
+4. **Annonce le coût AVANT de lancer** (voir « Coût » plus bas) : une ligne — ordre de
+   grandeur en agents + tokens — et laisse l'utilisateur confirmer. Le fan-out est massif.
+5. **Lance le Workflow** avec le script embarqué et le dossier en **chemin absolu** :
    - `scriptPath` : `.claude/skills/triptych/workflow.js`
    - `args` : `{ "subject": "<sujet>", "slug": "<slug>", "themeDir": "<abs>/themes/<slug>" }`
    - (texte seul : ajoute `"widget": false` ; widget inclus par défaut.)
@@ -36,9 +38,28 @@ lances le workflow, puis tu rapportes.
    Author (écrit `knowledge.json`/`glossary.json`/`tldr.json`/widget) → Compose (écrit
    les 3 `editions/*.manifest.json`) → Build (`build.py` → `dist/` + auto-vérifs).
 
-5. **Rapporte** le résultat retourné par le workflow : les 3 HTML de `dist/`, et le
+6. **Rapporte** le résultat retourné par le workflow : les 3 HTML de `dist/`, et le
    bilan d'audit (`confirmed`/`corrected`/`rejected`, ≥2 sources vérifié). Si `build.success`
    est faux, **remonte l'erreur** (build.py échoue bruyamment) — ne déclare pas un succès.
+
+## Coût (ordre de grandeur — à annoncer avant de lancer)
+
+Le workflow fait du **fan-out massif** ; **Verify domine** le total. Nombre d'agents :
+
+```
+6 (Sweep) + 1 (Plan) + N (Extract) + Σ_sections(claims × jurés) + ~1 (pointeurs) + 3 (Author/Compose/Build)
+```
+
+avec `N` = sections (4-9) et **jurés = 3 si le claim est `contestable`, 2 si `established`**
+(plafond câblé dans `workflow.js`). Pour un sujet riche (N≈7, ~3 claims/section dont 1
+contestable) ≈ **55-70 agents**, dont l'essentiel en Verify. Un agent Verify (WebSearch +
+WebFetch) a été observé à **~70k tokens** → la note se compte en **millions de tokens de
+sortie**, pas en « quelques appels ».
+
+Conséquences :
+- **Juge la conso aux TOKENS par agent, pas au nombre de fichiers/journaux.**
+- Un `resume` après interruption **re-paie le run** (pas de réutilisation de cache fiable
+  constatée) — ne relance pas « pour pas cher ».
 
 ## Garanties (portées par `workflow.js` + `build.py`)
 
