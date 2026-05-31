@@ -44,7 +44,8 @@ const S_SWEEP = { type:'object', additionalProperties:false, required:['sources'
 const S_ARCH = { type:'object', additionalProperties:false, required:['title','kicker','outline'], properties:{
   title:{type:'string'}, kicker:{type:'string'},
   outline:{ type:'array', items:{ type:'object', additionalProperties:false, required:['id','heading','angle'],
-    properties:{ id:{type:'string'}, heading:{type:'string'}, angle:{type:'string'} } } } } };
+    properties:{ id:{type:'string'}, heading:{type:'string'}, angle:{type:'string'},
+      kind:{ type:'string', enum:['normal','ecosystem'] } } } } } };
 
 const S_SECTION = { type:'object', additionalProperties:false, required:['id','heading','prose','claims'], properties:{
   id:{type:'string'}, heading:{type:'string'}, prose:{type:'string'},
@@ -52,7 +53,11 @@ const S_SECTION = { type:'object', additionalProperties:false, required:['id','h
     properties:{ statement:{type:'string'},
       candidate_sources:{ type:'array', items:{type:'string'} },
       examples:{ type:'array', items:{type:'string'} },
-      kind:{ type:'string', enum:['established','contestable'] } } } } } };
+      kind:{ type:'string', enum:['established','contestable'] } } } },
+  pointers:{ type:'array', items:{ type:'object', additionalProperties:false, required:['name','url'],
+    properties:{ name:{type:'string'}, url:{type:'string'},
+      kind:{ type:'string', enum:['library','package','tool','reading','implementation'] },
+      blurb:{type:'string'} } } } } };
 
 const S_VERDICT = { type:'object', additionalProperties:false, required:['holds','corrected_statement','independent_sources','note'], properties:{
   holds:{type:'boolean'},
@@ -60,6 +65,11 @@ const S_VERDICT = { type:'object', additionalProperties:false, required:['holds'
   independent_sources:{ type:'array', items:{ type:'object', additionalProperties:false, required:['title','url'],
     properties:{ title:{type:'string'}, url:{type:'string'} } } },
   note:{type:'string'} } };
+
+const S_POINTERS = { type:'object', additionalProperties:false, required:['pointers'], properties:{
+  pointers:{ type:'array', items:{ type:'object', additionalProperties:false, required:['name','url','blurb'],
+    properties:{ name:{type:'string'}, url:{type:'string'},
+      kind:{ type:'string' }, blurb:{type:'string'} } } } } };
 
 const S_AUTHOR = { type:'object', additionalProperties:false, required:['files_written','has_widget'], properties:{
   files_written:{ type:'array', items:{type:'string'} },
@@ -83,6 +93,7 @@ const S_BUILD = { type:'object', additionalProperties:false, required:['success'
 
 // ── Helpers JS (transformations déterministes — pas de jugement) ─────────────
 const normUrl = u => (u||'').trim().replace(/^https?:\/\//i,'').replace(/[#?].*$/,'').replace(/\/+$/,'').toLowerCase();
+const SECTION_CLAIM_QUOTA = 2;  // claims survivants (audit ≠ rejected) requis pour qu'une section NORMALE survive à l'élagage
 
 function dedupSources(list) {
   const seen = new Map();
@@ -118,6 +129,7 @@ const ANGLES = [
   { key:'variants',      label:'variantes, extensions et état de l’art' },
   { key:'applications',  label:'applications concrètes et systèmes réels qui l’utilisent' },
   { key:'misconceptions',label:'critiques, pièges et idées reçues fréquentes' },
+  { key:'ecosystem',     label:'outils, bibliothèques, packages, implémentations de référence et lectures pour aller plus loin' },
 ];
 
 const sweepPrompt = a => [
@@ -132,9 +144,9 @@ const archPrompt = (findings, sources) => [
   `Sujet : « ${subject} ». Tu conçois le PLAN d'un document de référence à partir des données de recherche.`,
   `Findings (point → url) :\n${JSON.stringify(findings).slice(0, 12000)}`,
   `Sources :\n${JSON.stringify(sources.map(s => ({ title:s.title, url:s.url, kind:s.kind }))).slice(0, 6000)}`,
-  `Rends : title (titre du document, sans suffixe d'édition), kicker (sur-titre court), et outline = 3 à 5 sections logiques.`,
+  `Rends : title (titre du document, sans suffixe d'édition), kicker (sur-titre court), et outline = AUTANT de sections que la matière trouvée le justifie (typiquement 4 à 9). Propose LARGE : une section par sous-thème réellement documenté. Les sections sans matière vérifiable seront élaguées automatiquement — ne t'autocensure pas, mais n'invente pas de section creuse.`,
   `Chaque section : id (kebab-case ascii, unique), heading, angle (ce qu'elle couvre).`,
-  `Couvre fondations → propriétés → variantes/applications → limites. Pas de section "glossaire"/"biblio" (ajoutées à la composition).`,
+  `Couvre fondations → propriétés → variantes/applications → limites. Si le sujet a un écosystème d'outils/bibliothèques/packages/lectures, AJOUTE une section finale kind="ecosystem" (heading type « Écosystème & pour aller plus loin »). Les autres sections : kind="normal". Pas de section "glossaire"/"biblio" (ajoutées à la composition).`,
 ].join('\n');
 
 const extractPrompt = (sec, findings) => [
@@ -142,9 +154,10 @@ const extractPrompt = (sec, findings) => [
   `Findings disponibles (point → url) :\n${JSON.stringify(findings).slice(0, 12000)}`,
   WEB + ' (autorisé pour compléter/préciser une source.)',
   `Produis pour CETTE section :`,
-  `- prose : 1 à 3 paragraphes HTML (<p>…</p>), prose d'auteur, claire, sans inventer. Pas de titre (le heading est ajouté à l'assemblage).`,
+  `- prose : autant de paragraphes HTML (<p>…</p>) que la matière de la section l'exige, sans délayer. Prose d'auteur, claire, sans inventer. Pas de titre (le heading est ajouté à l'assemblage).`,
   `- claims : 2 à 4 énoncés factuels vérifiables portés par la section. Pour CHAQUE claim : statement (une phrase nette), candidate_sources (urls qui l'étayent), examples (0-2 exemples concrets), kind.`,
   `IMPORTANT pour exercer la vérification : inclure au moins UN claim kind="contestable" — un énoncé fréquemment affirmé mais possiblement imprécis ou faux (idée reçue), à départager par les jurés. Les autres = kind="established".`,
+  `Si CETTE section concerne l'écosystème (outils/bibliothèques/packages/lectures) : remplis "pointers" = liste {name, url (lien officiel réel), kind ∈ library|package|tool|reading|implementation, blurb (1 phrase)}. Les pointeurs ne sont PAS des claims (pas de seuil ≥2 sources) : ce sont des renvois curés. N'invente jamais d'URL.`,
 ].join('\n');
 
 const LENSES = [
@@ -160,6 +173,13 @@ const verifyPrompt = (claim, lensIdx) => [
   WEB,
   `Rends un verdict HONNÊTE : holds (true si l'énoncé tient TEL QUEL), corrected_statement ("" si rien à corriger ; sinon l'énoncé corrigé minimal qui serait vrai), independent_sources (UNIQUEMENT les sources que TOI tu as vérifiées et qui sont indépendantes — title+url réels), note (1-2 phrases justifiant).`,
   `N'invente jamais d'URL. En cas de doute sur l'indépendance ou la véracité, penche vers holds=false.`,
+].join('\n');
+
+const pointersPrompt = (candidates) => [
+  `Voici des pointeurs candidats (outils/bibliothèques/packages/lectures) extraits de la recherche : ${JSON.stringify(candidates).slice(0, 8000)}`,
+  WEB,
+  `Pour CHAQUE pointeur, VÉRIFIE que l'URL existe réellement et pointe l'outil/la ressource annoncé(e). GARDE uniquement ceux dont l'URL résout et correspond. Corrige l'URL vers le lien officiel si nécessaire ; n'en invente aucun.`,
+  `Rends : pointers = liste finale {name, url (réel), kind, blurb (1 phrase factuelle)}. Liste vide si aucun ne tient.`,
 ].join('\n');
 
 const authorPrompt = (knowledgeJson, sectionsBrief, wantWidget) => [
@@ -192,13 +212,15 @@ const ELEMENT_CHEATSHEET = [
   `- {"type":"widget","ref":<widget ref>}`,
   `- {"type":"callout","kind":"callout","title":<str>,"body":<html>}`,
   `- {"type":"biblio","entries":[{"label":<str>,"href":<url>}]}`,
+  `- {"type":"pointers","title":<str>,"items":[{"name":<str>,"url":<url>,"kind":<str>,"blurb":<str>}]}`,
   `- {"type":"glossary"}                       (tire de glossary.json)`,
   `Un manifeste = {"edition":<ed>,"slug":"${slug}","meta":{"title","kicker","h1","lede","meta_chips":[…],"footer"},"elements":[…ordonnés…]}`,
   `meta.title/kicker/h1/lede sont OBLIGATOIRES. Les claims référencés doivent exister ; le widget ref doit exister.`,
 ].join('\n');
 
-const composePrompt = (title, sections, biblioEntries, widget) => [
-  `Tu composes les 3 manifestes-vues du thème « ${title} » (slug ${slug}). Tu ÉCRIS 3 fichiers JSON.`,
+const composePrompt = (title, sections, biblioEntries, widget, pointers) => [
+  `Tu composes les 3 manifestes-vues du thème « ${title} » (slug ${slug}). Tu ÉCRIS (Write) 3 fichiers JSON.`,
+  `IMPÉRATIF — RÉÉCRITURE OBLIGATOIRE : des fichiers editions/*.manifest.json peuvent déjà exister sur disque ; ce sont des sorties PÉRIMÉES d'un run précédent et le knowledge.json courant a changé. Tu DOIS les écraser intégralement avec les manifestes ci-dessous. Ne les considère JAMAIS comme la source de vérité, ne les "préserve" pas, ne décide pas qu'ils sont déjà bons. Si un Write échoue avec « File has not been read yet », fais d'abord Read sur ce fichier PUIS refais le Write — n'abandonne pas. À la fin, les 3 manifestes DOIVENT avoir été (ré)écrits par toi dans CE run.`,
   ELEMENT_CHEATSHEET,
   ``,
   `Matériel partagé (réutilise la prose telle quelle ; ne ré-écris pas les faits) :`,
@@ -206,11 +228,12 @@ const composePrompt = (title, sections, biblioEntries, widget) => [
   `  ${JSON.stringify(sections)}`,
   `- entrées biblio (depuis les sources vérifiées) : ${JSON.stringify(biblioEntries)}`,
   `- widget : ${widget ? JSON.stringify(widget) : 'aucun'}`,
+  `- pointeurs « pour aller plus loin » (à rendre via un élément {"type":"pointers","title":"Pour aller plus loin","items":[…]}) : ${pointers && pointers.length ? JSON.stringify(pointers) : 'aucun'}`,
   ``,
   `Politique d'édition (guide de rédaction, pas une règle du code) :`,
-  `- ${themeDir}/editions/reference.manifest.json : tldr(part1) → toutes les sections (avec leurs claims)${widget ? ' → widget (après sa section)' : ''} → biblio → glossary. Édition dense, superset.`,
+  `- ${themeDir}/editions/reference.manifest.json : tldr(part1) → toutes les sections (avec leurs claims)${widget ? ' → widget (après sa section)' : ''}${pointers && pointers.length ? ' → pointers' : ''} → biblio → glossary. Édition dense, superset.`,
   `- ${themeDir}/editions/publication.manifest.json : abstract → toutes les sections → biblio → glossary. Lecture suivie.`,
-  `- ${themeDir}/editions/pedagogique.manifest.json : onramp (tu rédiges 3-4 étapes) → sections${widget ? ' → widget' : ''} → 1-2 exercise (tu rédiges question+réponse) → biblio → glossary. Apprentissage.`,
+  `- ${themeDir}/editions/pedagogique.manifest.json : onramp (tu rédiges 3-4 étapes) → sections${widget ? ' → widget' : ''}${pointers && pointers.length ? ' → pointers' : ''} → 1-2 exercise (tu rédiges question+réponse) → biblio → glossary. Apprentissage.`,
   ``,
   `meta par édition : title = "${title} — <référence|publication|pédagogique>", kicker = "<sujet court> · édition <…>", h1 = "${title}", lede = 1 phrase d'accroche propre à l'édition, meta_chips = ["Référence"]/["Publication"]/["Pédagogique"], footer = "${title} · scriptorium".`,
   `Crée le dossier editions/ si besoin (mkdir -p). Rends files_written + element_counts.`,
@@ -257,12 +280,43 @@ const sectionResults = await pipeline(
       return { sectionId: sec.id, statement: d.statement, audit: d.audit, note: d.note,
                examples: c.examples || [], sources: d.sources };
     }))).filter(Boolean);
-    return { section: { id: sec.id, heading: sec.heading, prose: ext.prose }, claims: auditedClaims };
+    return { section: { id: sec.id, heading: sec.heading, prose: ext.prose, kind: sec.kind || 'normal' },
+             claims: auditedClaims, pointers: ext.pointers || [] };
   }
 );
 const sectionData = sectionResults.filter(Boolean);
 const audited = sectionData.flatMap(r => r.claims);
 log(`Verify : ${audited.length} claims audités (${audited.filter(c=>c.audit==='confirmed').length} confirmés, ${audited.filter(c=>c.audit==='corrected').length} corrigés, ${audited.filter(c=>c.audit==='rejected').length} rejetés)`);
+
+// ── ÉLAGAGE déterministe (frontière code) : la longueur = matière survivante ──
+const enriched = sectionData.map(r => ({
+  ...r, kept: r.claims.filter(c => c.audit !== 'rejected'),
+}));
+const liveSet = new Set(enriched.filter(s =>
+  (s.section.kind === 'ecosystem')
+    ? ((s.pointers && s.pointers.length > 0) || s.kept.length > 0)   // écosystème : ≥1 pointeur OU ≥1 claim
+    : (s.kept.length >= SECTION_CLAIM_QUOTA)                          // normale : quota de faits
+));
+const liveSections = enriched.filter(s => liveSet.has(s));
+enriched.filter(s => !liveSet.has(s)).forEach(s =>
+  log(`[élagage] section « ${s.section.heading} » coupée : ${s.kept.length} claim(s) survivant(s) < ${SECTION_CLAIM_QUOTA}`));
+if (liveSections.length === enriched.length) log('[élagage] aucune section coupée — toute la matière survit.');
+log(`[élagage] ${liveSections.length}/${enriched.length} sections retenues.`);
+
+// Vérification légère des pointeurs (sur sections vivantes), pas de council ≥2 sources
+const liveOutlineIds = new Set(liveSections.map(s => s.section.id));
+const pointerCandidates = liveSections.flatMap(s => s.pointers || []);
+let verifiedPointers = [];
+if (pointerCandidates.length > 0) {
+  const pv = await A(pointersPrompt(pointerCandidates), { schema: S_POINTERS, phase: 'Verify', label: 'verify:pointers' });
+  const seenP = new Set();
+  for (const p of (pv.pointers || [])) {
+    const k = normUrl(p.url);
+    if (k && !seenP.has(k)) { seenP.add(k); verifiedPointers.push({ name: p.name, url: p.url, kind: p.kind || 'reading', blurb: p.blurb || '' }); }
+  }
+  log(`[pointeurs] ${verifiedPointers.length}/${pointerCandidates.length} vérifiés.`);
+}
+const liveClaims = liveSections.flatMap(r => r.claims);  // knowledge.json = audit COMPLET des sections retenues (rejected inclus) ; les vues filtrent ensuite
 
 // Assemblage déterministe de knowledge.json (frontière code/jugement)
 const srcId = new Map();
@@ -277,7 +331,7 @@ function ensureSrc(s) {
   }
   return srcId.get(k);
 }
-const claims = audited.map((ac, i) => ({
+const claims = liveClaims.map((ac, i) => ({
   id: 'claim:' + (i + 1),
   statement: ac.statement,
   sources: (ac.sources || []).map(ensureSrc).filter(Boolean),
@@ -294,12 +348,12 @@ for (const c of claims) {
 const knowledge = {
   theme: { slug, title: arch.title },
   sources,
-  claims: claims.map(({ _section, ...c }) => c),    // knowledge.json conserve TOUT l'audit (y c. rejected)
+  claims: claims.map(({ _section, ...c }) => c),    // knowledge.json conserve l'audit complet des sections RETENUES (y c. rejected) ; sections élaguées retirées
 };
 const knowledgeJson = JSON.stringify(knowledge, null, 2);
 
 phase('Author');
-const sectionsBrief = arch.outline.map(o => `- ${o.id} : ${o.heading}`).join('\n');
+const sectionsBrief = arch.outline.filter(o => liveOutlineIds.has(o.id)).map(o => `- ${o.id} : ${o.heading}`).join('\n');
 const wantWidget = String(A0.widget) !== 'false';   // widget par défaut, sauf widget === false
 const authored = await A(authorPrompt(knowledgeJson, sectionsBrief, wantWidget), { schema: S_AUTHOR, phase: 'Author', label: 'author' });
 log(`Author : ${authored.files_written.length} fichiers écrits${authored.has_widget ? ' (widget inclus)' : ''}`);
@@ -307,7 +361,8 @@ log(`Author : ${authored.files_written.length} fichiers écrits${authored.has_wi
 phase('Compose');
 const proseById = {};
 sectionData.forEach(r => { proseById[r.section.id] = r.section.prose; });
-const sectionsForCompose = arch.outline.map(o => ({
+const liveOutline = arch.outline.filter(o => liveOutlineIds.has(o.id));
+const sectionsForCompose = liveOutline.map(o => ({
   id: o.id, heading: o.heading,
   prose: proseById[o.id] || '',
   claims: sectionClaims[o.id] || [],
@@ -315,10 +370,19 @@ const sectionsForCompose = arch.outline.map(o => ({
 const biblioEntries = sources.map(s => ({ label: s.title, href: s.url }));
 const widget = (authored.has_widget && authored.widget) ? authored.widget : null;
 const composed = await A(
-  composePrompt(arch.title, sectionsForCompose, biblioEntries, widget),
+  composePrompt(arch.title, sectionsForCompose, biblioEntries, widget, verifiedPointers),
   { schema: S_COMPOSE, phase: 'Compose', label: 'compose' }
 );
 log(`Compose : ${composed.files_written.length} manifestes écrits`);
+
+// Garde fail-loud : les 3 manifestes DOIVENT avoir été (ré)écrits dans ce run.
+// Sinon build.py assemblerait des manifestes périmés (refs claim:N pointant des faits différents) → corruption silencieuse.
+const _need = ['reference', 'publication', 'pedagogique'];
+const _written = new Set((composed.files_written || []).map(p => (p.match(/([a-z]+)\.manifest\.json$/) || [])[1]).filter(Boolean));
+const _missing = _need.filter(ed => !_written.has(ed));
+if (_missing.length) throw new Error(
+  `Compose n'a pas (ré)écrit les manifestes : ${_missing.join(', ')}. files_written=${JSON.stringify(composed.files_written)}. ` +
+  `Abandon AVANT build pour ne pas assembler des manifestes périmés sur le knowledge.json courant.`);
 
 phase('Build');
 const built = await A(buildPrompt(), { schema: S_BUILD, phase: 'Build', label: 'build' });

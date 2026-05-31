@@ -51,6 +51,17 @@ def render_biblio(el):
                     for e in el.get("entries", []))
     return f'<section id="biblio"><h3>Bibliographie &amp; repos</h3>{items}</section>'
 
+def render_pointers(el):
+    cards = []
+    for p in el.get("items", []):
+        kind = esc(p.get("kind", ""))
+        badge = f'<span class="xptr-kind">{kind}</span>' if kind else ""
+        cards.append(f'<div class="xptr"><a class="xptr-name" href="{p["url"]}">{esc(p["name"])}</a>'
+                     f'{badge}<p class="xptr-blurb">{esc(p.get("blurb",""))}</p></div>')
+    title = esc(el.get("title", "Pour aller plus loin"))
+    return (f'<section id="pointers"><h3>{title}</h3>'
+            '<div class="xptr-grid">' + "\n".join(cards) + "</div></section>")
+
 def render_toc(manifest):
     return "\n".join(f'<a href="#{el["id"]}">{esc(el["heading"])}</a>'
                      for el in manifest["elements"] if el.get("type") == "section")
@@ -65,4 +76,5 @@ RENDERERS = {
     "widget":   lambda el, ctx: render_widget(el, ctx["widgets"]),
     "callout":  lambda el, ctx: render_callout(el),
     "biblio":   lambda el, ctx: render_biblio(el),
+    "pointers": lambda el, ctx: render_pointers(el),
 }
