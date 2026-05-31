@@ -45,7 +45,9 @@ const S_ARCH = { type:'object', additionalProperties:false, required:['title','k
   title:{type:'string'}, kicker:{type:'string'},
   outline:{ type:'array', items:{ type:'object', additionalProperties:false, required:['id','heading','angle'],
     properties:{ id:{type:'string'}, heading:{type:'string'}, angle:{type:'string'},
-      kind:{ type:'string', enum:['normal','ecosystem'] } } } } } };
+      kind:{ type:'string', enum:['normal','ecosystem'] },
+      angle_key:{ type:'string', enum:['foundations','theory','variants','applications','misconceptions','ecosystem'] }
+    } } } } };
 
 const S_SECTION = { type:'object', additionalProperties:false, required:['id','heading','prose','claims'], properties:{
   id:{type:'string'}, heading:{type:'string'}, prose:{type:'string'},
@@ -156,16 +158,16 @@ const sweepPrompt = a => [
 
 const archPrompt = (findings, sources) => [
   `Sujet : « ${subject} ». Tu conçois le PLAN d'un document de référence à partir des données de recherche.`,
-  `Findings (point → url) :\n${JSON.stringify(findings).slice(0, 12000)}`,
-  `Sources :\n${JSON.stringify(sources.map(s => ({ title:s.title, url:s.url, kind:s.kind }))).slice(0, 6000)}`,
+  `Findings (point → url, champ _angle = angle de sweep d'origine) :\n${JSON.stringify(findings)}`,
+  `Sources :\n${JSON.stringify(sources.map(s => ({ title:s.title, url:s.url, kind:s.kind })))}`,
   `Rends : title (titre du document, sans suffixe d'édition), kicker (sur-titre court), et outline = AUTANT de sections que la matière trouvée le justifie (typiquement 4 à 9). Propose LARGE : une section par sous-thème réellement documenté. Les sections sans matière vérifiable seront élaguées automatiquement — ne t'autocensure pas, mais n'invente pas de section creuse.`,
-  `Chaque section : id (kebab-case ascii, unique), heading, angle (ce qu'elle couvre).`,
+  `Chaque section : id (kebab-case ascii, unique), heading, angle (ce qu'elle couvre), angle_key (clé de l'angle de sweep qui l'a principalement documentée, parmi : foundations, theory, variants, applications, misconceptions, ecosystem — si kind="ecosystem" alors angle_key="ecosystem").`,
   `Couvre fondations → propriétés → variantes/applications → limites. Si le sujet a un écosystème d'outils/bibliothèques/packages/lectures, AJOUTE une section finale kind="ecosystem" (heading type « Écosystème & pour aller plus loin »). Les autres sections : kind="normal". Pas de section "glossaire"/"biblio" (ajoutées à la composition).`,
 ].join('\n');
 
 const extractPrompt = (sec, findings) => [
   `Sujet : « ${subject} ». Section « ${sec.heading} » — angle : ${sec.angle}.`,
-  `Findings disponibles (point → url) :\n${JSON.stringify(findings).slice(0, 12000)}`,
+  `Findings disponibles (point → url) :\n${JSON.stringify(findings)}`,
   WEB + ' (autorisé pour compléter/préciser une source.)',
   `Produis pour CETTE section :`,
   `- prose : autant de paragraphes HTML (<p>…</p>) que la matière de la section l'exige, sans délayer. Prose d'auteur, claire, sans inventer. Pas de titre (le heading est ajouté à l'assemblage).`,
@@ -196,19 +198,17 @@ const pointersPrompt = (candidates) => [
   `Rends : pointers = liste finale {name, url (réel), kind, blurb (1 phrase factuelle)}. Liste vide si aucun ne tient.`,
 ].join('\n');
 
-const authorPrompt = (knowledgeJson, sectionsBrief, wantWidget) => [
+const authorPrompt = (sectionsBrief, wantWidget) => [
   `Tu es l'auteur. Tu ÉCRIS des fichiers dans le dossier de thème : ${themeDir}`,
+  `${themeDir}/knowledge.json a été écrit par l'étape précédente — lis-le pour connaître les claims vérifiés avant de rédiger le glossaire et le tldr.`,
   `Assure-toi que le dossier existe (mkdir -p si besoin), puis ÉCRIS exactement ces fichiers :`,
   ``,
-  `1) ${themeDir}/knowledge.json — écris VERBATIM ce contenu, SANS rien modifier (c'est la base de faits vérifiée, déjà assemblée) :`,
-  knowledgeJson,
+  `1) ${themeDir}/glossary.json — un tableau JSON de 4 à 7 termes du sujet : {term, definition, see_also?}. Définitions exactes, propres au sujet « ${subject} ». "see_also" est une CHAÎNE (jamais une liste) : pour renvoyer vers plusieurs termes, une seule chaîne séparée par ", " — ex. "see_also": "Triplet, Property graph".`,
   ``,
-  `2) ${themeDir}/glossary.json — un tableau JSON de 4 à 7 termes du sujet : {term, definition, see_also?}. Définitions exactes, propres au sujet « ${subject} ». "see_also" est une CHAÎNE (jamais une liste) : pour renvoyer vers plusieurs termes, une seule chaîne séparée par ", " — ex. "see_also": "Triplet, Property graph".`,
-  ``,
-  `3) ${themeDir}/tldr.json — { "these": "<la thèse du document en 1 phrase>", "part1": ["…","…"], "part2": ["…","…"] }. part1 et part2 = 2-4 puces chacune (idées clés ; part1 = principe, part2 = garanties/limites).`,
+  `2) ${themeDir}/tldr.json — { "these": "<la thèse du document en 1 phrase>", "part1": ["…","…"], "part2": ["…","…"] }. part1 et part2 = 2-4 puces chacune (idées clés ; part1 = principe, part2 = garanties/limites).`,
   ``,
   wantWidget
-    ? `4) ${themeDir}/widgets/<ref>.html — UN widget interactif autonome illustrant le sujet. Contraintes STRICTES : un seul bloc <div class="widget">…</div> + <style>…</style> + <script>…</script> ; AUCUNE ressource externe, AUCUN file:///, AUCUN alert/confirm/prompt ; balises <section>/<details>/<script> équilibrées ; préfixe TOUS les id/classes pour éviter les collisions avec la charte. Choisis un ref kebab-case (ex. probe-…). Le widget doit vraiment démontrer un mécanisme du sujet (interactif, pas décoratif).`
+    ? `3) ${themeDir}/widgets/<ref>.html — UN widget interactif autonome illustrant le sujet. Contraintes STRICTES : un seul bloc <div class="widget">…</div> + <style>…</style> + <script>…</script> ; AUCUNE ressource externe, AUCUN file:///, AUCUN alert/confirm/prompt ; balises <section>/<details>/<script> équilibrées ; préfixe TOUS les id/classes pour éviter les collisions avec la charte. Choisis un ref kebab-case (ex. probe-…). Le widget doit vraiment démontrer un mécanisme du sujet (interactif, pas décoratif).`
     : `(Pas de widget pour ce thème.)`,
   ``,
   `Sections du document (pour cohérence de ton glossaire/tldr/widget) :\n${sectionsBrief}`,
@@ -232,14 +232,13 @@ const ELEMENT_CHEATSHEET = [
   `meta.title/kicker/h1/lede sont OBLIGATOIRES. Les claims référencés doivent exister ; le widget ref doit exister.`,
 ].join('\n');
 
-const composePrompt = (title, sections, biblioEntries, widget, pointers) => [
+const composePrompt = (title, biblioEntries, widget, pointers) => [
   `Tu composes les 3 manifestes-vues du thème « ${title} » (slug ${slug}). Tu ÉCRIS (Write) 3 fichiers JSON.`,
   `IMPÉRATIF — RÉÉCRITURE OBLIGATOIRE : des fichiers editions/*.manifest.json peuvent déjà exister sur disque ; ce sont des sorties PÉRIMÉES d'un run précédent et le knowledge.json courant a changé. Tu DOIS les écraser intégralement avec les manifestes ci-dessous. Ne les considère JAMAIS comme la source de vérité, ne les "préserve" pas, ne décide pas qu'ils sont déjà bons. Si un Write échoue avec « File has not been read yet », fais d'abord Read sur ce fichier PUIS refais le Write — n'abandonne pas. À la fin, les 3 manifestes DOIVENT avoir été (ré)écrits par toi dans CE run.`,
   ELEMENT_CHEATSHEET,
   ``,
   `Matériel partagé (réutilise la prose telle quelle ; ne ré-écris pas les faits) :`,
-  `- sections, ordre logique — chacune : id, heading, prose (HTML à réutiliser tel quel), claims (ids à mettre dans section.claims) :`,
-  `  ${JSON.stringify(sections)}`,
+  `- sections (id, heading, prose HTML à réutiliser tel quel, claims = liste d'ids) : lis ${themeDir}/editions/sections_draft.json`,
   `- entrées biblio (depuis les sources vérifiées) : ${JSON.stringify(biblioEntries)}`,
   `- widget : ${widget ? JSON.stringify(widget) : 'aucun'}`,
   `- pointeurs « pour aller plus loin » (à rendre via un élément {"type":"pointers","title":"Pour aller plus loin","items":[…]}) : ${pointers && pointers.length ? JSON.stringify(pointers) : 'aucun'}`,
@@ -268,11 +267,15 @@ const buildPrompt = () => [
 // ── Orchestration ────────────────────────────────────────────────────────────
 phase('Sweep');
 log(`Sujet : ${subject} — recherche multi-angles (${ANGLES.length} angles)`);
-const sweeps = (await parallel(ANGLES.map(a => () =>
+const sweepResults = await parallel(ANGLES.map(a => () =>
   A(sweepPrompt(a), { schema: S_SWEEP, phase: 'Sweep', label: `sweep:${a.key}` })
-))).filter(Boolean);
-const allFindings = sweeps.flatMap(s => s.findings || []);
-const allSources = dedupSources(sweeps.flatMap(s => s.sources || []));
+));
+// Tag chaque finding avec son angle d'origine (pour filtrage ciblé en Extract)
+const sweepsByAngle = ANGLES.map((a, i) => ({ key: a.key, sweep: sweepResults[i] })).filter(({sweep}) => sweep);
+const allFindings = sweepsByAngle.flatMap(({key, sweep}) =>
+  (sweep.findings || []).map(f => ({ ...f, _angle: key }))
+);
+const allSources = dedupSources(sweepsByAngle.flatMap(({sweep}) => sweep.sources || []));
 log(`Sweep : ${allFindings.length} findings, ${allSources.length} sources uniques`);
 
 phase('Plan');
@@ -282,7 +285,13 @@ log(`Plan : « ${arch.title} » — ${arch.outline.length} sections`);
 // Extract → Verify en pipeline (pas de barrière entre sections)
 const sectionResults = await pipeline(
   arch.outline,
-  (sec) => A(extractPrompt(sec, allFindings), { schema: S_SECTION, phase: 'Extract', label: `extract:${sec.id}` }),
+  (sec) => {
+    // Filtre les findings sur l'angle de la section — réduit le bruit et le volume injecté
+    const secFindings = sec.angle_key
+      ? allFindings.filter(f => f._angle === sec.angle_key)
+      : allFindings;
+    return A(extractPrompt(sec, secFindings), { schema: S_SECTION, phase: 'Extract', label: `extract:${sec.id}` });
+  },
   async (ext, sec) => {
     const claims = ext.claims || [];
     const auditedClaims = (await parallel(claims.map((c, ci) => async () => {
@@ -372,9 +381,15 @@ const knowledge = {
 const knowledgeJson = JSON.stringify(knowledge, null, 2);
 
 phase('Author');
+// Écriture de knowledge.json via un agent dédié (le script workflow n'a pas d'accès disque)
+await A(
+  `Crée le dossier si besoin (mkdir -p ${themeDir}) puis écris VERBATIM, sans aucune modification, le fichier suivant.\nChemin : ${themeDir}/knowledge.json\nContenu :\n${knowledgeJson}`,
+  { schema: { type:'object', additionalProperties:false, required:['written'], properties:{ written:{type:'boolean'} } },
+    phase: 'Author', label: 'write:knowledge' }
+);
 const sectionsBrief = arch.outline.filter(o => liveOutlineIds.has(o.id)).map(o => `- ${o.id} : ${o.heading}`).join('\n');
 const wantWidget = String(A0.widget) !== 'false';   // widget par défaut, sauf widget === false
-const authored = await A(authorPrompt(knowledgeJson, sectionsBrief, wantWidget), { schema: S_AUTHOR, phase: 'Author', label: 'author' });
+const authored = await A(authorPrompt(sectionsBrief, wantWidget), { schema: S_AUTHOR, phase: 'Author', label: 'author' });
 log(`Author : ${authored.files_written.length} fichiers écrits${authored.has_widget ? ' (widget inclus)' : ''}`);
 
 phase('Compose');
@@ -386,10 +401,16 @@ const sectionsForCompose = liveOutline.map(o => ({
   prose: proseById[o.id] || '',
   claims: sectionClaims[o.id] || [],
 }));
+// Écriture des sections sur disque — Compose lit depuis le fichier (pas d'injection inline volumineuse)
+await A(
+  `Crée le dossier si besoin (mkdir -p ${themeDir}/editions) puis écris VERBATIM le fichier suivant.\nChemin : ${themeDir}/editions/sections_draft.json\nContenu :\n${JSON.stringify(sectionsForCompose, null, 2)}`,
+  { schema: { type:'object', additionalProperties:false, required:['written'], properties:{ written:{type:'boolean'} } },
+    phase: 'Compose', label: 'write:sections' }
+);
 const biblioEntries = sources.map(s => ({ label: s.title, href: s.url }));
 const widget = (authored.has_widget && authored.widget) ? authored.widget : null;
 const composed = await A(
-  composePrompt(arch.title, sectionsForCompose, biblioEntries, widget, verifiedPointers),
+  composePrompt(arch.title, biblioEntries, widget, verifiedPointers),
   { schema: S_COMPOSE, phase: 'Compose', label: 'compose' }
 );
 log(`Compose : ${composed.files_written.length} manifestes écrits`);
