@@ -1,0 +1,185 @@
+<div class="widget" id="kgcpipe">
+  <style>
+    #kgcpipe { font-family: var(--font-sans, system-ui, sans-serif); color: var(--ink, #15202E); border: 1px solid var(--line, #D7DFE9); border-radius: 8px; padding: 1rem 1.2rem; background: var(--card, #FFFFFF); }
+    #kgcpipe .kgcpipe-title { font-family: "Archivo", system-ui, sans-serif; font-weight: 600; margin: 0 0 .25rem; font-size: 1rem; }
+    #kgcpipe .kgcpipe-sub { color: var(--ink-faint, #7A889B); font-size: .82rem; margin: 0 0 .9rem; }
+    #kgcpipe .kgcpipe-pick { display: flex; gap: .4rem; flex-wrap: wrap; margin-bottom: .7rem; }
+    #kgcpipe .kgcpipe-pick button { font: inherit; font-size: .82rem; padding: .25rem .6rem; border: 1px solid var(--line, #bbb); background: var(--paper, #F4F6FA); color: var(--ink, #15202E); border-radius: 999px; cursor: pointer; }
+    #kgcpipe .kgcpipe-pick button.kgcpipe-on { background: var(--blue, #23537F); color: #fff; border-color: var(--blue, #23537F); }
+    #kgcpipe .kgcpipe-sentence { background: var(--paper, #F4F6FA); border: 1px solid var(--line, #ddd); border-radius: 6px; padding: .6rem .7rem; line-height: 1.9; font-size: .95rem; min-height: 1.9em; }
+    #kgcpipe .kgcpipe-ent { border-radius: 4px; padding: .05rem .25rem; font-weight: 600; }
+    #kgcpipe .kgcpipe-ent.kgcpipe-PER { background: var(--blue-wash, #E7EEF6); color: var(--blue, #23537F); }
+    #kgcpipe .kgcpipe-ent.kgcpipe-ORG { background: var(--bordeaux-wash, #F3E3E6); color: var(--bordeaux, #7C2A38); }
+    #kgcpipe .kgcpipe-ent.kgcpipe-LOC { background: #E2F4E5; color: #1f6b34; }
+    #kgcpipe .kgcpipe-coref { text-decoration: underline dotted; text-underline-offset: 3px; cursor: help; }
+    #kgcpipe .kgcpipe-stages { margin-top: .9rem; display: grid; gap: .55rem; }
+    #kgcpipe .kgcpipe-stage { border: 1px solid var(--line-soft, #E7ECF3); border-radius: 6px; padding: .5rem .65rem; background: var(--paper, #F4F6FA); opacity: .45; transition: opacity .25s; }
+    #kgcpipe .kgcpipe-stage.kgcpipe-live { opacity: 1; border-color: var(--blue-bright, #2C77B6); }
+    #kgcpipe .kgcpipe-stage h4 { font-family: "Archivo", system-ui, sans-serif; margin: 0 0 .25rem; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: var(--ink-faint, #7A889B); }
+    #kgcpipe .kgcpipe-val { font-size: .9rem; font-family: var(--font-mono, "JetBrains Mono", ui-monospace, monospace); }
+    #kgcpipe .kgcpipe-triplet { font-family: var(--font-mono, "JetBrains Mono", ui-monospace, monospace); font-size: .95rem; background: var(--blue-deep, #142E49); color: #EAF1F8; border-radius: 6px; padding: .55rem .7rem; margin-top: .55rem; word-break: break-word; }
+    #kgcpipe .kgcpipe-triplet.kgcpipe-empty { background: var(--paper, #F4F6FA); color: var(--ink-faint, #999); font-family: var(--font-sans, system-ui, sans-serif); font-style: italic; }
+    #kgcpipe .kgcpipe-controls { display: flex; gap: .5rem; margin-top: .8rem; flex-wrap: wrap; }
+    #kgcpipe .kgcpipe-controls button { font: inherit; padding: .35rem .85rem; border-radius: 5px; cursor: pointer; border: 1px solid var(--blue, #23537F); }
+    #kgcpipe .kgcpipe-controls button.kgcpipe-primary { background: var(--blue, #23537F); color: #fff; }
+    #kgcpipe .kgcpipe-controls button.kgcpipe-sec { background: var(--card, #fff); color: var(--blue, #23537F); }
+    #kgcpipe .kgcpipe-controls button:disabled { opacity: .45; cursor: default; }
+    #kgcpipe .kgcpipe-note { color: var(--ink-faint, #7A889B); font-size: .78rem; margin-top: .7rem; }
+  </style>
+
+  <p class="kgcpipe-title">Sonde : la chaine d'extraction texte vers triplet</p>
+  <p class="kgcpipe-sub">Choisis une phrase, puis fais tourner les maillons un par un. Chaque etape consomme la sortie de la precedente.</p>
+
+  <div class="kgcpipe-pick" id="kgcpipe-pick"></div>
+
+  <div class="kgcpipe-sentence" id="kgcpipe-sentence"></div>
+
+  <div class="kgcpipe-stages">
+    <div class="kgcpipe-stage" id="kgcpipe-s-ner">
+      <h4>1 - NER : reconnaissance d'entites</h4>
+      <div class="kgcpipe-val" id="kgcpipe-v-ner">-</div>
+    </div>
+    <div class="kgcpipe-stage" id="kgcpipe-s-link">
+      <h4>2 - Liage d'entites</h4>
+      <div class="kgcpipe-val" id="kgcpipe-v-link">-</div>
+    </div>
+    <div class="kgcpipe-stage" id="kgcpipe-s-coref">
+      <h4>3 - Resolution de coreference</h4>
+      <div class="kgcpipe-val" id="kgcpipe-v-coref">-</div>
+    </div>
+    <div class="kgcpipe-stage" id="kgcpipe-s-rel">
+      <h4>4 - Extraction de relation vers triplet</h4>
+      <div class="kgcpipe-triplet kgcpipe-empty" id="kgcpipe-v-rel">Aucun triplet : la chaine n'a pas encore tourne.</div>
+    </div>
+  </div>
+
+  <div class="kgcpipe-controls">
+    <button class="kgcpipe-primary" id="kgcpipe-step" type="button">Etape suivante</button>
+    <button class="kgcpipe-sec" id="kgcpipe-all" type="button">Tout executer</button>
+    <button class="kgcpipe-sec" id="kgcpipe-reset" type="button">Reinitialiser</button>
+  </div>
+
+  <p class="kgcpipe-note">Demo deterministe (annotations pre-calculees par phrase) : illustre l'enchainement des maillons, pas un vrai modele d'IE. Briser un maillon casse tout l'aval.</p>
+
+  <script>
+    (function () {
+      var DATA = [
+        {
+          label: "Marie Curie",
+          tokens: [
+            { t: "Marie Curie", ent: "PER" }, { t: " est nee a " },
+            { t: "Varsovie", ent: "LOC" }, { t: " ; " },
+            { t: "elle", coref: true }, { t: " a fonde l'" },
+            { t: "Institut Curie", ent: "ORG" }, { t: " a " },
+            { t: "Paris", ent: "LOC" }, { t: "." }
+          ],
+          link: "Marie Curie -> Q7186 . Varsovie -> Q270 . Institut Curie -> Q1664782 . Paris -> Q90",
+          coref: "« elle » -> Marie Curie (Q7186)",
+          triplet: "(Q7186 Marie Curie, fondateur-de, Q1664782 Institut Curie)"
+        },
+        {
+          label: "Steve Jobs",
+          tokens: [
+            { t: "Steve Jobs", ent: "PER" }, { t: " a cofonde " },
+            { t: "Apple", ent: "ORG" }, { t: " ; " },
+            { t: "le dirigeant", coref: true }, { t: " a aussi rachete " },
+            { t: "Pixar", ent: "ORG" }, { t: "." }
+          ],
+          link: "Steve Jobs -> Q19837 . Apple -> Q312 . Pixar -> Q172241",
+          coref: "« le dirigeant » -> Steve Jobs (Q19837)",
+          triplet: "(Q19837 Steve Jobs, fondateur-de, Q312 Apple)"
+        },
+        {
+          label: "Ada Lovelace",
+          tokens: [
+            { t: "Ada Lovelace", ent: "PER" }, { t: " a travaille avec " },
+            { t: "Charles Babbage", ent: "PER" }, { t: " ; " },
+            { t: "la mathematicienne", coref: true }, { t: " est nee a " },
+            { t: "Londres", ent: "LOC" }, { t: "." }
+          ],
+          link: "Ada Lovelace -> Q7259 . Charles Babbage -> Q46633 . Londres -> Q84",
+          coref: "« la mathematicienne » -> Ada Lovelace (Q7259)",
+          triplet: "(Q7259 Ada Lovelace, lieu-de-naissance, Q84 Londres)"
+        }
+      ];
+
+      var sel = 0, stage = 0; // 0 = rien, 1..4 = maillons executes
+      var pickEl = document.getElementById("kgcpipe-pick");
+      var sentEl = document.getElementById("kgcpipe-sentence");
+
+      DATA.forEach(function (d, i) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.textContent = d.label;
+        b.addEventListener("click", function () { sel = i; reset(); });
+        pickEl.appendChild(b);
+      });
+
+      function renderSentence() {
+        var d = DATA[sel];
+        while (sentEl.firstChild) { sentEl.removeChild(sentEl.firstChild); }
+        d.tokens.forEach(function (tok) {
+          if (tok.ent && stage >= 1) {
+            var span = document.createElement("span");
+            span.className = "kgcpipe-ent kgcpipe-" + tok.ent;
+            span.textContent = tok.t;
+            sentEl.appendChild(span);
+          } else if (tok.coref && stage >= 3) {
+            var c = document.createElement("span");
+            c.className = "kgcpipe-coref";
+            c.title = "renvoie a l'entite principale";
+            c.textContent = tok.t;
+            sentEl.appendChild(c);
+          } else {
+            sentEl.appendChild(document.createTextNode(tok.t));
+          }
+        });
+      }
+
+      function setStage(key, n, val) {
+        document.getElementById("kgcpipe-s-" + key).classList.toggle("kgcpipe-live", stage >= n);
+        document.getElementById("kgcpipe-v-" + key).textContent = val;
+      }
+
+      function entSummary(d) {
+        return d.tokens.filter(function (t) { return t.ent; })
+          .map(function (t) { return t.t + " [" + t.ent + "]"; })
+          .join(" . ");
+      }
+
+      function render() {
+        Array.prototype.forEach.call(pickEl.children, function (b, i) {
+          b.classList.toggle("kgcpipe-on", i === sel);
+        });
+        renderSentence();
+        var d = DATA[sel];
+        setStage("ner", 1, stage >= 1 ? entSummary(d) : "-");
+        setStage("link", 2, stage >= 2 ? d.link : "-");
+        setStage("coref", 3, stage >= 3 ? d.coref : "-");
+        var relEl = document.getElementById("kgcpipe-v-rel");
+        document.getElementById("kgcpipe-s-rel").classList.toggle("kgcpipe-live", stage >= 4);
+        if (stage >= 4) {
+          relEl.classList.remove("kgcpipe-empty");
+          relEl.textContent = d.triplet;
+        } else {
+          relEl.classList.add("kgcpipe-empty");
+          relEl.textContent = "Aucun triplet : execute les 3 maillons amont d'abord.";
+        }
+        document.getElementById("kgcpipe-step").disabled = stage >= 4;
+      }
+
+      function reset() { stage = 0; render(); }
+
+      document.getElementById("kgcpipe-step").addEventListener("click", function () {
+        if (stage < 4) { stage++; render(); }
+      });
+      document.getElementById("kgcpipe-all").addEventListener("click", function () {
+        stage = 4; render();
+      });
+      document.getElementById("kgcpipe-reset").addEventListener("click", reset);
+
+      reset();
+    })();
+  </script>
+
+</div>
