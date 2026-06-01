@@ -27,7 +27,7 @@ const { subject, slug, themeDir } = A0;
 if (!subject || !slug || !themeDir)
   throw new Error('args manquants : attendu {subject, slug, themeDir}. Reçu : ' + JSON.stringify(args));
 const repoRoot = themeDir.replace(/\/themes\/[^/]+\/?$/, '');
-const buildScript = repoRoot + '/.claude/skills/triptych/scripts/build.py';
+const buildScript = repoRoot + '/.claude/skills/monograph/scripts/build.py';
 
 const WEB = 'Utilise WebSearch et WebFetch (charge-les via ToolSearch "select:WebSearch,WebFetch" si absents). Cite des URL réelles, jamais inventées.';
 
