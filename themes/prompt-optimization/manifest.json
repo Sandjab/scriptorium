@@ -1,0 +1,396 @@
+{
+  "edition": "monographie",
+  "slug": "prompt-optimization",
+  "meta": {
+    "title": "Optimiser automatiquement les prompts et les skills",
+    "kicker": "Chercher le prompt qui maximise une métrique · monographie",
+    "h1": "Optimiser automatiquement les prompts et les skills",
+    "lede": "Comment un même argmax — chercher le prompt qui maximise une métrique de tâche sans toucher aux poids — relie APE, ProTeGi, OPRO, GEPA et l'amélioration automatique de skills d'agent.",
+    "meta_chips": [
+      "Monographie"
+    ],
+    "footer": "Optimiser automatiquement les prompts et les skills · scriptorium"
+  },
+  "elements": [
+    {
+      "type": "abstract"
+    },
+    {
+      "type": "section",
+      "id": "definition-et-cadre-unifie",
+      "heading": "Définition formelle et le cadre unifié en 5 étapes",
+      "level": 3,
+      "prose": "<p>Avant de comparer des méthodes, il faut poser l'objet. L'optimisation automatique de prompts (APO) se définit formellement comme une recherche : trouver le prompt qui maximise une espérance de score sur un ensemble de validation. Le survey EMNLP 2025 de Ramnath et al. l'écrit ρ<sup>opt</sup> := arg max<sub>ρ∈V</sub> 𝔼<sub>x∼D<sub>val</sub></sub>[f(M<sub>task</sub>(ρ⊕x))], où ρ est le prompt cherché dans l'espace V, M<sub>task</sub> le modèle de langage cible, ⊕ la concaténation du prompt et de l'entrée x, f une fonction de score, et D<sub>val</sub> la distribution des exemples de validation. Lue à voix haute, la formule dit exactement ceci : parmi tous les prompts qu'on peut écrire, on garde celui qui rend le modèle le plus performant en moyenne sur des cas qu'il n'a pas servi à choisir. Tout le reste — gradients textuels, algorithmes génétiques, bandits — n'est qu'une stratégie pour parcourir ce argmax sur un espace combinatoire et discret qu'on ne peut pas énumérer.</p><p>L'intérêt de cette formalisation n'est pas cosmétique : elle révèle pourquoi tant de méthodes hétéroclites résolvent au fond le même problème. C'est l'apport principal du survey de Ramnath et al. (arXiv:2502.16923, soumis le 24 février 2025, 21 auteurs), qui range plus d'une centaine de travaux dans un cadre unificateur en cinq étapes : (1) initialiser des prompts d'amorce (<em>seed prompts</em>), (2) évaluer l'inférence et produire un retour (<em>evaluation and feedback</em>), (3) générer des candidats (<em>candidate generation</em>), (4) filtrer et retenir les prompts prometteurs (<em>filter and retain</em>), et (5) gérer la profondeur d'itération (<em>iteration depth</em>). Toute boucle d'APO se relit dans cette grille : on part de quelque chose, on mesure, on propose des variantes, on en jette la plupart, et on décide quand s'arrêter. Les opérateurs de génération se classent alors en éditions heuristiques (Monte Carlo, génétique, édition de mots), réseaux auxiliaires entraînés (apprentissage par renforcement, finetuning), conception de métaprompts, méthodes par couverture (ensembles, mixtures d'experts) et synthèse de programmes ; les stratégies de sélection vont du greedy Top-K aux variantes de bandits (Upper Confidence Bound) et à la recherche par régions.</p><p>Reste la question du pourquoi. Si l'on peut accéder aux poids d'un modèle, le finetuning est souvent plus direct ; l'APO s'impose ailleurs. Le survey avance trois raisons explicites : l'APO ne requiert <em>aucun accès aux paramètres</em> du modèle cible — elle traite le LLM en boîte noire, ce qui la rend applicable aux modèles servis derrière une API ; elle <em>parcourt systématiquement</em> l'espace des solutions plutôt que de bricoler à la main ; et elle <em>préserve l'interprétabilité humaine</em>, puisque l'artefact optimisé reste un texte qu'on peut lire, critiquer et corriger — à la différence des prompts continus (<em>soft prompts</em>) appris dans l'espace des embeddings. Ce sont ces trois propriétés qui font le pont vers l'amélioration automatique de skills d'agent : un skill est précisément un document texte interprétable, optimisé sans toucher aux poids, et donc justiciable du même argmax.</p><p>La filiation se lit dans les jalons que le survey cite comme représentatifs : APE, ProTeGi, SPRIG, OPRO, DSPy, PromptAgent, CRISPO, EvoPrompt, PromptBreeder, MOP et SCULPT. L'origine fondatrice est APE (Zhou et al., « Large Language Models Are Human-Level Prompt Engineers », arXiv:2211.01910, novembre 2022), qui pose le geste princeps : traiter l'instruction comme un <em>programme</em> en langage naturel, en générer un pool de candidats via un LLM, puis sélectionner celui qui maximise une fonction de score — exactement l'argmax ci-dessus. Évalué sur 24 tâches de NLP, APE atteint des performances meilleures ou comparables aux instructions rédigées par des annotateurs humains sur 19 d'entre elles. C'est ce schéma — proposer, mesurer, retenir — que les méthodes ultérieures raffineront, et que des systèmes récents transposeront aux skills d'agent (par exemple SkillOpt, présenté comme un optimiseur text-space à éditions bornées et acceptation conditionnée à un score de validation tenu à part — claims rapportés tels qu'énoncés, la source étant datée de 2026).</p>",
+      "claims": [
+        "claim:1",
+        "claim:2",
+        "claim:3",
+        "claim:4"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-boucle-apo-5-etapes"
+    },
+    {
+      "type": "section",
+      "id": "espace-de-recherche-et-gradients-textuels",
+      "heading": "Espace de recherche et « gradients textuels » : l'analogie de la descente de gradient",
+      "level": 3,
+      "prose": "<p>Avant de parler de « gradients » à propos de l'optimisation de prompts, il faut partitionner l'espace de recherche, car le mot ne recouvre pas la même réalité selon la région où l'on travaille. Le survey de référence pose le problème comme une maximisation, <em>P* = argmax<sub>P∈𝒫</sub> 𝔼<sub>(x,y)∼𝒟<sub>val</sub></sub>[g(f(P(x)), y)]</em>, où <em>f</em> est le modèle gelé, <em>P</em> le prompt et <em>g</em> une métrique évaluée contre la vérité terrain. Il distingue ensuite trois sous-problèmes selon la nature de la variable optimisée : l'optimisation <strong>discrète</strong> (DPO), qui agit sur des jetons « durs » — instructions, exemples — dans un ensemble 𝒫<sub>d</sub> ; l'optimisation <strong>continue ou « soft »</strong> (CPO), qui optimise des vecteurs apprenables sur les plongements <em>e<sub>x</sub> = Embed(x) ∈ ℝ<sup>d</sup></em>, modèle gelé ; et l'optimisation <strong>hybride</strong> (HPO), produit cartésien 𝒫<sub>h</sub> = 𝒫<sub>d</sub> × 𝒫<sub>c</sub> des deux. Cette partition n'est pas cosmétique : elle pose la frontière à l'intérieur de laquelle l'expression « gradient-based » a un sens littéral.</p><p>Cette frontière est nette. Le gradient « réel » — la dérivée d'une perte différentiable par rapport aux paramètres — n'existe que dans le cas continu : on peut rétropropager sur les vecteurs <em>e<sub>x</sub></em> parce que les plongements vivent dans ℝ<sup>d</sup> et que la perte y est différentiable, comme le font le prefix-tuning ou le prompt-tuning. Côté discret, les jetons ne sont pas différentiables : il n'y a pas de gradient à descendre, seulement une recherche combinatoire dans un espace de jetons que le survey décrit comme rapidement intractable. Tout l'enjeu des méthodes opérant sur du texte est donc de fabriquer un substitut de direction d'erreur sans dérivée.</p><p>C'est exactement le geste de ProTeGi (Pryzant et al., EMNLP 2023), qui forge la notion de <strong>« gradient textuel »</strong>. Le système fait produire au modèle une critique en langage naturel du prompt courant, et l'article assume l'analogie : ces critiques « pointent dans la direction de l'erreur, à la manière dont les gradients numériques pointent dans la direction d'augmentation de l'erreur ». La mise à jour consiste alors à réécrire « le prompt dans la direction sémantique opposée au gradient » — un pas de descente, mais sémantique, sans aucune dérivée. ProTeGi rapporte ainsi améliorer un prompt initial jusqu'à 31 %, et combine recherche en faisceau et identification du meilleur bras (bandits) pour rendre l'allocation du budget efficace.</p><p>TextGrad (Yuksekgonul et al., <em>Nature</em> 2025) généralise ce geste de la mise à jour d'un seul prompt à la <strong>rétropropagation sur un graphe de calcul arbitraire</strong>. Chaque système d'IA devient un graphe ; la critique d'un nœud se propage à ses prédécesseurs via un opérateur qui mime la règle de chaîne, <em>∂ℒ/∂v = ⋃<sub>w∈Successors(v)</sub> ∇<sub>f</sub>(v, w, ∂ℒ/∂w)</em>, et la mise à jour d'une variable suit un pas de « descente de gradient textuelle », <em>x<sub>new</sub> = TGD.step(x, ∂ℒ/∂x)</em>. Les auteurs sont explicites sur le statut de l'image : ils « utilisent la différentiation et les gradients comme une métaphore du retour textuel des LLM ». Les « gradients » sont des critiques en langage naturel produites par un modèle, non les dérivées d'une perte différentiable, et l'article ne fournit aucune preuve de convergence ni garantie théorique.</p><p>La portée de l'analogie a donc une limite que ses propres auteurs nomment. OPRO (DeepMind, 2023), qui demande au modèle de proposer de nouveaux candidats à partir d'une trajectoire de scores, observe que « le paysage d'optimisation de certaines fonctions objectif est trop accidenté pour que le LLM propose une direction de descente correcte, ce qui bloque l'optimisation à mi-chemin » ; il note que « des prompts sémantiquement proches peuvent avoir des performances radicalement différentes » et désavoue tout objectif de surpasser les optimiseurs à gradient sur l'optimisation continue. Le « gradient textuel » n'est donc pas une descente de gradient affaiblie : c'est une direction d'erreur fabriquée par jugement, dont la métaphore est éclairante pour l'ingénierie mais ne transporte ni la dérivée ni les garanties qui font la force du cas continu.</p>",
+      "claims": [
+        "claim:5",
+        "claim:6",
+        "claim:7",
+        "claim:8"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-gradient-textuel"
+    },
+    {
+      "type": "section",
+      "id": "genealogie-des-methodes",
+      "heading": "Généalogie des méthodes : d'APE à GEPA",
+      "level": 3,
+      "prose": "<p>L'optimisation automatique de prompt (APO) commence par une intuition de programmeur : et si l'instruction donnée à un modèle était traitée comme un <em>programme</em>, c'est-à-dire un objet que l'on peut générer, exécuter, mesurer et améliorer par recherche ? C'est exactement la thèse d'APE (Automatic Prompt Engineer, Zhou et al., 2022) : un LLM propose une réserve de formulations candidates, un second modèle les exécute en zero-shot, et l'on conserve celles qui maximisent un score. Le résultat fondateur — des instructions auto-générées égalant ou dépassant les prompts humains sur 19 des 24 tâches testées — installe l'idée que le prompt n'est pas une rédaction artisanale figée mais un espace de recherche.</p><p>La génération suivante apporte la <em>boucle de feedback</em>. ProTeGi (Pryzant et al., Microsoft, 2023) introduit la métaphore qui structurera tout le champ : des « gradients textuels ». Sur des mini-lots de données, le modèle rédige en langage naturel une critique du prompt courant — où il échoue, pourquoi — puis édite le prompt dans la direction sémantique <em>opposée</em> à ce reproche, le tout cadré par un beam search et une sélection par bandits ; l'initial gagne jusqu'à 31 %. OPRO (Yang et al., Google DeepMind, 2023) radicalise la simplicité : le méta-prompt contient la <em>trajectoire d'optimisation</em> elle-même — les solutions précédentes assorties de leurs scores, triées — et demande au modèle d'en proposer une meilleure. C'est cet optimiseur qui exhume l'instruction devenue emblématique, « Take a deep breath and work on this problem step by step », et fait grimper les prompts optimisés de +8 % sur GSM8K et jusqu'à +50 % sur Big-Bench Hard.</p><p>Une troisième famille importe l'arsenal de l'évolution artificielle. PromptBreeder (Fernando et al., DeepMind, 2023) est <em>auto-référentiel</em> : il fait évoluer non seulement les prompts de tâche mais aussi les prompts de mutation qui les transforment, le système réécrivant ainsi ses propres opérateurs. EvoPrompt (Guo et al., ICLR 2024) branche explicitement les LLM sur des algorithmes évolutionnaires — algorithme génétique et évolution différentielle servant d'opérateurs de croisement et de mutation —, sans gradient ni paramètre appris. La généalogie aboutit à GEPA (Agrawal et al., ICLR 2026, oral) : « Genetic-Pareto » combine la mutation <em>réflexive</em> héritée des gradients textuels — diagnostiquer en langage naturel ses propres traces d'exécution — avec une sélection sur une <em>frontière de Pareto</em> des tentatives, qui préserve des candidats complémentaires plutôt qu'un unique champion. GEPA dépasse l'apprentissage par renforcement GRPO de 6 % en moyenne avec jusqu'à 35 fois moins de rollouts, et bat le baseline d'optimisation de prompt MIPROv2 de plus de 10 %. C'est sur cette lignée — l'instruction comme programme, le feedback comme gradient textuel, l'évolution comme moteur de recherche — que se greffent les optimiseurs de <em>skills</em> dont SkillOpt est l'aboutissement.</p>",
+      "claims": [
+        "claim:9",
+        "claim:10",
+        "claim:11",
+        "claim:12"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-genealogie-fils"
+    },
+    {
+      "type": "widget",
+      "ref": "probe-pareto-vs-greedy"
+    },
+    {
+      "type": "section",
+      "id": "ecosysteme",
+      "heading": "Écosystème & pour aller plus loin",
+      "level": 3,
+      "prose": "<p>L'optimisation automatique de prompts (APO) n'est plus un assemblage de recettes éparses : elle dispose désormais d'un écosystème outillé, de frameworks de programmation et d'une littérature de synthèse. Le pivot pratique reste <strong>DSPy</strong> (Stanford NLP), qui traite un système LLM comme un programme : on déclare des <em>signatures</em> (spécifications entrée/sortie) et des <em>modules</em>, puis un <em>optimiseur</em> compile les prompts et les exemples. La bibliothèque livre une famille cohérente d'optimiseurs — <code>BootstrapFewShot</code>, <code>MIPROv2</code>, <code>COPRO</code>, <code>GEPA</code>, <code>SIMBA</code>, <code>BootstrapFinetune</code>, <code>KNN</code>, <code>Ensemble</code> — qui partagent la même interface. MIPROv2 illustre bien l'état de l'art classique : il optimise <em>conjointement</em> instructions et exemples few-shot en trois temps (bootstrap d'exemples, proposition d'instructions à partir de résumés de données et du code du programme, puis optimisation bayésienne), avec des modes prêts à l'emploi <code>light</code>, <code>medium</code>, <code>heavy</code>.</p><p>La génération suivante d'optimiseurs déplace l'intelligence du tirage aléatoire vers la <strong>réflexion en langage naturel</strong>. <strong>GEPA</strong> (Genetic-Pareto, ICLR 2026 oral) fait analyser à un LLM ses propres traces — étapes de raisonnement, usage d'outils, feedback d'évaluation — pour diagnostiquer ses échecs et proposer des mutations ciblées du prompt, tout en maintenant une <em>frontière de Pareto</em> de candidats complémentaires plutôt qu'un unique meilleur global. Le résultat marquant : il dépasse l'apprentissage par renforcement GRPO d'environ 6 % en moyenne (jusqu'à 20 %) en utilisant jusqu'à 35× moins de rollouts, et bat l'optimiseur de référence MIPROv2 de plus de 10 %. La bibliothèque <code>gepa-ai/gepa</code> (MIT, <code>pip install gepa</code>) industrialise cette approche via un système d'adaptateurs (prompt système, classification, RAG, outils MCP, LangChain) et s'intègre nativement à DSPy (<code>dspy.GEPA</code>), MLflow, Comet Opik, Pydantic AI et Google ADK. C'est l'héritière directe d'une lignée « gradients textuels » : <strong>ProTeGi</strong> (EMNLP 2023) formait déjà des « gradients » en langage naturel sur des mini-batchs, guidés par beam search et sélection de type bandit ; <strong>TextGrad</strong> (zou-group, Stanford) en a généralisé la rétropropagation à travers des systèmes IA composés (prompts, code, molécules) et a été publié dans <em>Nature</em> en 2025.</p><p>En parallèle, une lignée « recherche/évolution » traite l'instruction comme un objet à faire muter : <strong>OPRO</strong> (Google DeepMind) demande au LLM de générer de nouvelles solutions à partir des solutions notées précédentes ; <strong>APE</strong> (2022) traite l'instruction comme un programme optimisé par recherche dans un pool de candidats ; <strong>PromptBreeder</strong> (DeepMind, ICML 2024) franchit un cran en faisant évoluer non seulement les task-prompts mais aussi les <em>mutation-prompts</em> qui les modifient (self-référence). C'est précisément dans ce paysage que se range <strong>SkillOpt</strong> (Microsoft Research, MIT, Python 3.10+) : il entraîne un document markdown comme paramètre externe d'un modèle gelé, convertit des rollouts notés en éditions bornées <code>add/delete/replace</code>, et n'accepte une édition que si elle améliore strictement un score de validation tenu à part (<em>validation-gated update</em>). Évalué sur 6 benchmarks, 7 modèles et 3 harnais (chat direct, Codex, Claude Code), il se positionne contre des baselines comme TextGrad, GEPA et EvoSkill, et supporte des backends Azure OpenAI, OpenAI-compatibles, Anthropic Claude, Qwen et MiniMax.</p><p>Pour la carte d'ensemble, deux synthèses font référence. Le survey systématique EMNLP 2025 de Ramnath et al. propose un cadre unifié en 5 étapes (génération du prompt initial, inférence &amp; évaluation, génération de feedback, génération de candidats, filtrage &amp; sélection) qui permet de situer chacun de ces outils dans une même grille. Le survey « An Optimization Perspective » (Li et al., 2025) adopte l'angle complémentaire de la théorie de l'optimisation : il formalise la tâche comme la maximisation d'une performance attendue sur des espaces discrets, continus et hybrides, et classe les méthodes en approches fondées sur les modèles de fondation, évolutionnaires, à base de gradients et par renforcement.</p>",
+      "claims": []
+    },
+    {
+      "type": "exercise",
+      "part": "Définition & gradients textuels",
+      "question": "Le survey de Ramnath et al. définit l'APO comme ρ<sup>opt</sup> := arg max<sub>ρ∈V</sub> 𝔼<sub>x∼D<sub>val</sub></sub>[f(M<sub>task</sub>(ρ⊕x))]. À partir de cette seule formule, expliquez pourquoi l'APO se justifie même quand un finetuning serait possible, puis dites en quoi un « gradient textuel » (ProTeGi, TextGrad) <em>n'est pas</em> un gradient au sens de la descente de gradient.",
+      "answer": "<p>La formule cherche le prompt ρ qui maximise une espérance de score sur un jeu de validation, en traitant M<sub>task</sub> comme une boîte que l'on appelle sans toucher à ses paramètres. Trois propriétés en découlent et expliquent l'intérêt même quand le finetuning est possible : (1) <strong>boîte noire</strong> — aucun accès aux poids n'est requis, donc l'APO s'applique aux modèles servis derrière une API ; (2) <strong>recherche systématique</strong> de l'espace des prompts plutôt qu'un réglage à la main ; (3) <strong>interprétabilité</strong> — l'artefact optimisé reste un texte lisible et corrigeable, contrairement à un soft prompt appris dans l'espace des embeddings. Ce sont ces propriétés qui font le pont vers les skills d'agent (un document texte interprétable optimisé sans toucher aux poids).</p><p>Un vrai gradient n'existe que dans le cas <em>continu</em> (CPO) : on rétropropage la dérivée d'une perte différentiable sur des vecteurs e<sub>x</sub> ∈ ℝ<sup>d</sup>. Sur des jetons « durs » (DPO), il n'y a rien à dériver — seulement une recherche combinatoire. Le « gradient textuel » de ProTeGi est une <em>critique en langage naturel</em> produite par un LLM, qui « pointe dans la direction de l'erreur » par analogie ; on édite ensuite le prompt « dans la direction sémantique opposée ». TextGrad assume explicitement que différentiation et gradients sont une <em>métaphore</em> du retour textuel. Conséquence : pas de perte différentiable, pas de dérivée, et — comme le notent les auteurs d'OPRO sur les paysages « accidentés » — aucune garantie de direction de descente ni preuve de convergence.</p>"
+    },
+    {
+      "type": "exercise",
+      "part": "Généalogie, transférabilité & skills",
+      "question": "Rangez APE, ProTeGi, OPRO, PromptBreeder/EvoPrompt et GEPA selon le « fil » qu'ils incarnent, puis expliquez ce que la sélection sur une frontière de Pareto (GEPA) gagne face à un Top-1 glouton. Enfin, pourquoi « Take a deep breath and work on this problem step by step » n'est-il pas une recette universelle, et avec quelle prudence faut-il lire les chiffres de SkillOpt ?",
+      "answer": "<p><strong>Trois fils.</strong> (1) <em>L'instruction comme programme</em> : APE (2022) génère un pool de candidats et retient le meilleur score (≥/= humain sur 19/24 tâches). (2) <em>Le feedback comme gradient textuel</em> : ProTeGi (2023) critique puis édite dans la direction opposée (jusqu'à +31 %), et GEPA hérite de cette mutation réflexive sur traces d'exécution. (3) <em>L'évolution comme moteur de recherche</em> : OPRO (méta-prompt contenant la trajectoire de scores), PromptBreeder (auto-référentiel : il fait muter aussi ses mutation-prompts) et EvoPrompt (LLM branchés sur des algorithmes évolutionnaires). GEPA est au confluent des fils 2 et 3 — d'où son nom « Genetic-Pareto ».</p><p><strong>Pareto vs glouton.</strong> Un Top-1 glouton ne garde qu'un unique champion et jette des candidats qui excellaient sur des sous-ensembles différents. La frontière de Pareto <em>préserve des candidats complémentaires</em> (chacun non dominé sur au moins un axe), ce qui évite de s'enfermer dans un optimum local et explique en partie que GEPA dépasse GRPO d'environ 6 % avec jusqu'à 35× moins de rollouts et batte MIPROv2 de plus de 10 %.</p><p><strong>Transférabilité.</strong> « Take a deep breath… » est l'<em>optimum trouvé par OPRO pour un modèle et une tâche donnés</em> (PaLM 2-L sur GSM8K), pas une formule magique : l'instruction gagnante change selon le modèle cible, donc copier l'optimum d'un autre n'a pas de garantie. <strong>SkillOpt</strong> applique ce même argmax aux skills (éditions <code>add/delete/replace</code> acceptées seulement si un held-out s'améliore strictement). Mais sa source est datée de mai 2026 : ses gains restent des <em>claims rapportés tels qu'énoncés</em>, non corroborés indépendamment — à lire avec la prudence qu'impose une source unique et récente.</p>"
+    },
+    {
+      "type": "biblio",
+      "entries": [
+        {
+          "label": "A Systematic Survey of Automatic Prompt Optimization Techniques — ACL Anthology (EMNLP 2025, main, 2025.emnlp-main.1681)",
+          "href": "https://aclanthology.org/2025.emnlp-main.1681/"
+        },
+        {
+          "label": "A Systematic Survey of Automatic Prompt Optimization Techniques — arXiv:2502.16923 (full HTML, v2)",
+          "href": "https://arxiv.org/html/2502.16923v2"
+        },
+        {
+          "label": "Automatic Prompt Optimization (APO) — EmergentMind topic page (reproduces the arg max formula and the five-part Ramnath et al. framework)",
+          "href": "https://www.emergentmind.com/topics/automatic-prompt-optimization-apo"
+        },
+        {
+          "label": "A Systematic Survey of Automatic Prompt Optimization Techniques — TheMoonlight.io literature review (independent third-party review reproducing the formal definition)",
+          "href": "https://www.themoonlight.io/en/review/a-systematic-survey-of-automatic-prompt-optimization-techniques"
+        },
+        {
+          "label": "A Systematic Survey of Automatic Prompt Optimization Techniques (EMNLP 2025 main proceedings, ACL Anthology)",
+          "href": "https://aclanthology.org/2025.emnlp-main.1681.pdf"
+        },
+        {
+          "label": "arXiv abstract page — Large Language Models Are Human-Level Prompt Engineers (Zhou et al., 2211.01910), abstract text: '24 NLP tasks ... on 19/24 tasks'",
+          "href": "https://arxiv.org/abs/2211.01910"
+        },
+        {
+          "label": "arXiv 2211.01910v1 (3 Nov 2022) abstract: 'Experiments on 24 NLP tasks ... on 19/24 tasks'",
+          "href": "https://arxiv.org/abs/2211.01910v1"
+        },
+        {
+          "label": "Research Summary: Automatic Prompt Engineer (APE) — DeepLearning.AI, The Batch",
+          "href": "https://www.deeplearning.ai/the-batch/research-summary-automatic-prompt-engineer-ape"
+        },
+        {
+          "label": "Large Language Models are Human-Level Prompt Engineers — OpenReview (ICLR 2023 forum)",
+          "href": "https://openreview.net/forum?id=92gvk82DE-"
+        },
+        {
+          "label": "SkillOpt: Executive Strategy for Self-Evolving Agent Skills (arXiv:2605.23904)",
+          "href": "https://arxiv.org/abs/2605.23904"
+        },
+        {
+          "label": "microsoft/SkillOpt — text-space optimizer for frozen LLM agent skills (GitHub)",
+          "href": "https://github.com/microsoft/SkillOpt"
+        },
+        {
+          "label": "Paper page: SkillOpt: Executive Strategy for Self-Evolving Agent Skills (Hugging Face)",
+          "href": "https://huggingface.co/papers/2605.23904"
+        },
+        {
+          "label": "Self-Evolving Agent Skills: SkillOpt — by Ken Huang (Substack)",
+          "href": "https://kenhuangus.substack.com/p/self-evolving-agent-skills-skillopt"
+        },
+        {
+          "label": "Microsoft SkillOpt: How to Train AI Agent Skills Like Neural Networks (Flowtivity)",
+          "href": "https://flowtivity.ai/blog/microsoft-skillopt-train-ai-agent-skills/"
+        },
+        {
+          "label": "SkillOpt: Executive Strategy for Self-Evolving Agent Skills — Papers (HyperAI)",
+          "href": "https://hyper.ai/en/papers/2605.23904"
+        },
+        {
+          "label": "A Survey of Automatic Prompt Optimization with Instruction-focused Heuristic-based Search Algorithm (Cui et al., Intuit / Vanderbilt / Cambridge)",
+          "href": "https://arxiv.org/html/2502.18746v2"
+        },
+        {
+          "label": "A Systematic Survey of Automatic Prompt Optimization Techniques (Ramnath et al., Amazon Web Services)",
+          "href": "https://arxiv.org/html/2502.16923v1"
+        },
+        {
+          "label": "Efficient Prompting Methods for Large Language Models: A Survey (Chang et al., Northeastern University / NiuTrans)",
+          "href": "https://arxiv.org/html/2404.01077v1"
+        },
+        {
+          "label": "A Survey of Automatic Prompt Engineering: An Optimization Perspective (arXiv:2502.11560v1, full HTML)",
+          "href": "https://arxiv.org/html/2502.11560v1"
+        },
+        {
+          "label": "Literature Review: A Survey of Automatic Prompt Engineering: An Optimization Perspective (themoonlight.io, third-party)",
+          "href": "https://www.themoonlight.io/en/review/a-survey-of-automatic-prompt-engineering-an-optimization-perspective"
+        },
+        {
+          "label": "Automatic Prompt Optimization with \"Gradient Descent\" and Beam Search (Pryzant et al., EMNLP 2023) — ACL Anthology",
+          "href": "https://aclanthology.org/2023.emnlp-main.494/"
+        },
+        {
+          "label": "Efficient Prompt Optimisation for Legal Text Classification (NLLP 2025, ACL Anthology) — peer-reviewed, independently describes ProTeGi's textual gradient as an LLM critique of the current prompt, analogous to numerical gradients, with semantic edits in the opposite direction",
+          "href": "https://aclanthology.org/2025.nllp-1.18.pdf"
+        },
+        {
+          "label": "Automatic Prompt Optimization — Cameron R. Wolfe, Ph.D. (independent ML explainer): textual gradients criticize the prompt 'much like numerical gradients point in the direction of error ascent'; APO 'can improve the performance of the initial prompt by up to 31%'",
+          "href": "https://cameronrwolfe.substack.com/p/automatic-prompt-optimization"
+        },
+        {
+          "label": "Textual Gradient based Prompt Optimisation — Tailored AI / Deepak C Nayak (independent blog): textual gradient is an LLM-generated natural-language critique mimicking a numerical gradient's 'semantic direction', improved by editing in the 'opposite semantic direction'",
+          "href": "https://tailoredai.substack.com/p/automating-prompt-optimisation-a"
+        },
+        {
+          "label": "TextGrad: Automatic Differentiation via Text — Gonzo ML",
+          "href": "https://gonzoml.substack.com/p/textgrad-automatic-differentiation"
+        },
+        {
+          "label": "TextGrad: Gradient-Driven NLP Optimization — EmergentMind",
+          "href": "https://www.emergentmind.com/topics/textgrad"
+        },
+        {
+          "label": "TextGrad: Automatic \"Differentiation\" via Text (arXiv:2406.07496v1, HTML)",
+          "href": "https://arxiv.org/html/2406.07496v1"
+        },
+        {
+          "label": "Literature Review — TextGrad: Automatic \"Differentiation\" via Text (themoonlight.io)",
+          "href": "https://www.themoonlight.io/en/review/textgrad-automatic-differentiation-via-text"
+        },
+        {
+          "label": "Automatic Prompt Optimization with \"Gradient Descent\" and Beam Search (ProTeGi) — Pryzant et al., 2023",
+          "href": "https://arxiv.org/abs/2305.03495"
+        },
+        {
+          "label": "Large Language Models as Optimizers (arXiv:2309.03409, abstract + HTML v3)",
+          "href": "https://arxiv.org/abs/2309.03409"
+        },
+        {
+          "label": "Optimize your ChatGPT prompts with DeepMind's OPRO technique — TechTalks",
+          "href": "https://bdtechtalks.com/2023/11/20/deepmind-opro-llm-optimization/"
+        },
+        {
+          "label": "Large Language Models as Optimizers (summary) — Fan Pu Zeng",
+          "href": "https://fanpu.io/summaries/2024-07-13-large-language-models-as-optimizers/"
+        },
+        {
+          "label": "[2507.19457] GEPA: Reflective Prompt Evolution Can Outperform Reinforcement Learning — arXiv abstract",
+          "href": "https://arxiv.org/abs/2507.19457"
+        },
+        {
+          "label": "GEPA — arXiv PDF (banner: 'Accepted at ICLR 2026 (Oral)')",
+          "href": "https://arxiv.org/pdf/2507.19457"
+        },
+        {
+          "label": "ICLR 2026 Oral — GEPA: Reflective Prompt Evolution Can Outperform Reinforcement Learning (official conference page)",
+          "href": "https://iclr.cc/virtual/2026/oral/10009494"
+        },
+        {
+          "label": "GEPA Prompt Optimization: DSPy's Evolutionary Optimizer — Morph (independent technical write-up)",
+          "href": "https://www.morphllm.com/gepa-prompt-optimization"
+        },
+        {
+          "label": "ProTeGi: Prompt Optimization via Textual Gradients — EmergentMind topic page",
+          "href": "https://www.emergentmind.com/topics/prompt-optimization-with-textual-gradients-protegi"
+        },
+        {
+          "label": "Large Language Models as Optimizers (OPRO) — arXiv:2309.03409, HTML",
+          "href": "https://arxiv.org/html/2309.03409"
+        },
+        {
+          "label": "The Unreasonable Effectiveness of Eccentric Automatic Prompts (Battle & Gollapudi, 2024) — arXiv:2402.10949",
+          "href": "https://arxiv.org/abs/2402.10949"
+        },
+        {
+          "label": "Yang et al., Large Language Models as Optimizers (OPRO), arXiv:2309.03409 — Table 1: best instructions differ by model",
+          "href": "https://arxiv.org/html/2309.03409v3"
+        },
+        {
+          "label": "PromptHub — One Size Does Not Fit All: An Analysis of Model Specific Prompting Strategies",
+          "href": "https://www.prompthub.us/blog/one-size-does-not-fit-all-an-analaysis-of-model-specific-prompting-strategies"
+        },
+        {
+          "label": "DeepMind discovers that AI large language models can optimize their own prompts — VentureBeat",
+          "href": "https://venturebeat.com/business/deepmind-discovers-that-ai-large-language-models-can-optimize-their-own-prompts"
+        }
+      ]
+    },
+    {
+      "type": "pointers",
+      "title": "Pour aller plus loin",
+      "items": [
+        {
+          "name": "Ramnath et al. — A Systematic Survey of Automatic Prompt Optimization Techniques (arXiv)",
+          "url": "https://arxiv.org/abs/2502.16923",
+          "kind": "reading",
+          "blurb": "Survey (EMNLP 2025, 21 auteurs menés par Kiran Ramnath) qui pose une définition formelle de l'APO et un cadre unifié en 5 parties."
+        },
+        {
+          "name": "A Systematic Survey of Automatic Prompt Optimization Techniques (ACL Anthology)",
+          "url": "https://aclanthology.org/2025.emnlp-main.1681/",
+          "kind": "reading",
+          "blurb": "Version ACL Anthology (EMNLP 2025) du survey systématique de l'optimisation automatique de prompts de Ramnath et al."
+        },
+        {
+          "name": "Zhou et al. — Large Language Models Are Human-Level Prompt Engineers (APE)",
+          "url": "https://arxiv.org/abs/2211.01910",
+          "kind": "reading",
+          "blurb": "Article fondateur (Zhou et al.) qui traite l'instruction comme un programme optimisé par recherche sur une réserve de candidats proposés par un LLM."
+        },
+        {
+          "name": "keirp/automatic_prompt_engineer (APE)",
+          "url": "https://github.com/keirp/automatic_prompt_engineer",
+          "kind": "implementation",
+          "blurb": "Dépôt MIT de référence d'APE (Keiran Paster), implémentant l'instruction-comme-programme optimisée sur un pool de candidats LLM."
+        },
+        {
+          "name": "Pryzant et al. — Automatic Prompt Optimization with \"Gradient Descent\" and Beam Search (ProTeGi, arXiv)",
+          "url": "https://arxiv.org/abs/2305.03495",
+          "kind": "reading",
+          "blurb": "Introduit les gradients en langage naturel : un LLM critique le prompt sur des minibatches puis le réécrit sous beam search (méthode dite ProTeGi, Pryzant et al.)."
+        },
+        {
+          "name": "ProTeGi — Automatic Prompt Optimization with Gradient Descent and Beam Search (EMNLP 2023, ACL Anthology)",
+          "url": "https://aclanthology.org/2023.emnlp-main.494/",
+          "kind": "reading",
+          "blurb": "Version ACL Anthology (EMNLP 2023) de l'article fondateur du « gradient textuel » de Pryzant et al."
+        },
+        {
+          "name": "Yang et al. — Large Language Models as Optimizers (OPRO, arXiv abs)",
+          "url": "https://arxiv.org/abs/2309.03409",
+          "kind": "reading",
+          "blurb": "Introduit OPRO : un méta-prompt contenant la trajectoire d'optimisation (paires solution-score) à partir de laquelle le LLM génère de nouveaux candidats (Yang et al., ICLR 2024)."
+        },
+        {
+          "name": "OPRO — Large Language Models as Optimizers (arXiv HTML v3)",
+          "url": "https://arxiv.org/html/2309.03409v3",
+          "kind": "reading",
+          "blurb": "Version HTML d'OPRO qui documente aussi les limites de l'analogie (paysages accidentés, fenêtre de contexte, pas de direction de descente garantie)."
+        },
+        {
+          "name": "google-deepmind/opro",
+          "url": "https://github.com/google-deepmind/opro",
+          "kind": "implementation",
+          "blurb": "Dépôt officiel d'OPRO (google-deepmind), le LLM comme optimiseur générant de nouvelles solutions à partir des solutions notées précédentes."
+        },
+        {
+          "name": "Fernando et al. — Promptbreeder: Self-Referential Self-Improvement Via Prompt Evolution",
+          "url": "https://arxiv.org/abs/2309.16797",
+          "kind": "reading",
+          "blurb": "Optimiseur évolutionnaire auto-référentiel qui fait évoluer à la fois les task-prompts et les mutation-prompts (Fernando et al.)."
+        },
+        {
+          "name": "Guo et al. — EvoPrompt: Connecting LLMs with Evolutionary Algorithms",
+          "url": "https://arxiv.org/abs/2309.08532",
+          "kind": "reading",
+          "blurb": "Connecte les LLM aux algorithmes évolutionnaires pour optimiser les prompts sans gradient, avec des gains jusqu'à ~25% sur BBH (Guo et al., ICLR 2024)."
+        },
+        {
+          "name": "Agrawal et al. — GEPA: Reflective Prompt Evolution Can Outperform Reinforcement Learning",
+          "url": "https://arxiv.org/abs/2507.19457",
+          "kind": "reading",
+          "blurb": "Mutation réflexive sur traces d'exécution + frontière de Pareto, surpassant des baselines RL (Agrawal et al., 17 auteurs)."
+        },
+        {
+          "name": "gepa-ai/gepa",
+          "url": "https://github.com/gepa-ai/gepa",
+          "kind": "package",
+          "blurb": "Implémentation pip-installable (MIT) de GEPA : optimise tout paramètre texte par réflexion LLM et recherche évolutionnaire Pareto-efficace, avec adaptateurs DSPy/MLflow/LangChain."
+        },
+        {
+          "name": "TextGrad — Optimizing generative AI by backpropagating language model feedback (Nature 2025)",
+          "url": "https://www.nature.com/articles/s41586-025-08661-4",
+          "kind": "reading",
+          "blurb": "Article Nature (vol. 639, 2025) rétropropageant des retours LLM en langage naturel — les « gradients textuels » — dans des systèmes IA composés."
+        },
+        {
+          "name": "zou-group/textgrad",
+          "url": "https://github.com/zou-group/textgrad",
+          "kind": "library",
+          "blurb": "Implémentation de référence de TextGrad : un moteur d'autograd « via texte » à API PyTorch-like rétropropageant des retours LLM."
+        },
+        {
+          "name": "A Survey of Automatic Prompt Engineering: An Optimization Perspective (Li et al.)",
+          "url": "https://arxiv.org/html/2502.11560v1",
+          "kind": "reading",
+          "blurb": "Survey formalisant l'APO comme maximisation P* = argmax et partitionnant l'espace de recherche en discret, continu et hybride (FM-based, évolutionnaire, gradient, RL)."
+        },
+        {
+          "name": "DSPy",
+          "url": "https://dspy.ai/",
+          "kind": "library",
+          "blurb": "Framework Python de programmation des LLM par signatures et modules, avec une famille d'optimiseurs (MIPROv2, GEPA, BootstrapFewShot…)."
+        },
+        {
+          "name": "DSPy — MIPROv2",
+          "url": "https://dspy.ai/api/optimizers/MIPROv2/",
+          "kind": "reading",
+          "blurb": "Documentation de l'optimiseur MIPROv2 qui co-optimise instructions et exemples few-shot en trois phases avec optimisation bayésienne."
+        },
+        {
+          "name": "microsoft/SkillOpt",
+          "url": "https://github.com/microsoft/SkillOpt",
+          "kind": "implementation",
+          "blurb": "Optimiseur text-space (org GitHub microsoft) qui entraîne des skills markdown réutilisables pour agents à modèle gelé via éditions pilotées par trajectoires et mises à jour validation-gated."
+        },
+        {
+          "name": "SkillOpt: Executive Strategy for Self-Evolving Agent Skills (arXiv)",
+          "url": "https://arxiv.org/abs/2605.23904",
+          "kind": "reading",
+          "blurb": "Article (mai 2026) décrivant SkillOpt comme optimiseur text-space contrôlable de skills d'agent, sans appel modèle supplémentaire au déploiement."
+        }
+      ]
+    },
+    {
+      "type": "glossary"
+    }
+  ]
+}

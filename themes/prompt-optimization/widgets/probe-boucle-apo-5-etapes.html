@@ -1,0 +1,406 @@
+<div class="widget pb5-root" id="pb5-root">
+  <style>
+    .pb5-root{--pb5-ink:var(--ink,#15202E);--pb5-soft:var(--ink-soft,#43536A);
+      --pb5-faint:var(--ink-faint,#7A889B);--pb5-card:var(--card,#fff);
+      --pb5-line:var(--line,#D7DFE9);--pb5-blue:var(--blue,#23537F);
+      --pb5-bright:var(--blue-bright,#2C77B6);--pb5-wash:var(--blue-wash,#EAF1F8);
+      --pb5-hot:var(--bordeaux-bright,#9B3443);
+      --pb5-warm:#E0A33A;--pb5-ok:#3F8E66;
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--pb5-ink);
+      border:1px solid var(--pb5-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--pb5-card);max-width:760px}
+    .pb5-root *{box-sizing:border-box}
+    .pb5-k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;
+      color:var(--pb5-faint);font-weight:600;margin:0 0 2px}
+    .pb5-title{font-weight:700;font-size:1.05rem;margin:0 0 4px}
+    .pb5-sub{font-size:.86rem;color:var(--pb5-soft);margin:0 0 14px}
+    .pb5-sub code{background:var(--pb5-line);padding:1px 5px;border-radius:4px;
+      font:.85em ui-monospace,monospace}
+    /* ----- ruban des 5 etapes ----- */
+    .pb5-steps{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}
+    .pb5-step{flex:1 1 0;min-width:108px;border:1px solid var(--pb5-line);border-radius:8px;
+      padding:7px 9px;background:var(--pb5-card);transition:background .15s,border-color .15s}
+    .pb5-step .pb5-no{font:700 .7rem/1 ui-monospace,monospace;color:var(--pb5-faint)}
+    .pb5-step .pb5-nm{font-size:.78rem;font-weight:600;margin-top:2px;line-height:1.25}
+    .pb5-step.pb5-on{background:var(--pb5-wash);border-color:var(--pb5-bright)}
+    .pb5-step.pb5-on .pb5-no{color:var(--pb5-bright)}
+    .pb5-step.pb5-done{border-color:var(--pb5-line);opacity:.78}
+    /* ----- controles ----- */
+    .pb5-ctl{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-end;
+      padding:10px 12px;border:1px solid var(--pb5-line);border-radius:8px;margin:0 0 14px}
+    .pb5-field{display:flex;flex-direction:column;gap:4px;flex:1 1 150px;min-width:140px}
+    .pb5-field label{font-size:.74rem;color:var(--pb5-faint);font-weight:600;
+      letter-spacing:.04em;display:flex;justify-content:space-between;gap:8px}
+    .pb5-field label b{color:var(--pb5-ink);font-variant-numeric:tabular-nums}
+    .pb5-field input[type=range]{width:100%;accent-color:var(--pb5-bright);cursor:pointer}
+    .pb5-btns{display:flex;gap:8px;flex:0 0 auto;flex-wrap:wrap}
+    .pb5-btn{padding:8px 13px;border:1px solid var(--pb5-blue);border-radius:8px;
+      background:var(--pb5-blue);color:#fff;font:600 14px/1 inherit;cursor:pointer}
+    .pb5-btn.pb5-ghost{background:transparent;color:var(--pb5-blue)}
+    .pb5-btn:disabled{opacity:.4;cursor:not-allowed}
+    .pb5-btn:not(:disabled):hover{filter:brightness(1.08)}
+    /* ----- pool de prompts ----- */
+    .pb5-pool{display:flex;flex-direction:column;gap:6px;margin:0 0 12px}
+    .pb5-card2{display:flex;align-items:center;gap:10px;border:1px solid var(--pb5-line);
+      border-radius:8px;padding:7px 10px 7px 11px;background:var(--pb5-card);
+      position:relative;transition:opacity .25s,border-color .2s,background .2s}
+    .pb5-card2.pb5-new{border-color:var(--pb5-warm);background:#fdf7ec}
+    .pb5-card2.pb5-best{border-color:var(--pb5-ok);background:#eef6f1}
+    .pb5-card2.pb5-cut{opacity:.32;text-decoration:line-through;text-decoration-color:var(--pb5-hot)}
+    .pb5-txt{flex:1 1 auto;font:13px/1.35 ui-monospace,SFMono-Regular,Menlo,monospace;
+      color:var(--pb5-ink);word-break:break-word}
+    .pb5-tag{flex:0 0 auto;font:600 .62rem/1 system-ui;text-transform:uppercase;
+      letter-spacing:.05em;padding:2px 6px;border-radius:999px;border:1px solid var(--pb5-line);
+      color:var(--pb5-faint)}
+    .pb5-tag.pb5-tnew{color:var(--pb5-warm);border-color:var(--pb5-warm)}
+    .pb5-tag.pb5-tbest{color:var(--pb5-ok);border-color:var(--pb5-ok)}
+    .pb5-score{flex:0 0 64px;text-align:right;font:700 14px/1 ui-monospace,monospace;
+      font-variant-numeric:tabular-nums;color:var(--pb5-soft)}
+    .pb5-bar{flex:0 0 96px;height:8px;border-radius:99px;background:var(--pb5-line);
+      overflow:hidden;position:relative}
+    .pb5-bar>i{display:block;height:100%;background:var(--pb5-bright);width:0;
+      transition:width .35s ease}
+    .pb5-score.pb5-pending{color:var(--pb5-faint);font-weight:600;font-size:.78rem}
+    /* ----- sortie + metriques ----- */
+    .pb5-out{min-height:2.7em;padding:10px 12px;border-radius:8px;border:1px solid var(--pb5-line);
+      background:var(--pb5-card);font-size:.9rem;line-height:1.5;margin:0 0 4px}
+    .pb5-out b{font-weight:700;color:var(--pb5-ink)}
+    .pb5-out.pb5-loop{border-color:var(--pb5-bright);background:var(--pb5-wash)}
+    .pb5-meta{display:flex;gap:16px;flex-wrap:wrap;margin:12px 0 0;font-size:.82rem;
+      color:var(--pb5-soft)}
+    .pb5-meta b{color:var(--pb5-ink);font-variant-numeric:tabular-nums}
+    .pb5-meta .pb5-up{color:var(--pb5-ok)}
+    details.pb5-note{margin:12px 0 0;font-size:.85rem;color:var(--pb5-soft)}
+    details.pb5-note summary{cursor:pointer;font-weight:600;color:var(--pb5-blue)}
+    details.pb5-note p{margin:8px 0 0}
+    details.pb5-note code{background:var(--pb5-line);padding:1px 5px;border-radius:4px;
+      font-size:.85em}
+    details.pb5-note b{color:var(--pb5-ink)}
+  </style>
+
+  <p class="pb5-k">Demonstration interactive</p>
+  <p class="pb5-title">La boucle d'APO en 5 etapes du cadre unifie</p>
+  <p class="pb5-sub">Un prompt-jouet doit apprendre a dire au modele de <b>raisonner pas a pas
+    et de ne renvoyer qu'un nombre</b>. Avancez la boucle etape par etape : un pool de
+    <b>seeds</b> apparait, l'<b>evaluation</b> attribue des scores, la <b>generation</b> produit
+    des variantes, le <b>filtrage</b> en ecarte la plupart, puis l'<b>iteration</b> reboucle.
+    C'est l'<code>argmax<sub>&rho;&isin;V</sub> &Eopf;[f(M(&rho;&oplus;x))]</code> rendu concret : une recherche sur un
+    espace discret de formulations qu'on ne peut pas enumerer.</p>
+
+  <section class="pb5-steps" id="pb5-steps">
+    <div class="pb5-step" data-st="1"><div class="pb5-no">&sect;3 &middot; 1</div><div class="pb5-nm">Initialiser les seeds</div></div>
+    <div class="pb5-step" data-st="2"><div class="pb5-no">&sect;4 &middot; 2</div><div class="pb5-nm">Evaluer / feedback</div></div>
+    <div class="pb5-step" data-st="3"><div class="pb5-no">&sect;5 &middot; 3</div><div class="pb5-nm">Generer des candidats</div></div>
+    <div class="pb5-step" data-st="4"><div class="pb5-no">&sect;6 &middot; 4</div><div class="pb5-nm">Filtrer / retenir</div></div>
+    <div class="pb5-step" data-st="5"><div class="pb5-no">&sect;7 &middot; 5</div><div class="pb5-nm">Profondeur d'iteration</div></div>
+  </section>
+
+  <div class="pb5-ctl">
+    <div class="pb5-field">
+      <label>Candidats generes / tour <b><span id="pb5-bval">4</span></b></label>
+      <input type="range" id="pb5-branch" min="2" max="6" step="1" value="4">
+    </div>
+    <div class="pb5-field">
+      <label>Survivants gardes (beam) <b><span id="pb5-kval">3</span></b></label>
+      <input type="range" id="pb5-keep" min="1" max="4" step="1" value="3">
+    </div>
+    <div class="pb5-btns">
+      <button class="pb5-btn" id="pb5-next" type="button">Etape suivante &#9656;</button>
+      <button class="pb5-btn pb5-ghost" id="pb5-reset" type="button">Reinitialiser</button>
+    </div>
+  </div>
+
+  <div class="pb5-pool" id="pb5-pool"></div>
+
+  <div class="pb5-out" id="pb5-out"></div>
+
+  <div class="pb5-meta">
+    <span>iteration : <b id="pb5-iter">0</b></span>
+    <span>prompts dans le pool : <b id="pb5-size">0</b></span>
+    <span>meilleur score : <b id="pb5-bestsc">&mdash;</b></span>
+    <span>gain vs seed initial : <b id="pb5-gain">&mdash;</b></span>
+    <span>formulations evaluees (cumul) : <b id="pb5-evald">0</b></span>
+  </div>
+
+  <details class="pb5-note">
+    <summary>Pourquoi cette boucle, et pas une enumeration ?</summary>
+    <p>L'objectif formel du cadre unifie est <code>&rho;^opt = argmax<sub>&rho;&isin;V</sub>
+      &Eopf;<sub>x&sim;D</sub>[f(M(&rho;&oplus;x))]</code> : trouver, parmi <b>toutes</b> les chaines de caracteres
+      <code>V</code>, l'instruction qui maximise le score attendu de la tache. Cet espace est
+      <b>discret et astronomique</b> &mdash; on ne peut ni le differencier, ni l'enumerer. Les 5 etapes
+      sont la reponse : on ne cherche pas partout, on <b>part de quelques seeds</b> (&sect;3), on
+      <b>mesure</b> leur score sur des exemples (&sect;4, le seul signal disponible, car <code>f</code>
+      est une boite noire), on <b>genere un voisinage</b> de reformulations (&sect;5 &mdash; paraphrase,
+      mutation, critique en langage naturel), on <b>elague</b> pour ne garder que le beam le plus
+      prometteur (&sect;6), et on <b>reboucle</b> sur ces survivants (&sect;7). C'est une recherche locale
+      gloutonne sur un graphe de formulations : chaque tour deplace le pool vers de meilleurs
+      scores sans jamais voir l'espace entier. Montez la largeur de generation et le beam : vous
+      explorez plus large mais evaluez plus de prompts a chaque tour &mdash; le compromis
+      <b>cout d'evaluation / qualite trouvee</b> au coeur de l'APO.</p>
+  </details>
+
+  <script>
+  (function(){
+    var root=document.getElementById("pb5-root");
+    if(!root||root.dataset.pb5Init)return; root.dataset.pb5Init="1";
+
+    // ---- modele-jouet : un "vrai" optimum cache que la boucle doit approcher ----
+    // chaque prompt est un ensemble de traits ; le score = somme ponderee bruitee,
+    // bornee a 100. La boucle ne connait PAS ces poids : elle ne voit que f(prompt).
+    var TRAITS={
+      cot:    {label:"raisonne etape par etape", w:34},
+      fmt:    {label:"ne renvoie que le nombre final", w:26},
+      role:   {label:"tu es un tuteur de maths", w:9},
+      check:  {label:"verifie ton calcul", w:14},
+      few:    {label:"un exemple resolu est fourni", w:11},
+      polite: {label:"s'il te plait, fais de ton mieux", w:2},     // quasi-inutile
+      verbose:{label:"explique longuement chaque detail", w:-12}   // contre-productif
+    };
+    var ALL=Object.keys(TRAITS);
+    // seeds = formulations humaines naives, volontairement imparfaites
+    var SEEDS=[
+      ["role","polite"],   // poli mais sans methode
+      ["cot"],             // bonne intuition, format absent
+      ["fmt","verbose"]    // format demande mais noye dans du verbeux
+    ];
+
+    // PRNG deterministe (mulberry32), rejouable
+    function mk(s){return function(){s|=0;s=s+0x6D2B79F5|0;var t=Math.imul(s^s>>>15,1|s);
+      t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+
+    var els={
+      pool:document.getElementById("pb5-pool"),
+      out:document.getElementById("pb5-out"),
+      next:document.getElementById("pb5-next"),
+      reset:document.getElementById("pb5-reset"),
+      branch:document.getElementById("pb5-branch"),
+      keep:document.getElementById("pb5-keep"),
+      bval:document.getElementById("pb5-bval"),
+      kval:document.getElementById("pb5-kval"),
+      iter:document.getElementById("pb5-iter"),
+      size:document.getElementById("pb5-size"),
+      bestsc:document.getElementById("pb5-bestsc"),
+      gain:document.getElementById("pb5-gain"),
+      evald:document.getElementById("pb5-evald"),
+      steps:document.querySelectorAll("#pb5-steps .pb5-step")
+    };
+
+    var state;
+    function reset(){
+      state={
+        phase:1,            // etape a JOUER au prochain clic (1->eval, 3->gen, 4->filtre, 5->iter)
+        iter:0,
+        pool:SEEDS.map(function(t,i){return mkPrompt(t.slice(),"seed",i);}),
+        seedBest:null,      // meilleur score initial, pour le "gain"
+        evald:0,
+        rng:mk(20260602),
+        nid:SEEDS.length
+      };
+      render();
+      setOut(null,["Etape ",{b:"1 — Initialiser les seeds (§3)"},
+        ". Trois formulations humaines naives peuplent le pool. Aucune n'a encore de score : "+
+        "on ne sait pas laquelle est la meilleure. Cliquez ",{b:"Etape suivante"},
+        " pour les evaluer."]);
+      setStepOn(1);
+    }
+
+    function mkPrompt(traits,origin,id){
+      return {id:id,traits:traits,origin:origin,score:null,evaluated:false,
+              cut:false,fresh:(origin!=="seed"),best:false};
+    }
+
+    // texte lisible d'un prompt (ordre des traits stable)
+    function textOf(p){
+      var parts=ALL.filter(function(k){return p.traits.indexOf(k)>=0;})
+                   .map(function(k){return TRAITS[k].label;});
+      return parts.length?parts.join(" · "):"(instruction vide)";
+    }
+
+    // score boite-noire : socle + somme des poids + bruit d'evaluation, borne [2,100]
+    function evaluate(p){
+      var base=40;
+      p.traits.forEach(function(k){base+=TRAITS[k].w;});
+      var noise=(state.rng()-0.5)*6; // l'evaluation est stochastique (bruit d'inference)
+      var s=Math.max(2,Math.min(100,Math.round(base+noise)));
+      p.score=s; p.evaluated=true; state.evald++;
+      return s;
+    }
+
+    function pick(arr){return arr[Math.floor(state.rng()*arr.length)];}
+
+    // genere un voisin : ajoute/retire un trait, ou paraphrase (mEmes traits, permutes)
+    function mutate(parent){
+      var t=parent.traits.slice();
+      var r=state.rng();
+      if(r<0.6){ // ajoute un trait absent : la voie productive la plus courante
+        var missing=ALL.filter(function(k){return t.indexOf(k)<0;});
+        if(missing.length){ t.push(pick(missing)); }
+      }else if(r<0.85 && t.length>1){ // retire un trait (peut enlever un mauvais... ou un bon)
+        t.splice(Math.floor(state.rng()*t.length),1);
+      }else if(t.length){ // "paraphrase" : permute, mEmes traits -> score quasi identique
+        t.push(t.shift());
+      }
+      return mkPrompt(t,"gen",state.nid++);
+    }
+
+    // ====== machine a etapes : un clic = une etape du cadre unifie ======
+    function step(){
+      var branch=parseInt(els.branch.value,10);
+      var keep=parseInt(els.keep.value,10);
+
+      if(state.phase===1){
+        // ETAPE 2 — evaluation des seeds
+        state.pool.forEach(function(p){evaluate(p);});
+        if(state.seedBest===null) state.seedBest=bestScore();
+        markBest(); render();
+        setOut(null,["Etape ",{b:"2 — Evaluer / feedback (§4)"},
+          ". Chaque seed est passe au modele sur des exemples ; un ",{b:"score"},
+          " apparait. C'est le seul signal de l'optimiseur — ",{b:"f est une boite noire"},
+          " : on ne voit pas pourquoi un prompt marche, juste s'il marche. Meilleur seed : ",
+          {b:fmtSc(bestScore())},"."]);
+        state.phase=3; setStepOn(2);
+        return;
+      }
+
+      if(state.phase===3){
+        // ETAPE 3 — generation de candidats a partir des meilleurs du pool
+        var parents=sorted().slice(0,Math.max(1,keep));
+        for(var i=0;i<branch;i++){ state.pool.push(mutate(parents[i%parents.length])); }
+        render();
+        setOut(null,["Etape ",{b:"3 — Generer des candidats (§5)"},
+          ". A partir des "+Math.min(keep,parents.length)+" meilleurs, l'optimiseur produit ",
+          {b:branch+" variantes"}," (mutation : ajoute/retire un trait, ou paraphrase). ",
+          "Elles sont ",{b:"encore sans score"},
+          " — un voisinage de formulations a tester, pas encore retenu."]);
+        state.phase=4; setStepOn(3);
+        return;
+      }
+
+      if(state.phase===4){
+        // evaluer les nouveaux candidats AVANT de filtrer
+        state.pool.forEach(function(p){if(!p.evaluated)evaluate(p);});
+        // ETAPE 4 — filtrer/retenir : garder le beam des "keep" meilleurs
+        var survivors=sorted().slice(0,keep);
+        var survSet={}; survivors.forEach(function(p){survSet[p.id]=1;});
+        var cutCount=0;
+        state.pool.forEach(function(p){
+          p.fresh=false;
+          if(!survSet[p.id]){p.cut=true;cutCount++;}
+        });
+        markBest(); render();
+        setOut(null,["Etape ",{b:"4 — Filtrer / retenir (§6)"},
+          ". Tout est note, puis on ne garde que le ",{b:"beam des "+keep+" meilleurs"},
+          " : "+cutCount+" candidat(s) ecarte(s) (barres). C'est l'elagage qui rend la "+
+          "recherche tracable — on n'explore que le voisinage le plus prometteur."]);
+        state.phase=5; setStepOn(4);
+        return;
+      }
+
+      if(state.phase===5){
+        // ETAPE 5 — iteration : purger les ecartes, reboucler sur les survivants
+        state.pool=state.pool.filter(function(p){return !p.cut;});
+        state.pool.forEach(function(p){p.fresh=false;});
+        state.iter++;
+        markBest(); render();
+        var g=gainPct();
+        var parts=["Etape ",{b:"5 — Profondeur d'iteration (§7)"},
+          ". Les survivants deviennent les parents du tour suivant : la boucle ",{b:"reboucle"},
+          " en §5 (generation). Apres ",{b:state.iter+" iteration(s)"},
+          ", le meilleur prompt atteint ",{b:fmtSc(bestScore())}];
+        if(g!==null && g>0){ parts.push(" — soit "); parts.push({b:"+"+g+" pts"}); parts.push(" sur le seed initial."); }
+        else parts.push(".");
+        parts.push(" Relancez : le pool continue de grimper… puis se stabilise (recherche gloutonne, optima locaux).");
+        setOut("pb5-loop",parts);
+        state.phase=3; setStepOn(5);
+        return;
+      }
+    }
+
+    // ---------- score / tri ----------
+    function sorted(){
+      return state.pool.slice().sort(function(a,b){
+        var sa=a.score===null?-1:a.score, sb=b.score===null?-1:b.score; return sb-sa;});
+    }
+    function bestScore(){
+      var b=-1; state.pool.forEach(function(p){if(!p.cut&&p.score!==null&&p.score>b)b=p.score;});
+      return b<0?null:b;
+    }
+    function markBest(){
+      var b=bestScore(), tagged=false;
+      // un seul "meilleur" mEme en cas d'egalite
+      sorted().forEach(function(p){
+        if(!tagged && !p.cut && p.score!==null && p.score===b){p.best=true;tagged=true;}
+        else p.best=false;
+      });
+    }
+    function gainPct(){
+      var b=bestScore();
+      if(b===null||state.seedBest===null)return null;
+      return b-state.seedBest;
+    }
+    function fmtSc(s){return s===null?"—":s+"/100";}
+
+    // ---------- rendu (DOM explicite, pas d'innerHTML avec du contenu) ----------
+    function clear(node){ while(node.firstChild) node.removeChild(node.firstChild); }
+
+    function render(){
+      els.bval.textContent=els.branch.value;
+      els.kval.textContent=els.keep.value;
+      clear(els.pool);
+      sorted().forEach(function(p){
+        var row=document.createElement("div");
+        row.className="pb5-card2"+(p.cut?" pb5-cut":(p.best?" pb5-best":(p.fresh?" pb5-new":"")));
+        var txt=document.createElement("div"); txt.className="pb5-txt"; txt.textContent=textOf(p);
+        var tag=document.createElement("span");
+        if(p.best && !p.cut){tag.className="pb5-tag pb5-tbest";tag.textContent="meilleur";}
+        else if(p.fresh && !p.cut){tag.className="pb5-tag pb5-tnew";tag.textContent="nouveau";}
+        else {tag.className="pb5-tag";tag.textContent=p.origin==="seed"?"seed":"retenu";}
+        var bar=document.createElement("div"); bar.className="pb5-bar";
+        var fill=document.createElement("i");
+        fill.style.width=(p.score===null?0:p.score)+"%";
+        if(p.best&&!p.cut)fill.style.background="var(--pb5-ok)";
+        bar.appendChild(fill);
+        var sc=document.createElement("div");
+        sc.className="pb5-score"+(p.score===null?" pb5-pending":"");
+        sc.textContent=p.score===null?"a evaluer":(p.score+"");
+        row.appendChild(txt); row.appendChild(tag); row.appendChild(bar); row.appendChild(sc);
+        els.pool.appendChild(row);
+      });
+      els.iter.textContent=state.iter;
+      els.size.textContent=state.pool.filter(function(p){return !p.cut;}).length;
+      els.bestsc.textContent=fmtSc(bestScore());
+      var g=gainPct();
+      if(g===null){els.gain.textContent="—";els.gain.className="";}
+      else{els.gain.textContent=(g>=0?"+":"")+g+" pts";els.gain.className=g>0?"pb5-up":"";}
+      els.evald.textContent=state.evald;
+    }
+
+    function setOut(cls,parts){
+      els.out.className="pb5-out"+(cls?" "+cls:"");
+      clear(els.out);
+      parts.forEach(function(p){
+        if(typeof p==="string")els.out.appendChild(document.createTextNode(p));
+        else if(p&&p.b!==undefined){var x=document.createElement("b");x.textContent=p.b;els.out.appendChild(x);}
+      });
+    }
+
+    // n active comme "courante" ; toutes les precedentes passent "done"
+    function setStepOn(n){
+      els.steps.forEach(function(s){
+        var st=parseInt(s.getAttribute("data-st"),10);
+        s.classList.remove("pb5-on","pb5-done");
+        if(st===n) s.classList.add("pb5-on");
+        else if(st<n) s.classList.add("pb5-done");
+      });
+    }
+
+    // ---------- evenements ----------
+    els.next.addEventListener("click",step);
+    els.reset.addEventListener("click",reset);
+    els.branch.addEventListener("input",function(){els.bval.textContent=els.branch.value;});
+    els.keep.addEventListener("input",function(){els.kval.textContent=els.keep.value;});
+
+    reset();
+  })();
+  </script>
+</div>
