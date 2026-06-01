@@ -1,14 +1,13 @@
 # scriptorium — instructions projet
 
-Fabrique de documents multi-thèmes : chaque thème → triptyque HTML (référence /
-publication / pédagogique). Voir `README.md`.
+Fabrique de documents multi-thèmes : chaque thème → une monographie HTML vérifiée
+(document de référence unique, best-of). Voir `README.md`.
 
 ## Conventions
 - **Un dossier par thème** sous `themes/<slug>/`. Slugs kebab-case, sans accents ni espaces.
-- **Charte = source unique** : `.claude/skills/triptych/template/` (`charte.css`, `components.py`).
+- **Charte = source unique** : `.claude/skills/monograph/template/` (`charte.css`, `components.py`).
   Ne pas dupliquer de style par thème.
-- **Faits = source de vérité unique** : `themes/<slug>/knowledge.json`. Les 3 manifestes
-  d'édition sont des *vues* : ils référencent les faits par id, jamais ne les recopient.
+- **Faits = source de vérité unique** : `themes/<slug>/knowledge.json`. Le manifeste d'édition est une *vue* : il référence les faits par id, jamais ne les recopie.
 - **Frontière jugement / code** : le modèle recherche, rédige, vérifie ; `build.py` assemble
   de façon déterministe. Pas de logique d'édition cachée dans le code de build.
 - **`legacy/` est gelé** : le pipeline hand-built de l'APO n'est ni régénéré ni maintenu ;
