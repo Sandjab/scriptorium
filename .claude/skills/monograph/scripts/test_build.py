@@ -66,3 +66,9 @@ def test_pointers_element_builds_and_is_structurally_sound(tmp_path):
     assert "toolX" in out
     assert "<!--%" not in out            # aucun jeton résiduel
     assert "file:///" not in out
+
+@pytest.mark.parametrize("removed_type", ["onramp", "tldr"])
+def test_removed_renderer_is_unknown_type(tmp_path, removed_type):
+    theme = _mk_theme(tmp_path/removed_type, [{"type": removed_type}])
+    with pytest.raises(SystemExit):
+        build.build_theme(theme)

@@ -13,9 +13,6 @@ def render_abstract(tldr):
     return ('<div class="xwrap"><div class="xabstract"><div class="xk">Résumé</div>'
             f'<p class="xthese">{esc(tldr["these"])}</p><ul>{bullets}</ul></div></div>')
 
-def render_tldr(tldr, key, title):
-    lis = "".join(f"<li>{esc(x)}</li>" for x in tldr[key])
-    return f'<div class="xtldr"><div class="xk">En bref — {esc(title)}</div><ul>{lis}</ul></div>'
 
 def render_glossary(gloss):
     cards = []
@@ -33,11 +30,6 @@ def render_exercise(el):
             f'<div class="eg b"><span class="egk">Réponse</span>{el.get("answer","")}</div>'
             f'</div></details>')
 
-def render_onramp(el):
-    steps = "".join(el.get("steps", []))
-    return ('<div class="xwrap"><div class="xabstract" style="border-left-color:var(--blue-deep);">'
-            '<div class="xk">Commence ici · parcours de lecture</div>'
-            f'<ul class="xpath">{steps}</ul></div></div>')
 
 def render_widget(el, widgets):
     return widgets[el["ref"]]
@@ -69,10 +61,8 @@ def render_toc(manifest):
 RENDERERS = {
     "section":  lambda el, ctx: render_section(el),
     "abstract": lambda el, ctx: render_abstract(ctx["tldr"]),
-    "tldr":     lambda el, ctx: render_tldr(ctx["tldr"], el["key"], el["title"]),
     "glossary": lambda el, ctx: render_glossary(ctx["glossary"]),
     "exercise": lambda el, ctx: render_exercise(el),
-    "onramp":   lambda el, ctx: render_onramp(el),
     "widget":   lambda el, ctx: render_widget(el, ctx["widgets"]),
     "callout":  lambda el, ctx: render_callout(el),
     "biblio":   lambda el, ctx: render_biblio(el),
