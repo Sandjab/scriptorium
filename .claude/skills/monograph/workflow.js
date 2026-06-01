@@ -1,15 +1,16 @@
 export const meta = {
-  name: 'triptych',
-  description: 'Recherche vérifiée d’un sujet puis assemblage déterministe du triptyque (référence / publication / pédagogique)',
-  whenToUse: 'Lancé par le skill /triptych. Reçoit args:{subject, slug, themeDir} et peuple themeDir/ avant build.py.',
+  name: 'monograph',
+  description: "Recherche vérifiée d'un sujet puis assemblage déterministe d'une monographie HTML unique (document de référence best-of).",
+  whenToUse: "Lancé par le skill /monograph. Reçoit args:{subject, slug, themeDir} et peuple themeDir/ avant build.py.",
   phases: [
     { title: 'Sweep',   detail: 'recherche web multi-angles ; collecte de sources' },
     { title: 'Plan',    detail: 'plan du document depuis les sources' },
     { title: 'Extract', detail: 'claims candidats + prose par section' },
     { title: 'Verify',  detail: 'council adversarial par claim ; ≥2 sources indépendantes' },
-    { title: 'Author',  detail: 'écrit knowledge/glossary/tldr (+widget)' },
-    { title: 'Compose', detail: 'écrit les 3 manifestes-vues' },
-    { title: 'Build',   detail: 'python3 build.py → 3 HTML + auto-vérifs' },
+    { title: 'Author',  detail: 'écrit knowledge/glossary/tldr' },
+    { title: 'Widgets', detail: 'sélection des concepts (planner) puis fan-out codeurs + critic' },
+    { title: 'Compose', detail: 'écrit le manifeste unique (best-of)' },
+    { title: 'Build',   detail: 'python3 build.py → 1 HTML + auto-vérifs' },
   ],
 };
 
@@ -73,16 +74,25 @@ const S_POINTERS = { type:'object', additionalProperties:false, required:['point
     properties:{ name:{type:'string'}, url:{type:'string'},
       kind:{ type:'string' }, blurb:{type:'string'} } } } } };
 
-const S_AUTHOR = { type:'object', additionalProperties:false, required:['files_written','has_widget'], properties:{
-  files_written:{ type:'array', items:{type:'string'} },
-  has_widget:{type:'boolean'},
-  widget:{ type:'object', additionalProperties:false, required:['ref','title','after_section_id'],
-    properties:{ ref:{type:'string'}, title:{type:'string'}, after_section_id:{type:'string'} } } } };
+const S_AUTHOR = { type:'object', additionalProperties:false, required:['files_written'], properties:{
+  files_written:{ type:'array', items:{type:'string'} } } };
 
 const S_COMPOSE = { type:'object', additionalProperties:false, required:['files_written','element_counts'], properties:{
   files_written:{ type:'array', items:{type:'string'} },
-  element_counts:{ type:'object', additionalProperties:false, required:['reference','publication','pedagogique'],
-    properties:{ reference:{type:'integer'}, publication:{type:'integer'}, pedagogique:{type:'integer'} } } } };
+  element_counts:{ type:'object', additionalProperties:false, required:['document'],
+    properties:{ document:{type:'integer'} } } } };
+
+const S_WIDGET_PLAN = { type:'object', additionalProperties:false, required:['widgets'], properties:{
+  widgets:{ type:'array', items:{ type:'object', additionalProperties:false,
+    required:['concept','after_section_id','brief'],
+    properties:{ concept:{type:'string'}, after_section_id:{type:'string'}, brief:{type:'string'} } } } } };
+
+const S_WIDGET_CODE = { type:'object', additionalProperties:false,
+  required:['ref','title','after_section_id'],
+  properties:{ ref:{type:'string'}, title:{type:'string'}, after_section_id:{type:'string'} } };
+
+const S_WIDGET_CRITIC = { type:'object', additionalProperties:false, required:['ok','issues'],
+  properties:{ ok:{type:'boolean'}, issues:{ type:'array', items:{type:'string'} } } };
 
 const S_BUILD = { type:'object', additionalProperties:false, required:['success','files','acceptance','errors'], properties:{
   success:{type:'boolean'},
@@ -198,30 +208,55 @@ const pointersPrompt = (candidates) => [
   `Rends : pointers = liste finale {name, url (réel), kind, blurb (1 phrase factuelle)}. Liste vide si aucun ne tient.`,
 ].join('\n');
 
-const authorPrompt = (sectionsBrief, wantWidget) => [
+const authorPrompt = (sectionsBrief) => [
   `Tu es l'auteur. Tu ÉCRIS des fichiers dans le dossier de thème : ${themeDir}`,
   `${themeDir}/knowledge.json a été écrit par l'étape précédente — lis-le pour connaître les claims vérifiés avant de rédiger le glossaire et le tldr.`,
   `Assure-toi que le dossier existe (mkdir -p si besoin), puis ÉCRIS exactement ces fichiers :`,
   ``,
   `1) ${themeDir}/glossary.json — un tableau JSON de 4 à 7 termes du sujet : {term, definition, see_also?}. Définitions exactes, propres au sujet « ${subject} ». "see_also" est une CHAÎNE (jamais une liste) : pour renvoyer vers plusieurs termes, une seule chaîne séparée par ", " — ex. "see_also": "Triplet, Property graph".`,
   ``,
-  `2) ${themeDir}/tldr.json — { "these": "<la thèse du document en 1 phrase>", "part1": ["…","…"], "part2": ["…","…"] }. part1 et part2 = 2-4 puces chacune (idées clés ; part1 = principe, part2 = garanties/limites).`,
+  `2) ${themeDir}/tldr.json — { "these": "<la thèse du document en 1 phrase>", "part1": ["…","…"], "part2": ["…","…"] }. part1 et part2 = 2-4 puces chacune (idées clés ; part1 = principe, part2 = garanties/limites). Ce fichier alimente le RÉSUMÉ (abstract) en tête du document — sois complet.`,
   ``,
-  wantWidget
-    ? `3) ${themeDir}/widgets/<ref>.html — UN widget interactif autonome illustrant le sujet. Contraintes STRICTES : un seul bloc <div class="widget">…</div> + <style>…</style> + <script>…</script> ; AUCUNE ressource externe, AUCUN file:///, AUCUN alert/confirm/prompt ; balises <section>/<details>/<script> équilibrées ; préfixe TOUS les id/classes pour éviter les collisions avec la charte. Choisis un ref kebab-case (ex. probe-…). Le widget doit vraiment démontrer un mécanisme du sujet (interactif, pas décoratif).`
-    : `(Pas de widget pour ce thème.)`,
+  `Sections du document (pour cohérence de ton glossaire/tldr) :\n${sectionsBrief}`,
   ``,
-  `Sections du document (pour cohérence de ton glossaire/tldr/widget) :\n${sectionsBrief}`,
-  ``,
-  `Rends : files_written (chemins écrits), has_widget, et si widget → widget:{ref, title, after_section_id (l'id de section après laquelle l'insérer)}.`,
+  `Rends : files_written (chemins écrits).`,
+].join('\n');
+
+const widgetPlanPrompt = (secs) => [
+  `Sujet : « ${subject} ». Sections RETENUES du document (id, heading, prose, faits clés) :`,
+  JSON.stringify(secs),
+  `Décide quels CONCEPTS ou MÉCANISMES clés méritent un widget interactif démonstratif.`,
+  `Rubrique STRICTE : un widget ne se justifie QUE si le concept est NON TRIVIAL et qu'il est plus clair MONTRÉ qu'expliqué (le montrer aide à visualiser/comprendre, ou rend la compréhension plus simple). Sinon, AUCUN widget.`,
+  `N'en propose aucun pour le trivial ou le purement déclaratif. DÉDUPLIQUE : un seul widget par mécanisme. La complexité du widget devra rester proportionnée à sa valeur explicative.`,
+  `Rends : widgets = liste {concept (le mécanisme à illustrer), after_section_id (id EXACT d'une section ci-dessus, après laquelle l'insérer), brief (ce que le widget doit faire voir/manipuler, 1-2 phrases)}. Liste VIDE si rien ne le justifie.`,
+].join('\n');
+
+const widgetCodePrompt = (w) => [
+  `Tu CODES un widget interactif autonome illustrant ce mécanisme du sujet « ${subject} » : ${w.concept}.`,
+  `Objectif pédagogique (brief) : ${w.brief}`,
+  `Écris le fichier ${themeDir}/widgets/<ref>.html (mkdir -p ${themeDir}/widgets si besoin). Choisis un <ref> kebab-case ascii unique (ex. probe-…).`,
+  `CONTRAINTES STRICTES (sinon le build échoue bruyamment) : un seul bloc <div class="widget">…</div> + <style>…</style> + <script>…</script> ; AUCUNE ressource externe, AUCUN file:///, AUCUN alert/confirm/prompt ; balises <section>/<details>/<script> ÉQUILIBRÉES ; préfixe TOUS les id/classes par le ref pour éviter les collisions avec la charte.`,
+  `Le widget doit VRAIMENT démontrer le mécanisme : interactif et manipulable, pas décoratif ni statique. Aussi complexe que nécessaire, mais pas au-delà de sa valeur explicative.`,
+  `Rends : ref (sans .html), title (titre court du widget), after_section_id = "${w.after_section_id}".`,
+].join('\n');
+
+const widgetCriticPrompt = (coded) => [
+  `Relis le widget : ${themeDir}/widgets/${coded.ref}.html (fais Read).`,
+  `Juge HONNÊTEMENT trois choses : (1) tourne-t-il plausiblement (pas d'erreur JS évidente, pas de référence indéfinie, balises équilibrées) ; (2) est-il réellement INTERACTIF et DÉMONSTRATIF du mécanisme « ${coded.title} » (pas décoratif, pas statique) ; (3) respecte-t-il les contraintes (un seul <div class="widget">, aucune ressource externe / file:/// / alert|confirm|prompt, id/classes préfixés).`,
+  `Rends : ok (true SEULEMENT si les 3 tiennent), issues (liste des problèmes précis à corriger ; vide si ok).`,
+].join('\n');
+
+const widgetRecodePrompt = (coded, issues) => [
+  `Le widget ${themeDir}/widgets/${coded.ref}.html a été relu et DOIT être corrigé. Problèmes relevés :`,
+  JSON.stringify(issues),
+  `Réécris (Write) le fichier ${themeDir}/widgets/${coded.ref}.html en corrigeant ces points, en gardant les MÊMES contraintes strictes (un seul <div class="widget">, aucune ressource externe / file:/// / alert|confirm|prompt, balises équilibrées, id/classes préfixés, vraiment démonstratif).`,
+  `Rends : ref="${coded.ref}", title="${coded.title}", after_section_id="${coded.after_section_id}".`,
 ].join('\n');
 
 const ELEMENT_CHEATSHEET = [
   `Types d'éléments valides (rendus par build.py) et leurs champs requis :`,
   `- {"type":"section","id":<kebab>,"heading":<str>,"level":3,"prose":<html>,"claims":[<claim ids>]}`,
   `- {"type":"abstract"}                      (tire de tldr.json : these+part1+part2)`,
-  `- {"type":"tldr","key":"part1"|"part2","title":<str>}`,
-  `- {"type":"onramp","steps":["<li>…</li>","<li>…</li>"]}`,
   `- {"type":"exercise","part":<str>,"question":<html>,"answer":<html>}`,
   `- {"type":"widget","ref":<widget ref>}`,
   `- {"type":"callout","kind":"callout","title":<str>,"body":<html>}`,
@@ -232,28 +267,31 @@ const ELEMENT_CHEATSHEET = [
   `meta.title/kicker/h1/lede sont OBLIGATOIRES. Les claims référencés doivent exister ; le widget ref doit exister.`,
 ].join('\n');
 
-const composePrompt = (title, biblioEntries, widget, pointers) => [
-  `Tu composes les 3 manifestes-vues du thème « ${title} » (slug ${slug}). Tu ÉCRIS (Write) 3 fichiers JSON.`,
-  `IMPÉRATIF — RÉÉCRITURE OBLIGATOIRE : des fichiers editions/*.manifest.json peuvent déjà exister sur disque ; ce sont des sorties PÉRIMÉES d'un run précédent et le knowledge.json courant a changé. Tu DOIS les écraser intégralement avec les manifestes ci-dessous. Ne les considère JAMAIS comme la source de vérité, ne les "préserve" pas, ne décide pas qu'ils sont déjà bons. Si un Write échoue avec « File has not been read yet », fais d'abord Read sur ce fichier PUIS refais le Write — n'abandonne pas. À la fin, les 3 manifestes DOIVENT avoir été (ré)écrits par toi dans CE run.`,
+const composePrompt = (title, biblioEntries, widgets, pointers) => [
+  `Tu composes LE manifeste unique de la monographie « ${title} » (slug ${slug}). Tu ÉCRIS (Write) UN fichier : ${themeDir}/manifest.json.`,
+  `IMPÉRATIF — RÉÉCRITURE OBLIGATOIRE : un manifest.json peut déjà exister (sortie PÉRIMÉE d'un run précédent) alors que le knowledge.json courant a changé. Tu DOIS l'écraser intégralement avec le manifeste ci-dessous. Ne le considères JAMAIS comme la source de vérité. Si un Write échoue avec « File has not been read yet », fais d'abord Read sur ce fichier PUIS refais le Write — n'abandonne pas. À la fin, manifest.json DOIT avoir été (ré)écrit par toi dans CE run.`,
   ELEMENT_CHEATSHEET,
   ``,
   `Matériel partagé (réutilise la prose telle quelle ; ne ré-écris pas les faits) :`,
-  `- sections (id, heading, prose HTML à réutiliser tel quel, claims = liste d'ids) : lis ${themeDir}/editions/sections_draft.json`,
+  `- sections (id, heading, prose HTML à réutiliser tel quel, claims = liste d'ids) : lis ${themeDir}/sections_draft.json`,
   `- entrées biblio (depuis les sources vérifiées) : ${JSON.stringify(biblioEntries)}`,
-  `- widget : ${widget ? JSON.stringify(widget) : 'aucun'}`,
-  `- pointeurs « pour aller plus loin » (à rendre via un élément {"type":"pointers","title":"Pour aller plus loin","items":[…]}) : ${pointers && pointers.length ? JSON.stringify(pointers) : 'aucun'}`,
+  `- widgets à placer (chacun APRÈS la section dont l'id == after_section_id) : ${widgets && widgets.length ? JSON.stringify(widgets) : 'aucun'}`,
+  `- pointeurs « pour aller plus loin » : ${pointers && pointers.length ? JSON.stringify(pointers) : 'aucun'}`,
   ``,
-  `Politique d'édition (guide de rédaction, pas une règle du code) :`,
-  `- ${themeDir}/editions/reference.manifest.json : tldr(part1) → toutes les sections (avec leurs claims)${widget ? ' → widget (après sa section)' : ''}${pointers && pointers.length ? ' → pointers' : ''} → biblio → glossary. Édition dense, superset.`,
-  `- ${themeDir}/editions/publication.manifest.json : abstract → toutes les sections → biblio → glossary. Lecture suivie.`,
-  `- ${themeDir}/editions/pedagogique.manifest.json : onramp (tu rédiges 3-4 étapes) → sections${widget ? ' → widget' : ''}${pointers && pointers.length ? ' → pointers' : ''} → 1-2 exercise (tu rédiges question+réponse) → biblio → glossary. Apprentissage.`,
+  `Layout du document (superset best-of, dense et complet) — ordre des elements :`,
+  `1. {"type":"abstract"}  — résumé exécutif (tiré de tldr.json : thèse + tous les points).`,
+  `2. TOUTES les sections (avec leurs claims) dans l'ordre. Après une section dont l'id == after_section_id d'un widget, insère {"type":"widget","ref":<ce ref>}.`,
+  `3. 1 à 2 {"type":"exercise","part":<str>,"question":<html>,"answer":<html>} que TU rédiges (auto-évaluation sur les points clés du document).`,
+  `4. {"type":"biblio","entries":[…depuis les entrées biblio ci-dessus…]}`,
+  (pointers && pointers.length) ? `5. {"type":"pointers","title":"Pour aller plus loin","items":[…depuis les pointeurs ci-dessus…]}` : `(pas d'élément pointers : aucun pointeur)`,
+  `6. {"type":"glossary"}`,
   ``,
-  `meta par édition : title = "${title} — <référence|publication|pédagogique>", kicker = "<sujet court> · édition <…>", h1 = "${title}", lede = 1 phrase d'accroche propre à l'édition, meta_chips = ["Référence"]/["Publication"]/["Pédagogique"], footer = "${title} · scriptorium".`,
-  `Crée le dossier editions/ si besoin (mkdir -p). Rends files_written + element_counts.`,
+  `meta OBLIGATOIRE : title = "${title}", kicker = "<sujet court> · monographie", h1 = "${title}", lede = 1 phrase d'accroche, meta_chips = ["Monographie"], footer = "${title} · scriptorium".`,
+  `Les claims référencés doivent exister dans knowledge.json ; chaque widget ref doit exister. Crée le dossier si besoin (mkdir -p ${themeDir}). Rends files_written + element_counts:{document:<nb total d'elements>}.`,
 ].join('\n');
 
 const buildPrompt = () => [
-  `Assemble le triptyque de façon déterministe puis vérifie l'acceptation.`,
+  `Assemble la monographie de façon déterministe puis vérifie l'acceptation.`,
   `1) Exécute : python3 "${buildScript}" "${themeDir}"`,
   `   build.py échoue bruyamment (référence manquante, type inconnu, balise déséquilibrée, file:/// résiduel, jeton non substitué).`,
   `   S'il échoue pour une référence corrigeable (ex. claim id absent, widget ref erroné, clé meta manquante), CORRIGE le manifeste/fichier fautif dans ${themeDir} puis relance — UNE seule tentative de réparation, puis rapporte.`,
@@ -388,9 +426,36 @@ await A(
     phase: 'Author', label: 'write:knowledge' }
 );
 const sectionsBrief = arch.outline.filter(o => liveOutlineIds.has(o.id)).map(o => `- ${o.id} : ${o.heading}`).join('\n');
-const wantWidget = String(A0.widget) !== 'false';   // widget par défaut, sauf widget === false
-const authored = await A(authorPrompt(sectionsBrief, wantWidget), { schema: S_AUTHOR, phase: 'Author', label: 'author' });
-log(`Author : ${authored.files_written.length} fichiers écrits${authored.has_widget ? ' (widget inclus)' : ''}`);
+const authored = await A(authorPrompt(sectionsBrief), { schema: S_AUTHOR, phase: 'Author', label: 'author' });
+log(`Author : ${authored.files_written.length} fichiers écrits`);
+
+phase('Widgets');
+const liveSectionsBrief = liveSections.map(s => ({
+  id: s.section.id, heading: s.section.heading, prose: s.section.prose,
+  claims: (s.kept || []).map(c => c.statement),
+}));
+const wantWidgets = String(A0.widget) !== 'false';
+let widgets = [];
+if (wantWidgets && liveSectionsBrief.length) {
+  const plan = await A(widgetPlanPrompt(liveSectionsBrief), { schema: S_WIDGET_PLAN, phase: 'Widgets', label: 'widget-plan' });
+  const liveIds = new Set(liveSections.map(s => s.section.id));
+  const wanted = (plan.widgets || []).filter(w => liveIds.has(w.after_section_id));  // garde-fou : ancrage sur une section vivante
+  widgets = (await pipeline(
+    wanted,
+    (w) => A(widgetCodePrompt(w), { schema: S_WIDGET_CODE, phase: 'Widgets', label: `widget-code:${w.after_section_id}` }),
+    async (coded) => {
+      if (!coded) return null;
+      const verdict = await A(widgetCriticPrompt(coded), { schema: S_WIDGET_CRITIC, phase: 'Widgets', label: `widget-critic:${coded.ref}` });
+      if (verdict.ok) return coded;
+      log(`[widget] ${coded.ref} recodé : ${(verdict.issues || []).join('; ')}`);
+      const fixed = await A(widgetRecodePrompt(coded, verdict.issues || []), { schema: S_WIDGET_CODE, phase: 'Widgets', label: `widget-recode:${coded.ref}` });
+      return fixed || coded;   // 1 SEULE re-passe ; au pire on garde la version critiquée
+    }
+  )).filter(Boolean);
+  log(`Widgets : ${widgets.length}/${(plan.widgets || []).length} retenus.`);
+} else {
+  log(wantWidgets ? 'Widgets : aucune section vivante.' : 'Widgets : désactivés (widget=false).');
+}
 
 phase('Compose');
 const proseById = {};
@@ -403,26 +468,23 @@ const sectionsForCompose = liveOutline.map(o => ({
 }));
 // Écriture des sections sur disque — Compose lit depuis le fichier (pas d'injection inline volumineuse)
 await A(
-  `Crée le dossier si besoin (mkdir -p ${themeDir}/editions) puis écris VERBATIM le fichier suivant.\nChemin : ${themeDir}/editions/sections_draft.json\nContenu :\n${JSON.stringify(sectionsForCompose, null, 2)}`,
+  `Crée le dossier si besoin (mkdir -p ${themeDir}) puis écris VERBATIM le fichier suivant.\nChemin : ${themeDir}/sections_draft.json\nContenu :\n${JSON.stringify(sectionsForCompose, null, 2)}`,
   { schema: { type:'object', additionalProperties:false, required:['written'], properties:{ written:{type:'boolean'} } },
     phase: 'Compose', label: 'write:sections' }
 );
 const biblioEntries = sources.map(s => ({ label: s.title, href: s.url }));
-const widget = (authored.has_widget && authored.widget) ? authored.widget : null;
 const composed = await A(
-  composePrompt(arch.title, biblioEntries, widget, verifiedPointers),
+  composePrompt(arch.title, biblioEntries, widgets, verifiedPointers),
   { schema: S_COMPOSE, phase: 'Compose', label: 'compose' }
 );
-log(`Compose : ${composed.files_written.length} manifestes écrits`);
+log(`Compose : ${composed.files_written.length} manifeste(s) écrit(s)`);
 
-// Garde fail-loud : les 3 manifestes DOIVENT avoir été (ré)écrits dans ce run.
-// Sinon build.py assemblerait des manifestes périmés (refs claim:N pointant des faits différents) → corruption silencieuse.
-const _need = ['reference', 'publication', 'pedagogique'];
-const _written = new Set((composed.files_written || []).map(p => (p.match(/([a-z]+)\.manifest\.json$/) || [])[1]).filter(Boolean));
-const _missing = _need.filter(ed => !_written.has(ed));
-if (_missing.length) throw new Error(
-  `Compose n'a pas (ré)écrit les manifestes : ${_missing.join(', ')}. files_written=${JSON.stringify(composed.files_written)}. ` +
-  `Abandon AVANT build pour ne pas assembler des manifestes périmés sur le knowledge.json courant.`);
+// Garde fail-loud : manifest.json DOIT avoir été (ré)écrit dans ce run.
+// Sinon build.py assemblerait un manifeste périmé (refs claim:N pointant des faits différents) → corruption silencieuse.
+const _wroteManifest = (composed.files_written || []).some(p => /(^|\/)manifest\.json$/.test(p));
+if (!_wroteManifest) throw new Error(
+  `Compose n'a pas (ré)écrit ${themeDir}/manifest.json. files_written=${JSON.stringify(composed.files_written)}. ` +
+  `Abandon AVANT build pour ne pas assembler un manifeste périmé sur le knowledge.json courant.`);
 
 phase('Build');
 const built = await A(buildPrompt(), { schema: S_BUILD, phase: 'Build', label: 'build' });
@@ -434,5 +496,6 @@ return {
     corrected: claims.filter(c => c.audit === 'corrected').length,
     rejected: claims.filter(c => c.audit === 'rejected').length },
   sources: sources.length,
+  widgets: { kept: widgets.length },
   build: built,
 };
