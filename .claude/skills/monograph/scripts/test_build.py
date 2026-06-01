@@ -4,15 +4,15 @@ import build
 
 def _mk_theme(tmp, elements, claims=None, widgets=None):
     t = pathlib.Path(tmp)
-    (t/"editions").mkdir(parents=True); (t/"widgets").mkdir(); (t/"dist").mkdir()
+    (t/"widgets").mkdir(parents=True); (t/"dist").mkdir()
     (t/"knowledge.json").write_text(json.dumps({"theme":{"slug":"demo","title":"D"},
         "sources":[], "claims":claims or []}), encoding="utf-8")
     (t/"glossary.json").write_text("[]", encoding="utf-8")
     (t/"tldr.json").write_text(json.dumps({"these":"t","part1":[],"part2":[]}), encoding="utf-8")
     for w in (widgets or {}):
         (t/"widgets"/(w+".html")).write_text(widgets[w], encoding="utf-8")
-    (t/"editions"/"reference.manifest.json").write_text(json.dumps(
-        {"edition":"reference","slug":"demo",
+    (t/"manifest.json").write_text(json.dumps(
+        {"slug":"demo",
          "meta":{"title":"D","kicker":"k","h1":"H","lede":"l","meta_chips":[],"footer":"f"},
          "elements":elements}), encoding="utf-8")
     return str(t)
@@ -28,7 +28,7 @@ def test_valid_theme_writes_html(tmp_path):
         [{"type":"section","id":"a","heading":"A","prose":"<p>x</p>","claims":["claim:k"]}],
         claims=[{"id":"claim:k","statement":"s","sources":["src:1","src:2"],"audit":"confirmed"}])
     build.build_theme(theme)
-    out = (pathlib.Path(theme)/"dist"/"demo-reference.html").read_text(encoding="utf-8")
+    out = (pathlib.Path(theme)/"dist"/"demo.html").read_text(encoding="utf-8")
     assert "file:///" not in out
     assert "--blue" in out
     assert '<section id="a">' in out
@@ -60,7 +60,7 @@ def test_pointers_element_builds_and_is_structurally_sound(tmp_path):
             {"name":"toolX","url":"https://example.org/x","kind":"package","blurb":"fait Y"}]},
     ], claims=[{"id":"claim:k","statement":"s","sources":["src:1","src:2"],"audit":"confirmed"}])
     build.build_theme(theme)
-    out = (pathlib.Path(theme)/"dist"/"demo-reference.html").read_text(encoding="utf-8")
+    out = (pathlib.Path(theme)/"dist"/"demo.html").read_text(encoding="utf-8")
     assert '<section id="pointers">' in out
     assert 'href="https://example.org/x"' in out
     assert "toolX" in out

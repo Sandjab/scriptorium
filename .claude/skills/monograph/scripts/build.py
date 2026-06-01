@@ -4,7 +4,6 @@ import json, re, sys, pathlib
 import components as C
 
 TPL = pathlib.Path(__file__).resolve().parent.parent / "template"
-EDITIONS = ["reference", "publication", "pedagogique"]
 
 def die(msg): raise SystemExit(f"[build] ÉCHEC : {msg}")
 def read(p): return pathlib.Path(p).read_text(encoding="utf-8")
@@ -64,22 +63,18 @@ def build_theme(theme):
            "glossary": json.loads(read(theme/"glossary.json")),
            "tldr": json.loads(read(theme/"tldr.json")),
            "widgets": load_widgets(theme), "kb": kb}
-    htmls = {}
-    for ed in EDITIONS:
-        mp = theme/"editions"/f"{ed}.manifest.json"
-        if not mp.exists():
-            continue
-        manifest = json.loads(read(mp))
-        validate_manifest(manifest)
-        validate_refs(manifest, kb, ctx["widgets"])
-        htmls[f"{manifest['slug']}-{ed}.html"] = render_edition(manifest, ctx)
-    if not htmls:
-        die(f"aucun manifeste d'édition dans {theme}/editions/")
+    mp = theme/"manifest.json"
+    if not mp.exists():
+        die(f"manifeste absent : {mp}")
+    manifest = json.loads(read(mp))
+    validate_manifest(manifest)
+    validate_refs(manifest, kb, ctx["widgets"])
+    name = f"{manifest['slug']}.html"
+    htmls = {name: render_edition(manifest, ctx)}
     structural_checks(htmls)
     (theme/"dist").mkdir(exist_ok=True)
-    for name, html in htmls.items():
-        (theme/"dist"/name).write_text(html, encoding="utf-8")
-        print(f"[build] écrit dist/{name} ({len(html)} o)")
+    (theme/"dist"/name).write_text(htmls[name], encoding="utf-8")
+    print(f"[build] écrit dist/{name} ({len(htmls[name])} o)")
 
 if __name__ == "__main__":
     if len(sys.argv) != 2: die("usage: build.py <theme_dir>")
