@@ -72,3 +72,17 @@ def test_removed_renderer_is_unknown_type(tmp_path, removed_type):
     theme = _mk_theme(tmp_path/removed_type, [{"type": removed_type}])
     with pytest.raises(SystemExit):
         build.build_theme(theme)
+
+def test_multiple_widgets_all_inlined_and_validated(tmp_path):
+    theme = _mk_theme(tmp_path,
+        [{"type":"section","id":"a","heading":"A","prose":"<p>x</p>"},
+         {"type":"widget","ref":"w1"},
+         {"type":"section","id":"b","heading":"B","prose":"<p>y</p>"},
+         {"type":"widget","ref":"w2"}],
+        widgets={"w1":'<div class="widget" id="w1">ONE</div>',
+                 "w2":'<div class="widget" id="w2">TWO</div>'})
+    build.build_theme(theme)
+    out = (pathlib.Path(theme)/"dist"/"demo.html").read_text(encoding="utf-8")
+    assert "ONE" in out and "TWO" in out
+    assert "<!--%" not in out
+    assert "file:///" not in out
