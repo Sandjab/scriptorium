@@ -1,0 +1,1006 @@
+{
+  "edition": "monographie",
+  "slug": "backpropagation",
+  "meta": {
+    "title": "Rétropropagation du gradient : comment un réseau profond apprend",
+    "kicker": "Comment un réseau profond apprend · monographie",
+    "h1": "Rétropropagation du gradient : comment un réseau profond apprend",
+    "lede": "Comment la règle de la chaîne, appliquée couche par couche et de la sortie vers l'entrée, calcule en une seule passe le gradient qui fait apprendre un réseau profond — et pourquoi ses garanties de coût comme ses écueils de profondeur sont si souvent mal compris.",
+    "meta_chips": [
+      "Monographie"
+    ],
+    "footer": "Rétropropagation du gradient : comment un réseau profond apprend · scriptorium"
+  },
+  "elements": [
+    {
+      "type": "abstract"
+    },
+    {
+      "type": "section",
+      "id": "fondations-passe-avant-arriere",
+      "heading": "Le réseau comme composition de couches : passe avant, passe arrière",
+      "level": 3,
+      "prose": "<p>Un réseau de neurones profond est, mathématiquement, une composition de couches. Chaque unité <em>j</em> reçoit une entrée totale qui est la somme pondérée des sorties des unités qui la précèdent, <code>x_j = Σ_i y_i w_ji</code>, puis lui applique une fonction d'activation — historiquement la logistique (sigmoïde) <code>y_j = 1 / (1 + e^{-x_j})</code>. Empiler ces couches revient à composer des fonctions : la sortie d'une couche devient l'entrée de la suivante, jusqu'à la couche de sortie.</p><p>La <strong>passe avant</strong> (<em>forward</em>) propage un exemple d'entrée à travers cette composition pour produire la sortie du réseau, puis mesure l'écart à la cible par une fonction de perte. Le papier fondateur de 1986 retient la demi-somme des carrés des écarts, <code>E = ½ Σ_c Σ_j (y_{j,c} − d_{j,c})²</code>, où <em>y</em> est la sortie produite et <em>d</em> la sortie désirée. La perte n'est pas une fin en soi : elle fournit le signal scalaire dont la passe arrière va calculer le gradient.</p><p>La <strong>passe arrière</strong> (<em>backward</em>) calcule la sensibilité de la perte à chaque poids, couche par couche, en remontant de la sortie vers l'entrée. À la sortie, l'écart se lit directement : <code>∂E/∂y_j = y_j − d_j</code>. La règle de la chaîne traverse ensuite l'activation, <code>∂E/∂x_j = (∂E/∂y_j)·y_j(1 − y_j)</code>, donne le gradient d'un poids comme produit du signal d'erreur entrant et de la sortie amont, <code>∂E/∂w_ji = (∂E/∂x_j)·y_i</code>, et rétropropage l'erreur vers une unité cachée par <code>∂E/∂y_i = Σ_j (∂E/∂x_j)·w_ji</code>. C'est cette dernière équation — l'erreur d'une couche reconstruite à partir de celle de la couche suivante — qui fait du procédé un calcul couche par couche, et non un recalcul indépendant pour chaque poids.</p><p>Il faut être précis sur ce que <em>backpropagation</em> désigne : l'étape de <strong>calcul du gradient</strong> de la perte par rapport aux poids, pour un exemple entrée-sortie donné, en appliquant efficacement la règle de la chaîne. Ce n'est pas l'algorithme d'apprentissage complet : une fois le gradient obtenu, c'est une méthode d'optimisation (descente de gradient et ses variantes) qui décide comment ajuster les poids. La portée de 1986 tient à une observation expérimentale : en ajustant les poids pour minimiser <em>E</em>, les unités cachées — qui n'appartiennent ni à l'entrée ni à la sortie — « en viennent à représenter des caractéristiques importantes du domaine de la tâche ». Autrement dit, la rétropropagation amène le réseau à découvrir lui-même des traits utiles, sans qu'on les lui spécifie.</p>",
+      "claims": [
+        "claim:1",
+        "claim:2",
+        "claim:3",
+        "claim:4"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "regle-de-la-chaine-couche-par-couche",
+      "heading": "La règle de la chaîne couche par couche : la récurrence du terme d'erreur",
+      "level": 3,
+      "prose": "<p>Le cœur de la rétropropagation tient en une seule idée : l'erreur, mesurée à la sortie, reflue vers l'entrée en réutilisant à chaque couche le travail déjà fait à la couche suivante. Le papier de 1986 de Rumelhart, Hinton et Williams en donne la forme scalaire la plus limpide. On part de la dérivée de l'erreur par rapport à la sortie d'une unité, <em>∂E/∂y<sub>j</sub> = y<sub>j</sub> − d<sub>j</sub></em> pour une unité de sortie (l'écart entre sortie obtenue et cible). On la convertit ensuite en dérivée par rapport à l'entrée totale de l'unité par la règle de la chaîne, en traversant l'activation : <em>∂E/∂x<sub>j</sub> = (∂E/∂y<sub>j</sub>) · y<sub>j</sub>(1 − y<sub>j</sub>)</em>, où le facteur <em>y<sub>j</sub>(1 − y<sub>j</sub>)</em> est exactement la dérivée de la sigmoïde. De cette quantité pivot, le papier tire deux choses d'un seul coup : le gradient de chaque poids entrant, <em>∂E/∂w<sub>ji</sub> = (∂E/∂x<sub>j</sub>) · y<sub>i</sub></em>, et l'erreur renvoyée vers chaque unité de la couche précédente, <em>∂E/∂y<sub>i</sub> = Σ<sub>j</sub> (∂E/∂x<sub>j</sub>) · w<sub>ji</sub></em>.</p><p>Cette dernière équation est le ressort de la récurrence : connaissant <em>∂E/∂y</em> pour toutes les unités d'une couche, on l'obtient pour la couche immédiatement en amont, puis on recommence — couche après couche, vers l'arrière, en accumulant les gradients de poids au passage. La même opération se réécrit de manière compacte sous forme matricielle, telle que la pose Wikipedia. En notant <em>δ<sup>l</sup></em> le gradient du coût par rapport aux entrées pondérées <em>z<sup>l</sup></em> de la couche <em>l</em>, la récurrence devient <em>δ<sup>l−1</sup> = (f<sup>l−1</sup>)′ ∘ (W<sup>l</sup>)<sup>T</sup> δ<sup>l</sup></em> : le terme d'erreur de la couche suivante est ramené par la transposée de la matrice de poids <em>(W<sup>l</sup>)<sup>T</sup></em>, puis modulé élément par élément (produit de Hadamard <em>∘</em>) par la dérivée locale de l'activation. Le gradient des poids est alors un simple produit extérieur, <em>∇<sub>W<sup>l</sup></sub>C = δ<sup>l</sup> (a<sup>l−1</sup>)<sup>T</sup></em>. La version scalaire de 1986 et la version matricielle de Wikipedia décrivent rigoureusement le même calcul : la seconde regroupe en une multiplication matrice-vecteur la somme <em>Σ<sub>j</sub></em> de la première.</p><p>Le point de vue moderne, popularisé par les graphes de calcul, éclaire pourquoi tout cela est à la fois correct et mécanique. Chaque opération du réseau est une « porte » qui ne connaît qu'une chose : son gradient <em>local</em> (comment sa sortie varie avec ses entrées). À la passe arrière, elle reçoit le gradient <em>amont</em> (comment le coût varie avec sa sortie) et le multiplie par son gradient local pour obtenir le gradient sur ses entrées — c'est la règle de la chaîne appliquée localement, sans vue d'ensemble. Reste un détail décisif quand une même quantité <em>fourche</em> vers plusieurs portes : ses contributions reviennent par plusieurs chemins et doivent s'<em>additionner</em>. C'est la règle de la chaîne multivariée — « les gradients s'additionnent aux embranchements » — et c'est pourquoi une implémentation correcte accumule avec <em>+=</em> plutôt que d'écraser avec <em>=</em>. Cette même addition est déjà visible dans l'équation (7) du papier de 1986 : la somme <em>Σ<sub>j</sub></em> sur les unités <em>j</em> de la couche suivante n'est rien d'autre que l'accumulation, sur une unité cachée, de toutes les erreurs qui refluent des fourches où sa sortie a été réutilisée.</p>",
+      "claims": [
+        "claim:5",
+        "claim:6",
+        "claim:7",
+        "claim:8"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "pourquoi-efficace",
+      "heading": "Pourquoi c'est efficace : réutilisation des calculs et mode inverse",
+      "level": 3,
+      "prose": "<p>La source de l'efficacité de la rétropropagation tient en un mot : la réutilisation. Le signal d'erreur d'une couche, δ<sup>l</sup>, n'est pas recalculé de zéro à chaque profondeur ; il se propage vers l'arrière par la récurrence δ<sup>l-1</sup> = (f<sup>l-1</sup>)′ ∘ (W<sup>l</sup>)<sup>T</sup> · δ<sup>l</sup>, et le gradient des poids s'en déduit immédiatement par ∇<sub>W<sup>l</sup></sub>C = δ<sup>l</sup> (a<sup>l-1</sup>)<sup>T</sup>. Obtenir δ<sup>l-1</sup> à partir de δ<sup>l</sup> évite de réévaluer les sous-expressions de la règle de la chaîne communes à toutes les couches plus profondes : chaque facteur intermédiaire ne se calcule qu'une fois, puis se recycle. C'est précisément ce qui sépare la rétropropagation d'une dérivation naïve, où l'on recalculerait indépendamment la dérivée de la perte par rapport à chaque paramètre, en repassant à chaque fois par les mêmes maillons de la chaîne.</p><p>Cette réutilisation a une traduction algébrique nette : la passe arrière multiplie des matrices par des vecteurs, jamais des matrices par des matrices. Le gradient d'une perte scalaire est un produit de jacobiennes couche par couche ; la règle de la chaîne ne fixe pas l'ordre d'évaluation de ce produit, et l'associativité du produit matriciel laisse le choix. En partant de la sortie scalaire et en remontant — de droite à gauche — chaque étape multiplie un vecteur (le δ courant) par une matrice de poids transposée, opération dont le coût reste linéaire en la taille des couches. Évaluer la même chaîne de gauche à droite, à la manière du mode direct, propagerait au contraire des matrices pleines et ferait exploser le coût. L'économie ne vient donc pas d'une propriété magique de la dérivation, mais du sens de parcours adapté à la forme du problème.</p><p>Ce parcours arrière n'est pas un artefact de l'apprentissage profond : la rétropropagation est exactement un cas particulier de l'accumulation inverse (reverse-mode) de la différentiation automatique. Le mode inverse est optimal lorsque le nombre d'entrées n dépasse de loin le nombre de sorties m : il ne réclame que m passes là où le mode direct en exige n. Or l'apprentissage profond est le cas extrême de cette asymétrie — une perte scalaire (m = 1) face à des millions de paramètres (n immense) —, si bien qu'une unique passe arrière suffit à délivrer la totalité du gradient. Cette optimalité a un prix, le compromis temps-mémoire : le mode inverse doit conserver les variables intermédiaires (le « ruban » ou tape) calculées à l'aller pour les réutiliser au retour, ce qui peut consommer une mémoire importante quand le graphe de calcul est grand.</p><p>Le bénéfice se chiffre. La rétropropagation calcule l'ensemble du gradient pour un coût comparable à une seule passe avant ; la différentiation par différences finies, elle, perturbe un paramètre à la fois et réclame de l'ordre de n passes avant pour n paramètres — environ n fois plus cher, sans même évoquer ses erreurs d'arrondi et de troncature. Plus profondément, le théorème de Baur-Strassen (1983) garantit ce résultat en toute généralité : le coût arithmétique du gradient d'une fonction scalaire est borné par un petit facteur constant — de l'ordre de cinq — fois celui de l'évaluation de la fonction, indépendamment du nombre d'entrées. Ce « principe du gradient bon marché » est le socle théorique qui rend l'entraînement de réseaux à des milliards de paramètres seulement envisageable. Sa limite est l'autre face de la même médaille : c'est une garantie de coût, pas de qualité — backprop trouve efficacement une descente, jamais l'assurance d'un optimum.</p>",
+      "claims": [
+        "claim:9",
+        "claim:10",
+        "claim:11",
+        "claim:12"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-ordre-chaine-jacobienne"
+    },
+    {
+      "type": "section",
+      "id": "principe-gradient-pas-cher",
+      "heading": "Le « gradient pas cher » : la garantie de Baur-Strassen",
+      "level": 3,
+      "prose": "<p>Derrière l'efficacité de la rétropropagation se cache un résultat qui dépasse de loin les réseaux de neurones. En 1983, Walter Baur et Volker Strassen démontrent une borne de complexité arithmétique frappante : pour une fonction rationnelle scalaire, calculer <em>simultanément</em> toutes ses dérivées partielles ne coûte qu'un petit facteur constant — de l'ordre de cinq — fois le coût d'évaluer la fonction elle-même. La propriété décisive n'est pas le chiffre, c'est ce dont il ne dépend pas : ce facteur est <strong>indépendant du nombre d'entrées n</strong>. Que la fonction ait dix variables ou dix millions, le gradient complet reste à portée d'un multiple borné du calcul direct. C'est ce que la littérature appelle le « principe du gradient pas cher » (<em>cheap gradient principle</em>), et c'est lui, et non l'apprentissage profond, qui rend l'entraînement à grande échelle seulement possible.</p><p>Le mode inverse de la différentiation automatique — dont la rétropropagation est le cas particulier appliqué aux réseaux — est précisément l'algorithme qui atteint cette borne. Il est <strong>optimal en temps</strong> pour le calcul des dérivées premières d'un objectif scalaire : une seule passe arrière, après une passe avant qui mémorise les variables intermédiaires, produit le gradient entier. La comparaison avec la différentiation naïve par différences finies est sans appel : celle-ci exige une perturbation et une réévaluation par paramètre, soit un coût en O(n) passes — pour un réseau à des millions de poids, c'est un facteur de plusieurs millions. Le mode inverse remplace ce O(n) par un facteur constant. La contrepartie n'est pas du temps mais de la mémoire : il faut conserver les activations intermédiaires (la « bande » d'enregistrement) pour la passe arrière, un compromis temps/mémoire bien réel quand le graphe de calcul est profond.</p><p>Ce gain a une longue préhistoire, souvent occultée par la popularisation de 1986. Le mode inverse de la différentiation automatique est publié dès 1970 par Seppo Linnainmaa, dans son mémoire de master, sous une forme générale et rigoureuse. Ses racines plongent plus tôt encore dans la théorie du contrôle optimal, avec la récurrence de la règle de la chaîne chez Henry Kelley (1960) et la dérivation par la seule règle de la chaîne chez Stuart Dreyfus (1962). C'est Paul Werbos qui établit la connexion explicite aux réseaux de neurones, esquissée dans sa thèse de 1974 et appliquée vers 1982. La rétropropagation moderne hérite donc d'une garantie de complexité forgée à la croisée du contrôle, de l'analyse numérique et de la théorie de la complexité algébrique.</p>",
+      "claims": [
+        "claim:13",
+        "claim:14",
+        "claim:15",
+        "claim:16"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "descente-de-gradient-variantes",
+      "heading": "Utiliser le gradient : descente de gradient, SGD, mini-batch",
+      "level": 3,
+      "prose": "<p>La rétropropagation ne fait que <em>calculer</em> le gradient ; elle ne change aucun poids. La mise à jour est une étape distincte, celle de la descente de gradient. Une fois connu ∂E/∂w pour chaque poids, on corrige chaque poids dans la direction qui fait décroître l'erreur, c'est-à-dire à l'opposé du gradient : Δw = −η ∇E. Le scalaire η, le taux d'apprentissage, fixe l'amplitude du pas. Cette règle est purement locale et indifférente à la manière dont le gradient a été obtenu : la backpropagation est l'outil de mesure, la descente de gradient est le mouvement.</p><p>Reste à décider sur quelles données on mesure ce gradient. Le gradient « exact » de l'erreur est la moyenne des gradients sur tout le jeu d'entraînement ; le calculer à chaque pas (descente par lot complet, ou <em>batch</em>) est exact mais coûteux, car il faut traverser l'intégralité des exemples avant la moindre mise à jour. À l'opposé, la descente de gradient stochastique (SGD) estime ce gradient à partir d'un seul exemple tiré au hasard : chaque pas est bruité mais quasi instantané, et l'on en fait beaucoup. Le <em>mini-batch</em> est le compromis usuel : on estime le gradient sur k exemples (1 &lt; k &lt; n), ce qui réduit le bruit, lisse la convergence et exploite la vectorisation matérielle. Les trois approches partagent la même règle de mise à jour ; elles ne diffèrent que par la taille de l'échantillon servant à estimer ∇E.</p><p>Le taux d'apprentissage η est le réglage critique. Trop grand, les pas dépassent le creux visé et l'optimisation oscille ou diverge ; trop petit, elle progresse mais traîne, parfois sur un nombre de pas prohibitif. Cette tension n'est pas une recette empirique isolée : elle remonte à l'approximation stochastique de Robbins et Monro (1951), dont SGD est une descendante directe. Leur théorie établit qu'une suite de pas η_t décroissants garantit la convergence (presque sûre) à condition que ∑ η_t = ∞ — assez d'élan cumulé pour atteindre la solution — et ∑ η_t² &lt; ∞ — des pas qui s'amenuisent pour se poser au lieu d'osciller indéfiniment. En pratique, on n'applique ce schéma décroissant qu'approximativement, via des planifications du taux d'apprentissage.</p><p>Les optimiseurs modernes automatisent en partie ce réglage. Adam (Kingma et Ba, 2014) combine deux idées : le <em>momentum</em>, qui accumule une moyenne mobile des gradients passés pour lisser la trajectoire, et RMSProp, qui adapte un taux par paramètre à partir d'une moyenne mobile du carré des gradients. Adam conserve donc une estimation par poids du premier et du second moment du gradient, pondérée par des facteurs d'oubli (typiquement β₁ = 0,9 et β₂ = 0,999, avec ε = 10⁻⁸ pour éviter la division par zéro). Cela donne un pas effectif différent pour chaque poids, ce qui rend la méthode robuste aux gradients bruités ou clairsemés et réduit la sensibilité au choix d'un η unique — sans pour autant le supprimer.</p>",
+      "claims": [
+        "claim:17",
+        "claim:18",
+        "claim:19",
+        "claim:20"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-eta-bille-descente"
+    },
+    {
+      "type": "section",
+      "id": "fonctions-activation-derivees",
+      "heading": "Fonctions d'activation et leurs dérivées",
+      "level": 3,
+      "prose": "<p>La récurrence arrière ne manipule jamais l'activation seule : à chaque couche, le terme d'erreur rétropropagé est multiplié, composante par composante, par la dérivée de la fonction d'activation évaluée à l'entrée de cette couche. C'est le facteur <em>(f<sup>l</sup>)′</em> qui apparaît dans la relation δ<sup>l−1</sup> = (f<sup>l−1</sup>)′ ⊙ (W<sup>l</sup>)<sup>T</sup> δ<sup>l</sup>. La forme de cette dérivée — sa borne supérieure, l'endroit où elle s'annule, l'intervalle où elle reste appréciable — conditionne donc directement combien de signal survit en remontant les couches. Choisir une activation, c'est choisir un multiplicateur pour la passe arrière.</p><p>La sigmoïde logistique illustre le cas saturant. Sa dérivée s'écrit de façon compacte à partir de sa propre sortie, φ′ = φ(1 − φ), ce qui se calcule sans effort une fois la passe avant faite. Mais cette dérivée est bornée : positive, elle n'atteint son maximum qu'en x = 0, où φ = 0,5 et donc φ′ = 0,25 ; partout ailleurs elle est plus petite, et elle tend vers zéro dès que l'unité sature vers 0 ou vers 1. Chaque couche traversée multiplie ainsi le gradient par au plus un quart — et le produit de tels facteurs décroît exponentiellement avec la profondeur, mécanisme central du gradient qui s'évanouit.</p><p>La tangente hyperbolique partage la forme en S et la saturation aux extrêmes, mais elle est centrée en zéro et sa dérivée atteint 1,0 en x = 0, soit environ quatre fois le pic de la sigmoïde. Dans la zone non saturée, elle laisse donc passer des gradients sensiblement plus forts, ce qui en fait un meilleur multiplicateur que la sigmoïde près de l'origine. La nuance importante : ce gain ne supprime pas la saturation. Pour des entrées grandes en valeur absolue, la dérivée de tanh retombe elle aussi vers zéro, si bien que les réseaux profonds à activation tanh restent exposés au gradient évanescent.</p><p>La ReLU, φ(x) = max(0, x), rompt avec cette logique. Sa dérivée vaut exactement 1 pour les entrées positives et 0 pour les entrées négatives — elle ne sature donc que d'un seul côté, et dans le régime actif elle ne rabote pas du tout le gradient. C'est ce qui explique son adoption massive dans les réseaux profonds, malgré deux défauts assumés : elle n'est pas différentiable exactement en x = 0 (on y substitue conventionnellement une sous-dérivée, typiquement 0 ou 1), et sa dérivée nulle sur tout le demi-axe négatif peut figer durablement une unité dont l'entrée reste négative — le phénomène dit de la « ReLU mourante ». Des variantes comme la Leaky ReLU, qui laisse passer une petite pente côté négatif, ou la GELU, lissée et différentiable partout, répondent précisément à ces deux limites.</p>",
+      "claims": [
+        "claim:21",
+        "claim:22",
+        "claim:23",
+        "claim:24"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-derivee-multiplicateur"
+    },
+    {
+      "type": "section",
+      "id": "gradient-evanouit-explose",
+      "heading": "Le gradient qui s'évanouit ou explose : le problème central de la profondeur",
+      "level": 3,
+      "prose": "<p>La rétropropagation tire toute son efficacité de la règle de la chaîne : le signal d'erreur remonte le réseau en multipliant, couche après couche, les jacobiens locaux. C'est précisément cette multiplication répétée qui devient le talon d'Achille des réseaux profonds. Remonter <em>L</em> couches, c'est composer <em>L</em> facteurs ; et un produit de nombreux facteurs ne connaît que deux destins stables lorsqu'on l'allonge indéfiniment : tendre vers zéro ou diverger. Le régime intermédiaire, où le gradient garde une amplitude utilisable sur toute la profondeur, est un équilibre fragile qu'il faut activement entretenir.</p><p>Le cas de la sigmoïde rend le mécanisme tangible. Sa dérivée est partout inférieure ou égale à 1/4, ce maximum n'étant atteint qu'en zéro. Si l'on néglige les poids, le produit des seules dérivées d'activation sur <em>L</em> couches est donc borné par (1/4)<sup>L</sup> — un facteur qui s'effondre exponentiellement avec la profondeur. C'est l'<em>évanouissement</em> : les premières couches reçoivent un signal d'apprentissage quasi nul et restent gelées. Mais ce raisonnement omet une moitié de l'histoire. Le facteur réel par couche n'est pas la seule dérivée σ′ : c'est le produit du poids et de cette dérivée. Si les poids sont grands, chaque couche peut contribuer un facteur très supérieur à 1, et le produit <em>explose</em> au lieu de s'évanouir, malgré le plafond de 1/4 sur la dérivée. La borne (1/4)<sup>L</sup> n'est donc pas une fatalité de la sigmoïde : elle ne vaut que sous l'hypothèse implicite de poids bornés.</p><p>Pascanu, Mikolov et Bengio (2013) formalisent exactement ce basculement. En notant λ₁ la plus grande valeur singulière de la matrice de poids et γ une borne sur la dérivée de l'activation (γ = 1/4 pour la sigmoïde, γ = 1 pour la tanh), le jacobien par pas est majoré par γ·λ₁. La condition λ₁ &lt; 1/γ est <em>suffisante</em> pour que les gradients s'évanouissent ; symétriquement, λ₁ &gt; 1/γ est une condition <em>nécessaire</em> pour qu'ils explosent. Le produit γ·λ₁ joue le rôle de cadran : sous 1, le signal décroît ; au-dessus, il diverge. Cette lecture unifie évanouissement et explosion comme les deux versants d'un même phénomène multiplicatif, et désigne du même coup les leviers d'action — choix de l'activation (γ) et contrôle de la norme des poids (λ₁).</p><p>Le problème a une longue histoire. Il a été identifié formellement dès 1991 dans la thèse de diplôme de Sepp Hochreiter, qui montre pourquoi l'erreur rétropropagée s'évanouit ou explose dans les réseaux profonds comme récurrents ; l'analyse fait ensuite l'objet de l'article de Bengio, Simard et Frasconi (1994), « Learning long-term dependencies with gradient descent is difficult ». Reconnaître que la difficulté est structurelle — inhérente à la composition de couches, et non un défaut d'implémentation — fut le préalable à toutes les parades modernes : activations non saturantes, initialisations préservant la variance, connexions résiduelles et écrêtage de gradient.</p>",
+      "claims": [
+        "claim:25",
+        "claim:26",
+        "claim:27",
+        "claim:28"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-cadran-evanescent-explosif"
+    },
+    {
+      "type": "section",
+      "id": "parades-init-architectures",
+      "heading": "Les parades : initialisation, architectures résiduelles, normalisation",
+      "level": 3,
+      "prose": "Section composée et vérifiée.",
+      "claims": [
+        "claim:29",
+        "claim:30",
+        "claim:31",
+        "claim:32"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "application-lecun-1989",
+      "heading": "Backprop en action : la reconnaissance des codes postaux (LeCun 1989)",
+      "level": 3,
+      "prose": "<p>En 1989, aux AT&T Bell Labs, Yann LeCun et ses collègues donnent à la rétropropagation sa première grande démonstration sur une tâche réelle : lire les chiffres manuscrits des codes postaux apposés sur le courrier. La base provient du U.S. Postal Service — 9298 chiffres segmentés issus de lettres passées par le bureau de poste de Buffalo, dans l'État de New York, répartis en 7291 exemples d'entraînement et 2007 de test. Chaque chiffre, d'abord capturé en environ 40×60 pixels, est ramené par transformation linéaire à une vignette de 16×16 en niveaux de gris (valeurs entre −1 et 1). Un seul réseau apprend toute la chaîne, de l'image normalisée à la classe finale, sans extraction de traits programmée à la main : c'est la promesse de la rétropropagation tenue de bout en bout.</p><p>L'idée architecturale décisive est le <em>partage de poids</em>. Plutôt que de connecter chaque pixel à chaque unité, le réseau applique de petits noyaux de 5×5 répétés sur toute l'image : un même détecteur de trait balaie le champ visuel. Résultat frappant : le réseau compte 1256 unités et 64 660 connexions, mais seulement 9760 paramètres libres. La première couche cachée H1, par exemple, totalise 768 unités et 19 968 connexions pour seulement 1068 paramètres indépendants (768 biais plus 12 noyaux de 25 poids). Moins de paramètres à apprendre, c'est moins de données nécessaires et une meilleure généralisation — le contraire exact de la différentiation naïve qui traiterait chaque connexion comme indépendante.</p><p>L'entraînement illustre les variantes pratiques de la descente de gradient. LeCun emploie une activation tangente hyperbolique mise à l'échelle, un coût d'erreur quadratique moyenne, et surtout un gradient stochastique « on-line » — les poids sont corrigés après chaque motif présenté — jugé bien plus rapide que le « vrai » gradient calculé sur l'ensemble complet. Les poids sont initialisés uniformément dans l'intervalle [−2,4/F, 2,4/F], où F est le fan-in de l'unité, pour maintenir les signaux dans la zone utile de la non-linéarité. Après 23 passes sur l'ensemble d'entraînement (167 693 présentations de motifs, environ trois jours de calcul sur une station Sun), l'erreur tombe à 0,14 % en entraînement (10 erreurs) et 5,0 % en test (102 erreurs) ; en autorisant un rejet, 12,1 % des motifs de test doivent être écartés pour ramener l'erreur à 1 % sur le reste.</p><p>L'épilogue ancre la théorie dans le matériel : le réseau entraîné est porté sur un processeur de signal AT&T DSP-32C (25 MFLOPS, en coprocesseur d'un PC), atteignant 10 à 12 classifications par seconde image comprise — plus de 30 sur des chiffres déjà normalisés. Les poids appris par rétropropagation ne sont donc pas une curiosité de laboratoire : ils s'exécutent directement sur du matériel commercial. On situe souvent ce travail comme « le premier réseau convolutif (LeNet) », mais le nom LeNet, le jeu de données MNIST et la couche de sous-échantillonnage canonique ne viendront qu'avec les travaux de 1998 ; en 1989, l'apport tient surtout au partage de poids et à la preuve qu'un réseau profond entraîné par rétropropagation pouvait résoudre un problème industriel.</p>",
+      "claims": [
+        "claim:33",
+        "claim:34",
+        "claim:35"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "limites-idees-recues",
+      "heading": "Limites et idées reçues",
+      "level": 3,
+      "prose": "<p>La rétropropagation calcule un gradient, rien de plus. Tout ce qu'on lui attribue au-delà relève soit de l'optimiseur qui consomme ce gradient (SGD, Adam), soit d'un récit historique reconstruit après coup. La distinction est nette : « backpropagation » désigne strictement l'algorithme qui calcule efficacement le gradient ; la mise à jour des poids est une étape séparée. Confondre les deux conduit à prêter à l'algorithme des garanties qu'il n'offre pas.</p><p>La première garantie absente est celle de l'optimum. Entraîner même le plus minuscule des réseaux — deux couches, trois nœuds à seuils linéaires — est un problème NP-complet : décider s'il existe des poids reproduisant un jeu d'exemples donné n'admet aucun algorithme polynomial connu dans le pire cas (Blum & Rivest, 1992). La difficulté n'est donc pas un défaut des grands modèles que l'échelle effacerait ; elle est intrinsèque et présente dès l'architecture la plus régulière. Le gradient indique une direction de descente locale, jamais le chemin vers un minimum global.</p><p>La deuxième idée reçue est temporelle. La passe arrière n'est pas gratuite : le mode inverse de la différentiation automatique impose de conserver en mémoire les activations intermédiaires de la passe avant — la « bande » (tape) — pour les rejouer lors du calcul des dérivées. C'est précisément ce stockage qui rend la passe arrière comparable en coût à une seule passe avant, là où une différentiation naïve en mode direct multiplierait des matrices entières. L'efficacité de la rétropropagation est donc un arbitrage : on échange de la mémoire contre du temps, et non un calcul magiquement bon marché.</p><p>La troisième idée reçue est biologique. On présente souvent la rétropropagation comme un modèle plausible de l'apprentissage cortical. Hinton (2022) le conteste frontalement : rien ne prouve que le cortex propage explicitement des dérivées d'erreur ni qu'il stocke des activités neuronales pour une passe arrière ultérieure, et les connexions descendantes du cortex visuel ne miroitent pas les connexions ascendantes comme l'algorithme l'exigerait. Surtout, la rétropropagation requiert une connaissance parfaite et différentiable du calcul de la passe avant : insérez une boîte noire non différentiable dans la chaîne, et l'algorithme s'effondre faute de pouvoir en calculer la dérivée.</p><p>Restent les fausses attributions. La rétropropagation n'a pas été inventée en 1986 par Rumelhart, Hinton et Williams ; sa forme moderne, le mode inverse de la différentiation automatique, fut publiée dès 1970 par Seppo Linnainmaa, avec des précurseurs jusqu'à Kelley (1960). Et elle ne se réduit pas à « la règle de la chaîne de Leibniz » : la règle de la chaîne est mathématique et triviale ; l'apport de la rétropropagation est de l'appliquer efficacement, en réutilisant les calculs au lieu de les refaire. Enfin, deux mythes plus récents : le succès de la Batch Normalization ne tient pas à la réduction de l'« internal covariate shift » — Santurkar et al. (2018) montrent que la stabilité distributionnelle « a peu à voir » avec son efficacité, le vrai mécanisme étant un paysage d'optimisation plus lisse — et le « dying ReLU », où un neurone bloqué à zéro voit son gradient s'annuler définitivement, rappelle qu'une fonction d'activation mal choisie ou un taux d'apprentissage trop élevé peut tuer silencieusement des unités entières.</p>",
+      "claims": [
+        "claim:37",
+        "claim:38",
+        "claim:39",
+        "claim:40"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "alternatives-a-la-backprop",
+      "heading": "Au-delà de la backprop : algorithmes alternatifs",
+      "level": 3,
+      "prose": "<p>La rétropropagation a un défaut que la biologie ne pardonne pas : pour distribuer l'erreur, chaque couche doit connaître la transposée exacte des poids de la couche suivante. Ce <em>weight transport problem</em> — transporter une copie symétrique de <code>W</code> dans le sens inverse — n'a aucun équivalent plausible dans le cortex, où les connexions descendantes ne reflètent pas les connexions ascendantes. C'est le point de départ d'une famille d'algorithmes qui cherchent à apprendre sans la passe arrière globale, motivés par la plausibilité biologique, la frugalité mémoire et l'efficacité énergétique.</p><p>La première brèche est le <strong>Feedback Alignment</strong> (Lillicrap, Cownden, Tweed et Akerman, <em>Nature Communications</em> 2016). L'idée est presque provocante : remplacer la transposée <code>Wᵀ</code> de la passe arrière par une matrice aléatoire <code>B</code> <em>fixée une fois pour toutes</em>. Contre toute attente, le réseau apprend — non parce que <code>B</code> serait le bon signal, mais parce que les poids avant finissent par s'<em>aligner</em> sur ce feedback aléatoire, rendant le signal d'erreur progressivement utile. Le <strong>Direct Feedback Alignment</strong> (Nøkland, NeurIPS 2016) pousse la logique plus loin : au lieu de relayer l'erreur couche par couche, il la projette <em>directement</em> depuis la sortie vers chaque couche cachée via une matrice aléatoire fixe, diffusant le signal d'apprentissage en une seule étape. Les deux méthodes lèvent le transport de poids, au prix d'une précision en général un peu inférieure à la backprop.</p><p>Une seconde voie supprime la passe arrière elle-même au profit d'<em>objectifs locaux</em>. Le <strong>Forward-Forward</strong> de Hinton (2022) remplace les passes avant et arrière par deux passes <em>avant</em> — une sur des données « positives » (réelles), une sur des données « négatives » — chaque couche optimisant sa propre fonction de <em>goodness</em> sans jamais stocker d'activations ni rétropropager de dérivées. Le gain est une empreinte mémoire réduite et une meilleure parallélisation, mais Hinton lui-même reconnaît que FF « est un peu plus lent que la backprop et ne généralise pas tout à fait aussi bien » sur les problèmes-jouets, et reste en retrait sur des jeux plus complexes comme CIFAR-10. Ses descendants resserrent l'écart : <strong>Cascaded-Forward</strong> (CaFo, Zhao et al. 2023), avec ses prédicteurs auxiliaires par bloc (variantes <em>Rand-CE</em> et <em>DFA-CE</em>), surpasse nettement FF ; <strong>Mono-Forward</strong> (Gong, Li, Abdulla 2025) remplace l'objectif <em>goodness</em> par une simple entropie croisée locale et revendique des gains de frugalité notables.</p><p>Reste le verdict de Hinton, posé dès l'article fondateur de Forward-Forward et toujours d'actualité : « l'exploration des très grands modèles entraînés sur de très grands jeux de données continuera d'utiliser la rétropropagation ». Les méthodes alternatives brillent là où la backprop est physiquement gênante — modéliser l'apprentissage cortical, exploiter du matériel analogique très basse consommation — bien plus que là où l'on cherche la meilleure précision à grande échelle. Pour les très grands modèles, la backprop reste reine.</p>",
+      "claims": [
+        "claim:41",
+        "claim:42",
+        "claim:43",
+        "claim:44"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "ecosysteme-pour-aller-plus-loin",
+      "heading": "Écosystème & pour aller plus loin",
+      "level": 3,
+      "prose": "<p>Aujourd'hui, personne n'écrit ses passes arrière à la main : les frameworks de différentiation automatique (autodiff) en mode inverse calculent les gradients pour vous, à condition que vous décriviez la passe avant. <strong>PyTorch</strong> fonctionne en <em>define-by-run</em> : pendant la passe avant, <code>autograd</code> enregistre chaque opération sur les tenseurs dans un graphe orienté acyclique (DAG) d'objets <code>Function</code>, dont les feuilles sont les tenseurs d'entrée et les racines les sorties. Pour qu'un tenseur (poids, biais) soit suivi, on met <code>requires_grad=True</code> ; <code>loss.backward()</code> parcourt alors le graphe des racines vers les feuilles par la règle de la chaîne et remplit le champ <code>.grad</code> des feuilles. Deux subtilités piègent les débutants. D'abord, le graphe est <em>reconstruit de zéro après chaque</em> <code>backward()</code> — c'est ce qui autorise des architectures à flot de contrôle variable d'une itération à l'autre. Ensuite, PyTorch <em>accumule</em> les gradients (il ajoute à <code>.grad</code> au lieu de l'écraser), ce qui oblige à appeler <code>optimizer.zero_grad()</code> avant chaque nouveau calcul, sous peine de mélanger les gradients de plusieurs mini-batchs. Pour écrire une opération sur mesure, on sauvegarde les variables intermédiaires de la passe avant via <code>ctx.save_for_backward(...)</code>, à récupérer dans <code>backward()</code> — l'incarnation concrète du <em>caching</em> qui fait l'efficacité de la rétropropagation face à une différentiation naïve.</p><p><strong>JAX</strong> adopte un autre angle, fonctionnel : <code>jax.grad</code> transforme une fonction Python en sa fonction gradient. Il est bâti sur le mode inverse, qui s'exprime en produits vecteur-jacobien (VJP) et construit la jacobienne « une ligne à la fois ». Ce choix n'est pas cosmétique : entraîner un réseau, c'est minimiser une perte de R<sup>n</sup> (les paramètres, parfois des milliards) vers R (un scalaire). La jacobienne est alors une matrice très large, qu'une seule passe arrière suffit à obtenir, là où le mode direct — qui bâtit la jacobienne colonne par colonne — exigerait une passe par paramètre et ne passerait pas à l'échelle. À l'inverse, le mode direct reste compétitif pour les jacobiennes « hautes » (peu d'entrées, beaucoup de sorties), avec un surcoût d'un facteur trois environ par rapport à la simple évaluation de la fonction.</p><p>Côté lectures, quatre références couvrent l'arc complet. Le notes de cours <strong>CS231n</strong> de Stanford donnent l'intuition la plus opérationnelle : la rétropropagation y est présentée comme un processus <em>local</em>, chaque « porte » du graphe calculant sa sortie et son gradient local sans rien savoir du reste du circuit, puis multipliant le gradient amont par son gradient local ; quand une variable se ramifie, les gradients qui refluent s'<em>additionnent</em> (d'où le <code>+=</code>). Le chapitre 6 du <strong>Deep Learning</strong> de Goodfellow, Bengio et Courville formalise tout cela pour les réseaux à propagation avant et discute le coût de calcul. Le cours <strong>MIT 18.S096</strong> (Matrix Calculus for Machine Learning and Beyond) replace la rétropropagation dans le cadre plus général de la différentiation automatique en mode inverse. Enfin, on remonte à la source avec l'article fondateur de 1986 de Rumelhart, Hinton et Williams dans <em>Nature</em>, qui a popularisé l'algorithme et montré comment l'ajustement répété des poids amène les unités cachées à représenter des caractéristiques utiles du domaine.</p>",
+      "claims": [
+        "claim:45",
+        "claim:46",
+        "claim:47",
+        "claim:48"
+      ]
+    },
+    {
+      "type": "exercise",
+      "part": "Mécanisme & efficacité",
+      "question": "On entend souvent que « la rétropropagation, c'est juste la règle de la chaîne ». Pourquoi cette formule est-elle trompeuse, et d'où vient concrètement l'efficacité du procédé (une seule passe arrière pour tout le gradient, plutôt que de l'ordre de <em>n</em> passes) ?",
+      "answer": "<p>La règle de la chaîne est un résultat mathématique trivial : elle dit <em>comment</em> composer des dérivées, pas comment les calculer sans gaspillage. L'apport de la rétropropagation est algorithmique : appliquer la chaîne en <strong>réutilisant les calculs</strong> au lieu de les refaire. Le terme d'erreur d'une couche, δ<sup>l</sup>, sert à la fois à obtenir le gradient des poids de cette couche (∇<sub>W<sup>l</sup></sub>C = δ<sup>l</sup>(a<sup>l−1</sup>)ᵀ) et à reconstruire δ<sup>l−1</sup> de la couche précédente — les sous-expressions communes ne sont calculées qu'une fois.</p><p>L'efficacité tient au <strong>sens de parcours</strong> de la chaîne jacobienne. Le gradient d'une perte scalaire est un produit de jacobiennes ; l'associativité laisse libre l'ordre d'évaluation. En partant de la sortie scalaire et en remontant (droite à gauche), chaque étape multiplie un <em>vecteur</em> par une matrice de poids transposée — coût linéaire en la taille des couches. C'est exactement le mode inverse de la différentiation automatique, optimal quand n (paramètres) ≫ m (sorties) : pour une perte scalaire (m = 1) face à des millions de poids, une seule passe arrière délivre tout le gradient, là où les différences finies en perturberaient un à la fois (O(n) passes). Le théorème de Baur-Strassen (1983) garantit en général que le gradient coûte au plus un petit facteur constant (≈ 5), indépendant de n, fois l'évaluation de la fonction — le « gradient pas cher ». La contrepartie est mémoire : il faut conserver les activations intermédiaires (la « bande ») pour la passe arrière.</p>"
+    },
+    {
+      "type": "exercise",
+      "part": "Profondeur & idées reçues",
+      "question": "Un collègue affirme : « avec la sigmoïde, le gradient s'évanouit toujours dans un réseau profond, car sa dérivée ne dépasse jamais 1/4 ; et la batch normalization marche parce qu'elle réduit l'<em>internal covariate shift</em> ». Que corriger dans ces deux affirmations ?",
+      "answer": "<p><strong>Sur l'évanouissement.</strong> Le facteur rétropropagé par couche n'est pas σ′ seul mais le produit <em>poids × σ′</em>. La borne (1/4)<sup>L</sup> ne vaut que sous l'hypothèse implicite de poids bornés : si les poids sont grands, chaque couche peut contribuer un facteur très supérieur à 1 et le gradient <em>explose</em> au lieu de s'évanouir, malgré le plafond de 1/4 sur la dérivée. Pascanu, Mikolov et Bengio (2013) le formalisent : avec λ₁ la plus grande valeur singulière de la matrice de poids et γ une borne sur la dérivée (γ = 1/4 pour la sigmoïde), le jacobien par pas est majoré par γ·λ₁ ; λ₁ &lt; 1/γ est <em>suffisant</em> pour l'évanouissement, λ₁ &gt; 1/γ <em>nécessaire</em> pour l'explosion. L'évanescence n'est donc pas automatique.</p><p><strong>Sur la batch normalization.</strong> Santurkar et al. (2018) réfutent précisément cette explication : la stabilité distributionnelle (la réduction de l'« internal covariate shift ») « a peu à voir » avec l'efficacité de la BN. Le mécanisme réel est un <em>paysage d'optimisation plus lisse</em> (gradients plus prévisibles et mieux conditionnés). Au passage : entraîner même un réseau minuscule (3 nœuds à seuils) est NP-complet (Blum & Rivest, 1992) — le gradient n'offre jamais de garantie d'optimum global.</p>"
+    },
+    {
+      "type": "biblio",
+      "entries": [
+        {
+          "label": "Learning representations by back-propagating errors (Rumelhart, Hinton & Williams, 1986) — original Nature scan, hosted by MINES ParisTech / PSL",
+          "href": "https://www.cri.minesparis.psl.eu/people/silber/cours/2025/nlp/bib/RumelhartDE1986.pdf"
+        },
+        {
+          "label": "Learning representations by back-propagating errors — HTML reproduction of the paper",
+          "href": "https://chsasank.com/classic_papers/learning-representations-back-propogating-errors.html"
+        },
+        {
+          "label": "Learning representations by backpropagating errors (Rumelhart, Hinton & Williams, 1986) — original Nature scan, hosted by gwern.net",
+          "href": "https://gwern.net/doc/ai/nn/1986-rumelhart-2.pdf"
+        },
+        {
+          "label": "Backpropagation — Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/Backpropagation"
+        },
+        {
+          "label": "Backpropagation calculus — 3Blue1Brown",
+          "href": "https://www.3blue1brown.com/lessons/backpropagation-calculus"
+        },
+        {
+          "label": "Difference Between Backpropagation and Stochastic Gradient Descent (quoting Goodfellow, Bengio & Courville, Deep Learning, 2016) - MachineLearningMastery",
+          "href": "https://machinelearningmastery.com/difference-between-backpropagation-and-stochastic-gradient-descent/"
+        },
+        {
+          "label": "CS231n: Backpropagation, Intuitions (Stanford course notes)",
+          "href": "https://cs231n.github.io/optimization-2/"
+        },
+        {
+          "label": "Gradient Descent vs. Backpropagation: What's the Difference? — Analytics Vidhya",
+          "href": "https://www.analyticsvidhya.com/blog/2023/01/gradient-descent-vs-backpropagation-whats-the-difference/"
+        },
+        {
+          "label": "Who Invented Backpropagation? - Juergen Schmidhuber (IDSIA)",
+          "href": "https://people.idsia.ch/~juergen/who-invented-backpropagation.html"
+        },
+        {
+          "label": "Backpropagation — Brilliant Math & Science Wiki",
+          "href": "https://brilliant.org/wiki/backpropagation/"
+        },
+        {
+          "label": "Unsupervised Learning by Competing Hidden Units (Krotov & Hopfield, arXiv:1806.10181)",
+          "href": "https://arxiv.org/abs/1806.10181"
+        },
+        {
+          "label": "2.3 Deep Learning — AI Safety, Ethics, and Society Textbook",
+          "href": "https://www.aisafetybook.com/textbook/deep-learning"
+        },
+        {
+          "label": "Seppo Linnainmaa — Wikipedia (mode inverse de différentiation automatique, thèse de master 1970)",
+          "href": "https://en.wikipedia.org/wiki/Seppo_Linnainmaa"
+        },
+        {
+          "label": "Paul Werbos — Wikipedia (thèse Harvard 1974 décrivant la backpropagation; IEEE Neural Network Pioneer Award 1995)",
+          "href": "https://en.wikipedia.org/wiki/Paul_Werbos"
+        },
+        {
+          "label": "A Derivation of Backpropagation in Matrix Form — Sudeep Raja",
+          "href": "https://sudeepraja.github.io/Neural/"
+        },
+        {
+          "label": "Backpropagation: Step-By-Step Derivation — Roi Yehoshua, Towards Data Science",
+          "href": "https://towardsdatascience.com/backpropagation-step-by-step-derivation-99ac8fbdcc28/"
+        },
+        {
+          "label": "Backpropagation — Erik (MIT, fab.cba.mit.edu class 864.20 notes)",
+          "href": "https://fab.cba.mit.edu/classes/864.20/people/erik/notes/backpropagation.html"
+        },
+        {
+          "label": "Roger Grosse, CSC321 Lecture 6: Backpropagation (University of Toronto course notes)",
+          "href": "https://www.cs.toronto.edu/~rgrosse/courses/csc321_2018/readings/L06%20Backpropagation.pdf"
+        },
+        {
+          "label": "Dive into Deep Learning — Forward Propagation, Backward Propagation, and Computational Graphs / Backpropagation Through Time (Zhang, Lipton, Li, Smola)",
+          "href": "https://d2l.ai/chapter_recurrent-neural-networks/bptt.html"
+        },
+        {
+          "label": "APXML — Computational Graphs for Backpropagation (Calculus Essentials for ML)",
+          "href": "https://apxml.com/courses/calculus-essentials-machine-learning/chapter-5-chain-rule-backpropagation/computational-graphs"
+        },
+        {
+          "label": "Backpropagation in matrix notation (arXiv:1707.02746)",
+          "href": "https://arxiv.org/pdf/1707.02746"
+        },
+        {
+          "label": "Backpropagation — Deep Learning @ VU (dlvu.github.io)",
+          "href": "https://dlvu.github.io/backpropagation/"
+        },
+        {
+          "label": "Derivatives, Backpropagation, and Vectorization (Stanford CS231n, Justin Johnson)",
+          "href": "https://cs231n.stanford.edu/handouts/derivatives.pdf"
+        },
+        {
+          "label": "MIT 18.S096 Matrix Calculus — Lecture 8: Forward and Reverse-Mode Automatic Differentiation",
+          "href": "https://ocw.mit.edu/courses/18-s096-matrix-calculus-for-machine-learning-and-beyond-january-iap-2023/mit18_s096iap23_lec08.pdf"
+        },
+        {
+          "label": "Michael Nielsen — Neural Networks and Deep Learning, Chapter 2: How the backpropagation algorithm works",
+          "href": "http://neuralnetworksanddeeplearning.com/chap2.html"
+        },
+        {
+          "label": "Review: Forward/Reverse Mode Autodiff (APXML — Advanced JAX course)",
+          "href": "https://apxml.com/courses/advanced-jax/chapter-4-advanced-automatic-differentiation/review-autodiff-modes"
+        },
+        {
+          "label": "Appendix C: Computing Derivatives — Deep Learning with PyTorch (Tomas Beuzen)",
+          "href": "https://www.tomasbeuzen.com/deep-learning-with-pytorch/chapters/appendixC_computing-derivatives.html"
+        },
+        {
+          "label": "Forwards vs Reverse Mode Auto-Differentiation (Frank Wang)",
+          "href": "https://frankwang95.github.io/2020/05/fwd-vs-reverse-mode-autodiff"
+        },
+        {
+          "label": "Automatic differentiation — Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/Automatic_differentiation"
+        },
+        {
+          "label": "Reverse mode Automatic Differentiation — Eli Bendersky's website",
+          "href": "https://eli.thegreenplace.net/2025/reverse-mode-automatic-differentiation/"
+        },
+        {
+          "label": "Baydin, Pearlmutter, Radul, Siskind — Automatic Differentiation in Machine Learning: a Survey (JMLR 18, 2018)",
+          "href": "https://www.jmlr.org/papers/volume18/17-468/17-468.pdf"
+        },
+        {
+          "label": "Auto-eD — Module 3: The Reverse Mode of Automatic Differentiation",
+          "href": "https://auto-ed.readthedocs.io/en/latest/mod3.html"
+        },
+        {
+          "label": "Baur–Strassen Theorem and Applications — MIT 6.890 Lecture 18 (scribe notes, 2021)",
+          "href": "https://people.csail.mit.edu/virgi/6.890/lecture18.pdf"
+        },
+        {
+          "label": "Universal Circuits & Computing First-Order Partial Derivatives — Univ. of Waterloo CS860 Lecture 5 (R. Oliveira, 2024)",
+          "href": "https://cs.uwaterloo.ca/~r5olivei/courses/2024-spring-cs860/lecture-notes/lecture05/"
+        },
+        {
+          "label": "W. Baur, V. Strassen, \"The Complexity of Partial Derivatives\", Theoretical Computer Science 22 (1983) 317–330 — autodiff.org bibliographic record",
+          "href": "https://www.autodiff.org/?module=Publications&submenu=list+publications&id=baur1983tco"
+        },
+        {
+          "label": "Walter Baur and Volker Strassen, The complexity of partial derivatives, Theoretical Computer Science 22 (1983) 317-330 (Theorem 1: L(f, ∂f/∂x₁,…,∂f/∂xₙ) ≤ 3 L(f))",
+          "href": "https://web.vu.lt/mif/s.jukna/tropical/Baur-Strassen.pdf"
+        },
+        {
+          "label": "Everything You Need to Know About Backpropagation — George Assaad (right-to-left association, matrix-vector vs matrix-matrix)",
+          "href": "https://0xgeorgeassaad.github.io/blog/2025/backprop/"
+        },
+        {
+          "label": "Automatic Differentiation Revisited — Lei Mao's Log Book",
+          "href": "https://leimao.github.io/blog/Automatic-Differentiation-Revisited/"
+        },
+        {
+          "label": "Automatic Differentiation in Machine Learning: a Survey (Baydin, Pearlmutter, Radul, Siskind)",
+          "href": "https://arxiv.org/pdf/1411.0583"
+        },
+        {
+          "label": "On the complexity of nonsmooth automatic differentiation (Bolte, Pauwels et al.), arXiv:2206.01730 / HAL hal-03683640",
+          "href": "https://arxiv.org/pdf/2206.01730"
+        },
+        {
+          "label": "S. M. Kakade & J. D. Lee, Provably Correct Automatic Subdifferentiation for Qualified Programs (NeurIPS 2018; arXiv:1809.08530)",
+          "href": "https://arxiv.org/pdf/1809.08530"
+        },
+        {
+          "label": "Who Invented the Reverse Mode of Differentiation? (Griewank, Documenta Mathematica)",
+          "href": "http://emis.icm.edu.pl/journals/DMJDMV/vol-ismp/52_griewank-andreas-b.pdf"
+        },
+        {
+          "label": "What's Automatic Differentiation? — Hugging Face blog (andmholm)",
+          "href": "https://huggingface.co/blog/andmholm/what-is-automatic-differentiation"
+        },
+        {
+          "label": "Optimal Jacobian accumulation is NP-complete (Naumann 2008), Mathematical Programming — Springer",
+          "href": "https://link.springer.com/article/10.1007/s10107-006-0042-z"
+        },
+        {
+          "label": "Evaluating Derivatives: Principles and Techniques of Algorithmic Differentiation (Griewank & Walther) — SIAM",
+          "href": "https://epubs.siam.org/doi/pdf/10.1137/1.9780898717761.fm"
+        },
+        {
+          "label": "Who Invented the Reverse Mode of Differentiation? — A. Griewank, Documenta Mathematica, Extra Volume ISMP (2012)",
+          "href": "https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=8ff0c546aff84566635f0a9a2e01feb3d6588c1c"
+        },
+        {
+          "label": "Baydin, Pearlmutter, Radul, Siskind — Automatic Differentiation in Machine Learning: a Survey (JMLR 2018), section 3.3 'Origins of AD and Backpropagation'",
+          "href": "https://par.nsf.gov/servlets/purl/10066574"
+        },
+        {
+          "label": "Dreyfus — Artificial Neural Networks, Back Propagation, and the Kelley-Bryson Gradient Procedure (1990)",
+          "href": "https://gwern.net/doc/ai/nn/1990-dreyfus.pdf"
+        },
+        {
+          "label": "On the complexity of nonsmooth automatic differentiation (Bolte, Boustany, Pauwels, Pesquet), arXiv:2206.01730 / hal-03683640",
+          "href": "https://hal.science/hal-03683640/document"
+        },
+        {
+          "label": "Bolte, Pauwels, Vaiter — On the complexity of nonsmooth automatic differentiation (arXiv:2206.01730 / hal-03683640)",
+          "href": "https://arxiv.org/abs/2206.01730"
+        },
+        {
+          "label": "Kakade, Lee — Provably Correct Automatic Subdifferentiation for Qualified Programs (arXiv:1809.08530)",
+          "href": "https://arxiv.org/abs/1809.08530"
+        },
+        {
+          "label": "Griewank, Walther — Evaluating Derivatives: Principles and Techniques of Algorithmic Differentiation, 2nd ed. (SIAM)",
+          "href": "https://epubs.siam.org/doi/book/10.1137/1.9780898717761"
+        },
+        {
+          "label": "On the complexity of the gradient of a rational function (Baur–Strassen, version théorie de la complexité)",
+          "href": "https://link.springer.com/article/10.1134/S1990478908030095"
+        },
+        {
+          "label": "On the complexity of nonsmooth automatic differentiation (Bolte et al., HAL hal-03683640)",
+          "href": "https://hal.science/hal-03683640v2/file/nonsmoothAD_complexity.pdf"
+        },
+        {
+          "label": "Gradient descent — Wikipedia (update rule a_{n+1} = a_n − η∇f, opposite to the gradient)",
+          "href": "https://en.wikipedia.org/wiki/Gradient_descent"
+        },
+        {
+          "label": "Sebastian Raschka — What are gradient descent and SGD? (gives Δw = −η ∂J/∂w_j, update treated as a step separate from gradient computation)",
+          "href": "https://sebastianraschka.com/faq/docs/gradient-optimization.html"
+        },
+        {
+          "label": "Stochastic gradient descent — Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/Stochastic_gradient_descent"
+        },
+        {
+          "label": "Machine Learning Refined — 13.6 Stochastic and mini-batch gradient descent (Watt, Borhani, Katsaggelos)",
+          "href": "https://kenndanielso.github.io/mlrefined/blog_posts/13_Multilayer_perceptrons/13_6_Stochastic_and_minibatch_gradient_descent.html"
+        },
+        {
+          "label": "Dive into Deep Learning — 12.5 Minibatch Stochastic Gradient Descent",
+          "href": "http://d2l.ai/chapter_optimization/minibatch-sgd.html"
+        },
+        {
+          "label": "Stanford CS231n — Optimization: Stochastic Gradient Descent (course notes)",
+          "href": "https://cs231n.github.io/optimization-1/"
+        },
+        {
+          "label": "Dive into Deep Learning — 12.5 Minibatch Stochastic Gradient Descent (d2l.ai textbook source)",
+          "href": "https://github.com/d2l-ai/d2l-en/blob/master/chapter_optimization/minibatch-sgd.md"
+        },
+        {
+          "label": "Stochastic approximation — Wikipedia (Robbins–Monro algorithm, conditions ∑a_n=∞, ∑a_n²<∞, attributed to Robbins & Monro 1951)",
+          "href": "https://en.wikipedia.org/wiki/Stochastic_approximation"
+        },
+        {
+          "label": "Léon Bottou, \"Online Learning and Stochastic Approximations\" (1998) — conditions (4.15) ∑γ_t²<∞ and (4.21) ∑γ_t=∞, framework attributed to Robbins & Monro (1951)",
+          "href": "https://leon.bottou.org/publications/pdf/online-1998.pdf"
+        },
+        {
+          "label": "Stochastic Gradient Descent in Non-Convex Problems: Asymptotic Convergence with Relaxed Step-Size via Stopping Time Methods (arXiv:2504.12601)",
+          "href": "https://arxiv.org/html/2504.12601v1"
+        },
+        {
+          "label": "Why stochastic gradient descent works — NRH Statistics (Robbins-Siegmund / Robbins-Monro exposition)",
+          "href": "https://nrhstat.org/post/robbins_siegmund/"
+        },
+        {
+          "label": "Adam: A Method for Stochastic Optimization (Kingma & Ba, 2014) — arXiv:1412.6980",
+          "href": "https://arxiv.org/abs/1412.6980"
+        },
+        {
+          "label": "An overview of gradient descent optimization algorithms — Sebastian Ruder",
+          "href": "https://www.ruder.io/optimizing-gradient-descent/"
+        },
+        {
+          "label": "CS231n: Neural Networks Part 3 — Stanford",
+          "href": "https://cs231n.github.io/neural-networks-3/"
+        },
+        {
+          "label": "Derivative of Sigmoid - Definition, Applications, and Examples (Story of Mathematics)",
+          "href": "https://www.storyofmathematics.com/derivative-of-sigmoid/"
+        },
+        {
+          "label": "Logistic function - Wikipedia (derivative section)",
+          "href": "https://en.wikipedia.org/wiki/Logistic_function"
+        },
+        {
+          "label": "Sigmoid Function — Algebrica",
+          "href": "https://algebrica.org/sigmoid-function/"
+        },
+        {
+          "label": "Why Derivative of Sigmoid Functions is Between 0 to 0.25? — Chanchala Gorale (Medium)",
+          "href": "https://cgorale111.medium.com/why-derivative-of-sigmoid-functions-is-between-0-to-0-25-2c4e22b476d8"
+        },
+        {
+          "label": "Tanh Activation in Neural Network - GeeksforGeeks",
+          "href": "https://www.geeksforgeeks.org/deep-learning/tanh-activation-in-neural-network/"
+        },
+        {
+          "label": "Activation Functions and Their Gradients - aew61.github.io",
+          "href": "https://aew61.github.io/blog/artificial_neural_networks/1_background/1.b_activation_functions_and_derivatives.html"
+        },
+        {
+          "label": "Derivation: Derivatives for Common Neural Network Activation Functions — The Clever Machine",
+          "href": "https://dustinstansbury.github.io/theclevermachine/derivation-common-neural-network-activation-functions"
+        },
+        {
+          "label": "d/dx tanh(x) Formula — Derivative Rule of Hyperbolic Tan function (Math Doubts)",
+          "href": "https://www.mathdoubts.com/derivative-hyperbolic-tangent/"
+        },
+        {
+          "label": "Rectifier (neural networks) — Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/Rectifier_(neural_networks)"
+        },
+        {
+          "label": "Vanishing gradient problem — Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/Vanishing_gradient_problem"
+        },
+        {
+          "label": "Why is the ReLU function not differentiable at x=0? — Sebastian Raschka, PhD",
+          "href": "https://sebastianraschka.com/faq/docs/relu-derivative.html"
+        },
+        {
+          "label": "How to Fix the Vanishing Gradients Problem Using the ReLU — Machine Learning Mastery",
+          "href": "https://machinelearningmastery.com/how-to-fix-vanishing-gradients-using-the-rectified-linear-activation-function/"
+        },
+        {
+          "label": "CS231n: Neural Networks Part 1 (Stanford course notes) — ReLU/sigmoid activation functions",
+          "href": "https://cs231n.github.io/neural-networks-1/"
+        },
+        {
+          "label": "PyTorch official docs — torch.nn.ReLU (definition ReLU(x) = max(0, x))",
+          "href": "https://docs.pytorch.org/docs/stable/generated/torch.nn.ReLU.html"
+        },
+        {
+          "label": "A Gentle Introduction to the Rectified Linear Unit (ReLU) — Machine Learning Mastery",
+          "href": "https://machinelearningmastery.com/rectified-linear-activation-function-for-deep-learning-neural-networks/"
+        },
+        {
+          "label": "Tanh Function: Zero-Centered Outputs Explained — DataCamp",
+          "href": "https://www.datacamp.com/tutorial/tanh-function"
+        },
+        {
+          "label": "On the difficulty of training Recurrent Neural Networks — Pascanu, Mikolov, Bengio (ICML 2013)",
+          "href": "https://proceedings.mlr.press/v28/pascanu13.pdf"
+        },
+        {
+          "label": "Vanishing Gradient Problem in Deep Learning: Explained — DigitalOcean",
+          "href": "https://www.digitalocean.com/community/tutorials/vanishing-gradient-problem"
+        },
+        {
+          "label": "A Friendly Step-by-Step Tutorial on the Vanishing Gradient Problem — DEV Community",
+          "href": "https://dev.to/shrsv/a-friendly-step-by-step-tutorial-on-the-vanishing-gradient-problem-5aj0"
+        },
+        {
+          "label": "Vanishing Gradient Problem: Causes, Consequences, and Solutions — KDnuggets",
+          "href": "https://www.kdnuggets.com/2022/02/vanishing-gradient-problem.html"
+        },
+        {
+          "label": "Vanishing & Exploding Gradients in Sigmoid-Based Deep Networks - Miraz Uz Zaman, Medium",
+          "href": "https://mirazzaman.medium.com/vanishing-exploding-gradients-in-sigmoid-based-deep-networks-explained-with-animation-5b5cee8e6a4e"
+        },
+        {
+          "label": "On the difficulty of training recurrent neural networks — statwiki (University of Waterloo)",
+          "href": "https://wiki.math.uwaterloo.ca/statwiki/index.php?title=on_the_difficulty_of_training_recurrent_neural_networks"
+        },
+        {
+          "label": "The Issues on Training RNN — Jim's Starship (jimleungjing.github.io)",
+          "href": "https://jimleungjing.github.io/2018/11/20/On-the-Difficulty-of-Training-RNN/"
+        },
+        {
+          "label": "On the difficulty of training Recurrent Neural Networks (Pascanu, Mikolov, Bengio 2013) — PDF, arXiv:1211.5063",
+          "href": "https://arxiv.org/pdf/1211.5063"
+        },
+        {
+          "label": "Bengio, Simard & Frasconi (1994), \"Learning long-term dependencies with gradient descent is difficult\", IEEE Trans Neural Netw 5(2):157-166 - PubMed record",
+          "href": "https://pubmed.ncbi.nlm.nih.gov/18267787/"
+        },
+        {
+          "label": "Sepp Hochreiter's Fundamental Deep Learning Problem (1991) - J. Schmidhuber, IDSIA",
+          "href": "https://people.idsia.ch/~juergen/fundamentaldeeplearningproblem.html"
+        },
+        {
+          "label": "Pascanu, Mikolov & Bengio — On the difficulty of training Recurrent Neural Networks (arXiv:1211.5063)",
+          "href": "https://arxiv.org/abs/1211.5063"
+        },
+        {
+          "label": "Vanishing and Exploding Gradients Problems in Deep Learning - GeeksforGeeks",
+          "href": "https://www.geeksforgeeks.org/deep-learning/vanishing-and-exploding-gradients-problems-in-deep-learning/"
+        },
+        {
+          "label": "Xavier Initialization and Regularization - CS230 Deep Learning (Stanford)",
+          "href": "https://cs230.stanford.edu/section/4/"
+        },
+        {
+          "label": "The Problem of Saturated Neurons and Vanishing Gradients (InformIT / Ekman, Learning Deep Learning)",
+          "href": "https://www.informit.com/articles/article.aspx?p=3131594&seqNum=2"
+        },
+        {
+          "label": "He et al. 2015, Delving Deep into Rectifiers (arXiv:1502.01852, PDF) — Sec. 2.2, Eqn. (8)-(10)",
+          "href": "https://arxiv.org/pdf/1502.01852"
+        },
+        {
+          "label": "Weight initialization — Wikipedia (Glorot and He sections)",
+          "href": "https://en.wikipedia.org/wiki/Weight_initialization"
+        },
+        {
+          "label": "Weight Initialization for Deep Learning Neural Networks — MachineLearningMastery",
+          "href": "https://machinelearningmastery.com/weight-initialization-for-deep-learning-neural-networks/"
+        },
+        {
+          "label": "Glorot & Bengio (2010), Understanding the difficulty of training deep feedforward neural networks (PMLR) — eq. (12) Var[W]=2/(n_i+n_{i+1}), eq. (16) W~U[±√6/√(n_j+n_{j+1})]",
+          "href": "https://proceedings.mlr.press/v9/glorot10a/glorot10a.pdf"
+        },
+        {
+          "label": "Deep Residual Learning for Image Recognition (He et al. 2015), arXiv:1512.03385",
+          "href": "https://arxiv.org/pdf/1512.03385"
+        },
+        {
+          "label": "Identity Mappings in Deep Residual Networks (He et al. 2016), arXiv:1603.05027",
+          "href": "https://ar5iv.labs.arxiv.org/html/1603.05027"
+        },
+        {
+          "label": "Residual neural network — Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/Residual_neural_network"
+        },
+        {
+          "label": "Intuitive Explanation of Skip Connections in Deep Learning — AI Summer",
+          "href": "https://theaisummer.com/skip-connections/"
+        },
+        {
+          "label": "He et al. (2015/2016), Deep Residual Learning for Image Recognition (arXiv:1512.03385 / CVPR 2016)",
+          "href": "https://arxiv.org/abs/1512.03385"
+        },
+        {
+          "label": "Santurkar et al. (2018), How Does Batch Normalization Help Optimization? (NeurIPS 2018 / arXiv:1805.11604)",
+          "href": "https://proceedings.neurips.cc/paper/2018/hash/905056c1ac1dad141560467e0a99e1cf-Abstract.html"
+        },
+        {
+          "label": "Balduzzi et al., \"The Shattered Gradients Problem: If resnets are the answer, then what is the question?\" (ICML 2017, PMLR 70)",
+          "href": "http://proceedings.mlr.press/v70/balduzzi17b/balduzzi17b.pdf"
+        },
+        {
+          "label": "Bjorck, Gomes, Selman, Weinberger, \"Understanding Batch Normalization\" (NeurIPS 2018, Cornell)",
+          "href": "https://www.cs.cornell.edu/gomes/pdf/2018_bjorck_nips_bn.pdf"
+        },
+        {
+          "label": "How Does Batch Normalization Help Optimization? (Santurkar, Tsipras, Ilyas, Madry, NeurIPS 2018) — arXiv:1805.11604",
+          "href": "https://arxiv.org/abs/1805.11604"
+        },
+        {
+          "label": "Dive into Deep Learning (d2l.ai) — RNN implementation, gradient clipping section (g ← min(1, θ/‖g‖)·g)",
+          "href": "https://d2l.ai/chapter_recurrent-neural-networks/rnn-scratch.html"
+        },
+        {
+          "label": "PyTorch source — torch/nn/utils/clip_grad.py (clip_grad_norm_ / _clip_grads_with_norm_ implementation)",
+          "href": "https://github.com/pytorch/pytorch/blob/main/torch/nn/utils/clip_grad.py"
+        },
+        {
+          "label": "Giles Thomas — Writing an LLM from scratch, part 32b: Interventions — gradient clipping",
+          "href": "https://www.gilesthomas.com/2026/02/llm-from-scratch-32b-interventions-gradient-clipping"
+        },
+        {
+          "label": "LeCun et al. (1989), Backpropagation Applied to Handwritten Zip Code Recognition, Neural Computation 1(4):541-551 (PDF du papier original)",
+          "href": "https://galileo-unbound.blog/wp-content/uploads/2025/02/lecun.neco_.1989.1.4.541.pdf"
+        },
+        {
+          "label": "Grace W. Lindsay / ICLR Blog Track (2022), Reproduction of LeCun 1989",
+          "href": "https://iclr-blog-track.github.io/2022/03/26/lecun1989/"
+        },
+        {
+          "label": "LeNet — Wikipedia (independent secondary source; corroborates 7291 train / 2007 test / 23 passes / USPS)",
+          "href": "https://en.wikipedia.org/wiki/LeNet"
+        },
+        {
+          "label": "karpathy/lecun1989-repro — Reproducing Yann LeCun's 1989 paper",
+          "href": "https://github.com/karpathy/lecun1989-repro"
+        },
+        {
+          "label": "MNIST database - Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/MNIST_database"
+        },
+        {
+          "label": "7.6. Convolutional Neural Networks (LeNet) — Dive into Deep Learning",
+          "href": "https://d2l.ai/chapter_convolutional-neural-networks/lenet.html"
+        },
+        {
+          "label": "Blum & Rivest, \"Training a 3-Node Neural Network is NP-Complete\", NeurIPS 1 (1988) — official proceedings abstract",
+          "href": "https://proceedings.neurips.cc/paper/1988/hash/3def184ad8f4755ff269862ea77393dd-Abstract.html"
+        },
+        {
+          "label": "Blum & Rivest, \"Training a 3-Node Neural Network is NP-Complete\" — full reprint (Neural Networks vol. 5 no. 1, 1992) on R. Rivest's MIT CSAIL page",
+          "href": "https://people.csail.mit.edu/rivest/pubs/BR93.pdf"
+        },
+        {
+          "label": "Froese & Hertrich, Training Neural Networks is NP-Hard in Fixed Dimension (NeurIPS 2023, arXiv:2303.17045)",
+          "href": "https://arxiv.org/abs/2303.17045"
+        },
+        {
+          "label": "Abrahamsen, Kleist & Miltzow, Training Neural Networks is ∃R-complete (NeurIPS 2021, arXiv:2102.09798)",
+          "href": "https://arxiv.org/abs/2102.09798"
+        },
+        {
+          "label": "Judd, On the complexity of loading shallow neural networks (Journal of Complexity, 1988)",
+          "href": "https://www.semanticscholar.org/paper/On-the-complexity-of-loading-shallow-neural-Judd/e8d2e8e01960b196b21248d212e416742d9cfa5c"
+        },
+        {
+          "label": "JAX Autodiff Cookbook — JAX documentation (forward vs reverse memory)",
+          "href": "https://docs.jax.dev/en/latest/notebooks/autodiff_cookbook.html"
+        },
+        {
+          "label": "How Does Batch Normalization Help Optimization? — NeurIPS 2018 proceedings (full paper PDF)",
+          "href": "https://proceedings.neurips.cc/paper_files/paper/2018/file/905056c1ac1dad141560467e0a99e1cf-Paper.pdf"
+        },
+        {
+          "label": "Batch Normalization vs Internal Covariate Shift — ML Journey (third-party summary, P. Song)",
+          "href": "https://mljourney.com/batch-normalization-vs-internal-covariate-shift/"
+        },
+        {
+          "label": "Potgieter, Mouton & Davel (2025), Impact of Batch Normalization on Convolutional Network Representations (arXiv:2501.14441)",
+          "href": "https://arxiv.org/abs/2501.14441"
+        },
+        {
+          "label": "Ayoosh Kathuria, Intro to Optimization in Deep Learning: Busting the Myth About Batch Normalization (Paperspace blog)",
+          "href": "https://blog.paperspace.com/busting-the-myths-about-batch-normalization/"
+        },
+        {
+          "label": "The Backstory of Backpropagation — Yuxi Liu",
+          "href": "https://yuxi.ml/essays/posts/backstory-of-backpropagation/"
+        },
+        {
+          "label": "Backpropagation ≠ Chain Rule — Lunjia Hu (Theory Dish)",
+          "href": "https://theorydish.blog/2021/12/16/backpropagation-%E2%89%A0-chain-rule/"
+        },
+        {
+          "label": "Backpropagation is older than you think — Harry Law (Learning from Examples)",
+          "href": "https://www.learningfromexamples.com/p/backpropagation-is-older-than-you"
+        },
+        {
+          "label": "Random synaptic feedback weights support error backpropagation for deep learning (full text) — Lillicrap, Cownden, Tweed & Akerman, Nature Communications 2016, PMC5105169",
+          "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5105169/"
+        },
+        {
+          "label": "Deep Learning without Weight Transport — Akrout et al., 2019 (independent restatement of FA and the weight transport problem, and its scaling limits)",
+          "href": "https://arxiv.org/abs/1904.05391"
+        },
+        {
+          "label": "Frenkel, Lefebvre & Bol (2021) — Learning Without Feedback: Fixed Random Learning Signals Allow for Feedforward Training of Deep Neural Networks (Frontiers in Neuroscience)",
+          "href": "https://www.frontiersin.org/journals/neuroscience/articles/10.3389/fnins.2021.629892/full"
+        },
+        {
+          "label": "Albert Jimenez — Feedback Alignment Methods (Towards Data Science)",
+          "href": "https://towardsdatascience.com/feedback-alignment-methods-7e6c41446e36/"
+        },
+        {
+          "label": "Geoffrey Hinton — The Forward-Forward Algorithm: Some Preliminary Investigations (FFA13.pdf, primary source)",
+          "href": "https://www.cs.toronto.edu/~hinton/FFA13.pdf"
+        },
+        {
+          "label": "The Forward-Forward Algorithm: Some Preliminary Investigations (arXiv:2212.13345 abstract)",
+          "href": "https://arxiv.org/abs/2212.13345"
+        },
+        {
+          "label": "Energy-Efficient Deep Learning Without Backpropagation: A Rigorous Evaluation of Forward-Only Algorithms (arXiv:2509.19063)",
+          "href": "https://arxiv.org/html/2509.19063v1"
+        },
+        {
+          "label": "Forward-Forward Algorithm — Emergent Mind topic overview",
+          "href": "https://www.emergentmind.com/topics/forward-forward-algorithm-ff"
+        },
+        {
+          "label": "Scodellaro, Kulkarni, Alves, Schröter — Training convolutional neural networks with the Forward–Forward Algorithm (Scientific Reports 15:38461, 2025)",
+          "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC12586560/"
+        },
+        {
+          "label": "Avishan Bewtra (Penn State) — A Further Investigation of the Forward-Forward Algorithm",
+          "href": "https://aqbewtra.github.io/files/FF.pdf"
+        },
+        {
+          "label": "What is the \"forward-forward\" algorithm, Geoffrey Hinton's new AI technique? — TechTalks",
+          "href": "https://bdtechtalks.com/2022/12/19/forward-forward-algorithm-geoffrey-hinton/"
+        },
+        {
+          "label": "Deep Learning Pioneer Geoffrey Hinton Publishes New Deep Learning Algorithm - InfoQ (Anthony Alford)",
+          "href": "https://www.infoq.com/news/2023/01/hinton-forward-algorithm/"
+        },
+        {
+          "label": "Mono-Forward: Revisiting Forward-Forward through Objective-Locality Decomposition (arXiv:2501.09238, Gong, Li, Abdulla, Univ. of Auckland)",
+          "href": "https://arxiv.org/abs/2501.09238"
+        },
+        {
+          "label": "Beyond Backpropagation: Exploring Innovative Algorithms for Energy-Efficient Deep Neural Network Training (arXiv:2509.19063, P. Spyra)",
+          "href": "https://arxiv.org/abs/2509.19063"
+        },
+        {
+          "label": "Automatic Differentiation with torch.autograd — PyTorch Tutorials",
+          "href": "https://docs.pytorch.org/tutorials/beginner/basics/autogradqs_tutorial.html"
+        },
+        {
+          "label": "Autograd mechanics — PyTorch main documentation",
+          "href": "https://docs.pytorch.org/docs/main/notes/autograd.html"
+        },
+        {
+          "label": "Optimize PyTorch training with the autograd engine — Red Hat Developer",
+          "href": "https://developers.redhat.com/articles/2026/03/03/optimize-pytorch-training-autograd-engine"
+        },
+        {
+          "label": "PyTorch 101: Understanding Graphs, Automatic Differentiation and Autograd (DigitalOcean, Ayoosh Kathuria)",
+          "href": "https://www.digitalocean.com/community/tutorials/pytorch-101-understanding-graphs-and-automatic-differentiation"
+        },
+        {
+          "label": "Why Do We Need to Call zero_grad() in PyTorch? (GeeksforGeeks)",
+          "href": "https://www.geeksforgeeks.org/deep-learning/why-do-we-need-to-call-zerograd-in-pytorch/"
+        },
+        {
+          "label": "Automatic differentiation in machine learning: a survey (Baydin et al., JMLR 2018, ar5iv HTML)",
+          "href": "https://ar5iv.labs.arxiv.org/html/1502.05767"
+        },
+        {
+          "label": "Automatic Differentiation: Forward and Reverse — Jingnan Shi",
+          "href": "https://jingnanshi.com/blog/autodiff.html"
+        },
+        {
+          "label": "Roger Grosse — CSC321 Lecture 6: Backpropagation (University of Toronto)",
+          "href": "https://www.cs.toronto.edu/~rgrosse/courses/csc321_2017/readings/L06%20Backpropagation.pdf"
+        },
+        {
+          "label": "CSC2541 Tutorial 1 — Backpropagation & Automatic Differentiation (University of Toronto)",
+          "href": "https://www.cs.toronto.edu/~rgrosse/courses/csc2541_2022/tutorials/tut01.pdf"
+        },
+        {
+          "label": "Goodfellow, Bengio, Courville — Deep Learning, ch. 6 (Deep Feedforward Networks), sec. 6.5.9",
+          "href": "https://www.deeplearningbook.org/contents/mlp.html"
+        }
+      ]
+    },
+    {
+      "type": "pointers",
+      "title": "Pour aller plus loin",
+      "items": [
+        {
+          "name": "Baydin, Pearlmutter, Radul & Siskind — Automatic Differentiation in Machine Learning: a Survey (JMLR 2017)",
+          "url": "https://www.jmlr.org/papers/volume18/17-468/17-468.pdf",
+          "kind": "reading",
+          "blurb": "Survey de reference reliant retropropagation, mode inverse et la borne de cout de type Baur-Strassen."
+        },
+        {
+          "name": "Griewank — Who Invented the Reverse Mode of Differentiation?",
+          "url": "http://emis.icm.edu.pl/journals/DMJDMV/vol-ismp/52_griewank-andreas-b.pdf",
+          "kind": "reading",
+          "blurb": "Essai historique (Documenta Mathematica, ISMP 2012) qui attribue le mode inverse a Linnainmaa (1970) et retrace ses precurseurs."
+        },
+        {
+          "name": "Bolte, Boustany & Pauwels — On the complexity of nonsmooth automatic differentiation (ICLR 2023)",
+          "url": "https://hal.science/hal-03683640/document",
+          "kind": "reading",
+          "blurb": "Enonce un cheap gradient principle non lisse pour la retropropagation via la notion de gradient conservatif."
+        },
+        {
+          "name": "Schmidhuber — Who Invented Backpropagation?",
+          "url": "https://people.idsia.ch/~juergen/who-invented-backpropagation.html",
+          "kind": "reading",
+          "blurb": "Chronologie detaillee des attributions (Kelley 1960, Linnainmaa 1970, Werbos) avec citations primaires."
+        },
+        {
+          "name": "Adam: A Method for Stochastic Optimization (Kingma & Ba, 2014)",
+          "url": "https://arxiv.org/abs/1412.6980",
+          "kind": "reading",
+          "blurb": "Article fondateur d'Adam, qui combine momentum et estimation adaptative du second moment (RMSProp) avec correction de biais."
+        },
+        {
+          "name": "Stochastic gradient descent (Wikipedia)",
+          "url": "https://en.wikipedia.org/wiki/Stochastic_gradient_descent",
+          "kind": "reading",
+          "blurb": "Synthese des regles batch / SGD / mini-batch, du role du taux d'apprentissage et des optimiseurs (momentum, RMSProp, Adam)."
+        },
+        {
+          "name": "Stochastic approximation (Wikipedia)",
+          "url": "https://en.wikipedia.org/wiki/Stochastic_approximation",
+          "kind": "reading",
+          "blurb": "Algorithme de Robbins-Monro (1951) et conditions de convergence sur la suite de pas, ancetre theorique de SGD."
+        },
+        {
+          "name": "Rectifier (neural networks) — Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Rectifier_(neural_networks)",
+          "kind": "reading",
+          "blurb": "Definition de la ReLU, ses variantes (Leaky ReLU, PReLU, GELU) et le probleme de la ReLU mourante."
+        },
+        {
+          "name": "Vanishing gradient problem — Wikipedia",
+          "url": "https://en.wikipedia.org/wiki/Vanishing_gradient_problem",
+          "kind": "reading",
+          "blurb": "Explique comment la multiplication repetee de derivees d'activation bornees fait decroitre le gradient exponentiellement avec la profondeur."
+        },
+        {
+          "name": "Delving Deep into Rectifiers (He et al., 2015)",
+          "url": "https://arxiv.org/abs/1502.01852",
+          "kind": "reading",
+          "blurb": "Article fondateur de l'initialisation de He (Var=2/n_in) pour les reseaux a ReLU, introduisant aussi PReLU."
+        },
+        {
+          "name": "Deep Residual Learning for Image Recognition (He et al., 2015)",
+          "url": "https://arxiv.org/abs/1512.03385",
+          "kind": "reading",
+          "blurb": "Article ResNet : connexions residuelles F(x)+x, probleme de degradation, reseaux jusqu'a 152 couches."
+        },
+        {
+          "name": "How Does Batch Normalization Help Optimization? (Santurkar et al., 2018)",
+          "url": "https://arxiv.org/abs/1805.11604",
+          "kind": "reading",
+          "blurb": "Refute l'explication par le decalage de covariance interne et montre l'effet de lissage du paysage d'optimisation."
+        },
+        {
+          "name": "On the difficulty of training Recurrent Neural Networks (Pascanu et al., 2013)",
+          "url": "https://arxiv.org/abs/1211.5063",
+          "kind": "reading",
+          "blurb": "Analyse l'evanouissement/explosion des gradients et introduit le gradient clipping par norme."
+        },
+        {
+          "name": "LeCun et al. 1989 — Backpropagation Applied to Handwritten Zip Code Recognition",
+          "url": "http://yann.lecun.com/exdb/publis/pdf/lecun-89e.pdf",
+          "kind": "reading",
+          "blurb": "Le papier fondateur (Neural Computation 1(4):541-551), heberge par l'auteur ; source primaire des chiffres de la section."
+        },
+        {
+          "name": "karpathy/lecun1989-repro",
+          "url": "https://github.com/karpathy/lecun1989-repro",
+          "kind": "implementation",
+          "blurb": "Reproduction moderne en PyTorch par Andrej Karpathy, qui retrouve ~4-5 % d'erreur de test et documente les choix d'entrainement de l'epoque."
+        },
+        {
+          "name": "Deep Neural Nets: 33 years ago and 33 years from now (ICLR Blog Track)",
+          "url": "https://iclr-blog-track.github.io/2022/03/26/lecun1989/",
+          "kind": "reading",
+          "blurb": "Billet de Karpathy qui dissseque l'architecture, les resultats de LeCun 1989 et ce qui a change depuis."
+        },
+        {
+          "name": "Blum & Rivest — Training a 3-node neural network is NP-complete (1992)",
+          "url": "https://people.csail.mit.edu/rivest/pubs/BR93.pdf",
+          "kind": "reading",
+          "blurb": "Article fondateur etablissant la NP-completude de l'entrainement exact d'un reseau minimal a seuils."
+        },
+        {
+          "name": "Hinton — The Forward-Forward Algorithm (2022, PDF auteur)",
+          "url": "https://www.cs.toronto.edu/~hinton/FFA13.pdf",
+          "kind": "reading",
+          "blurb": "Critique l'implausibilite biologique de la retropropagation et propose une alternative ne propageant pas de derivees."
+        },
+        {
+          "name": "MIT 18.S096 — Matrix Calculus for Machine Learning (Lecture 8, AD)",
+          "url": "https://ocw.mit.edu/courses/18-s096-matrix-calculus-for-machine-learning-and-beyond-january-iap-2023/mit18_s096iap23_lec08.pdf",
+          "kind": "reading",
+          "blurb": "Expose l'arbitrage memoire/temps entre forward-mode et reverse-mode de la differentiation automatique."
+        },
+        {
+          "name": "Random synaptic feedback weights support error backpropagation for deep learning (Lillicrap et al., 2016)",
+          "url": "https://www.nature.com/articles/ncomms13276",
+          "kind": "reading",
+          "blurb": "Article fondateur du Feedback Alignment (Nature Communications) : une matrice de feedback aleatoire fixe suffit a apprendre, levant le weight transport problem."
+        },
+        {
+          "name": "Direct Feedback Alignment Provides Learning in Deep Neural Networks (Nokland, 2016)",
+          "url": "https://arxiv.org/abs/1609.01596",
+          "kind": "reading",
+          "blurb": "NeurIPS 2016 : diffuse l'erreur directement de la sortie vers chaque couche cachee par des connexions aleatoires fixes, sans retropropagation symetrique."
+        },
+        {
+          "name": "The Forward-Forward Algorithm: Some Preliminary Investigations (Hinton, 2022)",
+          "url": "https://arxiv.org/abs/2212.13345",
+          "kind": "reading",
+          "blurb": "L'article de Hinton introduisant l'apprentissage par objectifs locaux a deux passes avant (positive/negative), sans passe arriere."
+        },
+        {
+          "name": "Mono-Forward: Revisiting Forward-Forward through Objective-Locality Decomposition (Gong, Li, Abdulla, 2025)",
+          "url": "https://arxiv.org/abs/2501.09238",
+          "kind": "reading",
+          "blurb": "Source primaire de Mono-Forward : objectif d'entropie croisee locale par couche en remplacement de l'objectif goodness de Forward-Forward."
+        },
+        {
+          "name": "Beyond Backpropagation: Exploring Innovative Algorithms for Energy-Efficient DNN Training (Spyra, 2025)",
+          "url": "https://arxiv.org/html/2509.19063v1",
+          "kind": "reading",
+          "blurb": "Etude comparative des methodes forward-only (FF, CaFo, Mono-Forward) ; source des chiffres 41 % d'energie et 34 % de vitesse mesures via NVML."
+        },
+        {
+          "name": "PyTorch autograd (Automatic Differentiation tutorial)",
+          "url": "https://docs.pytorch.org/tutorials/beginner/basics/autogradqs_tutorial.html",
+          "kind": "library",
+          "blurb": "Moteur d'autodiff define-by-run de PyTorch : graphe d'objets Function, requires_grad, loss.backward() et accumulation dans .grad."
+        },
+        {
+          "name": "PyTorch — Extending torch.autograd (save_for_backward)",
+          "url": "https://docs.pytorch.org/docs/stable/notes/extending.html",
+          "kind": "reading",
+          "blurb": "Comment ecrire une Function custom : ctx.save_for_backward() sauvegarde les tenseurs de la passe avant pour la passe arriere."
+        },
+        {
+          "name": "JAX — The Autodiff Cookbook",
+          "url": "https://docs.jax.dev/en/latest/notebooks/autodiff_cookbook.html",
+          "kind": "library",
+          "blurb": "jax.grad, VJP/JVP, mode inverse vs direct et produits Jacobien-vecteur dans JAX."
+        }
+      ]
+    },
+    {
+      "type": "glossary"
+    }
+  ]
+}
