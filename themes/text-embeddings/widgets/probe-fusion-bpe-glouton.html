@@ -1,0 +1,389 @@
+<div class="widget bpe-root" id="bpe-root">
+  <style>
+    .bpe-root{--bpe-ink:var(--ink,#15202E);--bpe-soft:var(--ink-soft,#43536A);
+      --bpe-faint:var(--ink-faint,#7A889B);--bpe-card:var(--card,#fff);
+      --bpe-line:var(--line,#D7DFE9);--bpe-blue:var(--blue,#23537F);
+      --bpe-bright:var(--blue-bright,#2C77B6);--bpe-wash:var(--blue-wash,#E7EEF6);
+      --bpe-bord:var(--bordeaux,#7C2A38);--bpe-bordb:var(--bordeaux-bright,#9B3443);
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--bpe-ink);
+      border:1px solid var(--bpe-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--bpe-card);max-width:760px}
+    .bpe-root *{box-sizing:border-box}
+    .bpe-k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;
+      color:var(--bpe-faint);font-weight:600;margin:0 0 2px}
+    .bpe-title{font-weight:700;font-size:1.05rem;margin:0 0 4px}
+    .bpe-sub{font-size:.9rem;color:var(--bpe-soft);margin:0 0 14px}
+    .bpe-ctl{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end;margin:0 0 12px}
+    .bpe-field{display:flex;flex-direction:column;gap:4px}
+    .bpe-field label{font-size:.72rem;color:var(--bpe-faint);font-weight:600;
+      text-transform:uppercase;letter-spacing:.06em}
+    .bpe-ta{width:100%;min-width:240px;padding:8px 10px;border:1px solid var(--bpe-line);
+      border-radius:8px;background:var(--bpe-card);color:var(--bpe-ink);
+      font:13px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;resize:vertical}
+    .bpe-ta:focus{outline:none;border-color:var(--bpe-bright);
+      box-shadow:0 0 0 3px var(--bpe-wash)}
+    .bpe-range{display:flex;align-items:center;gap:8px}
+    .bpe-range input[type=range]{accent-color:var(--bpe-bordb);width:130px}
+    .bpe-rv{font:700 .82rem/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+      color:var(--bpe-bord);min-width:22px;text-align:right}
+    .bpe-btns{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+    .bpe-btn{padding:8px 13px;border:1px solid var(--bpe-blue);border-radius:8px;
+      background:transparent;color:var(--bpe-blue);font:600 13px/1 inherit;cursor:pointer}
+    .bpe-btn:hover:not(:disabled){background:var(--bpe-wash)}
+    .bpe-btn:disabled{opacity:.4;cursor:not-allowed}
+    .bpe-btn.bpe-primary{background:var(--bpe-blue);color:#fff;border-color:var(--bpe-blue)}
+    .bpe-btn.bpe-primary:hover:not(:disabled){background:var(--bpe-bright);
+      border-color:var(--bpe-bright)}
+    .bpe-grid{display:grid;grid-template-columns:1fr;gap:14px}
+    @media(min-width:620px){.bpe-grid{grid-template-columns:1fr 232px}}
+    .bpe-pane{border:1px solid var(--bpe-line);border-radius:10px;padding:12px 13px;
+      background:var(--bpe-card);min-width:0}
+    .bpe-pane h4{margin:0 0 9px;font-size:.74rem;text-transform:uppercase;
+      letter-spacing:.06em;color:var(--bpe-faint);font-weight:700;
+      display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+    .bpe-pane h4 .bpe-cnt{color:var(--bpe-soft);font-weight:600;letter-spacing:0;
+      text-transform:none}
+    /* corpus segmenté en tokens */
+    .bpe-corpus{display:flex;flex-direction:column;gap:7px}
+    .bpe-wordline{display:flex;flex-wrap:wrap;align-items:center;gap:3px}
+    .bpe-tok{display:inline-flex;align-items:center;font:600 13px/1
+      ui-monospace,SFMono-Regular,Menlo,monospace;padding:3px 6px;border-radius:5px;
+      background:rgba(0,0,0,.045);color:var(--bpe-ink);border:1px solid transparent;
+      white-space:pre}
+    .bpe-tok.bpe-hot-l{background:var(--bpe-wash);border-color:var(--bpe-bright);
+      color:var(--bpe-blue)}
+    .bpe-tok.bpe-hot-r{background:var(--bpe-wash);border-color:var(--bpe-bright);
+      color:var(--bpe-blue)}
+    .bpe-tok.bpe-merged{background:rgba(155,52,67,.1);border-color:var(--bpe-bordb);
+      color:var(--bpe-bord)}
+    .bpe-eow{color:var(--bpe-faint);font-weight:400}
+    /* table des paires candidates */
+    .bpe-pairs{display:flex;flex-direction:column;gap:5px}
+    .bpe-prow{display:grid;grid-template-columns:1fr 1fr;gap:8px;align-items:center}
+    .bpe-pair{font:600 12.5px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+      color:var(--bpe-soft);white-space:pre}
+    .bpe-pbar{position:relative;height:20px;border-radius:5px;background:rgba(0,0,0,.045);
+      overflow:hidden}
+    .bpe-pfill{position:absolute;left:0;top:0;bottom:0;border-radius:5px;
+      background:hsl(205,45%,72%);transition:width .12s ease;min-width:1px}
+    .bpe-pnum{position:absolute;right:6px;top:0;bottom:0;display:flex;align-items:center;
+      font:600 .72rem/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--bpe-ink)}
+    .bpe-prow.bpe-win .bpe-pair{color:var(--bpe-bord)}
+    .bpe-prow.bpe-win .bpe-pfill{background:var(--bpe-bordb)}
+    .bpe-empty{font-size:.84rem;color:var(--bpe-faint);font-style:italic;margin:2px 0}
+    /* vocabulaire */
+    .bpe-vocab{display:flex;flex-wrap:wrap;gap:5px}
+    .bpe-vchip{font:600 12px/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+      padding:3px 6px;border-radius:5px;background:rgba(0,0,0,.04);
+      color:var(--bpe-soft);white-space:pre}
+    .bpe-vchip.bpe-vnew{background:rgba(155,52,67,.1);color:var(--bpe-bord);
+      border:1px solid var(--bpe-bordb)}
+    .bpe-vchip.bpe-vbase{color:var(--bpe-faint)}
+    /* note + barre d'état */
+    .bpe-note{margin:13px 0 0;padding:11px 13px;border:1px solid var(--bpe-line);
+      border-radius:8px;background:var(--bpe-card);font-size:.86rem;color:var(--bpe-soft)}
+    .bpe-note b{color:var(--bpe-ink)}
+    .bpe-note code{font:.8rem/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+      background:rgba(0,0,0,.045);padding:1px 5px;border-radius:4px;color:var(--bpe-bord)}
+    .bpe-note.bpe-done{border-color:var(--bpe-bordb);background:rgba(155,52,67,.05)}
+    .bpe-note.bpe-done b{color:var(--bpe-bord)}
+    .bpe-meter{display:flex;align-items:center;gap:9px;margin:0 0 12px;flex-wrap:wrap}
+    .bpe-mbar{flex:1 1 180px;height:9px;border-radius:5px;background:rgba(0,0,0,.06);
+      overflow:hidden;min-width:120px}
+    .bpe-mfill{height:100%;background:var(--bpe-bright);transition:width .15s ease;width:0%}
+    .bpe-mlbl{font:600 .76rem/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+      color:var(--bpe-soft);white-space:nowrap}
+    .bpe-legend{font-size:.74rem;color:var(--bpe-faint);margin:11px 0 0}
+  </style>
+
+  <p class="bpe-k">Démonstration interactive · tokeniseur BPE</p>
+  <p class="bpe-title">La boucle gloutonne : fusionner la paire adjacente la plus fréquente</p>
+  <p class="bpe-sub">BPE part des <b>caractères</b>, compte toutes les paires adjacentes, fusionne
+    la <em>plus fréquente</em> en un nouveau symbole ajouté au vocabulaire, puis recommence —
+    jusqu'à la taille de vocabulaire cible. Édite le corpus jouet, puis avance fusion par fusion.</p>
+
+  <div class="bpe-ctl">
+    <div class="bpe-field" style="flex:1 1 260px">
+      <label for="bpe-input">Corpus jouet (un mot par ligne ou séparés par des espaces)</label>
+      <textarea class="bpe-ta" id="bpe-input" rows="3" spellcheck="false"
+        aria-label="corpus jouet à tokeniser"></textarea>
+    </div>
+    <div class="bpe-field">
+      <label for="bpe-target">Vocabulaire cible</label>
+      <div class="bpe-range">
+        <input type="range" id="bpe-target" min="0" max="40" step="1" value="10"
+          aria-label="nombre de fusions cible au-delà des caractères de base">
+        <span class="bpe-rv" id="bpe-targetv">10</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="bpe-btns">
+    <button class="bpe-btn bpe-primary" id="bpe-step" type="button">▶ Fusion suivante</button>
+    <button class="bpe-btn" id="bpe-auto" type="button">⏩ Jusqu'à la cible</button>
+    <button class="bpe-btn" id="bpe-reset" type="button">↺ Repartir des caractères</button>
+  </div>
+
+  <div class="bpe-meter">
+    <span class="bpe-mlbl" id="bpe-mtext">vocabulaire : 0</span>
+    <div class="bpe-mbar"><div class="bpe-mfill" id="bpe-mfill"></div></div>
+    <span class="bpe-mlbl" id="bpe-mstep">fusion 0</span>
+  </div>
+
+  <div class="bpe-grid">
+    <div class="bpe-pane">
+      <h4>Corpus segmenté <span class="bpe-cnt" id="bpe-corpcnt"></span></h4>
+      <div class="bpe-corpus" id="bpe-corpus"></div>
+    </div>
+
+    <div class="bpe-pane">
+      <h4>Paires adjacentes <span class="bpe-cnt" id="bpe-paircnt"></span></h4>
+      <div class="bpe-pairs" id="bpe-pairs"></div>
+    </div>
+  </div>
+
+  <div class="bpe-pane" style="margin-top:14px">
+    <h4>Vocabulaire <span class="bpe-cnt" id="bpe-vcnt"></span></h4>
+    <div class="bpe-vocab" id="bpe-vocab"></div>
+  </div>
+
+  <div class="bpe-note" id="bpe-note"></div>
+
+  <p class="bpe-legend">Modèle-jouet : un <code>·</code> marque la fin de mot (les fusions ne
+    traversent jamais la frontière des mots). Les caractères de base forment le vocabulaire
+    initial ; chaque fusion ajoute exactement un symbole. Le glouton choisit la paire la plus
+    fréquente sans jamais revenir en arrière — c'est ce choix local répété qui construit le
+    vocabulaire, pas un optimum global.</p>
+
+  <script>
+  (function(){
+    var root=document.getElementById("bpe-root");
+    if(!root||root.dataset.bpeInit)return; root.dataset.bpeInit="1";
+    function el(id){return document.getElementById(id);}
+    function clear(n){while(n.firstChild)n.removeChild(n.firstChild);}
+
+    var EOW="·"; // marqueur de fin de mot, affiché et compté comme un symbole comme un autre
+    var DEFAULT="low lower lowest\nnew newer newest\nslow slower slowest";
+
+    // --- état ---
+    // words : liste de {seq:[symbole,...], n:multiplicité}
+    // base  : set des symboles de base (caractères + EOW)
+    // merges: liste ordonnée [a,b]->ab des fusions appliquées (nouveaux symboles)
+    var words=[], baseVocab=[], merges=[], lastWin=null, target=10;
+
+    function parseCorpus(txt){
+      // tokens = suites non-espaces ; chaque mot -> caractères + EOW
+      var raw=txt.split(/\s+/).filter(function(w){return w.length>0;});
+      var counts={};
+      raw.forEach(function(w){ counts[w]=(counts[w]||0)+1; });
+      var ws=[], baseSet={};
+      Object.keys(counts).forEach(function(w){
+        var seq=w.split("");
+        seq.forEach(function(ch){ baseSet[ch]=true; });
+        seq.push(EOW);
+        ws.push({seq:seq, n:counts[w]});
+      });
+      baseSet[EOW]=true;
+      return {words:ws, base:Object.keys(baseSet).sort()};
+    }
+
+    function init(){
+      target=+el("bpe-target").value;
+      var p=parseCorpus(el("bpe-input").value);
+      words=p.words; baseVocab=p.base; merges=[]; lastWin=null;
+      render();
+    }
+
+    // compte les paires adjacentes (pondérées par multiplicité du mot)
+    function countPairs(){
+      var map={}; // key "a b" -> {a,b,count}
+      words.forEach(function(w){
+        for(var i=0;i<w.seq.length-1;i++){
+          var a=w.seq[i], b=w.seq[i+1];
+          var key=a+" "+b;
+          if(!map[key]) map[key]={a:a,b:b,count:0};
+          map[key].count+=w.n;
+        }
+      });
+      var arr=Object.keys(map).map(function(k){return map[k];});
+      // tri : fréquence décroissante, puis ordre stable lexicographique pour départager
+      arr.sort(function(x,y){
+        if(y.count!==x.count) return y.count-x.count;
+        if(x.a!==y.a) return x.a<y.a?-1:1;
+        return x.b<y.b?-1:(x.b>y.b?1:0);
+      });
+      return arr;
+    }
+
+    // applique une fusion a+b -> ab dans tous les mots
+    function applyMerge(a,b){
+      var symbol=a+b;
+      words.forEach(function(w){
+        var out=[], i=0;
+        while(i<w.seq.length){
+          if(i<w.seq.length-1 && w.seq[i]===a && w.seq[i+1]===b){
+            out.push(symbol); i+=2;
+          } else { out.push(w.seq[i]); i+=1; }
+        }
+        w.seq=out;
+      });
+      merges.push({a:a,b:b,symbol:symbol});
+    }
+
+    function vocabSize(){ return baseVocab.length + merges.length; }
+    function targetSize(){ return baseVocab.length + target; }
+
+    function step(){
+      if(merges.length>=target) return false;
+      var pairs=countPairs();
+      if(pairs.length===0) return false; // plus rien à fusionner
+      var win=pairs[0];
+      applyMerge(win.a, win.b);
+      lastWin={a:win.a,b:win.b,symbol:win.a+win.b,count:win.count};
+      return true;
+    }
+
+    // --- rendu des symboles lisible (espace -> ␣, EOW gardé) ---
+    function show(sym){ return sym.split(" ").join("␣"); }
+
+    function render(){
+      var pairs=countPairs();
+      var totalTok=words.reduce(function(s,w){return s+w.seq.length*w.n;},0);
+      var atTarget = merges.length>=target;
+      var stuck = pairs.length===0;
+
+      // --- mètre de progression ---
+      var vs=vocabSize(), ts=targetSize();
+      el("bpe-mtext").textContent="vocabulaire : "+vs;
+      el("bpe-mstep").textContent="fusion "+merges.length+" / "+target;
+      var frac = target===0 ? 1 : Math.min(1, merges.length/target);
+      el("bpe-mfill").style.width=(frac*100).toFixed(1)+"%";
+
+      // --- corpus segmenté ---
+      var cont=el("bpe-corpus"); clear(cont);
+      el("bpe-corpcnt").textContent=totalTok+" tokens";
+      // surligne dans CHAQUE mot les positions de la paire gagnante de la PROCHAINE fusion
+      var nextWin = (!atTarget && pairs.length) ? pairs[0] : null;
+      words.forEach(function(w){
+        var line=document.createElement("div"); line.className="bpe-wordline";
+        var hl=new Array(w.seq.length).fill(0); // 0 none,1 left,2 right
+        if(nextWin){
+          for(var i=0;i<w.seq.length-1;i++){
+            if(w.seq[i]===nextWin.a && w.seq[i+1]===nextWin.b){ hl[i]=1; hl[i+1]=2; }
+          }
+        }
+        w.seq.forEach(function(sym,i){
+          var t=document.createElement("span");
+          t.className="bpe-tok"+(hl[i]===1?" bpe-hot-l":hl[i]===2?" bpe-hot-r":"")
+            +(sym===EOW?"":"");
+          if(sym===EOW){ t.className+=" bpe-eow"; }
+          t.textContent=show(sym);
+          line.appendChild(t);
+        });
+        if(w.n>1){
+          var x=document.createElement("span"); x.className="bpe-tok bpe-eow";
+          x.style.background="transparent"; x.textContent="× "+w.n;
+          line.appendChild(x);
+        }
+        cont.appendChild(line);
+      });
+
+      // --- paires candidates (top 8) ---
+      var pc=el("bpe-pairs"); clear(pc);
+      el("bpe-paircnt").textContent=pairs.length+" distinctes";
+      if(atTarget || stuck){
+        var em=document.createElement("p"); em.className="bpe-empty";
+        em.textContent = atTarget ? "Cible atteinte : la boucle s'arrête."
+          : "Plus aucune paire adjacente à fusionner.";
+        pc.appendChild(em);
+      } else {
+        var maxc=pairs[0].count;
+        pairs.slice(0,8).forEach(function(p,idx){
+          var row=document.createElement("div");
+          row.className="bpe-prow"+(idx===0?" bpe-win":"");
+          var lab=document.createElement("div"); lab.className="bpe-pair";
+          lab.textContent="("+show(p.a)+" , "+show(p.b)+")";
+          var bar=document.createElement("div"); bar.className="bpe-pbar";
+          var fill=document.createElement("div"); fill.className="bpe-pfill";
+          fill.style.width=(maxc?p.count/maxc:0)*100+"%";
+          var num=document.createElement("div"); num.className="bpe-pnum";
+          num.textContent="×"+p.count;
+          bar.appendChild(fill); bar.appendChild(num);
+          row.appendChild(lab); row.appendChild(bar);
+          pc.appendChild(row);
+        });
+        if(pairs.length>8){
+          var more=document.createElement("p"); more.className="bpe-empty";
+          more.textContent="… +"+(pairs.length-8)+" autres paires moins fréquentes";
+          pc.appendChild(more);
+        }
+      }
+
+      // --- vocabulaire : base (grisé) + fusions (bordeaux), dernière mise en avant ---
+      var vc=el("bpe-vocab"); clear(vc);
+      el("bpe-vcnt").textContent=vs+" symboles";
+      baseVocab.forEach(function(s){
+        var c=document.createElement("span"); c.className="bpe-vchip bpe-vbase";
+        c.textContent=show(s); vc.appendChild(c);
+      });
+      merges.forEach(function(m,i){
+        var c=document.createElement("span");
+        c.className="bpe-vchip"+(i===merges.length-1?" bpe-vnew":"");
+        c.textContent=show(m.symbol); vc.appendChild(c);
+      });
+
+      // --- note pédagogique (fragments DOM, pas d'innerHTML) ---
+      var n=el("bpe-note");
+      n.className="bpe-note"+((atTarget||stuck)?" bpe-done":"");
+      clear(n);
+      function txt(s){ n.appendChild(document.createTextNode(s)); }
+      function b(s){ var e=document.createElement("b"); e.textContent=s; n.appendChild(e); }
+      function code(s){ var e=document.createElement("code"); e.textContent=s; n.appendChild(e); }
+
+      if(target===0){
+        txt("Cible = 0 fusion : le corpus reste découpé au niveau "); b("caractère"); txt(". ");
+        txt("Le vocabulaire se réduit aux "); b(baseVocab.length+" symboles de base"); txt(".");
+      } else if(merges.length===0 && lastWin===null){
+        txt("Départ : chaque mot est une suite de caractères + le marqueur de fin "); code(EOW);
+        txt(". La paire la plus fréquente, "); b("("+show(pairs[0].a)+" , "+show(pairs[0].b)+")");
+        txt(" vue "); b("×"+pairs[0].count); txt(" fois, est candidate à la fusion. Clique « Fusion suivante ».");
+      } else if(lastWin){
+        txt("Fusion n°"+merges.length+" : la paire "); b("("+show(lastWin.a)+" , "+show(lastWin.b)+")");
+        txt(" était la plus fréquente ("); b("×"+lastWin.count); txt(") → nouveau symbole ");
+        code(show(lastWin.symbol)); txt(", ajouté au vocabulaire. ");
+        if(atTarget){ b("Cible atteinte"); txt(" : "+merges.length+" fusions, vocabulaire de "+vs+" symboles. La boucle gloutonne s'arrête."); }
+        else if(stuck){ txt("Plus aucune paire ne reste : tous les mots sont des symboles uniques."); }
+        else {
+          txt("Reste "+( target-merges.length)+" fusion(s) avant la cible. Prochaine candidate : ");
+          b("("+show(pairs[0].a)+" , "+show(pairs[0].b)+")"); txt(" ×"+pairs[0].count+".");
+        }
+      }
+
+      // --- état des boutons ---
+      el("bpe-step").disabled = atTarget || stuck;
+      el("bpe-auto").disabled = atTarget || stuck;
+    }
+
+    // --- contrôles ---
+    el("bpe-step").addEventListener("click",function(){ if(step()) render(); });
+    el("bpe-auto").addEventListener("click",function(){
+      var guard=0; // borne dure : jamais plus de fusions que de paires possibles
+      while(merges.length<target && guard<500){ if(!step()) break; guard++; }
+      render();
+    });
+    el("bpe-reset").addEventListener("click", init);
+    el("bpe-input").addEventListener("input", init);
+    el("bpe-target").addEventListener("input",function(){
+      el("bpe-targetv").textContent=el("bpe-target").value;
+      target=+el("bpe-target").value;
+      // si on relève la cible, on ne défait rien ; si on l'abaisse sous merges actuels,
+      // on repart proprement des caractères (le glouton ne revient pas en arrière).
+      if(merges.length>target){ init(); } else { render(); }
+    });
+
+    el("bpe-input").value=DEFAULT;
+    el("bpe-targetv").textContent=el("bpe-target").value;
+    init();
+  })();
+  </script>
+</div>

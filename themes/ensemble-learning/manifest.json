@@ -1,0 +1,871 @@
+{
+  "edition": "monograph",
+  "slug": "ensemble-learning",
+  "meta": {
+    "title": "Méthodes d'ensemble : combiner des apprenants faibles en un prédicteur fort",
+    "kicker": "Apprentissage par ensembles · monographie",
+    "h1": "Méthodes d'ensemble : combiner des apprenants faibles en un prédicteur fort",
+    "lede": "Pourquoi agréger des modèles médiocres mais divers produit un prédicteur de premier plan — et ce qui sépare vraiment bagging et boosting.",
+    "meta_chips": [
+      "Monographie"
+    ],
+    "footer": "Méthodes d'ensemble : combiner des apprenants faibles en un prédicteur fort · scriptorium"
+  },
+  "elements": [
+    {
+      "type": "abstract"
+    },
+    {
+      "type": "section",
+      "id": "fondations-bagging",
+      "heading": "Le bagging : agréger des replicats bootstrap pour réduire la variance",
+      "level": 3,
+      "prose": "<p>Le <em>bagging</em> — contraction de <em>bootstrap aggregating</em>, terme forgé par Leo Breiman en 1996 — répond à une question simple : que faire quand un même algorithme, entraîné sur deux échantillons à peine différents, produit deux prédicteurs très différents ? La réponse de Breiman est de fabriquer artificiellement cette diversité, puis de la moyenner. À partir d'un jeu d'apprentissage <em>L</em> de <em>N</em> cas, on tire au hasard <strong>avec remise</strong> un replicat <em>L(B)</em> comptant lui aussi <em>N</em> cas : un même exemple peut y figurer plusieurs fois, ou pas du tout. On répète l'opération, on entraîne un prédicteur sur chaque replicat, puis on agrège l'ensemble.</p><p>La règle d'agrégation dépend de la tâche. En régression, on prend la <strong>moyenne</strong> des sorties numériques. En classification, on procède par <strong>vote à la pluralité</strong> (<em>plurality vote</em>) : la classe retenue est celle qui recueille le plus de suffrages parmi les prédicteurs. Cette moyenne ne change rien à la prédiction <em>attendue</em> ; ce qu'elle réduit, c'est la <strong>variance</strong> — la part de l'erreur due à la sensibilité du modèle aux fluctuations de l'échantillon. Le biais, lui, reste pour l'essentiel inchangé, ce qui explique que le bagging s'applique de préférence à des modèles riches et peu biaisés, comme les arbres pleinement développés.</p><p>Breiman insiste sur une condition vitale, trop souvent passée sous silence : le gain dépend entièrement de l'<strong>instabilité</strong> de l'apprenant de base. Le bagging n'améliore la précision que si une petite perturbation de <em>L</em> entraîne de grands changements dans le prédicteur — sinon, moyenner des modèles quasi identiques ne sert à rien. Sont instables, et donc de bons candidats : les arbres de classification et de régression, les réseaux de neurones, la sélection de sous-ensembles en régression linéaire. Est stable, et donc réfractaire au bagging : le <em>k</em> plus proches voisins (k-NN), dont les prédictions varient peu d'un replicat à l'autre.</p><p>Les gains mesurés par Breiman sur des données réelles et simulées sont substantiels. Sur les arbres de classification, la réduction du taux de mauvaise classification en test s'étend de 6 % à 77 % selon les jeux de données ; sur les arbres de régression, la réduction de l'erreur quadratique moyenne (MSE) en test va de 21 % à 46 %. Ces chiffres, à coût algorithmique modeste, ont fait du bagging la brique de base sur laquelle s'érigent les forêts aléatoires.</p>",
+      "claims": [
+        "claim:1",
+        "claim:2",
+        "claim:3",
+        "claim:4"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-bagging-variance-moyennage"
+    },
+    {
+      "type": "section",
+      "id": "forets-aleatoires",
+      "heading": "Forêts aléatoires : décorréler les arbres par double randomisation",
+      "level": 3,
+      "prose": "<p>Breiman donne aux forêts aléatoires une définition d'une sobriété trompeuse (Définition 1.1, 2001) : une forêt est une collection d'arbres de décision <em>{h(x, Θ_k), k = 1, …}</em> où les <em>Θ_k</em> sont des vecteurs aléatoires indépendants et identiquement distribués, chaque arbre votant pour une unité en faveur de la classe la plus populaire à l'entrée <em>x</em>. Tout le savoir-faire tient dans la fabrication de ce vecteur d'aléa <em>Θ</em>. Un seul arbre, profond et non élagué, est un prédicteur à faible biais mais à forte variance : il colle aux particularités de l'échantillon. Moyenner plusieurs arbres ne réduit la variance que dans la mesure où leurs erreurs sont décorrélées — or des arbres entraînés sur les mêmes données se ressemblent trop pour que la moyenne aide beaucoup. La forêt injecte donc deux sources d'aléa pour casser cette corrélation.</p><p>La première randomisation est le bootstrap, hérité du bagging : chaque arbre est construit sur un échantillon tiré avec remise de l'ensemble d'apprentissage. La seconde — la contribution propre des forêts aléatoires — agit <em>à chaque nœud</em> : au lieu de chercher la meilleure coupure parmi toutes les variables, l'arbre ne considère qu'un sous-ensemble tiré au hasard. Dans la formulation de Breiman, si l'on dispose de <em>M</em> variables d'entrée, un nombre <em>m ≪ M</em> est fixé et, à chaque nœud, <em>m</em> variables sont sélectionnées au hasard parmi les <em>M</em>, la meilleure coupure sur ces <em>m</em> servant à scinder le nœud (paramètre <code>max_features</code> de scikit-learn, par défaut <code>sqrt(n_features)</code> en classification). Cette restriction par nœud empêche quelques variables dominantes de se retrouver systématiquement en tête de tous les arbres : c'est précisément ce qui décorrèle la forêt. Le Théorème 2.3 quantifie l'enjeu — l'erreur de généralisation est bornée par <em>ρ̄(1 − s²)/s²</em>, où <em>s</em> est la « force » des arbres et <em>ρ̄</em> leur corrélation moyenne : il faut minimiser le rapport corrélation sur force.</p><p>Le double tirage avec remise offre un bonus gratuit : l'estimation <em>out-of-bag</em> (OOB) de l'erreur. Comme chaque arbre laisse de côté environ un tiers des observations de son bootstrap, on peut faire passer chaque observation dans les seuls arbres qui ne l'ont pas vue à l'entraînement, agréger ces votes, et comparer à la vraie classe. La proportion d'erreurs ainsi moyennée fournit une estimation interne de l'erreur de test, qui s'est révélée non biaisée dans de nombreux essais et dispense d'un jeu de validation séparé ou d'une validation croisée. Enfin, le Théorème 1.2 établit que, lorsque le nombre d'arbres croît, l'erreur de généralisation <em>PE*</em> converge presque sûrement (loi forte des grands nombres) vers une valeur limite : ajouter des arbres ne dégrade jamais une forêt, on peut donc en mettre « autant qu'on veut » sans surapprendre par ce biais-là.</p>",
+      "claims": [
+        "claim:5",
+        "claim:6",
+        "claim:7",
+        "claim:8"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-oob-tiers-gratuit"
+    },
+    {
+      "type": "section",
+      "id": "boosting-adaboost",
+      "heading": "AdaBoost : pondérer séquentiellement les exemples difficiles",
+      "level": 3,
+      "prose": "<p>Là où le bagging tire ses replicats indépendamment et en parallèle, AdaBoost — introduit par Freund et Schapire en 1995 puis formalisé dans leur article de 1997 — construit son comité de façon <em>séquentielle</em> et adaptative. Chaque exemple d'apprentissage porte un poids : on part d'une distribution uniforme, on entraîne une hypothèse faible, puis on réajuste les poids avant le tour suivant. La règle est simple et asymétrique. À l'issue du tour <em>t</em>, on mesure l'erreur pondérée de l'apprenant, ε_t = Σ_i p_i^t |h_t(x_i) − y_i|, on pose β_t = ε_t / (1 − ε_t), et l'on multiplie le poids de chaque exemple par β_t^{(1 − |h_t(x_i) − y_i|)}. Comme β_t &lt; 1 dès que l'apprenant fait mieux que le hasard, ce facteur n'abaisse que le poids des exemples <em>bien</em> classés ; relativement, les exemples mal classés voient leur influence croître. Le tour suivant concentre donc l'effort sur les cas que le comité peine encore à trancher.</p><p>La décision finale est un <em>vote majoritaire pondéré</em> : h_f(x) vaut 1 si Σ_t (log 1/β_t) h_t(x) ≥ (1/2) Σ_t log(1/β_t), 0 sinon. Le poids accordé à chaque hypothèse, log(1/β_t), croît avec sa précision : une hypothèse à peine meilleure que le hasard (ε_t proche de 1/2) compte pour presque rien, une hypothèse fiable pèse lourd. Boosting et bagging se rejoignent ainsi par l'agrégation — un vote — mais s'opposent sur tout le reste : le bagging décorrèle des apprenants forts pour réduire la <em>variance</em>, le boosting empile des apprenants faibles pour réduire le <em>biais</em>.</p><p>La justification théorique tient en une borne sur l'erreur d'entraînement. Sous l'<em>hypothèse d'apprentissage faible</em> — chaque h_t fait un peu mieux que le hasard, soit ε_t ≤ 1/2 − γ pour un certain γ &gt; 0 — l'erreur du vote final sur l'échantillon décroît exponentiellement avec le nombre de tours <em>T</em>. C'est ce qui fait d'AdaBoost un véritable algorithme de boosting : il transforme un apprenant faible en prédicteur arbitrairement précis sur les données vues. Le trait décisif est son caractère <em>adaptatif</em>, d'où son nom (« Ada » pour adaptive) : les algorithmes de boosting antérieurs exigeaient de connaître γ <em>a priori</em>, un seuil très difficile à estimer en pratique. AdaBoost s'ajuste seul aux taux d'erreur observés des hypothèses faibles, sans paramètre à régler hormis le nombre de tours.</p>",
+      "claims": [
+        "claim:9",
+        "claim:10",
+        "claim:11",
+        "claim:12"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-adaboost-margins"
+    },
+    {
+      "type": "section",
+      "id": "gradient-boosting-xgboost",
+      "heading": "Gradient boosting et XGBoost : descente de gradient dans l'espace des fonctions",
+      "level": 3,
+      "prose": "<p>Le coup de génie de Friedman (2001) est de relire l'apprentissage d'un ensemble additif comme une optimisation numérique, mais menée dans l'<em>espace des fonctions</em> plutôt que dans celui des paramètres. On cherche la fonction <em>F</em> qui minimise une perte attendue ; à défaut de pouvoir dériver par rapport à une fonction entière, on procède par étapes (<em>stagewise</em>). À chaque itération, le gradient négatif de la perte évalué aux prédictions courantes fournit, pour chaque exemple, la direction de plus forte pente. Ce vecteur de gradients négatifs — les <strong>pseudo-résidus</strong> — joue le rôle de cible : on y ajuste un nouvel arbre, qui devient le pas de descente. Pour la perte quadratique, le pseudo-résidu se réduit au résidu ordinaire (y − F) ; le cadre généralise donc le simple « ajustement sur les erreurs » à n'importe quelle perte différentiable, la longueur du pas étant fixée par recherche linéaire (line search).</p><p>Cette généralité est l'apport pratique majeur : un même schéma couvre la régression aux moindres carrés, la régression robuste par écart absolu (LAD) ou perte de Huber-M (insensibles aux valeurs aberrantes), et la classification par vraisemblance logistique, y compris multiclasse. Friedman y ajoute deux régularisations devenues canoniques : le <strong>shrinkage</strong>, un facteur d'apprentissage ν ∈ (0,1] qui rétrécit la contribution de chaque arbre (de petites valeurs, ν &lt; 0,1, améliorent nettement la généralisation au prix de plus d'itérations), et l'échantillonnage stochastique des lignes. Le résultat — le gradient tree boosting — est décrit comme une procédure compétitive, robuste et interprétable.</p><p>XGBoost (Chen &amp; Guestrin, 2016) raffine ce squelette sur deux axes. D'abord l'objectif est explicitement <strong>régularisé</strong> : à la perte s'ajoute un terme de complexité par arbre, Ω(f) = γT + ½λ‖w‖², qui pénalise à la fois le nombre de feuilles T et l'amplitude des scores de feuille w. Ensuite, au lieu d'un simple gradient du premier ordre, XGBoost développe la perte au <strong>second ordre</strong> par un développement de Taylor faisant intervenir le gradient g_i et le hessien h_i de chaque exemple — c'est du <em>Newton boosting</em>. Pour une structure d'arbre fixée, ce développement quadratique admet une solution fermée : le poids de feuille optimal vaut w_j* = −G_j/(H_j + λ), où G_j et H_j somment gradients et hessiens des exemples tombant dans la feuille, et la qualité de la structure se lit comme un score −½ Σ_j G_j²/(H_j + λ) + γT.</p><p>Ce score fournit directement le critère de découpe : le gain d'un split est la réduction de score qu'il procure, Gain = ½[G_L²/(H_L+λ) + G_R²/(H_R+λ) − (G_L+G_R)²/(H_L+H_R+λ)] − γ, le terme −γ agissant comme un seuil minimal qui élague les splits non rentables. À cet objectif XGBoost greffe le shrinkage hérité de Friedman et l'échantillonnage de colonnes (column subsampling) emprunté aux forêts aléatoires, tous deux dirigés contre le surapprentissage, plus des techniques de passage à l'échelle (gestion native du creux, weighted quantile sketch). Lorsque les paramètres de régularisation tendent vers zéro, l'objectif redevient le gradient tree boosting classique : XGBoost est une extension régularisée et au second ordre, non une rupture.</p>",
+      "claims": [
+        "claim:13",
+        "claim:14",
+        "claim:15",
+        "claim:16"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "theorie-biais-variance",
+      "heading": "Le socle théorique : compromis biais-variance, marges et bornes de généralisation",
+      "level": 3,
+      "prose": "<p>Tout le contraste entre les deux familles d'ensembles tient dans une seule décomposition&nbsp;: l'erreur d'un prédicteur se scinde en un terme de <em>biais</em> (l'écart systématique de la cible) et un terme de <em>variance</em> (la sensibilité aux fluctuations de l'échantillon). Bagging et boosting ne s'attaquent pas au même terme. Le <strong>bagging</strong> entraîne des modèles indépendants sur des rééchantillonnages bootstrap puis les moyenne&nbsp;: comme moyenner des estimateurs corrélés réduit la variance sans changer leur cible commune, il gagne surtout sur la variance, et d'autant plus que l'apprenant de base est <em>instable</em> — un arbre profond dont la structure bascule au moindre changement de données. Bühlmann et Yu montrent qu'il s'agit d'une opération de lissage&nbsp;: le plus grand gain (un facteur trois sur l'erreur quadratique moyenne dans leur analyse asymptotique) se produit au point le plus instable de la frontière de décision, et le bagging n'aide pas si l'estimateur de base est déjà stable.</p><p>L'image répandue selon laquelle «&nbsp;le bagging réduit la variance à biais constant&nbsp;» est commode mais inexacte. La même analyse établit que l'estimateur baggé s'écrit <code>g_Bag(·) = g(·) + (E*[g*(·)] − g(·))</code>&nbsp;: il <em>ajoute</em> l'estimation bootstrap du biais. Son biais est donc en général légèrement plus élevé que celui de l'estimateur de base, et le pari du bagging est de gagner davantage en variance qu'il ne perd en biais. Le <strong>boosting</strong>, lui, joue la partition inverse&nbsp;: ajusté séquentiellement aux erreurs des modèles déjà présents, il réduit principalement le biais en augmentant la complexité du prédicteur cumulé — au prix d'une variance qui croît au fil des itérations. C'est ce qui rend l'arrêt précoce (early stopping) théoriquement nécessaire&nbsp;: passé un certain nombre de tours, le biais résiduel ne compense plus la variance accumulée. Friedman a unifié ce mécanisme en lisant le boosting comme une descente de plus forte pente dans l'espace des fonctions, et l'on peut montrer qu'AdaBoost minimise gloutonnement la perte exponentielle <code>(1/m) Σ exp(−y<sub>i</sub> F(x<sub>i</sub>))</code>, chaque tour choisissant l'hypothèse et le poids qui la font le plus décroître — une connexion observée d'abord par Breiman.</p><p>Pourquoi, alors, les ensembles ne surapprennent-ils pas comme le laisserait craindre leur nombre vertigineux de paramètres&nbsp;? Pour les forêts aléatoires, Breiman démontre (Théorème&nbsp;1.2) que lorsqu'on ajoute des arbres, l'erreur de généralisation converge presque sûrement vers une limite par la loi forte des grands nombres&nbsp;: ajouter des arbres ne dégrade pas, il fait tendre l'erreur vers un plancher. Et ce plancher est borné&nbsp;: son Théorème&nbsp;2.3 donne <code>PE* ≤ ρ̄(1 − s²)/s²</code>, où <code>s</code> est la <em>force</em> des arbres individuels (l'espérance de leur fonction de marge) et <code>ρ̄</code> la <em>corrélation moyenne</em> entre leurs marges. Une bonne forêt minimise donc le ratio <code>ρ̄/s²</code>&nbsp;: des arbres à la fois forts <em>et</em> peu corrélés. C'est exactement ce que vise l'injection d'aléa — tirage bootstrap et sélection aléatoire de variables à chaque coupure — qui décorrèle les arbres en sacrifiant un peu de force individuelle.</p><p>Pour le boosting, l'énigme est plus aiguë&nbsp;: empiriquement, l'erreur de test d'AdaBoost continue de baisser <em>après</em> que l'erreur d'entraînement a atteint zéro — sur le jeu <em>letter</em> avec C4.5, elle passe de 8,4&nbsp;% au tour&nbsp;5 (entraînement déjà parfait) à 3,1&nbsp;% au tour&nbsp;1000, alors que le classifieur combiné dépasse deux millions de nœuds. La théorie VC, qui ne regarde que la taille de l'hypothèse, prédit l'inverse. L'explication de Schapire, Freund, Bartlett et Lee (1998) passe par la <em>marge</em>&nbsp;: la confiance signée <code>y·f(x)</code> de la décision. Leur borne (Théorème&nbsp;1) majore l'erreur de test par la fraction d'exemples de marge inférieure à un seuil <code>θ</code>, plus un terme qui — c'est le point décisif — est <em>indépendant du nombre T</em> d'hypothèses combinées et décroît quand <code>θ</code> augmente. Or AdaBoost continue d'élargir les marges même après l'erreur d'entraînement nulle&nbsp;: il ne se contente pas de classer correctement, il classe avec une confiance croissante, et c'est cette amélioration des marges, et non la complexité, qui gouverne la généralisation.</p>",
+      "claims": [
+        "claim:17",
+        "claim:18",
+        "claim:19",
+        "claim:20"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-borne-breiman-force-correlation"
+    },
+    {
+      "type": "section",
+      "id": "variantes-gbdt-modernes",
+      "heading": "Variantes modernes du gradient boosting : LightGBM, CatBoost, HistGradientBoosting",
+      "level": 3,
+      "prose": "<p>Après XGBoost, l'enjeu cesse d'être la formulation de l'objectif — déjà régularisé et approché au second ordre — pour devenir la vitesse de recherche des coupures. La réponse commune des variantes modernes tient en un mot : l'histogramme. Plutôt que de trier les valeurs continues à chaque nœud, on les discrétise une fois pour toutes en un nombre fixe de paniers (bins), puis on cherche le meilleur split en parcourant ces paniers. Le coût du split passe de l'ordre du nombre d'exemples à celui du nombre de paniers, et la mémoire s'effondre.</p><p>LightGBM (Ke et al., NeurIPS 2017) pousse cette idée plus loin avec deux techniques propres. GOSS (Gradient-based One-Side Sampling) part du constat que les exemples à fort gradient — mal ajustés — pèsent davantage dans l'estimation du gain d'information : on les conserve tous et l'on sous-échantillonne ceux à faible gradient, en réintroduisant un facteur multiplicatif pour ne pas biaiser la distribution. EFB (Exclusive Feature Bundling) regroupe les variables mutuellement exclusives — celles qui sont rarement non nulles en même temps, typiques des colonnes issues d'un encodage one-hot — en un seul faisceau, réduisant la dimension effective sans perte notable. À cela s'ajoute une croissance des arbres leaf-wise (on développe la feuille au meilleur gain, ce qui produit des arbres déséquilibrés mais plus précis à nombre de feuilles égal) plutôt que niveau par niveau. Le papier revendique une accélération de l'entraînement du GBDT classique jusqu'à plus de vingt fois, à précision quasi identique.</p><p>CatBoost (Prokhorenkova et al., NeurIPS 2018) attaque un défaut plus subtil : le prediction shift. Lorsqu'on encode une variable catégorielle par une statistique de la cible, ou que l'on estime les résidus à chaque étape, l'exemple courant contribue à sa propre cible — une forme de fuite (target leakage) qui flatte l'entraînement et dégrade la généralisation. La parade est l'ordered boosting, procédure pilotée par permutation où la prédiction d'un exemple n'est construite qu'à partir des exemples qui le précèdent dans un ordre tiré au hasard, jamais de lui-même. Le même principe d'« historique » régit le traitement natif des variables catégorielles, qui dispense de l'encodage one-hot. Les auteurs présentent ce prediction shift comme un biais présent dans toutes les implémentations de gradient boosting existantes — affirmation forte, à prendre comme le cadrage d'une partie intéressée plutôt que comme un théorème.</p><p>Côté scikit-learn, HistGradientBoosting transpose explicitement l'approche de LightGBM : binning des variables (max_bins par défaut à 255, calculé une seule fois), support natif des valeurs manquantes et des variables catégorielles. Le gain est net dès que la taille des données croît — des ordres de grandeur plus rapide que l'historique GradientBoosting au-delà de quelques dizaines de milliers d'exemples — et l'early-stopping s'active par défaut au-delà de 10 000 échantillons. Aucune de ces trois bibliothèques ne domine universellement : LightGBM brille sur les très grands volumes, CatBoost sur les jeux à forte composante catégorielle, HistGradientBoosting par son intégration sans dépendance externe. Au-dessus de ces apprenants individuels, le stacking (Wolpert, 1992) offre une méta-combinaison : les prédictions out-of-fold de plusieurs modèles de niveau 0 deviennent les variables d'entrée d'un méta-modèle de niveau 1, entraîné à les pondérer au mieux — une façon de marier des biais inductifs hétérogènes sans choisir a priori lequel l'emporte.</p>",
+      "claims": [
+        "claim:21",
+        "claim:22",
+        "claim:23",
+        "claim:24"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "importance-variables",
+      "heading": "Importance des variables : un piège méthodologique",
+      "level": 3,
+      "prose": "<p>Une fois la forêt entraînée, la tentation est grande de lire son attribut <code>feature_importances_</code> comme un verdict sur ce qui « compte vraiment ». C'est le piège. Cette mesure, dite <em>MDI</em> (mean decrease in impurity, ou importance de Gini), comptabilise pour chaque variable la réduction d'impureté qu'elle apporte aux nœuds où elle est choisie. Or le mécanisme même de construction des arbres la biaise : une variable continue ou à forte cardinalité offre une multitude de points de coupe candidats, elle est donc testée plus souvent et finit par accumuler de l'importance par pur hasard. Strobl et ses coauteurs l'ont documenté dès 2007 : ces mesures « ne sont pas fiables lorsque les variables prédictives diffèrent par leur échelle de mesure ou leur nombre de catégories », l'importance de Gini étant la plus fortement affectée. Ce n'est pas un bug d'implémentation, mais un choix d'algorithme inadapté à beaucoup de jeux de données.</p><p>La démonstration la plus parlante est celle d'explained.ai : on ajoute à des données immobilières une colonne strictement aléatoire, sans aucun lien avec la cible. L'importance MDI par défaut la classe alors <em>devant</em> le nombre de chambres — la forêt « pense » qu'une colonne de bruit est plus prédictive qu'une variable manifestement pertinente. L'importance par permutation, elle, la renvoie sans peine en dernière position. Le bruit avait été promu au rang de signal par le seul jeu de ses nombreux points de coupe.</p><p>Les variables corrélées tendent un second piège, plus subtil, car les méthodes correctives elles-mêmes y répondent de façon divergente. En dupliquant la colonne de longitude, l'importance par permutation répartit le crédit à parts à peu près égales entre les deux copies (≈ 50/50), sous-estimant chacune prise isolément ; la <em>drop-column</em> (réentraînement sans la variable) attribue au contraire une importance quasi nulle aux deux, puisque retirer une copie ne dégrade rien tant que l'autre subsiste. Aucune des deux ne ment, mais aucune ne se lit naïvement : interpréter une importance sans connaître la structure de corrélation des variables conduit à des conclusions fausses.</p><p>Les alternatives à privilégier sont donc l'importance par permutation — on mélange une variable et on mesure la chute de performance — et la drop-column, plus exacte mais nettement plus coûteuse car elle exige un réentraînement par variable. Pour les prédicteurs corrélés, Strobl et al. (2008) proposent une importance par <em>permutation conditionnelle</em>, implémentée dans les forêts d'inférence conditionnelle (<code>cforest</code>, package R <code>party</code>) : en permutant les variables à l'intérieur de groupes définis par la structure de corrélation plutôt que de façon marginale, elle teste l'indépendance conditionnelle et corrige la surestimation des prédicteurs corrélés que la permutation standard laisse passer.</p>",
+      "claims": [
+        "claim:25",
+        "claim:26",
+        "claim:27",
+        "claim:28"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-mdi-vs-permutation"
+    },
+    {
+      "type": "section",
+      "id": "applications-tabulaire",
+      "heading": "Applications : domination sur le tabulaire et compétitions",
+      "level": 3,
+      "prose": "<p>C'est sur les données tabulaires que les ensembles d'arbres ont imposé leur hégémonie, et nulle part plus visiblement que dans les compétitions. Le bilan dressé par les auteurs de XGBoost est éloquent : parmi les 29 solutions gagnantes publiées sur le blog de Kaggle au cours de l'année 2015, 17 reposaient sur XGBoost, dont huit l'employaient seul, les autres le combinant le plus souvent à des réseaux de neurones au sein d'ensembles. Au KDDCup 2015, les dix premières équipes du classement utilisaient toutes XGBoost, et celles-ci rapportaient que leurs ensembles ne devançaient qu'à la marge un XGBoost bien réglé. La même méthode s'est illustrée au Higgs Boson Machine Learning Challenge : la solution à arbres de gradient de Chen et He atteignit une AMS (Approximate Median Significance) de 3,71885 sur le classement privé, plaçant leur modèle dans les 2 % de tête parmi 1 785 équipes — sur une tâche motivée par l'échelle du LHC, qui produit chaque année environ un milliard d'événements et trois pétaoctets de données brutes pour y traquer un signal de Higgs noyé dans le bruit de fond.</p><p>Au-delà des compétitions, ces gains se sont transposés à des problèmes industriels concrets. Les solutions gagnantes recensées par les auteurs de XGBoost couvrent la prédiction des ventes en magasin, la classification d'événements de physique des hautes énergies, le classement de texte web, la prédiction du comportement client, la détection de mouvement, l'estimation du taux de clic publicitaire (CTR), la classification de logiciels malveillants, la catégorisation de produits, la prédiction de risques d'assurance et l'analyse de l'abandon dans les cours en ligne massifs. La détection de fraude et le scoring de risque relèvent du même registre : données hétérogènes, mélangées numériques et catégorielles, signaux non lissés — terrain naturel des arbres.</p><p>Cette domination empirique a reçu une explication systématique. Le benchmark de Grinsztajn, Oyallon et Varoquaux (NeurIPS 2022), construit sur un jeu standardisé de 45 jeux de données, montre que les modèles à base d'arbres restent l'état de l'art sur le tabulaire de taille moyenne (≈ 10 000 échantillons), même sans tenir compte de leur vitesse supérieure. Les auteurs attribuent cet avantage à trois biais inductifs : les arbres résistent mieux aux variables non informatives, ils préservent l'orientation des données (là où les réseaux sont sensibles aux rotations), et ils apprennent plus aisément les fonctions irrégulières, alors que les réseaux de neurones sont biaisés vers les fonctions lisses. Ces propriétés structurelles, et non un simple défaut de réglage, expliquent pourquoi le deep learning peine sur ce type de données.</p><p>Le statu quo n'est pas figé pour autant. TabPFN (Hollmann et al., <i>Nature</i>, janvier 2025), un modèle de fondation tabulaire fondé sur un transformeur et le paradigme des <i>prior-data fitted networks</i> — entraîné en amont sur une centaine de millions de jeux de données synthétiques —, prédit en une seule passe avant et dépasse XGBoost, CatBoost, LightGBM et les forêts aléatoires sur les jeux jusqu'à 10 000 échantillons et 500 variables. Le défi qu'il pose porte précisément sur le segment où les arbres régnaient — le petit et moyen tabulaire — sans pour l'heure couvrir les grandes tables. Le compromis biais-variance et l'agrégation d'apprenants faibles demeurent donc des outils centraux, mais leur monopole sur le tabulaire commence à être contesté.</p>",
+      "claims": [
+        "claim:29",
+        "claim:30",
+        "claim:31",
+        "claim:32"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "idees-recues",
+      "heading": "Idées reçues à corriger",
+      "level": 3,
+      "prose": "<p>La première confusion porte sur le rôle du nombre d'arbres. On l'imagine souvent comme un curseur de régularisation à régler par validation croisée, au même titre que la profondeur ou le nombre de variables tirées par nœud (<em>mtry</em>). C'est faux. Breiman démontre que l'erreur de généralisation d'une forêt converge presque sûrement vers une limite quand le nombre d'arbres croît : ajouter des arbres ne provoque jamais de surapprentissage, mais ne fait que stabiliser la prédiction en éteignant la variance d'échantillonnage de l'ensemble. Ce paramètre n'agit pas sur le biais de la forêt : passé le plateau de convergence, en empiler davantage ne change plus rien à la qualité du modèle, seulement à son coût. Le nombre d'arbres est un paramètre de stabilisation, pas un levier de régularisation.</p><p>Deuxième idée reçue, plus subtile : « plus les arbres sont divers, mieux c'est ». La borne de Breiman sur l'erreur fait intervenir deux quantités antagonistes — la force individuelle des arbres <em>s</em> et leur corrélation moyenne <em>ρ̄</em> — et se lit, schématiquement, comme proportionnelle à <em>ρ̄</em>(1−<em>s²</em>)/<em>s²</em>. Réduire la corrélation améliore la borne, mais chercher la diversité en dégradant volontairement les arbres fait chuter <em>s²</em> au dénominateur et peut empirer le résultat. La diversité n'est donc pas gratuite : elle se paie en force individuelle, et le bon réglage est un compromis, non une course à la décorrélation.</p><p>On entend aussi que « le random forest ne réduit que la variance ». La randomisation par tirage de variables est pourtant capable de réduire <em>aussi</em> le biais. Liu et Mazumder (2024) montrent que le sous-échantillonnage de variables à chaque nœud permet de capter des « motifs cachés » que les arbres baggés manquent à cause de leur découpage glouton et myope ; sur ces jeux de données, baisser <em>mtry</em> réduit simultanément biais et variance, et les forêts surclassent d'autant plus le bagging que le rapport signal/bruit est élevé — l'inverse de l'intuition courante. Le titre de leur article résume le renversement : <em>Randomization Can Reduce Both Bias and Variance</em>. Le caveat tient : le mécanisme suppose des motifs dominés par le signal, et à faible SNR le bruit les masque.</p><p>Un piège pratique guette ensuite l'interprétation des modèles : l'importance des variables par défaut de scikit-learn (la <em>mean decrease in impurity</em>, ou importance de Gini) est biaisée en faveur des variables continues et à forte cardinalité. Ce n'est pas un bug mais une conséquence de l'algorithme : ces variables offrent plus de points de coupe possibles, sont testées plus souvent et accumulent de l'importance par pur hasard. La démonstration est frappante — ajouter une colonne purement aléatoire à un jeu de données peut la faire classer plus importante qu'une vraie variable. L'importance par permutation ou la drop-column corrigent ce défaut, mais introduisent leur propre piège sur les variables corrélées, où l'importance se trouve diluée entre copies.</p><p>Côté boosting, la croyance que « le boosting est toujours robuste » mérite d'être nuancée. AdaBoost, avec sa perte exponentielle, inflige des pénalités non bornées aux exemples mal classés : sur des données bruitées, il concentre des poids croissants sur les instances mal étiquetées et finit par mémoriser le bruit, ce qui dégrade la généralisation. Le gradient boosting régularisé et XGBoost atténuent ce travers, mais la robustesse du boosting n'est pas un acquis universel — elle dépend de la perte et de la régularisation.</p><p>Enfin, le mythe selon lequel « le deep learning a dépassé les arbres partout ». Sur le tabulaire de taille moyenne, ce n'est pas le cas : Grinsztajn et al. (NeurIPS 2022), sur un benchmark de 45 jeux de données, montrent que les modèles à base d'arbres restent état de l'art même après réglage soigné des réseaux. Les raisons sont structurelles — les réseaux produisent des fonctions trop lisses pour les cibles irrégulières du tabulaire, tandis que les arbres résistent aux variables non informatives et tirent parti de l'absence d'invariance par rotation des données. L'adoption en compétition confirme cette domination : sur 29 solutions gagnantes publiées en 2015, 17 utilisaient XGBoost, contre 11 recourant aux réseaux de neurones profonds.</p>",
+      "claims": [
+        "claim:33",
+        "claim:34",
+        "claim:35",
+        "claim:36"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "ecosysteme",
+      "heading": "Écosystème & pour aller plus loin",
+      "level": 3,
+      "prose": "<p>L'ensemble learning s'est construit sur une poignée d'articles fondateurs qui restent les meilleures portes d'entrée. Le bagging et les forêts aléatoires viennent de Leo Breiman : « Bagging Predictors » (<em>Machine Learning</em>, 1996) pose l'idée d'agréger des prédicteurs entraînés sur des réplicats bootstrap, et identifie l'instabilité de l'apprenant de base comme la condition de son efficacité ; « Random Forests » (<em>Machine Learning</em>, 2001) y ajoute la randomisation du sous-ensemble de variables à chaque scission. Du côté du boosting, Freund &amp; Schapire formalisent AdaBoost dans « A Decision-Theoretic Generalization of On-Line Learning » (<em>JCSS</em>, 1997), Friedman généralise le procédé en descente de gradient fonctionnelle dans « Greedy Function Approximation » (<em>Annals of Statistics</em>, 2001), et Chen &amp; Guestrin décrivent l'ingénierie qui a popularisé le gradient boosting moderne dans « XGBoost: A Scalable Tree Boosting System » (KDD'16).</p><p>Côté outils, scikit-learn fournit le catalogue canonique des estimateurs ensemblistes — <code>BaggingClassifier/Regressor</code>, <code>RandomForest</code>, <code>ExtraTrees</code>, <code>AdaBoost</code>, <code>GradientBoosting</code>, <code>HistGradientBoosting</code>, ainsi que les méta-estimateurs <code>Voting</code> et <code>Stacking</code> — avec des défauts désormais bien établis : <code>n_estimators=100</code> pour les forêts depuis la version 0.22, <code>max_features=\"sqrt\"</code> en classification et <code>1.0</code> en régression. Sa variante histogramme (<code>HistGradientBoosting</code>) peut être plus rapide de plusieurs ordres de grandeur que l'implémentation exacte au-delà de quelques dizaines de milliers d'exemples. Pour le boosting de production, trois bibliothèques dédiées dominent : XGBoost (split finding conscient de la parcimonie, weighted quantile sketch), LightGBM de Microsoft (croissance leaf-wise, GOSS et EFB pour l'efficacité) et CatBoost de Yandex (ordered boosting et encodage ordonné des variables catégorielles contre le prediction shift).</p><p>Pour aller au-delà de la pratique, deux résultats théoriques éclairent le compromis biais-variance. Bühlmann &amp; Yu, « Analyzing bagging » (<em>Annals of Statistics</em>, 2002), formalisent comment le bagging lisse les décisions « dures » d'un arbre et réduit ainsi sa variance, et motivent le subagging par sous-échantillonnage. Schapire, Freund, Bartlett &amp; Lee, « Boosting the Margin » (<em>Annals of Statistics</em>, 1998), expliquent par la distribution des marges pourquoi le boosting continue souvent de généraliser sans sur-apprendre quand on ajoute des apprenants. Enfin, sur la question récurrente du choix de famille sur données tabulaires, le benchmark de Grinsztajn, Oyallon &amp; Varoquaux (NeurIPS 2022, 45 jeux de données) confirme que les modèles à base d'arbres — XGBoost comme forêts aléatoires — restent état de l'art sur les jeux de taille moyenne, le deep learning peinant à exploiter des variables hétérogènes.</p>",
+      "claims": [
+        "claim:37",
+        "claim:38",
+        "claim:39",
+        "claim:40"
+      ]
+    },
+    {
+      "type": "exercise",
+      "part": "1 — Bagging, forêts et OOB",
+      "question": "<p>On entraîne une forêt aléatoire et l'on observe que l'erreur de test cesse de baisser au-delà de 300 arbres. Un collègue propose de <em>réduire</em> le nombre d'arbres à 100 «&nbsp;pour éviter le surapprentissage&nbsp;». (a) Pourquoi ce raisonnement est-il erroné&nbsp;? (b) À quoi sert vraiment le nombre d'arbres&nbsp;? (c) Quelle est la deuxième source d'aléa, propre aux forêts, et que vise-t-elle&nbsp;?</p>",
+      "answer": "<p>(a) Le Théorème&nbsp;1.2 de Breiman montre que l'erreur de généralisation d'une forêt converge presque sûrement vers une limite lorsque le nombre d'arbres croît&nbsp;: en ajouter ne provoque <em>jamais</em> de surapprentissage, le plateau observé étant simplement la convergence. (b) C'est un paramètre de <strong>stabilisation</strong> (il éteint la variance d'échantillonnage de l'ensemble), pas un levier de régularisation&nbsp;: il n'agit pas sur le biais de la forêt, et passé le plateau, davantage d'arbres ne change que le coût. (c) Le tirage aléatoire d'un sous-ensemble de <code>m</code> variables à chaque nœud (<code>max_features</code>) décorrèle les arbres&nbsp;; via la borne <code>PE* ≤ ρ̄(1−s²)/s²</code>, baisser la corrélation moyenne <code>ρ̄</code> abaisse l'erreur — à condition de ne pas trop sacrifier la force <code>s</code>.</p>"
+    },
+    {
+      "type": "exercise",
+      "part": "2 — Boosting, biais-variance et piliers d'interprétation",
+      "question": "<p>Vrai ou faux, en justifiant&nbsp;: (a) «&nbsp;Le bagging ne touche que la variance, le boosting que le biais.&nbsp;» (b) «&nbsp;On peut empiler autant d'arbres de gradient boosting qu'on veut, comme pour une forêt.&nbsp;» (c) «&nbsp;L'attribut <code>feature_importances_</code> de scikit-learn classe fidèlement les variables par importance.&nbsp;»</p>",
+      "answer": "<p>(a) <strong>Faux (simplification)</strong>&nbsp;: le bagging vise surtout la variance mais <em>augmente légèrement</em> le biais (l'estimateur baggé ajoute l'estimation bootstrap du biais), et le boosting vise surtout le biais mais réduit aussi la variance via shrinkage et régularisation. Aucune méthode n'agit sur un seul terme. (b) <strong>Faux</strong>&nbsp;: contrairement aux forêts dont l'erreur converge, le gradient boosting <em>peut surapprendre</em> en empilant trop d'arbres, d'où la nécessité de shrinkage (ν&nbsp;&lt;&nbsp;0,1), de sous-échantillonnage et d'arrêt précoce. (c) <strong>Faux</strong>&nbsp;: la mesure MDI (importance de Gini) est structurellement biaisée en faveur des variables continues ou à forte cardinalité — au point de classer une colonne purement aléatoire devant une vraie variable. Préférer l'importance par permutation ou la drop-column, en restant prudent sur les variables corrélées.</p>"
+    },
+    {
+      "type": "biblio",
+      "entries": [
+        {
+          "label": "Leo Breiman, \"Bagging Predictors\", Machine Learning, 24, 123–140 (1996) — full text (KEEL-hosted)",
+          "href": "https://sci2s.ugr.es/keel/pdf/algorithm/articulo/1996-ML-Breiman-Bagging%20Predictors.pdf"
+        },
+        {
+          "label": "Leo Breiman - Bagging Predictors (1996) — third-party notes (tomrochette.com)",
+          "href": "https://www.tomrochette.com/machine-learning/papers/leo-breiman-bagging-predictors"
+        },
+        {
+          "label": "Bootstrap aggregating — Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/Bootstrap_aggregating"
+        },
+        {
+          "label": "Chapter 10 Bagging — Hands-On Machine Learning with R (Boehmke & Greenwell)",
+          "href": "https://bradleyboehmke.github.io/HOML/bagging.html"
+        },
+        {
+          "label": "11.11 - Bagging | STAT 897D — Penn State Statistics Online",
+          "href": "https://online.stat.psu.edu/stat857/node/180/"
+        },
+        {
+          "label": "Peter Bühlmann — Bagging, Boosting and Ensemble Methods (ETH Zürich, handbook chapter)",
+          "href": "https://stat.ethz.ch/Manuscripts/buhlmann/handbook-cs-rev2010.pdf"
+        },
+        {
+          "label": "T.T. Vu & U.M. Braga-Neto — Is Bagging Effective in the Classification of Small-Sample Genomic and Proteomic Data? (PMC3171418)",
+          "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3171418/"
+        },
+        {
+          "label": "Breiman, L. (1994). Bagging Predictors. Technical Report No. 421, Dept. of Statistics, UC Berkeley (version anterieure, chiffres differents : 20%-47% et 22%-46%)",
+          "href": "https://www.stat.berkeley.edu/~breiman/bagging.pdf"
+        },
+        {
+          "label": "Single estimator versus bagging: bias-variance decomposition — scikit-learn",
+          "href": "https://scikit-learn.org/stable/auto_examples/ensemble/plot_bias_variance.html"
+        },
+        {
+          "label": "Leo Breiman — Using Adaptive Bagging to Debias Regressions (Technical Report 547, UC Berkeley, 1999)",
+          "href": "https://www.stat.berkeley.edu/users/breiman/adaptbag99.pdf"
+        },
+        {
+          "label": "Randomization Can Reduce Both Bias and Variance: A Case Study in Random Forests (arXiv:2402.12668)",
+          "href": "https://arxiv.org/html/2402.12668v1"
+        },
+        {
+          "label": "scikit-learn — Ensemble methods (Forests of randomized trees)",
+          "href": "https://scikit-learn.org/stable/modules/ensemble.html"
+        },
+        {
+          "label": "Leo Breiman — Random Forests (Berkeley), description of the algorithm",
+          "href": "https://www.stat.berkeley.edu/~breiman/RandomForests/cc_home.htm"
+        },
+        {
+          "label": "Random forest — Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/Random_forest"
+        },
+        {
+          "label": "Random forests — Google Machine Learning, Decision Forests course",
+          "href": "https://developers.google.com/machine-learning/decision-forests/random-forests"
+        },
+        {
+          "label": "Janitza & Hornung, On the overestimation of random forest's out-of-bag error, PLoS One 2018",
+          "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6078316/"
+        },
+        {
+          "label": "Rick Wicklin — The average bootstrap sample omits 36.8% of the data (SAS / The DO Loop)",
+          "href": "https://blogs.sas.com/content/iml/2017/06/28/average-bootstrap-sample-omits-data.html"
+        },
+        {
+          "label": "Random Forests — Leo Breiman, Machine Learning 45 (2001), Theorem 2.3 (primary source)",
+          "href": "https://www.stat.berkeley.edu/~breiman/randomforest2001.pdf"
+        },
+        {
+          "label": "On PAC-Bayesian Bounds for Random Forests — Lorenzen, Igel, Seldin, Machine Learning 2019 (arXiv:1810.09746)",
+          "href": "https://arxiv.org/pdf/1810.09746"
+        },
+        {
+          "label": "Notes on Decision Tree Learning #2: Random Forest (independent lecture/blog notes restating PE* ≤ ρ(1−s²)/s²)",
+          "href": "https://surfertas.github.io/machinelearning/2018/03/23/dt-2.html"
+        },
+        {
+          "label": "Barreñada et al., Understanding overfitting in random forest for probability estimation: a visualization and simulation study, Diagnostic and Prognostic Research (2024)",
+          "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11437774/"
+        },
+        {
+          "label": "Random Forests (chapter 11), Hands-On Machine Learning with R — Boehmke & Greenwell",
+          "href": "https://bradleyboehmke.github.io/HOML/random-forest.html"
+        },
+        {
+          "label": "Can Random Forests Overfit? — Alex Molas",
+          "href": "https://medium.com/@alexmolasmartin/can-random-forests-overfit-a743755251b4"
+        },
+        {
+          "label": "Machine Learning Benchmarks and Random Forest Regression — Segal (2004), UCSF",
+          "href": "https://escholarship.org/uc/item/35x3v9t4"
+        },
+        {
+          "label": "Freund & Schapire (1997), A Decision-Theoretic Generalization of On-Line Learning and an Application to Boosting — AdaBoost algorithm box (Step 4: beta_t = eps_t/(1-eps_t); Step 5 weight update with exponent l_t^i = 1 - |h_t(x_i) - y_i|; pp. on 'update rule reduces the probability ... on which the hypothesis makes a good prediction and increases the probability ... on which the prediction is poor')",
+          "href": "https://www.face-rec.org/algorithms/Boosting-Ensemble/decision-theoretic_generalization.pdf"
+        },
+        {
+          "label": "Viola & Jones (2001/IJCV), Robust Real-time Object Detection — Table 1 AdaBoost box (Step 4 'Update the weights: w_{t+1,i} = w_{t,i} beta_t^{1-e_i}', e_i=0 if example classified correctly, beta_t = eps_t/(1-eps_t))",
+          "href": "https://www.cs.cmu.edu/~efros/courses/LBMV07/Papers/viola-IJCV-01.pdf"
+        },
+        {
+          "label": "Avrim Blum, Machine Learning lecture notes (AdaBoost), Carnegie Mellon University",
+          "href": "https://www.cs.cmu.edu/~avrim/ML06/lect0301.txt"
+        },
+        {
+          "label": "Machine Learning lecture: Ensembles / Boosting (AdaBoost), TU Dortmund",
+          "href": "https://dm.cs.tu-dortmund.de/mlbits/class-ensembles-boosting/"
+        },
+        {
+          "label": "Robert E. Schapire, Explaining AdaBoost — Fig. 1 (AdaBoost pseudocode)",
+          "href": "http://www.schapire.net/papers/explaining-adaboost.pdf"
+        },
+        {
+          "label": "Avrim Blum, 15-859(B) Machine Learning Theory, Lecture 02/05/14 (Boosting / AdaBoost notes), CMU",
+          "href": "https://www.cs.cmu.edu/~avrim/ML14/lect0205.txt"
+        },
+        {
+          "label": "Daniel Friedman, Machine Learning from Scratch — Boosting (AdaBoost) chapter",
+          "href": "https://dafriedman97.github.io/mlbook/content/c6/s1/boosting.html"
+        },
+        {
+          "label": "AdaBoost — Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/AdaBoost"
+        },
+        {
+          "label": "Lecture 13: Strong and Weak Learnability / AdaBoost (Nishant Mehta, University of Victoria, ML Theory Spring 2019)",
+          "href": "http://web.uvic.ca/~nmehta/ml_theory_spring2019/lecture13.pdf"
+        },
+        {
+          "label": "Boosting (machine learning) — Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/Boosting_(machine_learning)"
+        },
+        {
+          "label": "Lecture 17/18: Intro to Boosting & AdaBoost (Cornell CS6781, 2020)",
+          "href": "https://www.cs.cornell.edu/courses/cs6781/2020sp/lectures/18-adaboost.pdf"
+        },
+        {
+          "label": "Yoav Freund, Robert E. Schapire — A Short Introduction to Boosting (Eq. 1)",
+          "href": "https://cseweb.ucsd.edu/~yfreund/papers/IntroToBoosting.pdf"
+        },
+        {
+          "label": "Jeremy Kun — Weak Learning, Boosting, and the AdaBoost algorithm (training error <= e^{-2 sum eta_t^2}, simplifies to e^{-2 T eta^2}, stated as an inequality)",
+          "href": "https://www.jeremykun.com/2015/05/18/boosting-census/"
+        },
+        {
+          "label": "Friedman, J.H. (2001). Greedy function approximation: A gradient boosting machine. Annals of Statistics, 29(5), 1189-1232",
+          "href": "https://projecteuclid.org/journals/annals-of-statistics/volume-29/issue-5/Greedy-function-approximation-A-gradient-boosting-machine/10.1214/aos/1013203451.full"
+        },
+        {
+          "label": "Gradient boosting — Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/Gradient_boosting"
+        },
+        {
+          "label": "Gradient boosting performs gradient descent (Parr & Howard), explained.ai",
+          "href": "https://explained.ai/gradient-boosting/descent.html"
+        },
+        {
+          "label": "Mason, Baxter, Bartlett & Frean — Boosting Algorithms as Gradient Descent (NeurIPS 1999)",
+          "href": "https://proceedings.neurips.cc/paper/1999/hash/96a93ba89a5b5c6c226e49b88973f46e-Abstract.html"
+        },
+        {
+          "label": "David S. Rosenberg (Bloomberg ML EDU) — Gradient Boosting lecture notes",
+          "href": "https://davidrosenberg.github.io/mlcourse/Archive/2017Fall/Lectures/11a.gradient-boosting.pdf"
+        },
+        {
+          "label": "Chen & Guestrin (2016), XGBoost: A Scalable Tree Boosting System (arXiv:1603.02754, PDF)",
+          "href": "https://arxiv.org/pdf/1603.02754"
+        },
+        {
+          "label": "XGBoost official docs — Introduction to Boosted Trees (Model)",
+          "href": "https://xgboost.readthedocs.io/en/stable/tutorials/model.html"
+        },
+        {
+          "label": "XGBoost — Wikipedia (Newton–Raphson in function space vs gradient descent)",
+          "href": "https://en.wikipedia.org/wiki/XGBoost"
+        },
+        {
+          "label": "Sigrist (2021), Gradient and Newton Boosting for Classification and Regression (arXiv:1808.03064)",
+          "href": "https://arxiv.org/abs/1808.03064"
+        },
+        {
+          "label": "XGBoost Regularized Learning Objective — ApX Machine Learning",
+          "href": "https://apxml.com/courses/mastering-gradient-boosting-algorithms/chapter-4-xgboost-extreme-gradient-boosting/xgboost-regularized-objective"
+        },
+        {
+          "label": "XGBoost Explained — Random Realizations (Matt Bowers)",
+          "href": "https://randomrealizations.com/posts/xgboost-explained/"
+        },
+        {
+          "label": "Chen & Guestrin, XGBoost: A Scalable Tree Boosting System (arXiv:1603.02754), Eq. 7",
+          "href": "https://arxiv.org/abs/1603.02754"
+        },
+        {
+          "label": "XGBoost — GeeksforGeeks",
+          "href": "https://www.geeksforgeeks.org/machine-learning/xgboost/"
+        },
+        {
+          "label": "Split Finding Algorithm: Exact Greedy — APXML (Mastering Gradient Boosting course)",
+          "href": "https://apxml.com/courses/mastering-gradient-boosting-algorithms/chapter-4-xgboost-extreme-gradient-boosting/xgboost-split-finding-exact"
+        },
+        {
+          "label": "Overfitting, regularization, and early stopping — Google for Developers (Decision Forests course)",
+          "href": "https://developers.google.com/machine-learning/decision-forests/overfitting-gbdt"
+        },
+        {
+          "label": "Overfitting Challenges in Boosting — ApXML, Mastering Gradient Boosting Algorithms course",
+          "href": "https://apxml.com/courses/mastering-gradient-boosting-algorithms/chapter-3-regularization-gradient-boosting/overfitting-challenges-boosting"
+        },
+        {
+          "label": "Simon Bernard — Random Forests: Parametrization and Dynamic Induction (course slides, Univ. Rouen)",
+          "href": "https://www.inf.ufpr.br/lesoliveira/sticamsud/fr14-simon.pdf"
+        },
+        {
+          "label": "Zilong Zhang — Random Forest (study notes)",
+          "href": "https://zlthinker.github.io/random-forest"
+        },
+        {
+          "label": "Leo Breiman, Random Forests, Machine Learning 45(1):5-32, 2001 (mirror, University of Chicago) — Théorème 2.3, Définitions 2.1-2.4",
+          "href": "https://mfm.uchicago.edu/wp-content/uploads/2020/06/Breiman-Random-Forests.pdf"
+        },
+        {
+          "label": "Leo Breiman, Random Forests, Machine Learning 45(1):5-32, 2001 (mirror, Chennai Mathematical Institute) — Théorème 2.3, Définitions 2.1-2.4",
+          "href": "https://www.cmi.ac.in/~madhavan/courses/dmml2025/literature/Breiman_RandomForests_ML_2001.pdf"
+        },
+        {
+          "label": "Schapire, Freund, Bartlett & Lee (1998), Boosting the Margin: A New Explanation for the Effectiveness of Voting Methods (Annals of Statistics 26(5))",
+          "href": "https://cseweb.ucsd.edu/~yfreund/papers/BoostingtheMargin.pdf"
+        },
+        {
+          "label": "Gao & Zhou (2010), On the Doubt about Margin Explanation of Boosting (arXiv:1009.3613)",
+          "href": "https://arxiv.org/abs/1009.3613"
+        },
+        {
+          "label": "Gronlund, Kamma, Larsen, Mathiasen & Nelson (2019, NeurIPS), Margin-Based Generalization Lower Bounds for Boosted Classifiers (arXiv:1909.12518)",
+          "href": "https://arxiv.org/abs/1909.12518"
+        },
+        {
+          "label": "Jeremy Kun (2015), The Boosting Margin, or Why Boosting Doesn't Overfit",
+          "href": "https://www.jeremykun.com/2015/09/21/the-boosting-margin-or-why-boosting-doesnt-overfit/"
+        },
+        {
+          "label": "Bühlmann & Yu, « Analyzing Bagging », Annals of Statistics (2002)",
+          "href": "https://projecteuclid.org/euclid.aos/1031689014"
+        },
+        {
+          "label": "Thomas G. Dietterich — Bias-Variance Theory (CS534 lecture slides, Oregon State University)",
+          "href": "https://web.engr.oregonstate.edu/~tgd/classes/534/slides/part9.pdf"
+        },
+        {
+          "label": "scikit-learn — Early stopping in Gradient Boosting",
+          "href": "https://scikit-learn.org/stable/auto_examples/ensemble/plot_gradient_boosting_early_stopping.html"
+        },
+        {
+          "label": "LightGBM: A Highly Efficient Gradient Boosting Decision Tree (NeurIPS 2017 proceedings PDF)",
+          "href": "https://proceedings.neurips.cc/paper/2017/file/6449f44a102fde848669bdd9eb6b76fa-Paper.pdf"
+        },
+        {
+          "label": "LightGBM: A Highly Efficient Gradient Boosting Decision Tree (NIPS/NeurIPS 2017 landing page, paper 6907)",
+          "href": "https://papers.nips.cc/paper/6907-lightgbm-a-highly-efficient-gradient-boosting-decision-tree"
+        },
+        {
+          "label": "LightGBM: A Highly Efficient Gradient Boosting Decision Tree — Microsoft Research publication page",
+          "href": "https://www.microsoft.com/en-us/research/publication/lightgbm-a-highly-efficient-gradient-boosting-decision-tree/"
+        },
+        {
+          "label": "LightGBM - Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/LightGBM"
+        },
+        {
+          "label": "How LightGBM works - ArcGIS Pro / Esri documentation",
+          "href": "https://doc.esri.com/en/arcgis-pro/latest/tool-reference/geoai/how-lightgbm-works.html"
+        },
+        {
+          "label": "LightGBM Boosting Algorithms - GeeksforGeeks",
+          "href": "https://www.geeksforgeeks.org/machine-learning/lightgbm-boosting-algorithms/"
+        },
+        {
+          "label": "CatBoost: unbiased boosting with categorical features — NeurIPS 2018 Proceedings",
+          "href": "https://proceedings.neurips.cc/paper/2018/hash/14491b756b3a51daac41c24863285549-Abstract.html"
+        },
+        {
+          "label": "CatBoost: unbiased boosting with categorical features (arXiv:1706.09516, full PDF)",
+          "href": "https://arxiv.org/pdf/1706.09516"
+        },
+        {
+          "label": "DBLP record: Prokhorenkova et al., CatBoost, NeurIPS 2018",
+          "href": "https://dblp.org/rec/conf/nips/ProkhorenkovaGV18"
+        },
+        {
+          "label": "Addressing Prediction Shift: Ordered Boosting — APXML (Mastering Gradient Boosting Algorithms)",
+          "href": "https://apxml.com/courses/mastering-gradient-boosting-algorithms/chapter-6-catboost-gradient-boosting/catboost-ordered-boosting"
+        },
+        {
+          "label": "HistGradientBoostingClassifier — scikit-learn API reference",
+          "href": "https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.HistGradientBoostingClassifier.html"
+        },
+        {
+          "label": "Histogram-Based Gradient Boosting Ensembles in Python — MachineLearningMastery",
+          "href": "https://machinelearningmastery.com/histogram-based-gradient-boosting-ensembles/"
+        },
+        {
+          "label": "Gradient Boosting Variants - Sklearn vs. XGBoost vs. LightGBM vs. CatBoost (datamapu.com)",
+          "href": "https://datamapu.com/posts/classical_ml/gradient_boosting_variants/"
+        },
+        {
+          "label": "CatBoost: unbiased boosting with categorical features (arXiv:1706.09516, PDF)",
+          "href": "https://arxiv.org/abs/1706.09516"
+        },
+        {
+          "label": "CatBoost: unbiased boosting with categorical features (NeurIPS 2018 proceedings)",
+          "href": "https://papers.nips.cc/paper/7898-catboost-unbiased-boosting-with-categorical-features"
+        },
+        {
+          "label": "Unbiased Gradient Boosting Decision Tree with Unbiased Feature Importance (Zhang, Zhang & Li, Tsinghua IIIS, arXiv:2305.10696)",
+          "href": "https://arxiv.org/abs/2305.10696"
+        },
+        {
+          "label": "NeurIPS 2018 official reviews of \"CatBoost: unbiased boosting with categorical features\"",
+          "href": "https://proceedings.neurips.cc/paper/2018/file/14491b756b3a51daac41c24863285549-Reviews.html"
+        },
+        {
+          "label": "Permutation Importance vs Random Forest Feature Importance (MDI) — scikit-learn official documentation",
+          "href": "https://scikit-learn.org/stable/auto_examples/inspection/plot_permutation_importance.html"
+        },
+        {
+          "label": "Strobl et al. (2007), Bias in random forest variable importance measures (BMC Bioinformatics, via PMC)",
+          "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC1796903/"
+        },
+        {
+          "label": "Parr et al., Beware Default Random Forest Importances (explained.ai)",
+          "href": "https://explained.ai/rf-importance/"
+        },
+        {
+          "label": "Li et al. (2019), A Debiased MDI Feature Importance Measure for Random Forests (arXiv)",
+          "href": "https://arxiv.org/abs/1906.10845"
+        },
+        {
+          "label": "scikit-learn — Permutation feature importance (states impurity-based importance is strongly biased and favors high-cardinality / numerical features)",
+          "href": "https://scikit-learn.org/stable/modules/permutation_importance.html"
+        },
+        {
+          "label": "Nembrini, Konig & Wright (2018), \"The revival of the Gini importance?\", Bioinformatics — impurity importance biased toward variables with many possible split points (high-cardinality categorical or continuous), as they more probably yield large impurity reduction by chance",
+          "href": "https://academic.oup.com/bioinformatics/article/34/21/3711/4994791"
+        },
+        {
+          "label": "The Quest for Blackbox Interpretability (Take 1, Random Forests and Feature Importances) — krbnite",
+          "href": "https://krbnite.github.io/The-Quest-for-Blackbox-Interpretability-Take-1/"
+        },
+        {
+          "label": "Leave One Feature Out (LOFO) Importance — Interpretable Machine Learning (Molnar)",
+          "href": "https://christophm.github.io/interpretable-ml-book/lofo.html"
+        },
+        {
+          "label": "Permutation Importance with Multicollinear or Correlated Features — scikit-learn",
+          "href": "https://scikit-learn.org/stable/auto_examples/inspection/plot_permutation_importance_multicollinear.html"
+        },
+        {
+          "label": "Permutation Feature Importance — Interpretable Machine Learning (Christoph Molnar)",
+          "href": "https://christophm.github.io/interpretable-ml-book/feature-importance.html"
+        },
+        {
+          "label": "Strobl et al. (2008), Conditional variable importance for random forests, BMC Bioinformatics 9:307",
+          "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC2491635/"
+        },
+        {
+          "label": "Hooker, Mentch, Zhou — Unrestricted Permutation forces Extrapolation: Variable Importance Requires at least One More Model (arXiv:1905.03151)",
+          "href": "https://ar5iv.labs.arxiv.org/html/1905.03151"
+        },
+        {
+          "label": "XGBoost: A Scalable Tree Boosting System (Chen & Guestrin, KDD 2016 official PDF)",
+          "href": "https://www.kdd.org/kdd2016/papers/files/rfp0697-chenAemb.pdf"
+        },
+        {
+          "label": "KDD Cup 2015 - 9th place solution (NCCU), independently documents XGBoost use by a top-10 team",
+          "href": "https://www.slideshare.net/slideshow/kdd-cup-2015-9th-solution/61534477"
+        },
+        {
+          "label": "dmlc/xgboost demo README — independent list of named 2015 Kaggle competition wins using XGBoost",
+          "href": "https://github.com/dmlc/xgboost/blob/master/demo/README.md"
+        },
+        {
+          "label": "KDD Cup 2015 - 9th solution (slides de l'equipe 9e, utilisant explicitement XGBoost)",
+          "href": "https://www.slideshare.net/changecandy/kdd-cup-2015-9th-solution"
+        },
+        {
+          "label": "Cowan, Germain, Guyon, Kégl, Rousseau — The Higgs Boson Machine Learning Challenge (official organizers' summary, JMLR W&CP vol. 42), Table 2 of the private leaderboard",
+          "href": "http://proceedings.mlr.press/v42/cowa14.pdf"
+        },
+        {
+          "label": "ATLAS Experiment at CERN — Machine Learning Wins the Higgs Challenge",
+          "href": "https://atlas.cern/updates/news/machine-learning-wins-higgs-challenge"
+        },
+        {
+          "label": "The Higgs Machine Learning Challenge — Adam-Bourdarios, Cowan, Germain-Renaud, Guyon, Kégl, Rousseau (challenge organizers), ATL-SOFT-PROC-2015-044, CERN Document Server",
+          "href": "https://cds.cern.ch/record/2016636/files/ATL-SOFT-PROC-2015-044.pdf"
+        },
+        {
+          "label": "Borisov et al., \"Deep Neural Networks and Tabular Data: A Survey\" (arXiv:2110.01889) — independent author group concluding gradient-boosted tree ensembles still mostly outperform deep learning on tabular data",
+          "href": "https://arxiv.org/abs/2110.01889"
+        },
+        {
+          "label": "Sagar Sapkota, \"Critical Analysis: Why do tree-based models still outperform deep learning on typical tabular data?\" — independent third-party analysis confirming the ~10K medium-data finding and the three inductive biases",
+          "href": "https://www.spktsagar.com/posts/2023/06/tree-better-than-deeplearning/"
+        },
+        {
+          "label": "Grinsztajn, Oyallon, Varoquaux — Why do tree-based models still outperform deep learning on tabular data? (arXiv:2207.08815)",
+          "href": "https://arxiv.org/abs/2207.08815"
+        },
+        {
+          "label": "McElfresh et al. — When Do Neural Nets Outperform Boosted Trees on Tabular Data? (TabZilla, NeurIPS 2023, independent 176-dataset benchmark corroborating the uninformative-features / irregularity findings)",
+          "href": "https://papers.neurips.cc/paper_files/paper/2022/file/0378c7692da36807bdec87ab043cdadc-Paper-Datasets_and_Benchmarks.pdf"
+        },
+        {
+          "label": "Hollmann et al. — Accurate predictions on small data with a tabular foundation model (TabPFN, Nature 2024) — contredit la lecture au présent : surpasse les arbres jusqu'à ~10K échantillons",
+          "href": "https://www.nature.com/articles/s41586-024-08328-6"
+        },
+        {
+          "label": "McElfresh et al. — When Do Neural Nets Outperform Boosted Trees on Tabular Data? (NeurIPS 2023)",
+          "href": "https://arxiv.org/abs/2305.02997"
+        },
+        {
+          "label": "Zaberg​ja et al. — Is Deep Learning finally better than Decision Trees on Tabular Data? (2024)",
+          "href": "https://arxiv.org/abs/2402.03970"
+        },
+        {
+          "label": "Probst & Boulesteix, To Tune or Not to Tune the Number of Trees in Random Forest (JMLR 18, 2017) — T should not be seen as a tuning parameter",
+          "href": "https://www.jmlr.org/papers/volume18/17-269/17-269.pdf"
+        },
+        {
+          "label": "Alex Molas, Can Random Forests overfit? (2022) — bias of the forest equals bias of a single tree; more trees reduce variance, not the train/test gap",
+          "href": "https://www.alexmolas.com/2022/12/26/random-forest-overfit.html"
+        },
+        {
+          "label": "Hastie, Tibshirani & Friedman, The Elements of Statistical Learning, ch. 15 (Random Forests) — variance reduction is \"the only hope of improvement\"",
+          "href": "https://hastie.su.domains/ElemStatLearn/"
+        },
+        {
+          "label": "Philippe Goulet Coulombe — \"The number of trees in Random Forest is not a tuning parameter\"",
+          "href": "https://philippegouletcoulombe.com/blog/the-number-of-trees-in-random-forest-is-not-a-tuning-parameter"
+        },
+        {
+          "label": "Gilles Louppe, Understanding Random Forests: From Theory to Practice (PhD thesis, arXiv:1407.7502)",
+          "href": "https://arxiv.org/abs/1407.7502"
+        },
+        {
+          "label": "Brian Liu, Rahul Mazumder — Randomization Can Reduce Both Bias and Variance: A Case Study in Random Forests (arXiv:2402.12668 / JMLR vol. 26, 2025) — SOURCE PRIMAIRE",
+          "href": "https://arxiv.org/abs/2402.12668"
+        },
+        {
+          "label": "When do Random Forests work? (arXiv:2504.12860) — papier indépendant qui rediscute et confirme le résultat biais/SNR élevé",
+          "href": "https://arxiv.org/html/2504.12860"
+        },
+        {
+          "label": "Randomization as Regularization: A Degrees of Freedom Explanation for Random Forest Success (Mentch & Zhou, JMLR 21, 2020)",
+          "href": "https://jmlr.org/papers/v21/19-905.html"
+        },
+        {
+          "label": "When do Random Forests work? (Revelas, Boldea & Werker, 2025)",
+          "href": "https://arxiv.org/abs/2504.12860"
+        },
+        {
+          "label": "Exogenous Randomness Empowering Random Forests (Mei, Fan & Lv, USC)",
+          "href": "https://arxiv.org/abs/2411.07554"
+        },
+        {
+          "label": "Tabular Data: Deep Learning is Not All You Need (Shwartz-Ziv & Armon, 2021/2022, Information Fusion)",
+          "href": "https://arxiv.org/abs/2106.03253"
+        },
+        {
+          "label": "TabPFN-2.5: Advancing the State of the Art in Tabular Foundation Models (arXiv 2511.08667, Nov 2025)",
+          "href": "https://arxiv.org/abs/2511.08667"
+        },
+        {
+          "label": "Is Deep Learning finally better than Decision Trees on Tabular Data? (arXiv 2402.03970)",
+          "href": "https://arxiv.org/html/2402.03970v2"
+        },
+        {
+          "label": "Crossref metadata — Bagging Predictors (DOI 10.1007/BF00058655): Leo Breiman, Machine Learning, vol. 24, pp. 123-140, 1996",
+          "href": "https://api.crossref.org/works/10.1007/BF00058655"
+        },
+        {
+          "label": "Crossref metadata — Random Forests (DOI 10.1023/A:1010933404324): Leo Breiman, Machine Learning, vol. 45, pp. 5-32, 2001",
+          "href": "https://api.crossref.org/works/10.1023/A:1010933404324"
+        },
+        {
+          "label": "DBLP bibliography — Breiman, Bagging Predictors / Random Forests, Mach. Learn. 1996 / 2001",
+          "href": "https://dblp.org/search/publ/api?q=Random+Forests+Breiman&format=json"
+        },
+        {
+          "label": "Semantic Scholar — Random Forests (Breiman), Machine Learning vol. 45, 2001",
+          "href": "https://www.semanticscholar.org/paper/Random-Forests-Breiman/8e0be569ea77b8cb29bb0e8b031887630fe7a96c"
+        },
+        {
+          "label": "Biau, Consistency of Random Forests and Other Averaging Classifiers, JMLR 9 (2008) — references: 'L. Breiman. Bagging predictors. Machine Learning, 24:123-140, 1996.' and 'L. Breiman. Random forests. Machine Learning, 45:5-32, 2001.'",
+          "href": "https://jmlr.org/papers/volume9/biau08a/biau08a.pdf"
+        },
+        {
+          "label": "dblp: XGBoost: A Scalable Tree Boosting System (KDD 2016, pp. 785-794)",
+          "href": "https://dblp.org/rec/conf/kdd/ChenG16.html"
+        },
+        {
+          "label": "XGBoost: A Scalable Tree Boosting System — official KDD 2016 program page (kdd.org)",
+          "href": "https://www.kdd.org/kdd2016/subtopic/view/xgboost-a-scalable-tree-boosting-system"
+        },
+        {
+          "label": "XGBoost Paper — summary (xgboosting.com, third-party educational site)",
+          "href": "https://xgboosting.com/xgboost-paper/"
+        },
+        {
+          "label": "Bühlmann & Yu, Analyzing bagging — Annals of Statistics (2002)",
+          "href": "https://projecteuclid.org/journals/annals-of-statistics/volume-30/issue-4/Analyzing-bagging/10.1214/aos/1031689014.full"
+        },
+        {
+          "label": "How to Decide Between Random Forests and Gradient Boosting — MachineLearningMastery",
+          "href": "https://machinelearningmastery.com/how-to-decide-between-random-forests-and-gradient-boosting/"
+        },
+        {
+          "label": "CatBoost paper at NeurIPS 2018 — Yandex Research blog",
+          "href": "https://research.yandex.com/blog/catboost-paper-at-neurips-2018"
+        },
+        {
+          "label": "CatBoost: unbiased boosting with categorical features — University of Waterloo statwiki summary",
+          "href": "https://wiki.math.uwaterloo.ca/statwiki/index.php?title=CatBoost:_unbiased_boosting_with_categorical_features"
+        },
+        {
+          "label": "CatBoost in Machine Learning: A Detailed Guide — DataCamp",
+          "href": "https://www.datacamp.com/tutorial/catboost"
+        }
+      ]
+    },
+    {
+      "type": "pointers",
+      "title": "Pour aller plus loin",
+      "items": [
+        {
+          "name": "Breiman (2001), Random Forests — Machine Learning 45:5-32",
+          "url": "https://doi.org/10.1023/A:1010933404324",
+          "kind": "reading",
+          "blurb": "Article fondateur des forêts aléatoires : convergence de l'erreur de généralisation et borne force/corrélation (DOI Springer)."
+        },
+        {
+          "name": "Random Forests (Breiman 2001) — PDF Berkeley",
+          "url": "https://www.stat.berkeley.edu/~breiman/randomforest2001.pdf",
+          "kind": "reading",
+          "blurb": "PDF en accès libre du même article (Statistics Dept, UC Berkeley, janvier 2001), 10 pages."
+        },
+        {
+          "name": "Breiman & Cutler, Random Forests — page Berkeley (OOB & node splitting)",
+          "url": "https://www.stat.berkeley.edu/~breiman/RandomForests/cc_home.htm",
+          "kind": "reading",
+          "blurb": "Description par les auteurs de l'estimation out-of-bag (≈1/3 des cas laissés de côté, estimation interne non biaisée) et du tirage de m variables par nœud."
+        },
+        {
+          "name": "scikit-learn — Ensemble methods (forêts, gradient boosting, bagging, voting, stacking)",
+          "url": "https://scikit-learn.org/stable/modules/ensemble.html",
+          "kind": "library",
+          "blurb": "Guide de référence opposant moyennage (réduction de variance) et boosting (réduction de biais), avec l'API RandomForest, GradientBoosting et HistGradientBoosting."
+        },
+        {
+          "name": "Segal (2004), Machine Learning Benchmarks and Random Forest Regression",
+          "url": "https://escholarship.org/uc/item/35x3v9t4",
+          "kind": "reading",
+          "blurb": "Contrepoint empirique sur les arbres maximalement profonds en régression par forêts aléatoires (eScholarship, UCSF)."
+        },
+        {
+          "name": "Friedman (2001) — Greedy Function Approximation: A Gradient Boosting Machine",
+          "url": "https://projecteuclid.org/journals/annals-of-statistics/volume-29/issue-5/Greedy-function-approximation-A-gradient-boosting-machine/10.1214/aos/1013203451.full",
+          "kind": "reading",
+          "blurb": "Article fondateur posant le gradient boosting comme descente de plus forte pente dans l'espace des fonctions (Annals of Statistics 29(5), accès libre)."
+        },
+        {
+          "name": "Chen & Guestrin (2016) — XGBoost: A Scalable Tree Boosting System (arXiv)",
+          "url": "https://arxiv.org/abs/1603.02754",
+          "kind": "reading",
+          "blurb": "Article fondateur de XGBoost : objectif régularisé, approximation de Taylor au second ordre, sparsity-aware et weighted quantile sketch."
+        },
+        {
+          "name": "Chen & Guestrin (2016) — XGBoost (PDF KDD 2016)",
+          "url": "https://www.kdd.org/kdd2016/papers/files/rfp0697-chenAemb.pdf",
+          "kind": "reading",
+          "blurb": "Version KDD du papier XGBoost : Newton boosting, régularisation explicite et chiffres d'adoption en compétition."
+        },
+        {
+          "name": "XGBoost — Introduction to Boosted Trees (doc officielle)",
+          "url": "https://xgboost.readthedocs.io/en/stable/tutorials/model.html",
+          "kind": "reading",
+          "blurb": "Dérivation pédagogique du poids de feuille optimal, du structure score et du gain de split."
+        },
+        {
+          "name": "XGBoost (bibliothèque)",
+          "url": "https://github.com/dmlc/xgboost",
+          "kind": "library",
+          "blurb": "Implémentation de référence du gradient tree boosting régularisé (DMLC), multi-langage et distribuée."
+        },
+        {
+          "name": "LightGBM (bibliothèque)",
+          "url": "https://github.com/microsoft/LightGBM",
+          "kind": "library",
+          "blurb": "Dépôt officiel du GBDT à GOSS, EFB et croissance leaf-wise (créé chez Microsoft ; déplacé vers lightgbm-org/LightGBM en mars 2026, l'URL redirige vers la source officielle)."
+        },
+        {
+          "name": "CatBoost (bibliothèque)",
+          "url": "https://github.com/catboost/catboost",
+          "kind": "library",
+          "blurb": "Bibliothèque Yandex à ordered boosting et traitement natif des variables catégorielles contre le prediction shift."
+        },
+        {
+          "name": "Ke et al. (2017) — LightGBM: A Highly Efficient Gradient Boosting Decision Tree (NeurIPS)",
+          "url": "https://proceedings.neurips.cc/paper/2017/file/6449f44a102fde848669bdd9eb6b76fa-Paper.pdf",
+          "kind": "reading",
+          "blurb": "Papier fondateur décrivant GOSS et EFB et un gain de vitesse jusqu'à 20x (NeurIPS 30, p. 3146-3154)."
+        },
+        {
+          "name": "Prokhorenkova et al. (2018) — CatBoost: unbiased boosting with categorical features (arXiv)",
+          "url": "https://arxiv.org/abs/1706.09516",
+          "kind": "reading",
+          "blurb": "Papier introduisant l'ordered boosting et l'analyse du prediction shift / target leakage."
+        },
+        {
+          "name": "Beware Default Random Forest Importances (explained.ai)",
+          "url": "https://explained.ai/rf-importance/",
+          "kind": "reading",
+          "blurb": "Article de référence (Parr, Turgutlu, Csiszar, Howard, 2018) démontrant le biais de la MDI/Gini et comparant permutation, drop-column et importance OOB avec code."
+        },
+        {
+          "name": "Strobl et al. (2007) — Bias in random forest variable importance measures",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC1796903/",
+          "kind": "reading",
+          "blurb": "Papier fondateur (BMC Bioinformatics 8:25) établissant le biais de la Gini envers les variables à grande échelle/cardinalité et proposant cforest."
+        },
+        {
+          "name": "Strobl et al. (2008) — Conditional variable importance for random forests",
+          "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC2491635/",
+          "kind": "reading",
+          "blurb": "Introduit l'importance par permutation conditionnelle pour corriger la surévaluation des prédicteurs corrélés (BMC Bioinformatics 9:307)."
+        },
+        {
+          "name": "rfpimp (random-forest-importances)",
+          "url": "https://github.com/parrt/random-forest-importances",
+          "kind": "package",
+          "blurb": "Package Python des auteurs d'explained.ai fournissant importance par permutation et drop-column pour modèles scikit-learn."
+        },
+        {
+          "name": "scikit-learn — Permutation feature importance",
+          "url": "https://scikit-learn.org/stable/modules/permutation_importance.html",
+          "kind": "implementation",
+          "blurb": "Implémentation officielle de permutation_importance, alternative recommandée au feature_importances_ basé sur l'impureté."
+        },
+        {
+          "name": "party (cforest)",
+          "url": "https://cran.r-project.org/package=party",
+          "kind": "package",
+          "blurb": "Package R implémentant les forêts d'inférence conditionnelle (cforest/ctree) et l'importance par permutation conditionnelle."
+        },
+        {
+          "name": "Chen & He (2015) — Higgs Boson Discovery with Boosted Trees",
+          "url": "https://proceedings.mlr.press/v42/chen14.pdf",
+          "kind": "reading",
+          "blurb": "Solution XGBoost au Higgs Boson Challenge (JMLR W&CP 42:69-80), démontrant l'efficacité du boosting d'arbres en physique des particules."
+        },
+        {
+          "name": "Grinsztajn et al. (2022) — Why do tree-based models still outperform deep learning on tabular data?",
+          "url": "https://arxiv.org/abs/2207.08815",
+          "kind": "reading",
+          "blurb": "Benchmark de 45 jeux de données expliquant la supériorité des arbres sur le tabulaire moyen par trois biais inductifs (NeurIPS 2022)."
+        },
+        {
+          "name": "Hollmann et al. (2025) — Accurate predictions on small data with a tabular foundation model (TabPFN, Nature)",
+          "url": "https://www.nature.com/articles/s41586-024-08328-6",
+          "kind": "reading",
+          "blurb": "Modèle de fondation tabulaire (transformeur/PFN) qui dépasse les ensembles d'arbres sur le petit et moyen tabulaire en une passe avant."
+        },
+        {
+          "name": "TabPFN — implémentation de référence",
+          "url": "https://github.com/PriorLabs/TabPFN",
+          "kind": "implementation",
+          "blurb": "Dépôt officiel (Prior Labs) du modèle de fondation tabulaire TabPFN."
+        }
+      ]
+    },
+    {
+      "type": "glossary"
+    }
+  ]
+}

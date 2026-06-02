@@ -1,0 +1,420 @@
+<div class="widget pgv-root" id="pgv-root">
+  <style>
+    .pgv-root{--pgv-ink:var(--ink,#15202E);--pgv-soft:var(--ink-soft,#43536A);
+      --pgv-faint:var(--ink-faint,#7A889B);--pgv-card:var(--card,#fff);
+      --pgv-line:var(--line,#D7DFE9);--pgv-line-soft:var(--line-soft,#E7ECF3);
+      --pgv-blue:var(--blue,#23537F);--pgv-bright:var(--blue-bright,#2C77B6);
+      --pgv-wash:var(--blue-wash,#E7EEF6);--pgv-bord:var(--bordeaux,#7C2A38);
+      --pgv-bord-br:var(--bordeaux-bright,#9B3443);--pgv-gold:#C68A2E;
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--pgv-ink);
+      border:1px solid var(--pgv-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--pgv-card);max-width:680px}
+    .pgv-root *{box-sizing:border-box}
+    .pgv-k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;
+      color:var(--pgv-faint);font-weight:600;margin:0 0 2px}
+    .pgv-title{font-weight:700;font-size:1.05rem;margin:0 0 12px}
+    .pgv-ctl{margin:0 0 14px}
+    .pgv-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+    .pgv-row+.pgv-row{margin-top:10px}
+    .pgv-lab{flex:0 0 auto;font-weight:600;font-size:.85rem;color:var(--pgv-soft)}
+    .pgv-seg{display:inline-flex;border:1px solid var(--pgv-line);border-radius:8px;overflow:hidden}
+    .pgv-seg button{border:0;background:var(--pgv-card);color:var(--pgv-soft);
+      font:600 13px/1 inherit;padding:8px 13px;cursor:pointer}
+    .pgv-seg button+button{border-left:1px solid var(--pgv-line)}
+    .pgv-seg button.pgv-on{background:var(--pgv-blue);color:#fff}
+    .pgv-slider{flex:1 1 200px;min-width:150px;accent-color:var(--pgv-bright);height:22px}
+    .pgv-wlab{flex:0 0 auto;font:700 .9rem/1 ui-monospace,monospace;color:var(--pgv-blue);
+      min-width:9.5em;text-align:right}
+    .pgv-wlab.pgv-mut{color:var(--pgv-faint);font-weight:600}
+    .pgv-stage{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start}
+    .pgv-plotwrap{flex:1 1 320px;min-width:280px}
+    .pgv-plot{width:100%;height:auto;display:block;touch-action:none;cursor:default;
+      border:1px solid var(--pgv-line-soft);border-radius:9px;background:var(--pgv-card)}
+    .pgv-axcap{font-size:.72rem;color:var(--pgv-faint);text-align:center;margin:4px 0 0}
+    .pgv-side{flex:1 1 210px;min-width:200px}
+    .pgv-stat{border:1px solid var(--pgv-line);border-radius:9px;padding:10px 12px;
+      background:var(--pgv-card);margin:0 0 8px}
+    .pgv-stat .pgv-sk{font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;
+      color:var(--pgv-faint);font-weight:600}
+    .pgv-stat .pgv-sv{font:800 1.3rem/1.1 ui-monospace,monospace;color:var(--pgv-blue);margin:3px 0 1px}
+    .pgv-stat .pgv-sn{font-size:.72rem;color:var(--pgv-soft)}
+    .pgv-stat.pgv-warn .pgv-sv{color:var(--pgv-bord-br)}
+    .pgv-stat.pgv-good .pgv-sv{color:var(--pgv-gold)}
+    .pgv-read{margin:14px 0 0;padding:11px 13px;border-radius:8px;border:1px solid var(--pgv-line);
+      background:var(--pgv-wash);font-size:.86rem;line-height:1.5;color:var(--pgv-ink)}
+    .pgv-read b{font-weight:700}
+    .pgv-legend{display:flex;gap:14px;flex-wrap:wrap;margin:10px 0 0;font-size:.76rem;color:var(--pgv-soft)}
+    .pgv-leg{display:inline-flex;align-items:center;gap:6px}
+    .pgv-sw{width:13px;height:13px;border-radius:50%;flex:0 0 auto;border:1px solid rgba(0,0,0,.12)}
+    .pgv-sw.pgv-sq{border-radius:3px}
+    .pgv-quick{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+    .pgv-quick button{border:1px solid var(--pgv-bright);border-radius:7px;
+      background:transparent;color:var(--pgv-bright);font:600 12.5px/1 inherit;
+      padding:6px 10px;cursor:pointer}
+    .pgv-quick button:hover{background:var(--pgv-wash)}
+    .pgv-note{margin:10px 0 0;font-size:.74rem;color:var(--pgv-faint);line-height:1.45}
+  </style>
+
+  <p class="pgv-k">Démonstration interactive</p>
+  <p class="pgv-title">Top-1 glouton vs frontière de Pareto : qui garde les candidats complémentaires ?</p>
+
+  <div class="pgv-ctl">
+    <div class="pgv-row">
+      <span class="pgv-lab">Sélection</span>
+      <span class="pgv-seg" id="pgv-mode" role="group" aria-label="mode de sélection">
+        <button type="button" data-m="top1">Greedy Top-1</button>
+        <button type="button" data-m="pareto">Frontière de Pareto</button>
+      </span>
+    </div>
+    <div class="pgv-row">
+      <span class="pgv-lab">Poids tâche A</span>
+      <input class="pgv-slider" id="pgv-w" type="range" min="0" max="100" value="50"
+             aria-label="poids relatif de la tâche A dans le score agrégé">
+      <span class="pgv-wlab" id="pgv-wlab">0,50·A + 0,50·B</span>
+    </div>
+    <div class="pgv-quick">
+      <button type="button" data-act="resample">Nouveau nuage</button>
+      <button type="button" data-act="sweep">Balayer tous les poids</button>
+    </div>
+  </div>
+
+  <div class="pgv-stage">
+    <div class="pgv-plotwrap">
+      <svg class="pgv-plot" id="pgv-svg" viewBox="0 0 260 260"
+           role="img" aria-label="nuage de candidats sur deux axes de performance"></svg>
+      <p class="pgv-axcap">→ Score tâche A &nbsp;·&nbsp; ↑ Score tâche B &nbsp;·&nbsp; <b>glissez un point pour le déplacer</b></p>
+    </div>
+    <div class="pgv-side">
+      <div class="pgv-stat" id="pgv-st-kept">
+        <div class="pgv-sk">Candidats conservés</div>
+        <div class="pgv-sv" id="pgv-kept">—</div>
+        <div class="pgv-sn" id="pgv-keptn">par la sélection courante</div>
+      </div>
+      <div class="pgv-stat" id="pgv-st-lost">
+        <div class="pgv-sk">Complémentaires perdus</div>
+        <div class="pgv-sv" id="pgv-lost">—</div>
+        <div class="pgv-sn">non-dominés que Top-1 jette</div>
+      </div>
+      <div class="pgv-legend">
+        <span class="pgv-leg"><span class="pgv-sw" style="background:#C68A2E"></span>champion Top-1</span>
+        <span class="pgv-leg"><span class="pgv-sw pgv-sq" style="background:#2C77B6"></span>frontière Pareto</span>
+        <span class="pgv-leg"><span class="pgv-sw" style="background:#C3CCD8"></span>dominé</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="pgv-read" id="pgv-read"></div>
+
+  <p class="pgv-note">Chaque point est un prompt/skill candidat évalué sur deux tâches. <b>Top-1</b> agrège
+    en un score scalaire <code>w·A + (1−w)·B</code> et ne garde que le maximum. <b>Pareto</b> garde tout
+    candidat qu'aucun autre ne domine (pas pire sur les deux axes <em>et</em> strictement meilleur sur au
+    moins un) : pour chaque poids, le champion Top-1 est forcément un point de la frontière — mais un seul.
+    Inspiré de la sélection Genetic-Pareto de GEPA.</p>
+
+  <script>
+  (function(){
+    var root=document.getElementById("pgv-root");
+    if(!root||root.dataset.pgvInit)return; root.dataset.pgvInit="1";
+
+    var SVGNS="http://www.w3.org/2000/svg";
+    var svg=document.getElementById("pgv-svg");
+    var wEl=document.getElementById("pgv-w");
+    var wLab=document.getElementById("pgv-wlab");
+    var modeBox=document.getElementById("pgv-mode");
+    var keptEl=document.getElementById("pgv-kept");
+    var keptN=document.getElementById("pgv-keptn");
+    var lostEl=document.getElementById("pgv-lost");
+    var stKept=document.getElementById("pgv-st-kept");
+    var stLost=document.getElementById("pgv-st-lost");
+    var readEl=document.getElementById("pgv-read");
+
+    var mode="top1";
+    var PAD=34, W=260, H=260;           // plot geometry (viewBox units)
+    var X0=PAD, X1=W-12, Y0=H-PAD, Y1=14; // A on x (left→right), B on y (bottom→top)
+
+    // deterministic PRNG so "resample" is reproducible per seed
+    var seed=20260602;
+    function rnd(){ seed=(seed*1103515245+12345)&0x7fffffff; return seed/0x7fffffff; }
+
+    var pts=[]; // {a,b} in 0..1
+    function makeCloud(){
+      pts=[];
+      var N=11;
+      // spread candidates with a clear trade-off front: some A-strong, some B-strong, some balanced, some dominated
+      for(var i=0;i<N;i++){
+        var t=rnd();
+        var a,b;
+        if(i<3){ a=0.62+0.30*rnd(); b=0.20+0.28*rnd(); }       // A-specialists
+        else if(i<6){ a=0.20+0.28*rnd(); b=0.62+0.30*rnd(); }  // B-specialists
+        else if(i<9){ a=0.45+0.22*rnd(); b=0.45+0.22*rnd(); }  // balanced
+        else { a=0.18+0.30*rnd(); b=0.18+0.30*rnd(); }         // weak / dominated
+        pts.push({a:Math.min(0.97,a), b:Math.min(0.97,b)});
+      }
+    }
+
+    function px(a){ return X0+a*(X1-X0); }
+    function py(b){ return Y0+b*(Y1-Y0); } // Y1<Y0 so higher b => higher up
+
+    // index of the single Top-1 champion for a given weight w on A
+    function championIdx(w){
+      var best=-1,bv=-Infinity;
+      for(var i=0;i<pts.length;i++){
+        var s=w*pts[i].a+(1-w)*pts[i].b;
+        if(s>bv){bv=s;best=i;}
+      }
+      return best;
+    }
+
+    // boolean[]: is point i on the Pareto frontier (non-dominated)?
+    function paretoMask(){
+      var n=pts.length, m=new Array(n).fill(true);
+      for(var i=0;i<n;i++){
+        for(var j=0;j<n;j++){
+          if(i===j)continue;
+          // j dominates i if j>=i on both and strictly > on at least one
+          if(pts[j].a>=pts[i].a && pts[j].b>=pts[i].b &&
+             (pts[j].a>pts[i].a || pts[j].b>pts[i].b)){ m[i]=false; break; }
+        }
+      }
+      return m;
+    }
+
+    // set of indices reachable as Top-1 champion across every weight w in [0,1]
+    function sweepChampions(){
+      var set={};
+      for(var k=0;k<=200;k++){ set[championIdx(k/200)]=true; }
+      return set; // object: idx -> true
+    }
+
+    function fmt(x){ return x.toFixed(2).replace(".",","); }
+
+    var dragIdx=-1;
+
+    function clientToData(evt){
+      var r=svg.getBoundingClientRect();
+      var cx=(evt.clientX!=null?evt.clientX:(evt.touches&&evt.touches[0].clientX));
+      var cy=(evt.clientY!=null?evt.clientY:(evt.touches&&evt.touches[0].clientY));
+      var vx=(cx-r.left)/r.width*W;
+      var vy=(cy-r.top)/r.height*H;
+      var a=(vx-X0)/(X1-X0);
+      var b=(vy-Y0)/(Y1-Y0);
+      return {a:Math.max(0,Math.min(1,a)), b:Math.max(0,Math.min(1,b))};
+    }
+
+    function nearestPoint(evt){
+      var d=clientToData(evt), best=-1, bd=1e9;
+      for(var i=0;i<pts.length;i++){
+        var dx=px(pts[i].a)-px(d.a), dy=py(pts[i].b)-py(d.b);
+        var dd=dx*dx+dy*dy;
+        if(dd<bd){bd=dd;best=i;}
+      }
+      return bd<=18*18?best:-1; // grab radius in viewBox units
+    }
+
+    function line(x1,y1,x2,y2,stroke,w,dash){
+      var l=document.createElementNS(SVGNS,"line");
+      l.setAttribute("x1",x1);l.setAttribute("y1",y1);
+      l.setAttribute("x2",x2);l.setAttribute("y2",y2);
+      l.setAttribute("stroke",stroke);l.setAttribute("stroke-width",w);
+      if(dash)l.setAttribute("stroke-dasharray",dash);
+      svg.appendChild(l);
+    }
+
+    function render(){
+      var w=parseInt(wEl.value,10)/100;
+      var wb=1-w;
+      wLab.textContent=fmt(w)+"·A + "+fmt(wb)+"·B";
+      wLab.className="pgv-wlab"+(mode==="pareto"?" pgv-mut":"");
+
+      var champ=championIdx(w);
+      var par=paretoMask();
+      var parCount=par.reduce(function(a,b){return a+(b?1:0);},0);
+      var champReach=sweepChampions(); // every idx ever pickable as Top-1
+
+      svg.textContent="";
+
+      // axes
+      line(X0,Y0,X1,Y0,"var(--pgv-line)",1);          // x axis
+      line(X0,Y0,X0,Y1,"var(--pgv-line)",1);          // y axis
+      var ax=document.createElementNS(SVGNS,"text");
+      ax.setAttribute("x",X1);ax.setAttribute("y",Y0+18);ax.setAttribute("text-anchor","end");
+      ax.setAttribute("font-size","9");ax.setAttribute("fill","var(--pgv-faint)");
+      ax.textContent="Tâche A →"; svg.appendChild(ax);
+      var ay=document.createElementNS(SVGNS,"text");
+      ay.setAttribute("x",X0-22);ay.setAttribute("y",Y1+2);ay.setAttribute("text-anchor","start");
+      ay.setAttribute("font-size","9");ay.setAttribute("fill","var(--pgv-faint)");
+      ay.setAttribute("transform","rotate(-90 "+(X0-22)+" "+(Y1+2)+")");
+      ay.textContent="Tâche B →"; svg.appendChild(ay);
+
+      // Pareto staircase (drawn in pareto mode, or faint always to anchor the front)
+      var order=[];
+      for(var i=0;i<pts.length;i++) if(par[i]) order.push(i);
+      order.sort(function(p,q){return pts[p].a-pts[q].a;}); // ascending A => descending B
+      if(order.length){
+        var faint=mode!=="pareto";
+        var col=faint?"var(--pgv-line)":"var(--pgv-bright)";
+        var wdt=faint?1:1.6;
+        for(var s=0;s<order.length-1;s++){
+          var p0=pts[order[s]], p1=pts[order[s+1]];
+          // step: horizontal then vertical (down-right staircase of a max-max front)
+          line(px(p0.a),py(p0.b),px(p1.a),py(p0.b),col,wdt,faint?"3 3":null);
+          line(px(p1.a),py(p0.b),px(p1.a),py(p1.b),col,wdt,faint?"3 3":null);
+        }
+      }
+
+      // greedy iso-score line through champion (only in top1 mode)
+      if(mode==="top1"){
+        var c=pts[champ];
+        var sval=w*c.a+wb*c.b;
+        // points on line w*a+wb*b=sval -> two endpoints across the box
+        // express b in terms of a: b=(sval-w*a)/wb  (guard wb≈0)
+        var aL=0, aR=1, bL, bR;
+        if(wb>1e-4){ bL=(sval-w*aL)/wb; bR=(sval-w*aR)/wb; }
+        else { aL=aR=c.a; bL=0; bR=1; }
+        line(px(aL),py(bL),px(aR),py(bR),"var(--pgv-gold)",1.4,"5 4");
+      }
+
+      // points
+      for(var k=0;k<pts.length;k++){
+        var p=pts[k];
+        var isChamp=(mode==="top1"&&k===champ);
+        var isPar=par[k];
+        var fill,r,shape;
+        if(mode==="pareto"){
+          fill=isPar?"var(--pgv-bright)":"#C3CCD8";
+          r=isPar?6.2:4.4;
+          shape=isPar?"rect":"circle";
+        }else{
+          if(isChamp){ fill="var(--pgv-gold)"; r=7; shape="circle"; }
+          else if(isPar){ fill="var(--pgv-blue)"; r=4.8; shape="circle"; }
+          else { fill="#C3CCD8"; r=4.4; shape="circle"; }
+        }
+        var node;
+        if(shape==="rect"){
+          node=document.createElementNS(SVGNS,"rect");
+          node.setAttribute("x",px(p.a)-r);node.setAttribute("y",py(p.b)-r);
+          node.setAttribute("width",2*r);node.setAttribute("height",2*r);
+          node.setAttribute("rx","1.5");
+        }else{
+          node=document.createElementNS(SVGNS,"circle");
+          node.setAttribute("cx",px(p.a));node.setAttribute("cy",py(p.b));
+          node.setAttribute("r",r);
+        }
+        node.setAttribute("fill",fill);
+        node.setAttribute("stroke","#fff");node.setAttribute("stroke-width","1");
+        if(isChamp){node.setAttribute("stroke","var(--pgv-bord)");node.setAttribute("stroke-width","1.4");}
+        node.style.cursor="grab";
+        svg.appendChild(node);
+      }
+
+      // --- stats ---
+      if(mode==="pareto"){
+        keptEl.textContent=parCount;
+        keptN.textContent="points non-dominés sur "+pts.length;
+        stKept.className="pgv-stat pgv-good";
+      }else{
+        keptEl.textContent="1";
+        keptN.textContent="un seul champion (w="+fmt(w)+")";
+        stKept.className="pgv-stat";
+      }
+
+      // complementary candidates that Top-1 throws away no matter the weight:
+      // pareto points that are NEVER the single champion for any weight.
+      var neverChamp=0;
+      for(var t=0;t<pts.length;t++){
+        if(par[t] && !champReach[t]) neverChamp++;
+      }
+      // candidates lost by the CURRENT top-1 pick (all pareto pts except the current champ)
+      var lostNow=parCount-1;
+      if(mode==="pareto"){
+        lostEl.textContent="0";
+        stLost.className="pgv-stat pgv-good";
+      }else{
+        lostEl.textContent=lostNow;
+        stLost.className="pgv-stat"+(lostNow>0?" pgv-warn":"");
+      }
+
+      // reading
+      var msg=[];
+      if(mode==="top1"){
+        msg.push({b:"Greedy Top-1 garde 1 candidat."});
+        msg.push(" Au poids courant ("+fmt(w)+"·A + "+fmt(wb)+"·B), le champion (or) écrase "+
+          lostNow+" autre"+(lostNow>1?"s":"")+" point"+(lostNow>1?"s":"")+" non-dominé"+(lostNow>1?"s":"")+
+          " — pourtant chacun bat le champion sur l'un des deux axes. Glissez le poids : le champion "+
+          "saute d'un spécialiste à l'autre, mais reste toujours seul.");
+      }else{
+        msg.push({b:"La frontière de Pareto garde "+parCount+" candidats complémentaires."});
+        msg.push(" Aucun n'est dominé : chacun est le meilleur compromis pour une plage de priorités. "+
+          (neverChamp>0
+            ? neverChamp+" d'entre eux ne seraient JAMAIS choisis par un Top-1 glouton, quel que soit le poids — "+
+              "ce sont précisément les candidats que la frontière sauve et que le greedy jette."
+            : "Ici tous sont atteignables comme champion pour un certain poids ; déplacez un point au-dessus "+
+              "de la marche centrale pour créer un compromis que le greedy n'élira jamais."));
+      }
+      readEl.textContent="";
+      msg.forEach(function(p){
+        if(typeof p==="string")readEl.appendChild(document.createTextNode(p));
+        else{var bb=document.createElement("b");bb.textContent=p.b;readEl.appendChild(bb);}
+      });
+    }
+
+    // ---- interaction: drag points ----
+    function onDown(e){
+      var i=nearestPoint(e);
+      if(i<0)return;
+      dragIdx=i; e.preventDefault();
+    }
+    function onMove(e){
+      if(dragIdx<0)return;
+      var d=clientToData(e);
+      pts[dragIdx].a=d.a; pts[dragIdx].b=d.b;
+      e.preventDefault();
+      render();
+    }
+    function onUp(){ dragIdx=-1; }
+
+    svg.addEventListener("mousedown",onDown);
+    window.addEventListener("mousemove",onMove);
+    window.addEventListener("mouseup",onUp);
+    svg.addEventListener("touchstart",onDown,{passive:false});
+    svg.addEventListener("touchmove",onMove,{passive:false});
+    svg.addEventListener("touchend",onUp);
+
+    // ---- controls ----
+    wEl.addEventListener("input",render);
+    modeBox.addEventListener("click",function(e){
+      var t=e.target.closest("button"); if(!t)return;
+      mode=t.getAttribute("data-m");
+      var btns=modeBox.querySelectorAll("button");
+      for(var i=0;i<btns.length;i++)
+        btns[i].classList.toggle("pgv-on",btns[i].getAttribute("data-m")===mode);
+      render();
+    });
+
+    var sweepTimer=null;
+    root.querySelector(".pgv-quick").addEventListener("click",function(e){
+      var t=e.target.closest("button"); if(!t)return;
+      var act=t.getAttribute("data-act");
+      if(act==="resample"){ seed=(seed*16807+1)&0x7fffffff; makeCloud(); render(); }
+      else if(act==="sweep"){
+        // animate the weight slider 0->100 in top1 mode so champion hops across specialists
+        if(sweepTimer){clearInterval(sweepTimer);sweepTimer=null;}
+        mode="top1";
+        var btns=modeBox.querySelectorAll("button");
+        for(var i=0;i<btns.length;i++)
+          btns[i].classList.toggle("pgv-on",btns[i].getAttribute("data-m")==="top1");
+        var v=0; wEl.value="0"; render();
+        sweepTimer=setInterval(function(){
+          v+=4; if(v>100){v=100;clearInterval(sweepTimer);sweepTimer=null;}
+          wEl.value=String(v); render();
+        },90);
+      }
+    });
+
+    // init
+    makeCloud();
+    modeBox.querySelector('[data-m="top1"]').classList.add("pgv-on");
+    render();
+  })();
+  </script>
+</div>
