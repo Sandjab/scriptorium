@@ -32,6 +32,10 @@ const buildScript = repoRoot + '/.claude/skills/monograph/scripts/build.py';
 
 const WEB = 'Utilise WebSearch et WebFetch (charge-les via ToolSearch "select:WebSearch,WebFetch" si absents). Cite des URL réelles, jamais inventées.';
 
+// Politique terminologique : éviter la francisation systématique des termes dont la forme
+// anglaise fait référence. Injectée dans les prompts qui RÉDIGENT (Plan, Extract, Author).
+const TERMINO = `TERMINOLOGIE : rédige en français, MAIS conserve en anglais tout terme que la littérature francophone laisse usuellement en anglais (ex. backpropagation, embedding, boosting, bagging, dropout, transformer, attention, gradient boosting). N'invente pas de calque français pour un terme dont la forme anglaise est la référence. À la 1re occurrence, glose si utile : « rétropropagation (backpropagation) ». En cas de doute, garde l'anglais. Ne force PAS l'anglais là où le français est naturel (apprentissage, couche, poids, gradient).`;
+
 // Tous les agents tournent en general-purpose (Tools: *) → WebSearch/WebFetch/Write/Bash garantis.
 const A = (prompt, opts) => agent(prompt, { agentType: 'general-purpose', ...opts });
 
@@ -168,6 +172,7 @@ const sweepPrompt = a => [
 
 const archPrompt = (findings, sources) => [
   `Sujet : « ${subject} ». Tu conçois le PLAN d'un document de référence à partir des données de recherche.`,
+  TERMINO,
   `Findings (point → url, champ _angle = angle de sweep d'origine) :\n${JSON.stringify(findings)}`,
   `Sources :\n${JSON.stringify(sources.map(s => ({ title:s.title, url:s.url, kind:s.kind })))}`,
   `Rends : title (titre du document, sans suffixe d'édition), kicker (sur-titre court), et outline = AUTANT de sections que la matière trouvée le justifie (typiquement 4 à 9). Propose LARGE : une section par sous-thème réellement documenté. Les sections sans matière vérifiable seront élaguées automatiquement — ne t'autocensure pas, mais n'invente pas de section creuse.`,
@@ -179,6 +184,7 @@ const extractPrompt = (sec, findings) => [
   `Sujet : « ${subject} ». Section « ${sec.heading} » — angle : ${sec.angle}.`,
   `Findings disponibles (point → url) :\n${JSON.stringify(findings)}`,
   WEB + ' (autorisé pour compléter/préciser une source.)',
+  TERMINO,
   `Produis pour CETTE section :`,
   `- prose : autant de paragraphes HTML (<p>…</p>) que la matière de la section l'exige, sans délayer. Prose d'auteur, claire, sans inventer. Pas de titre (le heading est ajouté à l'assemblage).`,
   `- claims : 2 à 4 énoncés factuels vérifiables portés par la section. Pour CHAQUE claim : statement (une phrase nette), candidate_sources (urls qui l'étayent), examples (0-2 exemples concrets), kind.`,
@@ -210,10 +216,11 @@ const pointersPrompt = (candidates) => [
 
 const authorPrompt = (sectionsBrief) => [
   `Tu es l'auteur. Tu ÉCRIS des fichiers dans le dossier de thème : ${themeDir}`,
+  TERMINO,
   `${themeDir}/knowledge.json a été écrit par l'étape précédente — lis-le pour connaître les claims vérifiés avant de rédiger le glossaire et le tldr.`,
   `Assure-toi que le dossier existe (mkdir -p si besoin), puis ÉCRIS exactement ces fichiers :`,
   ``,
-  `1) ${themeDir}/glossary.json — un tableau JSON de 4 à 7 termes du sujet : {term, definition, see_also?}. Définitions exactes, propres au sujet « ${subject} ». "see_also" est une CHAÎNE (jamais une liste) : pour renvoyer vers plusieurs termes, une seule chaîne séparée par ", " — ex. "see_also": "Triplet, Property graph".`,
+  `1) ${themeDir}/glossary.json — un tableau JSON de 4 à 7 termes du sujet : {term, definition, see_also?}. « term » = forme canonique du concept (garde l'anglais si c'est la référence, ex. « embedding ») ; la traduction FR éventuelle va dans « definition ». Définitions exactes, propres au sujet « ${subject} ». "see_also" est une CHAÎNE (jamais une liste) : pour renvoyer vers plusieurs termes, une seule chaîne séparée par ", " — ex. "see_also": "Triplet, Property graph".`,
   ``,
   `2) ${themeDir}/tldr.json — { "these": "<la thèse du document en 1 phrase>", "part1": ["…","…"], "part2": ["…","…"] }. part1 et part2 = 2-4 puces chacune (idées clés ; part1 = principe, part2 = garanties/limites). Ce fichier alimente le RÉSUMÉ (abstract) en tête du document — sois complet.`,
   ``,
