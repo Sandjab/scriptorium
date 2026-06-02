@@ -29,6 +29,13 @@ Le skill effectue une recherche approfondie, vérifie chaque fait contre **≥ 2
 indépendantes** (passe adversariale/council), construit la base de faits, puis assemble
 le document de façon déterministe. Le modèle juge ; le code assemble.
 
+> [!WARNING]
+> `/monograph` consomme **ÉNORMÉMENT de tokens** — de l'ordre de **plusieurs millions de
+> tokens de sortie par monographie** (runs observés : ~5 M chacun). Le coût est dominé par le
+> fan-out massif des phases **Verify** (council adversarial : 2–3 jurés × tous les claims de
+> toutes les sections) et **Widgets** (codage + relecture de HTML interactif). Un run interrompu
+> puis **repris re-paie une grande partie** du travail. À lancer en connaissance de cause.
+
 ### Le pipeline multi-agents
 
 En coulisse, `/monograph` lance un **workflow multi-agents** en 8 phases. La frontière est
