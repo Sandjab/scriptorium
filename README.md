@@ -29,20 +29,69 @@ Le skill effectue une recherche approfondie, vérifie chaque fait contre **≥ 2
 indépendantes** (passe adversariale/council), construit la base de faits, puis assemble
 le document de façon déterministe. Le modèle juge ; le code assemble.
 
+### Le pipeline multi-agents
+
+En coulisse, `/monograph` lance un **workflow multi-agents** en 8 phases. La frontière est
+nette : **le modèle juge** (cherche, rédige, vérifie, sélectionne) et **le code assemble** de
+façon déterministe. Le fan-out est massif sur **Verify** (le council) et **Widgets**.
+
+1. **Sweep** — 6 agents en parallèle, un par angle (fondations, théorie, variantes,
+   applications, idées reçues, écosystème) ; chacun cherche sur le web et remonte des sources
+   et des faits sourcés (URL exactes, jamais inventées).
+2. **Plan** — 1 agent conçoit l'outline (4–9 sections) à partir des findings agrégés.
+3. **Extract** — 1 agent par section (en pipeline) : rédige la prose et propose 2–4 claims
+   vérifiables, dont au moins un « contestable » (idée reçue à départager).
+4. **Verify** — *council adversarial* : chaque claim passe devant 2 jurés (s'il est « établi »)
+   ou 3 (s'il est « contestable »), sous trois lentilles — réfutation, indépendance des sources,
+   source primaire. Puis, **en code** : la décision d'audit (`confirmed` = tenu par ≥ 2 jurés
+   **et** ≥ 2 sources indépendantes ; sinon `corrected`, sinon `rejected`), l'assemblage de
+   `knowledge.json` et l'élagage des sections sans matière vérifiée.
+5. **Author** — 1 agent écrit `glossary.json` et `tldr.json` à partir des faits vérifiés.
+6. **Widgets** — 2ᵉ fan-out : un *planner* choisit les mécanismes non triviaux qui gagnent à
+   être *montrés*, des *codeurs* écrivent chacun un widget HTML interactif autonome, un *critic*
+   les relit (une re-passe de correction possible).
+7. **Compose** — 1 agent écrit `manifest.json`, le *layout* best-of (abstract → sections +
+   widgets → exercices → biblio → pointeurs → glossaire).
+8. **Build** — `build.py` assemble le HTML final de façon déterministe et **échoue bruyamment**
+   (référence manquante, balise déséquilibrée, jeton non substitué…).
+
+```mermaid
+flowchart TD
+    S(["Sujet"]) --> SW["Sweep — 6 agents en parallèle<br/>1 par angle : fondations, théorie, variantes,<br/>applications, idées reçues, écosystème"]
+    SW --> PL["Plan — 1 agent<br/>conçoit l'outline (4–9 sections)"]
+    PL --> EX["Extract — 1 agent / section (pipeline)<br/>prose d'auteur + 2–4 claims<br/>(dont ≥1 « contestable »)"]
+    EX --> VE["Verify — council adversarial<br/>2 jurés si « établi », 3 si « contestable »<br/>lentilles : réfutation · indépendance · source primaire"]
+    VE --> KN{{"code — décision d'audit + knowledge.json<br/>confirmed = ≥2 jurés ET ≥2 sources indépendantes<br/>sinon corrected / rejected · sections vides élaguées"}}
+    KN --> AU["Author — 1 agent<br/>écrit glossary.json + tldr.json"]
+    AU --> WG["Widgets — 2ᵉ fan-out<br/>planner → codeurs ×N → critic (+1 re-code)"]
+    WG --> CO["Compose — 1 agent<br/>écrit manifest.json (layout best-of)"]
+    CO --> BD{{"code — build.py<br/>assemblage déterministe + auto-vérifs<br/>échoue bruyamment"}}
+    BD --> OUT(["dist du thème — 1 HTML"])
+```
+
 ## Thèmes
 
-- **automatic-prompt-optimization** — premier thème : panorama des approches d'APO +
-  contrat d'architecture. Le document est dans `themes/automatic-prompt-optimization/dist/`.
-  Cette édition a été construite à la main (avant le skill) ; son pipeline d'origine est
+Chaque document est sous `themes/<slug>/dist/`. Hors APO (construit à la main), tous sont
+générés par `/monograph`.
+
+- **automatic-prompt-optimization** — panorama des approches d'APO + contrat d'architecture.
+  Édition **construite à la main** (avant le skill), 3 documents ; le pipeline d'origine est
   conservé, gelé, sous `themes/automatic-prompt-optimization/legacy/`.
-- **bloom-filters** — premier thème **généré par `/monograph`** : panorama vérifié des filtres
-  de Bloom (principe, garanties, variantes, limites). 16 faits audités (10 confirmés, 6 corrigés)
-  appuyés sur 46 sources. Le document est dans `themes/bloom-filters/dist/`.
+- **bloom-filters** — premier thème **généré par `/monograph`** : filtres de Bloom (principe,
+  garanties, variantes, limites).
+- **consistent-hashing** — hachage cohérent : anneau, nœuds virtuels, rééquilibrage.
+- **knowledge-graph-construction** — construction de graphes de connaissances.
+- **transformer-attention** — mécanisme d'attention des transformeurs.
+- **text-embeddings** — plongements lexicaux : tokenisation, similarité cosinus.
+- **prompt-optimization** — optimisation de prompts.
+- **ensemble-learning** — méthodes d'ensemble : bagging, boosting (25 faits confirmés, 15 corrigés).
+- **backpropagation** — rétropropagation du gradient (34 confirmés, 13 corrigés, 1 rejeté).
 
 ## Statut
 
 - Phase 0 — restructure & migration : ✅
 - Phase 1 — générateur déterministe (`.claude/skills/monograph/` : charte + `build.py`, 8 tests) : ✅
-- Phase 2 — workflow deep-research + `SKILL.md` du skill `monograph` : ✅
-  (validé sur `bloom-filters` : `SKILL.md` + `workflow.js` embarqué, 6 phases
-  Sweep→Plan→Extract→Verify→Author→Compose→Build)
+- Phase 2 — workflow multi-agents + `SKILL.md` du skill `monograph` : ✅
+  Pipeline à **8 phases** (Sweep → Plan → Extract → Verify → Author → **Widgets** → Compose →
+  Build), document unique « best-of » + widgets pilotés par concept. Éprouvé sur plusieurs
+  thèmes (voir ci-dessus) et publié via GitHub Pages.
