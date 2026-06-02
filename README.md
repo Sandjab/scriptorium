@@ -57,16 +57,16 @@ façon déterministe. Le fan-out est massif sur **Verify** (le council) et **Wid
 
 ```mermaid
 flowchart TD
-    S(["Sujet"]) --> SW["Sweep — 6 agents en parallèle<br/>1 par angle : fondations, théorie, variantes,<br/>applications, idées reçues, écosystème"]
-    SW --> PL["Plan — 1 agent<br/>conçoit l'outline (4–9 sections)"]
-    PL --> EX["Extract — 1 agent / section (pipeline)<br/>prose d'auteur + 2–4 claims<br/>(dont ≥1 « contestable »)"]
-    EX --> VE["Verify — council adversarial<br/>2 jurés si « établi », 3 si « contestable »<br/>lentilles : réfutation · indépendance · source primaire"]
-    VE --> KN{{"code — décision d'audit + knowledge.json<br/>confirmed = ≥2 jurés ET ≥2 sources indépendantes<br/>sinon corrected / rejected · sections vides élaguées"}}
-    KN --> AU["Author — 1 agent<br/>écrit glossary.json + tldr.json"]
-    AU --> WG["Widgets — 2ᵉ fan-out<br/>planner → codeurs ×N → critic (+1 re-code)"]
-    WG --> CO["Compose — 1 agent<br/>écrit manifest.json (layout best-of)"]
-    CO --> BD{{"code — build.py<br/>assemblage déterministe + auto-vérifs<br/>échoue bruyamment"}}
-    BD --> OUT(["dist du thème — 1 HTML"])
+    S(["Sujet"]) --> SW["Sweep<br/>6 agents · 1 par angle"]
+    SW --> PL["Plan<br/>outline 4–9 sections"]
+    PL --> EX["Extract · 1/section<br/>prose + claims"]
+    EX --> VE["Verify · council<br/>2–3 jurés / claim"]
+    VE --> KN{{"code : audit<br/>knowledge.json<br/>≥2 sources indép."}}
+    KN --> AU["Author<br/>glossary + tldr"]
+    AU --> WG["Widgets<br/>plan → code ×N → critic"]
+    WG --> CO["Compose<br/>manifest.json"]
+    CO --> BD{{"code : build.py<br/>HTML · échoue bruyamment"}}
+    BD --> OUT(["dist · 1 HTML"])
 ```
 
 ## Thèmes
