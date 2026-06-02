@@ -33,8 +33,21 @@ le document de façon déterministe. Le modèle juge ; le code assemble.
 > `/monograph` consomme **ÉNORMÉMENT de tokens** — de l'ordre de **plusieurs millions de
 > tokens de sortie par monographie** (runs observés : ~5 M chacun). Le coût est dominé par le
 > fan-out massif des phases **Verify** (council adversarial : 2–3 jurés × tous les claims de
-> toutes les sections) et **Widgets** (codage + relecture de HTML interactif). Un run interrompu
-> puis **repris re-paie une grande partie** du travail. À lancer en connaissance de cause.
+> toutes les sections) et **Widgets** (codage + relecture de HTML interactif). À lancer en
+> connaissance de cause — mais un run interrompu (rate-limit) se **reprend sans re-payer le
+> travail déjà fait** (voir « Reprise après interruption »).
+
+### Reprise après interruption
+
+Le fan-out massif se fait régulièrement **rate-limiter côté serveur**. Plutôt que de relancer un
+run frais (qui re-paie tout), le workflow écrit des **checkpoints incrémentaux** dans
+`themes/<slug>/.monograph/` au fil de l'eau : la recherche après *Plan*, **une fois par section
+auditée** pendant *Verify*, et les widgets après leur phase. Relancer avec **`args.resume = true`**
+(mêmes `subject`/`slug`/`themeDir`) reprend là où ça s'est arrêté : *Sweep*/*Plan* sont sautés,
+**seules les sections sans checkpoint sont re-vérifiées**, les widgets déjà faits sont sautés. Ces
+checkpoints survivent à un `/clear` ou à un changement de session (ce que le cache de reprise du
+moteur, lui, ne garantit pas). Un run **frais** (sans `resume`) ignore et réécrit les checkpoints.
+Détail dans le `SKILL.md` du skill ; le câblage est couvert par `scripts/test_resume.mjs`.
 
 ### Le pipeline multi-agents
 

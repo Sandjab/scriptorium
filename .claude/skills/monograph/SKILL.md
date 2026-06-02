@@ -33,6 +33,8 @@ workflow, puis tu rapportes.
    - `scriptPath` : `.claude/skills/monograph/workflow.js`
    - `args` : `{ "subject": "<sujet>", "slug": "<slug>", "themeDir": "<abs>/themes/<slug>" }`
    - (texte seul, sans widgets : ajoute `"widget": false` ; widgets inclus par défaut.)
+   - **Note le `runId`** retourné (utile pour une reprise même-session). Premier lancement : **sans**
+     `resume`. Relance après interruption : ajoute `"resume": true` (voir « Reprise après interruption »).
 
    Le workflow exécute : Sweep → Plan → Extract → Verify (council adversarial) →
    Author (écrit `knowledge.json`/`glossary.json`/`tldr.json`) → Widgets (planner →
@@ -80,8 +82,35 @@ et critiquer du HTML interactif n'est pas gratuit.
 
 Conséquences :
 - **Juge la conso aux TOKENS par agent, pas au nombre de fichiers/journaux.**
-- Un `resume` après interruption **re-paie le run** (pas de réutilisation de cache fiable
-  constatée) — ne relance pas « pour pas cher ».
+- Après une interruption (rate-limit), **NE relance JAMAIS un run frais** (re-paie tout) :
+  **reprends** — voir « Reprise après interruption ».
+
+## Reprise après interruption (rate-limit)
+
+Le fan-out massif se fait régulièrement **rate-limiter côté serveur** (`Rate limited` /
+`temporarily limiting requests` — **not your usage limit**). Symptôme TROMPEUR : avalanche de
+« completed without calling StructuredOutput » + `knowledge.json` vide. Ce **n'est pas un bug** :
+un agent rate-limité n'appelle jamais `StructuredOutput`. **NE relance pas un run frais** (re-paie
+tout, plusieurs M tokens). Deux mécanismes de reprise, **complémentaires** :
+
+1. **Reprise moteur (même session)** — réutilise le cache des agents déjà terminés. Garde le
+   **`runId`** affiché au lancement du Workflow. Si `/workflows` indique « paused » ou si des agents
+   ont été rate-limités : `TaskStop` le run, puis relance
+   `Workflow({ scriptPath: ".claude/skills/monograph/workflow.js", resumeFromRunId: "<runId>", args })`
+   avec les **mêmes args**. ⚠️ **Same-session uniquement**, et **historiquement peu fiable** (souvent
+   re-payé en pratique) — d'où le mécanisme 2. Un `/clear` ou une nouvelle session **détruit** ce cache.
+
+2. **Reprise disque (survit à `/clear` et au changement de session)** — relance le Workflow avec
+   **`args.resume = true`** (mêmes `subject`/`slug`/`themeDir`). Le workflow écrit, au fil de l'eau, des
+   checkpoints **incrémentaux** dans `themes/<slug>/.monograph/` : `research.json` (après Plan), un
+   `sec-<id>.json` par section auditée (pendant Verify), `widgets.json` (après Widgets). Une reprise
+   **saute Sweep+Plan**, **ne re-vérifie QUE les sections sans checkpoint**, et **saute Widgets** si déjà
+   fait — elle ne re-paie donc que le travail réellement inachevé (couvre une tempête de rate-limit
+   *pendant* Verify, même après `/clear`).
+
+Un run **FRAIS** (sans `args.resume`) **ignore et réécrit** tout checkpoint existant : l'intention
+« fraîche vs reprise » est portée par `args.resume`, jamais devinée. (Réflexe : 1er lancement sans
+`resume` ; toute relance après échec **avec** `resume:true`.)
 
 ## Garanties (portées par `workflow.js` + `build.py`)
 

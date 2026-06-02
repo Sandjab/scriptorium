@@ -29,6 +29,13 @@ if (!subject || !slug || !themeDir)
   throw new Error('args manquants : attendu {subject, slug, themeDir}. Reçu : ' + JSON.stringify(args));
 const repoRoot = themeDir.replace(/\/themes\/[^/]+\/?$/, '');
 const buildScript = repoRoot + '/.claude/skills/monograph/scripts/build.py';
+// Reprise disque (Fix 2) : survit à /clear et au changement de session, contrairement au cache
+// moteur (resumeFromRunId, same-session, historiquement peu fiable). args.resume=true → on RELIT
+// les checkpoints incrémentaux de themeDir/.monograph/ et on saute le travail déjà fait (Sweep+Plan,
+// sections déjà auditées, widgets). Un run FRAIS (sans resume) les IGNORE et les RÉÉCRIT : l'intention
+// fraîche-vs-reprise est portée par args.resume, jamais devinée.
+const RESUME = (A0.resume === true) || (String(A0.resume) === 'true');
+const ckptDir = themeDir + '/.monograph';
 
 const WEB = 'Utilise WebSearch et WebFetch (charge-les via ToolSearch "select:WebSearch,WebFetch" si absents). Cite des URL réelles, jamais inventées.';
 
@@ -106,6 +113,14 @@ const S_BUILD = { type:'object', additionalProperties:false, required:['success'
     properties:{ confirmed_claims:{type:'integer'}, all_confirmed_have_2plus_sources:{type:'boolean'},
       audit_categories_present:{ type:'array', items:{type:'string'} } } },
   errors:{ type:'array', items:{type:'string'} } } };
+
+// Reprise disque (Fix 2) : sortie d'écriture de checkpoint + sonde de chargement.
+const S_CKPT = { type:'object', additionalProperties:false, required:['written'], properties:{ written:{type:'boolean'} } };
+const S_LOAD = { type:'object', additionalProperties:false, required:['research','sections','widgets'], properties:{
+  research:{type:'string'},   // contenu verbatim de research.json ("" si absent)
+  widgets:{type:'string'},    // contenu verbatim de widgets.json ("" si absent)
+  sections:{ type:'array', items:{ type:'object', additionalProperties:false, required:['id','content'],
+    properties:{ id:{type:'string'}, content:{type:'string'} } } } } };
 
 // ── Helpers JS (transformations déterministes — pas de jugement) ─────────────
 const normUrl = u => (u||'').trim().replace(/^https?:\/\//i,'').replace(/[#?].*$/,'').replace(/\/+$/,'').toLowerCase();
@@ -310,27 +325,66 @@ const buildPrompt = () => [
 ].join('\n');
 
 // ── Orchestration ────────────────────────────────────────────────────────────
-phase('Sweep');
-log(`Sujet : ${subject} — recherche multi-angles (${ANGLES.length} angles)`);
-const sweepResults = await parallel(ANGLES.map(a => () =>
-  A(sweepPrompt(a), { schema: S_SWEEP, phase: 'Sweep', label: `sweep:${a.key}` })
-));
-// Tag chaque finding avec son angle d'origine (pour filtrage ciblé en Extract)
-const sweepsByAngle = ANGLES.map((a, i) => ({ key: a.key, sweep: sweepResults[i] })).filter(({sweep}) => sweep);
-const allFindings = sweepsByAngle.flatMap(({key, sweep}) =>
-  (sweep.findings || []).map(f => ({ ...f, _angle: key }))
-);
-const allSources = dedupSources(sweepsByAngle.flatMap(({sweep}) => sweep.sources || []));
-log(`Sweep : ${allFindings.length} findings, ${allSources.length} sources uniques`);
 
-phase('Plan');
-const arch = await A(archPrompt(allFindings, allSources), { schema: S_ARCH, phase: 'Plan', label: 'plan' });
-log(`Plan : « ${arch.title} » — ${arch.outline.length} sections`);
+// ── Reprise disque (Fix 2) : helpers ─────────────────────────────────────────
+const safeParse = (s, what) => { try { return s ? JSON.parse(s) : null; }
+  catch (e) { log(`[resume] ${what} illisible (${e.message}) → ignoré`); return null; } };
+// Écriture best-effort d'un artefact de reprise. Son échec (ex. rate-limit) ne doit JAMAIS tuer un
+// run par ailleurs réussi : on log et on continue (cette unité ne sera simplement pas reprenable).
+async function ckptWrite(relName, obj, phaseName, labelName) {
+  try {
+    await A(`Crée le dossier si besoin (mkdir -p ${ckptDir}) puis écris VERBATIM, sans modification, le fichier suivant.\nChemin : ${ckptDir}/${relName}\nContenu :\n${JSON.stringify(obj)}`,
+      { schema: S_CKPT, phase: phaseName, label: labelName });
+  } catch (e) { log(`[resume] checkpoint ${relName} non écrit (${e.message}) — unité non reprenable, run continue.`); }
+}
+
+// Chargement des checkpoints (UNIQUEMENT en reprise). Échec/illisible ⇒ traité comme absent (run frais, loggé).
+let loadedResearch = null, savedSections = {}, loadedWidgets = null;
+if (RESUME) {
+  try {
+    const L = await A([
+      `Lis l'état de reprise dans ${ckptDir}/ (ce dossier peut ne pas exister — alors tout est vide).`,
+      `- research : si ${ckptDir}/research.json existe, rends son contenu EXACT (verbatim) ; sinon "".`,
+      `- widgets : si ${ckptDir}/widgets.json existe, rends son contenu EXACT ; sinon "".`,
+      `- sections : pour CHAQUE fichier ${ckptDir}/sec-*.json (liste-les via ls/Bash), un objet {id, content} où id = la partie <id> du nom (sec-<id>.json) et content = le contenu EXACT du fichier. Tableau vide si aucun.`,
+      `N'écris, ne crée, ne modifie RIEN. Verbatim : ne reformate pas, ne tronque pas.`,
+    ].join('\n'), { schema: S_LOAD, phase: 'Sweep', label: 'resume-load' });
+    loadedResearch = safeParse(L.research, 'research.json');
+    loadedWidgets = safeParse(L.widgets, 'widgets.json');
+    for (const s of (L.sections || [])) { const o = safeParse(s.content, `sec-${s.id}.json`); if (o) savedSections[s.id] = o; }
+    log(`[resume] chargé : research=${loadedResearch ? 'oui' : 'non'}, sections=${Object.keys(savedSections).length}, widgets=${loadedWidgets ? 'oui' : 'non'}`);
+  } catch (e) { log(`[resume] chargement échoué (${e.message}) → run frais`); }
+}
+
+// ── Sweep + Plan (sautés si repris du disque) ────────────────────────────────
+let allFindings, allSources, arch;
+if (loadedResearch && Array.isArray(loadedResearch.allFindings) && loadedResearch.arch) {
+  ({ allFindings, allSources, arch } = loadedResearch);
+  phase('Plan');
+  log(`[resume] Sweep+Plan repris du disque : « ${arch.title} », ${arch.outline.length} sections, ${allFindings.length} findings.`);
+} else {
+  phase('Sweep');
+  log(`Sujet : ${subject} — recherche multi-angles (${ANGLES.length} angles)`);
+  const sweepResults = await parallel(ANGLES.map(a => () =>
+    A(sweepPrompt(a), { schema: S_SWEEP, phase: 'Sweep', label: `sweep:${a.key}` })
+  ));
+  // Tag chaque finding avec son angle d'origine (pour filtrage ciblé en Extract)
+  const sweepsByAngle = ANGLES.map((a, i) => ({ key: a.key, sweep: sweepResults[i] })).filter(({sweep}) => sweep);
+  allFindings = sweepsByAngle.flatMap(({key, sweep}) => (sweep.findings || []).map(f => ({ ...f, _angle: key })));
+  allSources = dedupSources(sweepsByAngle.flatMap(({sweep}) => sweep.sources || []));
+  log(`Sweep : ${allFindings.length} findings, ${allSources.length} sources uniques`);
+
+  phase('Plan');
+  arch = await A(archPrompt(allFindings, allSources), { schema: S_ARCH, phase: 'Plan', label: 'plan' });
+  log(`Plan : « ${arch.title} » — ${arch.outline.length} sections`);
+  await ckptWrite('research.json', { allFindings, allSources, arch }, 'Plan', 'ckpt:research');
+}
 
 // Extract → Verify en pipeline (pas de barrière entre sections)
 const sectionResults = await pipeline(
   arch.outline,
   (sec) => {
+    if (savedSections[sec.id]) return { __saved: savedSections[sec.id] };   // section déjà auditée (reprise) → saute Extract+Verify
     // Filtre les findings sur l'angle de la section — réduit le bruit et le volume injecté
     const secFindings = sec.angle_key
       ? allFindings.filter(f => f._angle === sec.angle_key)
@@ -338,6 +392,7 @@ const sectionResults = await pipeline(
     return A(extractPrompt(sec, secFindings), { schema: S_SECTION, phase: 'Extract', label: `extract:${sec.id}` });
   },
   async (ext, sec) => {
+    if (ext && ext.__saved) { log(`[resume] section « ${sec.heading} » reprise du disque (audit conservé).`); return ext.__saved; }
     const claims = ext.claims || [];
     const auditedClaims = (await parallel(claims.map((c, ci) => async () => {
       // Plafond de jurés (coût) : Verify domine le total. 'established' → 2 lentilles
@@ -353,8 +408,10 @@ const sectionResults = await pipeline(
       return { sectionId: sec.id, statement: d.statement, audit: d.audit, note: d.note,
                examples: c.examples || [], sources: d.sources };
     }))).filter(Boolean);
-    return { section: { id: sec.id, heading: sec.heading, prose: ext.prose, kind: sec.kind || 'normal' },
-             claims: auditedClaims, pointers: ext.pointers || [] };
+    const result = { section: { id: sec.id, heading: sec.heading, prose: ext.prose, kind: sec.kind || 'normal' },
+                     claims: auditedClaims, pointers: ext.pointers || [] };
+    await ckptWrite(`sec-${sec.id}.json`, result, 'Verify', `ckpt:sec:${sec.id}`);   // persiste cette section pour une reprise future
+    return result;
   }
 );
 const sectionData = sectionResults.filter(Boolean);
@@ -437,31 +494,38 @@ const authored = await A(authorPrompt(sectionsBrief), { schema: S_AUTHOR, phase:
 log(`Author : ${authored.files_written.length} fichiers écrits`);
 
 phase('Widgets');
-const liveSectionsBrief = liveSections.map(s => ({
-  id: s.section.id, heading: s.section.heading, prose: s.section.prose,
-  claims: (s.kept || []).map(c => c.statement),
-}));
-const wantWidgets = String(A0.widget) !== 'false';
 let widgets = [];
-if (wantWidgets && liveSectionsBrief.length) {
-  const plan = await A(widgetPlanPrompt(liveSectionsBrief), { schema: S_WIDGET_PLAN, phase: 'Widgets', label: 'widget-plan' });
-  const liveIds = new Set(liveSections.map(s => s.section.id));
-  const wanted = (plan.widgets || []).filter(w => liveIds.has(w.after_section_id));  // garde-fou : ancrage sur une section vivante
-  widgets = (await pipeline(
-    wanted,
-    (w) => A(widgetCodePrompt(w), { schema: S_WIDGET_CODE, phase: 'Widgets', label: `widget-code:${w.after_section_id}` }),
-    async (coded) => {
-      if (!coded) return null;
-      const verdict = await A(widgetCriticPrompt(coded), { schema: S_WIDGET_CRITIC, phase: 'Widgets', label: `widget-critic:${coded.ref}` });
-      if (verdict.ok) return coded;
-      log(`[widget] ${coded.ref} recodé : ${(verdict.issues || []).join('; ')}`);
-      const fixed = await A(widgetRecodePrompt(coded, verdict.issues || []), { schema: S_WIDGET_CODE, phase: 'Widgets', label: `widget-recode:${coded.ref}` });
-      return fixed || coded;   // 1 SEULE re-passe ; au pire on garde la version critiquée
-    }
-  )).filter(Boolean);
-  log(`Widgets : ${widgets.length}/${(plan.widgets || []).length} retenus.`);
+if (Array.isArray(loadedWidgets)) {                 // reprise : décision widgets déjà prise (même []) → saute le 2e fan-out
+  widgets = loadedWidgets;
+  log(`[resume] ${widgets.length} widget(s) repris du disque — phase Widgets sautée.`);
 } else {
-  log(wantWidgets ? 'Widgets : aucune section vivante.' : 'Widgets : désactivés (widget=false).');
+  const liveSectionsBrief = liveSections.map(s => ({
+    id: s.section.id, heading: s.section.heading, prose: s.section.prose,
+    claims: (s.kept || []).map(c => c.statement),
+  }));
+  const wantWidgets = String(A0.widget) !== 'false';
+  if (wantWidgets && liveSectionsBrief.length) {
+    const plan = await A(widgetPlanPrompt(liveSectionsBrief), { schema: S_WIDGET_PLAN, phase: 'Widgets', label: 'widget-plan' });
+    const liveIds = new Set(liveSections.map(s => s.section.id));
+    const wanted = (plan.widgets || []).filter(w => liveIds.has(w.after_section_id));  // garde-fou : ancrage sur une section vivante
+    widgets = (await pipeline(
+      wanted,
+      (w) => A(widgetCodePrompt(w), { schema: S_WIDGET_CODE, phase: 'Widgets', label: `widget-code:${w.after_section_id}` }),
+      async (coded) => {
+        if (!coded) return null;
+        const verdict = await A(widgetCriticPrompt(coded), { schema: S_WIDGET_CRITIC, phase: 'Widgets', label: `widget-critic:${coded.ref}` });
+        if (verdict.ok) return coded;
+        log(`[widget] ${coded.ref} recodé : ${(verdict.issues || []).join('; ')}`);
+        const fixed = await A(widgetRecodePrompt(coded, verdict.issues || []), { schema: S_WIDGET_CODE, phase: 'Widgets', label: `widget-recode:${coded.ref}` });
+        return fixed || coded;   // 1 SEULE re-passe ; au pire on garde la version critiquée
+      }
+    )).filter(Boolean);
+    log(`Widgets : ${widgets.length}/${(plan.widgets || []).length} retenus.`);
+  } else {
+    log(wantWidgets ? 'Widgets : aucune section vivante.' : 'Widgets : désactivés (widget=false).');
+  }
+  // Persiste la décision widgets (même vide) pour ne pas re-payer ce 2e fan-out sur une reprise ultérieure.
+  await ckptWrite('widgets.json', widgets, 'Widgets', 'ckpt:widgets');
 }
 
 phase('Compose');
