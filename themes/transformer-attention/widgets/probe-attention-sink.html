@@ -1,0 +1,300 @@
+<div class="widget pas-root" id="pas-root">
+  <style>
+    .pas-root{--pas-ink:var(--ink,#15202E);--pas-soft:var(--ink-soft,#43536A);
+      --pas-faint:var(--ink-faint,#7A889B);--pas-card:var(--card,#fff);
+      --pas-line:var(--line,#D7DFE9);--pas-blue:var(--blue,#23537F);
+      --pas-bright:var(--blue-bright,#2C77B6);--pas-bord:var(--bordeaux-bright,#9B3443);
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--pas-ink);
+      border:1px solid var(--pas-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--pas-card);max-width:680px}
+    .pas-root *{box-sizing:border-box}
+    .pas-k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;
+      color:var(--pas-faint);font-weight:600;margin:0 0 2px}
+    .pas-title{font-weight:700;font-size:1.05rem;margin:0 0 4px}
+    .pas-sub{font-size:.86rem;color:var(--pas-soft);margin:0 0 14px}
+    .pas-mode{display:inline-flex;border:1px solid var(--pas-line);border-radius:8px;
+      overflow:hidden;margin:0 0 14px}
+    .pas-mode button{padding:8px 13px;border:0;background:var(--pas-card);
+      color:var(--pas-soft);font:600 13px/1 inherit;cursor:pointer}
+    .pas-mode button.pas-on{background:var(--pas-bright);color:#fff}
+    .pas-grid{display:grid;grid-template-columns:1fr;gap:9px;margin:0 0 4px}
+    .pas-row{display:grid;grid-template-columns:118px 1fr 116px;gap:10px;align-items:center}
+    .pas-tokname{font:600 13px/1.2 ui-monospace,monospace;color:var(--pas-ink);
+      overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .pas-tokname small{display:block;font:500 10px/1.3 system-ui,sans-serif;
+      color:var(--pas-faint);letter-spacing:.04em;text-transform:uppercase}
+    .pas-row.pas-sink .pas-tokname{color:var(--pas-bord)}
+    .pas-slider{width:100%;accent-color:var(--pas-blue);cursor:pointer}
+    .pas-row.pas-sink .pas-slider{accent-color:var(--pas-bord)}
+    .pas-row.pas-sink .pas-slider:disabled{cursor:not-allowed}
+    .pas-wbox{display:flex;align-items:center;gap:7px;justify-content:flex-end}
+    .pas-wval{font:700 13px/1 ui-monospace,monospace;color:var(--pas-soft);
+      min-width:42px;text-align:right}
+    .pas-row.pas-sink .pas-wval{color:var(--pas-bord)}
+    .pas-meter{flex:0 0 52px;height:9px;border-radius:5px;background:var(--pas-line);
+      overflow:hidden}
+    .pas-meter i{display:block;height:100%;width:0;background:var(--pas-bright);
+      transition:width .25s}
+    .pas-row.pas-sink .pas-meter i{background:var(--pas-bord)}
+    .pas-bigbar{display:flex;height:30px;border-radius:8px;overflow:hidden;
+      border:1px solid var(--pas-line);margin:14px 0 6px;background:var(--pas-line)}
+    .pas-bigbar span{height:100%;transition:width .3s;min-width:0;
+      display:flex;align-items:center;justify-content:center;
+      font:700 11px/1 ui-monospace,monospace;color:#fff;overflow:hidden}
+    .pas-bigbar .pas-seg-sink{background:var(--pas-bord)}
+    .pas-bigbar .pas-seg-real{background:var(--pas-bright)}
+    .pas-bigbar .pas-seg-null{background:#7A889B}
+    .pas-baraxis{display:flex;justify-content:space-between;font-size:.72rem;
+      color:var(--pas-faint);margin:0 0 12px}
+    .pas-ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:8px 0 0}
+    .pas-btn{padding:7px 12px;border:1px solid var(--pas-blue);border-radius:8px;
+      background:transparent;color:var(--pas-blue);font:600 13px/1 inherit;cursor:pointer}
+    .pas-btn:hover{filter:brightness(1.08);background:rgba(35,83,127,.06)}
+    .pas-out{min-height:3em;padding:10px 12px;border-radius:8px;
+      border:1px solid var(--pas-line);background:var(--pas-card);
+      font-size:.9rem;line-height:1.5;margin:14px 0 0;color:var(--pas-soft)}
+    .pas-out b{color:var(--pas-ink);font-weight:700}
+    .pas-out.pas-hot{border-color:var(--pas-bord)}
+    .pas-out .pas-em{color:var(--pas-bord);font-weight:700}
+    .pas-legend{display:flex;gap:16px;flex-wrap:wrap;font-size:.78rem;
+      color:var(--pas-soft);margin:10px 0 0;align-items:center}
+    .pas-dot{display:inline-block;width:11px;height:11px;border-radius:3px;
+      vertical-align:-1px;margin-right:5px}
+    @media (max-width:480px){.pas-row{grid-template-columns:96px 1fr 96px}}
+  </style>
+
+  <p class="pas-k">Démonstration interactive</p>
+  <p class="pas-title">L'attention sink : le softmax ne peut pas s'abstenir</p>
+  <p class="pas-sub">Une requête regarde 5 tokens. Baisse leur <b>pertinence</b> (score brut) :
+    le softmax doit toujours sommer à 1, donc le budget qui ne va « nulle part »
+    reflue sur la première position — le <b>puits</b>.</p>
+
+  <span class="pas-mode" role="group" aria-label="variante de softmax">
+    <button id="pas-mstd" class="pas-on" type="button">Softmax standard</button>
+    <button id="pas-mnull" type="button">Softmax + option « rien »</button>
+  </span>
+
+  <div class="pas-grid" id="pas-grid"></div>
+
+  <div class="pas-bigbar" id="pas-bigbar" aria-label="répartition du budget d'attention"></div>
+  <div class="pas-baraxis"><span>budget d'attention total = 1.00</span><span id="pas-axislbl"></span></div>
+
+  <div class="pas-ctl">
+    <button class="pas-btn" id="pas-mute" type="button">Rendre les vrais tokens non pertinents</button>
+    <button class="pas-btn" id="pas-reset" type="button">Réinitialiser</button>
+  </div>
+
+  <div class="pas-out" id="pas-out"></div>
+
+  <div class="pas-legend" id="pas-legend">
+    <span><i class="pas-dot" style="background:var(--bordeaux-bright,#9B3443)"></i>poids du puits (token 0)</span>
+    <span><i class="pas-dot" style="background:var(--blue-bright,#2C77B6)"></i>poids des vrais tokens</span>
+    <span class="pas-legend-null" hidden><i class="pas-dot" style="background:#7A889B"></i>option « ne rien attendre »</span>
+  </div>
+
+  <script>
+  (function(){
+    var root=document.getElementById("pas-root");
+    if(!root||root.dataset.pasInit)return; root.dataset.pasInit="1";
+
+    // 5 positions. Le token 0 est le "sink" : structurellement présent, sémantiquement vide
+    // (typiquement <bos> / premier token). On NE règle PAS son score — c'est le coeur du propos :
+    // son poids n'est pas choisi, il est ce qui reste quand les autres se désengagent.
+    var TOKENS=[
+      {name:"<bos>",  tag:"position 0 · sink", sink:true,  base:0.0},
+      {name:"le",     tag:"token réel",        sink:false, base:1.6},
+      {name:"chat",   tag:"token réel",        sink:false, base:2.4},
+      {name:"dort",   tag:"token réel",        sink:false, base:1.9},
+      {name:"profondément", tag:"token réel",  sink:false, base:2.1}
+    ];
+    var MIN=-4, MAX=4;                 // amplitude des scores réglables (logits d'attention)
+    var NULL_LOGIT=1.5;                // logit de l'option « ne rien attendre » (mode null)
+    var mode="std";                    // "std" | "null" (softmax off-by-one : dénominateur +e^NULL_LOGIT)
+    var scores=TOKENS.map(function(t){return t.base;});
+
+    var grid=document.getElementById("pas-grid");
+    var bigbar=document.getElementById("pas-bigbar");
+    var out=document.getElementById("pas-out");
+
+    // --- softmax (les deux variantes) -------------------------------------
+    // std  : w_i = e^{s_i} / Σ e^{s_j}                 (somme des w_i = 1, abstention impossible)
+    // null : w_i = e^{s_i} / (e^{NULL_LOGIT} + Σ e^{s_j})   (l'option implicite "ne rien attendre"
+    //         a un logit fixe NULL_LOGIT ; le budget non réclamé y va au lieu de refluer sur le sink)
+    function softmax(){
+      var pool = mode==="null" ? scores.concat([NULL_LOGIT]) : scores;
+      var m=Math.max.apply(null,pool);
+      var ex=scores.map(function(s){return Math.exp(s-m);});
+      var extra = mode==="null" ? Math.exp(NULL_LOGIT-m) : 0; // option "rien"
+      var denom = ex.reduce(function(a,b){return a+b;},0) + extra;
+      var w = ex.map(function(e){return e/denom;});
+      var wNull = extra/denom;
+      return {w:w, wNull:wNull};
+    }
+
+    // --- construction des lignes (une fois) -------------------------------
+    function buildRows(){
+      grid.textContent="";
+      TOKENS.forEach(function(t,i){
+        var row=document.createElement("div");
+        row.className="pas-row"+(t.sink?" pas-sink":"");
+        row.id="pas-row-"+i;
+
+        var nm=document.createElement("div");
+        nm.className="pas-tokname";
+        nm.textContent=t.name;
+        var sm=document.createElement("small"); sm.textContent=t.tag; nm.appendChild(sm);
+
+        var sl=document.createElement("input");
+        sl.type="range"; sl.className="pas-slider"; sl.id="pas-sl-"+i;
+        sl.min=String(MIN); sl.max=String(MAX); sl.step="0.1"; sl.value=String(t.base);
+        if(t.sink){
+          // le poids du sink n'est jamais réglé directement : il est résiduel.
+          sl.disabled=true; sl.value="0";
+          sl.setAttribute("aria-label","score du token sink (non réglable — résiduel)");
+        }else{
+          sl.setAttribute("aria-label","pertinence (score) du token "+t.name);
+          sl.addEventListener("input",function(){
+            scores[i]=parseFloat(sl.value); render();
+          });
+        }
+
+        var wbox=document.createElement("div");
+        wbox.className="pas-wbox";
+        var mtr=document.createElement("div"); mtr.className="pas-meter";
+        var fill=document.createElement("i"); fill.id="pas-fill-"+i; mtr.appendChild(fill);
+        var val=document.createElement("span");
+        val.className="pas-wval"; val.id="pas-w-"+i; val.textContent="0%";
+        wbox.appendChild(mtr); wbox.appendChild(val);
+
+        row.appendChild(nm); row.appendChild(sl); row.appendChild(wbox);
+        grid.appendChild(row);
+      });
+    }
+
+    // --- rendu ------------------------------------------------------------
+    function pct(x){return Math.round(x*1000)/10;}      // 1 décimale
+    function fmt(x){var p=pct(x);return (p<10?p.toFixed(1):Math.round(p))+"%";}
+
+    function render(){
+      var r=softmax(), w=r.w;
+      var sinkW=w[0];
+      var realW=w.slice(1).reduce(function(a,b){return a+b;},0);
+
+      // lignes
+      w.forEach(function(wi,i){
+        document.getElementById("pas-w-"+i).textContent=fmt(wi);
+        document.getElementById("pas-fill-"+i).style.width=Math.min(100,wi*100)+"%";
+      });
+
+      // barre empilée : sink | réels | (option rien)
+      bigbar.textContent="";
+      function seg(cls,frac,label){
+        var s=document.createElement("span");
+        s.className=cls;
+        s.style.width=(frac*100)+"%";
+        if(frac>0.14) s.textContent=label;
+        bigbar.appendChild(s);
+      }
+      seg("pas-seg-sink", sinkW, "sink "+fmt(sinkW));
+      seg("pas-seg-real", realW, "réels "+fmt(realW));
+      if(mode==="null") seg("pas-seg-null", r.wNull, "rien "+fmt(r.wNull));
+
+      document.getElementById("pas-axislbl").textContent =
+        mode==="null" ? "puits + réels + « rien »" : "puits + réels";
+
+      report(sinkW, realW, r.wNull);
+    }
+
+    function setOut(hot,parts){
+      out.className="pas-out"+(hot?" pas-hot":"");
+      out.textContent="";
+      parts.forEach(function(p){
+        if(typeof p==="string"){out.appendChild(document.createTextNode(p));return;}
+        var s=document.createElement("span");
+        s.className = p.em?"pas-em":"";
+        if(!p.em){var b=document.createElement("b");b.textContent=p.t;out.appendChild(b);return;}
+        s.textContent=p.t; out.appendChild(s);
+      });
+    }
+
+    function report(sinkW, realW, nullW){
+      var realScores=scores.slice(1);
+      var maxReal=Math.max.apply(null,realScores);
+      var allLow = maxReal <= MIN+0.6;       // tous les vrais tokens quasi au plancher
+
+      if(mode==="std"){
+        if(allLow){
+          setOut(true,[
+            "Tous les vrais tokens sont jugés non pertinents — pourtant le softmax doit sommer à ",
+            {t:"1"}, ". Sans case « ne rien attendre », le budget refoulé se déverse sur la position 0 : ",
+            {t:"le puits capte "}, {t:fmt(sinkW), em:true},
+            ". Ce poids énorme n'est pas un signal de sens — c'est un ",
+            {t:"artefact structurel", em:true},
+            " du softmax. Lire ce poids comme « le modèle s'intéresse à <bos> » serait une erreur d'interprétation."
+          ]);
+        }else if(sinkW>=realW){
+          setOut(true,[
+            "Le puits (",{t:fmt(sinkW)},") dépasse déjà l'ensemble des vrais tokens (",
+            {t:fmt(realW)},"). Plus tu baisses leur pertinence, plus l'attention « par défaut » se concentre sur la position 0, ",
+            "sans qu'aucun token n'ait gagné en sens."
+          ]);
+        }else{
+          setOut(false,[
+            "Les vrais tokens captent ",{t:fmt(realW)}," du budget, le puits ",{t:fmt(sinkW)},". ",
+            "Baisse leurs scores (ou clique « rendre non pertinents ») : observe le budget refluer vers la position 0."
+          ]);
+        }
+      }else{ // mode null
+        if(allLow){
+          setOut(false,[
+            "Même contexte, mais le softmax dispose d'une option « ne rien attendre ». ",
+            "Le budget non réclamé y va : ",{t:"« rien » capte "},{t:fmt(nullW),em:true},
+            " et le puits retombe à ",{t:fmt(sinkW)},
+            ". Conclusion : le sink du mode standard n'était pas du sens — c'était l'abstention interdite, faute de cette case."
+          ]);
+        }else{
+          setOut(false,[
+            "Avec l'option « rien », une part du budget peut rester non allouée : ",
+            {t:fmt(nullW)}," ici. Le puits n'a plus à absorber le surplus. ",
+            "Baisse les scores des vrais tokens pour voir l'option « rien » monter au lieu du puits."
+          ]);
+        }
+      }
+
+      // légende : montrer la pastille "rien" seulement en mode null
+      document.querySelector(".pas-legend-null").hidden = (mode!=="null");
+    }
+
+    // --- contrôles --------------------------------------------------------
+    function mute(){
+      for(var i=1;i<TOKENS.length;i++){
+        scores[i]=MIN;
+        document.getElementById("pas-sl-"+i).value=String(MIN);
+      }
+      render();
+    }
+    function reset(){
+      scores=TOKENS.map(function(t){return t.base;});
+      for(var i=1;i<TOKENS.length;i++){
+        document.getElementById("pas-sl-"+i).value=String(TOKENS[i].base);
+      }
+      render();
+    }
+    function setMode(m){
+      if(mode===m)return;
+      mode=m;
+      document.getElementById("pas-mstd").classList.toggle("pas-on",m==="std");
+      document.getElementById("pas-mnull").classList.toggle("pas-on",m==="null");
+      render();
+    }
+
+    document.getElementById("pas-mute").addEventListener("click",mute);
+    document.getElementById("pas-reset").addEventListener("click",reset);
+    document.getElementById("pas-mstd").addEventListener("click",function(){setMode("std");});
+    document.getElementById("pas-mnull").addEventListener("click",function(){setMode("null");});
+
+    buildRows();
+    render();
+  })();
+  </script>
+</div>
