@@ -29,6 +29,19 @@ Le skill effectue une recherche approfondie, vérifie chaque fait contre **≥ 2
 indépendantes** (passe adversariale/council), construit la base de faits, puis assemble
 le document de façon déterministe. Le modèle juge ; le code assemble.
 
+**Variante à coût réduit :**
+
+```
+/frugalmonograph <sujet>
+```
+
+Même produit et **mêmes garanties non négociables** (≥ 2 sources indépendantes ; `build.py`
+échoue bruyamment) ; seul le profil de coût change : modèles moins chers (Sonnet) sur la
+recherche/vérification, council ramené à **2 jurés** dans tous les cas, et des plafonds
+(`MAX_SECTIONS=9`, `MAX_CLAIMS_PER_SECTION=4`). Le jugement structurant (Plan, Author, Widgets,
+Compose) reste sur Opus. Pour comparer les deux variantes sur un même sujet, utilise un slug
+distinct (ex. `bloom-filters-frugal`).
+
 > [!WARNING]
 > `/monograph` consomme **ÉNORMÉMENT de tokens** — de l'ordre de **plusieurs millions de
 > tokens de sortie par monographie** (runs observés : ~5 M chacun). Le coût est dominé par le
