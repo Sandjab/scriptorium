@@ -42,8 +42,10 @@ workflow, puis tu rapportes.
 
 6. **Rapporte** le résultat retourné par le workflow : le document `dist/<slug>.html`, le bilan
    d'audit (`confirmed`/`corrected`/`rejected`, ≥2 sources vérifié) et le bilan widgets
-   (retenus). Si `build.success` est faux, **remonte l'erreur** (build.py échoue bruyamment) —
-   ne déclare pas un succès.
+   (retenus). Le workflow écrit aussi un **rapport d'audit annexe** —
+   `themes/<slug>/audit-report.json` + `audit-report.md` : par claim, combien de jurés
+   corroborent / réfutent / corrigent, l'audit final, et s'il a été retenu. Si `build.success`
+   est faux, **remonte l'erreur** (build.py échoue bruyamment) — ne déclare pas un succès.
 
 ## Le document (superset best-of)
 

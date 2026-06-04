@@ -212,6 +212,8 @@ const LENSES = [
   'INDÉPENDANCE : trouve des sources qui CONFIRMENT l\'énoncé MAIS indépendantes entre elles et de l\'origine du claim (pas deux pages qui citent le même papier, pas miroir/repost). Ne liste que des sources réellement indépendantes.',
   'SOURCE PRIMAIRE : remonte à la source faisant autorité (papier original, spécification, manuel) et vérifie que l\'énoncé y correspond EXACTEMENT, sans déformation.',
 ];
+// Noms courts des lentilles (index aligné sur LENSES) — pour le rapport d'audit.
+const LENS_NAMES = ['réfutation', 'indépendance', 'source-primaire'];
 
 const verifyPrompt = (claim, lensIdx) => [
   `Énoncé à vérifier : « ${claim.statement} »`,
@@ -400,13 +402,24 @@ const sectionResults = await pipeline(
       // (idée reçue à départager) ou kind absent → les 3. Effet de bord à connaître :
       // 'confirmed' exige holds≥2, donc un 'established' à 2 jurés requiert l'unanimité.
       const lenses = (c.kind === 'established') ? [0, 1] : [0, 1, 2];
-      const verdicts = (await parallel(lenses.map(j => () =>
+      // On garde la lentille d'origine attachée à chaque verdict (le .filter casserait l'index).
+      const lensVerdicts = (await parallel(lenses.map(j => () =>
         A(verifyPrompt(c, j), { schema: S_VERDICT, phase: 'Verify', label: `verify:${sec.id}#${ci}/${j}` })
-      ))).filter(Boolean);
-      if (verdicts.length === 0) return null;
+          .then(v => ({ lens: j, v }))
+      ))).filter(x => x && x.v);
+      if (lensVerdicts.length === 0) return null;
+      const verdicts = lensVerdicts.map(x => x.v);   // entrée de decideAudit INCHANGÉE → audit identique
       const d = decideAudit(c, verdicts);
-      return { sectionId: sec.id, statement: d.statement, audit: d.audit, note: d.note,
-               examples: c.examples || [], sources: d.sources };
+      // Capture des votes (vue de diagnostic ; voyage dans le checkpoint de section → reprise OK).
+      const tally = { kind: c.kind || 'unspecified',
+        corroborated: verdicts.filter(v => v.holds).length,
+        refuted: verdicts.filter(v => !v.holds).length,
+        corrected: verdicts.filter(v => !v.holds && v.corrected_statement && v.corrected_statement.trim()).length,
+        jurors: lensVerdicts.map(({ lens, v }) => ({ lens: LENS_NAMES[lens] || String(lens),
+          holds: !!v.holds, corrected: !!(v.corrected_statement && v.corrected_statement.trim()),
+          n_sources: (v.independent_sources || []).length, note: v.note || '' })) };
+      return { sectionId: sec.id, statement: d.statement, original_statement: c.statement,
+               audit: d.audit, note: d.note, examples: c.examples || [], sources: d.sources, tally };
     }))).filter(Boolean);
     const result = { section: { id: sec.id, heading: sec.heading, prose: ext.prose, kind: sec.kind || 'normal' },
                      claims: auditedClaims, pointers: ext.pointers || [] };
@@ -482,6 +495,49 @@ const knowledge = {
 };
 const knowledgeJson = JSON.stringify(knowledge, null, 2);
 
+// ── Rapport d'audit (vue de diagnostic dérivée — PAS la source de vérité) ─────
+// Resitue ce qui s'est passé : par claim, combien de jurés l'ont corroboré / réfuté / corrigé,
+// l'audit final, et s'il a été retenu. Couvre TOUTES les sections auditées (élaguées incluses).
+const retainedSectionIds = new Set(liveSections.map(s => s.section.id));
+const idByClaimObj = new Map();
+liveClaims.forEach((ac, i) => idByClaimObj.set(ac, 'claim:' + (i + 1)));   // même indexation que knowledge.json
+const reportClaims = sectionData.flatMap(s => (s.claims || []).map(ac => {
+  const sectionRetained = retainedSectionIds.has(ac.sectionId);
+  const t = ac.tally || null;   // null = section reprise d'un checkpoint antérieur à cette instrumentation
+  return { id: idByClaimObj.get(ac) || null, section: ac.sectionId, section_retained: sectionRetained,
+    retained: sectionRetained && ac.audit !== 'rejected', audit: ac.audit, kind: t ? t.kind : 'unknown',
+    statement: ac.statement, original_statement: ac.original_statement || ac.statement,
+    corroborated: t ? t.corroborated : null, refuted: t ? t.refuted : null, corrected: t ? t.corrected : null,
+    n_sources: (ac.sources || []).length, jurors: t ? t.jurors : [], audit_note: ac.note || '' };
+}));
+const auditReport = {
+  generator: 'monograph', theme: { slug, title: arch.title },
+  summary: { sections_total: enriched.length, sections_retained: liveSections.length,
+    claims_total: reportClaims.length,
+    confirmed: reportClaims.filter(c => c.audit === 'confirmed').length,
+    corrected: reportClaims.filter(c => c.audit === 'corrected').length,
+    rejected: reportClaims.filter(c => c.audit === 'rejected').length,
+    retained: reportClaims.filter(c => c.retained).length },
+  claims: reportClaims,
+};
+const _esc = v => String(v == null ? '' : v).replace(/\|/g, '\\|').replace(/\s*\n+\s*/g, ' ').trim();
+const _num = v => v == null ? '?' : v;
+const auditReportMd = [
+  `# Rapport d'audit — ${_esc(auditReport.theme.title)} (${auditReport.generator})`, ``,
+  `Thème : \`${_esc(slug)}\``, ``,
+  `## Synthèse`,
+  `- Sections : ${auditReport.summary.sections_retained}/${auditReport.summary.sections_total} retenues`,
+  `- Claims : ${auditReport.summary.claims_total} audités → **${auditReport.summary.confirmed} confirmed**, ${auditReport.summary.corrected} corrected, ${auditReport.summary.rejected} rejected ; ${auditReport.summary.retained} retenus dans le document`,
+  ``, `Légende jurés : \`lentille✓\` corrobore · \`lentille✗\` réfute · \`~\` propose une correction.`, ``,
+  `## Par claim`, ``,
+  `| id | section | kind | audit | corrob. | réfut. | corrig. | sources | jurés | énoncé |`,
+  `|---|---|---|---|---|---|---|---|---|---|`,
+  ...auditReport.claims.map(c => {
+    const jur = (c.jurors || []).map(j => `${j.lens}${j.holds ? '✓' : '✗'}${j.corrected ? '~' : ''}`).join(' ');
+    return `| ${c.id || '—'} | ${_esc(c.section)} | ${c.kind} | ${c.audit}${c.retained ? '' : ' (non retenu)'} | ${_num(c.corroborated)} | ${_num(c.refuted)} | ${_num(c.corrected)} | ${c.n_sources} | ${_esc(jur)} | ${_esc(c.statement)} |`;
+  }),
+].join('\n');
+
 phase('Author');
 // Écriture de knowledge.json via un agent dédié (le script workflow n'a pas d'accès disque)
 await A(
@@ -489,6 +545,17 @@ await A(
   { schema: { type:'object', additionalProperties:false, required:['written'], properties:{ written:{type:'boolean'} } },
     phase: 'Author', label: 'write:knowledge' }
 );
+// Écriture du rapport d'audit (2 fichiers annexes : JSON réexploitable + MD lisible). Best-effort :
+// son échec ne doit pas tuer un run par ailleurs réussi → try/catch.
+try {
+  await A(
+    `Crée le dossier si besoin (mkdir -p ${themeDir}) puis écris VERBATIM ces DEUX fichiers (un Write chacun, sans rien modifier).\n` +
+    `--- Fichier 1 : ${themeDir}/audit-report.json ---\n${JSON.stringify(auditReport, null, 2)}\n` +
+    `--- Fichier 2 : ${themeDir}/audit-report.md ---\n${auditReportMd}`,
+    { schema: { type:'object', additionalProperties:false, required:['files_written'], properties:{ files_written:{ type:'array', items:{type:'string'} } } },
+      phase: 'Author', label: 'write:audit-report' }
+  );
+} catch (e) { log(`[audit] rapport non écrit (${e.message}) — run continue.`); }
 const sectionsBrief = arch.outline.filter(o => liveOutlineIds.has(o.id)).map(o => `- ${o.id} : ${o.heading}`).join('\n');
 const authored = await A(authorPrompt(sectionsBrief), { schema: S_AUTHOR, phase: 'Author', label: 'author' });
 log(`Author : ${authored.files_written.length} fichiers écrits`);
@@ -568,5 +635,6 @@ return {
     rejected: claims.filter(c => c.audit === 'rejected').length },
   sources: sources.length,
   widgets: { kept: widgets.length },
+  audit: auditReport.summary,
   build: built,
 };
