@@ -292,6 +292,35 @@ const widgetRecodePrompt = (coded, issues) => [
   `Rends : ref="${coded.ref}", title="${coded.title}", after_section_id="${coded.after_section_id}", kind="${coded.kind || 'probe'}".`,
 ].filter(Boolean).join('\n');
 
+// ── Figures statiques (illustrations en ligne, insérées dans la prose) ────────
+const figureCodePrompt = (f) => [
+  `Tu produis une FIGURE STATIQUE illustrant ce point du sujet « ${subject} » : ${f.concept}.`,
+  `Objectif (brief) : ${f.brief}`,
+  `Fais Read de ${themeDir}/sections_draft.json. Repère la section d'id "${f.after_section_id}" et, dans sa "prose" (HTML), le paragraphe visé par ce repère : « ${f.anchor || 'fin de section'} ».`,
+  `INSÈRE, par un Edit CHIRURGICAL de ${themeDir}/sections_draft.json, le bloc figure JUSTE APRÈS la balise </p> de ce paragraphe (ne modifie RIEN d'autre de la prose ; n'altère aucun fait ni aucune phrase). Forme EXACTE du bloc :`,
+  `<figure class="fig"><svg viewBox="0 0 W H" role="img" aria-label="…">…</svg><figcaption><span class="fcap-k"></span>LÉGENDE</figcaption></figure>`,
+  `CONTRAINTES STRICTES : SVG autoporteur DÉTERMINISTE (aucun aléa) ; couleurs via variables de charte avec fallback (var(--blue,#23537F), var(--ink,#15202E), var(--bordeaux,#7C2A38), var(--ink-faint,#7A889B)…) ; AUCUN <script>, AUCUNE ressource externe, AUCUN file:/// ; balises équilibrées. Le <span class="fcap-k"> reste VIDE (« Figure N » est ajouté par le build). LÉGENDE = une phrase concise. Comme c'est dans un JSON, échappe correctement (les guillemets " déjà présents dans la prose JSON sont \\").`,
+  `La figure doit VRAIMENT illustrer (structure/allure/schéma), pas décorer. Choisis un <ref> kebab-case ascii unique (ex. fig-…).`,
+  `Rends : ref, after_section_id = "${f.after_section_id}", caption (la légende), kind = "figure".`,
+].join('\n');
+const S_FIGURE_CODE = { type:'object', additionalProperties:false,
+  required:['ref','after_section_id','caption','kind'],
+  properties:{ ref:{type:'string'}, after_section_id:{type:'string'}, caption:{type:'string'},
+    kind:{ type:'string', enum:['figure'] } } };
+
+const figureCriticPrompt = (coded) => [
+  `Fais Read de ${themeDir}/sections_draft.json. Dans la prose de la section "${coded.after_section_id}", relis la figure insérée (légende « ${coded.caption} »).`,
+  `Juge HONNÊTEMENT : (1) un seul bloc <figure class="fig"> bien formé : un <svg> équilibré, un <figcaption> avec <span class="fcap-k"> VIDE ; (2) AUCUN <script>, aucune ressource externe / file:/// ; (3) la figure ILLUSTRE vraiment (structure/allure/schéma, pas décorative) ; (4) insertion CHIRURGICALE : la prose n'a gagné QUE cette figure (le texte autour intact), et la figure suit bien une balise </p>.`,
+  `Rends : ok (true SEULEMENT si les 4 tiennent), issues (problèmes précis ; vide si ok).`,
+].join('\n');
+
+const figureRecodePrompt = (coded, issues) => [
+  `La figure (section "${coded.after_section_id}", légende « ${coded.caption} ») dans ${themeDir}/sections_draft.json DOIT être corrigée. Problèmes :`,
+  JSON.stringify(issues),
+  `Corrige par un Edit CHIRURGICAL de ${themeDir}/sections_draft.json : un seul bloc <figure class="fig"> bien formé (SVG déterministe équilibré, AUCUN <script>/ressource externe/file:///, <span class="fcap-k"> VIDE, légende concise) ; ne touche à RIEN d'autre de la prose.`,
+  `Rends : ref="${coded.ref}", after_section_id="${coded.after_section_id}", caption (la légende), kind="figure".`,
+].join('\n');
+
 // ── Top-up super-widget (retrofit) : chargement persistant + insertion chirurgicale ──
 const topupLoadPrompt = [
   `Lis ${themeDir}/sections_draft.json (liste d'objets {id, heading, prose, claims}) et ${themeDir}/knowledge.json.`,
