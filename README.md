@@ -89,6 +89,10 @@ façon déterministe. Le fan-out est massif sur **Verify** (le council) et **Wid
    passe avant → rétropropagation → itérations jusqu'à convergence) sur un réseau jouet. On peut aussi
    les ajouter après coup à un article existant (`args.superwidgetOnly`).
 
+   Quand une illustration **fixe** vaut mieux qu'une interaction (une courbe, un organigramme, un
+   schéma), le pipeline insère une **figure statique** au fil du texte, légendée et numérotée
+   « Figure N » — choisie par le même planificateur visuel, sans surcharger.
+
 7. **Compose** — 1 agent écrit `manifest.json`, le *layout* best-of (abstract → sections +
    widgets → exercices → biblio → pointeurs → glossaire).
 8. **Build** — `build.py` assemble le HTML final de façon déterministe et **échoue bruyamment**

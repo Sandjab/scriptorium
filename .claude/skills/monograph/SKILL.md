@@ -68,6 +68,14 @@ synoptique** : un **processus de bout en bout** assemblé sur une instance jouet
 chaque widget ; le super-widget reste un `{"type":"widget"}` ordinaire (charte/`build.py` inchangés).
 **Pas de plafond** : la rubrique stricte « vrai processus, jamais un mécanisme isolé » est le seul frein.
 
+**Troisième registre — les figures (`kind:"figure"`)** : illustration **statique** (SVG fixe :
+courbe, organigramme, taxonomie, schéma) insérée **en ligne** dans la prose, juste après le
+paragraphe visé (champ `anchor`). Le codeur de figure dessine le SVG + la légende et l'insère
+chirurgicalement dans `sections_draft.json` (`<span class="fcap-k">` laissé vide → `build.py`
+numérote « Figure N »). À choisir quand *voir* suffit et que *manipuler* n'apporterait rien ;
+jamais en doublon d'un widget. Les figures sont codées **en série** (elles éditent la même prose).
+charte/`components.py` inchangés (la charte stylise déjà `figure.fig`).
+
 **Contraintes strictes** (sinon `build.py` échoue) : un seul bloc `<div class="widget">…</div>`
 + `<style>` + `<script>` ; AUCUNE ressource externe, AUCUN `file:///`, AUCUN
 `alert/confirm/prompt` ; balises `<section>/<details>/<script>` équilibrées ; id/classes
