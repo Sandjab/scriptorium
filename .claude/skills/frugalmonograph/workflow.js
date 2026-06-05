@@ -104,12 +104,14 @@ const S_COMPOSE = { type:'object', additionalProperties:false, required:['files_
 
 const S_WIDGET_PLAN = { type:'object', additionalProperties:false, required:['widgets'], properties:{
   widgets:{ type:'array', items:{ type:'object', additionalProperties:false,
-    required:['concept','after_section_id','brief'],
-    properties:{ concept:{type:'string'}, after_section_id:{type:'string'}, brief:{type:'string'} } } } } };
+    required:['concept','after_section_id','brief','kind'],
+    properties:{ concept:{type:'string'}, after_section_id:{type:'string'}, brief:{type:'string'},
+      kind:{ type:'string', enum:['probe','process'] } } } } } };
 
 const S_WIDGET_CODE = { type:'object', additionalProperties:false,
-  required:['ref','title','after_section_id'],
-  properties:{ ref:{type:'string'}, title:{type:'string'}, after_section_id:{type:'string'} } };
+  required:['ref','title','after_section_id','kind'],
+  properties:{ ref:{type:'string'}, title:{type:'string'}, after_section_id:{type:'string'},
+    kind:{ type:'string', enum:['probe','process'] } } };
 
 const S_WIDGET_CRITIC = { type:'object', additionalProperties:false, required:['ok','issues'],
   properties:{ ok:{type:'boolean'}, issues:{ type:'array', items:{type:'string'} } } };
@@ -263,33 +265,69 @@ const authorPrompt = (sectionsBrief) => [
 const widgetPlanPrompt = (secs) => [
   `Sujet : « ${subject} ». Sections RETENUES du document (id, heading, prose, faits clés) :`,
   JSON.stringify(secs),
-  `Décide quels CONCEPTS ou MÉCANISMES clés méritent un widget interactif démonstratif.`,
-  `Rubrique STRICTE : un widget ne se justifie QUE si le concept est NON TRIVIAL et qu'il est plus clair MONTRÉ qu'expliqué (le montrer aide à visualiser/comprendre, ou rend la compréhension plus simple). Sinon, AUCUN widget.`,
-  `N'en propose aucun pour le trivial ou le purement déclaratif. DÉDUPLIQUE : un seul widget par mécanisme. La complexité du widget devra rester proportionnée à sa valeur explicative.`,
-  `Rends : widgets = liste {concept (le mécanisme à illustrer), after_section_id (id EXACT d'une section ci-dessus, après laquelle l'insérer), brief (ce que le widget doit faire voir/manipuler, 1-2 phrases)}. Liste VIDE si rien ne le justifie.`,
+  `Décide quels CONCEPTS/MÉCANISMES méritent un widget interactif démonstratif, et de quel TYPE (champ "kind").`,
+  `• "probe" — illustre UN mécanisme ISOLÉ. Rubrique STRICTE : seulement si NON TRIVIAL et plus clair MONTRÉ qu'expliqué. Rien pour le trivial/déclaratif. UN seul probe par mécanisme (déduplique).`,
+  `• "process" — un SUPER-WIDGET synoptique montrant un PROCESSUS DE BOUT EN BOUT assemblé sur une instance jouet. Rubrique STRICTE (c'est le SEUL frein — il n'y a PAS de plafond) : seulement un VRAI processus multi-étapes — soit ITÉRATIF (une boucle d'étapes répétée jusqu'à convergence, ex. avant→arrière→mise à jour→répéter), soit un PIPELINE d'AU MOINS 3 étapes chaînées sur un cas concret. JAMAIS pour un mécanisme isolé (ça reste un probe). Déduplique : un seul process par processus distinct. Dans "brief", NOMME explicitement les étapes enchaînées (ou la boucle) ; si tu ne peux pas nommer ≥3 étapes ou la boucle, ce n'est PAS un process.`,
+  `Un "process" s'ancre sur la section de SYNTHÈSE après laquelle l'enchaînement est complet (after_section_id).`,
+  `Rends : widgets = liste {concept, after_section_id (id EXACT d'une section ci-dessus), brief (ce que le widget fait voir/manipuler ; pour un process, nomme les étapes), kind ("probe"|"process")}. Liste VIDE si rien ne le justifie.`,
 ].join('\n');
 
 const widgetCodePrompt = (w) => [
-  `Tu CODES un widget interactif autonome illustrant ce mécanisme du sujet « ${subject} » : ${w.concept}.`,
+  (w.kind === 'process')
+    ? `Tu CODES un SUPER-WIDGET synoptique illustrant un PROCESSUS DE BOUT EN BOUT du sujet « ${subject} » : ${w.concept}.`
+    : `Tu CODES un widget interactif autonome illustrant ce mécanisme du sujet « ${subject} » : ${w.concept}.`,
   `Objectif pédagogique (brief) : ${w.brief}`,
-  `Écris le fichier ${themeDir}/widgets/<ref>.html (mkdir -p ${themeDir}/widgets si besoin). Choisis un <ref> kebab-case ascii unique (ex. probe-…).`,
+  (w.kind === 'process')
+    ? `EXIGENCES SUPER-WIDGET : montre le PROCESSUS COMPLET sur une INSTANCE JOUET (pas un fragment) ; chaque PHASE distinctement ; DEUX pilotages — PAS-À-PAS (une phase à la fois) ET lecture continue « jusqu'à convergence » ; un INDICATEUR DE PROGRESSION (ex. courbe/compteur d'étape) ; relie visuellement les mécanismes déjà introduits ; en-tête interne « Vue d'ensemble ». Tout DÉTERMINISTE (aucun aléa), calculé exactement.`
+    : null,
+  `Écris le fichier ${themeDir}/widgets/<ref>.html (mkdir -p ${themeDir}/widgets si besoin). Choisis un <ref> kebab-case ascii unique (probe-… pour un mécanisme ; synopsis-… pour un process).`,
   `CONTRAINTES STRICTES (sinon le build échoue bruyamment) : un seul bloc <div class="widget">…</div> + <style>…</style> + <script>…</script> ; AUCUNE ressource externe, AUCUN file:///, AUCUN alert/confirm/prompt ; balises <section>/<details>/<script> ÉQUILIBRÉES ; préfixe TOUS les id/classes par le ref pour éviter les collisions avec la charte.`,
   `Le widget doit VRAIMENT démontrer le mécanisme : interactif et manipulable, pas décoratif ni statique. Aussi complexe que nécessaire, mais pas au-delà de sa valeur explicative.`,
-  `Rends : ref (sans .html), title (titre court du widget), after_section_id = "${w.after_section_id}".`,
-].join('\n');
+  `Rends : ref (sans .html), title (titre court du widget), after_section_id = "${w.after_section_id}", kind = "${w.kind || 'probe'}".`,
+].filter(Boolean).join('\n');
 
 const widgetCriticPrompt = (coded) => [
   `Relis le widget : ${themeDir}/widgets/${coded.ref}.html (fais Read).`,
-  `Juge HONNÊTEMENT trois choses : (1) tourne-t-il plausiblement (pas d'erreur JS évidente, pas de référence indéfinie, balises équilibrées) ; (2) est-il réellement INTERACTIF et DÉMONSTRATIF du mécanisme « ${coded.title} » (pas décoratif, pas statique) ; (3) respecte-t-il les contraintes (un seul <div class="widget">, aucune ressource externe / file:/// / alert|confirm|prompt, id/classes préfixés).`,
-  `Rends : ok (true SEULEMENT si les 3 tiennent), issues (liste des problèmes précis à corriger ; vide si ok).`,
-].join('\n');
+  `Juge HONNÊTEMENT : (1) tourne-t-il plausiblement (pas d'erreur JS évidente, pas de référence indéfinie, balises équilibrées) ; (2) est-il réellement INTERACTIF et DÉMONSTRATIF du mécanisme « ${coded.title} » (pas décoratif, pas statique) ; (3) respecte-t-il les contraintes (un seul <div class="widget">, aucune ressource externe / file:/// / alert|confirm|prompt, id/classes préfixés).`,
+  (coded.kind === 'process')
+    ? `(4) SUPER-WIDGET : montre-t-il le PROCESSUS COMPLET — toutes les phases distinctes, l'ITÉRATION jusqu'à convergence visible, pilotage pas-à-pas ET continu — et est-ce bien l'ENCHAÎNEMENT (pas un mécanisme isolé) ?`
+    : null,
+  `Rends : ok (true SEULEMENT si tous les points tiennent), issues (liste des problèmes précis à corriger ; vide si ok).`,
+].filter(Boolean).join('\n');
 
 const widgetRecodePrompt = (coded, issues) => [
   `Le widget ${themeDir}/widgets/${coded.ref}.html a été relu et DOIT être corrigé. Problèmes relevés :`,
   JSON.stringify(issues),
   `Réécris (Write) le fichier ${themeDir}/widgets/${coded.ref}.html en corrigeant ces points, en gardant les MÊMES contraintes strictes (un seul <div class="widget">, aucune ressource externe / file:/// / alert|confirm|prompt, balises équilibrées, id/classes préfixés, vraiment démonstratif).`,
-  `Rends : ref="${coded.ref}", title="${coded.title}", after_section_id="${coded.after_section_id}".`,
+  (coded.kind === 'process')
+    ? `RAPPEL SUPER-WIDGET : garde le processus COMPLET (phases distinctes, itération jusqu'à convergence, pilotage pas-à-pas ET continu, en-tête « Vue d'ensemble ») — ne le rabaisse pas en simple sonde.`
+    : null,
+  `Rends : ref="${coded.ref}", title="${coded.title}", after_section_id="${coded.after_section_id}", kind="${coded.kind || 'probe'}".`,
+].filter(Boolean).join('\n');
+
+// ── Top-up super-widget (retrofit) : chargement persistant + insertion chirurgicale ──
+const topupLoadPrompt = [
+  `Lis ${themeDir}/sections_draft.json (liste d'objets {id, heading, prose, claims}) et ${themeDir}/knowledge.json.`,
+  `Les "claims" de sections_draft sont des IDS (ex. "claim:1"). Pour chaque section, REMPLACE chaque id par l'ÉNONCÉ correspondant : dans knowledge.json, "claims" est une liste d'objets {id, statement, …} ; prends le "statement" du claim dont l'"id" == cet id. Id introuvable ⇒ garde l'id tel quel.`,
+  `N'écris, ne crée, ne modifie RIEN sur le disque.`,
+  `Rends : sections = [{id, heading, prose, claims:[énoncés]}].`,
 ].join('\n');
+const S_TOPUP_LOAD = { type:'object', additionalProperties:false, required:['sections'], properties:{
+  sections:{ type:'array', items:{ type:'object', additionalProperties:false, required:['id','heading','prose','claims'],
+    properties:{ id:{type:'string'}, heading:{type:'string'}, prose:{type:'string'},
+      claims:{ type:'array', items:{type:'string'} } } } } } };
+
+const manifestInsertPrompt = (inserts) => [
+  `Tu fais une édition CHIRURGICALE de ${themeDir}/manifest.json. Fais Read d'abord.`,
+  `Le manifeste a "elements": [ … ] ordonnés. Pour CHAQUE super-widget ci-dessous, insère l'élément {"type":"widget","ref":"<ref>"} IMMÉDIATEMENT APRÈS le DERNIER élément {"type":"widget"} consécutif déjà présent juste après l'élément {"type":"section","id":"<after_section_id>"} (s'il n'y en a aucun, directement après la section).`,
+  `Super-widgets à insérer : ${JSON.stringify(inserts)}`,
+  `IDEMPOTENT : si un élément {"type":"widget","ref":"<ref>"} existe déjà dans le manifeste, NE L'AJOUTE PAS une seconde fois.`,
+  `Ne modifie AUCUN autre élément (faits, sections, prose, biblio, pointers, meta : INTACTS). Réécris (Write) le fichier complet avec UNIQUEMENT ces insertions.`,
+  `Si l'élément {"type":"section","id":"<after_section_id>"} est INTROUVABLE dans le manifeste, n'insère PAS ce widget : ne mets son ref ni dans inserted ni dans already_present (il restera non placé — volontaire, pas une erreur).`,
+  `Rends : inserted (refs effectivement insérés), already_present (refs déjà présents).`,
+].join('\n');
+const S_INSERT = { type:'object', additionalProperties:false, required:['inserted','already_present'], properties:{
+  inserted:{ type:'array', items:{type:'string'} }, already_present:{ type:'array', items:{type:'string'} } } };
 
 const ELEMENT_CHEATSHEET = [
   `Types d'éléments valides (rendus par build.py) et leurs champs requis :`,
@@ -353,6 +391,50 @@ async function ckptWrite(relName, obj, phaseName, labelName) {
       { schema: S_CKPT, model: M_IO, phase: phaseName, label: labelName });
   } catch (e) { log(`[resume] checkpoint ${relName} non écrit (${e.message}) — unité non reprenable, run continue.`); }
 }
+
+// ── Mode top-up super-widget (retrofit) ──────────────────────────────────────
+// Gardé par args.superwidgetOnly : n'exécute QUE planner-process → codeur → critic →
+// insertion chirurgicale → build, à partir des fichiers DÉJÀ persistés du thème (pas de
+// .monograph/ requis, pas de re-vérification factuelle). Réutilise les prompts canoniques.
+async function runSuperwidgetTopUp() {
+  phase('Synopsis');
+  const L = await A(topupLoadPrompt, { schema: S_TOPUP_LOAD, phase: 'Synopsis', label: 'topup-load' });
+  const sectionsBrief = L.sections || [];
+  const ids = new Set(sectionsBrief.map(s => s.id));
+  const plan = await A(widgetPlanPrompt(sectionsBrief), { schema: S_WIDGET_PLAN, phase: 'Synopsis', label: 'widget-plan' });
+  const wanted = (plan.widgets || []).filter(w => w.kind === 'process' && ids.has(w.after_section_id));
+  if (!wanted.length) {
+    log('Synopsis : aucun super-widget process éligible — thème laissé inchangé.');
+    return { slug, themeDir, mode: 'superwidgetOnly', superwidgets: [], inserted: [], already_present: [], build: null };
+  }
+  const coded = (await pipeline(
+    wanted,
+    (w) => A(widgetCodePrompt(w), { schema: S_WIDGET_CODE, phase: 'Synopsis', label: `widget-code:${w.after_section_id}` }),
+    async (c) => {
+      if (!c) return null;
+      const verdict = await A(widgetCriticPrompt(c), { schema: S_WIDGET_CRITIC, phase: 'Synopsis', label: `widget-critic:${c.ref}` });
+      if (verdict.ok) return c;
+      log(`[superwidget] ${c.ref} recodé : ${(verdict.issues || []).join('; ')}`);
+      const fixed = await A(widgetRecodePrompt(c, verdict.issues || []), { schema: S_WIDGET_CODE, phase: 'Synopsis', label: `widget-recode:${c.ref}` });
+      return fixed || c;
+    }
+  )).filter(Boolean);
+  if (!coded.length) {
+    log('Synopsis : aucun super-widget codé.');
+    return { slug, themeDir, mode: 'superwidgetOnly', superwidgets: [], inserted: [], already_present: [], build: null };
+  }
+  const inserts = coded.map(c => ({ ref: c.ref, after_section_id: c.after_section_id }));
+  const ins = await A(manifestInsertPrompt(inserts), { schema: S_INSERT, phase: 'Synopsis', label: 'manifest-insert' });
+  const placed = new Set([...(ins.inserted || []), ...(ins.already_present || [])]);
+  const notPlaced = coded.map(c => c.ref).filter(r => !placed.has(r));   // section d'ancrage introuvable dans le manifeste
+  if (notPlaced.length) log(`[superwidget] non placé(s) (section d'ancrage introuvable dans le manifeste) : ${notPlaced.join(', ')}`);
+  const built = await A(buildPrompt(), { schema: S_BUILD, phase: 'Build', label: 'build' });
+  return { slug, themeDir, mode: 'superwidgetOnly',
+    superwidgets: coded.map(c => ({ ref: c.ref, title: c.title, after_section_id: c.after_section_id })),
+    inserted: ins.inserted, already_present: ins.already_present, not_placed: notPlaced, build: built };
+}
+// resume n'a aucun effet ici : le top-up est sans état (relit les fichiers persistés, aucun checkpoint .monograph/ à reprendre).
+if (String(A0.superwidgetOnly) === 'true') return await runSuperwidgetTopUp();
 
 // Chargement des checkpoints (UNIQUEMENT en reprise). Échec/illisible ⇒ traité comme absent (run frais, loggé).
 let loadedResearch = null, savedSections = {}, loadedWidgets = null;

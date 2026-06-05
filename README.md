@@ -83,6 +83,12 @@ façon déterministe. Le fan-out est massif sur **Verify** (le council) et **Wid
 6. **Widgets** — 2ᵉ fan-out : un *planner* choisit les mécanismes non triviaux qui gagnent à
    être *montrés*, des *codeurs* écrivent chacun un widget HTML interactif autonome, un *critic*
    les relit (une re-passe de correction possible).
+
+   Au-delà des **sondes** (un widget par mécanisme), une monographie peut porter un ou plusieurs
+   **super-widgets synoptiques** : la visualisation d'un **processus de bout en bout** (ex. backprop :
+   passe avant → rétropropagation → itérations jusqu'à convergence) sur un réseau jouet. On peut aussi
+   les ajouter après coup à un article existant (`args.superwidgetOnly`).
+
 7. **Compose** — 1 agent écrit `manifest.json`, le *layout* best-of (abstract → sections +
    widgets → exercices → biblio → pointeurs → glossaire).
 8. **Build** — `build.py` assemble le HTML final de façon déterministe et **échoue bruyamment**
