@@ -137,6 +137,19 @@ planner-process → codeur → critic → **insertion chirurgicale** dans `manif
 **Aucune re-vérification factuelle** ; le planner décide la pertinence par thème (peut rendre 0,
 le thème est alors laissé tel quel). N'a **pas** besoin de `.monograph/`.
 
+## Retrofit : ajouter des figures à un article existant
+
+Pour illustrer avec des figures statiques un thème **déjà construit** sans tout régénérer :
+relance le Workflow avec `args.figuresOnly = true` (mêmes `subject`/`slug`/`themeDir`). Le mode
+lit `manifest.json`, demande au planificateur de sélectionner les concepts à illustrer
+(`kind:"figure"` uniquement), insère les figures directement dans la prose des sections via Edit
+chirurgical, puis relance `build.py` qui numérote les `<span class='fcap-k'>` vides dans l'ordre.
+
+**Idempotent (I3)** : si le thème a déjà une figure (`<figure class='fig'`), le run est un no-op
+immédiat. **Aucune re-vérification factuelle** ; le planner décide la pertinence (peut rendre 0,
+le thème est alors laissé tel quel). Pas besoin de `.monograph/`. En cas de rate-limit → re-run
+(sans `resume`). Ce mode est aussi la **1ʳᵉ validation end-to-end** de la capacité figures.
+
 ## Garanties (portées par `workflow.js` + `build.py`)
 
 - Les **faits** (`knowledge.json`) sont assemblés en JS depuis les verdicts vérifiés, pas
