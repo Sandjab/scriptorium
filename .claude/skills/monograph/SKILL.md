@@ -68,6 +68,14 @@ synoptique** : un **processus de bout en bout** assemblé sur une instance jouet
 chaque widget ; le super-widget reste un `{"type":"widget"}` ordinaire (charte/`build.py` inchangés).
 **Pas de plafond** : la rubrique stricte « vrai processus, jamais un mécanisme isolé » est le seul frein.
 
+**Troisième registre — les figures (`kind:"figure"`)** : illustration **statique** (SVG fixe :
+courbe, organigramme, taxonomie, schéma) insérée **en ligne** dans la prose, juste après le
+paragraphe visé (champ `anchor`). Le codeur de figure dessine le SVG + la légende et l'insère
+chirurgicalement dans `sections_draft.json` (`<span class="fcap-k">` laissé vide → `build.py`
+numérote « Figure N »). À choisir quand *voir* suffit et que *manipuler* n'apporterait rien ;
+jamais en doublon d'un widget. Les figures sont codées **en série** (elles éditent la même prose).
+charte/`components.py` inchangés (la charte stylise déjà `figure.fig`).
+
 **Contraintes strictes** (sinon `build.py` échoue) : un seul bloc `<div class="widget">…</div>`
 + `<style>` + `<script>` ; AUCUNE ressource externe, AUCUN `file:///`, AUCUN
 `alert/confirm/prompt` ; balises `<section>/<details>/<script>` équilibrées ; id/classes
@@ -128,6 +136,19 @@ fichiers persistés (`sections_draft.json`, `knowledge.json`, `manifest.json`), 
 planner-process → codeur → critic → **insertion chirurgicale** dans `manifest.json` → `build.py`.
 **Aucune re-vérification factuelle** ; le planner décide la pertinence par thème (peut rendre 0,
 le thème est alors laissé tel quel). N'a **pas** besoin de `.monograph/`.
+
+## Retrofit : ajouter des figures à un article existant
+
+Pour illustrer avec des figures statiques un thème **déjà construit** sans tout régénérer :
+relance le Workflow avec `args.figuresOnly = true` (mêmes `subject`/`slug`/`themeDir`). Le mode
+lit `manifest.json`, demande au planificateur de sélectionner les concepts à illustrer
+(`kind:"figure"` uniquement), insère les figures directement dans la prose des sections via Edit
+chirurgical, puis relance `build.py` qui numérote les `<span class='fcap-k'>` vides dans l'ordre.
+
+**Idempotent (I3)** : si le thème a déjà une figure (`<figure class='fig'`), le run est un no-op
+immédiat. **Aucune re-vérification factuelle** ; le planner décide la pertinence (peut rendre 0,
+le thème est alors laissé tel quel). Pas besoin de `.monograph/`. En cas de rate-limit → re-run
+(sans `resume`). Ce mode est aussi la **1ʳᵉ validation end-to-end** de la capacité figures.
 
 ## Garanties (portées par `workflow.js` + `build.py`)
 

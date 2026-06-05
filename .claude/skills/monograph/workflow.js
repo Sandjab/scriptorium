@@ -97,7 +97,7 @@ const S_WIDGET_PLAN = { type:'object', additionalProperties:false, required:['wi
   widgets:{ type:'array', items:{ type:'object', additionalProperties:false,
     required:['concept','after_section_id','brief','kind'],
     properties:{ concept:{type:'string'}, after_section_id:{type:'string'}, brief:{type:'string'},
-      kind:{ type:'string', enum:['probe','process'] } } } } } };
+      kind:{ type:'string', enum:['probe','process','figure'] }, anchor:{type:'string'} } } } } };
 
 const S_WIDGET_CODE = { type:'object', additionalProperties:false,
   required:['ref','title','after_section_id','kind'],
@@ -251,11 +251,12 @@ const authorPrompt = (sectionsBrief) => [
 const widgetPlanPrompt = (secs) => [
   `Sujet : « ${subject} ». Sections RETENUES du document (id, heading, prose, faits clés) :`,
   JSON.stringify(secs),
-  `Décide quels CONCEPTS/MÉCANISMES méritent un widget interactif démonstratif, et de quel TYPE (champ "kind").`,
-  `• "probe" — illustre UN mécanisme ISOLÉ. Rubrique STRICTE : seulement si NON TRIVIAL et plus clair MONTRÉ qu'expliqué. Rien pour le trivial/déclaratif. UN seul probe par mécanisme (déduplique).`,
-  `• "process" — un SUPER-WIDGET synoptique montrant un PROCESSUS DE BOUT EN BOUT assemblé sur une instance jouet. Rubrique STRICTE (c'est le SEUL frein — il n'y a PAS de plafond) : seulement un VRAI processus multi-étapes — soit ITÉRATIF (une boucle d'étapes répétée jusqu'à convergence, ex. avant→arrière→mise à jour→répéter), soit un PIPELINE d'AU MOINS 3 étapes chaînées sur un cas concret. JAMAIS pour un mécanisme isolé (ça reste un probe). Déduplique : un seul process par processus distinct. Dans "brief", NOMME explicitement les étapes enchaînées (ou la boucle) ; si tu ne peux pas nommer ≥3 étapes ou la boucle, ce n'est PAS un process.`,
-  `Un "process" s'ancre sur la section de SYNTHÈSE après laquelle l'enchaînement est complet (after_section_id).`,
-  `Rends : widgets = liste {concept, after_section_id (id EXACT d'une section ci-dessus), brief (ce que le widget fait voir/manipuler ; pour un process, nomme les étapes), kind ("probe"|"process")}. Liste VIDE si rien ne le justifie.`,
+  `Décide quels CONCEPTS/MÉCANISMES méritent un APPUI VISUEL, et de quel TYPE (champ "kind") : "probe", "process" ou "figure". Choisis UN SEUL outil visuel par concept (anti-surcharge) ; rien pour le trivial.`,
+  `• "probe" — widget interactif d'UN mécanisme ISOLÉ. Seulement si NON TRIVIAL et plus clair MONTRÉ qu'expliqué. UN seul probe par mécanisme.`,
+  `• "process" — SUPER-WIDGET synoptique d'un PROCESSUS DE BOUT EN BOUT sur une instance jouet. Seulement un VRAI processus multi-étapes — ITÉRATIF (boucle jusqu'à convergence) ou PIPELINE d'AU MOINS 3 étapes chaînées. JAMAIS un mécanisme isolé. Dans "brief", NOMME les étapes (ou la boucle) ; sinon ce n'est pas un process. Ancre sur la section de SYNTHÈSE.`,
+  `• "figure" — ILLUSTRATION STATIQUE (SVG fixe : courbe, organigramme, taxonomie, schéma). Seulement quand VOIR suffit et que manipuler n'apporterait rien — pour une STRUCTURE, une ALLURE ou un SCHÉMA. JAMAIS pour le trivial/déclaratif, JAMAIS en doublon d'un widget. Pour une figure, fournis "anchor" : un court extrait VERBATIM de fin du paragraphe (dans la prose de la section) après lequel la figure doit se poser (ou "début"/"fin" de section).`,
+  `Une figure peut compléter un widget seulement s'ils sont vraiment complémentaires (figure = vue fixe ; widget = exploration).`,
+  `Rends : widgets = liste {concept, after_section_id (id EXACT d'une section ci-dessus), brief, kind ("probe"|"process"|"figure"), anchor (UNIQUEMENT pour les figures)}. Liste VIDE si rien ne le justifie.`,
 ].join('\n');
 
 const widgetCodePrompt = (w) => [
@@ -290,6 +291,36 @@ const widgetRecodePrompt = (coded, issues) => [
     : null,
   `Rends : ref="${coded.ref}", title="${coded.title}", after_section_id="${coded.after_section_id}", kind="${coded.kind || 'probe'}".`,
 ].filter(Boolean).join('\n');
+
+// ── Figures statiques (illustrations en ligne, insérées dans la prose) ────────
+const figureCodePrompt = (f) => [
+  `Tu produis une FIGURE STATIQUE illustrant ce point du sujet « ${subject} » : ${f.concept}.`,
+  `Objectif (brief) : ${f.brief}`,
+  `Fais Read de ${themeDir}/sections_draft.json. Repère la section d'id "${f.after_section_id}" et, dans sa "prose" (HTML), le paragraphe visé par ce repère : « ${f.anchor || 'fin de section'} ».`,
+  `INSÈRE, par un Edit CHIRURGICAL de ${themeDir}/sections_draft.json, le bloc figure JUSTE APRÈS la balise </p> de ce paragraphe (ne modifie RIEN d'autre de la prose ; n'altère aucun fait ni aucune phrase). Forme EXACTE du bloc :`,
+  `<figure class='fig'><svg viewBox='0 0 W H' role='img' aria-label='…'>…</svg><figcaption><span class='fcap-k'></span>LÉGENDE</figcaption></figure>`,
+  `CONTRAINTES STRICTES : SVG autoporteur DÉTERMINISTE (aucun aléa) ; couleurs via variables de charte avec fallback (var(--blue,#23537F), var(--ink,#15202E), var(--bordeaux,#7C2A38), var(--ink-faint,#7A889B)…) ; AUCUN <script>, AUCUNE ressource externe, AUCUN file:/// ; balises équilibrées. Le <span class='fcap-k'> reste VIDE (« Figure N » est ajouté par le build). LÉGENDE = une phrase concise.`,
+  `IMPORTANT — la prose est stockée dans un JSON : utilise des APOSTROPHES SIMPLES pour TOUS les attributs du bloc figure (class='fig', viewBox='…', fill='…', stroke='…', role='img', aria-label='…', class='fcap-k', etc.). Ainsi l'insertion par Edit n'introduit AUCUN guillemet " à échapper, le JSON reste valide. Le TEXTE de la légende peut contenir des apostrophes françaises sans souci (le « ' » dans du texte ne casse pas le JSON).`,
+  `La figure doit VRAIMENT illustrer (structure/allure/schéma), pas décorer. Choisis un <ref> kebab-case ascii unique (ex. fig-…).`,
+  `Rends : ref, after_section_id = "${f.after_section_id}", caption (la légende), kind = "figure".`,
+].join('\n');
+const S_FIGURE_CODE = { type:'object', additionalProperties:false,
+  required:['ref','after_section_id','caption','kind'],
+  properties:{ ref:{type:'string'}, after_section_id:{type:'string'}, caption:{type:'string'},
+    kind:{ type:'string', enum:['figure'] } } };
+
+const figureCriticPrompt = (coded) => [
+  `Fais Read de ${themeDir}/sections_draft.json. Dans la prose de la section "${coded.after_section_id}", relis la figure insérée (légende « ${coded.caption} »).`,
+  `Juge HONNÊTEMENT : (1) un seul bloc <figure class='fig'> bien formé : un <svg> équilibré, un <figcaption> avec <span class='fcap-k'> VIDE ; (2) AUCUN <script>, aucune ressource externe / file:/// ; attributs du SVG en APOSTROPHES SIMPLES (aucun guillemet droit, pour ne pas casser le JSON) ; (3) la figure ILLUSTRE vraiment (structure/allure/schéma, pas décorative) ; (4) insertion CHIRURGICALE : la prose n'a gagné QUE cette figure (le texte autour intact), et la figure suit bien une balise </p>.`,
+  `Rends : ok (true SEULEMENT si les 4 tiennent), issues (problèmes précis ; vide si ok).`,
+].join('\n');
+
+const figureRecodePrompt = (coded, issues) => [
+  `La figure (section "${coded.after_section_id}", légende « ${coded.caption} ») dans ${themeDir}/sections_draft.json DOIT être corrigée. Problèmes :`,
+  JSON.stringify(issues),
+  `Corrige par un Edit CHIRURGICAL de ${themeDir}/sections_draft.json : un seul bloc <figure class='fig'> bien formé (SVG déterministe équilibré, attributs en apostrophes simples (JSON-safe), AUCUN <script>/ressource externe/file:///, <span class='fcap-k'> VIDE, légende = une phrase concise) ; ne touche à RIEN d'autre de la prose.`,
+  `Rends : ref="${coded.ref}", after_section_id="${coded.after_section_id}", caption (la légende), kind="figure".`,
+].join('\n');
 
 // ── Top-up super-widget (retrofit) : chargement persistant + insertion chirurgicale ──
 const topupLoadPrompt = [
@@ -421,6 +452,89 @@ async function runSuperwidgetTopUp() {
 }
 // resume n'a aucun effet ici : le top-up est sans état (relit les fichiers persistés, aucun checkpoint .monograph/ à reprendre).
 if (String(A0.superwidgetOnly) === 'true') return await runSuperwidgetTopUp();
+
+// ── Mode top-up figures (retrofit) ──────────────────────────────────────────
+// Gardé par args.figuresOnly : n'exécute QUE load manifest → planner-figure →
+// codeur série → critic → recode si besoin → build. Pas de .monograph/ requis.
+// Idempotent (I3) : no-op si une figure est déjà présente dans manifest.json.
+const figuresLoadPrompt = [
+  `Lis ${themeDir}/manifest.json. Dans "elements", extrais dans l'ordre tous les éléments {"type":"section"}.`,
+  `Pour chaque section, calcule "existing_visuals" = les "ref" des éléments {"type":"widget"} qui la suivent immédiatement (jusqu'au prochain {"type":"section"} ou la fin du tableau).`,
+  `Indique aussi "has_figures" = true si AU MOINS une section contient la balise ouvrante <figure dans sa prose (quelle que soit la suite des attributs), false sinon.`,
+  `Ne lis, ne crée, ne modifie RIEN d'autre.`,
+  `Rends : has_figures (bool), sections = [{id, heading, prose, existing_visuals:[refs des widgets]}].`,
+].join('\n');
+const S_FIGURES_LOAD = { type:'object', additionalProperties:false, required:['has_figures','sections'],
+  properties:{ has_figures:{type:'boolean'}, sections:{ type:'array', items:{
+    type:'object', additionalProperties:false,
+    required:['id','heading','prose','existing_visuals'],
+    properties:{ id:{type:'string'}, heading:{type:'string'}, prose:{type:'string'},
+      existing_visuals:{ type:'array', items:{type:'string'} } } } } } };
+
+const figuresTopupCodePrompt = (f) => [
+  `Tu produis une FIGURE STATIQUE illustrant ce point du sujet « ${subject} » : ${f.concept}.`,
+  `Objectif (brief) : ${f.brief}`,
+  `Fais Read de ${themeDir}/manifest.json. Dans "elements", repère l'élément {"type":"section","id":"${f.after_section_id}"} et, dans sa "prose" (HTML), le paragraphe visé par ce repère : « ${f.anchor || 'fin de section'} ».`,
+  `INSÈRE, par un Edit CHIRURGICAL de ${themeDir}/manifest.json, le bloc figure JUSTE APRÈS la balise </p> de ce paragraphe (ne modifie RIEN d'autre de la prose ; n'altère aucun fait ni aucune phrase). Forme EXACTE du bloc :`,
+  `<figure class='fig'><svg viewBox='0 0 W H' role='img' aria-label='…'>…</svg><figcaption><span class='fcap-k'></span>LÉGENDE</figcaption></figure>`,
+  `CONTRAINTES STRICTES : SVG autoporteur DÉTERMINISTE (aucun aléa) ; couleurs via variables de charte avec fallback (var(--blue,#23537F), var(--ink,#15202E), var(--bordeaux,#7C2A38), var(--ink-faint,#7A889B)…) ; AUCUN <script>, AUCUNE ressource externe, AUCUN file:///, balises équilibrées. Le <span class='fcap-k'> reste VIDE (« Figure N » est ajouté par le build). LÉGENDE = une phrase concise.`,
+  `IMPORTANT — la prose est stockée dans un JSON : utilise des APOSTROPHES SIMPLES pour TOUS les attributs du bloc figure (class='fig', viewBox='…', fill='…', stroke='…', role='img', aria-label='…', class='fcap-k', etc.). Ainsi l'insertion par Edit n'introduit AUCUN guillemet " à échapper, le JSON reste valide. Le TEXTE de la légende peut contenir des apostrophes françaises sans souci (le « ' » dans du texte ne casse pas le JSON).`,
+  `La figure doit VRAIMENT illustrer (structure/allure/schéma), pas décorer. Choisis un <ref> kebab-case ascii unique (fig-…).`,
+  `Rends : ref, after_section_id = "${f.after_section_id}", caption (la légende), kind = "figure".`,
+].join('\n');
+
+const figuresTopupCriticPrompt = (coded) => [
+  `Fais Read de ${themeDir}/manifest.json. Dans "elements", repère la section "${coded.after_section_id}" et relis la figure insérée dans sa prose (légende « ${coded.caption} »).`,
+  `Juge HONNÊTEMENT : (1) un seul bloc <figure class='fig'> bien formé : un <svg> équilibré, un <figcaption> avec <span class='fcap-k'> VIDE ; (2) AUCUN <script>, aucune ressource externe / file:/// ; attributs du SVG en APOSTROPHES SIMPLES (aucun guillemet droit, pour ne pas casser le JSON) ; (3) la figure ILLUSTRE vraiment (structure/allure/schéma, pas décorative) ; (4) insertion CHIRURGICALE : la prose n'a gagné QUE cette figure (le texte autour intact), et la figure suit bien une balise </p>.`,
+  `Rends : ok (true SEULEMENT si les 4 tiennent), issues (problèmes précis ; vide si ok).`,
+].join('\n');
+
+const figuresTopupRecodePrompt = (coded, issues) => [
+  `La figure (section "${coded.after_section_id}", légende « ${coded.caption} ») dans ${themeDir}/manifest.json DOIT être corrigée. Problèmes :`,
+  JSON.stringify(issues),
+  `Corrige par un Edit CHIRURGICAL de ${themeDir}/manifest.json : un seul bloc <figure class='fig'> bien formé (SVG déterministe équilibré, attributs en apostrophes simples (JSON-safe), AUCUN <script>/ressource externe/file:///, <span class='fcap-k'> VIDE, légende = une phrase concise) ; ne touche à RIEN d'autre de la prose.`,
+  `Rends : ref="${coded.ref}", after_section_id="${coded.after_section_id}", caption (la légende), kind="figure".`,
+].join('\n');
+
+async function runFiguresTopUp() {
+  phase('Figures');
+  const L = await A(figuresLoadPrompt, { schema: S_FIGURES_LOAD, phase: 'Figures', label: 'figures-load' });
+  if (L.has_figures) {
+    log('Figures : thème déjà figuré (I3) — no-op.');
+    return { slug, themeDir, mode: 'figuresOnly', figures: [], already_present: true, build: null };
+  }
+  const sections = L.sections || [];
+  const ids = new Set(sections.map(s => s.id));
+  const plan = await A(widgetPlanPrompt(sections), { schema: S_WIDGET_PLAN, phase: 'Figures', label: 'widget-plan' });
+  const wanted = (plan.widgets || []).filter(w => w.kind === 'figure' && ids.has(w.after_section_id));
+  if (!wanted.length) {
+    log('Figures : aucune figure pertinente — thème laissé inchangé.');
+    return { slug, themeDir, mode: 'figuresOnly', figures: [], already_present: false, build: null };
+  }
+  const coded = [];
+  for (const f of wanted) {
+    const c = await A(figuresTopupCodePrompt(f), { schema: S_FIGURE_CODE, phase: 'Figures', label: `figure-code:${f.after_section_id}` });
+    if (!c) continue;
+    const verdict = await A(figuresTopupCriticPrompt(c), { schema: S_WIDGET_CRITIC, phase: 'Figures', label: `figure-critic:${c.ref}` });
+    if (!verdict.ok) {
+      log(`[figures] ${c.ref} recodé : ${(verdict.issues || []).join('; ')}`);
+      const fixed = await A(figuresTopupRecodePrompt(c, verdict.issues || []), { schema: S_FIGURE_CODE, phase: 'Figures', label: `figure-recode:${c.ref}` });
+      coded.push(fixed || c);
+    } else {
+      coded.push(c);
+    }
+  }
+  if (!coded.length) {
+    log('Figures : aucune figure codée.');
+    return { slug, themeDir, mode: 'figuresOnly', figures: [], already_present: false, build: null };
+  }
+  const built = await A(buildPrompt(), { schema: S_BUILD, phase: 'Build', label: 'build' });
+  return { slug, themeDir, mode: 'figuresOnly',
+    figures: coded.map(c => ({ ref: c.ref, caption: c.caption, after_section_id: c.after_section_id })),
+    already_present: false, build: built };
+}
+// resume n'a aucun effet ici : le top-up relit manifest.json, aucun checkpoint .monograph/ à reprendre.
+if (String(A0.figuresOnly) === 'true') return await runFiguresTopUp();
 
 // Chargement des checkpoints (UNIQUEMENT en reprise). Échec/illisible ⇒ traité comme absent (run frais, loggé).
 let loadedResearch = null, savedSections = {}, loadedWidgets = null;
@@ -642,11 +756,28 @@ const sectionsBrief = arch.outline.filter(o => liveOutlineIds.has(o.id)).map(o =
 const authored = await A(authorPrompt(sectionsBrief), { schema: S_AUTHOR, phase: 'Author', label: 'author' });
 log(`Author : ${authored.files_written.length} fichiers écrits`);
 
+// sections_draft.json est écrit AVANT la phase visuelle pour que les codeurs de FIGURE l'éditent en ligne.
+// Garde resume : si la phase visuelle est reprise (loadedWidgets présent), le fichier disque porte déjà
+// les figures → NE PAS l'écraser.
+if (!Array.isArray(loadedWidgets)) {
+  const proseById = {};
+  sectionData.forEach(r => { proseById[r.section.id] = r.section.prose; });
+  const liveOutline = arch.outline.filter(o => liveOutlineIds.has(o.id));
+  const sectionsForCompose = liveOutline.map(o => ({
+    id: o.id, heading: o.heading, prose: proseById[o.id] || '', claims: sectionClaims[o.id] || [],
+  }));
+  await A(
+    `Crée le dossier si besoin (mkdir -p ${themeDir}) puis écris VERBATIM le fichier suivant.\nChemin : ${themeDir}/sections_draft.json\nContenu :\n${JSON.stringify(sectionsForCompose, null, 2)}`,
+    { schema: { type:'object', additionalProperties:false, required:['written'], properties:{ written:{type:'boolean'} } },
+      phase: 'Widgets', label: 'write:sections' }
+  );
+}
+
 phase('Widgets');
-let widgets = [];
-if (Array.isArray(loadedWidgets)) {                 // reprise : décision widgets déjà prise (même []) → saute le 2e fan-out
-  widgets = loadedWidgets;
-  log(`[resume] ${widgets.length} widget(s) repris du disque — phase Widgets sautée.`);
+let visual = [];
+if (Array.isArray(loadedWidgets)) {                 // reprise : décision visuelle déjà prise → saute le fan-out
+  visual = loadedWidgets;
+  log(`[resume] ${visual.length} élément(s) visuel(s) repris du disque — phase visuelle sautée.`);
 } else {
   const liveSectionsBrief = liveSections.map(s => ({
     id: s.section.id, heading: s.section.heading, prose: s.section.prose,
@@ -656,9 +787,12 @@ if (Array.isArray(loadedWidgets)) {                 // reprise : décision widge
   if (wantWidgets && liveSectionsBrief.length) {
     const plan = await A(widgetPlanPrompt(liveSectionsBrief), { schema: S_WIDGET_PLAN, phase: 'Widgets', label: 'widget-plan' });
     const liveIds = new Set(liveSections.map(s => s.section.id));
-    const wanted = (plan.widgets || []).filter(w => liveIds.has(w.after_section_id));  // garde-fou : ancrage sur une section vivante
-    widgets = (await pipeline(
-      wanted,
+    const wanted = (plan.widgets || []).filter(w => liveIds.has(w.after_section_id));  // ancrage sur une section vivante
+    const widgetItems = wanted.filter(w => w.kind !== 'figure');
+    const figureItems = wanted.filter(w => w.kind === 'figure');
+    // Widgets (probe/process) : codés EN PARALLÈLE (fichiers séparés sous widgets/).
+    const codedWidgets = (await pipeline(
+      widgetItems,
       (w) => A(widgetCodePrompt(w), { schema: S_WIDGET_CODE, phase: 'Widgets', label: `widget-code:${w.after_section_id}` }),
       async (coded) => {
         if (!coded) return null;
@@ -666,32 +800,32 @@ if (Array.isArray(loadedWidgets)) {                 // reprise : décision widge
         if (verdict.ok) return coded;
         log(`[widget] ${coded.ref} recodé : ${(verdict.issues || []).join('; ')}`);
         const fixed = await A(widgetRecodePrompt(coded, verdict.issues || []), { schema: S_WIDGET_CODE, phase: 'Widgets', label: `widget-recode:${coded.ref}` });
-        return fixed || coded;   // 1 SEULE re-passe ; au pire on garde la version critiquée
+        return fixed || coded;
       }
     )).filter(Boolean);
-    log(`Widgets : ${widgets.length}/${(plan.widgets || []).length} retenus.`);
+    // Figures : codées EN SÉRIE (elles éditent toutes le même sections_draft.json → pas de course).
+    const codedFigures = [];
+    for (const f of figureItems) {
+      const coded = await A(figureCodePrompt(f), { schema: S_FIGURE_CODE, phase: 'Widgets', label: `figure-code:${f.after_section_id}` });
+      if (!coded) continue;
+      const verdict = await A(figureCriticPrompt(coded), { schema: S_WIDGET_CRITIC, phase: 'Widgets', label: `figure-critic:${coded.ref}` });
+      if (verdict.ok) { codedFigures.push(coded); continue; }
+      log(`[figure] ${coded.ref} recodée : ${(verdict.issues || []).join('; ')}`);
+      const fixed = await A(figureRecodePrompt(coded, verdict.issues || []), { schema: S_FIGURE_CODE, phase: 'Widgets', label: `figure-recode:${coded.ref}` });
+      codedFigures.push(fixed || coded);
+    }
+    visual = [...codedWidgets, ...codedFigures];
+    log(`Visuel : ${codedWidgets.length} widget(s) + ${codedFigures.length} figure(s) retenus.`);
   } else {
-    log(wantWidgets ? 'Widgets : aucune section vivante.' : 'Widgets : désactivés (widget=false).');
+    log(wantWidgets ? 'Visuel : aucune section vivante.' : 'Visuel : désactivé (widget=false).');
   }
-  // Persiste la décision widgets (même vide) pour ne pas re-payer ce 2e fan-out sur une reprise ultérieure.
-  await ckptWrite('widgets.json', widgets, 'Widgets', 'ckpt:widgets');
+  await ckptWrite('widgets.json', visual, 'Widgets', 'ckpt:widgets');
 }
+// Seuls les widgets (probe/process) deviennent des éléments {"type":"widget"} ; les figures vivent déjà dans la prose.
+const widgets = visual.filter(v => v.kind !== 'figure');
 
 phase('Compose');
-const proseById = {};
-sectionData.forEach(r => { proseById[r.section.id] = r.section.prose; });
-const liveOutline = arch.outline.filter(o => liveOutlineIds.has(o.id));
-const sectionsForCompose = liveOutline.map(o => ({
-  id: o.id, heading: o.heading,
-  prose: proseById[o.id] || '',
-  claims: sectionClaims[o.id] || [],
-}));
-// Écriture des sections sur disque — Compose lit depuis le fichier (pas d'injection inline volumineuse)
-await A(
-  `Crée le dossier si besoin (mkdir -p ${themeDir}) puis écris VERBATIM le fichier suivant.\nChemin : ${themeDir}/sections_draft.json\nContenu :\n${JSON.stringify(sectionsForCompose, null, 2)}`,
-  { schema: { type:'object', additionalProperties:false, required:['written'], properties:{ written:{type:'boolean'} } },
-    phase: 'Compose', label: 'write:sections' }
-);
+// sections_draft.json a déjà été écrit AVANT la phase visuelle (et porte les figures insérées) ; Compose le RELIT.
 const biblioEntries = sources.map(s => ({ label: s.title, href: s.url }));
 const composed = await A(
   composePrompt(arch.title, biblioEntries, widgets, verifiedPointers),

@@ -52,6 +52,13 @@ function makeEnv(disk, planWidgets, envOpts = {}) {
     if (label === 'resume-load') return Promise.resolve({ research: '', widgets: '', sections: [] });
     if (label === 'topup-load') return Promise.resolve({ sections: [
       { id: 's1', heading: 'S1', prose: '<p>x</p>', claims: ['énoncé 1'] } ] });
+    if (label === 'figures-load') return Promise.resolve({
+      has_figures: !!(envOpts && envOpts.manifestHasFigures),
+      sections: [
+        { id:'s1', heading:'S1', prose:'<p>x</p>', existing_visuals:[] },
+        { id:'s2', heading:'S2', prose:'<p>y</p>', existing_visuals:['probe-existing'] },
+      ]
+    });
     if (label === 'plan') return Promise.resolve(JSON.parse(JSON.stringify(ARCH)));
     if (label.startsWith('sweep:')) return Promise.resolve({
       sources: [{ title: 'src', url: 'http://e/' + label, kind: 'paper' }],
@@ -69,6 +76,12 @@ function makeEnv(disk, planWidgets, envOpts = {}) {
       return Promise.resolve({ ref: 'w-' + kind, title: 'W ' + kind, after_section_id: 's1', kind }); }
     if (label.startsWith('widget-critic:')) return Promise.resolve({
       ok: envOpts.criticOk !== false, issues: envOpts.criticOk === false ? ['phases manquantes'] : [] });
+    if (label.startsWith('figure-code:') || label.startsWith('figure-recode:')) {
+      const secId = label.split(':')[1] || 's1';
+      return Promise.resolve({ ref: 'fig-' + secId, after_section_id: secId, caption: 'légende', kind: 'figure' });
+    }
+    if (label.startsWith('figure-critic:')) return Promise.resolve({
+      ok: envOpts.figureCriticOk !== false, issues: envOpts.figureCriticOk === false ? ['svg déséquilibré'] : [] });
     if (label === 'manifest-insert') return Promise.resolve(envOpts.insertReturns || { inserted: ['w-process'], already_present: [] });
     if (label === 'author') return Promise.resolve({ files_written: ['glossary.json', 'tldr.json'] });
     if (label === 'compose') return Promise.resolve({ files_written: ['manifest.json'], element_counts: { document: 5 } });
@@ -178,6 +191,103 @@ console.log('Scénario E — section d\'ancrage absente du manifeste : ref rappo
   const r = await run(env, { ...ARGS, superwidgetOnly: true });
   ok(Array.isArray(r.not_placed) && r.not_placed.includes('w-process'),
      'le ref non inséré est rapporté dans not_placed');
+}
+
+// ── Scénario F : kind=figure routé vers le codeur de figure (en série), sections_draft écrit avant ──
+console.log('Scénario F — figure : routage + sections_draft écrit AVANT la phase visuelle :');
+{
+  const disk = {};
+  const env = makeEnv(disk, [
+    { concept: 'c', after_section_id: 's1', brief: 'b', kind: 'figure', anchor: '…' },
+    { concept: 'd', after_section_id: 's2', brief: 'b', kind: 'probe' },
+  ]);
+  await run(env, ARGS);
+  const iWrite = env.calls.indexOf('write:sections');
+  const iPlan = env.calls.indexOf('widget-plan');
+  ok(iWrite >= 0 && iPlan >= 0 && iWrite < iPlan, 'sections_draft.json écrit AVANT le planner visuel');
+  ok(env.calls.some(c => c.startsWith('figure-code:')), 'le codeur de figure est appelé');
+  ok(env.calls.some(c => c.startsWith('figure-critic:')), 'le critic de figure est appelé');
+  ok(env.calls.some(c => c.startsWith('widget-code:')), 'le widget (probe) est aussi codé');
+}
+
+// ── Scénario G1 : gate figuresOnly ──────────────────────────────────────────
+console.log('Scénario G1 — figuresOnly : gate + figures-load (pas topup-load) :');
+{
+  const disk = {};
+  const env = makeEnv(disk, []);  // plan vide → no-op après load
+  const r = await run(env, { ...ARGS, figuresOnly: true });
+  ok(!has(env.calls, 'topup-load'), 'figuresOnly : topup-load non appelé');
+  ok(has(env.calls, 'figures-load'), 'figuresOnly : figures-load appelé');
+  ok(['sweep:', 'plan', 'extract:', 'verify:', 'author', 'compose'].every(p => !has(env.calls, p)),
+     'figuresOnly : aucune phase de recherche/auteur/compose');
+  ok(r && r.mode === 'figuresOnly', 'figuresOnly : mode correct dans le rapport');
+}
+
+// ── Scénario G2 : figuresOnly no-op I3 (thème déjà figuré) ──────────────────
+console.log('Scénario G2 — figuresOnly no-op I3 : thème déjà figuré → aucune action :');
+{
+  const disk = {};
+  const env = makeEnv(disk, [
+    { concept:'c', after_section_id:'s1', brief:'b', kind:'figure', anchor:'fin' },
+  ], { manifestHasFigures: true });
+  const r = await run(env, { ...ARGS, figuresOnly: true });
+  ok(has(env.calls, 'figures-load'), 'G2 : figures-load appelé (pour le check I3)');
+  ok(!has(env.calls, 'widget-plan'), 'G2 : widget-plan non appelé (no-op I3)');
+  ok(!env.calls.some(c => c.startsWith('figure-code:')), 'G2 : aucun figure-code (no-op I3)');
+  ok(r && r.already_present === true && r.figures.length === 0 && r.build === null,
+     'G2 : rapport already_present=true, figures=[], build=null');
+}
+
+// ── Scénario G3 : figuresOnly insertion réussie (2 figures, 1 probe filtré, série) ──
+console.log('Scénario G3 — figuresOnly : 2 figures en série, 1 probe filtré :');
+{
+  const disk = {};
+  const env = makeEnv(disk, [
+    { concept:'c1', after_section_id:'s1', brief:'b1', kind:'figure', anchor:'fin' },
+    { concept:'c2', after_section_id:'s2', brief:'b2', kind:'figure', anchor:'fin' },
+    { concept:'c3', after_section_id:'s1', brief:'b3', kind:'probe' },  // filtré
+  ]);
+  const r = await run(env, { ...ARGS, figuresOnly: true });
+  const figCodes = env.calls.filter(c => c.startsWith('figure-code:'));
+  ok(figCodes.length === 2, 'G3 : exactement 2 figure-code appelés');
+  ok(env.calls.indexOf('figure-code:s1') < env.calls.indexOf('figure-code:s2'),
+     'G3 : figure-code:s1 avant figure-code:s2 (série)');
+  ok(env.calls.filter(c => c.startsWith('figure-critic:')).length === 2, 'G3 : 2 figure-critic');
+  ok(!env.calls.some(c => c.startsWith('widget-code:')), 'G3 : aucun widget-code (probe filtré)');
+  ok(!has(env.calls, 'manifest-insert'), 'G3 : pas de manifest-insert (figure insérée dans prose)');
+  ok(has(env.calls, 'build'), 'G3 : build appelé');
+  ok(r && r.mode === 'figuresOnly' && r.figures.length === 2 && r.already_present === false,
+     'G3 : rapport mode=figuresOnly, 2 figures, already_present=false');
+}
+
+// ── Scénario G4 : figuresOnly recode exercé (critic ko → figure-recode, build quand même) ──
+console.log('Scénario G4 — figuresOnly : critic ko → figure-recode, build conservé :');
+{
+  const disk = {};
+  const env = makeEnv(disk, [
+    { concept:'c1', after_section_id:'s1', brief:'b1', kind:'figure', anchor:'fin' },
+  ], { figureCriticOk: false });
+  const r = await run(env, { ...ARGS, figuresOnly: true });
+  ok(env.calls.some(c => c.startsWith('figure-recode:')), 'G4 : figure-recode appelé (critic a rejeté)');
+  ok(has(env.calls, 'build'), 'G4 : build appelé malgré le recode');
+  ok(r && r.figures.length === 1, 'G4 : la figure recodée est dans le rapport');
+}
+
+// ── Scénario G5 : frugalmonograph — le top-up figuresOnly fonctionne aussi (garde-fou de parité) ──
+console.log('Scénario G5 — frugalmonograph : top-up figuresOnly opérationnel :');
+{
+  const disk = {};
+  const env = makeEnv(disk, [
+    { concept:'c1', after_section_id:'s1', brief:'b1', kind:'figure', anchor:'fin' },
+    { concept:'c2', after_section_id:'s2', brief:'b2', kind:'figure', anchor:'fin' },
+  ]);
+  const r = await runFrugal({ ...env, args: { ...ARGS, figuresOnly: true } });
+  ok(['sweep:', 'plan', 'extract:', 'verify:', 'author', 'compose'].every(p => !has(env.calls, p)),
+     'frugal : aucune phase de recherche/auteur/compose');
+  ok(has(env.calls, 'figures-load'), 'frugal : figures-load appelé');
+  ok(env.calls.filter(c => c.startsWith('figure-code:')).length === 2, 'frugal : 2 figures codées en série');
+  ok(has(env.calls, 'build'), 'frugal : build appelé');
+  ok(r && r.mode === 'figuresOnly' && r.figures.length === 2, 'frugal : rapport figuresOnly 2 figures');
 }
 
 console.log(failures === 0 ? '\n✅ TOUS LES TESTS PASSENT' : `\n❌ ${failures} test(s) en échec`);

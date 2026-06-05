@@ -42,8 +42,17 @@ def structural_checks(htmls):
         for tok in re.findall(r"<!--%[A-Z_]+%-->", s):
             die(f"{name} : jeton non substitué {tok}")
 
+def number_figures(body):
+    """Remplit « Figure N » dans les <span class="fcap-k"></span> vides, dans l'ordre du document."""
+    n = [0]
+    def repl(_m):
+        n[0] += 1
+        return f'<span class="fcap-k">Figure {n[0]}</span>'
+    return re.sub(r'<span class=["\']fcap-k["\']>\s*</span>', repl, body)
+
 def render_edition(manifest, ctx):
     body = "\n".join(C.RENDERERS[el["type"]](el, ctx) for el in manifest["elements"])
+    body = number_figures(body)
     meta = manifest["meta"]
     chips = "".join(f"<span>{C.esc(x)}</span>" for x in meta.get("meta_chips", []))
     repl = {"TITLE": C.esc(meta["title"]), "FONTS": ctx["fonts"], "CHARTE": ctx["charte"],
