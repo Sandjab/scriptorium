@@ -116,5 +116,39 @@ console.log('Scénario A2 — recode process exercé (critic ko → widget-recod
   ok(/Vue d'ensemble|jusqu'à convergence/i.test(env.prompts[recodeKey] || ''),
      'le prompt recode process réénonce les exigences (Vue d\'ensemble / jusqu\'à convergence)');
 }
+// ── Scénario B : mode superwidgetOnly (retrofit) ──────────────────────────────
+console.log('Scénario B — superwidgetOnly : seules les phases process tournent :');
+{
+  const disk = {};
+  const env = makeEnv(disk, [
+    { concept: 'p', after_section_id: 's1', brief: 'avant→arrière→maj', kind: 'process' },
+    { concept: 'q', after_section_id: 's1', brief: 'isolé', kind: 'probe' },          // doit être ignoré
+  ]);
+  const r = await run(env, { ...ARGS, superwidgetOnly: true });
+  ok(['sweep:', 'plan', 'extract:', 'verify:', 'author', 'compose'].every(p => !has(env.calls, p)),
+     'aucune phase de recherche/auteur/compose complète n\'est exécutée');
+  ok(has(env.calls, 'topup-load'), 'chargement des fichiers persistés (topup-load)');
+  ok(has(env.calls, 'widget-plan'), 'planner exécuté');
+  ok(env.calls.filter(c => c.startsWith('widget-code:')).length === 1, 'un seul widget codé (le probe est filtré)');
+  ok(env.calls.some(c => c.startsWith('widget-critic:')), 'le critic est exécuté en top-up');
+  ok(has(env.calls, 'manifest-insert'), 'insertion chirurgicale dans le manifeste');
+  ok(/IMMÉDIATEMENT APRÈS|IDEMPOTENT|Ne modifie AUCUN autre/i.test(env.prompts['manifest-insert'] || ''),
+     'le prompt d\'insertion est chirurgical + idempotent');
+  ok(has(env.calls, 'build'), 'build relancé');
+  ok(r && r.mode === 'superwidgetOnly' && Array.isArray(r.superwidgets) && r.superwidgets.length === 1,
+     'rapport top-up : 1 super-widget');
+}
+
+// ── Scénario C : superwidgetOnly mais aucun process éligible → no-op ───────────
+console.log('Scénario C — superwidgetOnly sans process éligible : thème inchangé :');
+{
+  const disk = {};
+  const env = makeEnv(disk, [{ concept: 'q', after_section_id: 's1', brief: 'isolé', kind: 'probe' }]);
+  const r = await run(env, { ...ARGS, superwidgetOnly: true });
+  ok(!has(env.calls, 'widget-code:'), 'aucun widget codé');
+  ok(!has(env.calls, 'manifest-insert') && !has(env.calls, 'build'), 'ni insertion ni build (no-op)');
+  ok(r && r.mode === 'superwidgetOnly' && r.superwidgets.length === 0, 'rapport : 0 super-widget');
+}
+
 console.log(failures === 0 ? '\n✅ TOUS LES TESTS PASSENT' : `\n❌ ${failures} test(s) en échec`);
 process.exit(failures === 0 ? 0 : 1);

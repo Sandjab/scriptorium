@@ -291,6 +291,29 @@ const widgetRecodePrompt = (coded, issues) => [
   `Rends : ref="${coded.ref}", title="${coded.title}", after_section_id="${coded.after_section_id}", kind="${coded.kind || 'probe'}".`,
 ].filter(Boolean).join('\n');
 
+// ── Top-up super-widget (retrofit) : chargement persistant + insertion chirurgicale ──
+const topupLoadPrompt = [
+  `Lis ${themeDir}/sections_draft.json (liste d'objets {id, heading, prose, claims}) et ${themeDir}/knowledge.json.`,
+  `Les "claims" de sections_draft sont des IDS (ex. "claim:1"). Pour chaque section, REMPLACE chaque id par l'ÉNONCÉ correspondant : dans knowledge.json, "claims" est une liste d'objets {id, statement, …} ; prends le "statement" du claim dont l'"id" == cet id. Id introuvable ⇒ garde l'id tel quel.`,
+  `N'écris, ne crée, ne modifie RIEN sur le disque.`,
+  `Rends : sections = [{id, heading, prose, claims:[énoncés]}].`,
+].join('\n');
+const S_TOPUP_LOAD = { type:'object', additionalProperties:false, required:['sections'], properties:{
+  sections:{ type:'array', items:{ type:'object', additionalProperties:false, required:['id','heading','prose','claims'],
+    properties:{ id:{type:'string'}, heading:{type:'string'}, prose:{type:'string'},
+      claims:{ type:'array', items:{type:'string'} } } } } } };
+
+const manifestInsertPrompt = (inserts) => [
+  `Tu fais une édition CHIRURGICALE de ${themeDir}/manifest.json. Fais Read d'abord.`,
+  `Le manifeste a "elements": [ … ] ordonnés. Pour CHAQUE super-widget ci-dessous, insère l'élément {"type":"widget","ref":"<ref>"} IMMÉDIATEMENT APRÈS le DERNIER élément {"type":"widget"} consécutif déjà présent juste après l'élément {"type":"section","id":"<after_section_id>"} (s'il n'y en a aucun, directement après la section).`,
+  `Super-widgets à insérer : ${JSON.stringify(inserts)}`,
+  `IDEMPOTENT : si un élément {"type":"widget","ref":"<ref>"} existe déjà dans le manifeste, NE L'AJOUTE PAS une seconde fois.`,
+  `Ne modifie AUCUN autre élément (faits, sections, prose, biblio, pointers, meta : INTACTS). Réécris (Write) le fichier complet avec UNIQUEMENT ces insertions.`,
+  `Rends : inserted (refs effectivement insérés), already_present (refs déjà présents).`,
+].join('\n');
+const S_INSERT = { type:'object', additionalProperties:false, required:['inserted','already_present'], properties:{
+  inserted:{ type:'array', items:{type:'string'} }, already_present:{ type:'array', items:{type:'string'} } } };
+
 const ELEMENT_CHEATSHEET = [
   `Types d'éléments valides (rendus par build.py) et leurs champs requis :`,
   `- {"type":"section","id":<kebab>,"heading":<str>,"level":3,"prose":<html>,"claims":[<claim ids>]}`,
@@ -353,6 +376,46 @@ async function ckptWrite(relName, obj, phaseName, labelName) {
       { schema: S_CKPT, phase: phaseName, label: labelName });
   } catch (e) { log(`[resume] checkpoint ${relName} non écrit (${e.message}) — unité non reprenable, run continue.`); }
 }
+
+// ── Mode top-up super-widget (retrofit) ──────────────────────────────────────
+// Gardé par args.superwidgetOnly : n'exécute QUE planner-process → codeur → critic →
+// insertion chirurgicale → build, à partir des fichiers DÉJÀ persistés du thème (pas de
+// .monograph/ requis, pas de re-vérification factuelle). Réutilise les prompts canoniques.
+async function runSuperwidgetTopUp() {
+  phase('Synopsis');
+  const L = await A(topupLoadPrompt, { schema: S_TOPUP_LOAD, phase: 'Synopsis', label: 'topup-load' });
+  const sectionsBrief = L.sections || [];
+  const ids = new Set(sectionsBrief.map(s => s.id));
+  const plan = await A(widgetPlanPrompt(sectionsBrief), { schema: S_WIDGET_PLAN, phase: 'Synopsis', label: 'widget-plan' });
+  const wanted = (plan.widgets || []).filter(w => w.kind === 'process' && ids.has(w.after_section_id));
+  if (!wanted.length) {
+    log('Synopsis : aucun super-widget process éligible — thème laissé inchangé.');
+    return { slug, themeDir, mode: 'superwidgetOnly', superwidgets: [], inserted: [], already_present: [], build: null };
+  }
+  const coded = (await pipeline(
+    wanted,
+    (w) => A(widgetCodePrompt(w), { schema: S_WIDGET_CODE, phase: 'Synopsis', label: `widget-code:${w.after_section_id}` }),
+    async (c) => {
+      if (!c) return null;
+      const verdict = await A(widgetCriticPrompt(c), { schema: S_WIDGET_CRITIC, phase: 'Synopsis', label: `widget-critic:${c.ref}` });
+      if (verdict.ok) return c;
+      log(`[superwidget] ${c.ref} recodé : ${(verdict.issues || []).join('; ')}`);
+      const fixed = await A(widgetRecodePrompt(c, verdict.issues || []), { schema: S_WIDGET_CODE, phase: 'Synopsis', label: `widget-recode:${c.ref}` });
+      return fixed || c;
+    }
+  )).filter(Boolean);
+  if (!coded.length) {
+    log('Synopsis : aucun super-widget codé.');
+    return { slug, themeDir, mode: 'superwidgetOnly', superwidgets: [], inserted: [], already_present: [], build: null };
+  }
+  const inserts = coded.map(c => ({ ref: c.ref, after_section_id: c.after_section_id }));
+  const ins = await A(manifestInsertPrompt(inserts), { schema: S_INSERT, phase: 'Synopsis', label: 'manifest-insert' });
+  const built = await A(buildPrompt(), { schema: S_BUILD, phase: 'Build', label: 'build' });
+  return { slug, themeDir, mode: 'superwidgetOnly',
+    superwidgets: coded.map(c => ({ ref: c.ref, title: c.title, after_section_id: c.after_section_id })),
+    inserted: ins.inserted, already_present: ins.already_present, build: built };
+}
+if (String(A0.superwidgetOnly) === 'true') return await runSuperwidgetTopUp();
 
 // Chargement des checkpoints (UNIQUEMENT en reprise). Échec/illisible ⇒ traité comme absent (run frais, loggé).
 let loadedResearch = null, savedSections = {}, loadedWidgets = null;
