@@ -97,7 +97,7 @@ const S_WIDGET_PLAN = { type:'object', additionalProperties:false, required:['wi
   widgets:{ type:'array', items:{ type:'object', additionalProperties:false,
     required:['concept','after_section_id','brief','kind'],
     properties:{ concept:{type:'string'}, after_section_id:{type:'string'}, brief:{type:'string'},
-      kind:{ type:'string', enum:['probe','process'] } } } } } };
+      kind:{ type:'string', enum:['probe','process','figure'] }, anchor:{type:'string'} } } } } };
 
 const S_WIDGET_CODE = { type:'object', additionalProperties:false,
   required:['ref','title','after_section_id','kind'],
@@ -251,11 +251,12 @@ const authorPrompt = (sectionsBrief) => [
 const widgetPlanPrompt = (secs) => [
   `Sujet : « ${subject} ». Sections RETENUES du document (id, heading, prose, faits clés) :`,
   JSON.stringify(secs),
-  `Décide quels CONCEPTS/MÉCANISMES méritent un widget interactif démonstratif, et de quel TYPE (champ "kind").`,
-  `• "probe" — illustre UN mécanisme ISOLÉ. Rubrique STRICTE : seulement si NON TRIVIAL et plus clair MONTRÉ qu'expliqué. Rien pour le trivial/déclaratif. UN seul probe par mécanisme (déduplique).`,
-  `• "process" — un SUPER-WIDGET synoptique montrant un PROCESSUS DE BOUT EN BOUT assemblé sur une instance jouet. Rubrique STRICTE (c'est le SEUL frein — il n'y a PAS de plafond) : seulement un VRAI processus multi-étapes — soit ITÉRATIF (une boucle d'étapes répétée jusqu'à convergence, ex. avant→arrière→mise à jour→répéter), soit un PIPELINE d'AU MOINS 3 étapes chaînées sur un cas concret. JAMAIS pour un mécanisme isolé (ça reste un probe). Déduplique : un seul process par processus distinct. Dans "brief", NOMME explicitement les étapes enchaînées (ou la boucle) ; si tu ne peux pas nommer ≥3 étapes ou la boucle, ce n'est PAS un process.`,
-  `Un "process" s'ancre sur la section de SYNTHÈSE après laquelle l'enchaînement est complet (after_section_id).`,
-  `Rends : widgets = liste {concept, after_section_id (id EXACT d'une section ci-dessus), brief (ce que le widget fait voir/manipuler ; pour un process, nomme les étapes), kind ("probe"|"process")}. Liste VIDE si rien ne le justifie.`,
+  `Décide quels CONCEPTS/MÉCANISMES méritent un APPUI VISUEL, et de quel TYPE (champ "kind") : "probe", "process" ou "figure". Choisis UN SEUL outil visuel par concept (anti-surcharge) ; rien pour le trivial.`,
+  `• "probe" — widget interactif d'UN mécanisme ISOLÉ. Seulement si NON TRIVIAL et plus clair MONTRÉ qu'expliqué. UN seul probe par mécanisme.`,
+  `• "process" — SUPER-WIDGET synoptique d'un PROCESSUS DE BOUT EN BOUT sur une instance jouet. Seulement un VRAI processus multi-étapes — ITÉRATIF (boucle jusqu'à convergence) ou PIPELINE d'AU MOINS 3 étapes chaînées. JAMAIS un mécanisme isolé. Dans "brief", NOMME les étapes (ou la boucle) ; sinon ce n'est pas un process. Ancre sur la section de SYNTHÈSE.`,
+  `• "figure" — ILLUSTRATION STATIQUE (SVG fixe : courbe, organigramme, taxonomie, schéma). Seulement quand VOIR suffit et que manipuler n'apporterait rien — pour une STRUCTURE, une ALLURE ou un SCHÉMA. JAMAIS pour le trivial/déclaratif, JAMAIS en doublon d'un widget. Pour une figure, fournis "anchor" : un court extrait VERBATIM de fin du paragraphe (dans la prose de la section) après lequel la figure doit se poser (ou "début"/"fin" de section).`,
+  `Une figure peut compléter un widget seulement s'ils sont vraiment complémentaires (figure = vue fixe ; widget = exploration).`,
+  `Rends : widgets = liste {concept, after_section_id (id EXACT d'une section ci-dessus), brief, kind ("probe"|"process"|"figure"), anchor (UNIQUEMENT pour les figures)}. Liste VIDE si rien ne le justifie.`,
 ].join('\n');
 
 const widgetCodePrompt = (w) => [
