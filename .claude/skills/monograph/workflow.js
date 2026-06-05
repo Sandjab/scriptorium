@@ -673,11 +673,28 @@ const sectionsBrief = arch.outline.filter(o => liveOutlineIds.has(o.id)).map(o =
 const authored = await A(authorPrompt(sectionsBrief), { schema: S_AUTHOR, phase: 'Author', label: 'author' });
 log(`Author : ${authored.files_written.length} fichiers écrits`);
 
+// sections_draft.json est écrit AVANT la phase visuelle pour que les codeurs de FIGURE l'éditent en ligne.
+// Garde resume : si la phase visuelle est reprise (loadedWidgets présent), le fichier disque porte déjà
+// les figures → NE PAS l'écraser.
+if (!Array.isArray(loadedWidgets)) {
+  const proseById = {};
+  sectionData.forEach(r => { proseById[r.section.id] = r.section.prose; });
+  const liveOutline = arch.outline.filter(o => liveOutlineIds.has(o.id));
+  const sectionsForCompose = liveOutline.map(o => ({
+    id: o.id, heading: o.heading, prose: proseById[o.id] || '', claims: sectionClaims[o.id] || [],
+  }));
+  await A(
+    `Crée le dossier si besoin (mkdir -p ${themeDir}) puis écris VERBATIM le fichier suivant.\nChemin : ${themeDir}/sections_draft.json\nContenu :\n${JSON.stringify(sectionsForCompose, null, 2)}`,
+    { schema: { type:'object', additionalProperties:false, required:['written'], properties:{ written:{type:'boolean'} } },
+      phase: 'Widgets', label: 'write:sections' }
+  );
+}
+
 phase('Widgets');
-let widgets = [];
-if (Array.isArray(loadedWidgets)) {                 // reprise : décision widgets déjà prise (même []) → saute le 2e fan-out
-  widgets = loadedWidgets;
-  log(`[resume] ${widgets.length} widget(s) repris du disque — phase Widgets sautée.`);
+let visual = [];
+if (Array.isArray(loadedWidgets)) {                 // reprise : décision visuelle déjà prise → saute le fan-out
+  visual = loadedWidgets;
+  log(`[resume] ${visual.length} élément(s) visuel(s) repris du disque — phase visuelle sautée.`);
 } else {
   const liveSectionsBrief = liveSections.map(s => ({
     id: s.section.id, heading: s.section.heading, prose: s.section.prose,
@@ -687,9 +704,12 @@ if (Array.isArray(loadedWidgets)) {                 // reprise : décision widge
   if (wantWidgets && liveSectionsBrief.length) {
     const plan = await A(widgetPlanPrompt(liveSectionsBrief), { schema: S_WIDGET_PLAN, phase: 'Widgets', label: 'widget-plan' });
     const liveIds = new Set(liveSections.map(s => s.section.id));
-    const wanted = (plan.widgets || []).filter(w => liveIds.has(w.after_section_id));  // garde-fou : ancrage sur une section vivante
-    widgets = (await pipeline(
-      wanted,
+    const wanted = (plan.widgets || []).filter(w => liveIds.has(w.after_section_id));  // ancrage sur une section vivante
+    const widgetItems = wanted.filter(w => w.kind !== 'figure');
+    const figureItems = wanted.filter(w => w.kind === 'figure');
+    // Widgets (probe/process) : codés EN PARALLÈLE (fichiers séparés sous widgets/).
+    const codedWidgets = (await pipeline(
+      widgetItems,
       (w) => A(widgetCodePrompt(w), { schema: S_WIDGET_CODE, phase: 'Widgets', label: `widget-code:${w.after_section_id}` }),
       async (coded) => {
         if (!coded) return null;
@@ -697,32 +717,32 @@ if (Array.isArray(loadedWidgets)) {                 // reprise : décision widge
         if (verdict.ok) return coded;
         log(`[widget] ${coded.ref} recodé : ${(verdict.issues || []).join('; ')}`);
         const fixed = await A(widgetRecodePrompt(coded, verdict.issues || []), { schema: S_WIDGET_CODE, phase: 'Widgets', label: `widget-recode:${coded.ref}` });
-        return fixed || coded;   // 1 SEULE re-passe ; au pire on garde la version critiquée
+        return fixed || coded;
       }
     )).filter(Boolean);
-    log(`Widgets : ${widgets.length}/${(plan.widgets || []).length} retenus.`);
+    // Figures : codées EN SÉRIE (elles éditent toutes le même sections_draft.json → pas de course).
+    const codedFigures = [];
+    for (const f of figureItems) {
+      const coded = await A(figureCodePrompt(f), { schema: S_FIGURE_CODE, phase: 'Widgets', label: `figure-code:${f.after_section_id}` });
+      if (!coded) continue;
+      const verdict = await A(figureCriticPrompt(coded), { schema: S_WIDGET_CRITIC, phase: 'Widgets', label: `figure-critic:${coded.ref}` });
+      if (verdict.ok) { codedFigures.push(coded); continue; }
+      log(`[figure] ${coded.ref} recodée : ${(verdict.issues || []).join('; ')}`);
+      const fixed = await A(figureRecodePrompt(coded, verdict.issues || []), { schema: S_FIGURE_CODE, phase: 'Widgets', label: `figure-recode:${coded.ref}` });
+      codedFigures.push(fixed || coded);
+    }
+    visual = [...codedWidgets, ...codedFigures];
+    log(`Visuel : ${codedWidgets.length} widget(s) + ${codedFigures.length} figure(s) retenus.`);
   } else {
-    log(wantWidgets ? 'Widgets : aucune section vivante.' : 'Widgets : désactivés (widget=false).');
+    log(wantWidgets ? 'Visuel : aucune section vivante.' : 'Visuel : désactivé (widget=false).');
   }
-  // Persiste la décision widgets (même vide) pour ne pas re-payer ce 2e fan-out sur une reprise ultérieure.
-  await ckptWrite('widgets.json', widgets, 'Widgets', 'ckpt:widgets');
+  await ckptWrite('widgets.json', visual, 'Widgets', 'ckpt:widgets');
 }
+// Seuls les widgets (probe/process) deviennent des éléments {"type":"widget"} ; les figures vivent déjà dans la prose.
+const widgets = visual.filter(v => v.kind !== 'figure');
 
 phase('Compose');
-const proseById = {};
-sectionData.forEach(r => { proseById[r.section.id] = r.section.prose; });
-const liveOutline = arch.outline.filter(o => liveOutlineIds.has(o.id));
-const sectionsForCompose = liveOutline.map(o => ({
-  id: o.id, heading: o.heading,
-  prose: proseById[o.id] || '',
-  claims: sectionClaims[o.id] || [],
-}));
-// Écriture des sections sur disque — Compose lit depuis le fichier (pas d'injection inline volumineuse)
-await A(
-  `Crée le dossier si besoin (mkdir -p ${themeDir}) puis écris VERBATIM le fichier suivant.\nChemin : ${themeDir}/sections_draft.json\nContenu :\n${JSON.stringify(sectionsForCompose, null, 2)}`,
-  { schema: { type:'object', additionalProperties:false, required:['written'], properties:{ written:{type:'boolean'} } },
-    phase: 'Compose', label: 'write:sections' }
-);
+// sections_draft.json a déjà été écrit AVANT la phase visuelle (et porte les figures insérées) ; Compose le RELIT.
 const biblioEntries = sources.map(s => ({ label: s.title, href: s.url }));
 const composed = await A(
   composePrompt(arch.title, biblioEntries, widgets, verifiedPointers),

@@ -69,6 +69,9 @@ function makeEnv(disk, planWidgets, envOpts = {}) {
       return Promise.resolve({ ref: 'w-' + kind, title: 'W ' + kind, after_section_id: 's1', kind }); }
     if (label.startsWith('widget-critic:')) return Promise.resolve({
       ok: envOpts.criticOk !== false, issues: envOpts.criticOk === false ? ['phases manquantes'] : [] });
+    if (label.startsWith('figure-code:') || label.startsWith('figure-recode:'))
+      return Promise.resolve({ ref: 'fig-x', after_section_id: 's1', caption: 'légende', kind: 'figure' });
+    if (label.startsWith('figure-critic:')) return Promise.resolve({ ok: true, issues: [] });
     if (label === 'manifest-insert') return Promise.resolve(envOpts.insertReturns || { inserted: ['w-process'], already_present: [] });
     if (label === 'author') return Promise.resolve({ files_written: ['glossary.json', 'tldr.json'] });
     if (label === 'compose') return Promise.resolve({ files_written: ['manifest.json'], element_counts: { document: 5 } });
@@ -178,6 +181,23 @@ console.log('Scénario E — section d\'ancrage absente du manifeste : ref rappo
   const r = await run(env, { ...ARGS, superwidgetOnly: true });
   ok(Array.isArray(r.not_placed) && r.not_placed.includes('w-process'),
      'le ref non inséré est rapporté dans not_placed');
+}
+
+// ── Scénario F : kind=figure routé vers le codeur de figure (en série), sections_draft écrit avant ──
+console.log('Scénario F — figure : routage + sections_draft écrit AVANT la phase visuelle :');
+{
+  const disk = {};
+  const env = makeEnv(disk, [
+    { concept: 'c', after_section_id: 's1', brief: 'b', kind: 'figure', anchor: '…' },
+    { concept: 'd', after_section_id: 's2', brief: 'b', kind: 'probe' },
+  ]);
+  await run(env, ARGS);
+  const iWrite = env.calls.indexOf('write:sections');
+  const iPlan = env.calls.indexOf('widget-plan');
+  ok(iWrite >= 0 && iPlan >= 0 && iWrite < iPlan, 'sections_draft.json écrit AVANT le planner visuel');
+  ok(env.calls.some(c => c.startsWith('figure-code:')), 'le codeur de figure est appelé');
+  ok(env.calls.some(c => c.startsWith('figure-critic:')), 'le critic de figure est appelé');
+  ok(env.calls.some(c => c.startsWith('widget-code:')), 'le widget (probe) est aussi codé');
 }
 
 console.log(failures === 0 ? '\n✅ TOUS LES TESTS PASSENT' : `\n❌ ${failures} test(s) en échec`);
