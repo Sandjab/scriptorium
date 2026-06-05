@@ -8,17 +8,23 @@ import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const srcPath = join(here, '..', 'workflow.js');
-const src = readFileSync(srcPath, 'utf8').replace(/^export const meta/m, 'const meta');
-const wrapped =
-  'export default async function __run(__env) {\n' +
-  '  const { agent, parallel, pipeline, phase, log, args, budget } = __env;\n' +
-  src + '\n}\n';
-const modPath = join(tmpdir(), `wf_sw_${process.pid}.mjs`);
-writeFileSync(modPath, wrapped, 'utf8');
-let runWorkflow;
-try { ({ default: runWorkflow } = await import(pathToFileURL(modPath).href)); }
-finally { try { unlinkSync(modPath); } catch { /* déjà parti */ } }
+// Enveloppe une COPIE TEMPORAIRE d'un workflow dans un module ESM recevant les globals harness.
+// Suffixe unique par chargement : sinon le cache de modules ESM de Node renverrait le 1er fichier importé.
+let _loadN = 0;
+async function loadWorkflow(srcPath) {
+  const src = readFileSync(srcPath, 'utf8').replace(/^export const meta/m, 'const meta');
+  const wrapped =
+    'export default async function __run(__env) {\n' +
+    '  const { agent, parallel, pipeline, phase, log, args, budget } = __env;\n' +
+    src + '\n}\n';
+  const modPath = join(tmpdir(), `wf_sw_${process.pid}_${_loadN++}.mjs`);
+  writeFileSync(modPath, wrapped, 'utf8');
+  try { const m = await import(pathToFileURL(modPath).href); return m.default; }
+  finally { try { unlinkSync(modPath); } catch { /* déjà parti */ } }
+}
+// Les deux workflows jumeaux : monograph (scénarios A-C, E) et frugalmonograph (scénario D = garde-fou de parité).
+const runWorkflow = await loadWorkflow(join(here, '..', 'workflow.js'));
+const runFrugal   = await loadWorkflow(join(here, '..', '..', 'frugalmonograph', 'workflow.js'));
 
 // ── Mock agent (full pipeline + top-up), capture {label, prompt} ──────────────
 function makeEnv(disk, planWidgets, envOpts = {}) {
@@ -63,7 +69,7 @@ function makeEnv(disk, planWidgets, envOpts = {}) {
       return Promise.resolve({ ref: 'w-' + kind, title: 'W ' + kind, after_section_id: 's1', kind }); }
     if (label.startsWith('widget-critic:')) return Promise.resolve({
       ok: envOpts.criticOk !== false, issues: envOpts.criticOk === false ? ['phases manquantes'] : [] });
-    if (label === 'manifest-insert') return Promise.resolve({ inserted: ['w-process'], already_present: [] });
+    if (label === 'manifest-insert') return Promise.resolve(envOpts.insertReturns || { inserted: ['w-process'], already_present: [] });
     if (label === 'author') return Promise.resolve({ files_written: ['glossary.json', 'tldr.json'] });
     if (label === 'compose') return Promise.resolve({ files_written: ['manifest.json'], element_counts: { document: 5 } });
     if (label === 'build') return Promise.resolve({ success: true, files: ['dist/demo.html'],
@@ -148,6 +154,30 @@ console.log('Scénario C — superwidgetOnly sans process éligible : thème inc
   ok(!has(env.calls, 'widget-code:'), 'aucun widget codé');
   ok(!has(env.calls, 'manifest-insert') && !has(env.calls, 'build'), 'ni insertion ni build (no-op)');
   ok(r && r.mode === 'superwidgetOnly' && r.superwidgets.length === 0, 'rapport : 0 super-widget');
+}
+
+// ── Scénario D : frugalmonograph — le top-up superwidgetOnly fonctionne aussi (garde-fou de parité) ──
+console.log('Scénario D — frugalmonograph : top-up superwidgetOnly opérationnel :');
+{
+  const disk = {};
+  const env = makeEnv(disk, [{ concept: 'p', after_section_id: 's1', brief: 'avant→arrière→maj', kind: 'process' }]);
+  const r = await runFrugal({ ...env, args: { ...ARGS, superwidgetOnly: true } });
+  ok(['sweep:', 'plan', 'extract:', 'verify:', 'author', 'compose'].every(p => !has(env.calls, p)),
+     'frugal : aucune phase de recherche/auteur/compose');
+  ok(has(env.calls, 'topup-load') && has(env.calls, 'manifest-insert') && has(env.calls, 'build'),
+     'frugal : top-up load → insertion → build');
+  ok(r && r.mode === 'superwidgetOnly' && r.superwidgets.length === 1, 'frugal : rapport top-up 1 super-widget');
+}
+
+// ── Scénario E : section d'ancrage introuvable dans le manifeste → ref rapporté non placé (M2) ──
+console.log('Scénario E — section d\'ancrage absente du manifeste : ref rapporté non placé :');
+{
+  const disk = {};
+  const env = makeEnv(disk, [{ concept: 'p', after_section_id: 's1', brief: 'b', kind: 'process' }],
+    { insertReturns: { inserted: [], already_present: [] } });
+  const r = await run(env, { ...ARGS, superwidgetOnly: true });
+  ok(Array.isArray(r.not_placed) && r.not_placed.includes('w-process'),
+     'le ref non inséré est rapporté dans not_placed');
 }
 
 console.log(failures === 0 ? '\n✅ TOUS LES TESTS PASSENT' : `\n❌ ${failures} test(s) en échec`);

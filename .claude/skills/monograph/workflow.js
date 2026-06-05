@@ -309,6 +309,7 @@ const manifestInsertPrompt = (inserts) => [
   `Super-widgets à insérer : ${JSON.stringify(inserts)}`,
   `IDEMPOTENT : si un élément {"type":"widget","ref":"<ref>"} existe déjà dans le manifeste, NE L'AJOUTE PAS une seconde fois.`,
   `Ne modifie AUCUN autre élément (faits, sections, prose, biblio, pointers, meta : INTACTS). Réécris (Write) le fichier complet avec UNIQUEMENT ces insertions.`,
+  `Si l'élément {"type":"section","id":"<after_section_id>"} est INTROUVABLE dans le manifeste, n'insère PAS ce widget : ne mets son ref ni dans inserted ni dans already_present (il restera non placé — volontaire, pas une erreur).`,
   `Rends : inserted (refs effectivement insérés), already_present (refs déjà présents).`,
 ].join('\n');
 const S_INSERT = { type:'object', additionalProperties:false, required:['inserted','already_present'], properties:{
@@ -410,11 +411,15 @@ async function runSuperwidgetTopUp() {
   }
   const inserts = coded.map(c => ({ ref: c.ref, after_section_id: c.after_section_id }));
   const ins = await A(manifestInsertPrompt(inserts), { schema: S_INSERT, phase: 'Synopsis', label: 'manifest-insert' });
+  const placed = new Set([...(ins.inserted || []), ...(ins.already_present || [])]);
+  const notPlaced = coded.map(c => c.ref).filter(r => !placed.has(r));   // section d'ancrage introuvable dans le manifeste
+  if (notPlaced.length) log(`[superwidget] non placé(s) (section d'ancrage introuvable dans le manifeste) : ${notPlaced.join(', ')}`);
   const built = await A(buildPrompt(), { schema: S_BUILD, phase: 'Build', label: 'build' });
   return { slug, themeDir, mode: 'superwidgetOnly',
     superwidgets: coded.map(c => ({ ref: c.ref, title: c.title, after_section_id: c.after_section_id })),
-    inserted: ins.inserted, already_present: ins.already_present, build: built };
+    inserted: ins.inserted, already_present: ins.already_present, not_placed: notPlaced, build: built };
 }
+// resume n'a aucun effet ici : le top-up est sans état (relit les fichiers persistés, aucun checkpoint .monograph/ à reprendre).
 if (String(A0.superwidgetOnly) === 'true') return await runSuperwidgetTopUp();
 
 // Chargement des checkpoints (UNIQUEMENT en reprise). Échec/illisible ⇒ traité comme absent (run frais, loggé).
