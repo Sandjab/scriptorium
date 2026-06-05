@@ -48,7 +48,7 @@ def number_figures(body):
     def repl(_m):
         n[0] += 1
         return f'<span class="fcap-k">Figure {n[0]}</span>'
-    return re.sub(r'<span class="fcap-k">\s*</span>', repl, body)
+    return re.sub(r'<span class=["\']fcap-k["\']>\s*</span>', repl, body)
 
 def render_edition(manifest, ctx):
     body = "\n".join(C.RENDERERS[el["type"]](el, ctx) for el in manifest["elements"])

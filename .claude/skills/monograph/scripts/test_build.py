@@ -100,3 +100,16 @@ def test_figures_are_numbered_in_document_order(tmp_path):
     assert '<span class="fcap-k">Figure 2</span>' in out
     assert '<span class="fcap-k"></span>' not in out           # plus aucun gabarit vide
     assert out.index("Figure 1") < out.index("Figure 2")       # ordre du document
+
+
+def test_figure_with_single_quoted_attrs_is_numbered(tmp_path):
+    # Insertion JSON-safe : la figure utilise des apostrophes simples ; la regex les tolère, la sortie reste en ".
+    fig = ("<figure class='fig'><svg></svg>"
+           "<figcaption><span class='fcap-k'></span>L.</figcaption></figure>")
+    theme = _mk_theme(tmp_path, [
+        {"type":"section","id":"a","heading":"A","prose": f"<p>x</p>{fig}"},
+    ])
+    build.build_theme(theme)
+    out = (pathlib.Path(theme)/"dist"/"demo.html").read_text(encoding="utf-8")
+    assert '<span class="fcap-k">Figure 1</span>' in out         # apostrophes tolérées, sortie en "
+    assert "<span class='fcap-k'></span>" not in out             # plus aucun gabarit vide
