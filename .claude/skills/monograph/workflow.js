@@ -453,6 +453,89 @@ async function runSuperwidgetTopUp() {
 // resume n'a aucun effet ici : le top-up est sans état (relit les fichiers persistés, aucun checkpoint .monograph/ à reprendre).
 if (String(A0.superwidgetOnly) === 'true') return await runSuperwidgetTopUp();
 
+// ── Mode top-up figures (retrofit) ──────────────────────────────────────────
+// Gardé par args.figuresOnly : n'exécute QUE load manifest → planner-figure →
+// codeur série → critic → recode si besoin → build. Pas de .monograph/ requis.
+// Idempotent (I3) : no-op si une figure est déjà présente dans manifest.json.
+const figuresLoadPrompt = [
+  `Lis ${themeDir}/manifest.json. Dans "elements", extrais dans l'ordre tous les éléments {"type":"section"}.`,
+  `Pour chaque section, calcule "existing_visuals" = les "ref" des éléments {"type":"widget"} qui la suivent immédiatement (jusqu'au prochain {"type":"section"} ou la fin du tableau).`,
+  `Indique aussi "has_figures" = true si AU MOINS une section contient <figure class='fig' ou <figure class="fig" dans sa prose, false sinon.`,
+  `Ne lis, ne crée, ne modifie RIEN d'autre.`,
+  `Rends : has_figures (bool), sections = [{id, heading, prose, existing_visuals:[refs des widgets]}].`,
+].join('\n');
+const S_FIGURES_LOAD = { type:'object', additionalProperties:false, required:['has_figures','sections'],
+  properties:{ has_figures:{type:'boolean'}, sections:{ type:'array', items:{
+    type:'object', additionalProperties:false,
+    required:['id','heading','prose','existing_visuals'],
+    properties:{ id:{type:'string'}, heading:{type:'string'}, prose:{type:'string'},
+      existing_visuals:{ type:'array', items:{type:'string'} } } } } } };
+
+const figuresTopupCodePrompt = (f) => [
+  `Tu produis une FIGURE STATIQUE illustrant ce point du sujet « ${subject} » : ${f.concept}.`,
+  `Objectif (brief) : ${f.brief}`,
+  `Fais Read de ${themeDir}/manifest.json. Dans "elements", repère l'élément {"type":"section","id":"${f.after_section_id}"} et, dans sa "prose" (HTML), le paragraphe visé par ce repère : « ${f.anchor || 'fin de section'} ».`,
+  `INSÈRE, par un Edit CHIRURGICAL de ${themeDir}/manifest.json, le bloc figure JUSTE APRÈS la balise </p> de ce paragraphe (ne modifie RIEN d'autre de la prose ; n'altère aucun fait ni aucune phrase). Forme EXACTE du bloc :`,
+  `<figure class='fig'><svg viewBox='0 0 W H' role='img' aria-label='…'>…</svg><figcaption><span class='fcap-k'></span>LÉGENDE</figcaption></figure>`,
+  `CONTRAINTES STRICTES : SVG autoporteur DÉTERMINISTE (aucun aléa) ; couleurs via variables de charte avec fallback (var(--blue,#23537F), var(--ink,#15202E), var(--bordeaux,#7C2A38), var(--ink-faint,#7A889B)…) ; AUCUN <script>, AUCUNE ressource externe, AUCUN file:///, balises équilibrées. Le <span class='fcap-k'> reste VIDE (« Figure N » est ajouté par le build). LÉGENDE = une phrase concise.`,
+  `IMPORTANT — la prose est stockée dans un JSON : utilise des APOSTROPHES SIMPLES pour TOUS les attributs du bloc figure (class='fig', viewBox='…', fill='…', stroke='…', role='img', aria-label='…', class='fcap-k', etc.). Ainsi l'insertion par Edit n'introduit AUCUN guillemet " à échapper, le JSON reste valide. Le TEXTE de la légende peut contenir des apostrophes françaises sans souci (le « ' » dans du texte ne casse pas le JSON).`,
+  `La figure doit VRAIMENT illustrer (structure/allure/schéma), pas décorer. Choisis un <ref> kebab-case ascii unique (fig-…).`,
+  `Rends : ref, after_section_id = "${f.after_section_id}", caption (la légende), kind = "figure".`,
+].join('\n');
+
+const figuresTopupCriticPrompt = (coded) => [
+  `Fais Read de ${themeDir}/manifest.json. Dans "elements", repère la section "${coded.after_section_id}" et relis la figure insérée dans sa prose (légende « ${coded.caption} »).`,
+  `Juge HONNÊTEMENT : (1) un seul bloc <figure class='fig'> bien formé : un <svg> équilibré, un <figcaption> avec <span class='fcap-k'> VIDE ; (2) AUCUN <script>, aucune ressource externe / file:/// ; attributs du SVG en APOSTROPHES SIMPLES (aucun guillemet droit, pour ne pas casser le JSON) ; (3) la figure ILLUSTRE vraiment (structure/allure/schéma, pas décorative) ; (4) insertion CHIRURGICALE : la prose n'a gagné QUE cette figure (le texte autour intact), et la figure suit bien une balise </p>.`,
+  `Rends : ok (true SEULEMENT si les 4 tiennent), issues (problèmes précis ; vide si ok).`,
+].join('\n');
+
+const figuresTopupRecodePrompt = (coded, issues) => [
+  `La figure (section "${coded.after_section_id}", légende « ${coded.caption} ») dans ${themeDir}/manifest.json DOIT être corrigée. Problèmes :`,
+  JSON.stringify(issues),
+  `Corrige par un Edit CHIRURGICAL de ${themeDir}/manifest.json : un seul bloc <figure class='fig'> bien formé (SVG déterministe équilibré, attributs en apostrophes simples (JSON-safe), AUCUN <script>/ressource externe/file:///, <span class='fcap-k'> VIDE, légende = une phrase concise) ; ne touche à RIEN d'autre de la prose.`,
+  `Rends : ref="${coded.ref}", after_section_id="${coded.after_section_id}", caption (la légende), kind="figure".`,
+].join('\n');
+
+async function runFiguresTopUp() {
+  phase('Figures');
+  const L = await A(figuresLoadPrompt, { schema: S_FIGURES_LOAD, phase: 'Figures', label: 'figures-load' });
+  if (L.has_figures) {
+    log('Figures : thème déjà figuré (I3) — no-op.');
+    return { slug, themeDir, mode: 'figuresOnly', figures: [], already_present: true, build: null };
+  }
+  const sections = L.sections || [];
+  const ids = new Set(sections.map(s => s.id));
+  const plan = await A(widgetPlanPrompt(sections), { schema: S_WIDGET_PLAN, phase: 'Figures', label: 'widget-plan' });
+  const wanted = (plan.widgets || []).filter(w => w.kind === 'figure' && ids.has(w.after_section_id));
+  if (!wanted.length) {
+    log('Figures : aucune figure pertinente — thème laissé inchangé.');
+    return { slug, themeDir, mode: 'figuresOnly', figures: [], already_present: false, build: null };
+  }
+  const coded = [];
+  for (const f of wanted) {
+    const c = await A(figuresTopupCodePrompt(f), { schema: S_FIGURE_CODE, phase: 'Figures', label: `figure-code:${f.after_section_id}` });
+    if (!c) continue;
+    const verdict = await A(figuresTopupCriticPrompt(c), { schema: S_WIDGET_CRITIC, phase: 'Figures', label: `figure-critic:${c.ref}` });
+    if (!verdict.ok) {
+      log(`[figures] ${c.ref} recodé : ${(verdict.issues || []).join('; ')}`);
+      const fixed = await A(figuresTopupRecodePrompt(c, verdict.issues || []), { schema: S_FIGURE_CODE, phase: 'Figures', label: `figure-recode:${c.ref}` });
+      coded.push(fixed || c);
+    } else {
+      coded.push(c);
+    }
+  }
+  if (!coded.length) {
+    log('Figures : aucune figure codée.');
+    return { slug, themeDir, mode: 'figuresOnly', figures: [], already_present: false, build: null };
+  }
+  const built = await A(buildPrompt(), { schema: S_BUILD, phase: 'Build', label: 'build' });
+  return { slug, themeDir, mode: 'figuresOnly',
+    figures: coded.map(c => ({ ref: c.ref, caption: c.caption, after_section_id: c.after_section_id })),
+    already_present: false, build: built };
+}
+// resume n'a aucun effet ici : le top-up relit manifest.json, aucun checkpoint .monograph/ à reprendre.
+if (String(A0.figuresOnly) === 'true') return await runFiguresTopUp();
+
 // Chargement des checkpoints (UNIQUEMENT en reprise). Échec/illisible ⇒ traité comme absent (run frais, loggé).
 let loadedResearch = null, savedSections = {}, loadedWidgets = null;
 if (RESUME) {
