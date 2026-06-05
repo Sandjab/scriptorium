@@ -92,6 +92,12 @@ Identique à `/monograph`, mais les checkpoints vivent dans **`themes/<slug>/.fr
 
 (Réflexe : 1er lancement sans `resume` ; toute relance après échec **avec** `resume:true`.)
 
+## Widgets : super-widget `process` et retrofit `superwidgetOnly`
+
+**Super-widget `process` et retrofit `superwidgetOnly`** : identiques à `monograph` (mêmes prompts,
+même schéma `kind`). ⚠️ Frugal : il n'y a **pas** de plafond sur les super-widgets (choix produit) —
+seule la rubrique stricte borne leur nombre. Voir `monograph/SKILL.md` pour le détail.
+
 ## Garanties (portées par `workflow.js` + `build.py`)
 
 - Les **faits** (`knowledge.json`) sont assemblés en JS depuis les verdicts vérifiés, référencés

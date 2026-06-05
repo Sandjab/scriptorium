@@ -62,6 +62,12 @@ widget. Rien pour le trivial ou le purement déclaratif. Un widget par mécanism
 pas décoratif). Aussi complexe que nécessaire, **complexité proportionnée à la valeur
 explicative**.
 
+**Deux registres (`kind`)** : `probe` (illustre **un** mécanisme isolé) et `process` (**super-widget
+synoptique** : un **processus de bout en bout** assemblé sur une instance jouet — itératif
+*avant→arrière→mise à jour→jusqu'à convergence*, ou pipeline ≥3 étapes chaînées). Le planner tague
+chaque widget ; le super-widget reste un `{"type":"widget"}` ordinaire (charte/`build.py` inchangés).
+**Pas de plafond** : la rubrique stricte « vrai processus, jamais un mécanisme isolé » est le seul frein.
+
 **Contraintes strictes** (sinon `build.py` échoue) : un seul bloc `<div class="widget">…</div>`
 + `<style>` + `<script>` ; AUCUNE ressource externe, AUCUN `file:///`, AUCUN
 `alert/confirm/prompt` ; balises `<section>/<details>/<script>` équilibrées ; id/classes
@@ -113,6 +119,15 @@ tout, plusieurs M tokens). Deux mécanismes de reprise, **complémentaires** :
 Un run **FRAIS** (sans `args.resume`) **ignore et réécrit** tout checkpoint existant : l'intention
 « fraîche vs reprise » est portée par `args.resume`, jamais devinée. (Réflexe : 1er lancement sans
 `resume` ; toute relance après échec **avec** `resume:true`.)
+
+## Retrofit : ajouter un super-widget à un article existant
+
+Pour équiper un thème **déjà construit** sans tout régénérer : relance le Workflow avec
+`args.superwidgetOnly = true` (mêmes `subject`/`slug`/`themeDir`). Le mode **top-up** lit les
+fichiers persistés (`sections_draft.json`, `knowledge.json`, `manifest.json`), exécute **seulement**
+planner-process → codeur → critic → **insertion chirurgicale** dans `manifest.json` → `build.py`.
+**Aucune re-vérification factuelle** ; le planner décide la pertinence par thème (peut rendre 0,
+le thème est alors laissé tel quel). N'a **pas** besoin de `.monograph/`.
 
 ## Garanties (portées par `workflow.js` + `build.py`)
 
