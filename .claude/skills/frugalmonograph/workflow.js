@@ -474,7 +474,7 @@ if (String(A0.superwidgetOnly) === 'true') return await runSuperwidgetTopUp();
 const figuresLoadPrompt = [
   `Lis ${themeDir}/manifest.json. Dans "elements", extrais dans l'ordre tous les éléments {"type":"section"}.`,
   `Pour chaque section, calcule "existing_visuals" = les "ref" des éléments {"type":"widget"} qui la suivent immédiatement (jusqu'au prochain {"type":"section"} ou la fin du tableau).`,
-  `Indique aussi "has_figures" = true si AU MOINS une section contient <figure class='fig' ou <figure class="fig" dans sa prose, false sinon.`,
+  `Indique aussi "has_figures" = true si AU MOINS une section contient la balise ouvrante <figure dans sa prose (quelle que soit la suite des attributs), false sinon.`,
   `Ne lis, ne crée, ne modifie RIEN d'autre.`,
   `Rends : has_figures (bool), sections = [{id, heading, prose, existing_visuals:[refs des widgets]}].`,
 ].join('\n');
