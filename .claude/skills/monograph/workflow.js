@@ -95,12 +95,14 @@ const S_COMPOSE = { type:'object', additionalProperties:false, required:['files_
 
 const S_WIDGET_PLAN = { type:'object', additionalProperties:false, required:['widgets'], properties:{
   widgets:{ type:'array', items:{ type:'object', additionalProperties:false,
-    required:['concept','after_section_id','brief'],
-    properties:{ concept:{type:'string'}, after_section_id:{type:'string'}, brief:{type:'string'} } } } } };
+    required:['concept','after_section_id','brief','kind'],
+    properties:{ concept:{type:'string'}, after_section_id:{type:'string'}, brief:{type:'string'},
+      kind:{ type:'string', enum:['probe','process'] } } } } } };
 
 const S_WIDGET_CODE = { type:'object', additionalProperties:false,
-  required:['ref','title','after_section_id'],
-  properties:{ ref:{type:'string'}, title:{type:'string'}, after_section_id:{type:'string'} } };
+  required:['ref','title','after_section_id','kind'],
+  properties:{ ref:{type:'string'}, title:{type:'string'}, after_section_id:{type:'string'},
+    kind:{ type:'string', enum:['probe','process'] } } };
 
 const S_WIDGET_CRITIC = { type:'object', additionalProperties:false, required:['ok','issues'],
   properties:{ ok:{type:'boolean'}, issues:{ type:'array', items:{type:'string'} } } };
@@ -249,10 +251,11 @@ const authorPrompt = (sectionsBrief) => [
 const widgetPlanPrompt = (secs) => [
   `Sujet : « ${subject} ». Sections RETENUES du document (id, heading, prose, faits clés) :`,
   JSON.stringify(secs),
-  `Décide quels CONCEPTS ou MÉCANISMES clés méritent un widget interactif démonstratif.`,
-  `Rubrique STRICTE : un widget ne se justifie QUE si le concept est NON TRIVIAL et qu'il est plus clair MONTRÉ qu'expliqué (le montrer aide à visualiser/comprendre, ou rend la compréhension plus simple). Sinon, AUCUN widget.`,
-  `N'en propose aucun pour le trivial ou le purement déclaratif. DÉDUPLIQUE : un seul widget par mécanisme. La complexité du widget devra rester proportionnée à sa valeur explicative.`,
-  `Rends : widgets = liste {concept (le mécanisme à illustrer), after_section_id (id EXACT d'une section ci-dessus, après laquelle l'insérer), brief (ce que le widget doit faire voir/manipuler, 1-2 phrases)}. Liste VIDE si rien ne le justifie.`,
+  `Décide quels CONCEPTS/MÉCANISMES méritent un widget interactif démonstratif, et de quel TYPE (champ "kind").`,
+  `• "probe" — illustre UN mécanisme ISOLÉ. Rubrique STRICTE : seulement si NON TRIVIAL et plus clair MONTRÉ qu'expliqué. Rien pour le trivial/déclaratif. UN seul probe par mécanisme (déduplique).`,
+  `• "process" — un SUPER-WIDGET synoptique montrant un PROCESSUS DE BOUT EN BOUT assemblé sur une instance jouet. Rubrique STRICTE (c'est le SEUL frein — il n'y a PAS de plafond) : seulement un VRAI processus multi-étapes — soit ITÉRATIF (une boucle d'étapes répétée jusqu'à convergence, ex. avant→arrière→mise à jour→répéter), soit un PIPELINE d'AU MOINS 3 étapes chaînées sur un cas concret. JAMAIS pour un mécanisme isolé (ça reste un probe). Déduplique : un seul process par processus distinct. Dans "brief", NOMME explicitement les étapes enchaînées (ou la boucle) ; si tu ne peux pas nommer ≥3 étapes ou la boucle, ce n'est PAS un process.`,
+  `Un "process" s'ancre sur la section de SYNTHÈSE après laquelle l'enchaînement est complet (after_section_id).`,
+  `Rends : widgets = liste {concept, after_section_id (id EXACT d'une section ci-dessus), brief (ce que le widget fait voir/manipuler ; pour un process, nomme les étapes), kind ("probe"|"process")}. Liste VIDE si rien ne le justifie.`,
 ].join('\n');
 
 const widgetCodePrompt = (w) => [
@@ -261,7 +264,7 @@ const widgetCodePrompt = (w) => [
   `Écris le fichier ${themeDir}/widgets/<ref>.html (mkdir -p ${themeDir}/widgets si besoin). Choisis un <ref> kebab-case ascii unique (ex. probe-…).`,
   `CONTRAINTES STRICTES (sinon le build échoue bruyamment) : un seul bloc <div class="widget">…</div> + <style>…</style> + <script>…</script> ; AUCUNE ressource externe, AUCUN file:///, AUCUN alert/confirm/prompt ; balises <section>/<details>/<script> ÉQUILIBRÉES ; préfixe TOUS les id/classes par le ref pour éviter les collisions avec la charte.`,
   `Le widget doit VRAIMENT démontrer le mécanisme : interactif et manipulable, pas décoratif ni statique. Aussi complexe que nécessaire, mais pas au-delà de sa valeur explicative.`,
-  `Rends : ref (sans .html), title (titre court du widget), after_section_id = "${w.after_section_id}".`,
+  `Rends : ref (sans .html), title (titre court du widget), after_section_id = "${w.after_section_id}", kind = "${w.kind || 'probe'}".`,
 ].join('\n');
 
 const widgetCriticPrompt = (coded) => [
