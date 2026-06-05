@@ -98,8 +98,9 @@ Identique à `/monograph`, mais les checkpoints vivent dans **`themes/<slug>/.fr
 même schéma `kind`). ⚠️ Frugal : il n'y a **pas** de plafond sur les super-widgets (choix produit) —
 seule la rubrique stricte borne leur nombre. Voir `monograph/SKILL.md` pour le détail.
 
-**Figures statiques (`kind:"figure"`)** : identiques à `monograph` (même planificateur visuel,
-mêmes prompts). Voir `monograph/SKILL.md`.
+**Figures statiques (`kind:"figure"`) et retrofit `figuresOnly`** : identiques à `monograph`
+(même planificateur visuel, mêmes prompts, même mode top-up `args.figuresOnly`). Voir
+`monograph/SKILL.md`.
 
 ## Garanties (portées par `workflow.js` + `build.py`)
 

@@ -273,5 +273,22 @@ console.log('Scénario G4 — figuresOnly : critic ko → figure-recode, build c
   ok(r && r.figures.length === 1, 'G4 : la figure recodée est dans le rapport');
 }
 
+// ── Scénario G5 : frugalmonograph — le top-up figuresOnly fonctionne aussi (garde-fou de parité) ──
+console.log('Scénario G5 — frugalmonograph : top-up figuresOnly opérationnel :');
+{
+  const disk = {};
+  const env = makeEnv(disk, [
+    { concept:'c1', after_section_id:'s1', brief:'b1', kind:'figure', anchor:'fin' },
+    { concept:'c2', after_section_id:'s2', brief:'b2', kind:'figure', anchor:'fin' },
+  ]);
+  const r = await runFrugal({ ...env, args: { ...ARGS, figuresOnly: true } });
+  ok(['sweep:', 'plan', 'extract:', 'verify:', 'author', 'compose'].every(p => !has(env.calls, p)),
+     'frugal : aucune phase de recherche/auteur/compose');
+  ok(has(env.calls, 'figures-load'), 'frugal : figures-load appelé');
+  ok(env.calls.filter(c => c.startsWith('figure-code:')).length === 2, 'frugal : 2 figures codées en série');
+  ok(has(env.calls, 'build'), 'frugal : build appelé');
+  ok(r && r.mode === 'figuresOnly' && r.figures.length === 2, 'frugal : rapport figuresOnly 2 figures');
+}
+
 console.log(failures === 0 ? '\n✅ TOUS LES TESTS PASSENT' : `\n❌ ${failures} test(s) en échec`);
 process.exit(failures === 0 ? 0 : 1);
