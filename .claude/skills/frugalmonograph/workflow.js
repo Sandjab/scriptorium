@@ -273,26 +273,37 @@ const widgetPlanPrompt = (secs) => [
 ].join('\n');
 
 const widgetCodePrompt = (w) => [
-  `Tu CODES un widget interactif autonome illustrant ce mécanisme du sujet « ${subject} » : ${w.concept}.`,
+  (w.kind === 'process')
+    ? `Tu CODES un SUPER-WIDGET synoptique illustrant un PROCESSUS DE BOUT EN BOUT du sujet « ${subject} » : ${w.concept}.`
+    : `Tu CODES un widget interactif autonome illustrant ce mécanisme du sujet « ${subject} » : ${w.concept}.`,
   `Objectif pédagogique (brief) : ${w.brief}`,
-  `Écris le fichier ${themeDir}/widgets/<ref>.html (mkdir -p ${themeDir}/widgets si besoin). Choisis un <ref> kebab-case ascii unique (ex. probe-…).`,
+  (w.kind === 'process')
+    ? `EXIGENCES SUPER-WIDGET : montre le PROCESSUS COMPLET sur une INSTANCE JOUET (pas un fragment) ; chaque PHASE distinctement ; DEUX pilotages — PAS-À-PAS (une phase à la fois) ET lecture continue « jusqu'à convergence » ; un INDICATEUR DE PROGRESSION (ex. courbe/compteur d'étape) ; relie visuellement les mécanismes déjà introduits ; en-tête interne « Vue d'ensemble ». Tout DÉTERMINISTE (aucun aléa), calculé exactement.`
+    : null,
+  `Écris le fichier ${themeDir}/widgets/<ref>.html (mkdir -p ${themeDir}/widgets si besoin). Choisis un <ref> kebab-case ascii unique (probe-… pour un mécanisme ; synopsis-… pour un process).`,
   `CONTRAINTES STRICTES (sinon le build échoue bruyamment) : un seul bloc <div class="widget">…</div> + <style>…</style> + <script>…</script> ; AUCUNE ressource externe, AUCUN file:///, AUCUN alert/confirm/prompt ; balises <section>/<details>/<script> ÉQUILIBRÉES ; préfixe TOUS les id/classes par le ref pour éviter les collisions avec la charte.`,
   `Le widget doit VRAIMENT démontrer le mécanisme : interactif et manipulable, pas décoratif ni statique. Aussi complexe que nécessaire, mais pas au-delà de sa valeur explicative.`,
   `Rends : ref (sans .html), title (titre court du widget), after_section_id = "${w.after_section_id}", kind = "${w.kind || 'probe'}".`,
-].join('\n');
+].filter(Boolean).join('\n');
 
 const widgetCriticPrompt = (coded) => [
   `Relis le widget : ${themeDir}/widgets/${coded.ref}.html (fais Read).`,
-  `Juge HONNÊTEMENT trois choses : (1) tourne-t-il plausiblement (pas d'erreur JS évidente, pas de référence indéfinie, balises équilibrées) ; (2) est-il réellement INTERACTIF et DÉMONSTRATIF du mécanisme « ${coded.title} » (pas décoratif, pas statique) ; (3) respecte-t-il les contraintes (un seul <div class="widget">, aucune ressource externe / file:/// / alert|confirm|prompt, id/classes préfixés).`,
-  `Rends : ok (true SEULEMENT si les 3 tiennent), issues (liste des problèmes précis à corriger ; vide si ok).`,
-].join('\n');
+  `Juge HONNÊTEMENT : (1) tourne-t-il plausiblement (pas d'erreur JS évidente, pas de référence indéfinie, balises équilibrées) ; (2) est-il réellement INTERACTIF et DÉMONSTRATIF du mécanisme « ${coded.title} » (pas décoratif, pas statique) ; (3) respecte-t-il les contraintes (un seul <div class="widget">, aucune ressource externe / file:/// / alert|confirm|prompt, id/classes préfixés).`,
+  (coded.kind === 'process')
+    ? `(4) SUPER-WIDGET : montre-t-il le PROCESSUS COMPLET — toutes les phases distinctes, l'ITÉRATION jusqu'à convergence visible, pilotage pas-à-pas ET continu — et est-ce bien l'ENCHAÎNEMENT (pas un mécanisme isolé) ?`
+    : null,
+  `Rends : ok (true SEULEMENT si tous les points tiennent), issues (liste des problèmes précis à corriger ; vide si ok).`,
+].filter(Boolean).join('\n');
 
 const widgetRecodePrompt = (coded, issues) => [
   `Le widget ${themeDir}/widgets/${coded.ref}.html a été relu et DOIT être corrigé. Problèmes relevés :`,
   JSON.stringify(issues),
   `Réécris (Write) le fichier ${themeDir}/widgets/${coded.ref}.html en corrigeant ces points, en gardant les MÊMES contraintes strictes (un seul <div class="widget">, aucune ressource externe / file:/// / alert|confirm|prompt, balises équilibrées, id/classes préfixés, vraiment démonstratif).`,
-  `Rends : ref="${coded.ref}", title="${coded.title}", after_section_id="${coded.after_section_id}".`,
-].join('\n');
+  (coded.kind === 'process')
+    ? `RAPPEL SUPER-WIDGET : garde le processus COMPLET (phases distinctes, itération jusqu'à convergence, pilotage pas-à-pas ET continu, en-tête « Vue d'ensemble ») — ne le rabaisse pas en simple sonde.`
+    : null,
+  `Rends : ref="${coded.ref}", title="${coded.title}", after_section_id="${coded.after_section_id}", kind="${coded.kind || 'probe'}".`,
+].filter(Boolean).join('\n');
 
 const ELEMENT_CHEATSHEET = [
   `Types d'éléments valides (rendus par build.py) et leurs champs requis :`,

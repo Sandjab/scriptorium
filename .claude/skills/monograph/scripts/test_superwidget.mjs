@@ -1,4 +1,4 @@
-// Test structurel du câblage super-widget de ../workflow.js (kind + mode superwidgetOnly).
+// Test structurel du câblage super-widget de ../workflow.js (champ kind + variantes process).
 // Lancer : node .claude/skills/monograph/scripts/test_superwidget.mjs   (exit ≠ 0 si échec)
 // Même technique que test_resume.mjs : copie temporaire enveloppée en ESM, globals harness mockés,
 // agent mocké par label + CAPTURE des prompts. Ne teste pas le LLM — seulement le contrôle de flux.
@@ -21,7 +21,7 @@ try { ({ default: runWorkflow } = await import(pathToFileURL(modPath).href)); }
 finally { try { unlinkSync(modPath); } catch { /* déjà parti */ } }
 
 // ── Mock agent (full pipeline + top-up), capture {label, prompt} ──────────────
-function makeEnv(disk, planWidgets) {
+function makeEnv(disk, planWidgets, envOpts = {}) {
   const calls = [];          // labels
   const prompts = {};        // label-prefix → dernier prompt vu
   const log = () => {};
@@ -61,7 +61,8 @@ function makeEnv(disk, planWidgets) {
     if (label.startsWith('widget-code:') || label.startsWith('widget-recode:')) {
       const m = prompt.match(/kind = "(\w+)"|kind="(\w+)"/); const kind = (m && (m[1] || m[2])) || 'probe';
       return Promise.resolve({ ref: 'w-' + kind, title: 'W ' + kind, after_section_id: 's1', kind }); }
-    if (label.startsWith('widget-critic:')) return Promise.resolve({ ok: true, issues: [] });
+    if (label.startsWith('widget-critic:')) return Promise.resolve({
+      ok: envOpts.criticOk !== false, issues: envOpts.criticOk === false ? ['phases manquantes'] : [] });
     if (label === 'manifest-insert') return Promise.resolve({ inserted: ['w-process'], already_present: [] });
     if (label === 'author') return Promise.resolve({ files_written: ['glossary.json', 'tldr.json'] });
     if (label === 'compose') return Promise.resolve({ files_written: ['manifest.json'], element_counts: { document: 5 } });
@@ -86,14 +87,34 @@ console.log('Scénario A — kind=process routé dans la phase Widgets normale :
   const env = makeEnv(disk, [{ concept: 'c', after_section_id: 's1', brief: 'b', kind: 'process' }]);
   await run(env, ARGS);
   ok(has(env.calls, 'widget-plan'), 'planner appelé');
-  ok(/probe.*process|process.*probe|enum:\['probe','process'\]|"probe"\|"process"|kind \("probe"\|"process"\)/.test(env.prompts['widget-plan'] || ''),
+  ok(/probe.*process|kind \("probe"\|"process"\)/.test(env.prompts['widget-plan'] || ''),
      'le prompt planner expose les deux kinds (probe|process)');
   ok(/PROCESSUS DE BOUT EN BOUT|super-widget|SUPER-WIDGET/i.test(env.prompts['widget-plan'] || ''),
      'le prompt planner décrit la rubrique process');
   const codeKey = Object.keys(env.prompts).find(k => k.startsWith('widget-code:'));
   ok(!!codeKey, 'un widget-code a été appelé');
+  ok(/Vue d'ensemble/.test(env.prompts[codeKey] || ''), 'le prompt codeur process exige l\'en-tête « Vue d\'ensemble »');
+  ok(/jusqu'à convergence|PAS-À-PAS|INSTANCE JOUET/i.test(env.prompts[codeKey] || ''),
+     'le prompt codeur process exige pas-à-pas + continu sur instance jouet');
+  const critKey = Object.keys(env.prompts).find(k => k.startsWith('widget-critic:'));
+  ok(!!critKey && /PROCESSUS COMPLET|ENCHAÎNEMENT|toutes les phases/i.test(env.prompts[critKey] || ''),
+     'le prompt critic process ajoute le contrôle d\'enchaînement complet');
   const wjson = disk['widgets.json'] || '';
   ok(/"kind"\s*:\s*"process"/.test(wjson), 'le checkpoint widgets.json porte kind=process');
+}
+
+// ── Scénario A2 : recode process exercé (critic rejette → recode) ──────────────
+console.log('Scénario A2 — recode process exercé (critic ko → widget-recode) :');
+{
+  const disk = {};
+  const env = makeEnv(disk, [{ concept: 'c', after_section_id: 's1', brief: 'b', kind: 'process' }], { criticOk: false });
+  await run(env, ARGS);
+  const recodeKey = Object.keys(env.prompts).find(k => k.startsWith('widget-recode:'));
+  ok(!!recodeKey, 'un widget-recode a été appelé (critic a rejeté)');
+  ok(/RAPPEL SUPER-WIDGET/.test(env.prompts[recodeKey] || ''),
+     'le prompt recode process rappelle de garder le super-widget');
+  ok(/Vue d'ensemble|jusqu'à convergence/i.test(env.prompts[recodeKey] || ''),
+     'le prompt recode process réénonce les exigences (Vue d\'ensemble / jusqu\'à convergence)');
 }
 console.log(failures === 0 ? '\n✅ TOUS LES TESTS PASSENT' : `\n❌ ${failures} test(s) en échec`);
 process.exit(failures === 0 ? 0 : 1);
