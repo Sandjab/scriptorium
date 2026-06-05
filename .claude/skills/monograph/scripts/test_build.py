@@ -86,3 +86,17 @@ def test_multiple_widgets_all_inlined_and_validated(tmp_path):
     assert "ONE" in out and "TWO" in out
     assert "<!--%" not in out
     assert "file:///" not in out
+
+def test_figures_are_numbered_in_document_order(tmp_path):
+    fig = ('<figure class="fig"><svg viewBox="0 0 10 10"></svg>'
+           '<figcaption><span class="fcap-k"></span>Légende.</figcaption></figure>')
+    theme = _mk_theme(tmp_path, [
+        {"type":"section","id":"a","heading":"A","prose": f"<p>x</p>{fig}"},
+        {"type":"section","id":"b","heading":"B","prose": f"<p>y</p>{fig}"},
+    ])
+    build.build_theme(theme)
+    out = (pathlib.Path(theme)/"dist"/"demo.html").read_text(encoding="utf-8")
+    assert '<span class="fcap-k">Figure 1</span>' in out
+    assert '<span class="fcap-k">Figure 2</span>' in out
+    assert '<span class="fcap-k"></span>' not in out           # plus aucun gabarit vide
+    assert out.index("Figure 1") < out.index("Figure 2")       # ordre du document
