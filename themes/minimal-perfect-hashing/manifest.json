@@ -1,0 +1,501 @@
+{
+  "edition": "monographie",
+  "slug": "minimal-perfect-hashing",
+  "meta": {
+    "title": "Minimal perfect hashing : n clés, n cases, zéro collision",
+    "kicker": "Hachage parfait minimal · monographie",
+    "h1": "Minimal perfect hashing : n clés, n cases, zéro collision",
+    "lede": "Ranger n clés statiques sur exactement les entiers [0, n) — sans collision ni case vide — pour à peine quelques bits par clé ; mais ne rien savoir dire des clés jamais vues.",
+    "meta_chips": [
+      "Monographie"
+    ],
+    "footer": "Minimal perfect hashing : n clés, n cases, zéro collision · scriptorium"
+  },
+  "elements": [
+    {
+      "type": "abstract"
+    },
+    {
+      "type": "section",
+      "id": "definition-et-fondations",
+      "heading": "Qu'est-ce qu'une minimal perfect hash function ?",
+      "level": 3,
+      "prose": "<p>Une <strong>minimal perfect hash function</strong> (fonction de hachage parfaite minimale), ou MPHF, est formellement définie comme une bijection f : S → {0, …, n−1} pour un ensemble S de n clés distinctes : chaque clé est assignée à un entier unique dans l'intervalle [0, n−1], sans collision et sans case vide. Cette définition se distingue de celle d'une <strong>perfect hash function</strong> (fonction de hachage parfaite) générale, qui est une simple injection — elle garantit l'absence de collision mais autorise une plage de sortie m ≥ n, laissant potentiellement des emplacements inutilisés dans la table. Passer de m &gt; n à m = n réduit la taille de la structure de données à son strict minimum, ce qui motive le qualificatif « minimal » : zéro gaspillage d'espace.</p>\n\n<p>La borne inférieure information-théorique établit qu'il faut au moins log₂(e) ≈ 1,44 bits par clé pour représenter une MPHF. La preuve mobilise l'approximation de Stirling : il existe exactement n! bijections de S vers {0, …, n−1}, et les distinguer requiert log₂(n!) ≈ n · log₂(e) bits. En pratique, toutes les constructions connues restent au-dessus de cette borne — les approches les plus compactes atteignent environ 1,56 bits/clé — de sorte qu'elle constitue un horizon théorique, pas encore un seuil atteint à grande échelle.</p>\n\n<p>Les travaux de Fredman, Komlós et Szemerédi — publiés en 1984 sous le titre « Storing a Sparse Table with O(1) Worst Case Access Time » dans le <em>Journal of the ACM</em> — posent le cadre du perfect hashing statique à deux niveaux : le premier niveau répartit les clés en buckets via une fonction modulaire, le second résout les collisions localement par une fonction secondaire sans collision. Ce schéma FKS atteint un temps de requête O(1) dans le pire des cas et un espace O(n). Il traite toutefois le perfect hashing dans sa forme générale (injection, m ≥ n) et ne prescrit pas que la plage de sortie soit exactement {0, …, n−1} ; il reste une référence structurante pour le perfect hashing, pas spécifiquement pour la minimalité.</p>\n\n<p>La minimalité stricte est au centre du cadre FCH, présenté par Fox, Chen et Heath à SIGIR 1992. FCH opère en trois étapes : (1) <em>mapping</em> — partition des n clés en buckets de tailles non uniformes ; (2) <em>ordering</em> — tri des buckets par taille décroissante pour traiter les plus contraignants en premier ; (3) <em>searching</em> — affectation greedy d'un déplacement à chaque bucket de manière à placer ses clés dans des positions encore libres de la table {0, …, n−1}. Une fois la MPHF construite, l'évaluation d'une clé ne requiert qu'un calcul de position, ce qui rend la requête très rapide. En revanche, la phase de construction est coûteuse et l'empreinte spatiale élevée comparée aux méthodes ultérieures, ce qui a longtemps cantonné FCH à des ensembles de taille modeste — jusqu'à ce que PTHash (Pibiri et Trani, SIGIR 2021) en révise le cadre pour le rendre compétitif à grande échelle.</p>",
+      "claims": [
+        "claim:1",
+        "claim:2",
+        "claim:3"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "borne-information-theorique",
+      "heading": "La borne de 1,44 bit/clé et le coût de la force brute",
+      "level": 3,
+      "prose": "<p>La question de la représentation minimale d'une MPHF admet une réponse information-théorique nette, fondée sur le comptage des bijections. Considérons une fonction h tirée uniformément parmi toutes les n<sup>n</sup> fonctions de l'ensemble des n clés vers {0,&nbsp;…,&nbsp;n−1} : la probabilité que h soit une bijection — c'est-à-dire une MPHF valide — est exactement n!/n<sup>n</sup>. L'approximation de Stirling (n!&nbsp;≈&nbsp;√(2πn)(n/e)<sup>n</sup>) ramène cette fraction à e<sup>−n</sup>·(1+O(1/n)), de sorte qu'il faut au moins log<sub>2</sub>(n<sup>n</sup>/n!)&nbsp;≈&nbsp;n&nbsp;log<sub>2</sub>(e)&nbsp;≈&nbsp;1,4427&nbsp;n bits d'information pour « orienter » une fonction aléatoire vers la bonne bijection. L'<em>information-theoretic lower bound</em> (borne inférieure information-théorique) ainsi établie s'énonce : aucune représentation d'une MPHF sur n clés ne peut utiliser moins de log<sub>2</sub>(e)&nbsp;≈&nbsp;1,4427 bit par clé, quelle que soit la stratégie de construction. Cette borne, attribuée à Mehlhorn (1982), constitue depuis plus de quarante ans la cible absolue du domaine ; les meilleures constructions de 2026 s'en approchent à moins de 0,1&nbsp;%.</p>\n\n<p>L'argument de comptage suggère immédiatement la construction par <em>brute-force</em> (force brute) : parcourir des seeds successifs s&nbsp;=&nbsp;0,&nbsp;1,&nbsp;2,&nbsp;… jusqu'à ce que la fonction associée h<sub>s</sub> soit une bijection sur S, puis stocker ce premier seed valide. Comme chaque essai réussit avec probabilité n!/n<sup>n</sup>&nbsp;≈&nbsp;e<sup>−n</sup>, le nombre d'essais attendu est n<sup>n</sup>/n!&nbsp;≈&nbsp;e<sup>n</sup>. Stocker ce seed coûte log<sub>2</sub>(e<sup>n</sup>)&nbsp;≈&nbsp;n&nbsp;log<sub>2</sub>(e) bits — exactement la borne inférieure. La <em>brute-force</em> est donc asymptotiquement optimale en espace, mais son temps de construction est exponentiel en n, ce qui la rend totalement infaisable dès quelques dizaines de clés. La ligne de recherche des quarante dernières années peut se résumer ainsi : atteindre ce même plancher d'espace avec un temps de construction linéaire (ou quasi-linéaire) en n.</p>\n\n<p>La garantie de requête en O(1) est l'autre pilier de la définition d'une MPHF utilisable. Pour toute clé k&nbsp;∈&nbsp;S, la fonction doit répondre en temps constant par une valeur dans {0,&nbsp;…,&nbsp;n−1}, une valeur distincte par clé. En pratique, cela se traduit par un nombre constant d'accès mémoire — typiquement un calcul de hash suivi d'une lecture de table. Les constructions les plus optimisées pour le cache vont plus loin et garantissent un <em>single memory access</em> (accès mémoire unique) par requête. Cette propriété est décisive pour les charges bioinformatiques (indexation de k-mers sur des milliards de séquences) ou les bases de données massivement parallèles, où la latence RAM est le goulot d'étranglement, non le calcul. Une MPHF avec ce profil se comporte comme un filtre parfait : toute clé de S consomme exactement une ligne de cache.</p>\n\n<p>Deux variantes ordonnées élèvent considérablement le plancher théorique. Une <em>order-preserving MPHF</em> (MPHF préservant un ordre arbitraire) doit mapper les clés s<sub>1</sub>,&nbsp;…,&nbsp;s<sub>n</sub> — triées selon un ordre quelconque fourni en entrée — vers 1,&nbsp;2,&nbsp;…,&nbsp;n respectivement. Encoder quelle permutation de S est visée requiert au moins log<sub>2</sub>(n!)&nbsp;≈&nbsp;n&nbsp;log<sub>2</sub>(n)&nbsp;−&nbsp;n&nbsp;log<sub>2</sub>(e) bits par Stirling, établissant la borne Ω(n log n) bits totaux pour ce variant — coût radicalement supérieur aux 1,44&nbsp;bits/clé du cas non ordonné. La <em>monotone MPHF</em> (MMPHF, MPHF monotone) est une variante distincte : les clés sont issues d'un univers entier {0,&nbsp;…,&nbsp;u−1} et h doit retourner le rang de chaque clé dans S selon l'ordre naturel de l'univers (non un ordre arbitraire). Assadi, Farach-Colton et Kuszmaul ont prouvé en 2022 (publié à SODA&nbsp;2023) que tout MMPHF requiert Ω(n&nbsp;·&nbsp;log log log u) bits attendus, en construisant un <em>conflict graph</em> (graphe de conflits) dont les nœuds sont les C(u,n) configurations d'entrée possibles — deux nœuds étant reliés si leurs structures de données ne peuvent être identiques — et dont le <em>fractional chromatic number</em> (nombre chromatique fractionnaire) est 2<sup>Ω(n&nbsp;log&nbsp;log&nbsp;log&nbsp;u)</sup>, forçant autant de bits de représentation. Cette borne est serrée : les constructions connues en O(n&nbsp;log&nbsp;log&nbsp;log&nbsp;u) bits fournissent la borne supérieure correspondante, rendant la caractérisation complète.</p>",
+      "claims": [
+        "claim:4",
+        "claim:5",
+        "claim:6",
+        "claim:7"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "methodes-bucket-placement",
+      "heading": "Méthodes par buckets : du hash, displace and compress à PtrHash",
+      "level": 3,
+      "prose": "<p>La lignée des constructions à <em>bucket displacement</em> (placement par buckets) remonte à Fox, Chen et Heath (FCH, 1992), qui posèrent le cadre conceptuel resté central depuis : partitionner les <em>n</em> clés en buckets de tailles inégales selon une distribution skewed (biaisée vers les grandes tailles), traiter les buckets en ordre décroissant de taille, et rechercher pour chacun un <em>pilot</em> (graine de déplacement) tel que toutes les clés du bucket atterrissent dans des cases libres de la table finale. Le bucket le plus chargé, placé en premier dans une table encore vierge, trouve aisément un pilot valide ; les petits buckets traités en dernier opèrent sur un espace presque saturé mais leur faible cardinal limite le nombre d'essais. La requête ne demande qu'un seul accès mémoire : charger le pilot du bucket de la clé, calculer la position finale par un second hachage, terminer — garantie O(1) stricte, sans chaîne ni rebond. FCH reçut peu d'adoption à l'époque, son temps de construction et sa consommation mémoire comparant mal aux alternatives ; mais son squelette allait être redécouvert et raffiné pendant trente ans.</p>\n\n<p>L'algorithme <em>hash, displace, and compress</em> (Belazzougui, Botelho, Pagh et Ziviani, ESA 2009 — souvent noté CHD dans les implémentations) conserve le schéma de hash-and-displace à deux phases de FCH mais y adjoint une étape de compression sur le tableau des pilots en sortie. Les pilots étant de petits entiers dont la distribution n'est pas uniforme — les gros buckets, placés en premier avec un espace libre abondant, trouvent souvent un pilot à faible valeur — un codage par entropie les ramène à environ 2 bits par clé, mesurés à 1,98 bit/clé pour un facteur de charge <em>m</em> = 1,01<em>n</em>. La construction reste O(<em>n</em>) et la requête O(1) ; l'algorithme démontre le premier qu'il est possible de rester très proche de la borne de Shannon pour les PHFs (perfect hash functions) tout en demeurant pratique, au prix d'une légère décompression à chaque requête.</p>\n\n<p>PTHash (<em>Pilot Table Hashing</em>, Pibiri et Trani, SIGIR 2021) s'inscrit explicitement comme une relecture moderne de FCH à la lumière du matériel contemporain. L'essentiel de l'innovation porte sur l'encodage des pilots : PTHash propose plusieurs schémas (D-D, R-R, R-int…) qui représentent chaque pilot relativement à son voisinage local, et son variant HEM (<em>Hybrid Encoding of Minimums</em>) atteint environ 2,17 bits/clé tout en garantissant un seul accès mémoire par requête. La comparaison avec BBHash (2017) — approche itérative en <em>G</em> passes pouvant provoquer jusqu'à <em>G</em> cache misses par requête — éclaire la motivation : PTHash ramène ce coût à un seul accès grâce au découpage en buckets et au hash-and-displace, se révélant 2 à 4 fois plus rapide à la requête que les méthodes concurrentes de l'époque.</p>\n\n<p>PHOBIC (<em>Perfect Hashing with Optimized Bucket Sizes and Interleaved Coding</em>, Hermann, Lehmann, Pibiri, Sanders et Walzer, ESA 2024) reformule PTHash sur deux axes indépendants. D'abord, la distribution des tailles de buckets n'est plus heuristique — FCH utilisait une formule empirique, PTHash une approximation polynomiale — mais est dérivée mathématiquement comme la distribution minimisant les échecs de placement ; cela améliore simultanément le débit de construction et l'efficacité spatiale. Ensuite, les pilots de rang <em>i</em> issus des différentes partitions de l'entrée sont entreposés consécutivement (<em>interleaved coding</em>) : puisque leurs distributions sont statistiquement identiques à travers les partitions, le compresseur exploite mieux leur structure commune. PHOBIC gagne ainsi 0,17 bit/clé sur PTHash à vitesse de requête équivalente, atteignant environ 2,17 bits/clé — mais ses 179 ns/clé sur 300 millions de clés chaînes, contre 77 ns/clé pour PTHash-HEM, témoignent d'un décodage sensiblement plus coûteux.</p>\n\n<p>PtrHash (Groot Koerkamp, SEA 2025) inverse délibérément le compromis : il renonce à la compression des pilots pour maximiser la vitesse de requête. Les pilots sont stockés bruts en 8 bits fixes — 256 valeurs possibles, sans décompression à la requête — et leur disposition dense dans un tableau linéaire aligne naturellement les accès sur les frontières de cache line. Pour la table de remappage, qui renvoie les positions hors de [0, <em>n</em>) vers des cases libres, PtrHash introduit le codage CacheLineEF (<em>Elias-Fano par cache line</em>) : 44 valeurs tiennent dans exactement 64 octets, de sorte qu'un accès de remappage ne franchit jamais plus d'une seule cache line. La construction combine un tri par taille décroissante et une stratégie d'éviction inspirée du <em>cuckoo hashing</em> (hachage coucou) : si aucun des 256 pilots ne place sans collision les clés d'un bucket, le pilot minimisant le nombre pondéré de conflits est sélectionné, et les buckets en conflit sont réintroduits dans la file de priorité — mécanisme baptisé <em>hash-evict</em> — avec protection des 16 derniers buckets placés pour prévenir les cycles. En configuration défaut (2,40 bits/clé), PtrHash atteint 37 ns/clé en mode boucle sur 300 millions de clés chaînes, contre 77 ns/clé pour PTHash-HEM et 179 ns/clé pour PHOBIC ; en configuration compacte, il descend à 2,12 bits/clé. Sur 10⁹ clés entières, le mode streaming avec prefetch de 32 itérations atteint 8 ns/clé, tout près de la limite théorique de bande passante RAM de 7,4 ns/clé.</p>",
+      "claims": [
+        "claim:8",
+        "claim:9",
+        "claim:10",
+        "claim:11"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "synopsis-bucket-placement-pipeline"
+    },
+    {
+      "type": "section",
+      "id": "methodes-espace-optimal",
+      "heading": "Sous la barre des 2 bits/clé : recursive splitting et cuckoo surchargé",
+      "level": 3,
+      "prose": "<p>Pendant des années, le seuil des 2 bits/clé s'était révélé infranchissable en pratique : la borne inférieure de log₂(e) ≈ 1,4427 bits/clé était connue de longue date pour l'encodage d'une bijection aléatoire vers [0, n), mais aucune construction publiée ne parvenait à s'en approcher sans sacrifier la vitesse ou la praticité. RecSplit (recursive splitting, découpe récursive, Esposito, Graf, Vigna, ALENEX 2020) rompt cette stagnation avec une construction d'une élégance saisissante : l'ensemble de clés est organisé en arbre dont chaque nœud interne applique un seed search (recherche de graine) par force brute — on tire des graines successives jusqu'à trouver celle qui distribue les clés dans les sous-ensembles cibles — et dont les feuilles dérivent une bijection complète vers {0, …, l − 1} par le même mécanisme. Le paramètre de taille de feuille <em>l</em> gouverne directement le compromis espace-temps : plus <em>l</em> est grand, plus le coût par bijection converge vers log₂(l!) bits (proche de l'optimal), au prix d'un temps de construction exponentiel en <em>l</em> — acceptable parce que <em>l</em> reste borné. Pour des réglages typiques (bucket size de 2 000 clés en espérance), RecSplit atteint 1,56 bit/clé, soit à 8,3 % de la borne inférieure, avec un temps de requête constant en espérance et un temps de construction linéaire inférieur à 2 ms/clé.</p><figure class='fig'><svg viewBox='0 0 780 460' role='img' aria-label='Arbre de découpe récursive de RecSplit : la racine partitionne l ensemble S des clés par un seed search en force brute, chaque nœud interne re-partitionne ses clés, et les feuilles de taille l encodent une bijection vers 0 à l moins 1 ; chaque nœud est annoté de sa graine retenue'><line x1='390' y1='76' x2='190' y2='150' stroke='var(--ink-faint,#7A889B)' stroke-width='1.4'/><line x1='390' y1='76' x2='590' y2='150' stroke='var(--ink-faint,#7A889B)' stroke-width='1.4'/><line x1='190' y1='198' x2='90' y2='290' stroke='var(--ink-faint,#7A889B)' stroke-width='1.4'/><line x1='190' y1='198' x2='290' y2='290' stroke='var(--ink-faint,#7A889B)' stroke-width='1.4'/><line x1='590' y1='198' x2='490' y2='290' stroke='var(--ink-faint,#7A889B)' stroke-width='1.4'/><line x1='590' y1='198' x2='690' y2='290' stroke='var(--ink-faint,#7A889B)' stroke-width='1.4'/><rect x='300' y='28' width='180' height='48' rx='8' fill='var(--blue,#23537F)'/><text x='390' y='49' text-anchor='middle' font-family='sans-serif' font-size='14' font-weight='bold' fill='#ffffff'>S — n clés (racine)</text><text x='390' y='67' text-anchor='middle' font-family='sans-serif' font-size='11' fill='#d8e3ef'>seed search → graine σ = 7</text><text x='498' y='44' text-anchor='start' font-family='sans-serif' font-size='10.5' fill='var(--ink-faint,#7A889B)'>force brute : tirer des graines</text><text x='498' y='58' text-anchor='start' font-family='sans-serif' font-size='10.5' fill='var(--ink-faint,#7A889B)'>jusqu'à la partition cible</text><rect x='110' y='150' width='160' height='48' rx='8' fill='var(--paper,#ffffff)' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='190' y='171' text-anchor='middle' font-family='sans-serif' font-size='12.5' fill='var(--ink,#15202E)'>sous-ensemble</text><text x='190' y='189' text-anchor='middle' font-family='sans-serif' font-size='11' fill='var(--ink-faint,#7A889B)'>re-partition · graine σ = 2</text><rect x='510' y='150' width='160' height='48' rx='8' fill='var(--paper,#ffffff)' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='590' y='171' text-anchor='middle' font-family='sans-serif' font-size='12.5' fill='var(--ink,#15202E)'>sous-ensemble</text><text x='590' y='189' text-anchor='middle' font-family='sans-serif' font-size='11' fill='var(--ink-faint,#7A889B)'>re-partition · graine σ = 9</text><rect x='15' y='290' width='150' height='60' rx='8' fill='var(--paper,#ffffff)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.5'/><text x='90' y='308' text-anchor='middle' font-family='sans-serif' font-size='11' font-weight='bold' fill='var(--ink,#15202E)'>feuille ~ l clés</text><text x='90' y='324' text-anchor='middle' font-family='sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>graine σ = 4</text><text x='90' y='341' text-anchor='middle' font-family='sans-serif' font-size='10' fill='var(--bordeaux,#7C2A38)'>→ bijection {0 … l−1}</text><rect x='215' y='290' width='150' height='60' rx='8' fill='var(--paper,#ffffff)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.5'/><text x='290' y='308' text-anchor='middle' font-family='sans-serif' font-size='11' font-weight='bold' fill='var(--ink,#15202E)'>feuille ~ l clés</text><text x='290' y='324' text-anchor='middle' font-family='sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>graine σ = 1</text><text x='290' y='341' text-anchor='middle' font-family='sans-serif' font-size='10' fill='var(--bordeaux,#7C2A38)'>→ bijection {0 … l−1}</text><rect x='415' y='290' width='150' height='60' rx='8' fill='var(--paper,#ffffff)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.5'/><text x='490' y='308' text-anchor='middle' font-family='sans-serif' font-size='11' font-weight='bold' fill='var(--ink,#15202E)'>feuille ~ l clés</text><text x='490' y='324' text-anchor='middle' font-family='sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>graine σ = 6</text><text x='490' y='341' text-anchor='middle' font-family='sans-serif' font-size='10' fill='var(--bordeaux,#7C2A38)'>→ bijection {0 … l−1}</text><rect x='615' y='290' width='150' height='60' rx='8' fill='var(--paper,#ffffff)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.5'/><text x='690' y='308' text-anchor='middle' font-family='sans-serif' font-size='11' font-weight='bold' fill='var(--ink,#15202E)'>feuille ~ l clés</text><text x='690' y='324' text-anchor='middle' font-family='sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>graine σ = 3</text><text x='690' y='341' text-anchor='middle' font-family='sans-serif' font-size='10' fill='var(--bordeaux,#7C2A38)'>→ bijection {0 … l−1}</text><path d='M15 358 L15 366 L765 366 L765 358' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='390' y='384' text-anchor='middle' font-family='sans-serif' font-size='11.5' fill='var(--ink,#15202E)'>feuilles de taille ≈ l — bijection complète vers {0 … l−1}, encore par seed search</text><text x='390' y='416' text-anchor='middle' font-family='sans-serif' font-size='11.5' font-weight='bold' fill='var(--bordeaux,#7C2A38)'>Compromis : l grand → coût/bijection ≈ log₂(l!) (proche de l'optimal),</text><text x='390' y='434' text-anchor='middle' font-family='sans-serif' font-size='11.5' font-weight='bold' fill='var(--bordeaux,#7C2A38)'>mais temps de construction exponentiel en l</text></svg><figcaption><span class='fcap-k'></span>Arbre de découpe récursive de RecSplit : chaque nœud — racine et nœuds internes — partitionne ses clés par seed search en force brute, jusqu'aux feuilles de taille l qui encodent une bijection vers {0 … l−1} ; l grand rapproche le coût de log₂(l!) (optimal) au prix d'une construction exponentielle en l.</figcaption></figure>\n\n<p>ShockHash (Lehmann, Sanders, Walzer, 2023) radicalise l'étape des feuilles en substituant au seed search classique une recherche fondée sur les graphes aléatoires. Chaque clé est représentée comme une arête dans un graphe dont les sommets sont les positions candidates ; l'algorithme génère des graphes successifs jusqu'à en trouver un qui forme un pseudoforest (pseudo-forêt) — un graphe dont chaque composante connexe contient au plus un cycle, ce qui garantit l'existence d'une orientation permettant de dériver la MPHF en temps linéaire par cuckoo hashing. La force brute élémentaire exige e<sup>n</sup> essais en espérance ; le plain ShockHash descend à (e/2)<sup>n</sup> ≈ 1,359<sup>n</sup> en maintenant un pool de candidats ; le bipartite ShockHash affine encore à ≈ 1,166<sup>n</sup> en exploitant la bipartition des positions candidates pour réduire drastiquement l'espace de seed search. Intégré comme bloc-feuille dans RecSplit (ShockHash-RS), ce mécanisme atteint 1,489 bits/clé pour 10 millions de clés en environ une demi-heure de construction — un point de compromis difficile à atteindre par d'autres voies.</p>\n\n<p>MorphisHash (Hermann, mars 2025, ESA 2025) part d'un constat précis sur ShockHash : lorsqu'une configuration de positions candidates est valide comme MPHF, il n'existe pas un seul mapping des clés sur ces positions, mais en général plusieurs — ShockHash en retient un arbitrairement, laissant de l'information inexploitée. En tirant profit de la multiplicité de ces valid assignments (assignations valides), MorphisHash élimine une redondance de Θ(ln n) bits par rapport à ShockHash, ce qui correspond dans la pratique à un facteur d'environ 20 de réduction de l'espace excédentaire au-dessus de la borne théorique. L'intégration dans le framework RecSplit (MorphisHash-RS) procure en outre un gain de construction considérable : jusqu'à 21 fois plus rapide que ShockHash-RS à espace équivalent, parce que moins de seed search est nécessaire pour atteindre le budget spatial cible.</p>\n\n<p>SicHash (Lehmann, Sanders, Walzer, ALENEX 2023) adopte une perspective orthogonale : plutôt que de chercher une graine par sous-ensemble, il formule l'affectation des clés comme un problème de placement dans des tables de irregular cuckoo hashing (cuckoo hashing irrégulier), où chaque clé dispose d'un nombre variable de fonctions de hachage candidates. Une fois une affectation valide trouvée, l'index de la fonction retenue pour chaque clé est stocké dans une retrieval structure (structure de récupération). L'originalité réside dans l'usage de nombreuses petites tables surchargées au-delà de leur taux de charge asymptotique maximal : cette surcharge délibérée produit des affectations plus denses et réduit la fréquence des reprises. En termes de vitesse de construction, SicHash peut être construit jusqu'à 4,3 fois plus vite que ses concurrents proches dans les configurations MPHF, tout en conservant des requêtes très rapides — un point de compromis attractif lorsque la vitesse de construction prime sur le budget espace.</p>\n\n<p>BBHash (Limasset et al., SEA 2017) suit une stratégie différente, itérative et sans récursion : à chaque passe, les clés sans collision sont retenues dans un tableau de bits ; les clés en collision sont réinjectées dans la passe suivante avec une nouvelle fonction de hachage, et ainsi de suite sur G niveaux. La requête parcourt les niveaux dans l'ordre jusqu'à localiser la clé, au prix de potentiellement G cache misses (défauts de cache) par requête — un coût qui croît linéairement avec G. L'espace typique avoisine 3 bits/élément pour des paramètres courants, loin de la borne de 1,44 bits. L'atout de BBHash réside ailleurs : sa faible empreinte mémoire à la construction et son support natif de la parallélisation permettent de traiter des ensembles de 10<sup>10</sup> clés en quelques minutes sur machine multi-cœur, ce qui explique son déploiement précoce dans des outils de bioinformatique (Pufferfish, BLight) avant que des structures plus économes en espace ne s'imposent.</p>\n\n<p>Consensus-RecSplit (Lehmann et al., 2025) porte la quête d'espace à son terme actuel en combinant les Combined Search and Encoding of Successful Seeds (recherche et encodage conjoints des graines réussies) avec la découpe récursive de RecSplit. Au lieu d'allouer un nombre fixe de bits par graine, la méthode encode simultanément la recherche et son résultat, reculant dans l'arbre de découpe lorsque l'enveloppe allouée est dépassée. Sur 100 millions de clés et environ une heure de construction, Consensus-RecSplit atteint 1,4448 bits/clé, à seulement 0,0021 bit/clé au-dessus de la borne théorique de 1,4427 — l'overhead le plus faible jamais mesuré pour une MPHF à vocation généraliste. Ce gain extrême a une contrepartie radicale : le temps de construction dépasse 1 000 ns/clé, contre ≈ 32 ns/clé pour des structures comme PtrHash, ce qui cantonne Consensus-RecSplit aux cas d'usage où chaque fraction de bit/clé est critique et le temps de construction est une contrainte secondaire.</p>",
+      "claims": [
+        "claim:12",
+        "claim:13",
+        "claim:14",
+        "claim:15"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "performances-comparees",
+      "heading": "Espace contre vitesse : le front de Pareto actuel",
+      "level": 3,
+      "prose": "<p>Le front de Pareto des MPHF oppose deux impératifs structurellement irréconciliables : la compacité de stockage, bornée par log₂(e) ≈ 1,44 bit/clé, et la rapidité de requête, plafonnée en pratique par la latence de la RAM. Les algorithmes récents se concentrent aux deux extrémités de cet axe, avec un écart de moins d'un bit par clé entre les pôles mais un facteur 14 en latence — ce qui donne une mesure concrète du compromis à arbitrer pour chaque cas d'usage.</p><figure class='fig'><svg viewBox='0 0 820 520' role='img' aria-label='Nuage de points du front de Pareto des MPHF : axe horizontal bits par cle de 1,44 a 3,7 avec asymptote verticale a la borne theorique log2(e) proche de 1,44, axe vertical ns par requete en echelle logarithmique avec asymptote horizontale au plancher RAM 7,4 ns ; pole compact Consensus-RecSplit, ShockHash-RS et MorphisHash vers 1,49 bit et 500 ns, zone mediane SicHash, PHOBIC et PTHash-HEM, pole vitesse PtrHash vers 35 a 37 ns, BBHash vers 3,7 bits ; aucune methode ne domine toute la frontiere'><text x='410' y='25' text-anchor='middle' font-family='sans-serif' font-size='13' font-weight='bold' fill='var(--ink,#15202E)'>Front de Pareto des MPHF — espace contre vitesse</text><text x='410' y='43' text-anchor='middle' font-family='sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>aucune méthode ne domine toute la frontière ; l'arbitrage dépend de la contrainte dominante</text><line x1='80' y1='124' x2='760' y2='124' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6' stroke-dasharray='2 3'/><line x1='80' y1='207' x2='760' y2='207' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6' stroke-dasharray='2 3'/><line x1='80' y1='298' x2='760' y2='298' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6' stroke-dasharray='2 3'/><line x1='80' y1='381' x2='760' y2='381' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6' stroke-dasharray='2 3'/><text x='73' y='127' text-anchor='end' font-family='sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>300</text><text x='73' y='210' text-anchor='end' font-family='sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>100</text><text x='73' y='301' text-anchor='end' font-family='sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>30</text><text x='73' y='384' text-anchor='end' font-family='sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>10</text><line x1='80' y1='58' x2='80' y2='420' stroke='var(--ink,#15202E)' stroke-width='1.4'/><line x1='80' y1='420' x2='770' y2='420' stroke='var(--ink,#15202E)' stroke-width='1.4'/><text x='28' y='240' text-anchor='middle' font-family='sans-serif' font-size='11' fill='var(--ink,#15202E)' transform='rotate(-90 28 240)'>ns / requête  (échelle log)</text><line x1='108' y1='420' x2='108' y2='425' stroke='var(--ink,#15202E)' stroke-width='1'/><line x1='250' y1='420' x2='250' y2='425' stroke='var(--ink,#15202E)' stroke-width='1'/><line x1='392' y1='420' x2='392' y2='425' stroke='var(--ink,#15202E)' stroke-width='1'/><line x1='533' y1='420' x2='533' y2='425' stroke='var(--ink,#15202E)' stroke-width='1'/><line x1='675' y1='420' x2='675' y2='425' stroke='var(--ink,#15202E)' stroke-width='1'/><text x='108' y='437' text-anchor='middle' font-family='sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>1,5</text><text x='250' y='437' text-anchor='middle' font-family='sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>2,0</text><text x='392' y='437' text-anchor='middle' font-family='sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>2,5</text><text x='533' y='437' text-anchor='middle' font-family='sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>3,0</text><text x='675' y='437' text-anchor='middle' font-family='sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>3,5</text><text x='420' y='462' text-anchor='middle' font-family='sans-serif' font-size='11' fill='var(--ink,#15202E)'>bits / clé  (plus compact vers la gauche)</text><line x1='91' y1='58' x2='91' y2='420' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2' stroke-dasharray='5 4'/><text x='86' y='250' text-anchor='middle' font-family='sans-serif' font-size='9.5' fill='var(--bordeaux,#7C2A38)' transform='rotate(-90 86 250)'>borne log₂(e) ≈ 1,44 b/clé</text><line x1='80' y1='404' x2='760' y2='404' stroke='var(--blue,#23537F)' stroke-width='1.2' stroke-dasharray='5 4'/><text x='756' y='399' text-anchor='end' font-family='sans-serif' font-size='9.5' fill='var(--blue,#23537F)'>plancher RAM ≈ 7,4 ns/accès</text><polyline points='106,85 210,163 284,287 760,283' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.4' stroke-dasharray='6 4' opacity='0.65'/><text x='470' y='275' text-anchor='middle' font-family='sans-serif' font-size='10' font-style='italic' fill='var(--bordeaux,#7C2A38)'>front de Pareto (non dominé)</text><text x='150' y='116' text-anchor='start' font-family='sans-serif' font-size='10' font-style='italic' fill='var(--bordeaux,#7C2A38)'>pôle compact · espace minimal</text><text x='430' y='342' text-anchor='start' font-family='sans-serif' font-size='10' font-style='italic' fill='var(--blue,#23537F)'>pôle vitesse · latence minimale</text><circle cx='106' cy='85' r='6' fill='var(--bordeaux,#7C2A38)'/><text x='118' y='81' text-anchor='start' font-family='sans-serif' font-size='10.5' fill='var(--ink,#15202E)'>Consensus-RecSplit · ShockHash-RS · MorphisHash</text><text x='118' y='94' text-anchor='start' font-family='sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>≈ 1,49 b/clé · ~500 ns</text><circle cx='210' cy='163' r='6' fill='var(--ink,#15202E)'/><text x='210' y='141' text-anchor='middle' font-family='sans-serif' font-size='10.5' fill='var(--ink,#15202E)'>PHOBIC λ=7,0</text><text x='210' y='153' text-anchor='middle' font-family='sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>1,86 b · 179 ns</text><circle cx='273' cy='215' r='6' fill='var(--ink,#15202E)'/><text x='261' y='212' text-anchor='end' font-family='sans-serif' font-size='10.5' fill='var(--ink,#15202E)'>SicHash</text><text x='261' y='224' text-anchor='end' font-family='sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>≈ 2,08 b</text><circle cx='375' cy='201' r='6' fill='var(--ink,#15202E)'/><text x='387' y='198' text-anchor='start' font-family='sans-serif' font-size='10.5' fill='var(--ink,#15202E)'>PHOBIC λ=6,5</text><text x='387' y='210' text-anchor='start' font-family='sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>2,44 b · 108 ns</text><circle cx='298' cy='227' r='6' fill='var(--ink,#15202E)'/><text x='298' y='247' text-anchor='middle' font-family='sans-serif' font-size='10.5' fill='var(--ink,#15202E)'>PTHash-HEM</text><text x='298' y='259' text-anchor='middle' font-family='sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>≈ 2,17 b · 77 ns</text><circle cx='284' cy='287' r='6' fill='var(--blue,#23537F)'/><text x='272' y='303' text-anchor='end' font-family='sans-serif' font-size='10.5' fill='var(--blue,#23537F)'>PtrHash Compact</text><text x='272' y='315' text-anchor='end' font-family='sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>2,12 b · 35 ns</text><circle cx='363' cy='282' r='6' fill='var(--blue,#23537F)'/><text x='375' y='298' text-anchor='start' font-family='sans-serif' font-size='10.5' fill='var(--blue,#23537F)'>PtrHash Default</text><text x='375' y='310' text-anchor='start' font-family='sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>2,40 b · 37 ns</text><circle cx='732' cy='180' r='6' fill='var(--ink,#15202E)'/><text x='720' y='177' text-anchor='end' font-family='sans-serif' font-size='10.5' fill='var(--ink,#15202E)'>BBHash</text><text x='720' y='189' text-anchor='end' font-family='sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>≈ 3,7 b</text></svg><figcaption><span class='fcap-k'></span>Front de Pareto espace-vitesse des MPHF : bits/clé en abscisse (borne théorique log₂(e) ≈ 1,44, asymptote verticale) et ns/requête en ordonnée log (plancher RAM ≈ 7,4 ns, asymptote horizontale) ; le pôle compact (Consensus-RecSplit, ShockHash-RS, MorphisHash ≈ 1,49 b / ~500 ns) et le pôle vitesse (PtrHash Default 2,40 b / 37 ns, Compact 2,12 b / 35 ns) bornent une frontière qu'aucune méthode ne domine entièrement — l'arbitrage espace contre latence dépend de la contrainte dominante.</figcaption></figure>\n\n<p>À l'extrémité compacte, Consensus-RecSplit (Pibiri, 2023) atteint 1,49 bit/clé sur 300 millions de clés, soit à 3 % seulement au-dessus du plancher théorique. Cette quasi-optimalité en espace engage un coût algorithmique à chaque requête : 528 ns par lookup, qui reflète la reconstruction d'une bijection extrêmement dense. Les méthodes ShockHash-RS et MorphisHash (ESA 2025) atteignent 1,489 bit/clé avec des temps de construction réduits, mais des latences de requête du même ordre de grandeur, confirmant que tout franchissement de la barre des 1,5 bit/clé mobilise des surcoûts de décodage difficilement compressibles.</p>\n\n<p>À l'extrémité vitesse, PtrHash (Groot Koerkamp, SEA 2025) redéfinit le plafond pratique. Sur 300 millions de clés chaînes, la configuration Default (2,40 bits/clé) atteint 37 ns/requête en boucle single-thread, contre 77 ns pour PTHash-HEM (variant C-C) — un facteur 2,1×. La rupture qualitative vient du mode streaming (prefetch actif) : sur 1 milliard de clés entières, PtrHash descend à 8 ns/clé en streaming et 12 ns/clé en boucle, s'approchant du plancher matériel mesuré à 7,4 ns par accès DDR4 cache-line sur la plateforme de référence (Intel i7-10750H, DDR4 3200 MHz). Sur clés chaînes, le même mode streaming atteint 23 ns/requête. Cette distinction est importante : c'est le throughput (débit effectif) en régime soutenu qui est mesuré, non la latence d'une requête isolée ; le bénéfice du prefetch s'évanouit dès que les clés arrivent de manière imprévisible ou en flux discontinu.</p>\n\n<p>La construction constitue un troisième axe du compromis. PtrHash Default se construit à 32 ns/clé avec 6 threads ; la configuration Compact (2,12 bits/clé, 35 ns/requête en boucle) double ce coût à 63 ns/clé, révélant la tension interne entre l'optimisation de l'espace et celle de la phase d'indexation. PHOBIC requiert 220 ns/clé à la construction, soit 7× plus que PtrHash Fast, et PTHash-HEM monte à 323 ns/clé. Sur 10⁹ clés, ces écarts se traduisent en dizaines de secondes d'indexation — un paramètre décisif pour les pipelines à reconstruction fréquente.</p>\n\n<p>Entre les deux pôles, la zone médiane est occupée par des méthodes à compromis intermédiaires : SicHash (2,08 bits/clé), PHOBIC en configuration λ=6,5 (2,44 bits/clé, 108 ns/requête) et PHOBIC en configuration plus compacte λ=7,0 (1,86 bit/clé, latence de requête dégradée jusqu'à 179 ns). Aucune méthode ne domine toute la frontière : le choix dépend de la contrainte dominante de l'application — bande passante mémoire restreinte (FPGA embarqué, index immuable en lecture), latence P99 dans un service de requête, ou vitesse de reconstruction de l'index. La figure de mérite pertinente n'est pas le ratio bits/clé ou ns/requête pris isolément, mais leur positionnement relatif par rapport au plancher théorique et au plafond matériel de la plateforme cible.</p>",
+      "claims": [
+        "claim:16",
+        "claim:18",
+        "claim:19"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "applications",
+      "heading": "Où servent les MPHF : génomique, compilateurs, réseau",
+      "level": 3,
+      "prose": "<p>L'indexation de <em>k</em>-mers (sous-séquences d'ADN de longueur fixe <em>k</em>) concentre quelques-unes des instances MPHF les plus exigeantes de l'informatique appliquée : un seul échantillon métagénomique produit plusieurs milliards de clés, et chaque bit superflu par clé se traduit directement en gigaoctets de mémoire inutilisable. L'écosystème bioinformatique a construit, en quelques années, une filière de bibliothèques spécialisées. BBHash (SEA 2017), fondé sur des filtres de Bloom itératifs et une construction parallèle multi-thread, est la première à tenir à l'échelle du milliard de clés, au coût de ~3,7 bits/clé ; Pufferfish (index de génome, 2018) et BLight (table de <em>k</em>-mers, 2021) l'adoptent comme composant MPHF interne de leurs index compressés. PTHash, qui ramène le lookup à un seul accès mémoire par requête, équipe Piscem — outil de quasi-mapping (alignement approximatif) de lectures RNA-seq développé par le COMBINE-lab — et SSHash (2022), dictionnaire associatif compressé de <em>k</em>-mers. Sur le génome humain (2,5 milliards de <em>k</em>-mers), SSHash atteint 6,98–9,39 bits par <em>k</em>-mer, contre 23,40–28,32 bpk pour Pufferfish sparse, tout en offrant des requêtes de streaming plus de dix fois plus rapides que les index fondés sur la BWT (Burrows-Wheeler Transform) ; au sein de SSHash, le composant MPHF (index des minimiseurs) ne consomme que ~3 bits/minimiseur — soit environ 5 % de l'espace total de la structure — tandis que l'index de biais (<em>skew index</em>) des minimiseurs à haute fréquence ajoute moins de 0,21 bit/<em>k</em>-mer.</p>\n\n<p>En 2022, les équipes derrière BBHash, BLight, PTHash et SSHash ont co-conçu LP-MPHF (<em>locality-preserving minimal perfect hash function</em>), une MPHF spécialisée qui exploite une propriété intrinsèque des ensembles de <em>k</em>-mers biologiques : des <em>k</em>-mers consécutifs issus d'une même lecture partagent un recouvrement de <em>k</em>−1 bases et appartiennent très probablement aux mêmes super-<em>k</em>-mers. En préservant cette localité, LP-MPHF assigne des codes de hachage consécutifs aux <em>k</em>-mers consécutifs — ce qui améliore la localité de cache et rend la compression des métadonnées associées (abondances, présence/absence dans des pan-génomes) nettement plus efficace. Le résultat pratique est saisissant : 0,53–0,87 bit par <em>k</em>-mer à <em>k</em> = 63 sur le génome humain (2,77 milliards de <em>k</em>-mers), soit 3 à 5× moins qu'un PTHash générique — et nettement en-dessous de la borne théorique de log₂(<em>e</em>) ≈ 1,44 bit/clé, qui ne s'applique qu'aux ensembles arbitraires et non aux ensembles structurés par un alphabet biologique fini. Les requêtes de streaming s'établissent à 22–174 ns par <em>k</em>-mer, compétitives avec le meilleur généraliste disponible.</p>\n\n<p>Dans la chaîne GNU, GNU gperf — générateur de perfect hash functions écrit à l'origine par Douglas Schmidt — sert à reconnaître les mots réservés (<em>reserved words</em>) en O(1) dans les analyseurs lexicaux de GCC pour Ada, C, C++, Chill, Java, Modula 2, Modula 3, Objective-C et Pascal, ainsi que dans GNU indent. La fonction est calculée une fois à la compilation du compilateur lui-même, à partir de l'ensemble statique des mots-clés du langage cible ; à l'exécution, un seul accès table suffit à trancher l'appartenance. GNU a2ps utilise gperf pour analyser ses fichiers de configuration ; GNU Libiconv s'en sert pour résoudre plus de 300 alias de jeux de caractères, dont onze noms différents pour le seul ASCII. Une précision souvent omise : gperf génère par défaut une perfect hash function <em>non minimale</em> (k &gt; n−1 — la table peut contenir des emplacements vides), car la documentation officielle note que les tables creuses permettent d'éviter davantage de comparaisons de chaînes et s'avèrent souvent plus rapides en pratique que la variante strictement minimale (k = n−1), disponible comme option.</p>\n\n<p>La classification de paquets réseau constitue un quatrième domaine emblématique. Une implémentation FPGA couplée à une seule puce SRAM de commodité atteint 150 millions de paquets par seconde en n'effectuant que deux accès mémoire externe par paquet — latence parfaitement constante quelle que soit la taille du ruleset, ce qu'aucune structure à base d'arbres ne peut garantir au même débit. À l'autre bout du spectre matériel, les moteurs de recherche recourent aux MPHF pour assigner des identifiants numériques à des centaines de millions d'URLs. La bibliothèque CMPH propose deux algorithmes complémentaires : BRZ, à mémoire externe (<em>external memory</em>), construit la MPHF par accès disque séquentiels pour des ensembles qui ne tiennent pas en RAM et la stocke en moins de 8 bits/clé ; CHD, en mémoire vive, descend à ~2,07 bits/clé avec une construction en temps linéaire et un taux de charge jusqu'à 99 %, surpassant nettement les index B+ tree pour les charges de lecture à haute fréquence typiques de l'infrastructure de recherche web.</p>",
+      "claims": [
+        "claim:20",
+        "claim:21",
+        "claim:22",
+        "claim:23"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "limites-et-pieges",
+      "heading": "Pièges et limites : le danger des clés absentes",
+      "level": 3,
+      "prose": "<p>Le piège le plus dangereux des <em>minimal perfect hash functions</em> (fonctions de hachage parfaites minimales, MPHF) est celui que l'on découvre trop tard : interroger une MPHF avec une clé <em>absente</em> de l'ensemble S de construction ne produit ni erreur, ni exception, ni signal d'avertissement. La fonction retourne silencieusement un indice valide dans [0,&nbsp;n−1] — syntaxiquement indiscernable d'une réponse légitime. Hanov le formule sans détour : « The scheme will always returns a value, so it works as long as we know <em>for sure</em> that what we are searching for is in the table. Otherwise, it will return bad information. » Le survey 2025 de Lehmann <em>et al.</em> le confirme avec la même précision : la fonction « may return an arbitrary result for any key not in S ». En pratique, un pipeline qui interroge une MPHF sans avoir au préalable vérifié l'appartenance de la clé produit des faux positifs silencieux — la pire catégorie d'anomalie, car aucun plantage ne la signale.</p>\n\n<p>Cette propriété interdit structurellement de substituer une MPHF à un Bloom filter (filtre de Bloom) ou à une table de hachage ordinaire pour le <em>membership testing</em> (test d'appartenance). Un Bloom filter peut répondre « absent » avec un taux de faux positifs connu et borné ; une MPHF ne le peut pas. L'usage correct suppose que la clé interrogée est <em>garantie</em> membre de S avant l'appel — ce qui exige une structure compagne (tableau d'empreintes, Bloom filter ou garde-fou applicatif). Le coût mémoire de cette structure compagne doit être intégré au bilan comparatif ; l'avantage en densité des MPHF s'en trouve partiellement érodé.</p>\n\n<p>La deuxième limite est d'ordre structurel : une MPHF est strictement statique. Elle est, selon Rizk <em>et al.</em>, « especially carved for the very set of keys it has to hash » ; si une clé doit être ajoutée, « the function must be computed again ». L'ajout d'une seule clé invalide la fonction et impose une reconstruction complète. Ce n'est pas une limitation d'implémentation corrigeable — c'est inhérent au modèle. Aucune variante incrémentale publiée ne reste pratique à grande échelle. Les cas d'usage naturels sont donc les ensembles gelés : dictionnaires de langue, bases biologiques de référence, tables de routage calculées hors-ligne. Les ensembles dynamiques relèvent d'autres structures.</p>\n\n<p>Les variantes compactes introduisent en outre un risque à la construction elle-même. PtrHash en mode compact (2,12&nbsp;bits/clé) « sometimes ends up in endless eviction cycles » lors du placement des pilotes — une boucle infinie qui bloque le processus sans diagnostic exploitable. PTHash (son prédécesseur) échoue également lorsqu'aucune valeur pilote dans [0,&nbsp;255] ne résout un grand bucket avec de mauvais paramètres. Ce qui rend ces échecs particulièrement problématiques, c'est l'aveu des auteurs de PtrHash en conclusion : « A theoretical analysis of our method is currently missing » — il n'existe « no relation between the bucket size λ, load factor α, and the number of evicts arising during construction ». Le comportement aux limites est empiriquement observé, non théoriquement borné ; le contournement proposé (fixer λ = 3,9) est une heuristique, pas une garantie.</p>\n\n<p>Enfin, les MPHF ne sont pas universellement avantageuses quelle que soit la taille de l'ensemble. PtrHash ne devient compétitif qu'au-dessus d'environ 80&nbsp;000 clés : le papier pose la condition αS ≥ 80&nbsp;000 · ln(n / 80&nbsp;000), avec un minimum absolu de 80&nbsp;000 lorsque n ≤ 80&nbsp;000. En deçà, des structures plus simples — tables de hachage classiques, tableaux indexés — s'avèrent plus économiques en mémoire ou plus rapides à construire. Ce seuil rappelle que les MPHF sont des outils de niche à grand volume, non des remplaçants universels des tables de hachage.</p>",
+      "claims": [
+        "claim:24",
+        "claim:25",
+        "claim:26",
+        "claim:27"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-cle-absente-faux-positif"
+    },
+    {
+      "type": "section",
+      "id": "ecosysteme",
+      "heading": "Écosystème & pour aller plus loin",
+      "level": 3,
+      "prose": "<p>Le point d'entrée intellectuel de l'écosystème est désormais <em>Modern Minimal Perfect Hashing: A Survey</em> (Lehmann, Mueller, Pagh, Pibiri, Sanders, Vigna, Walzer — arXiv:2506.06536, v3 février 2026), premier panorama complet depuis le survey de 1997. Les auteurs y évaluent expérimentalement une dizaine de familles algorithmiques — SIMDRecSplit, BipartiteShockHash-Flat, Consensus-RecSplit, FMPH/FMPHGO, FiPS, SicHash, CHD, PTHash, PHOBIC — et y ajoutent enfin la mesure des cache faults, critère systématiquement absent des publications antérieures. Le survey confirme que les meilleures constructions actuelles s'approchent de la borne inférieure de log₂(e) ≈ 1.443 bits par clé à moins de 0,1 %, et que RecSplit (Esposito, Mueller Graf, Vigna — ALENEX 2020) fut la première à descendre sous 2 bits/clé en pratique, avec 1.56 bits/clé à 8,3 % de cette borne.</p>\n\n<p>Côté bibliothèques matures, <strong>CMPH</strong> (C Minimal Perfect Hashing Library, v2.0, LGPL+MPL 1.1) reste la référence portable en C. Elle couvre six algorithmes aux profils distincts : CHD (~2.07 bits/clé), le choix habituel pour une construction linéaire rapide et compacte ; BDZ (~2.6 bits/clé), visant la simplicité maximale ; BMZ et CHM, orientés graphes cycliques et ordre-préservant ; BRZ, pour les ensembles milliardaires en mémoire externe (moins de 8.0 bits/clé) ; FCH, sous les 4 bits/clé mais réservé aux petits ensembles. CMPH a été validé sur plus de 100 millions de clés et expose, depuis la v2.0, une interface C++ expérimentale.</p>\n\n<p><strong>PTHash C++</strong> (<code>jermp/pthash</code>) regroupe trois variantes issues de publications successives : <code>single_phf</code> (SIGIR 2021), <code>partitioned_phf</code> pour la construction parallèle et en mémoire externe (TKDE 2023), et <code>dense_partitioned_phf</code>, alias <strong>PHOBIC</strong> (ESA 2024 — Hermann, Lehmann, Pibiri, Sanders, Walzer). PHOBIC optimise la distribution des tailles de buckets et l'encodage interleaved des seeds ; il gagne 0.17 bits/clé par rapport à PTHash à même temps de lookup (~37 ns sur CPU) et atteint 2.17 bits/clé pour une construction GPU à 28 ns/clé.</p>\n\n<p><strong>PtrHash</strong> (<code>RagnarGrootKoerkamp/PtrHash</code>, Rust, SEA 2025) pousse le design PTHash jusqu'à frôler la bande passante mémoire théorique. Il stocke les pilots dans un simple <code>Vec&lt;u8&gt;</code> (8 bits, sans encodage complexe), résout les conflits par éviction à la manière du cuckoo hashing, et encode le remapping via CachelineEF (une seule lecture de cache au lieu de trois). Sur 10⁹ clés entières avec les paramètres par défaut, le benchmark public rapporte 2.41 bits/clé ; le lookup atteint 12 ns/clé en itération séquentielle et 8 ns/clé en mode streaming avec prefetch, l'inverse-throughput RAM étant mesuré à 7.4 ns. La construction d'un milliard de clés prend ~30 s sur un i7-10750H à 6 threads (6 s de tri + 23 s de pilot discovery).</p>\n\n<p><strong>SicHash</strong> (<code>ByteHamster/SicHash</code>, C++, ALENEX 2023 — Lehmann, Sanders, Walzer) exploite du cuckoo hashing irrégulier couplé à la structure de retrieval BuRR ; ses auteurs le positionnent comme plus rapide à construire que PTHash pour une consommation mémoire et une vitesse de lookup comparables. À l'opposé du spectre de la complexité d'implémentation, <strong>BBHash</strong> (Limasset, Rizk, Chikhi, Peterlongo — SEA 2017) est une bibliothèque header-only C++ sans dépendances (~3.7 bits/élément) conçue pour les ensembles massifs : elle peut construire une MPHF de 10¹⁰ éléments en moins de 7 minutes sur 8 threads avec 5 Go de RAM, et reste à ce jour la seule implémentation publiquement testée sur 10¹² clés.</p>\n\n<p>Du côté Rust, le crate <strong>ph</strong> (Piotr Beling, v0.11.0) propose trois algorithmes autonomes : FMPH (~2.8 bits/clé), FMPHGO (~2.1 bits/clé, FMPH avec optimisation par groupes) et PHast (moins de 2 bits/clé, optimisé pour la vitesse d'évaluation). Tous sont construits en O(n) en espérance, parallélisables, et ne nécessitent pas que toutes les clés soient simultanément en mémoire.</p>\n\n<p>Pour comparer les implémentations, deux ressources font référence. <strong>MPHF-Experiments</strong> (ByteHamster, C++) est le framework communautaire cité dans le survey 2025 : il couvre les familles bucket-placement (PTHash, PHOBIC, CHD, PHast, PtrHash…), fingerprinting (BBHash, FMPH, FiPS), RecSplit (SIMDRecSplit, GpuRecSplit, Consensus-RS), retrieval (BDZ, SicHash…) et ShockHash, en générant des courbes de Pareto et des tableaux de comparaison directement exploitables en publication. <strong>benchmphf</strong> (Chikhi) documente l'état de l'art antérieur (emphf, CMPH, phf, Sux4J) : sur 100 M de clés 64 bits, il mesure emphf (scan_mmap) à ~253 s de construction pour 3.77 bits/élément (~45 Mo) et phf à ~107 s pour 10.74 bits/élément (~128 Mo), illustrant le fossé qui existait avant PTHash et BBHash.</p>",
+      "claims": [
+        "claim:28",
+        "claim:29",
+        "claim:30",
+        "claim:31"
+      ]
+    },
+    {
+      "type": "exercise",
+      "part": "Borne théorique & familles",
+      "question": "D'où vient le plancher de ≈ 1,44 bit/clé d'une MPHF, et pourquoi une <em>locality-preserving MPHF</em> (LP-MPHF) peut-elle descendre à 0,53–0,87 bit/clé sur des k-mers sans le contredire ?",
+      "answer": "<p>Le plancher vaut log<sub>2</sub>(e) ≈ 1,4427 bit/clé. Il découle du <strong>comptage des bijections</strong> : il existe exactement n! fonctions bijectives de S vers {0, …, n−1}, et les distinguer demande log<sub>2</sub>(n!) ≈ n·log<sub>2</sub>(e) bits (Stirling) — soit, plus précisément, n·log<sub>2</sub>(e) − Θ(log n) bits, une asymptote jamais atteinte exactement à n fini. La <em>force brute</em> (tirer des graines jusqu'à tomber sur une bijection, ~e<sup>n</sup> essais) touche ce plancher en espace mais en temps exponentiel ; tout l'enjeu du domaine est de l'approcher en temps (quasi-)linéaire.</p><p>Cette borne ne s'applique qu'à des <strong>clés arbitraires, sans structure exploitable</strong>. Les k-mers consécutifs d'une même lecture partagent un recouvrement de k−1 bases : une LP-MPHF exploite cette redondance pour assigner des indices voisins à des k-mers voisins, opérant dans un régime d'entropie inférieur. Elle ne viole donc pas la borne — elle sort de son domaine de validité.</p>"
+    },
+    {
+      "type": "exercise",
+      "part": "Pièges d'usage",
+      "question": "Vous interrogez une MPHF avec une clé qui n'a jamais été insérée dans S. Que renvoie-t-elle, et qu'est-ce que cela interdit ? Et si vous devez ajouter une clé à S ?",
+      "answer": "<p>La MPHF renvoie <strong>silencieusement un indice valide dans [0, n−1]</strong>, indiscernable d'une réponse légitime — ni erreur, ni exception, ni signal. C'est un faux positif silencieux, la pire catégorie d'anomalie. Conséquence directe : on ne peut pas faire de <strong>test d'appartenance</strong> (membership testing) avec une MPHF seule. Contrairement à un filtre de Bloom, elle ne sait pas répondre « absent ». Un usage correct suppose que la clé interrogée est <em>garantie</em> membre de S, sinon il faut une structure compagne (empreinte par case, filtre de Bloom) dont le coût mémoire érode l'avantage de densité.</p><p>Ajouter une clé est pire : une MPHF stricte est <strong>statique</strong>. Une seule insertion invalide la bijection et impose une <strong>reconstruction complète</strong> de la fonction — ce n'est pas un défaut d'implémentation mais une propriété du modèle. Les MPHF visent donc les ensembles gelés (dictionnaires, bases de référence, tables calculées hors-ligne) ; les ensembles dynamiques relèvent d'autres structures (p. ex. hachage parfait dynamique, au prix de la minimalité).</p>"
+    },
+    {
+      "type": "biblio",
+      "entries": [
+        {
+          "label": "Perfect hash function — Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/Perfect_hash_function"
+        },
+        {
+          "label": "RecSplit: Minimal Perfect Hashing via Recursive Splitting (arXiv:2104.10402)",
+          "href": "https://arxiv.org/abs/2104.10402"
+        },
+        {
+          "label": "Modern Minimal Perfect Hashing: A Survey (arXiv:2506.06536)",
+          "href": "https://arxiv.org/abs/2506.06536"
+        },
+        {
+          "label": "PtrHash: Minimal Perfect Hashing at RAM Throughput — CuriousCoding (cite FCH SIGIR '92 verbatim)",
+          "href": "https://curiouscoding.nl/posts/ptrhash/"
+        },
+        {
+          "label": "Technical correspondence: on Cichelli's algorithm for finding minimal perfect hash functions (CACM 1981)",
+          "href": "https://dl.acm.org/doi/10.1145/358645.383417"
+        },
+        {
+          "label": "Approximate and Exact MPHF survey (arXiv 2502.15539)",
+          "href": "https://arxiv.org/html/2502.15539"
+        },
+        {
+          "label": "Space lower bound for MPHF: n·log₂(e) − O(log n) bits (arXiv 2308.09561)",
+          "href": "https://arxiv.org/abs/2308.09561"
+        },
+        {
+          "label": "ShockHash: Near Optimal-Space Minimal Perfect Hashing Beyond Brute-Force (arXiv:2310.14959)",
+          "href": "https://arxiv.org/abs/2310.14959"
+        },
+        {
+          "label": "Tight Bounds for Monotone Minimal Perfect Hashing (Assadi, Farach-Colton, Kuszmaul — SODA 2023)",
+          "href": "https://arxiv.org/abs/2207.10556"
+        },
+        {
+          "label": "Simplified Tight Bounds for Monotone Minimal Perfect Hashing (Kosolobov — CPM 2024)",
+          "href": "https://arxiv.org/abs/2403.07760"
+        },
+        {
+          "label": "PtrHash: Minimal Perfect Hashing at RAM Throughput (arXiv 2502.15539)",
+          "href": "https://arxiv.org/abs/2502.15539"
+        },
+        {
+          "label": "Efficient Hashing with Lookups in two Memory Accesses (Pagh & Rodler, cuckoo hashing)",
+          "href": "https://arxiv.org/pdf/cs/0407023"
+        },
+        {
+          "label": "Bloom filter — Wikipedia (section on xor filters and memory accesses)",
+          "href": "https://en.wikipedia.org/wiki/Bloom_filter"
+        },
+        {
+          "label": "Hash and Displace: Efficient Evaluation of Minimal Perfect Hash Functions (Pagh, BRICS 1999)",
+          "href": "https://www.brics.dk/RS/99/13/BRICS-RS-99-13.pdf"
+        },
+        {
+          "label": "PHOBIC: Perfect Hashing with Optimized Bucket Sizes and Interleaved Coding (ESA 2024) — arXiv:2404.18497",
+          "href": "https://arxiv.org/abs/2404.18497"
+        },
+        {
+          "label": "Compress, Hash and Displace: CHD Algorithm — CMPH library",
+          "href": "https://cmph.sourceforge.net/chd.html"
+        },
+        {
+          "label": "Hash, displace, and compress — PDF original ESA 2009 (cmph.sourceforge.net)",
+          "href": "https://cmph.sourceforge.net/papers/esa09.pdf"
+        },
+        {
+          "label": "PtrHash: Minimal Perfect Hashing at RAM Throughput — LIPIcs SEA 2025 (version publiée, Dagstuhl)",
+          "href": "https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.SEA.2025.21"
+        },
+        {
+          "label": "RecSplit: Minimal Perfect Hashing via Recursive Splitting (arXiv:1910.06416)",
+          "href": "https://arxiv.org/abs/1910.06416"
+        },
+        {
+          "label": "High Performance Construction of RecSplit Based Minimal Perfect Hash Functions (ESA 2023, Dagstuhl LIPIcs)",
+          "href": "https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.ESA.2023.19"
+        },
+        {
+          "label": "PtrHash: Minimal Perfect Hashing at RAM Throughput (arXiv:2502.15539)",
+          "href": "https://arxiv.org/html/2502.15539v1"
+        },
+        {
+          "label": "MorphisHash: Improving Space Efficiency of ShockHash for Minimal Perfect Hashing (arXiv 2503.10161)",
+          "href": "https://arxiv.org/abs/2503.10161"
+        },
+        {
+          "label": "MorphisHash: Improving Space Efficiency of ShockHash for Minimal Perfect Hashing (LIPIcs ESA 2025)",
+          "href": "https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.ESA.2025.9"
+        },
+        {
+          "label": "Locality-preserving minimal perfect hashing of k-mers (Pibiri, Bioinformatics 2023) — PMC",
+          "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10311298/"
+        },
+        {
+          "label": "Minimal Perfect Hash Functions in the k-mer world — Camille Marchet blog",
+          "href": "https://kamimrcht.github.io/webpage/mphf.html"
+        },
+        {
+          "label": "Locality-Preserving Minimal Perfect Hashing of k-mers (Pibiri et al., arXiv:2210.13097)",
+          "href": "https://arxiv.org/abs/2210.13097"
+        },
+        {
+          "label": "SSHash: Locality-Preserving Hashing of k-mers (PMC9235479, Pibiri 2022)",
+          "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC9235479/"
+        },
+        {
+          "label": "Sparse and skew hashing of K-mers — Oxford Bioinformatics (même article, accès distinct)",
+          "href": "https://academic.oup.com/bioinformatics/article/38/Supplement_1/i185/6617506"
+        },
+        {
+          "label": "Locality-preserving minimal perfect hashing of k-mers (Bioinformatics, ISMB 2023 — Pibiri, Shibuya, Limasset)",
+          "href": "https://academic.oup.com/bioinformatics/article/39/Supplement_1/i534/7210438"
+        },
+        {
+          "label": "Minimal Perfect Hashing — ACM MPHF resource page (explicitly quotes 150 Mpps, two external memory accesses, one commodity SRAM, FPGA)",
+          "href": "http://iswsa.acm.org/mphf/index.html"
+        },
+        {
+          "label": "FIT VUT Brno publication record for 'Fast and scalable packet classification using perfect hash functions' (Puš & Kořenek, FPGA '09)",
+          "href": "https://www.fit.vut.cz/research/result/c33726/.en"
+        },
+        {
+          "label": "Perfect Hashing for Network Applications (Lu, Prabhakar, Bonomi — Stanford, ISIT 2006) — résumés de recherche cohérents",
+          "href": "https://web.stanford.edu/~balaji/papers/06perfecthashing.pdf"
+        },
+        {
+          "label": "Fast and scalable packet classification using perfect hash functions — ResearchGate",
+          "href": "https://www.researchgate.net/publication/221224964_Fast_and_scalable_packet_classification_using_perfect_hash_functions"
+        },
+        {
+          "label": "FPGA-Based Updatable Packet Classification Using TSS-Combined Bit-Selecting Tree (montre la limitation pour les mises à jour dynamiques)",
+          "href": "https://yangtonghome.github.io/uploads/FPGA-Based_Updatable_Packet_Classification_Using_TSS-Combined_Bit-Selecting_Tree.pdf"
+        },
+        {
+          "label": "GNU gperf Manual — Motivation",
+          "href": "https://www.gnu.org/software/gperf/manual/html_node/Motivation.html"
+        },
+        {
+          "label": "GNU gperf Manual — Description",
+          "href": "https://www.gnu.org/software/gperf/manual/html_node/Description.html"
+        },
+        {
+          "label": "GNU gperf Manual — Search Structures",
+          "href": "https://www.gnu.org/software/gperf/manual/html_node/Search-Structures.html"
+        },
+        {
+          "label": "What Gperf is — LRDE/EPITA (GNU Programming Introduction)",
+          "href": "https://www.lrde.epita.fr/~akim/ccmp/doc/gnuprog2/What-Gperf-is.html"
+        },
+        {
+          "label": "Throw away the keys: Easy, Minimal Perfect Hashing — Steve Hanov",
+          "href": "https://stevehanov.ca/blog/?id=119"
+        },
+        {
+          "label": "Dynamic perfect hashing – Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/Dynamic_perfect_hashing"
+        },
+        {
+          "label": "Ludo Hashing: Compact, Fast, and Dynamic Key-value Lookups for Practical Network Systems (ACM SIGMETRICS 2020) — ssrc.us",
+          "href": "https://ssrc.us/pub/Ludo-hashing.html"
+        },
+        {
+          "label": "Fast and Scalable Minimal Perfect Hashing for Massive Key Sets — LIPIcs SEA 2017",
+          "href": "https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.SEA.2017.25"
+        },
+        {
+          "label": "Fast and scalable minimal perfect hashing for massive key sets — arXiv:1702.03154",
+          "href": "https://arxiv.org/abs/1702.03154"
+        },
+        {
+          "label": "Modern Minimal Perfect Hashing: A Survey — ACM Computing Surveys (DOI:10.1145/3797036)",
+          "href": "https://dl.acm.org/doi/full/10.1145/3797036"
+        },
+        {
+          "label": "Design Strategies for Minimal Perfect Hash Functions — Dietzfelbinger, SAGA 2007 (Semantic Scholar)",
+          "href": "https://www.semanticscholar.org/paper/Design-Strategies-for-Minimal-Perfect-Hash-Dietzfelbinger/f104dfb98801868fbcba46821f7ea1f3f3472988"
+        },
+        {
+          "label": "Minimal Perfect Hash Functions — Boldi & Vigna, Encyclopedia of Algorithms 2015 (SpringerLink)",
+          "href": "https://link.springer.com/referenceworkentry/10.1007/978-3-642-27848-8_794-2"
+        },
+        {
+          "label": "Czech, Havas, Majewski — Perfect hashing, Theoretical Computer Science 182 (1997), pp. 1–143 (ScienceDirect)",
+          "href": "https://www.sciencedirect.com/science/article/pii/S0304397596001466"
+        },
+        {
+          "label": "Modern Minimal Perfect Hashing: A Survey — Hacker News discussion (confirms public recognition, post dated ~12 months ago)",
+          "href": "https://news.ycombinator.com/item?id=44241832"
+        },
+        {
+          "label": "PtrHash GitHub repository (README + benchmarks)",
+          "href": "https://github.com/RagnarGrootKoerkamp/PtrHash"
+        },
+        {
+          "label": "CMPH – C Minimal Perfect Hashing Library (official site)",
+          "href": "https://cmph.sourceforge.net/"
+        },
+        {
+          "label": "BDZ Algorithm – CMPH",
+          "href": "https://cmph.sourceforge.net/bdz.html"
+        },
+        {
+          "label": "Hash, Displace, and Compress — Belazzougui, Botelho, Dietzfelbinger (ESA 2009, via Yumpu)",
+          "href": "https://www.yumpu.com/en/document/view/5579074/hash-displace-and-compress-cmph-c-minimal-perfect-hashing-"
+        }
+      ]
+    },
+    {
+      "type": "pointers",
+      "title": "Pour aller plus loin",
+      "items": [
+        {
+          "name": "PTHash (jermp/pthash)",
+          "url": "https://github.com/jermp/pthash",
+          "kind": "implementation",
+          "blurb": "Implémentation C++ de référence de PTHash couvrant single_phf (SIGIR 2021), partitioned_phf (TKDE 2023) et dense_partitioned_phf/PHOBIC (ESA 2024), avec construction parallèle et en mémoire externe."
+        },
+        {
+          "name": "PtrHash (RagnarGrootKoerkamp/PtrHash)",
+          "url": "https://github.com/RagnarGrootKoerkamp/PtrHash",
+          "kind": "implementation",
+          "blurb": "Implémentation Rust de PtrHash (SEA 2025) avec pilots 8 bits fixes, encodage CacheLineEF et construction par éviction, accompagnée d'un harness de benchmarks complet."
+        },
+        {
+          "name": "CMPH — C Minimal Perfect Hashing Library",
+          "url": "https://cmph.sourceforge.net/",
+          "kind": "library",
+          "blurb": "Bibliothèque C (v2.0, LGPL+MPL 1.1) couvrant 6 algorithmes MPHF — CHD, BDZ, BMZ, BRZ, CHM, FCH — avec CHD atteignant ~2,07 bits/clé, conçue pour indexer des centaines de millions de clés."
+        },
+        {
+          "name": "PTHash: Revisiting FCH Minimal Perfect Hashing (SIGIR 2021)",
+          "url": "https://arxiv.org/abs/2104.10402",
+          "kind": "reading",
+          "blurb": "Article fondateur (Pibiri & Trani, SIGIR 2021) qui réhabilite la lignée FCH avec l'encodage de pilots et établit PTHash comme nouveau repère de la littérature MPHF."
+        },
+        {
+          "name": "PHOBIC: Perfect Hashing with Optimized Bucket Sizes and Interleaved Coding (ESA 2024)",
+          "url": "https://arxiv.org/abs/2404.18497",
+          "kind": "reading",
+          "blurb": "Formalise la distribution optimale de tailles de buckets et l'interleaved coding des pilots ; gagne ~0,17 bit/clé sur PTHash à vitesse de requête équivalente."
+        },
+        {
+          "name": "PtrHash: Minimal Perfect Hashing at RAM Throughput (SEA 2025)",
+          "url": "https://drops.dagstuhl.de/entities/document/10.4230/LIPIcs.SEA.2025.21",
+          "kind": "reading",
+          "blurb": "Présente le design CacheLineEF, les pilots 8 bits fixes et le hash-evict ; atteint ~12 ns/clé sur 300 M clés entières, 2,1–3,3× plus rapide que les alternatives comparées."
+        },
+        {
+          "name": "Blog post — PtrHash: Minimal Perfect Hashing at RAM Throughput",
+          "url": "https://curiouscoding.nl/posts/ptrhash/",
+          "kind": "reading",
+          "blurb": "Exposition informelle détaillée par l'auteur (Ragnar Groot Koerkamp) : intuitions de conception, benchmarks comparatifs (PTHash-HEM, PHOBIC, SicHash, RecSplit) et discussion des limites matérielles."
+        },
+        {
+          "name": "vigna/sux — RecSplit (C++)",
+          "url": "https://github.com/vigna/sux",
+          "kind": "implementation",
+          "blurb": "Implémentation C++ de structures de données succinctes incluant RecSplit, par Sebastiano Vigna et al. (auteurs du papier original ALENEX 2020)."
+        },
+        {
+          "name": "ByteHamster/ShockHash",
+          "url": "https://github.com/ByteHamster/ShockHash",
+          "kind": "implementation",
+          "blurb": "Implémentations C++ de ShockHash (plain, bipartite, variante SIMD) visant un espace proche de la borne théorique dans le cadre du framework RecSplit."
+        },
+        {
+          "name": "stefanfred/MorphisHash",
+          "url": "https://github.com/stefanfred/MorphisHash",
+          "kind": "implementation",
+          "blurb": "Implémentation de MorphisHash (ESA 2025), variante de ShockHash exploitant la multiplicité des valid assignments pour réduire l'espace excédentaire d'un facteur ~20."
+        },
+        {
+          "name": "ByteHamster/SicHash",
+          "url": "https://github.com/ByteHamster/SicHash",
+          "kind": "implementation",
+          "blurb": "MPHF C++ (ALENEX 2023) fondée sur l'irregular cuckoo hashing couplé à la structure de retrieval BuRR, avec une construction plus rapide que PTHash à espace comparable."
+        },
+        {
+          "name": "rizkg/BBHash",
+          "url": "https://github.com/rizkg/BBHash",
+          "kind": "library",
+          "blurb": "MPHF itérative par passes de tableaux de bits (~3,7 bits/élément), header-only C++ sans dépendances, seule implémentation publiquement testée à l'échelle de 10¹² clés."
+        },
+        {
+          "name": "ByteHamster/ConsensusRecSplit",
+          "url": "https://github.com/ByteHamster/ConsensusRecSplit",
+          "kind": "implementation",
+          "blurb": "Consensus-RecSplit : encodage conjoint de la recherche et des graines, atteignant 1,4448 bits/clé — à 0,002 bit de la borne théorique."
+        },
+        {
+          "name": "ByteHamster/MPHF-Experiments",
+          "url": "https://github.com/ByteHamster/MPHF-Experiments",
+          "kind": "tool",
+          "blurb": "Banc d'essai comparatif reproductible des principales MPHF (RecSplit, ShockHash, SicHash, PTHash, Consensus-RecSplit, etc.), cité dans le survey 2025 pour ses courbes de Pareto unifiées."
+        },
+        {
+          "name": "SSHash",
+          "url": "https://github.com/jermp/sshash",
+          "kind": "library",
+          "blurb": "Dictionnaire associatif compressé de k-mers (C++), utilisant PTHash comme MPHF interne ; atteint 6,98–9,39 bits/k-mer sur le génome humain."
+        },
+        {
+          "name": "lphash (LP-MPHF)",
+          "url": "https://github.com/jermp/lphash",
+          "kind": "implementation",
+          "blurb": "MPHF préservant la localité des k-mers biologiques consécutifs ; atteint moins de 0,9 bit/k-mer en pratique, nettement sous la borne générale de 1,44 bit/clé."
+        },
+        {
+          "name": "Pufferfish",
+          "url": "https://github.com/COMBINE-lab/pufferfish",
+          "kind": "tool",
+          "blurb": "Index compressé du graphe de de Bruijn compacté coloré (ccdBG), fondé sur BBHash comme MPHF ; développé par le COMBINE-lab pour le quasi-mapping de lectures RNA-seq."
+        },
+        {
+          "name": "Piscem",
+          "url": "https://github.com/COMBINE-lab/piscem",
+          "kind": "tool",
+          "blurb": "Outil de quasi-mapping de lectures RNA-seq construit sur SSHash (et donc PTHash) comme index de référence ; successeur de Salmon/RapMap."
+        },
+        {
+          "name": "GNU gperf",
+          "url": "https://www.gnu.org/software/gperf/",
+          "kind": "tool",
+          "blurb": "Générateur C/C++ de perfect hash functions pour ensembles statiques de mots-clés ; utilisé dans GCC (C, C++, Java, Pascal, Modula 3), GNU Libiconv et GNU a2ps."
+        },
+        {
+          "name": "ph — crate Rust (FMPH / FMPHGO / PHast)",
+          "url": "https://docs.rs/ph/latest/ph/",
+          "kind": "package",
+          "blurb": "Crate Rust (v0.11) implémentant FMPH, FMPHGO et PHast : trois MPHF construites en O(n), parallélisables et ne nécessitant pas toutes les clés simultanément en mémoire."
+        },
+        {
+          "name": "benchmphf",
+          "url": "https://github.com/rchikhi/benchmphf",
+          "kind": "tool",
+          "blurb": "Benchmark historique (Chikhi) comparant emphf, CMPH, phf et Sux4J sur 100 M à 1 G de clés 64 bits ; référence pratique pour l'ère pré-PTHash."
+        },
+        {
+          "name": "Modern Minimal Perfect Hashing: A Survey (arXiv:2506.06536)",
+          "url": "https://arxiv.org/abs/2506.06536",
+          "kind": "reading",
+          "blurb": "Premier survey complet depuis 1997 (Lehmann, Mueller, Pagh, Pibiri, Sanders, Vigna, Walzer, 2026) : évaluation expérimentale incluant les cache faults, sur une grille de plus de 10 algorithmes actuels."
+        },
+        {
+          "name": "RecSplit: Minimal Perfect Hashing via Recursive Splitting (ALENEX 2020)",
+          "url": "https://epubs.siam.org/doi/10.1137/1.9781611976007.14",
+          "kind": "reading",
+          "blurb": "Article de référence (Esposito, Mueller Graf, Vigna, ALENEX 2020) publiant le premier résultat sub-2 bits/clé en pratique : 1,56 bits/clé, à 8,3 % de la borne inférieure."
+        }
+      ]
+    },
+    {
+      "type": "glossary"
+    }
+  ]
+}

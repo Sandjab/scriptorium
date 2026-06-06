@@ -1,0 +1,486 @@
+<div class="widget mfp-root" id="mfp-root">
+  <style>
+    .mfp-root{--mfp-ink:var(--ink,#15202E);--mfp-soft:var(--ink-soft,#43536A);
+      --mfp-faint:var(--ink-faint,#7A889B);--mfp-card:var(--card,#fff);
+      --mfp-line:var(--line,#D7DFE9);--mfp-line-soft:var(--line-soft,#E7ECF3);
+      --mfp-blue:var(--blue,#23537F);--mfp-bright:var(--blue-bright,#2C77B6);
+      --mfp-wash:var(--blue-wash,#E7EEF6);
+      --mfp-hot:var(--bordeaux-bright,#9B3443);--mfp-wash-hot:var(--bordeaux-wash,#F3E3E6);
+      --mfp-ok:#3F8E66;--mfp-ok-wash:#E7F3EC;--mfp-warm:#E0A33A;--mfp-warm-wash:#FBF1DD;
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--mfp-ink);
+      border:1px solid var(--mfp-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--mfp-card);max-width:760px}
+    .mfp-root *{box-sizing:border-box}
+    .mfp-k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;
+      color:var(--mfp-faint);font-weight:600;margin:0 0 2px}
+    .mfp-title{font-weight:700;font-size:1.05rem;margin:0 0 4px}
+    .mfp-sub{font-size:.86rem;color:var(--mfp-soft);margin:0 0 14px}
+    .mfp-sub code{background:var(--mfp-line);padding:1px 5px;border-radius:4px;font-size:.86em}
+    .mfp-sub b{color:var(--mfp-ink)}
+
+    /* ----- table-jouet : la rangee des n cases ----- */
+    .mfp-tablbl{display:flex;align-items:baseline;justify-content:space-between;
+      gap:8px;margin:0 0 6px;flex-wrap:wrap}
+    .mfp-tablbl .mfp-nm{font-weight:700;font-size:.9rem}
+    .mfp-tablbl .mfp-hint{font-size:.78rem;color:var(--mfp-faint)}
+    .mfp-row{display:flex;gap:6px;flex-wrap:wrap}
+    .mfp-cell{flex:1 1 0;min-width:74px;border:1px solid var(--mfp-line);border-radius:7px;
+      padding:24px 4px 7px;text-align:center;background:var(--mfp-card);position:relative;
+      transition:background .18s,border-color .18s,box-shadow .18s}
+    .mfp-cell .mfp-ix{position:absolute;top:4px;left:6px;font:600 9px/1 ui-monospace,monospace;
+      color:var(--mfp-faint)}
+    .mfp-cell .mfp-mem{font:600 .86rem/1.1 inherit;color:var(--mfp-ink);
+      overflow:hidden;text-overflow:ellipsis}
+    .mfp-cell .mfp-fp{display:none;margin-top:4px;font:600 9px/1 ui-monospace,monospace;
+      color:var(--mfp-bright)}
+    .mfp-root.mfp-fpon .mfp-cell .mfp-fp{display:block}
+    /* etats d'une case interrogee */
+    .mfp-cell.mfp-hit{background:var(--mfp-ok-wash);border-color:var(--mfp-ok);
+      box-shadow:0 0 0 2px var(--mfp-ok) inset}
+    .mfp-cell.mfp-fp-hit{background:var(--mfp-wash-hot);border-color:var(--mfp-hot);
+      box-shadow:0 0 0 2px var(--mfp-hot) inset}
+    .mfp-cell.mfp-caught{background:var(--mfp-warm-wash);border-color:var(--mfp-warm);
+      box-shadow:0 0 0 2px var(--mfp-warm) inset}
+    /* pointeur de la cle interrogee, suspendu au-dessus de la case ciblee */
+    .mfp-cell .mfp-ptr{display:none;position:absolute;left:50%;top:-34px;transform:translateX(-50%);
+      white-space:nowrap;font:700 11px/1 ui-monospace,monospace;color:#fff;
+      padding:4px 7px;border-radius:6px;background:var(--mfp-soft)}
+    .mfp-cell .mfp-ptr::after{content:"";position:absolute;left:50%;bottom:-5px;
+      transform:translateX(-50%);border:5px solid transparent;border-top-color:var(--mfp-soft);
+      border-bottom:0}
+    .mfp-cell.mfp-target .mfp-ptr{display:block}
+    .mfp-cell.mfp-hit .mfp-ptr,.mfp-cell.mfp-hit .mfp-ptr::after{background:var(--mfp-ok)}
+    .mfp-cell.mfp-hit .mfp-ptr::after{border-top-color:var(--mfp-ok)}
+    .mfp-cell.mfp-fp-hit .mfp-ptr,.mfp-cell.mfp-fp-hit .mfp-ptr::after{background:var(--mfp-hot)}
+    .mfp-cell.mfp-fp-hit .mfp-ptr::after{border-top-color:var(--mfp-hot)}
+    .mfp-cell.mfp-caught .mfp-ptr{background:var(--mfp-warm)}
+    .mfp-cell.mfp-caught .mfp-ptr::after{border-top-color:var(--mfp-warm)}
+
+    /* ----- barre de requete ----- */
+    .mfp-q{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:18px 0 10px}
+    .mfp-q input{flex:1 1 180px;min-width:150px;font:600 14px/1 inherit;padding:9px 11px;
+      border:1px solid var(--mfp-line);border-radius:8px;background:var(--mfp-card);
+      color:var(--mfp-ink)}
+    .mfp-q input:focus{outline:none;border-color:var(--mfp-bright);
+      box-shadow:0 0 0 3px var(--mfp-wash)}
+    .mfp-btn{padding:9px 14px;border:1px solid var(--mfp-blue);border-radius:8px;
+      background:var(--mfp-blue);color:#fff;font:600 14px/1 inherit;cursor:pointer}
+    .mfp-btn.mfp-ghost{background:transparent;color:var(--mfp-blue)}
+    .mfp-btn:hover{filter:brightness(1.08)}
+
+    .mfp-chips{margin:0 0 4px}
+    .mfp-chips .mfp-cg{font-size:.74rem;font-weight:600;color:var(--mfp-faint);
+      text-transform:uppercase;letter-spacing:.05em;margin:8px 0 5px}
+    .mfp-chipline{display:flex;flex-wrap:wrap;gap:6px}
+    .mfp-chip{padding:4px 10px;border:1px solid var(--mfp-line);border-radius:999px;
+      background:var(--mfp-card);font:600 .82rem/1 inherit;cursor:pointer;
+      transition:background .12s,border-color .12s,color .12s}
+    .mfp-chip.mfp-mIn{color:var(--mfp-blue)}
+    .mfp-chip.mfp-mIn:hover{background:var(--mfp-wash);border-color:var(--mfp-bright)}
+    .mfp-chip.mfp-mOut{color:var(--mfp-hot)}
+    .mfp-chip.mfp-mOut:hover{background:var(--mfp-wash-hot);border-color:var(--mfp-hot)}
+
+    /* ----- bloc empreintes compagnon ----- */
+    .mfp-comp{display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+      margin:14px 0 0;padding:10px 12px;border:1px solid var(--mfp-line);border-radius:8px;
+      background:var(--mfp-line-soft)}
+    .mfp-comp .mfp-clab{font-size:.82rem;font-weight:600;color:var(--mfp-soft)}
+    .mfp-seg{display:inline-flex;border:1px solid var(--mfp-line);border-radius:8px;
+      overflow:hidden;background:var(--mfp-card)}
+    .mfp-seg button{padding:6px 11px;border:0;background:var(--mfp-card);
+      color:var(--mfp-soft);font:600 13px/1 inherit;cursor:pointer}
+    .mfp-seg button.mfp-on{background:var(--mfp-bright);color:#fff}
+    .mfp-comp .mfp-cnote{font-size:.78rem;color:var(--mfp-faint)}
+
+    /* ----- verdicts ----- */
+    .mfp-verds{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 0}
+    .mfp-vd{flex:1 1 230px;min-width:215px;border:1px solid var(--mfp-line);border-radius:8px;
+      padding:10px 12px}
+    .mfp-vd .mfp-vh{font:700 .76rem/1.2 inherit;text-transform:uppercase;letter-spacing:.05em;
+      margin:0 0 5px;color:var(--mfp-faint)}
+    .mfp-vd .mfp-vans{font:700 1rem/1.2 inherit;margin:0}
+    .mfp-vd .mfp-vsub{font-size:.82rem;color:var(--mfp-soft);margin:4px 0 0}
+    .mfp-vd.mfp-bad{border-color:var(--mfp-hot);background:var(--mfp-wash-hot)}
+    .mfp-vd.mfp-good{border-color:var(--mfp-ok);background:var(--mfp-ok-wash)}
+    .mfp-vd.mfp-warn{border-color:var(--mfp-warm);background:var(--mfp-warm-wash)}
+    .mfp-pres{color:var(--mfp-hot)}.mfp-okc{color:var(--mfp-ok)}.mfp-rej{color:var(--mfp-soft)}
+
+    .mfp-out{margin:12px 0 0;padding:11px 13px;border-radius:8px;border:1px solid var(--mfp-line);
+      background:var(--mfp-card);font-size:.88rem;line-height:1.55;min-height:2.4em}
+    .mfp-out.mfp-owarn{border-color:var(--mfp-hot);background:var(--mfp-wash-hot)}
+    .mfp-out.mfp-ook{border-color:var(--mfp-ok);background:var(--mfp-ok-wash)}
+    .mfp-out b{font-weight:700;color:var(--mfp-ink)}
+    .mfp-out code{background:var(--mfp-line);padding:1px 5px;border-radius:4px;font-size:.92em}
+
+    /* ----- balayage en masse ----- */
+    .mfp-batch{margin:14px 0 0;padding:11px 13px;border:1px solid var(--mfp-line);
+      border-radius:8px}
+    .mfp-batch .mfp-bh{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 8px}
+    .mfp-batch .mfp-bttl{font-size:.82rem;font-weight:600;color:var(--mfp-soft)}
+    .mfp-meter{margin:6px 0 0}
+    .mfp-meter .mfp-ml{display:flex;justify-content:space-between;font-size:.8rem;
+      color:var(--mfp-soft);margin:0 0 3px}
+    .mfp-meter .mfp-ml b{color:var(--mfp-ink);font-variant-numeric:tabular-nums}
+    .mfp-track{height:9px;border-radius:5px;background:var(--mfp-line);overflow:hidden}
+    .mfp-track i{display:block;height:100%;width:0;transition:width .5s}
+    .mfp-track.mfp-tbare i{background:var(--mfp-hot)}
+    .mfp-track.mfp-tcomp i{background:var(--mfp-ok)}
+    .mfp-meter+.mfp-meter{margin-top:9px}
+
+    details.mfp-note{margin:13px 0 0;font-size:.85rem;color:var(--mfp-soft)}
+    details.mfp-note summary{cursor:pointer;font-weight:600;color:var(--mfp-blue)}
+    details.mfp-note p{margin:8px 0 0}
+    details.mfp-note code{background:var(--mfp-line);padding:1px 5px;border-radius:4px;font-size:.9em}
+    details.mfp-note b{color:var(--mfp-ink)}
+  </style>
+
+  <p class="mfp-k">Démonstration interactive</p>
+  <p class="mfp-title">Le piège des clés absentes : l'indice qui ment sans broncher</p>
+  <p class="mfp-sub">Une <b>MPHF</b> (fonction de hachage parfaite minimale) est construite sur
+    l'ensemble fixe <b>S</b> de <b>8&nbsp;fruits</b>. Elle range chaque membre dans une case
+    <b>distincte</b> de <code>[0, 8)</code> — les 8&nbsp;cases sont toutes occupées, aucune n'est
+    libre. Interrogez une clé : si elle est dans&nbsp;S, l'indice est correct ; si elle est
+    <b>absente</b>, la MPHF renvoie <i>quand même</i> un indice valide, sans la moindre erreur —
+    et il tombe forcément sur la case d'un vrai membre. Activez ensuite les <b>empreintes</b>
+    compagnon pour voir comment on rattrape ce faux positif.</p>
+
+  <div class="mfp-tablbl">
+    <span class="mfp-nm">Table-jouet construite sur S — indice = MPHF(clé)</span>
+    <span class="mfp-hint">les 8 cases sont pleines</span>
+  </div>
+  <div class="mfp-row" id="mfp-row"></div>
+
+  <div class="mfp-q">
+    <input id="mfp-input" type="text" autocomplete="off" spellcheck="false"
+      placeholder="tapez une clé (ex. citron, cerise…)" aria-label="clé à interroger">
+    <button class="mfp-btn" id="mfp-go" type="button">Interroger</button>
+  </div>
+
+  <div class="mfp-chips">
+    <p class="mfp-cg">Membres (∈ S)</p>
+    <div class="mfp-chipline" id="mfp-chipsIn"></div>
+    <p class="mfp-cg">Clés absentes (∉ S)</p>
+    <div class="mfp-chipline" id="mfp-chipsOut"></div>
+  </div>
+
+  <div class="mfp-comp">
+    <span class="mfp-clab">Structure compagnon — empreintes :</span>
+    <span class="mfp-seg" id="mfp-seg" role="group" aria-label="bits d'empreinte">
+      <button data-b="0" class="mfp-on" type="button">aucune</button>
+      <button data-b="4" type="button">4 bits</button>
+      <button data-b="8" type="button">8 bits</button>
+      <button data-b="12" type="button">12 bits</button>
+    </span>
+    <span class="mfp-cnote" id="mfp-cnote">MPHF nue : aucun garde-fou.</span>
+  </div>
+
+  <div class="mfp-verds">
+    <div class="mfp-vd" id="mfp-vdBare">
+      <p class="mfp-vh">Réponse de la MPHF nue</p>
+      <p class="mfp-vans" id="mfp-bareans">—</p>
+      <p class="mfp-vsub" id="mfp-baresub">Interrogez une clé pour commencer.</p>
+    </div>
+    <div class="mfp-vd" id="mfp-vdComp">
+      <p class="mfp-vh">Réponse MPHF + empreintes</p>
+      <p class="mfp-vans" id="mfp-compans">—</p>
+      <p class="mfp-vsub" id="mfp-compsub">Empreintes désactivées.</p>
+    </div>
+  </div>
+
+  <div class="mfp-out" id="mfp-out">La table est prête. Cliquez une clé <b>absente</b> (ex.
+    <b>citron</b>) : la MPHF répondra « présent », à un indice d'apparence parfaitement légitime.</div>
+
+  <div class="mfp-batch">
+    <div class="mfp-bh">
+      <span class="mfp-bttl">Balayage : interroger 512 clés toutes absentes de S</span>
+      <button class="mfp-btn mfp-ghost" id="mfp-run" type="button">Lancer le balayage</button>
+    </div>
+    <div class="mfp-meter">
+      <div class="mfp-ml"><span>MPHF nue — clés acceptées « présent »</span>
+        <b id="mfp-bareN">—</b></div>
+      <div class="mfp-track mfp-tbare"><i id="mfp-bareBar"></i></div>
+    </div>
+    <div class="mfp-meter">
+      <div class="mfp-ml"><span id="mfp-compLbl">MPHF + empreintes — faux positifs résiduels</span>
+        <b id="mfp-compN">—</b></div>
+      <div class="mfp-track mfp-tcomp"><i id="mfp-compBar"></i></div>
+    </div>
+  </div>
+
+  <details class="mfp-note">
+    <summary>Pourquoi l'indice est toujours valide — et pourquoi il faut une structure compagne</summary>
+    <p>Une MPHF est une <b>bijection</b> de S vers <code>[0, n)</code> : elle n'a que <code>n</code>
+      cases, toutes occupées par les <code>n</code> membres. Elle ne mémorise <b>pas</b> S — elle ne
+      sait que <i>calculer un indice</i>. Pour une clé hors de S, le calcul aboutit malgré tout à un
+      entier de <code>[0, n)</code> : il n'existe <b>aucune case vide</b> où retomber, donc aucun moyen
+      interne de signaler l'absence. La réponse est syntaxiquement indiscernable de celle d'un vrai
+      membre : c'est le <b>faux positif silencieux</b>.</p>
+    <p>Le test d'appartenance exige donc une <b>structure compagne</b>. Ici, on range dans chaque case
+      une <b>empreinte</b> de <code>b</code> bits du membre résident. À l'interrogation, on compare
+      l'empreinte stockée à celle de la clé : si elles diffèrent, la clé est <b>rejetée</b>. Comme un
+      <b>filtre de Bloom</b>, cela ne supprime pas l'erreur mais la <b>borne</b> : il reste une
+      probabilité ≈ <code>2&#8315;&#7495;</code> qu'une clé absente partage l'empreinte du résident
+      (« fraise » l'illustre à 4–8 bits). Plus de bits = moins de faux positifs, mais plus de mémoire :
+      le gain de densité de la MPHF est en partie repayé par cette structure.</p>
+    <p>Corollaire : une MPHF ne remplace ni une table de hachage ordinaire ni un filtre de Bloom pour
+      le <i>membership testing</i>. Elle suppose la clé <b>garantie membre</b> avant l'appel.</p>
+  </details>
+
+  <script>
+  (function(){
+    var root=document.getElementById("mfp-root");
+    if(!root||root.dataset.mfpInit)return; root.dataset.mfpInit="1";
+
+    // ---- hachage 32 bits deterministe (FNV-1a graine + avalanche) ----
+    function fnv(str,seed){
+      var h=(2166136261 ^ (seed>>>0))>>>0;
+      for(var i=0;i<str.length;i++){ h^=str.charCodeAt(i); h=Math.imul(h,16777619)>>>0; }
+      h^=h>>>16; h=Math.imul(h,0x7feb352d)>>>0; h^=h>>>15;
+      h=Math.imul(h,0x846ca68b)>>>0; h^=h>>>16;
+      return h>>>0;
+    }
+
+    // ---- ensemble S + corpus absent cure ----
+    var S=["abricot","banane","cerise","datte","figue","grenade","kiwi","litchi"];
+    var ABS=["citron","poire","raisin","mangue","prune","melon","olive","coing","fraise"];
+    var N=S.length;
+    var FPSEED=0x1234abcd;
+
+    // ---- construction MPHF : recherche d'une graine donnant une bijection S -> [0,N) ----
+    // (MPHF naive mais authentique : indices distincts + N membres pour N cases => minimale parfaite)
+    function findSeed(){
+      for(var d=1; d<5000000; d++){
+        var used={}, ok=true;
+        for(var i=0;i<N;i++){
+          var idx=fnv(S[i],d)%N;
+          if(used[idx]){ok=false;break;}
+          used[idx]=1;
+        }
+        if(ok) return d;
+      }
+      return 1; // garde-fou (n'arrive pas pour N=8)
+    }
+    var SEED=findSeed();
+    function mphf(key){ return fnv(key,SEED)%N; }
+    function fp(key,b){ return fnv(key,FPSEED) & ((1<<b)-1); }
+    function hex(v,b){ return "0x"+v.toString(16).toUpperCase().padStart(Math.ceil(b/4),"0"); }
+
+    // case -> membre resident
+    var slots=new Array(N).fill(null);
+    S.forEach(function(k){ slots[mphf(k)]=k; });
+    var memberSet={}; S.forEach(function(k){ memberSet[k]=1; });
+
+    var bits=0;          // bits d'empreinte (0 = MPHF nue)
+    var lastQuery=null;  // derniere cle interrogee (normalisee)
+
+    // ---- rendu de la rangee de cases ----
+    var row=document.getElementById("mfp-row");
+    var cellEls=[];
+    function buildRow(){
+      while(row.firstChild) row.removeChild(row.firstChild);
+      cellEls=[];
+      for(var i=0;i<N;i++){
+        var c=document.createElement("div"); c.className="mfp-cell";
+        var ix=document.createElement("span"); ix.className="mfp-ix"; ix.textContent=String(i);
+        var mem=document.createElement("div"); mem.className="mfp-mem"; mem.textContent=slots[i];
+        var f=document.createElement("div"); f.className="mfp-fp";
+        var ptr=document.createElement("span"); ptr.className="mfp-ptr";
+        c.appendChild(ix); c.appendChild(mem); c.appendChild(f); c.appendChild(ptr);
+        row.appendChild(c); cellEls.push(c);
+      }
+    }
+    buildRow();
+
+    function refreshFingerprints(){
+      root.classList.toggle("mfp-fpon", bits>0);
+      for(var i=0;i<N;i++){
+        var f=cellEls[i].querySelector(".mfp-fp");
+        f.textContent = bits>0 ? hex(fp(slots[i],bits),bits) : "";
+      }
+    }
+
+    function clearCellStates(){
+      cellEls.forEach(function(c){
+        c.className="mfp-cell";
+        c.querySelector(".mfp-ptr").textContent="";
+      });
+    }
+
+    // ---- construit un message a partir de fragments ----
+    function setOut(kind,parts){
+      var out=document.getElementById("mfp-out");
+      out.className="mfp-out"+(kind==="warn"?" mfp-owarn":kind==="ok"?" mfp-ook":"");
+      while(out.firstChild) out.removeChild(out.firstChild);
+      parts.forEach(function(p){
+        if(typeof p==="string"){ out.appendChild(document.createTextNode(p)); }
+        else if(p.b!==undefined){ var e=document.createElement("b"); e.textContent=p.b; out.appendChild(e); }
+        else if(p.c!==undefined){ var e2=document.createElement("code"); e2.textContent=p.c; out.appendChild(e2); }
+      });
+    }
+    function setVerdict(id,ansId,subId,cls,ansFrags,sub){
+      document.getElementById(id).className="mfp-vd"+(cls?" "+cls:"");
+      var a=document.getElementById(ansId);
+      while(a.firstChild) a.removeChild(a.firstChild);
+      ansFrags.forEach(function(p){
+        if(typeof p==="string"){ a.appendChild(document.createTextNode(p)); }
+        else{ var e=document.createElement("span"); e.className=p.cls; e.textContent=p.t; a.appendChild(e); }
+      });
+      document.getElementById(subId).textContent=sub;
+    }
+
+    // ---- interrogation d'une cle ----
+    function query(raw){
+      var key=(raw||"").trim().toLowerCase();
+      clearCellStates();
+      if(!key){
+        setOut("",["Saisissez une clé puis cliquez ",{b:"Interroger"},
+          ", ou choisissez une pastille ci-dessous."]);
+        setVerdict("mfp-vdBare","mfp-bareans","mfp-baresub","",["—"],"En attente.");
+        setVerdict("mfp-vdComp","mfp-compans","mfp-compsub","",["—"],
+          bits>0?("Empreintes "+bits+" bits actives."):"Empreintes désactivées.");
+        lastQuery=null; return;
+      }
+      lastQuery=key;
+      var idx=mphf(key);
+      var isMember=!!memberSet[key];
+      var resident=slots[idx];
+      var cell=cellEls[idx];
+      cell.classList.add("mfp-target");
+      cell.querySelector(".mfp-ptr").textContent=key+" ↓";
+
+      // --- verdict MPHF nue : elle renvoie TOUJOURS un indice et "presume present" ---
+      if(isMember){
+        cell.classList.add("mfp-hit");
+        setVerdict("mfp-vdBare","mfp-bareans","mfp-baresub","mfp-good",
+          [{cls:"mfp-okc",t:"PRÉSENT"}," → indice "+idx],
+          "Indice correct et distinct : « "+key+" » occupe bien cette case.");
+      }else{
+        cell.classList.add("mfp-fp-hit");
+        setVerdict("mfp-vdBare","mfp-bareans","mfp-baresub","mfp-bad",
+          [{cls:"mfp-pres",t:"« PRÉSENT »"}," → indice "+idx],
+          "Aucune erreur levée. Même forme de réponse qu'un vrai membre.");
+      }
+
+      // --- verdict structure compagnon ---
+      if(bits===0){
+        setVerdict("mfp-vdComp","mfp-compans","mfp-compsub","",
+          [{cls:"mfp-rej",t:"(inactive)"}],
+          "Aucune empreinte : impossible de distinguer membre et intrus.");
+      }else{
+        var sf=fp(resident,bits), qf=fp(key,bits);
+        var accept=(sf===qf);
+        if(isMember){
+          setVerdict("mfp-vdComp","mfp-compans","mfp-compsub","mfp-good",
+            [{cls:"mfp-okc",t:"ACCEPTÉE"}],
+            "Empreinte "+hex(qf,bits)+" = empreinte stockée : membre confirmé (jamais de faux négatif).");
+        }else if(accept){
+          cell.classList.remove("mfp-fp-hit"); cell.classList.add("mfp-fp-hit");
+          setVerdict("mfp-vdComp","mfp-compans","mfp-compsub","mfp-warn",
+            [{cls:"mfp-pres",t:"« ACCEPTÉE »"}],
+            "Empreinte "+hex(qf,bits)+" = "+hex(sf,bits)+" de « "+resident+" » : faux positif résiduel.");
+        }else{
+          cell.classList.remove("mfp-fp-hit"); cell.classList.add("mfp-caught");
+          setVerdict("mfp-vdComp","mfp-compans","mfp-compsub","mfp-good",
+            [{cls:"mfp-okc",t:"REJETÉE"}],
+            "Empreinte "+hex(qf,bits)+" ≠ "+hex(sf,bits)+" de « "+resident+" » : intrus démasqué.");
+        }
+      }
+
+      // --- message principal ---
+      if(isMember){
+        setOut("ok",["« ",{b:key}," » ",{c:"∈ S"},". La MPHF renvoie l'indice ",
+          {b:String(idx)},", sa case attitrée, distincte de toutes les autres — réponse correcte."]);
+      }else if(bits===0){
+        setOut("warn",["« ",{b:key}," » ",{c:"∉ S"}," — pourtant la MPHF renvoie l'indice ",
+          {b:String(idx)},", parfaitement valide, ",{b:"sans la moindre erreur"},
+          ". C'est la case de « ",{b:resident}," ». Rien ne distingue cette réponse de celle d'un vrai membre : ",
+          {b:"faux positif silencieux"},". Les 8 cases sont pleines — aucune ne peut trahir une absence. Activez les empreintes pour le rattraper."]);
+      }else{
+        var sf2=fp(resident,bits), qf2=fp(key,bits);
+        if(sf2===qf2){
+          setOut("warn",["« ",{b:key}," » ",{c:"∉ S"},", mais son empreinte ",String(bits),
+            " bits ",{c:hex(qf2,bits)}," coïncide avec celle de « ",{b:resident},
+            " » : ",{b:"faux positif résiduel"},". Comme un filtre de Bloom, les empreintes bornent l'erreur (≈ 2",
+            "⁻"+bits+" bits) sans l'annuler — passez à 12 bits pour éliminer ce cas."]);
+        }else{
+          setOut("ok",["« ",{b:key}," » ",{c:"∉ S"},". La MPHF pointe encore l'indice ",
+            {b:String(idx)}," (case de « ",resident," »), mais l'empreinte stockée ",
+            {c:hex(sf2,bits)}," ne correspond pas à ",{c:hex(qf2,bits)},
+            " : la structure compagnon ",{b:"rejette l'intrus"},". C'est le test d'appartenance que la MPHF seule ne peut pas faire."]);
+        }
+      }
+    }
+
+    // ---- balayage de 512 clés absentes ----
+    function runBatch(){
+      var TOTAL=512, bareAcc=0, compAcc=0;
+      for(var i=0;i<TOTAL;i++){
+        var x="absente#"+i;            // garanti hors de S
+        bareAcc++;                      // la MPHF nue "accepte" tout
+        if(bits===0){ compAcc++; }
+        else if(fp(slots[mphf(x)],bits)===fp(x,bits)){ compAcc++; }
+      }
+      var barePct=Math.round(bareAcc/TOTAL*100);
+      var compPct=compAcc/TOTAL*100;
+      document.getElementById("mfp-bareN").textContent=bareAcc+" / "+TOTAL+" ("+barePct+"%)";
+      document.getElementById("mfp-bareBar").style.width=barePct+"%";
+      document.getElementById("mfp-compN").textContent=
+        bits===0 ? "— (empreintes inactives)" : (compAcc+" / "+TOTAL+" ("+compPct.toFixed(2)+"%)");
+      document.getElementById("mfp-compBar").style.width=(bits===0?100:compPct)+"%";
+      document.getElementById("mfp-compLbl").textContent=
+        bits===0 ? "MPHF + empreintes — désactivées" : ("MPHF + empreintes "+bits+" bits — faux positifs résiduels");
+      setOut(bits>0?"ok":"warn",["Sur ",{b:TOTAL+" clés toutes absentes"},", la MPHF nue en accepte ",
+        {b:bareAcc+" — soit 100%"},", autant de faux positifs silencieux. ",
+        bits>0
+          ? ["Avec empreintes ",String(bits)," bits, il n'en survit plus que ",{b:String(compAcc)},
+             " (≈ 2⁻"+bits+"). Le test d'appartenance redevient fiable, à un coût mémoire près."]
+          : ["Activez les empreintes pour faire chuter ce chiffre."]
+      ].reduce(function(a,p){ return a.concat(Array.isArray(p)?p:[p]); },[]));
+    }
+
+    // ---- empreintes : segment de bits ----
+    function setBits(b){
+      bits=b;
+      var seg=document.getElementById("mfp-seg");
+      Array.prototype.forEach.call(seg.querySelectorAll("button"),function(btn){
+        btn.classList.toggle("mfp-on", Number(btn.getAttribute("data-b"))===b);
+      });
+      document.getElementById("mfp-cnote").textContent =
+        b===0 ? "MPHF nue : aucun garde-fou."
+              : ("Chaque case stocke une empreinte de "+b+" bits du membre résident.");
+      refreshFingerprints();
+      if(lastQuery!==null) query(lastQuery); else query("");
+    }
+
+    // ---- pastilles ----
+    function buildChips(host,words,cls){
+      words.forEach(function(w){
+        var c=document.createElement("button");
+        c.type="button"; c.className="mfp-chip "+cls; c.textContent=w;
+        c.addEventListener("click",function(){
+          document.getElementById("mfp-input").value=w; query(w);
+        });
+        host.appendChild(c);
+      });
+    }
+    buildChips(document.getElementById("mfp-chipsIn"),S,"mfp-mIn");
+    buildChips(document.getElementById("mfp-chipsOut"),ABS,"mfp-mOut");
+
+    // ---- evenements ----
+    document.getElementById("mfp-go").addEventListener("click",function(){
+      query(document.getElementById("mfp-input").value);
+    });
+    document.getElementById("mfp-input").addEventListener("keydown",function(e){
+      if(e.key==="Enter"){ e.preventDefault(); query(this.value); }
+    });
+    document.getElementById("mfp-seg").addEventListener("click",function(e){
+      var t=e.target; if(t&&t.hasAttribute("data-b")) setBits(Number(t.getAttribute("data-b")));
+    });
+    document.getElementById("mfp-run").addEventListener("click",runBatch);
+
+    // ---- init ----
+    refreshFingerprints();
+    query("");
+  })();
+  </script>
+</div>
