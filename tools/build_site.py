@@ -31,6 +31,13 @@ VARIANTS = {
     "reference": "Référence",
 }
 
+# Thème legacy (APO hand-built, gelé) : toujours rendu en dernier, marqué d'un bandeau.
+LEGACY_SLUG = "automatic-prompt-optimization"
+LEGACY_NOTE = (
+    "Édition historique construite à la main (triptyque à 3 éditions), antérieure au "
+    "pipeline /monograph — conservée gelée comme golden de référence pour la charte."
+)
+
 _TITLE_RE = re.compile(r"<title>(.*?)</title>", re.IGNORECASE | re.DOTALL)
 
 
@@ -48,7 +55,12 @@ def theme_label(slug: str) -> str:
 def collect():
     """[(slug, label, [(href, link_label, full_title), ...]), ...] trié."""
     themes = []
-    for theme_dir in sorted(p for p in THEMES_DIR.iterdir() if p.is_dir()):
+    # Le thème legacy passe toujours en dernier (True trie après False) ; sinon alphabétique.
+    theme_dirs = sorted(
+        (p for p in THEMES_DIR.iterdir() if p.is_dir()),
+        key=lambda p: (p.name == LEGACY_SLUG, p.name),
+    )
+    for theme_dir in theme_dirs:
         dist = theme_dir / "dist"
         if not dist.is_dir():
             continue
@@ -79,16 +91,28 @@ def render_index(themes) -> str:
         return f'        <li><a href="{e(href)}">{inner}</a></li>'
 
     cards = []
-    for _, label, docs in themes:
+    for slug, label, docs in themes:
         links = "\n".join(render_link(*d) for d in docs)
-        cards.append(
-            f'''      <article class="card">
+        if slug == LEGACY_SLUG:
+            cards.append(
+                f'''      <article class="card legacy">
+        <p class="badge-legacy">Legacy</p>
+        <h2>{e(label)}</h2>
+        <ul>
+{links}
+        </ul>
+        <p class="legacy-note">{e(LEGACY_NOTE)}</p>
+      </article>'''
+            )
+        else:
+            cards.append(
+                f'''      <article class="card">
         <h2>{e(label)}</h2>
         <ul>
 {links}
         </ul>
       </article>'''
-        )
+            )
     cards_html = "\n".join(cards)
 
     return f'''<!DOCTYPE html>
@@ -140,6 +164,13 @@ def render_index(themes) -> str:
   .card a:hover{{background:var(--blue-wash);border-color:var(--line);}}
   .doc{{font-size:14px;font-weight:700;color:var(--bordeaux);letter-spacing:.01em;}}
   .ttl{{font-size:14px;color:var(--ink-soft);line-height:1.4;}}
+
+  .card.legacy{{border-left-color:var(--bordeaux);border-color:var(--bordeaux-bright);}}
+  .badge-legacy{{margin:-22px -24px 14px;padding:7px 24px;background:var(--bordeaux);
+    color:#fff;font-family:"JetBrains Mono",monospace;font-size:11px;letter-spacing:.22em;
+    text-transform:uppercase;border-radius:7px 7px 0 0;}}
+  .legacy-note{{margin:16px 0 0;padding-top:13px;border-top:1px solid var(--line);
+    font-size:12.5px;line-height:1.5;color:var(--ink-faint);font-style:italic;}}
 
   footer{{max-width:var(--maxw);margin:0 auto;padding:0 28px 60px;
     color:var(--ink-faint);font-family:"JetBrains Mono",monospace;font-size:12px;
