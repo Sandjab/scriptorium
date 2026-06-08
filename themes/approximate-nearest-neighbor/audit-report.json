@@ -1,0 +1,1072 @@
+{
+  "generator": "frugalmonograph",
+  "theme": {
+    "slug": "approximate-nearest-neighbor",
+    "title": "Approximate Nearest Neighbor search — HNSW, IVF, PQ et la recherche vectorielle à grande échelle"
+  },
+  "summary": {
+    "sections_total": 9,
+    "sections_retained": 9,
+    "claims_total": 34,
+    "confirmed": 12,
+    "corrected": 22,
+    "rejected": 0,
+    "retained": 34
+  },
+  "claims": [
+    {
+      "id": "claim:1",
+      "section": "pourquoi-ann",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "La recherche exacte du plus proche voisin sur N vecteurs de dimension d exige O(N·d) opérations par query — c'est juste. À l'échelle d'un million de vecteurs de 1 536 dimensions, le nombre d'opérations flottantes est d'environ 3 milliards (non 1,5 milliard) si l'on compte rigoureusement les deux opérations d'un produit scalaire (multiplication + addition par dimension), ou ~4,6 milliards pour une distance L2 classique ; 1,5 milliard n'est correct que sous la convention MAC=1 FLOP. Surtout, la latence de « plusieurs centaines de millisecondes sur CPU » est fausse pour toute implémentation optimisée moderne : FAISS (index Flat, BLAS + SIMD) atteint typiquement 1 à 50 ms pour 1 million de vecteurs selon le matériel et le degré de parallélisme ; « plusieurs centaines de ms » ne s'applique qu'à un code naïf non vectorisé sur thread unique.",
+      "original_statement": "La recherche exacte du plus proche voisin sur N vecteurs de dimension d exige O(N·d) calculs de distance par query ; à l'échelle d'un million de vecteurs de 1 536 dimensions, une seule query représente environ 1,5 milliard d'opérations flottantes et plusieurs centaines de millisecondes sur CPU.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 4,
+          "note": "Deux problèmes distincts : (1) le décompte de 1,5 milliard de FLOPs sous-estime d'un facteur 2–3 selon la métrique et la convention de comptage — Weaviate lui-même illustre N×d opérations (une par dimension, convention MAC), mais la distance L2 stricte atteint ~4,6B FLOPs ; (2) la latence de « plusieurs centaines de millisecondes » est contredite par les benchmarks FAISS Flat index qui mesurent ~1–12 ms pour des corpus de 1M–10M vecteurs sur CPU optimisé, soit une surestimation de 10× à 100× pour tout code vectorisé moderne."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Les parties O(N·d) et 1,5 milliard d'opérations sont mathématiquement exactes et confirmées par les deux sources. En revanche, « plusieurs centaines de millisecondes sur CPU » est trop imprécis : le benchmark krunalkanojiya mesure 748 ms sur un seul cœur CPU avec NumPy/BLAS optimisé, mais une implémentation multi-cœurs SIMD (type FAISS) descend à 20–50 ms pour le même workload ; la latence peut aussi dépasser 4 secondes pour du code scalaire non vectorisé. La formulation de l'énoncé est donc trompeuse car elle ne vaut que dans le scénario mono-cœur."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « La recherche exacte du plus proche voisin sur N vecteurs de dimension d exige O(N·d) calculs de distance par query ; à l'échelle d'un million de vecteurs de 1 536 dimensions, une seule query représente environ 1,5 milliard d'opérations flottantes et plusieurs centaines de millisecondes sur CPU. »"
+    },
+    {
+      "id": "claim:2",
+      "section": "pourquoi-ann",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le recall@k est la métrique standard des systèmes ANN : recall@k(q) = |ANN_k(q) ∩ GT_k(q)| / k, soit la fraction des vrais top-k voisins (établis par brute-force search) effectivement retrouvés parmi les k résultats approchés.",
+      "original_statement": "Le recall@k est la métrique standard des systèmes ANN : recall@k(q) = |ANN_k(q) ∩ GT_k(q)| / k, soit la fraction des vrais top-k voisins (établis par brute-force search) effectivement retrouvés parmi les k résultats approchés.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "La formule recall@k(q) = |ANN_k(q) ∩ GT_k(q)| / k est confirmée par plusieurs sources indépendantes (pyimagesearch avec code, web search sur de nombreux papiers arxiv). Le ground truth établi par brute-force est la pratique standard documentée par ann-benchmarks et pyimagesearch. Recall@k est bien la métrique qualité dominante des benchmarks ANN. Aucun contre-exemple trouvé ; l'énoncé est exact tel quel."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Les trois sources indépendantes vérifiées confirment la formule et son statut de métrique standard. Ann-benchmarks.com (référence canonique du domaine) définit le recall comme « fraction of true nearest neighbors found, on average over all queries » ; pyimagesearch.com fournit le code `len(set(true) & set(approx)) / k` pour chaque requête ; krunalkanojiya.com énonce explicitement la formule `len(true_set & found_set) / k` et qualifie le recall@k de « primary accuracy metric for ANN systems », avec vérité terrain établie par recherche exacte (brute-force). L'énoncé est exact tel quel."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:3",
+      "section": "pourquoi-ann",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "HNSW est généralement compétitif sur le front de Pareto recall/débit dans les contextes CPU non filtrés avec mémoire disponible, mais il est surpassé par IVF-PQ sous contrainte mémoire forte (4–8× moins de RAM requise), par des solutions GPU comme CAGRA (jusqu'à 18× de débit supérieur) dans les déploiements GPU, et par IVF lors de requêtes fortement filtrées (>90 % de données éliminées). Aucune méthode ne domine universellement l'ensemble des contextes pratiques.",
+      "original_statement": "HNSW est systématiquement positionné sur le front de Pareto recall/throughput et surpasse les variantes IVF et PQ à recall égal dans l'ensemble des contextes de déploiement pratiques.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 6,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Les trois absolus de l'énoncé (\"systématiquement\", \"surpasse\", \"l'ensemble des contextes\") sont réfutés par des sources primaires vérifiées : IVF-PQ domine sous contrainte mémoire et en recherche filtrée ; CAGRA domine sur GPU ; l'arXiv 2505.07621 confirme explicitement qu'aucune méthode ne domine toutes les régions du front de Pareto recall/débit."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 4,
+          "note": "Trois contre-exemples pratiques directs invalident le « ensemble des contextes » : (1) le blog NVIDIA (vérifié) montre que CAGRA GPU dépasse CPU-HNSW jusqu'à 18× en débit à recall comparable ; (2) DrCodes et VectorChord (vérifiés) documentent qu'IVF-PQ est supérieur pour les déploiements mémoire-contraints ou disk-based à l'échelle milliardaire où HNSW est simplement infaisable ; (3) le papier original de Malkov & Yashunin (arXiv:1603.09320) restreint lui-même ses comparaisons aux approches « vector-only open-source » de l'époque, sans prétendre à la domination universelle. HNSW est un fort choix général en mémoire, pas un dominateur systématique."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (6 sources indépendantes). Origine : « HNSW est systématiquement positionné sur le front de Pareto recall/throughput et surpasse les variantes IVF et PQ à recall égal dans l'ensemble des contextes de déploiement pratiques. »"
+    },
+    {
+      "id": "claim:4",
+      "section": "pourquoi-ann",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Product Quantization avec m = 8 sous-vecteurs et k* = 256 centroïdes compresse un vecteur float32 de 128 dimensions (512 octets) en un code de 8 octets — compression ×64.",
+      "original_statement": "Product Quantization avec m = 8 sous-vecteurs et k* = 256 centroïdes compresse un vecteur float32 de 128 dimensions (512 octets) en un code de 8 octets — compression ×64.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le calcul est exact et confirmé par deux sources indépendantes : 128 dim × 4 bytes = 512 bytes ; m=8 sous-vecteurs × 1 byte (log₂(256)=8 bits) = 8 bytes ; ratio 512/8 = 64×. Aucun contre-exemple trouvé. La source primaire (Jégou, Douze, Schmid 2011 TPAMI) était inaccessible (403/bot), mais le raisonnement est mathématiquement nécessaire et corroboré par les deux sources vérifiées."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "L'arithmétique est exacte : k*=256 centroïdes → log₂(256)=8 bits=1 octet par indice de sous-vecteur ; m=8 sous-vecteurs donnent 8 octets au total contre 512 octets pour le vecteur float32 original (128×4), soit un ratio de compression de 64×. Deux sources indépendantes (Pinecone et Milvus) illustrent explicitement cet exemple avec ces paramètres et confirment le résultat."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:5",
+      "section": "ivf-fichier-inverse",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Sivic & Zisserman (ICCV 2003, pp. 1470–1477) ont été les premiers à transposer l'index inversé du text retrieval à la recherche visuelle, en quantifiant les descripteurs d'image par k-means en visual words et en les indexant avec scoring TF-IDF.",
+      "original_statement": "Sivic & Zisserman (ICCV 2003, pp. 1470–1477) ont été les premiers à transposer l'index inversé du text retrieval à la recherche visuelle, en quantifiant les descripteurs d'image par k-means en visual words et en les indexant avec scoring TF-IDF.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "L'énoncé tient sur tous ses points : les détails bibliographiques (ICCV 2003, Vol. 2, pp. 1470–1477) sont confirmés par plusieurs bases de citations indépendantes ; l'usage du k-means pour construire le vocabulaire de visual words et du scoring TF-IDF via un index inversé sont explicitement attestés dans le papier. La primauté (\"premiers\") est soutenue par le consensus académique — aucune publication antérieure à 2003 appliquant ce pipeline complet à la recherche visuelle n'a été identifiée, et de multiples surveys créditent ce travail comme ayant initié le changement de paradigme bag-of-visual-words. Seule nuance mineure : le contexte du papier est le matching d'objets dans des vidéos, non la recherche d'images statiques en général, mais \"recherche visuelle\" dans l'énoncé couvre correctement ce périmètre."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les trois éléments techniques (k-means → visual words, TF-IDF, inverted index transposé du text retrieval) sont confirmés par les deux sources indépendantes vérifiées. La venue (ICCV 2003, pp. 1470–1477) est attestée par la page officielle VGG. La primauté est soutenue par le consensus de la littérature CBIR : aucune source consultée ne cite de travail antérieur ayant combiné ce pipeline complet pour la recherche visuelle."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:6",
+      "section": "ivf-fichier-inverse",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "L'index IVF partitionne la collection en nlist cellules de Voronoi via k-means ; à la requête, seules les nprobe cellules les plus proches du vecteur requête sont fouillées. Pour IVFFlat (distances exactes), la courbe nprobe → recall est faiblement monotone non-décroissante (ajout d'une cellule ne peut qu'élargir le pool de candidats), mais pas nécessairement strictement croissante. Pour les variantes IVFPQ (quantification produit), des cas documentés montrent un recall décroissant avec nprobe croissant. La forme « concave » (rendements décroissants) est une tendance empirique sur des distributions typiques, non une propriété mathématiquement garantie : des distributions non uniformes peuvent produire des courbes en S ou en paliers.",
+      "original_statement": "L'index IVF partitionne la collection en nlist cellules de Voronoi via k-means ; à la requête, seules les nprobe cellules les plus proches du vecteur requête sont fouillées, produisant une courbe nprobe → recall monotone et concave.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 4,
+          "note": "La mécanique de base (k-means, Voronoi, nprobe) est correcte, mais deux propriétés sont survendues : (1) la monotonie est seulement faiblement garantie pour IVFFlat et tombe pour IVFPQ, comme le documentent deux issues officielles GitHub avec des baisses mesurées de recall ; (2) la concavité n'est pas une propriété structurelle de l'index mais une observation empirique sur des jeux de données bien répartis, invalide sur des distributions concentrées ou non uniformes."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "L'énoncé tient : (1) la partition en nlist cellules de Voronoï via k-means est confirmée par la documentation officielle FAISS et plusieurs sources indépendantes ; (2) la restriction de la recherche aux nprobe cellules les plus proches est exacte ; (3) la courbe nprobe → recall est bien monotone (non-décroissante par construction) et empiriquement concave (rendements décroissants : les premières sondes capturent la majorité des vrais voisins). La concavité est néanmoins un résultat empirique robuste, pas un théorème mathématique garanti pour toute distribution."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « L'index IVF partitionne la collection en nlist cellules de Voronoi via k-means ; à la requête, seules les nprobe cellules les plus proches du vecteur requête sont fouillées, produisant une courbe nprobe → recall monotone et concave. »"
+    },
+    {
+      "id": "claim:7",
+      "section": "ivf-fichier-inverse",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Sur 14 504 embeddings avec nlist=50, IndexIVFFlat à nprobe=1 atteint un temps de requête d'environ 2,15 ms contre 28,9 ms pour la recherche exhaustive IndexFlatL2, soit un gain d'environ ×13,4 — chiffres issus d'un seul tutoriel Pinecone sur matériel non précisé, sans reproduction indépendante.",
+      "original_statement": "Sur 14 504 embeddings avec nlist=50, IndexIVFFlat à nprobe=1 atteint une latence wall-clock de 2,15 ms contre 28,9 ms pour la recherche exhaustive IndexFlatL2, soit un gain ×13.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Les chiffres proviennent d'une seule source (tutoriel Pinecone) et ne sont pas reproduits de façon indépendante ; le qualificatif « wall-clock » est absent de la source (qui dit « query time » sans préciser la méthode de mesure) ; le gain réel est ×13,4 et non ×13 ; la GitHub issue #1656 FAISS constitue un contre-exemple direct montrant qu'IndexIVFFlat peut être 2,5× plus lent qu'IndexFlatL2 sur des requêtes batch avec de petits corpus."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 0,
+          "note": "La source Pinecone confirme les chiffres 14 504 vecteurs, nlist=50, wall time 2,15 ms (IVFFlat) et 28,9 ms (FlatL2), ratio ~×13,4 — mais le nprobe utilisé est 10, non 1. Aucune source indépendante de cette page n'a été identifiée pour ces benchmarks spécifiques."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « Sur 14 504 embeddings avec nlist=50, IndexIVFFlat à nprobe=1 atteint une latence wall-clock de 2,15 ms contre 28,9 ms pour la recherche exhaustive IndexFlatL2, soit un gain ×13. »"
+    },
+    {
+      "id": "claim:8",
+      "section": "ivf-fichier-inverse",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "La réduction de calcul de l'IVF est, en première approximation, proportionnelle au ratio nprobe/nlist (fraction des listes parcourues), ce qui donne un speedup nominal d'environ nlist/nprobe par rapport à la recherche exhaustive. Mais la documentation officielle FAISS qualifie explicitement cela de « première approximation » qui est « habituellement sous-estimée » (c.-à-d. que la fraction réelle parcourue est supérieure à nprobe/nlist à cause des longueurs inégales des listes inverses) — le speedup réel est donc typiquement inférieur à nlist/nprobe. De plus, le surcoût de la quantification grossière (O(nlist) pour trouver les nprobe cellules les plus proches parmi tous les centroïdes) est ignoré par ce ratio.",
+      "original_statement": "La réduction de calcul de l'IVF est proportionnelle au ratio nlist/nprobe : chercher nprobe cellules sur nlist donne un speedup d'un facteur nlist/nprobe par rapport à la recherche exhaustive.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "La documentation officielle FAISS invalide l'énoncé sur deux points indépendants : (1) le ratio nlist/nprobe est explicitement qualifié de « première approximation » — jamais de facteur exact — et (2) cette approximation sous-estime la fraction réellement parcourue (listes inverses déséquilibrées), ce qui signifie que le speedup effectif est le plus souvent inférieur à nlist/nprobe. L'énoncé soumis présente donc une approximation idéale comme une loi exacte."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "La documentation officielle FAISS (wiki Faiss-indexes) dit explicitement que nprobe/nlist n'est qu'une « first approximation » du fraction de base parcourue, et qu'elle est « usually under-estimated because the inverted lists have not equal lengths » — le speedup réel est donc généralement inférieur à nlist/nprobe, pas exact. Le wiki Faster-search confirme en précisant que le temps de recherche « roughly increases linearly with the number of probes plus some constant due to the quantization », ce terme constant additionnel invalidant toute proportionnalité stricte."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « La réduction de calcul de l'IVF est proportionnelle au ratio nlist/nprobe : chercher nprobe cellules sur nlist donne un speedup d'un facteur nlist/nprobe par rapport à la recherche exhaustive. »"
+    },
+    {
+      "id": "claim:9",
+      "section": "pq-quantification-produit",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Product Quantization encode un vecteur D-dimensionnel en m·log₂(k*) bits ; pour un vecteur SIFT de 128 dimensions en float32 (512 octets) avec m = 8 sous-espaces et k* = 256 centroïdes, le code occupe 64 bits (8 octets), soit une compression ×64.",
+      "original_statement": "Product Quantization encode un vecteur D-dimensionnel en m·log₂(k*) bits ; pour un vecteur SIFT de 128 dimensions en float32 (512 octets) avec m = 8 sous-espaces et k* = 256 centroïdes, le code occupe 64 bits (8 octets), soit une compression ×64.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "La formule m·log₂(k*) bits est celle du papier original Jégou et al. 2011 ; appliquée à m=8 et k*=256 elle donne exactement 64 bits = 8 octets, et le taux 512/8 = 64 est arithmétiquement exact sous la prémisse float32 explicitement posée par l'énoncé. La seule nuance (les vecteurs SIFT1M de référence sont souvent stockés en uint8, soit 128 octets, ce qui donnerait ×16 et non ×64) ne contredit pas l'énoncé car celui-ci spécifie float32 sans ambiguïté."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "La formule m·log₂(k*) bits est bien celle du papier original (Jégou 2010) ; avec m=8 et k*=256 on obtient 8×8=64 bits=8 octets contre 128×4=512 octets en float32, soit un rapport de compression exactement ×64. Les deux sources vérifiées — le PDF auteur IRISA et l'article Pinecone — confirment la formule et l'exemple SIFT de manière indépendante."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:10",
+      "section": "pq-quantification-produit",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "L'erreur quadratique espérée d'ADC est bornée par MSE(q) et celle de SDC par 2·MSE(q) : ADC est l'estimateur le plus précis des deux car il conserve la requête à pleine précision et n'introduit du bruit de quantification que d'un seul côté. Certaines synthèses secondaires influentes publient l'ordre inverse (SDC ≤ MSE(q), ADC ≤ 2·MSE(q)), ce qui contredit la conclusion du papier original et le consensus de la littérature.",
+      "original_statement": "L'erreur quadratique espérée d'ADC est bornée par MSE(q) et celle de SDC par 2·MSE(q) : ADC est l'estimateur le plus précis des deux car il conserve la requête à pleine précision et n'introduit du bruit de quantification que d'un seul côté. Certaines synthèses secondaires influentes publient l'ordre inverse (SDC ≤ MSE(q), ADC ≤ 2·MSE(q)), ce qui contredit la conclusion du papier original et le consensus de la littérature.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Les deux versions directes du papier original (arXiv + PDF IRISA) établissent clairement ADC ≤ MSE(q) et SDC ≤ 2·MSE(q) : ADC est le plus précis car seul le vecteur base est quantifié, la requête restant à pleine précision. La synthèse secondaire de David Stutz publie exactement l'ordre inversé (SDC ≤ MSE(q), ADC ≤ 2·MSE(q)), confirmant la seconde partie de l'énoncé ; son explication interne est physiquement incohérente (une formule qui ne quantifie qu'un seul côté ne peut pas avoir un bruit double d'une formule qui en quantifie deux)."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le texte original (Section 4-B, eq. 18) prouve explicitement MSDE(q) ≤ MSE(q) pour ADC, puis ajoute : « for the symmetric version, a similar derivation shows that the error is statistically bounded by 2×MSE(q) ». Le papier conclut « one should use the asymmetric version, which obtains a lower distance distortion ». Le blog David Stutz inverse exactement ces deux bornes (SDC ≤ MSE(q), ADC ≤ 2·MSE(q)) et en déduit à tort que SDC serait théoriquement plus précis, ce qui contredit le papier source."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:11",
+      "section": "pq-quantification-produit",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Dans IVF-PQ, la quantification produit est appliquée au résidu r = y − c₁(y) plutôt qu'au vecteur brut ; la réduction de variance des résidus par rapport aux vecteurs originaux améliore la fidélité de la quantification à budget binaire constant.",
+      "original_statement": "Dans IVF-PQ, la quantification produit est appliquée au résidu r = y − c₁(y) plutôt qu'au vecteur brut ; la réduction de variance des résidus par rapport aux vecteurs originaux améliore la fidélité de la quantification à budget binaire constant.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": true,
+          "n_sources": 4,
+          "note": "L'énoncé est factuellement juste sur la formule du résidu et sur l'amélioration de fidélité à budget constant. Cependant, il attribue l'amélioration uniquement à la « réduction de variance », alors que la source primaire (Jégou et al. 2011) ne mentionne pas ce terme et que la littérature récente (arXiv 2401.08281) identifie un second mécanisme indépendant : l'exploitation d'information a priori du quantifieur grossier. La caractérisation causale est donc correcte mais incomplète."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Les trois sources indépendantes confirment (1) que la PQ est appliquée au résidu r = y − c₁(y) et non au vecteur brut, et (2) que la réduction de variance/norme des résidus améliore la fidélité de quantification à budget binaire constant — towardsdatascience emploie explicitement « lower variance → smaller quantization errors », mccormickml décrit les résidus comme ayant « less energy » rendant les codes plus précis, et arxiv 2401.08281 démontre empiriquement le bénéfice de l'encodage résiduel pour les codes courts (budget réduit)."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:12",
+      "section": "hnsw-graphes-navigables",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "L'assignation de couche dans HNSW suit une distribution géométrique : la couche maximale l d'un nouveau nœud est tirée selon l = ⌊−ln(U) · mL⌋ (U uniforme, mL paramètre libre dont la valeur recommandée est 1/ln(M)), ce qui, avec mL = 1/ln(M), donne l = ⌊−ln(U)/ln(M)⌋. La fraction (proportion) attendue de nœuds présents à la couche l vaut M^(−l), et le nombre attendu de nœuds à cette couche est N · M^(−l) — densité exponentiellement décroissante vers les couches supérieures.",
+      "original_statement": "L'assignation de couche dans HNSW suit une distribution géométrique : la couche maximale l d'un nouveau nœud est tirée selon l = ⌊−ln(U)/ln(M)⌋ (U uniforme), de sorte que la fraction attendue de nœuds présents à la couche l vaut N · M^(−l) — densité exponentiellement décroissante vers les couches supérieures.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "L'énoncé contient deux imperfections : (1) il présente l = ⌊−ln(U)/ln(M)⌋ comme la formule canonique, alors que le papier original définit l = ⌊−ln(U) · mL⌋ avec mL libre (mL = 1/ln(M) n'est que la valeur recommandée) ; (2) il écrit « la fraction attendue… vaut N · M^(−l) » — or N · M^(−l) est le nombre attendu (un entier), pas une fraction (proportion). La fraction attendue est M^(−l), sans facteur N."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "La formule l = ⌊−ln(U)/ln(M)⌋, la distribution géométrique et la densité N · M^{-l} sont toutes mathématiquement exactes. L'unique défaut est terminologique : l'énoncé dit « fraction attendue… vaut N · M^{-l} », alors que N · M^{-l} est un nombre de nœuds (pas une fraction sans dimension) ; la correction minimale est de substituer « nombre attendu » à « fraction attendue »."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « L'assignation de couche dans HNSW suit une distribution géométrique : la couche maximale l d'un nouveau nœud est tirée selon l = ⌊−ln(U)/ln(M)⌋ (U uniforme), de sorte que la fraction attendue de nœuds présents à la couche l vaut N · M^(−l) — densité exponentiellement décroissante vers les couches supérieures. »"
+    },
+    {
+      "id": "claim:13",
+      "section": "hnsw-graphes-navigables",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Sur SIFT1M, hnswlib se positionne sur le front de Pareto des méthodes ANN : efSearch = 32 donne ≈ 23 400 req/s à recall@10 ≈ 0,955 ; efSearch = 256 donne ≈ 4 500 req/s à recall@10 ≈ 0,991. (La métrique est recall@10, pas recall@1 : le benchmark de référence ann-benchmarks pour sift-128-euclidean est k = 10 ; les chiffres exacts n'ont pu être confirmés depuis une page primaire directement lisible.)",
+      "original_statement": "Sur SIFT1M, hnswlib se positionne sur le front de Pareto des méthodes ANN : efSearch = 32 donne ≈ 23 400 req/s à recall@1 = 0,955 ; efSearch = 256 donne ≈ 4 500 req/s à recall@1 = 0,991.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le benchmark ann-benchmarks pour SIFT1M est explicitement k = 10 (la page s'intitule \"sift-128-euclidean (k = 10)\") ; la métrique est donc recall@10, non recall@1. Les chiffres QPS/recall cités sont plausibles et cohérents avec les résumés trouvés en ligne, mais aucune page primaire directement lisible ne les confirme : l'énoncé ne tient pas tel quel à cause de l'erreur de label de métrique."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Les valeurs recall@1 (0,9553 à efSearch=32 ; 0,9910 à efSearch=256) sont confirmées par les deux sources, mais pour FAISS IndexHNSWFlat, pas hnswlib. Les QPS cités (23 448 / 4 536) viennent exclusivement du benchmark FAISS de saidines12 sur un matériel non précisé ; la FAISS wiki confirme l'ordre de grandeur du recall mais avec de légères divergences (0,9492 et 0,9920), ce qui illustre la sensibilité au matériel et aux paramètres de construction. Aucune source indépendante ne confirme ces QPS spécifiquement pour hnswlib."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « Sur SIFT1M, hnswlib se positionne sur le front de Pareto des méthodes ANN : efSearch = 32 donne ≈ 23 400 req/s à recall@1 = 0,955 ; efSearch = 256 donne ≈ 4 500 req/s à recall@1 = 0,991. »"
+    },
+    {
+      "id": "claim:14",
+      "section": "hnsw-graphes-navigables",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "La complexité de recherche d'HNSW est communément affirmée O(log n). Le papier original (Malkov & Yashunin, 2018) fournit un argument théorique conditionnel — fondé sur la théorie des graphes de Delaunay et des petits mondes navigables — mais sous hypothèse idéalisée (graphe de Delaunay parfait), et non une démonstration formelle rigoureuse au sens mathématique (pas de théorème + preuve). En pratique, ce qui se dégrade sur des collections de haute dimension n'est pas la classe de complexité temporelle (qui reste O(log n) en nombre d'opérations), mais le rappel (recall) : pour maintenir un rappel acceptable en haute dimension, il faut augmenter les paramètres ef et M, ce qui accroît le coût effectif constant sans changer la classe de complexité.",
+      "original_statement": "La complexité de recherche d'HNSW est communément affirmée O(log n), mais le papier original ne fournit pas de démonstration formelle — il invoque une « logarithmic complexity scaling » sans preuve rigoureuse ; en pratique, la complexité réelle dépend de la dimensionnalité intrinsèque des données et peut se dégrader sur des collections de haute dimension.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 4,
+          "note": "L'énoncé tient sur ses deux premiers points (O(log n) communément affirmé, absence de preuve formelle rigoureuse), mais sa dernière clause confond dégradation du recall et dégradation de la classe de complexité temporelle : c'est le recall qui chute avec la dimensionnalité intrinsèque (documenté dans le papier SIGIR 2024), pas la classe O(log n) — pour maintenir le recall, l'utilisateur doit augmenter les paramètres, ce qui augmente les constantes mais ne change pas la classe asymptotique."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le papier original fait bien valoir une « logarithmic complexity scaling » sans démonstration formelle complète (argument basé sur l'hypothèse Delaunay exacte + simulation d=4 uniquement), ce qui valide la première partie de l'énoncé. Mais le papier ne soutient pas que HNSW « se dégrade sur des collections de haute dimension » : il y est présenté comme supérieur à NSW précisément pour les hautes dimensions, et la seule réserve exprimée porte sur l'impossibilité de valider analytiquement l'approximation Delaunay à haute dimension — ce qui est différent d'une dégradation des performances."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « La complexité de recherche d'HNSW est communément affirmée O(log n), mais le papier original ne fournit pas de démonstration formelle — il invoque une « logarithmic complexity scaling » sans preuve rigoureuse ; en pratique, la complexité réelle dépend de la dimensionnalité intrinsèque des données et peut se dégrader sur des collections de haute dimension. »"
+    },
+    {
+      "id": "claim:15",
+      "section": "lsh-hachage-sensible",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Une famille H est (r, cr, p₁, p₂)-sensitive si Pr[h(p)=h(q)] ≥ p₁ quand dist(p,q) ≤ r et Pr[h(p)=h(q)] ≤ p₂ quand dist(p,q) ≥ cr, avec p₁ > p₂ et c > 1. La notation (r, cr, p₁, p₂) est largement utilisée et fait apparaître explicitement le ratio d'approximation c ; la formulation originale d'Indyk-Motwani 1998 utilise (r₁, r₂, p₁, p₂) avec quatre paramètres indépendants où r₂ = cr₁.",
+      "original_statement": "Une famille H est (r, cr, p₁, p₂)-sensitive si Pr[h(p)=h(q)] ≥ p₁ quand dist(p,q) ≤ r et Pr[h(p)=h(q)] ≤ p₂ quand dist(p,q) > cr, avec p₁ > p₂ et c > 1. Ces quatre paramètres constituent la définition formelle standard du locality-sensitive hashing.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "La correction principale porte sur l'inégalité de la seconde condition : l'énoncé écrit dist(p,q) > cr (strict), mais la définition standard (Wikipedia, Indyk-Motwani) utilise dist(p,q) ≥ cr (non-strict). Formellement ces prédicats sont distincts. Par ailleurs, dans le tuple (r, cr, p₁, p₂), cr est une quantité dérivée (c·r), non un paramètre indépendant ; les quatre paramètres libres sont r, c, p₁, p₂."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "La définition (r, cr, p₁, p₂)-sensitive avec Pr[h(p)=h(q)] ≥ p₁ si dist ≤ r et Pr[h(p)=h(q)] ≤ p₂ si dist > cr, sous les contraintes p₁ > p₂ et c > 1, est confirmée par plusieurs sources indépendantes ; c'est bien la notation standard à quatre paramètres introduite par Indyk et Motwani (STOC 1998). L'inégalité stricte « > cr » du second cas est la convention la plus courante dans la littérature (certaines sources utilisent ≥ cr, mais les deux formes coexistent sans conséquence pratique)."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « Une famille H est (r, cr, p₁, p₂)-sensitive si Pr[h(p)=h(q)] ≥ p₁ quand dist(p,q) ≤ r et Pr[h(p)=h(q)] ≤ p₂ quand dist(p,q) > cr, avec p₁ > p₂ et c > 1. Ces quatre paramètres constituent la définition formelle standard du locality-sensitive hashing. »"
+    },
+    {
+      "id": "claim:16",
+      "section": "lsh-hachage-sensible",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le paramètre ρ = log(1/p₁)/log(1/p₂) détermine le temps de requête en O(n^ρ) et l'espace en O(n^(1+ρ)) ; ρ < 1 est la condition nécessaire pour obtenir un temps sous-linéaire.",
+      "original_statement": "Le paramètre ρ = log(1/p₁)/log(1/p₂) détermine le temps de requête en O(n^ρ) et l'espace en O(n^(1+ρ)) ; ρ < 1 est la condition nécessaire pour obtenir un temps sous-linéaire.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les trois affirmations sont correctes dans le cadre standard (Har-Peled–Indyk–Motwani, JACM 2012) avec le paramétrage optimal k = Θ(log n / log(1/p₂)) : la formule ρ = log(1/p₁)/log(1/p₂) est standard (équivalente à log p₁/log p₂), l'espace O(n^(1+ρ)) est exact, et le temps O(n^ρ) est le terme polynomial dominant (les facteurs 1/p₁ et log n s'annulent ou sont constants quand p₁ ne dépend pas de n). Nuance signalée : Wikipedia cite le temps complet O(n^ρ · p₁⁻¹ · (kt+d)) et Ahle (2020) montre que dans des implémentations sous-optimales ou pour des familles à p₁ très petit (polynomiale en n), le facteur 1/p₁ peut rendre le temps super-linéaire même avec ρ < 1 ; de plus, ρ < 1 est à la fois nécessaire ET suffisant pour que O(n^ρ) soit sous-linéaire — le qualifier de seule « condition nécessaire » est incomplet mais pas faux."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les trois affirmations techniques (définition de ρ, temps O(n^ρ), espace O(n^(1+ρ))) sont conformes à la littérature. La borne complète d'espace est souvent O(dn + n^(1+ρ)) et celle du temps O(dn^ρ) ou O(n^ρ log n), mais O(n^ρ) et O(n^(1+ρ)) sont les formes simplifiées standard. Sur le point ρ < 1 : c'est bien une condition nécessaire (vrai), mais aussi suffisante — la caractérisation exacte est « si et seulement si », ce que l'énoncé sous-déclare sans être faux."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:17",
+      "section": "lsh-hachage-sensible",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Pour ℓ₂, E2LSH atteint ρ = 1/c², borne optimale parmi les schémas data-independent. Les familles data-dependent améliorent cette limite à ρ = 1/(2c²−1) + o(1), strictement meilleur pour tout c > 1.",
+      "original_statement": "Pour ℓ₂, E2LSH atteint ρ = 1/c², borne optimale parmi les schémas data-independent. Les familles data-dependent améliorent cette limite à ρ = 1/(2c²−1) + o(1), strictement meilleur pour tout c > 1.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Les quatre composantes sont vérifiées : (1) E2LSH/Andoni-Indyk 2006 atteint ρ = 1/c² pour ℓ₂, confirmé comme borne optimale pour les schémas data-independent par O'Donnell-Wu-Zhou 2011 (ρ ≥ 1/c² prouvé pour ℓ₂) ; (2) Andoni-Razenshteyn 2015 (arXiv 1501.01062) atteint explicitement ρ = 1/(2c²−1) avec data-dependent, présenté comme « optimal » dans l'abstract ; (3) 1/(2c²−1) < 1/c² pour tout c > 1 est un fait mathématique strict. Nuance à signaler : la borne basse tight pour les schémas data-dependent en ℓ₂ (c.-à-d. le pendant ρ ≥ 1/(2c²−1)−o(1)) est établie formellement pour ℓ₁ dans le papier SoCG 2016 (arXiv 1507.04299) ; pour ℓ₂, l'abstract de 1501.01062 revendique « optimal » mais sans preuve explicite de la borne basse data-dependent en ℓ₂ dans ces sources — l'énoncé ne l'affirme pas non plus, ce qui le préserve."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les deux composantes de l'énoncé sont exactes : E2LSH atteint ρ = 1/c² pour ℓ₂ et O'Donnell-Wu-Zhou (0912.0250) prouve que c'est optimal parmi les schémas LSH data-independent (borne inférieure 1/c² dérivée de la borne Hamming 1/c) ; Andoni-Razenshteyn (1501.01062) établit l'amélioration data-dependent à ρ = 1/(2c²−1) + o(1), strictement inférieur à 1/c² pour tout c > 1 (car 2c²−1 > c² dès c > 1)."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:18",
+      "section": "lsh-hachage-sensible",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Le locality-sensitive hashing retourne, avec haute probabilité, un voisin c-approximatif (à distance au plus c fois celle du vrai plus proche voisin, pour un facteur c > 1 fixé à la construction), et non le vrai plus proche voisin exact ; de plus, la formulation standard comporte des faux négatifs — des cas où même ce voisin approximatif n'est pas retourné.",
+      "original_statement": "Le locality-sensitive hashing garantit de retourner le vrai plus proche voisin avec haute probabilité.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "LSH résout le problème du voisin c-approximatif (c-ANN), pas le voisin exact : le facteur c > 1 est intégré à la définition même d'une fonction LSH. De plus, la version classique est de type Monte Carlo et produit des faux négatifs (arXiv 2401.08281v3 : « no formal guarantees w.r.t. nearest-neighbor recall » ; arXiv 1507.03225 confirme en montrant que CoveringLSH a été créé pour corriger exactement ce défaut de la formulation standard)."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "LSH est conçu pour le problème du voisin le plus proche *approché* (c-ANN) : il garantit de trouver un point dans un rayon c·r lorsqu'un point à distance r existe, mais pas de retourner le vrai plus proche voisin. L'énoncé confond « approximatif avec haute probabilité » et « exact avec haute probabilité » — ce sont deux propriétés fondamentalement distinctes."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Le locality-sensitive hashing garantit de retourner le vrai plus proche voisin avec haute probabilité. »"
+    },
+    {
+      "id": "claim:19",
+      "section": "garanties-theoriques",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "L'article fondateur d'HNSW (2018) ne fournit aucune preuve formelle de sa complexité O(log n) revendiquée, n'établit aucun ratio d'approximation, et présente l'algorithme comme heuristique ; sur des entrées adversariales, le temps de requête peut dégénérer en O(n).",
+      "original_statement": "L'article fondateur d'HNSW (2018) ne fournit aucune preuve formelle de sa complexité O(log n) revendiquée, n'établit aucun ratio d'approximation, et présente l'algorithme comme heuristique ; sur des entrées adversariales, le temps de requête peut dégénérer en O(n).",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Le cœur de l'énoncé est exact : pas de preuve formelle (seulement une analyse sous hypothèse idéale de Delaunay), absence de ratio d'approximation, et dégénérescence linéaire sur entrées adversariales confirmée par 2310.19126. Deux nuances mineures : (1) le mot « heuristique » dans le papier original désigne spécifiquement le sous-algorithme de sélection des voisins, pas l'ensemble du système ; (2) l'article est daté 2016 sur arxiv, 2018 pour la publication IEEE TPAMI. Ces précisions ne contredisent pas l'énoncé."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le papier HNSW (1603.09320) fonde son analyse de complexité sur l'hypothèse d'un graphe de Delaunay parfait — hypothèse non vérifiée en pratique — sans jamais constituer une preuve formelle ; il emploie explicitement le terme « heuristic » pour la sélection des voisins et n'établit aucun ratio d'approximation. Le papier Indyk & Xu (NeurIPS 2023) confirme indépendamment une dégénérescence en O(n) sur des entrées adversariales, et le papier HENN (ICLR 2025) confirme que HNSW « manque souvent de garanties théoriques sur le temps de requête » — d'où sa raison d'être. L'énoncé tient tel quel."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:20",
+      "section": "garanties-theoriques",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "HENN (2025, Dehghankar & Asudeh) fournit une analyse probabiliste de HNSW (Corollaire 3, via ε-net) montrant que si chaque couche forme un ε-net avec une certaine probabilité (condition non garantie inconditionnellement), alors HNSW atteint un temps de requête polylogarithmique — sans que le papier revendique explicitement être le « premier » à établir un tel résultat formel ; la construction HENN elle-même garantit un temps de requête polylogarithmique en pire cas, indépendamment de la distribution des données (Théorème 4).",
+      "original_statement": "HENN (2025, Dehghankar & Asudeh) établit la première borne polylogarithmique probabiliste formelle pour HNSW (Corollaire 3, via ε-net) ; la construction HENN elle-même garantit un temps de requête polylogarithmique en pire cas, indépendamment de la distribution des données (Théorème 4).",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Deux défauts disqualifient l'énoncé tel quel. (1) Le qualificatif « premier » (first) n'apparaît nulle part dans le papier HENN : ni dans les énoncés, ni dans l'introduction, ni dans le related work — le papier dit seulement « we provide a probabilistic analysis of HNSW », formulation qui ne revendique pas la priorité. (2) Le Corollaire 3 sur HNSW est conditionnel, pas une garantie inconditionnelle : il stipule que HNSW atteint un temps polylogarithmique « assuming that each layer forms an ε-net with a specific probability » — condition que le papier ne démontre pas pour des exécutions HNSW réelles. Qualifier cela de « borne formelle pour HNSW » sans cette nuance est trompeur. En revanche, Théorème 4 sur HENN (construction propre, distribution-indépendant, sans hypothèse distributionnelle) est correctement décrit dans l'énoncé."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Deux erreurs : (1) le qualificatif « premier » n'est pas revendiqué dans le papier (le texte dit « theoretical insight », pas « first bound ») ; (2) la présentation de l'énoncé suggère que Corollaire 3 et Théorème 4 sont des résultats de même niveau — or Corollaire 3 est explicitement dérivé du Théorème 4 (il apparaît après lui dans le document et l'invoque directement). Le contenu technique des deux résultats (polylogarithmique, ε-net, distribution-indépendant) est par ailleurs exact."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « HENN (2025, Dehghankar & Asudeh) établit la première borne polylogarithmique probabiliste formelle pour HNSW (Corollaire 3, via ε-net) ; la construction HENN elle-même garantit un temps de requête polylogarithmique en pire cas, indépendamment de la distribution des données (Théorème 4). »"
+    },
+    {
+      "id": "claim:21",
+      "section": "garanties-theoriques",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Trouver l'encodage optimal d'un vecteur étant donné les codebooks d'un additive quantizer (famille dont le PQ est le cas le plus simple) est NP-difficile ; residual quantization et local-search quantization sont des approximations heuristiques sans borne de distorsion en pire cas.",
+      "original_statement": "Trouver l'encodage optimal d'un vecteur étant donné les codebooks d'un additive quantizer (famille dont le PQ est le cas le plus simple) est NP-difficile ; residual quantization et local-search quantization sont des approximations heuristiques sans borne de distorsion en pire cas.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "L'énoncé tient : la NP-difficulté de l'encodage optimal dans un quantificateur additif (réduction à l'inférence sur un MRF pairwise pleinement connexe) est confirmée par plusieurs sources indépendantes dont Babenko & Lempitsky CVPR 2014 et le paper ICLR 2025 ; PQ est bien le cas structurellement contraint (codebooks orthogonaux) rendant l'encodage polynomial ; RQ et LSQ sont des heuristiques (recherche gloutonne + beam search pour RQ, recuit simulé pour LSQ) sans borne de distorsion en pire cas dans la littérature consultée. Nuance mineure : « cas le plus simple » est une formulation informelle — PQ est plus précisément un cas particulier contraint, mais cela ne contredit pas l'énoncé."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "La NP-difficulté de l'encodage optimal est confirmée explicitement et indépendamment par plusieurs papiers (Babenko & Lempitsky CVPR 2014 comme source primaire, repris par 1411.2173 et 1609.05345). PQ comme cas particulier (contraintes orthogonales sur sous-espaces) est bien établi. RQ et LSQ sont décrits comme heuristiques (glouton/recuit simulé) sans qu'aucune borne de distorsion en pire cas ne soit revendiquée dans la littérature ; l'absence de bornes est cohérente avec la NP-difficulté du problème mais n'est pas formulée comme résultat négatif explicite dans les sources consultées."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 5 sources indépendantes."
+    },
+    {
+      "id": "claim:22",
+      "section": "garanties-theoriques",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "La borne « 2·MSE(q) » en product quantization est bien une borne en espérance (sur les vecteurs de la base tirés de la distribution d'apprentissage), non une borne stricte valable paire par paire (requête × vecteur individuel). Mais deux points affaiblissent l'énoncé tel que formulé : (1) Jégou et al. (2011) eux-mêmes emploient déjà le terme « statistically bounded » — la borne n'est donc pas « souvent présentée » comme une borne supérieure stricte par les auteurs de référence ; l'accusation de mauvaise représentation concerne surtout des sources secondaires non citées. (2) L'expression « ne garantit rien sur l'erreur d'une requête individuelle » est inexacte : 2·MSE(q) borne bien l'erreur espérée pour toute requête q soumise au système, moyennée sur la base. La formulation exacte est : la borne ne garantit rien sur l'erreur d'une paire (requête, vecteur de base) spécifique, ni sur la capacité à retrouver le voisin le plus proche d'une requête précise.",
+      "original_statement": "La borne d'erreur ADC « 2·MSE(q) » du product quantization est souvent présentée comme une borne supérieure stricte sur l'erreur de distance par vecteur, alors qu'il s'agit d'une borne statistique (en espérance sur la base) : elle ne garantit rien sur l'erreur d'une requête individuelle.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "La source davidstutz.de (résumé vérifié du papier Jégou et al. TPAMI 2011) cite explicitement « statistically bounded by 2MSE(q) », ce qui contredit la prémisse selon laquelle la borne serait « souvent présentée » comme une borne stricte par vecteur. Le cœur mathématique reste vrai (borne en espérance, pas garantie paire par paire), mais l'énoncé surestime la confusion dans la littérature primaire et imprécise le sens de « requête individuelle »."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "L'énoncé tient sur le fond technique : les sources consultées confirment que la borne 2·MSE(q) est formulée comme « statistically bounded » (en espérance sur les vecteurs de la base), MSE(q) étant lui-même une moyenne sur la base — elle ne garantit donc rien sur l'erreur d'une paire (q, x) individuelle. La caractérisation « souvent présentée comme une borne stricte » n'a pas pu être confirmée dans les sources directement vérifiées (qui utilisent toutes le terme correct « statistically bounded »), mais ce biais de présentation est documenté comme confusion pratique courante ; il n'invalide pas la distinction technique centrale de l'énoncé."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « La borne d'erreur ADC « 2·MSE(q) » du product quantization est souvent présentée comme une borne supérieure stricte sur l'erreur de distance par vecteur, alors qu'il s'agit d'une borne statistique (en espérance sur la base) : elle ne garantit rien sur l'erreur d'une requête individuelle. »"
+    },
+    {
+      "id": "claim:23",
+      "section": "variantes-modernes",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "DiskANN indexe 1 milliard de vecteurs sur un nœud unique avec 64 Go de RAM et un SSD peu coûteux (type non précisé), atteignant sur SIFT1B plus de 5 000 requêtes par seconde, une latence moyenne inférieure à 3 ms et un 1-recall@1 supérieur à 95 % sur 16 cœurs, là où IVFOADC+G+P (Babenko & Lempitsky 2018, système distinct et supérieur à FAISS) plafonne à environ 50 % de 1-recall@1 au même budget mémoire selon les auteurs.",
+      "original_statement": "DiskANN indexe 1 milliard de vecteurs sur un nœud unique avec 64 Go de RAM et un SSD standard, atteignant sur SIFT1B plus de 5 000 requêtes par seconde, une latence inférieure à 3 ms et un 1-recall@1 supérieur à 95 % sur 16 cœurs, là où FAISS (IVFOADC+G+P) plafonne à environ 50 % de recall au même budget mémoire.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Les chiffres DiskANN (>5 000 QPS, &lt;3 ms latence moyenne, 95 %+ 1-recall@1, 64 Go RAM, 16 cœurs, SIFT1B) sont exacts mais auto-déclarés dans l'abstract NeurIPS 2019 — aucune réplication indépendante trouvée. L'imprecision centrale est la notation « FAISS (IVFOADC+G+P) » : le papier DiskANN cite FAISS et IVFOADC+G+P comme deux systèmes séparés, et la comparaison directe est contre IVFOADC+G+P (un algorithme distinct, explicitement meilleur que FAISS) ; les amalgamer en un seul système est incorrect."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Tous les chiffres de l'énoncé correspondent mot pour mot à l'abstract du papier NeurIPS 2019 de DiskANN, vérifié sur la page des proceedings NeurIPS et confirmé par un blog indépendant. Nuance mineure : le papier cite « FAISS and IVFOADC+G+P » comme deux baselines distinctes plafonnant à ~50 % ; l'énoncé les fusionne en « FAISS (IVFOADC+G+P) », raccourci acceptable puisque IVFOADC+G+P est implémenté via FAISS, sans erreur factuelle."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « DiskANN indexe 1 milliard de vecteurs sur un nœud unique avec 64 Go de RAM et un SSD standard, atteignant sur SIFT1B plus de 5 000 requêtes par seconde, une latence inférieure à 3 ms et un 1-recall@1 supérieur à 95 % sur 16 cœurs, là où FAISS (IVFOADC+G+P) plafonne à environ 50 % de recall au même budget mémoire. »"
+    },
+    {
+      "id": "claim:24",
+      "section": "variantes-modernes",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "RaBitQ encode un vecteur unitaire de dimension D (normalisé sur la sphère unité) en exactement D bits et garantit une borne d'erreur d'estimation du produit scalaire en O(1/√D) avec haute probabilité, à condition que le vecteur de base et le vecteur requête soient tous deux normalisés ; d'après le résultat de Alon et Klartag (FOCS 2017), qui établit des bornes inférieures sur les sketches de distances au carré entre vecteurs unitaires, cette borne est asymptotiquement optimale pour tout encodage en D bits dans ce cadre.",
+      "original_statement": "RaBitQ encode un vecteur de dimension D en exactement D bits et garantit une borne d'erreur d'estimation du produit scalaire en O(1/√D) avec haute probabilité ; d'après le résultat de Alon et Klartag (2017), cette borne est asymptotiquement optimale pour tout encodage en D bits.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Le défaut central de l'énoncé est l'omission de la condition de normalisation : le théorème 3.2 du papier RaBitQ (Lemme 3.1 inclus) est explicitement énoncé pour des vecteurs unitaires sur la sphère unité — sans cette normalisation, ni la borne O(1/√D) ni l'argument d'optimalité via Alon-Klartag ne s'appliquent. Par ailleurs, Alon et Klartag (FOCS 2017) prouvent formellement une borne inférieure sur les sketches de distances au carré (pas directement le produit scalaire) ; l'équivalence avec l'estimation du produit scalaire ne vaut que pour des vecteurs unitaires, ce qui confirme que la condition de normalisation est indissociable du résultat d'optimalité."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les trois affirmations sont confirmées : (1) RaBitQ encode bien D dimensions en D bits (projection sur le cube {±1/√D}^D) ; (2) la borne d'erreur O(1/√D) avec haute probabilité est établie formellement dans le papier original et corroborée indépendamment par arXiv:2409.09913 ; (3) la référence Alon-Klartag est bien l'article FOCS 2017 « Optimal Compression of Approximate Inner Products and Dimension Reduction » (arXiv:1610.00239), qui prouve l'optimalité asymptotique pour un encodage en D bits d'un vecteur de dimension D. Cette application est acceptée comme standard dans la littérature postérieure."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « RaBitQ encode un vecteur de dimension D en exactement D bits et garantit une borne d'erreur d'estimation du produit scalaire en O(1/√D) avec haute probabilité ; d'après le résultat de Alon et Klartag (2017), cette borne est asymptotiquement optimale pour tout encodage en D bits. »"
+    },
+    {
+      "id": "claim:25",
+      "section": "variantes-modernes",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Un déploiement FAISS documenté traite 1,5 trillion de vecteurs de dimension 144, compressés à 54 octets chacun par PCAR72 (PCA avec rotation, réduction à 72 dimensions) puis quantification scalaire 6 bits, avec un quantificateur grossier HNSW à 10 millions de centroïdes. L'index est construit en 2 000 shards intermédiaires (par id), puis restructuré en 100 index par listes inversées (chacun couvrant 100 k listes) mémoire-mappés sur une machine centrale et servis via 20 serveurs intermédiaires — non pas \"sur 2 000 shards\" au moment de la requête. Le temps de requête est d'environ 1 seconde. Le papier ne revendique pas explicitement qu'il s'agit du plus grand déploiement FAISS documenté.",
+      "original_statement": "Le plus grand déploiement FAISS documenté traite 1,5 trillion de vecteurs de dimension 144, compressés à 54 octets chacun par PCA puis quantification scalaire 6 bits, sur 2 000 shards avec un quantificateur grossier HNSW à 10 millions de centroïdes, pour un temps de requête d'environ 1 seconde.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Deux erreurs factuelles : (1) les \"2 000 shards\" décrivent la phase de construction (shard over ids), non l'architecture de service finale qui repose sur 100 index par listes sur une machine centrale servis par 20 serveurs intermédiaires ; (2) le papier ne qualifie pas lui-même ce déploiement de \"plus grand documenté\". Tous les autres chiffres (1,5T vecteurs, dim 144, 54 octets, PCAR72+SQ6, 10 M centroïdes HNSW, ~1 s) sont confirmés verbatim par la source."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Tous les chiffres de l'énoncé sont confirmés mot pour mot par la section 7.1 du papier FAISS (arXiv 2401.08281) et par la page wiki officielle FAISS sur GitHub : 1,5 trillion de vecteurs en dimension 144, compression PCAR72+SQ6 = 54 octets, 2 000 shards, quantificateur grossier HNSW à 10 M centroïdes, ~1 s par requête (régime nprobe=64 sur 20 serveurs distribués). Les deux sources émanent de la même équipe (Meta/FAIR) mais sont des documents distincts ; aucune source tierce véritablement indépendante n'a pu être identifiée, la documentation primaire restant la seule source publique de cet exemple."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « Le plus grand déploiement FAISS documenté traite 1,5 trillion de vecteurs de dimension 144, compressés à 54 octets chacun par PCA puis quantification scalaire 6 bits, sur 2 000 shards avec un quantificateur grossier HNSW à 10 millions de centroïdes, pour un temps de requête d'environ 1 seconde. »"
+    },
+    {
+      "id": "claim:26",
+      "section": "variantes-modernes",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Décrire ScaNN comme une implémentation SIMD-optimisée d'IVF-PQ n'est pas faux, c'est incomplet : ScaNN part effectivement de la recette IVF+PQ et intègre FastScan, un chemin de lookup PQ 4-bit exécuté en registres SIMD, comme contribution technique réelle. Son innovation centrale côté algorithme est l'anisotropic quantization — une fonction de perte qui pénalise les composantes d'erreur parallèles au vecteur original plus sévèrement que les composantes orthogonales, absente du PQ standard. Ces deux apports (SIMD/FastScan et anisotropic quantization) sont complémentaires, non alternatifs : présenter l'un comme une simple méconnaissance corrigée par l'autre crée une opposition factuelle fausse.",
+      "original_statement": "ScaNN est parfois décrit comme une implémentation SIMD hautement optimisée d'IVF-PQ, alors que son innovation centrale est l'anisotropic quantization — une fonction de perte distincte qui pénalise différemment les erreurs selon leur direction par rapport au vecteur original, absente du PQ standard et orthogonale à toute optimisation SIMD.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "L'énoncé a raison sur la définition technique de l'anisotropic quantization et sur son caractère absent du PQ standard. Mais il pose une fausse opposition : ScaNN utilise réellement FastScan (PQ 4-bit avec lookups en registres SIMD) comme composante distincte et documentée — la description « SIMD-optimisé IVF-PQ » est donc précise mais incomplète, pas une méconnaissance. Les deux apports sont complémentaires, non exclusifs."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le papier ICML 2020 (arXiv 1908.10396) confirme explicitement que l'innovation centrale de ScaNN est l'anisotropic vector quantization — une famille de fonctions de perte qui pénalise davantage la composante parallèle du résidu de quantification (par rapport au vecteur de données) que sa composante orthogonale, ce qui est absent du PQ standard (qui minimise une erreur de reconstruction isotrope). La description « SIMD-optimized IVF-PQ » est un raccourci réducteur documenté (notamment dans le blog Milvus et des discussions HN) : ScaNN s'appuie bien sur IVF+PQ comme socle et intègre FastScan (SIMD) pour la phase de lookup, mais ces éléments sont conceptuellement indépendants de la contribution algorithmique — la perte anisotrope opère au niveau de l'encodage, pas de l'accélération matérielle."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « ScaNN est parfois décrit comme une implémentation SIMD hautement optimisée d'IVF-PQ, alors que son innovation centrale est l'anisotropic quantization — une fonction de perte distincte qui pénalise différemment les erreurs selon leur direction par rapport au vecteur original, absente du PQ standard et orthogonale à toute optimisation SIMD. »"
+    },
+    {
+      "id": "claim:27",
+      "section": "recherche-filtree",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "La littérature des filtered ANNS décrit généralement trois paradigmes selon le moment où les contraintes de métadonnées sont appliquées — pré-filtrage (filtrage du sous-ensemble avant la recherche), post-filtrage (recherche non contrainte puis vérification a posteriori), et une troisième approche où les contraintes sont intégrées à la traversée ou à l'index — mais les terminologies et définitions divergent selon les travaux : certains parlent de « hybrid search » (Shi et al., 2025), d'autres d'« indices spécialisés pour prédicats de faible cardinalité » (ACORN, 2024). Certains papiers introduisent de surcroît une dimension orthogonale (predicate-aware vs. predicate-agnostic) qui ne s'intègre pas dans ce découpage en trois temps.",
+      "original_statement": "La littérature des filtered ANNS organise les algorithmes en trois paradigmes selon le moment où les contraintes de métadonnées sont appliquées : filter-then-search (filtrage du sous-ensemble avant toute traversée), search-then-filter (recherche non contrainte puis vérification a posteriori), et hybrid search (contraintes intégrées à la construction de l'index et à la traversée).",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "La structure en trois paradigmes existe bien, mais l'énoncé surcharge la taxonomie en présentant « hybrid search » comme le terme de la littérature alors que le papier ACORN (référence canonique du domaine) nomme cette troisième catégorie « specialized indices » avec une définition plus étroite. De plus, l'énoncé décrit le troisième paradigme comme intégrant les contraintes à la fois à la construction de l'index ET à la traversée, ce qui est une fusion imprécise des deux descriptions partielles données par les deux sources."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les deux sources confirment indépendamment la taxonomie à trois paradigmes avec des noms cohérents. La définition de « hybrid search » dans l'énoncé (contraintes intégrées à la fois à la construction de l'index et à la traversée) est une synthèse légèrement sur-spécifiée : la source 1 définit le paradigme par l'intégration dans le processus de traversée seul, la source 2 met en avant la construction d'indices spécialisés ; c'est la combinaison des deux qui caractérise les algorithmes représentatifs (FilteredDiskANN, NHQ), mais aucune source ne le formule ainsi pour le paradigme en tant que tel. Cette imprécision est mineure et ne remet pas en cause la validité globale de l'énoncé."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « La littérature des filtered ANNS organise les algorithmes en trois paradigmes selon le moment où les contraintes de métadonnées sont appliquées : filter-then-search (filtrage du sous-ensemble avant toute traversée), search-then-filter (recherche non contrainte puis vérification a posteriori), et hybrid search (contraintes intégrées à la construction de l'index et à la traversée). »"
+    },
+    {
+      "id": "claim:28",
+      "section": "recherche-filtree",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Les index HNSW avec filtrage in-traversal connaissent un effondrement du recall sous faible sélectivité parce que le sous-graphe des vecteurs qualifiants devient sparse et se fragmente en composantes déconnectées, rendant certaines composantes qualifiantes inaccessibles depuis l'entry point et provoquant un arrêt prématuré de la traversée greedy. Pour le HNSW standard (post-filtrage), le recall s'effondre par un mécanisme distinct : un efSearch insuffisant pour sur-échantillonner assez de candidats qualifiants rares.",
+      "original_statement": "Les index à base de graphe (HNSW) connaissent un effondrement du recall sous faible sélectivité parce que le sous-graphe induit par les vecteurs qualifiants se fragmente en composantes déconnectées, rendant l'entry point inaccessible à la région qualifiante et provoquant un arrêt prématuré de la traversée greedy.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Le mécanisme (fragmentation du sous-graphe qualifiant → composantes déconnectées → arrêt greedy prématuré) est réel et documenté, mais uniquement pour le filtrage in-traversal. Le HNSW standard utilise le post-filtrage, où le recall s'effondre par épuisement du budget efSearch, non par fragmentation. De plus, la direction causale de l'entry point est inversée dans l'énoncé : c'est la région qualifiante qui devient inaccessible depuis l'entry point, et non l'entry point inaccessible à la région."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "L'énoncé est exact dans sa chaîne causale centrale : sous faible sélectivité, le sous-graphe induit se fragmente (confirmé verbatim par les trois sources), il n'existe plus de chemin depuis l'entry point vers la région qualifiante (Weaviate : \"no path at all from the entry point…to the region of the search space where the results should be\"), et la traversée greedy s'arrête prématurément en convergeant sur un minimum local dans une composante déconnectée (Weaviate/SIEVE : \"early stops and low recall\"). Une nuance absente de l'énoncé : l'entry point est également mal placé géographiquement parce que les couches supérieures HNSW routent sans tenir compte du filtre — c'est un second mécanisme qui s'ajoute à la déconnexion, mais l'énoncé n'en est pas faux pour autant."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « Les index à base de graphe (HNSW) connaissent un effondrement du recall sous faible sélectivité parce que le sous-graphe induit par les vecteurs qualifiants se fragmente en composantes déconnectées, rendant l'entry point inaccessible à la région qualifiante et provoquant un arrêt prématuré de la traversée greedy. »"
+    },
+    {
+      "id": "claim:29",
+      "section": "recherche-filtree",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "En régime filtré à très faible sélectivité, IVFFlat surpasse souvent HNSW standard grâce à un mécanisme de sélection par cluster qui élimine des listes entières avant tout calcul de distance au niveau des vecteurs — les distances aux centroïdes étant néanmoins calculées en amont pour choisir les clusters à sonder. Par ailleurs, le débit de HNSW standard n'est pas insensible aux variations de sélectivité : son QPS se dégrade sensiblement à faible sélectivité ; la stabilité du débit est propre aux implémentations adaptatives spécialisées (ACORN, Qdrant), non au HNSW classique.",
+      "original_statement": "En régime filtré à très faible sélectivité, IVFFlat outperforms HNSW parce que son mécanisme d'élagage par cluster élimine des listes entières avant tout calcul de distance, tandis que le débit de HNSW reste insensible aux variations de sélectivité.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Deux erreurs mécanistiques identifiées : (1) IVFFlat calcule bien des distances aux centroïdes pour sélectionner les clusters avant d'en éliminer certains — dire \"avant tout calcul de distance\" est techniquement faux ; (2) le débit HNSW standard chute sensiblement à faible sélectivité (–50 % de QPS à 20 % de sélectivité mesuré par Weaviate/ACORN), ce qui invalide la propriété d'\"insensibilité\" attribuée universellement à HNSW."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Deux des trois sous-affirmations sont incorrectes ou surestimées : (1) le cluster pruning d'IVFFlat ne se produit pas « avant tout calcul de distance » — des distances aux centroïdes sont calculées pour sélectionner les nprobe clusters, puis les listes non sélectionnées sont ignorées ; (2) la thèse d'insensibilité du débit HNSW à la sélectivité est contredite par deux sources indépendantes (2509.07789 et 2508.16263) qui montrent que HNSW en mode post-filtrage perd du débit ou échoue à maintenir le rappel aux très faibles sélectivités, alors qu'IVFFlat reste fonctionnel — seul le premier papier (2602.11443) avance la thèse d'insensibilité de HNSW, et uniquement dans le cadre de ses propres expériences."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « En régime filtré à très faible sélectivité, IVFFlat outperforms HNSW parce que son mécanisme d'élagage par cluster élimine des listes entières avant tout calcul de distance, tandis que le débit de HNSW reste insensible aux variations de sélectivité. »"
+    },
+    {
+      "id": "claim:30",
+      "section": "recherche-filtree",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "ACORN (SIGMOD 2024) atteint 30 à 50 fois le débit des méthodes de référence à recall 0,9 sur des datasets à haute cardinalité de prédicats (HCPS, ex. TripClick et LAION-1M), grâce à l'expansion aux two-hop neighbors qui réduit probabilistiquement la fragmentation du sous-graphe de prédicats — sans garantie théorique d'élimination complète des clusters isolés (le risque de déconnexion décroît exponentiellement avec le facteur γ, mais n'est pas nul).",
+      "original_statement": "ACORN (SIGMOD 2024) atteint plus de 30 fois le débit des méthodes de référence à recall 0,9 sur des datasets à haute cardinalité d'étiquettes, grâce à l'expansion aux two-hop neighbors qui ponts les clusters isolés du sous-graphe de prédicats.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le gain \">30×\" à recall 0,9 sur HCPS est confirmé (fourchette réelle : 30–50× pour TripClick/LAION-1M). En revanche, \"qui ponts les clusters isolés\" est inexact : le papier reconnaît explicitement l'absence de garantie théorique de connectivité et décrit un risque de déconnexion résiduel qui décroît probabilistiquement avec γ — l'expansion two-hop prévient la fragmentation sans l'éliminer, et son application est search-time pour ACORN-1, build-time pour ACORN-γ."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Les chiffres de performance (30–50× QPS à recall 0,9 sur datasets HCPS) et le lieu de publication (SIGMOD 2024) sont confirmés. En revanche, la description causale est inexacte : l'expansion à deux sauts ne \"ponte pas les clusters isolés du sous-graphe de prédicats\" — ce cas (sous-graphe réellement déconnecté) déclenche un repli sur le pré-filtrage ; la recherche à deux sauts sert à maintenir des chemins de traversée dans un graphe sparse (ACORN-1) ou à récupérer des arêtes compressées à la construction (ACORN-γ)."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « ACORN (SIGMOD 2024) atteint plus de 30 fois le débit des méthodes de référence à recall 0,9 sur des datasets à haute cardinalité d'étiquettes, grâce à l'expansion aux two-hop neighbors qui ponts les clusters isolés du sous-graphe de prédicats. »"
+    },
+    {
+      "id": "claim:31",
+      "section": "deploiements-production",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Sur le benchmark SIFT1B (un milliard de descripteurs SIFT), FAISS est 8,5× plus rapide que le précédent état de l'art GPU (comparaison GPU-contre-GPU, Wieschollek et al.) ; aucun facteur 8,5× n'est directement attribué à Deep1B dans le papier primaire. Les expériences publiées utilisent des GPU Maxwell (Titan X), pas Pascal ; l'accélération GPU typique par rapport au CPU est de 5–10× selon la documentation officielle, et le chiffre de 20× pour le P100 Pascal n'apparaît que dans un billet de blog, pas dans la publication de référence.",
+      "original_statement": "Sur le benchmark Deep1B (un milliard de descripteurs CNN), FAISS est 8,5× plus rapide que l'état de l'art précédent, et une implémentation GPU sur architecture Pascal atteint jusqu'à 20× les performances CPU.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Le papier primaire (§6.4) attribue explicitement le facteur 8,5× au benchmark SIFT1B dans une comparaison GPU-contre-GPU, et non à Deep1B ; Deep1B est traité séparément sans ce chiffre. Le facteur 20× GPU-vs-CPU pour Pascal P100 est absent du papier (dont les expériences utilisent des Maxwell Titan X) et ne figure que dans un billet de blog promotionnel, en contradiction avec les 5–10× annoncés dans la documentation technique officielle."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Le chiffre de 8,5× est confirmé mot pour mot par le blog Meta. En revanche, la source dit « pushes this to 20x+ » pour les GPU Pascal (performance supérieure à 20×), alors que l'énoncé dit « jusqu'à 20× » (plafond à 20×) — ce qui inverse le sens. Seul le blog Meta a pu être vérifié comme source primaire indépendante ; le papier arXiv 1702.08734 est du même groupe de recherche Facebook et ne constitue pas une source indépendante."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Sur le benchmark Deep1B (un milliard de descripteurs CNN), FAISS est 8,5× plus rapide que l'état de l'art précédent, et une implémentation GPU sur architecture Pascal atteint jusqu'à 20× les performances CPU. »"
+    },
+    {
+      "id": "claim:32",
+      "section": "deploiements-production",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Voyager (Spotify, 2023) livre plus de 10× le débit d'Annoy à recall équivalent et consomme jusqu'à 4× moins de mémoire grâce au format flottant E4M3 8 bits.",
+      "original_statement": "Voyager (Spotify, 2023) livre plus de 10× le débit d'Annoy à recall équivalent et consomme 4× moins de mémoire grâce au format flottant E4M3 8 bits.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le chiffre mémoire est « up to 4× » (plafond, meilleur cas) dans la source primaire Spotify ; l'énoncé l'écrit comme ratio fixe en supprimant le qualificateur. Les deux ratios (10× débit, 4× mémoire) sont auto-déclarés par Spotify — aucun benchmark tiers indépendant ne les a reproduits (Ann-Benchmarks a reçu la soumission mais ne l'a pas exécutée)."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 0,
+          "note": "La source primaire (blog Spotify Engineering, oct. 2023) dit « more than 10× the speed of Annoy at the same recall » (fidèlement repris) et « up to 4 times less memory usage than Annoy » — le qualificatif « up to » est absent de l'énoncé, ce qui transforme un maximum constaté en affirmation absolue. Par ailleurs, ann-benchmarks.com ne référence pas Voyager et aucune source tierce n'a conduit ses propres benchmarks : toutes les publications secondaires (InfoQ, sefiks.com, Zilliz) citent uniquement le billet Spotify sans mesures indépendantes."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « Voyager (Spotify, 2023) livre plus de 10× le débit d'Annoy à recall équivalent et consomme 4× moins de mémoire grâce au format flottant E4M3 8 bits. »"
+    },
+    {
+      "id": "claim:33",
+      "section": "deploiements-production",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "ScaNN traiterait « environ deux fois plus de requêtes par seconde » que la bibliothèque la plus rapide suivante à recall égal — mais cette affirmation, issue du billet d'annonce Google de 2020 sur GloVe-100, n'est plus reprise dans le README actuel du dépôt, qui se contente de revendiquer « state-of-the-art performance ».",
+      "original_statement": "ScaNN traiterait « environ deux fois plus de requêtes par seconde » que la bibliothèque la plus rapide suivante à recall égal — mais cette affirmation, issue du billet d'annonce Google de 2020 sur GloVe-100, n'est plus reprise dans le README actuel du dépôt, qui se contente de revendiquer « state-of-the-art performance ».",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Le billet du 28 juillet 2020 dit textuellement « roughly twice as many queries per second for a given accuracy as the next-fastest library » sur glove-100-angular, ce qui correspond exactement à « environ deux fois… à recall égal ». Le README actuel ne contient effectivement plus aucun chiffre multiplicatif : il écrit seulement « ScaNN achieves state-of-the-art performance on ann-benchmarks.com as shown on the glove-100-angular dataset below » et renvoie à un plot — sans répéter le facteur ×2 en texte. Tentatives de réfutation infructueuses : la formulation « GloVe-100 » est une légère approximation (le nom complet est glove-100-angular), et le README inclut un graphique de comparaison dont on ne peut exclure qu'il suggère visuellement l'avantage ; mais ces nuances ne renversent pas l'énoncé."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le billet d'annonce Google contient mot pour mot « handling roughly twice as many queries per second for a given accuracy as the next-fastest library » sur le benchmark glove-100-angular, ce qui correspond à « environ deux fois plus de requêtes par seconde à recall égal ». Le README actuel se limite à « ScaNN achieves state-of-the-art performance on ann-benchmarks.com » sans aucune comparaison quantifiée — confirmant la seconde partie de l'énoncé."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:34",
+      "section": "deploiements-production",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Sur un corpus de ≈ 58 600 embeddings de 1 536 dimensions dans PostgreSQL (pgvector 0.5.0, instance db.r5.large), l'index HNSW ramène la latence de 650 ms (scan séquentiel) à 1,5 ms, contre 2,4 ms pour IVFFlat.",
+      "original_statement": "Sur un corpus de ≈ 58 600 embeddings de 1 536 dimensions dans PostgreSQL (pgvector 0.5.0, instance db.r5.large), l'index HNSW ramène la latence de 650 ms (scan séquentiel) à 1,5 ms, contre 2,4 ms pour IVFFlat.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Tous les chiffres (58 634 documents, 1 536 dims, db.r5.large, pgvector 0.5.0, 650 ms scan séquentiel, 1,5 ms HNSW, 2,4 ms IVFFlat) sont exactement reproduits depuis le benchmark AWS vérifié. Bémol de réfutation : les valeurs précises proviennent d'une seule expérience (benchmark AWS) sans réplication indépendante de ce setup exact ; la hiérarchie qualitative HNSW < IVFFlat < scan séquentiel sur des embeddings 1 536 dimensions est en revanche corroborée par plusieurs sources indépendantes."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Tous les chiffres de l'énoncé (58 634 vecteurs, 1 536 dims, db.r5.large, pgvector 0.5.0, 650 ms / 1,5 ms / 2,4 ms) sont confirmés mot pour mot par le billet AWS, qui est la source primaire unique de ce benchmark spécifique — aucune autre étude n'a reproduit ces mesures dans les mêmes conditions. Les sources Supabase et Google Cloud, indépendantes entre elles et de l'AWS, confirment la hiérarchie générale (HNSW > IVFFlat ≫ seq scan sur des embeddings 1 536 dims avec pgvector 0.5.0) mais sur des corpus et des matériels différents, ce qui ne valide pas les valeurs exactes en millisecondes."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    }
+  ]
+}

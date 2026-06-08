@@ -1,0 +1,654 @@
+{
+  "edition": "monographie",
+  "slug": "approximate-nearest-neighbor",
+  "meta": {
+    "title": "Approximate Nearest Neighbor search — HNSW, IVF, PQ et la recherche vectorielle à grande échelle",
+    "kicker": "Recherche vectorielle approchée · monographie",
+    "h1": "Approximate Nearest Neighbor search — HNSW, IVF, PQ et la recherche vectorielle à grande échelle",
+    "lede": "Échanger un peu de recall@k contre des ordres de grandeur de latence et de mémoire : comment IVF, Product Quantization et HNSW dominent la recherche de plus proches voisins à l'échelle du milliard — et où leurs garanties s'arrêtent vraiment.",
+    "meta_chips": [
+      "Monographie"
+    ],
+    "footer": "Approximate Nearest Neighbor search — HNSW, IVF, PQ et la recherche vectorielle à grande échelle · scriptorium"
+  },
+  "elements": [
+    {
+      "type": "abstract"
+    },
+    {
+      "type": "section",
+      "id": "pourquoi-ann",
+      "heading": "Pourquoi l'approximation : le compromis recall / vitesse",
+      "level": 3,
+      "prose": "<p>La recherche exacte du plus proche voisin dans une collection de N vecteurs de dimension d exige de calculer la distance entre chaque query (requête) et les N points du corpus : une complexité O(N·d) par query. À l'échelle d'un million de text embeddings de 1 536 dimensions — format courant des modèles récents — chaque query mobilise environ 1,5 milliard d'opérations flottantes, représentant plusieurs centaines de millisecondes sur CPU moderne. L'approximate nearest neighbor (ANN) search (recherche approximative de plus proches voisins) répond à cette contrainte en renonçant à la garantie d'exactitude : au lieu des k voisins exacts, elle retourne les k candidats les plus vraisemblables en un temps sous-linéaire. Le coût de ce compromis se mesure par le recall (rappel), formalisé comme recall@k(q) = |ANN<sub>k</sub>(q) ∩ GT<sub>k</sub>(q)| / k : la fraction des vrais top-k voisins effectivement retrouvés parmi les k résultats approchés. Un recall de 0,95 signifie que l'index manque en moyenne un vrai voisin sur vingt. En pratique, les index ANN modernes atteignent des recall de 0,95 à 0,99 avec des latences de 1 à 10 ms, soit des gains d'un facteur 10 à 100 face au brute-force search.</p>\n\n<p>Trois familles d'index dominent aujourd'hui ce paysage. L'<strong>Inverted File (IVF)</strong>, dont le principe remonte aux travaux de Sivic et Zisserman sur la recherche visuelle (ICCV 2003) et qui a été généralisé par FAISS, partitionne l'espace vectoriel en cellules de Voronoi par k-means (<em>nlist</em> cellules). À la query, seules les <em>nprobe</em> cellules les plus proches du vecteur requête sont fouillées : augmenter nprobe améliore le recall et dégrade la vitesse de façon prévisible et continue. L'<strong>Hierarchical Navigable Small World (HNSW)</strong>, formalisé par Malkov et Yashunin (<em>IEEE TPAMI</em>, 2018), organise les vecteurs en un graphe multicouche dont les couches supérieures offrent des raccourcis longue distance inspirés de la théorie des graphes navigables de Kleinberg ; la couche inférieure assure la précision locale. La recherche procède par descente greedy de couche en couche, pour une complexité O(log N). Sur SIFT1M (un million de vecteurs 128D), Weaviate mesure un recall@10 de 98,35 % à 10 940 queries par seconde et 1,44 ms de latence médiane. Le <strong>Product Quantization (PQ)</strong>, décrit par Jégou, Douze et Schmid (<em>IEEE TPAMI</em>, 2011) et validé sur un milliard de vecteurs, emprunte une direction orthogonale : il réduit l'empreinte mémoire en découpant chaque vecteur en <em>m</em> sous-vecteurs de dimension d/<em>m</em>, chacun quantifié indépendamment sur k* = 256 centroïdes (8 bits par sous-vecteur). Pour un vecteur float32 de 128 dimensions (512 octets), PQ avec <em>m</em> = 8 produit un code de 8 octets — compression ×64. FAISS combine les deux approches dans IndexIVFPQ : les vecteurs sont d'abord affectés à leur cellule IVF, puis le résidu (vecteur − centroïde de cellule) est encodé en PQ, réduisant à la fois la portée de recherche et l'empreinte mémoire.</p>\n\n<p>Le tableau de bord pratique qui en découle suit des critères opérationnels clairs. <strong>IVF</strong> est favorisé sur les données naturellement clusterisées et les déploiements GPU : FAISS avec CUDA exploite le parallélisme massif pour fouiller les <em>nlist</em> clusters, et NVIDIA cuVS (ex-RAFT CAGRA) y ajoute un index de graphe GPU-natif qui dépasse le CPU-HNSW en throughput (débit) pur. <strong>HNSW</strong> s'impose quand le recall élevé est non négociable — moteurs de recherche sémantique, retrieval-augmented generation (RAG), systèmes de recommandation — mais consomme une mémoire en O(N·M) (chaque nœud conserve jusqu'à M connexions par couche) et requiert un temps de construction en O(N log N). <strong>IVF-PQ</strong> est le choix des environnements contraints en mémoire ou à très grande échelle (milliards de vecteurs) : la compression ×64 permet de tenir des index massifs en RAM, au prix d'une double approximation (quantification de centroïde + quantification PQ). ANN-Benchmarks (ann-benchmarks.com) fournit la référence standardisée pour situer tout algorithme sur la courbe recall-vs-throughput : 37 implémentations évaluées sur neuf jeux de données incluant SIFT-128D (euclidien), GloVe-100D (cosinus) et GIST-960D.</p><figure class='fig'><svg viewBox='0 0 760 470' role='img' aria-label='Front de Pareto recall@k en fonction du débit QPS en échelle logarithmique : point brute-force et courbes paramétrées HNSW, IVF et IVF-PQ'><title>Front de Pareto recall / débit des index ANN</title><g stroke='var(--line,#D7DFE9)' stroke-width='1'><line x1='95' y1='50' x2='695' y2='50'/><line x1='95' y1='157' x2='695' y2='157'/><line x1='95' y1='263' x2='695' y2='263'/><line x1='95' y1='370' x2='695' y2='370'/></g><g stroke='var(--line-soft,#E7ECF3)' stroke-width='1'><line x1='295' y1='50' x2='295' y2='370'/><line x1='495' y1='50' x2='495' y2='370'/><line x1='695' y1='50' x2='695' y2='370'/></g><line x1='95' y1='50' x2='95' y2='370' stroke='var(--ink-faint,#7A889B)' stroke-width='1.5'/><line x1='95' y1='370' x2='695' y2='370' stroke='var(--ink-faint,#7A889B)' stroke-width='1.5'/><polyline points='130,50 318,55 426,60 476,64 522,70 569,98 611,157 651,349' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1.5' stroke-dasharray='5 4' opacity='0.75'/><text x='210' y='90' font-size='11' font-style='italic' fill='var(--ink-faint,#7A889B)'>front de Pareto global</text><polyline points='426,130 476,141 524,167 571,210 611,263 651,349' fill='none' stroke='var(--ink-soft,#43536A)' stroke-width='2'/><g fill='var(--ink-soft,#43536A)'><circle cx='426' cy='130' r='3'/><circle cx='476' cy='141' r='3'/><circle cx='524' cy='167' r='3'/><circle cx='571' cy='210' r='3'/><circle cx='611' cy='263' r='3'/><circle cx='651' cy='349' r='3'/></g><polyline points='318,55 378,66 435,87 486,125 536,178 590,285' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='2'/><g fill='var(--bordeaux,#7C2A38)'><circle cx='318' cy='55' r='3'/><circle cx='378' cy='66' r='3'/><circle cx='435' cy='87' r='3'/><circle cx='486' cy='125' r='3'/><circle cx='536' cy='178' r='3'/><circle cx='590' cy='285' r='3'/></g><polyline points='426,60 476,64 522,70 569,98 611,157' fill='none' stroke='var(--blue,#23537F)' stroke-width='2'/><g fill='var(--blue,#23537F)'><circle cx='426' cy='60' r='3'/><circle cx='476' cy='64' r='3'/><circle cx='522' cy='70' r='3'/><circle cx='569' cy='98' r='3'/><circle cx='611' cy='157' r='3'/></g><polygon points='130,43 137,50 130,57 123,50' fill='var(--ink,#15202E)'/><text x='141' y='46' font-size='11' fill='var(--ink,#15202E)'>brute-force</text><text x='141' y='59' font-size='10' fill='var(--ink-faint,#7A889B)'>recall 1,0</text><text x='690' y='58' font-size='11' text-anchor='end' fill='var(--ink-faint,#7A889B)'>↗ idéal inatteignable</text><text x='235' y='232' font-size='11' fill='var(--ink-soft,#43536A)'>↖ gagner du recall coûte du débit</text><g font-size='11' fill='var(--ink-faint,#7A889B)' text-anchor='middle'><text x='95' y='388'>10²</text><text x='295' y='388'>10³</text><text x='495' y='388'>10⁴</text><text x='695' y='388'>10⁵</text></g><g font-size='11' fill='var(--ink-faint,#7A889B)' text-anchor='end'><text x='88' y='54'>1,00</text><text x='88' y='161'>0,90</text><text x='88' y='267'>0,80</text><text x='88' y='374'>0,70</text></g><text x='395' y='410' font-size='12' text-anchor='middle' fill='var(--ink,#15202E)'>Débit — QPS (échelle log)</text><text x='28' y='210' font-size='12' text-anchor='middle' fill='var(--ink,#15202E)' transform='rotate(-90 28 210)'>recall@k</text><rect x='108' y='250' width='196' height='112' rx='6' fill='var(--card,#FFFFFF)' stroke='var(--line,#D7DFE9)'/><text x='120' y='270' font-size='11' font-weight='bold' fill='var(--ink,#15202E)'>Méthodes</text><polygon points='128,286 134,290 128,294 122,290' fill='var(--ink,#15202E)'/><text x='150' y='293' font-size='11' fill='var(--ink-soft,#43536A)'>brute-force (exact)</text><line x1='120' y1='310' x2='140' y2='310' stroke='var(--blue,#23537F)' stroke-width='2'/><circle cx='130' cy='310' r='3' fill='var(--blue,#23537F)'/><text x='150' y='313' font-size='11' fill='var(--ink-soft,#43536A)'>HNSW — efSearch</text><line x1='120' y1='330' x2='140' y2='330' stroke='var(--bordeaux,#7C2A38)' stroke-width='2'/><circle cx='130' cy='330' r='3' fill='var(--bordeaux,#7C2A38)'/><text x='150' y='333' font-size='11' fill='var(--ink-soft,#43536A)'>IVF — nprobe</text><line x1='120' y1='350' x2='140' y2='350' stroke='var(--ink-soft,#43536A)' stroke-width='2'/><circle cx='130' cy='350' r='3' fill='var(--ink-soft,#43536A)'/><text x='150' y='353' font-size='11' fill='var(--ink-soft,#43536A)'>IVF-PQ — nprobe</text></svg><figcaption><span class='fcap-k'></span>Front de Pareto recall@k contre débit (QPS, échelle log) : le brute-force tient un recall de 1,0 à faible débit, tandis que HNSW (efSearch), IVF et IVF-PQ (nprobe) glissent chacun le long du compromis — aucune méthode ne domine sur toute la plage.</figcaption></figure>",
+      "claims": [
+        "claim:1",
+        "claim:2",
+        "claim:3",
+        "claim:4"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "ivf-fichier-inverse",
+      "heading": "IVF : partitionner l'espace en cellules de Voronoi",
+      "level": 3,
+      "prose": "<p>L'<em>inverted file</em> (fichier inversé) au cœur de l'IVF tire sa généalogie du text retrieval. Dans « Video Google » (ICCV 2003, p. 1470–1477), Sivic &amp; Zisserman transposent l'index inversé de la recherche documentaire à la recherche visuelle : les descripteurs d'image — des régions affines invariantes de type SIFT — sont quantifiés par k-means en un vocabulaire fini de <em>visual words</em> (mots visuels). Chaque visual word reçoit une <em>posting list</em> (liste d'occurrences) répertoriant les images dans lesquelles il apparaît. La requête consiste à retrouver les visual words d'une région d'intérêt dessinée par l'utilisateur, puis à classer les plans vidéo par TF-IDF comme Google classe des documents — d'où le titre de l'article. C'est cette architecture — vocabulaire discret, index inversé, scoring documentaire — que les bibliothèques ANN modernes généralisent au cas de vecteurs denses en virgule flottante.</p>\n\n<p>Dans FAISS et ses dérivés, l'index IVF fonctionne en deux phases. À la construction, un k-means est entraîné sur un échantillon de la collection pour produire <code>nlist</code> centroïdes ; chaque centroïde définit la cellule de Voronoi qui lui est associée — l'ensemble des vecteurs de la collection plus proches de lui que de tout autre centroïde. Chaque cellule maintient une posting list des identifiants (et, en mode lossless, des vecteurs complets) qui lui sont affectés. Le résultat est un <em>coarse quantizer</em> (quantificateur grossier) : n vecteurs répartis en <code>nlist</code> cellules de taille moyenne n/<code>nlist</code>. La qualité du coarse quantizer est conditionnée par la représentativité des données d'entraînement ; sur des distributions non sphériques ou multimodales, un k-means global peut produire des cellules très déséquilibrées.</p>\n\n<p>À la requête, le vecteur est comparé aux <code>nlist</code> centroïdes — opération bon marché car <code>nlist</code> ≪ n — et les <code>nprobe</code> centroïdes les plus proches sont identifiés. Seules les posting lists correspondantes sont fouillées ; les candidats collectés sont réordonnés par distance exacte. <code>nprobe</code> est l'unique paramètre de latence réglable après construction : <code>nprobe</code> = 1 maximise la vitesse au prix du recall le plus bas ; <code>nprobe</code> = <code>nlist</code> retrouve la recherche exhaustive exacte. La courbe nprobe → recall est monotone et concave — les premiers probes apportent le plus grand gain de recall, les suivants des gains décroissants.</p>\n\n<p>Sur 14 504 embeddings de phrases avec <code>nlist</code> = 50, le tutoriel FAISS de Pinecone mesure les latences wall-clock suivantes : IndexFlatL2 (recherche exhaustive) = 28,9 ms ; IndexIVFFlat à <code>nprobe</code> = 1 = 2,15 ms (gain ×13) ; à <code>nprobe</code> = 10 = 1,54 ms. Ce dernier chiffre est contre-intuitif — explorer dix cellules est plus rapide qu'une seule — et s'explique par l'amortissement SIMD sur un buffer de candidats plus large ; il illustre que sur de petites collections la vectorisation matérielle peut dominer le coût de comparaison brut. Combiner IVF avec Product Quantization (IndexIVFPQ), qui encode le <em>residual</em> (résidu vectoriel) de chaque vecteur après affectation cellulaire, ramène la latence à 1,33 ms, au prix d'une légère perte de recall.</p>",
+      "claims": [
+        "claim:5",
+        "claim:6",
+        "claim:7",
+        "claim:8"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-ivf-voronoi-nprobe"
+    },
+    {
+      "type": "section",
+      "id": "pq-quantification-produit",
+      "heading": "Product Quantization : compresser les vecteurs en codes courts",
+      "level": 3,
+      "prose": "<p>Product Quantization (quantification produit), introduite par Hervé Jégou, Matthijs Douze et Cordelia Schmid dans un article fondateur publié à l'IEEE TPAMI en 2011 et validée sur le benchmark BIGANN d'un milliard de vecteurs, répond à une contrainte fondamentale : maintenir des millions de vecteurs denses en mémoire centrale tout en préservant la qualité de la recherche approximative. L'idée centrale est de décomposer chaque vecteur de dimension D en m sous-vecteurs de dimension D/m et de quantifier chacun indépendamment à l'aide d'un codebook (dictionnaire de centroïdes) appris par k-means. Les m sous-espaces étant traités séparément, la taille combinée du vocabulaire atteint (k*)^m sans jamais avoir à énumérer ou stocker ce produit cartésien : seul l'identifiant du centroïde gagnant dans chaque sous-espace est conservé, produisant un code compact de m·log₂(k*) bits par vecteur.</p>\n\n<p>L'impact sur la compression est spectaculaire. Un vecteur SIFT de 128 dimensions stocké en float32 occupe 512 octets ; avec m = 8 sous-espaces et k* = 256 centroïdes — le choix standard, encodant chaque sous-espace sur 8 bits — le code PQ tient en 8 × 8 = 64 bits, soit 8 octets, soit un facteur de compression ×64. Les m codebooks sont entraînés une seule fois sur un échantillon représentatif de la collection, en répartissant les dimensions entre sous-espaces de façon à minimiser l'erreur de reconstruction totale. À l'indexation, chaque vecteur est remplacé par ses m identifiants de centroïdes et le vecteur original peut être libéré de la mémoire.</p><figure class='fig'><svg viewBox='0 0 760 470' role='img' aria-label='Schéma de la quantification produit : un vecteur de 128 dimensions (512 octets) découpé en 8 sous-vecteurs, chacun quantifié vers le centroïde gagnant dans son codebook de 256 entrées ; les 8 identifiants de 1 octet forment un code de 8 octets, soit une compression ×64.'><title>Quantification produit : décomposition d un vecteur en m = 8 sous-codes</title><defs><marker id='pqArrowHead' viewBox='0 0 10 10' refX='8' refY='5' markerWidth='7' markerHeight='7' orient='auto'><path d='M0,0 L10,5 L0,10 z' fill='var(--ink-faint,#7A889B)'/></marker><marker id='pqArrowWin' viewBox='0 0 10 10' refX='8' refY='5' markerWidth='7' markerHeight='7' orient='auto'><path d='M0,0 L10,5 L0,10 z' fill='var(--bordeaux,#7C2A38)'/></marker></defs><text x='380' y='34' text-anchor='middle' font-size='13' fill='var(--ink,#15202E)'>Vecteur <tspan font-style='italic'>x</tspan> : D = 128 dimensions, float32  <tspan font-weight='700' fill='var(--blue,#23537F)'>512 octets</tspan></text><rect x='24' y='48' width='712' height='36' rx='4' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.5'/><line x1='113' y1='48' x2='113' y2='84' stroke='var(--blue,#23537F)' stroke-width='1' opacity='0.55'/><line x1='202' y1='48' x2='202' y2='84' stroke='var(--blue,#23537F)' stroke-width='1' opacity='0.55'/><line x1='291' y1='48' x2='291' y2='84' stroke='var(--blue,#23537F)' stroke-width='1' opacity='0.55'/><line x1='380' y1='48' x2='380' y2='84' stroke='var(--blue,#23537F)' stroke-width='1' opacity='0.55'/><line x1='469' y1='48' x2='469' y2='84' stroke='var(--blue,#23537F)' stroke-width='1' opacity='0.55'/><line x1='558' y1='48' x2='558' y2='84' stroke='var(--blue,#23537F)' stroke-width='1' opacity='0.55'/><line x1='647' y1='48' x2='647' y2='84' stroke='var(--blue,#23537F)' stroke-width='1' opacity='0.55'/><text x='68.5' y='71' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)'>x₁</text><text x='157.5' y='71' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)'>x₂</text><text x='246.5' y='71' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)'>x₃</text><text x='335.5' y='71' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)'>x₄</text><text x='424.5' y='71' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)'>x₅</text><text x='513.5' y='71' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)'>x₆</text><text x='602.5' y='71' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)'>x₇</text><text x='691.5' y='71' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)'>x₈</text><text x='380' y='102' text-anchor='middle' font-size='11' font-style='italic' fill='var(--ink-soft,#43536A)'>découpage vertical en m = 8 sous-vecteurs de D/m = 16 dimensions</text><line x1='68.5' y1='110' x2='68.5' y2='130' stroke='var(--ink-faint,#7A889B)' stroke-width='1.4' marker-end='url(#pqArrowHead)'/><line x1='157.5' y1='110' x2='157.5' y2='130' stroke='var(--ink-faint,#7A889B)' stroke-width='1.4' marker-end='url(#pqArrowHead)'/><line x1='246.5' y1='110' x2='246.5' y2='130' stroke='var(--ink-faint,#7A889B)' stroke-width='1.4' marker-end='url(#pqArrowHead)'/><line x1='335.5' y1='110' x2='335.5' y2='130' stroke='var(--ink-faint,#7A889B)' stroke-width='1.4' marker-end='url(#pqArrowHead)'/><line x1='424.5' y1='110' x2='424.5' y2='130' stroke='var(--ink-faint,#7A889B)' stroke-width='1.4' marker-end='url(#pqArrowHead)'/><line x1='513.5' y1='110' x2='513.5' y2='130' stroke='var(--ink-faint,#7A889B)' stroke-width='1.4' marker-end='url(#pqArrowHead)'/><line x1='602.5' y1='110' x2='602.5' y2='130' stroke='var(--ink-faint,#7A889B)' stroke-width='1.4' marker-end='url(#pqArrowHead)'/><line x1='691.5' y1='110' x2='691.5' y2='130' stroke='var(--ink-faint,#7A889B)' stroke-width='1.4' marker-end='url(#pqArrowHead)'/><text x='380' y='150' text-anchor='middle' font-size='11' font-style='italic' fill='var(--ink-soft,#43536A)'>8 codebooks (un par sous-espace) : k* = 256 centroïdes ; l’argmin retient le gagnant</text><rect x='34.5' y='158' width='68' height='134' rx='4' fill='var(--card,#FFFFFF)' stroke='var(--line,#D7DFE9)' stroke-width='1.2'/><text x='68.5' y='174' text-anchor='middle' font-size='11' font-weight='700' fill='var(--ink-soft,#43536A)'>C₁</text><rect x='40.5' y='180' width='56' height='14' rx='2' fill='none' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><rect x='40.5' y='198' width='56' height='14' rx='2' fill='var(--bordeaux-wash,#F3E3E6)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2'/><text x='68.5' y='209' text-anchor='middle' font-size='10' font-weight='700' fill='var(--bordeaux,#7C2A38)'>#37</text><rect x='40.5' y='216' width='56' height='14' rx='2' fill='none' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><rect x='40.5' y='234' width='56' height='14' rx='2' fill='none' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><text x='68.5' y='262' text-anchor='middle' font-size='12' fill='var(--ink-faint,#7A889B)'>⋮</text><text x='68.5' y='283' text-anchor='middle' font-size='9' fill='var(--ink-faint,#7A889B)'>256 entrées</text><rect x='123.5' y='158' width='68' height='134' rx='4' fill='var(--card,#FFFFFF)' stroke='var(--line,#D7DFE9)' stroke-width='1.2'/><text x='157.5' y='174' text-anchor='middle' font-size='11' font-weight='700' fill='var(--ink-soft,#43536A)'>C₂</text><rect x='129.5' y='180' width='56' height='14' rx='2' fill='none' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><rect x='129.5' y='198' width='56' height='14' rx='2' fill='none' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><rect x='129.5' y='216' width='56' height='14' rx='2' fill='var(--bordeaux-wash,#F3E3E6)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2'/><text x='157.5' y='227' text-anchor='middle' font-size='10' font-weight='700' fill='var(--bordeaux,#7C2A38)'>#214</text><rect x='129.5' y='234' width='56' height='14' rx='2' fill='none' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><text x='157.5' y='262' text-anchor='middle' font-size='12' fill='var(--ink-faint,#7A889B)'>⋮</text><text x='157.5' y='283' text-anchor='middle' font-size='9' fill='var(--ink-faint,#7A889B)'>256 entrées</text><rect x='212.5' y='158' width='68' height='134' rx='4' fill='var(--card,#FFFFFF)' stroke='var(--line,#D7DFE9)' stroke-width='1.2'/><text x='246.5' y='174' text-anchor='middle' font-size='11' font-weight='700' fill='var(--ink-soft,#43536A)'>C₃</text><rect x='218.5' y='180' width='56' height='14' rx='2' fill='none' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><rect x='218.5' y='198' width='56' height='14' rx='2' fill='var(--bordeaux-wash,#F3E3E6)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2'/><text x='246.5' y='209' text-anchor='middle' font-size='10' font-weight='700' fill='var(--bordeaux,#7C2A38)'>#5</text><rect x='218.5' y='216' width='56' height='14' rx='2' fill='none' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><rect x='218.5' y='234' width='56' height='14' rx='2' fill='none' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><text x='246.5' y='262' text-anchor='middle' font-size='12' fill='var(--ink-faint,#7A889B)'>⋮</text><text x='246.5' y='283' text-anchor='middle' font-size='9' fill='var(--ink-faint,#7A889B)'>256 entrées</text><rect x='301.5' y='158' width='68' height='134' rx='4' fill='var(--card,#FFFFFF)' stroke='var(--line,#D7DFE9)' stroke-width='1.2'/><text x='335.5' y='174' text-anchor='middle' font-size='11' font-weight='700' fill='var(--ink-soft,#43536A)'>C₄</text><rect x='307.5' y='180' width='56' height='14' rx='2' fill='none' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><rect x='307.5' y='198' width='56' height='14' rx='2' fill='none' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><rect x='307.5' y='216' width='56' height='14' rx='2' fill='var(--bordeaux-wash,#F3E3E6)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2'/><text x='335.5' y='227' text-anchor='middle' font-size='10' font-weight='700' fill='var(--bordeaux,#7C2A38)'>#198</text><rect x='307.5' y='234' width='56' height='14' rx='2' fill='none' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><text x='335.5' y='262' text-anchor='middle' font-size='12' fill='var(--ink-faint,#7A889B)'>⋮</text><text x='335.5' y='283' text-anchor='middle' font-size='9' fill='var(--ink-faint,#7A889B)'>256 entrées</text><rect x='390.5' y='158' width='68' height='134' rx='4' fill='var(--card,#FFFFFF)' stroke='var(--line,#D7DFE9)' stroke-width='1.2'/><text x='424.5' y='174' text-anchor='middle' font-size='11' font-weight='700' fill='var(--ink-soft,#43536A)'>C₅</text><rect x='396.5' y='180' width='56' height='14' rx='2' fill='none' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><rect x='396.5' y='198' width='56' height='14' rx='2' fill='none' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><rect x='396.5' y='216' width='56' height='14' rx='2' fill='var(--bordeaux-wash,#F3E3E6)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2'/><text x='424.5' y='227' text-anchor='middle' font-size='10' font-weight='700' fill='var(--bordeaux,#7C2A38)'>#142</text><rect x='396.5' y='234' width='56' height='14' rx='2' fill='none' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><text x='424.5' y='262' text-anchor='middle' font-size='12' fill='var(--ink-faint,#7A889B)'>⋮</text><text x='424.5' y='283' text-anchor='middle' font-size='9' fill='var(--ink-faint,#7A889B)'>256 entrées</text><rect x='479.5' y='158' width='68' height='134' rx='4' fill='var(--card,#FFFFFF)' stroke='var(--line,#D7DFE9)' stroke-width='1.2'/><text x='513.5' y='174' text-anchor='middle' font-size='11' font-weight='700' fill='var(--ink-soft,#43536A)'>C₆</text><rect x='485.5' y='180' width='56' height='14' rx='2' fill='var(--bordeaux-wash,#F3E3E6)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2'/><text x='513.5' y='191' text-anchor='middle' font-size='10' font-weight='700' fill='var(--bordeaux,#7C2A38)'>#76</text><rect x='485.5' y='198' width='56' height='14' rx='2' fill='none' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><rect x='485.5' y='216' width='56' height='14' rx='2' fill='none' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><rect x='485.5' y='234' width='56' height='14' rx='2' fill='none' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><text x='513.5' y='262' text-anchor='middle' font-size='12' fill='var(--ink-faint,#7A889B)'>⋮</text><text x='513.5' y='283' text-anchor='middle' font-size='9' fill='var(--ink-faint,#7A889B)'>256 entrées</text><rect x='568.5' y='158' width='68' height='134' rx='4' fill='var(--card,#FFFFFF)' stroke='var(--line,#D7DFE9)' stroke-width='1.2'/><text x='602.5' y='174' text-anchor='middle' font-size='11' font-weight='700' fill='var(--ink-soft,#43536A)'>C₇</text><rect x='574.5' y='180' width='56' height='14' rx='2' fill='none' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><rect x='574.5' y='198' width='56' height='14' rx='2' fill='none' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><rect x='574.5' y='216' width='56' height='14' rx='2' fill='none' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><rect x='574.5' y='234' width='56' height='14' rx='2' fill='var(--bordeaux-wash,#F3E3E6)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2'/><text x='602.5' y='245' text-anchor='middle' font-size='10' font-weight='700' fill='var(--bordeaux,#7C2A38)'>#251</text><text x='602.5' y='262' text-anchor='middle' font-size='12' fill='var(--ink-faint,#7A889B)'>⋮</text><text x='602.5' y='283' text-anchor='middle' font-size='9' fill='var(--ink-faint,#7A889B)'>256 entrées</text><rect x='657.5' y='158' width='68' height='134' rx='4' fill='var(--card,#FFFFFF)' stroke='var(--line,#D7DFE9)' stroke-width='1.2'/><text x='691.5' y='174' text-anchor='middle' font-size='11' font-weight='700' fill='var(--ink-soft,#43536A)'>C₈</text><rect x='663.5' y='180' width='56' height='14' rx='2' fill='none' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><rect x='663.5' y='198' width='56' height='14' rx='2' fill='none' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><rect x='663.5' y='216' width='56' height='14' rx='2' fill='none' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><rect x='663.5' y='234' width='56' height='14' rx='2' fill='var(--bordeaux-wash,#F3E3E6)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2'/><text x='691.5' y='245' text-anchor='middle' font-size='10' font-weight='700' fill='var(--bordeaux,#7C2A38)'>#19</text><text x='691.5' y='262' text-anchor='middle' font-size='12' fill='var(--ink-faint,#7A889B)'>⋮</text><text x='691.5' y='283' text-anchor='middle' font-size='9' fill='var(--ink-faint,#7A889B)'>256 entrées</text><line x1='68.5' y1='292' x2='68.5' y2='318' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.6' marker-end='url(#pqArrowWin)'/><line x1='157.5' y1='292' x2='157.5' y2='318' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.6' marker-end='url(#pqArrowWin)'/><line x1='246.5' y1='292' x2='246.5' y2='318' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.6' marker-end='url(#pqArrowWin)'/><line x1='335.5' y1='292' x2='335.5' y2='318' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.6' marker-end='url(#pqArrowWin)'/><line x1='424.5' y1='292' x2='424.5' y2='318' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.6' marker-end='url(#pqArrowWin)'/><line x1='513.5' y1='292' x2='513.5' y2='318' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.6' marker-end='url(#pqArrowWin)'/><line x1='602.5' y1='292' x2='602.5' y2='318' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.6' marker-end='url(#pqArrowWin)'/><line x1='691.5' y1='292' x2='691.5' y2='318' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.6' marker-end='url(#pqArrowWin)'/><rect x='34.5' y='322' width='68' height='38' rx='4' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='68.5' y='347' text-anchor='middle' font-size='15' font-weight='700' fill='var(--ink,#15202E)'>37</text><text x='68.5' y='357' text-anchor='middle' font-size='8' fill='var(--ink-faint,#7A889B)'>1 octet</text><rect x='123.5' y='322' width='68' height='38' rx='4' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='157.5' y='347' text-anchor='middle' font-size='15' font-weight='700' fill='var(--ink,#15202E)'>214</text><text x='157.5' y='357' text-anchor='middle' font-size='8' fill='var(--ink-faint,#7A889B)'>1 octet</text><rect x='212.5' y='322' width='68' height='38' rx='4' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='246.5' y='347' text-anchor='middle' font-size='15' font-weight='700' fill='var(--ink,#15202E)'>5</text><text x='246.5' y='357' text-anchor='middle' font-size='8' fill='var(--ink-faint,#7A889B)'>1 octet</text><rect x='301.5' y='322' width='68' height='38' rx='4' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='335.5' y='347' text-anchor='middle' font-size='15' font-weight='700' fill='var(--ink,#15202E)'>198</text><text x='335.5' y='357' text-anchor='middle' font-size='8' fill='var(--ink-faint,#7A889B)'>1 octet</text><rect x='390.5' y='322' width='68' height='38' rx='4' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='424.5' y='347' text-anchor='middle' font-size='15' font-weight='700' fill='var(--ink,#15202E)'>142</text><text x='424.5' y='357' text-anchor='middle' font-size='8' fill='var(--ink-faint,#7A889B)'>1 octet</text><rect x='479.5' y='322' width='68' height='38' rx='4' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='513.5' y='347' text-anchor='middle' font-size='15' font-weight='700' fill='var(--ink,#15202E)'>76</text><text x='513.5' y='357' text-anchor='middle' font-size='8' fill='var(--ink-faint,#7A889B)'>1 octet</text><rect x='568.5' y='322' width='68' height='38' rx='4' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='602.5' y='347' text-anchor='middle' font-size='15' font-weight='700' fill='var(--ink,#15202E)'>251</text><text x='602.5' y='357' text-anchor='middle' font-size='8' fill='var(--ink-faint,#7A889B)'>1 octet</text><rect x='657.5' y='322' width='68' height='38' rx='4' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='691.5' y='347' text-anchor='middle' font-size='15' font-weight='700' fill='var(--ink,#15202E)'>19</text><text x='691.5' y='357' text-anchor='middle' font-size='8' fill='var(--ink-faint,#7A889B)'>1 octet</text><path d='M34.5,372 L34.5,378 L725.5,378 L725.5,372' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1.2'/><text x='380' y='393' text-anchor='middle' font-size='11' fill='var(--ink-soft,#43536A)'>concaténation des 8 identifiants : code PQ de 8 octets (m × log₂ k* = 8 × 8 = 64 bits)</text><rect x='256' y='406' width='248' height='44' rx='8' fill='var(--bordeaux-wash,#F3E3E6)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.5'/><text x='380' y='427' text-anchor='middle' font-size='15' font-weight='700' fill='var(--bordeaux,#7C2A38)'>Compression ×64</text><text x='380' y='442' text-anchor='middle' font-size='11' fill='var(--ink-soft,#43536A)'>512 octets → 8 octets</text></svg><figcaption><span class='fcap-k'></span>Quantification produit : un vecteur de D = 128 dimensions (512 octets) est découpé en m = 8 sous-vecteurs, chacun remplacé par l’identifiant (1 octet) de son centroïde gagnant dans un codebook de k* = 256 entrées ; la concaténation des 8 octets forme le code PQ, soit une compression ×64.</figcaption></figure>\n\n<p>La recherche d'un voisin approximatif ne passe pas par une décompression : la distance entre un vecteur requête et un code PQ est estimée directement dans l'espace compressé. Jégou et al. définissent deux régimes. Le symmetric distance computation (SDC, calcul symétrique de distance) quantifie aussi la requête et estime la distance par d̃(x, y) = d(q(x), q(y)) en consultant une table de distances centroïde-centroïde précalculée hors ligne (k*² entrées par sous-espace) ; la recherche se réduit à m additions entières. L'asymmetric distance computation (ADC, calcul asymétrique de distance) conserve la requête à pleine précision et estime d̂(x, y) = Σ_{j=1}^{m} ‖x_j − c_j(y_j)‖² via une lookup table de k* distances réelles par sous-espace, construite une fois par requête. ADC est plus précis car seul le vecteur base est quantifié : l'analyse formelle de l'article borne l'erreur quadratique espérée d'ADC par MSE(q) et celle de SDC par 2·MSE(q), ce dernier cumulant les bruits de quantification des deux côtés. Les auteurs recommandent ADC par défaut ; c'est le mode retenu dans FAISS.</p>\n\n<p>La combinaison IVF-PQ raffine encore l'approche en appliquant PQ non aux vecteurs bruts mais à leurs residuals (résidus) : r = y − c₁(y), la différence entre le vecteur et le centroïde de sa cellule Voronoi assignée par le coarse quantizer (quantificateur grossier) de l'IVF. Ce résidu, centré autour de zéro, a une variance sensiblement plus faible que le vecteur original ; les codebooks PQ peuvent en capturer la structure avec une erreur de reconstruction moindre à budget binaire constant. À la requête, seules les nprobe cellules sondées sont visitées et, pour chacune, le résidu de la requête est recalculé par rapport au centroïde de la cellule avant de construire la lookup table ADC — d'où un surcoût proportionnel à nprobe mais un gain significatif de rappel par rapport à une PQ à plat.</p>",
+      "claims": [
+        "claim:9",
+        "claim:10",
+        "claim:11"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "synopsis-requete-ivfpq"
+    },
+    {
+      "type": "section",
+      "id": "hnsw-graphes-navigables",
+      "heading": "HNSW : naviguer dans un graphe multi-couches",
+      "level": 3,
+      "prose": "<p>HNSW (Hierarchical Navigable Small World, graphe hiérarchique à petit monde navigable) est introduit par Yu. A. Malkov et D. A. Yashunin — préprint arXiv:1603.09320 soumis en mars 2016, publié dans IEEE TPAMI (vol. 42, n° 4, 824–836, 2018). Son originalité tient à son caractère « fully graph-based » : contrairement à IVF qui partitionne l'espace ou à PQ qui compresse les vecteurs, HNSW organise la totalité des vecteurs dans un graphe de proximité hiérarchique dont l'exploration seule suffit à localiser les voisins d'une requête, sans index secondaire.</p>\n\n<p>Les fondements théoriques sont doubles. Kleinberg a établi qu'un réseau doté de liens longue distance dont la probabilité d'existence décroît selon P(u→v) ∝ d(u,v)<sup>−d</sup> admet un point d'invariance d'échelle — une « sweet spot » — à partir duquel la distance entre deux nœuds quelconques devient indépendante de la couche considérée : un simple greedy search (recherche gloutonne) y converge vers n'importe quelle cible en un nombre logarithmique d'étapes. À ce résultat théorique fait écho l'expérience empirique de Milgram (1967) sur les « six degrés de séparation » : des chaînes de lettres relayées de main en main atteignaient leur destinataire en une médiane de six intermédiaires, montrant qu'un réseau fortement clusterisé peut néanmoins abriter des chemins étonnamment courts. HNSW exploite ces deux propriétés en construisant délibérément un graphe navigable à plusieurs couches où tout voisinage lointain est atteignable en O(log n) pas.</p>\n\n<p>La structure en couches superposées rappelle celle d'une skip list (liste à sauts) : les couches supérieures jouent le rôle d'autoroutes, avec peu de nœuds et des arêtes longue distance permettant de traverser rapidement l'espace métrique, tandis que la couche 0 contient l'intégralité des nœuds et porte leurs arêtes de voisinage les plus fines (2M connexions par nœud, contre M pour les couches supérieures). À la différence d'une skip list, où un élément de niveau l est nécessairement présent aux niveaux inférieurs, HNSW assigne à chaque nœud un niveau maximal indépendant. Lors de l'insertion, ce niveau maximal l est tiré aléatoirement selon :</p>\n\n<p style=\"text-align:center\"><code>l = ⌊−ln(U) / ln(M)⌋</code> &nbsp;&nbsp; avec U ∼ Uniforme(0,&thinsp;1)</p>\n\n<p>où M est le nombre maximal de connexions par nœud par couche — paramètre que le papier original note mL = 1/ln(M) dans la forme équivalente l = ⌊−ln(U) · mL⌋. La loi résultante est géométrique : la fraction attendue de nœuds présents à la couche l est N · M<sup>−l</sup>. Avec M = 16 et un million de vecteurs, ≈ 62 500 nœuds atteignent la couche 1 (6,25 %), ≈ 3 900 la couche 2 (0,39 %), ≈ 244 la couche 3 — chaque couche haute restant suffisamment sparse pour que le greedy search y converge rapidement vers la zone d'intérêt avant de descendre.</p>\n\n<p>La recherche procède de haut en bas : le point d'entrée global se situe au sommet du graphe ; la requête y est insérée et avance, couche par couche, vers le voisin le plus proche de la cible à chaque niveau, jusqu'à la couche 0 où elle recense les ef meilleurs candidats dans un parcours plus fin. Trois paramètres gouvernent l'index : M fixe la connectivité et donc l'empreinte mémoire, proportionnelle à n · M ; ef_construction détermine la taille de la liste de candidats dynamiques lors de la construction — une valeur élevée produit un graphe de meilleure qualité au prix d'un build plus long — ; ef (ou efSearch), modifiable sans reconstruire l'index, pilote le même curseur à la requête et constitue le levier principal du compromis recall/vitesse.</p>\n\n<p>La complexité de recherche est O(log n) : le graphe comporte O(log n) couches par définition de la distribution exponentielle, et le nombre de pas de greedy search par couche est borné par une constante dépendant de M. Sur le benchmark SIFT1M (1 million de vecteurs 128D, distance L2), hnswlib l'illustre concrètement : efSearch = 32 donne ≈ 23 400 req/s à recall (rappel) @1 de 0,955 ; efSearch = 64, ≈ 13 700 req/s à 0,981 ; efSearch = 256, ≈ 4 500 req/s à 0,991. Sur l'ensemble des valeurs de recall mesurées par ANN-Benchmarks, HNSW se positionne systématiquement sur le front de Pareto, surpassant IVF et la quasi-totalité des approches arborescentes et de hachage à débit équivalent.</p>",
+      "claims": [
+        "claim:12",
+        "claim:13",
+        "claim:14"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-descente-greedy-hnsw"
+    },
+    {
+      "type": "section",
+      "id": "lsh-hachage-sensible",
+      "heading": "LSH : le socle théorique du hachage localement sensible",
+      "level": 3,
+      "prose": "<p>Le locality-sensitive hashing (hachage localement sensible) repose sur une idée géométrique simple : remplacer le calcul de distance explicite par une famille de fonctions de hachage aléatoires dont la probabilité de collision encode la proximité. Formellement, une famille H est dite <em>(r, cr, p₁, p₂)-sensitive</em> sur un espace métrique si, pour tout couple de points p, q : lorsque dist(p, q) ≤ r, la probabilité Pr[h(p) = h(q)] ≥ p₁ ; lorsque dist(p, q) > cr, cette probabilité tombe à ≤ p₂. Les conditions p₁ &gt; p₂ et c &gt; 1 sont nécessaires : sans séparation entre les deux régimes, aucune garantie de recherche n'est possible. La constante c est le facteur d'approximation, et l'écart p₁ − p₂ mesure la « sensibilité » de la famille.</p>\n\n<p>L'efficacité computationnelle de tout schéma LSH se résume à un unique scalaire, <em>ρ = log(1/p₁) / log(1/p₂)</em>. Le temps de requête est O(n<sup>ρ</sup>) et l'espace occupé O(n<sup>1+ρ</sup>), où n est la taille du corpus. La sous-linéarité exige strictement ρ &lt; 1 : c'est le seul critère qui distingue une famille utile d'un hachage aléatoire non corrélé avec la distance. Minimiser ρ est donc l'objectif de conception central, et les constructions rivales se jugent d'abord à ce chiffre avant tout critère empirique.</p>\n\n<p>Un point de terminologie souvent éludé : le locality-sensitive hashing résout le problème du <em>c-approximate nearest neighbor</em> (voisin approximatif à facteur c), et non du nearest neighbor exact. La garantie est conditionnelle : si le vrai plus proche voisin se trouve à distance au plus r de la requête, l'algorithme retourne un point à distance au plus c·r avec probabilité ≥ 1 − δ. Aucune garantie n'est fournie sur le vrai plus proche voisin lorsque celui-ci se situe hors du seuil r, ou lorsqu'il existe plusieurs points proches à des distances légèrement différentes. Cette formalisation évite délibérément ces cas pour conserver la borne de complexité.</p>\n\n<p>Pour la norme euclidienne ℓ₂, la construction E2LSH — projection aléatoire sur un vecteur gaussien suivie d'une quantisation scalaire — atteint ρ = 1/c², qui constitue la borne optimale parmi les schémas <em>data-independent</em>. Pour ℓ₁, l'optimum analogue est ρ = 1/c. Ces bornes sont serrées (tight) : aucune famille data-independent ne peut faire strictement mieux sur ces métriques. Concrètement, pour c = 2 sur ℓ₂, E2LSH examine O(n<sup>0,25</sup>) candidats au lieu de n — une réduction quadratique de la complexité. Pour c proche de 1 (voisinage serré), en revanche, ρ tend vers 1 et le gain sur la force brute s'évanouit progressivement.</p>\n\n<p>Les familles <em>data-dependent</em>, dont les fonctions de hachage sont apprises sur la distribution d'entrée, franchissent cette limite théorique. La meilleure construction connue pour ℓ₂ atteint ρ = 1/(2c² − 1) + o(1), strictement inférieur à 1/c² pour tout c &gt; 1. L'amélioration est substantielle : pour c = 2, on passe de ρ = 0,25 à ρ ≈ 0,143, soit 43 % de candidats en moins à examiner. Cette avancée a un prix : apprendre les fonctions de hachage requiert un accès préalable à la distribution des données et un prétraitement non trivial, ce qui rend ces schémas moins génériques qu'E2LSH.</p>",
+      "claims": [
+        "claim:15",
+        "claim:16",
+        "claim:17",
+        "claim:18"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "garanties-theoriques",
+      "heading": "Ce qui est prouvable — et ce qui ne l'est pas",
+      "level": 3,
+      "prose": "<p>Au cœur de l'essor pratique d'HNSW se trouve une lacune théorique rarement explicitée. L'article fondateur de Malkov et Yashunin (2018) avance une complexité de requête <em>O</em>(log&nbsp;<em>n</em>) en moyenne et un temps de construction en <em>O</em>(<em>n</em>&nbsp;log&nbsp;<em>n</em>), mais ne prouve formellement aucun de ces énoncés et ne fixe aucun ratio d'approximation. L'algorithme est présenté sans ambiguïté comme heuristique. Sur des entrées adversariales, le greedy beam search peut dégénérer en <em>O</em>(<em>n</em>) : sans critère d'arrêt garanti, la traversée explore potentiellement la totalité du graphe. Il n'existe donc dans la formulation originale aucune borne sur le temps d'exécution en pire cas, ni aucune garantie que le voisin retourné se situe à distance bornée du vrai plus proche voisin.</p>\n\n<p>Cette lacune a été partiellement comblée en 2025. Dehghankar et Asudeh introduisent la propriété HENN (Hierarchical ε-Net Navigation), fondée sur la théorie des ε-nets (ε-filets) issue de la géométrie algorithmique. Le Corollaire&nbsp;3 de leur article établit que si la construction aléatoire d'HNSW produit des ε-nets — ce qui arrive avec haute probabilité — alors HNSW atteint une complexité de requête polylogarithmique probabiliste : c'est la première justification théorique formelle de son comportement empirique. La construction HENN elle-même va plus loin : le Théorème&nbsp;4 garantit un temps de requête en <em>O</em>(<em>d</em>·<em>d</em>*·ρ<sub>δ</sub>·log²<em>n</em>) en pire cas, indépendamment de la distribution des données. Là où HNSW peut se dégrader sur entrées adversariales, HENN maintient ses garanties sans hypothèse sur la distribution ; les auteurs proposent également un algorithme de construction de l'ε-net paramétré par un budget de prétraitement.</p>\n\n<p>Le product quantization (PQ, quantification par produit) offre un cadre théorique plus précis au niveau de l'estimation de distance. Jégou et al. (2011) établissent deux bornes complémentaires. Le symmetric distance computation (SDC, calcul symétrique de distance) — où requête et base sont toutes deux quantifiées — a une erreur statistiquement bornée par MSE(<em>q</em>). L'asymmetric distance computation (ADC, calcul asymétrique), où la requête n'est <em>pas</em> quantifiée, a une erreur statistiquement bornée par 2·MSE(<em>q</em>). C'est précisément pourquoi FAISS utilise ADC par défaut : ne pas quantifier la requête réduit de moitié le plancher d'erreur. Ces bornes sont toutefois statistiques — elles portent sur l'erreur en espérance sur la base de données, non sur une garantie pire-cas par vecteur individuel. La généralisation du PQ aux additive quantizers (quantificateurs additifs) introduit une difficulté d'un ordre supérieur : trouver l'encodage optimal d'un vecteur étant donné les codebooks est NP-difficile. Toutes les variantes pratiques — residual quantization (quantification résiduelle), local-search quantization — sont des approximations heuristiques sans borne garantie sur la distorsion.</p>\n\n<p>IVF offre l'un des rares points d'appui analytiques stricts de cet écosystème. Le nombre de calculs de distance s'écrit N<sub>distances</sub> = K<sub>IVF</sub> + P<sub>IVF</sub>&nbsp;×&nbsp;(<em>N</em>&nbsp;/&nbsp;K<sub>IVF</sub>), expression minimisée en K<sub>IVF</sub> = √(P<sub>IVF</sub>&nbsp;×&nbsp;<em>N</em>). Pour nprobe&nbsp;=&nbsp;1, cela donne la recommandation standard de FAISS : K&nbsp;≈&nbsp;√<em>N</em>, soit par exemple 4&nbsp;096 listes pour <em>N</em>&nbsp;=&nbsp;16&nbsp;M vecteurs — une valeur dérivée analytiquement, pas calibrée à l'œil. En revanche, le recall en fonction de <em>N</em>, K et nprobe n'admet aucune formule fermée. L'article FAISS ajuste empiriquement <em>t</em>&nbsp;=&nbsp;<em>t</em><sub>0</sub>·<em>N</em><sup>α</sup> avec α&nbsp;∈&nbsp;[0,29&nbsp;; 0,45] selon la cible de recall — une complexité sub-√<em>N</em> en pratique, mais une loi de scaling empirique, pas un résultat démontré. Le même article formule explicitement la limite : pour les méthodes à base de graphe, « les garanties statistiques pour la range search ne sont qu'un proxy pour la nearest neighbor search » ; aucune garantie formelle de recall sur le vrai plus proche voisin n'est fournie.</p>",
+      "claims": [
+        "claim:19",
+        "claim:20",
+        "claim:21",
+        "claim:22"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "variantes-modernes",
+      "heading": "Au-delà du trio : DiskANN, ScaNN, RaBitQ et la famille des quantificateurs",
+      "level": 3,
+      "prose": "<p>Le trio HNSW / IVF-PQ / brute-force structure le paysage de l'<em>approximate nearest neighbor search</em> (recherche de voisins approchés), mais les contraintes industrielles — milliards de vecteurs, latence infra-milliseconde, RAM limitée, corpus dynamiques — ont poussé une génération de méthodes spécialisées qui font progresser chacun des trois leviers : graphe résident sur SSD, <em>quantization</em> (quantification) anisotrope, et <em>low-rank matrix factorization</em> (factorisation de rang faible).</p><figure class='fig'><svg viewBox='0 0 760 484' role='img' aria-label='Taxonomie en arbre des variantes ANN modernes selon trois leviers : graphe resident sur SSD (DiskANN Vamana, FreshDiskANN, NSG), quantification (ScaNN anisotrope, RaBitQ, pile FAISS SQ PQ RQ LSQ PRQ) et factorisation de rang faible (LoRANN).'><title>Taxonomie des variantes modernes par levier optimisé</title><text x='380' y='24' text-anchor='middle' font-size='13' font-weight='700' fill='var(--ink,#15202E)'>Taxonomie des variantes modernes, par levier optimisé</text><g fill='none'><g stroke='var(--ink-faint,#7A889B)' stroke-width='1.4'><line x1='178' y1='276' x2='208' y2='112'/><line x1='178' y1='276' x2='208' y2='300'/><line x1='178' y1='276' x2='208' y2='443'/></g><g stroke='var(--blue,#23537F)' stroke-width='1.2'><line x1='358' y1='112' x2='400' y2='64'/><line x1='358' y1='112' x2='400' y2='112'/><line x1='358' y1='112' x2='400' y2='160'/></g><g stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2'><line x1='358' y1='300' x2='400' y2='227'/><line x1='358' y1='300' x2='400' y2='279'/><line x1='358' y1='300' x2='400' y2='350'/></g><g stroke='var(--ink-soft,#43536A)' stroke-width='1.2'><line x1='358' y1='443' x2='400' y2='444'/></g></g><rect x='22' y='244' width='156' height='64' rx='8' fill='var(--card,#FFFFFF)' stroke='var(--ink-faint,#7A889B)' stroke-width='1.5'/><text x='100' y='270' text-anchor='middle' font-size='12' font-weight='700' fill='var(--ink,#15202E)'>Au-delà du trio</text><text x='100' y='286' text-anchor='middle' font-size='10.5' fill='var(--ink-soft,#43536A)'>HNSW · IVF-PQ</text><text x='100' y='301' text-anchor='middle' font-size='9.5' font-style='italic' fill='var(--ink-faint,#7A889B)'>3 leviers de conception</text><rect x='208' y='87' width='150' height='50' rx='6' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='283' y='108' text-anchor='middle' font-size='12' font-weight='700' fill='var(--blue,#23537F)'>Graphe résident</text><text x='283' y='124' text-anchor='middle' font-size='10.5' fill='var(--ink-soft,#43536A)'>sur SSD</text><rect x='208' y='275' width='150' height='50' rx='6' fill='var(--bordeaux-wash,#F3E3E6)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.5'/><text x='283' y='305' text-anchor='middle' font-size='12' font-weight='700' fill='var(--bordeaux,#7C2A38)'>Quantification</text><rect x='208' y='418' width='150' height='50' rx='6' fill='var(--card,#FFFFFF)' stroke='var(--ink-soft,#43536A)' stroke-width='1.5'/><text x='283' y='438' text-anchor='middle' font-size='11.5' font-weight='700' fill='var(--ink-soft,#43536A)'>Factorisation</text><text x='283' y='454' text-anchor='middle' font-size='10.5' fill='var(--ink-soft,#43536A)'>de rang faible</text><rect x='400' y='44' width='345' height='40' rx='5' fill='var(--card,#FFFFFF)' stroke='var(--blue,#23537F)' stroke-width='1.2'/><text x='412' y='62' font-size='11.5' font-weight='700' fill='var(--ink,#15202E)'>DiskANN / graphe Vamana</text><text x='412' y='77' font-size='9.5' fill='var(--ink-faint,#7A889B)'>1 Md de vecteurs sur un nœud · index sur SSD · NeurIPS 2019</text><rect x='400' y='92' width='345' height='40' rx='5' fill='var(--card,#FFFFFF)' stroke='var(--blue,#23537F)' stroke-width='1.2'/><text x='412' y='110' font-size='11.5' font-weight='700' fill='var(--ink,#15202E)'>FreshDiskANN</text><text x='412' y='125' font-size='9.5' fill='var(--ink-faint,#7A889B)'>calque mémoire : insertions et suppressions dynamiques</text><rect x='400' y='140' width='345' height='40' rx='5' fill='var(--card,#FFFFFF)' stroke='var(--blue,#23537F)' stroke-width='1.2'/><text x='412' y='158' font-size='11.5' font-weight='700' fill='var(--ink,#15202E)'>NSG</text><text x='412' y='173' font-size='9.5' fill='var(--ink-faint,#7A889B)'>approximation du graphe MRNG · navigable · corpus statique</text><rect x='400' y='205' width='345' height='44' rx='5' fill='var(--card,#FFFFFF)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2'/><text x='412' y='224' font-size='11.5' font-weight='700' fill='var(--ink,#15202E)'>ScaNN — quantification anisotrope</text><text x='412' y='240' font-size='9.5' fill='var(--ink-faint,#7A889B)'>MIPS : pénalise l'erreur parallèle au vecteur · Google 2020</text><rect x='400' y='257' width='345' height='44' rx='5' fill='var(--card,#FFFFFF)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2'/><text x='412' y='276' font-size='11.5' font-weight='700' fill='var(--ink,#15202E)'>RaBitQ — 1 bit par dimension</text><text x='412' y='292' font-size='9.5' fill='var(--ink-faint,#7A889B)'>rotation aléatoire + signe · borne O(1/√D) · SIGMOD 2024</text><rect x='400' y='309' width='345' height='82' rx='6' fill='var(--bordeaux-wash,#F3E3E6)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2'/><text x='412' y='327' font-size='10.5' font-weight='700' fill='var(--bordeaux,#7C2A38)'>Pile FAISS — du plus grossier au plus raffiné</text><rect x='414' y='342' width='50' height='30' rx='4' fill='var(--card,#FFFFFF)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.1'/><text x='439' y='362' text-anchor='middle' font-size='11' font-weight='700' fill='var(--bordeaux,#7C2A38)'>SQ</text><rect x='480' y='342' width='50' height='30' rx='4' fill='var(--card,#FFFFFF)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.1'/><text x='505' y='362' text-anchor='middle' font-size='11' font-weight='700' fill='var(--bordeaux,#7C2A38)'>PQ</text><rect x='546' y='342' width='50' height='30' rx='4' fill='var(--card,#FFFFFF)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.1'/><text x='571' y='362' text-anchor='middle' font-size='11' font-weight='700' fill='var(--bordeaux,#7C2A38)'>RQ</text><rect x='612' y='342' width='50' height='30' rx='4' fill='var(--card,#FFFFFF)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.1'/><text x='637' y='362' text-anchor='middle' font-size='11' font-weight='700' fill='var(--bordeaux,#7C2A38)'>LSQ</text><rect x='678' y='342' width='50' height='30' rx='4' fill='var(--card,#FFFFFF)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.1'/><text x='703' y='362' text-anchor='middle' font-size='11' font-weight='700' fill='var(--bordeaux,#7C2A38)'>PRQ</text><g fill='var(--bordeaux,#7C2A38)' font-size='12' text-anchor='middle'><text x='472' y='362'>→</text><text x='538' y='362'>→</text><text x='604' y='362'>→</text><text x='670' y='362'>→</text></g><text x='571' y='386' text-anchor='middle' font-size='8.5' fill='var(--ink-soft,#43536A)'>scalar → product → residual → local-search → product-residual</text><rect x='400' y='421' width='345' height='46' rx='5' fill='var(--card,#FFFFFF)' stroke='var(--ink-soft,#43536A)' stroke-width='1.2'/><text x='412' y='440' font-size='11.5' font-weight='700' fill='var(--ink,#15202E)'>LoRANN — régression de rang r ≈ 32</text><text x='412' y='456' font-size='9.5' fill='var(--ink-faint,#7A889B)'>ŷ = (xᵀA)·B · rompt avec la famille PQ · NeurIPS 2024</text></svg><figcaption><span class='fcap-k'></span>Carte mentale de l'espace de conception au-delà du trio HNSW / IVF-PQ : trois leviers — graphe résident sur SSD (DiskANN/Vamana, FreshDiskANN, NSG), quantification (ScaNN anisotrope, RaBitQ, pile FAISS SQ → PQ → RQ → LSQ → PRQ) et factorisation de rang faible (LoRANN).</figcaption></figure>\n\n<p><strong>DiskANN et le graphe Vamana.</strong> Publié à NeurIPS 2019 par Microsoft Research, DiskANN est la première méthode par graphe à indexer un milliard de vecteurs sur un nœud unique sans entrepôt GPU ni RAM surdimensionnée. Le graphe Vamana sélectionne ses arêtes pour maximiser la couverture spatiale, ce qui lui permet de supporter 5 à 10 fois plus de points par nœud qu'HNSW et NSG à budget mémoire équivalent ; seuls les voisins les plus proches de chaque nœud tiennent en RAM, le reste de l'index résidant sur SSD. Sur le benchmark SIFT1B, un nœud 16 cœurs équipé de 64 Go de RAM et d'un SSD d'entrée de gamme atteint plus de 5 000 requêtes par seconde, une latence moyenne inférieure à 3 ms et un 1-recall@1 supérieur à 95 % ; à budget mémoire identique, FAISS (IVFOADC+G+P) plafonne à environ 50 % de recall. L'index de base est statique — FreshDiskANN (arXiv 2021) ajoute un calque mémoire pour les insertions et suppressions dynamiques.</p>\n\n<p><strong>ScaNN et l'<em>anisotropic quantization</em> pour le MIPS.</strong> Publié par Google en 2020, ScaNN (<em>Scalable Nearest Neighbors</em>) cible le <em>maximum inner product search</em> (recherche du produit scalaire maximal), ou MIPS — l'opération réelle des moteurs d'embedding modernes. Sa contribution centrale n'est pas une simple implémentation SIMD d'IVF-PQ : c'est une nouvelle fonction de perte pour la quantization. L'<em>anisotropic quantization</em> (quantification anisotrope) distingue la composante d'erreur parallèle à la direction du vecteur original — qui dégrade directement l'estimation du produit scalaire avec les candidats à fort score — de la composante perpendiculaire, sans impact sur le classement des top-k. En pénalisant davantage l'erreur parallèle, ScaNN accepte une compression moins fidèle pour les vecteurs à faible produit scalaire afin de préserver la précision là où elle compte. Sur le benchmark glove-100-angular d'ann-benchmarks, ScaNN traite environ deux fois plus de requêtes par seconde à rappel égal que la bibliothèque concurrente la mieux optimisée.</p>\n\n<p><strong>RaBitQ : 1 bit par dimension, borne d'erreur en O(1/√D).</strong> Proposé à SIGMOD 2024 par Jianyang Gao et Cheng Long (NTU Singapour), RaBitQ (<em>Randomized Bit Quantization</em>) pousse la compression à l'extrême : après une rotation orthogonale aléatoire, seul le signe de chaque coordonnée est retenu — soit exactement D bits pour un vecteur de dimension D, contre environ 2D bits pour une configuration PQ standard (M = D/2 sous-vecteurs, codes 8 bits). Le Théorème 3.2 de l'article établit une borne probabiliste sur l'erreur d'estimation du produit scalaire : ℙ{|erreur| &gt; ε₀/√(D−1) · f(⟨ō,o⟩)} ≤ 2e^(−c₀ε₀²), avec ⟨ō,o⟩ le rapport de la norme du vecteur quantifié à l'original — qui se concentre empiriquement entre 0,798 et 0,800 quelle que soit la dimension dans [10², 10⁶]. D'après un résultat de théorie de la compression (Alon &amp; Klartag, 2017), aucune méthode encodant un vecteur D-dimensionnel en D bits ne peut garantir une borne meilleure qu'O(1/√D) ; RaBitQ atteint donc cette limite asymptotique. Les calculs de distance reposent sur des instructions bitwise (<em>popcount</em>), rendant l'estimation individuelle environ 3× plus rapide que PQ classique. Sur MSong — jeu de données où PQ génère plus de 50 % d'erreur relative moyenne et plafonne à 60 % de recall même avec <em>re-ranking</em> (réordonnancement) — RaBitQ reste stable. En 2025, IVF-RaBitQ transpose ce principe sur GPU en CUDA natif et surpasse IVF-PQ en débit dans le régime de rappel médian à élevé (0,85–1,0).</p>\n\n<p><strong>La hiérarchie de quantificateurs FAISS et le déploiement record à 1,5 trillion de vecteurs.</strong> Rendu public en 2017, FAISS propose une taxonomie graduée du plus grossier au plus raffiné : les <em>scalar quantizers</em> (SQ4/SQ6/SQ8) encodent chaque dimension indépendamment ; le <em>product quantizer</em> (PQ) découpe le vecteur en M sous-vecteurs quantifiés dans des codebooks séparés ; le <em>residual quantizer</em> (RQ) encode séquentiellement le résidu de chaque étape via un <em>beam search</em> (recherche en faisceau) ; le <em>local search quantizer</em> (LSQ) substitue le <em>simulated annealing</em> (recuit simulé) à la recherche gloutonne ; le <em>product-residual quantizer</em> (PRQ) cascade PQ et quantification additive sur les mêmes sous-vecteurs. Sur Deep10M, PRQ atteint les performances de Vamana sur certains points d'opération et surpasse ScaNN en débit. Le déploiement documenté le plus grand exploite cette pile sur 1,5 trillion de vecteurs de dimension 144, compressés à 54 octets chacun par projection PCA à 72 dimensions suivie d'une quantification scalaire 6 bits, avec un quantificateur grossier HNSW entraîné sur 10 millions de centroïdes — une requête prend environ 1 seconde sur une infrastructure de 20 serveurs intermédiaires et 2 000 shards.</p>\n\n<p><strong>NSG et LoRANN : deux directions complémentaires.</strong> NSG (<em>Navigating Spreading-out Graph</em>), publié dans PVLDB en 2019 par Fu, Xiang, Wang et Cai (ZJU), approxime le graphe MRNG (<em>Monotonic Relative Neighborhood Graph</em>) en maintenant des arêtes à longue portée qui garantissent la navigabilité globale de l'index. Son bon compromis vitesse-rappel lui a valu une intégration dans les systèmes de recommandation de Taobao (Alibaba Group) à l'échelle du milliard ; son index est gelé après la construction initiale, ce qui le réserve aux corpus statiques. LoRANN (<em>Low-Rank Approximate Nearest Neighbor</em>), présenté à NeurIPS 2024 par Jääsaari, Hyvönen et Roos (Helsinki / Aalto), rompt avec la famille PQ en formulant l'approximation de produit scalaire comme une régression multivariée contrainte à un rang r, notée ŷ = (xᵀA)B avec A ∈ ℝ^(d×r) et B ∈ ℝ^(r×m), r ≈ 32. Ce paramétrage réduit le coût à Θ(r(d+m)) opérations au lieu de Θ(dm). Le résultat clé : à b ≈ 16 bits équivalents par dimension, LoRANN surpasse PQ à 128 bits en latence et en mémoire sur la majorité des jeux de données haute dimension (d &gt; 300), bat FAISS et ScaNN sur la quasi-totalité des benchmarks, et affiche des temps de requête inférieurs à GLASS — bibliothèque récente par graphe — jusqu'à un niveau de rappel d'environ 90 %.</p>",
+      "claims": [
+        "claim:23",
+        "claim:24",
+        "claim:25",
+        "claim:26"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "recherche-filtree",
+      "heading": "Filtered ANN : croiser similarité et contraintes de métadonnées",
+      "level": 3,
+      "prose": "<p>Dès qu'une requête ANN s'assortit d'un prédicat de métadonnées — « les 10 vecteurs les plus proches parmi les articles étiquetés <em>healthcare</em> publiés après 2023 » —, l'index vectoriel pur ne suffit plus. La littérature a convergé vers trois paradigmes de <strong>filtered ANNS</strong>. Dans le premier, <strong>filter-then-search</strong> (filtrage avant recherche), le dataset est d'abord restreint aux vecteurs satisfaisant le prédicat ; la recherche ANN classique opère ensuite sur ce sous-ensemble, ramenant le problème à un ANNS standard de moindre taille. Dans le second, <strong>search-then-filter</strong> (recherche avant filtrage), la recherche non contrainte s'exécute en premier, les prédicats étant vérifiés a posteriori sur les candidats récupérés, avec élargissement itératif de la fenêtre si trop peu de résultats franchissent le filtre. Le troisième paradigme, <strong>hybrid search</strong> (recherche hybride), intègre les contraintes d'étiquetage directement dans la construction de l'index et dans la traversée, évitant toute phase explicite de pré- ou post-filtrage.</p>\n\n<p>Dans la famille filter-then-search, UNG (Unified Navigating Graph) pré-compile les informations d'étiquetage sous la forme d'un graphe de navigation : des sous-graphes intra-groupe sont construits pour chaque ensemble d'étiquettes, puis reliés par des arêtes inter-groupe qui encodent les relations de containment. L'approche excelle sur les scénarios d'égalité et de containment — sur le benchmark arXiv à 132 678 vecteurs de dimension 768, UNG atteint un débit de l'ordre de 10<sup>4</sup> QPS à plus de 95 % de recall — mais se dégrade sur les scénarios d'overlap, qui exigent plusieurs rondes de recherche. ACORN (Kraft et al., SIGMOD 2024) propose deux variantes. ACORN-γ construit un graphe plus dense en élargissant le degré de chaque nœud proportionnellement à une estimation de la sélectivité du prédicat, renforçant ainsi la connectivité du sous-graphe induit. ACORN-1 conserve la structure HNSW standard mais, à l'heure de la requête, étend dynamiquement l'exploration aux <strong>two-hop neighbors</strong> (voisins à deux sauts) — les voisins des voisins — avant d'appliquer le filtre et de mettre à jour la file de priorité. Cette expansion à deux sauts ponts les clusters isolés du sous-graphe de prédicats : ACORN atteint 2 à 10 fois plus de QPS que les méthodes de référence sur des datasets à faible cardinalité d'étiquettes, et plus de 30 fois sur les scénarios complexes à haute cardinalité.</p>\n\n<p>Filtered-DiskANN (Gollapudi et al., WWW 2023, Microsoft Research) est le représentant canonique du paradigme hybrid search. Il introduit deux algorithmes sur la base du graphe Vamana. FilteredVamana cible l'insertion en flux continu : lors de la construction, seuls les voisins qui partagent au moins une étiquette commune avec le nœud inséré sont candidats aux arêtes, et un élagage <em>label-aware</em> raffine ensuite les connexions. StitchedVamana adopte une stratégie par lots — construire d'abord un sous-graphe Vamana indépendant pour chaque étiquette du dataset, puis « coudre » (<em>stitch</em>) ces sous-graphes en un index unique et cohérent. Les deux variantes permettent une recherche filtrée à 90 %+ de recall avec des milliers de QPS, l'index pouvant résider sur SSD peu coûteux, en héritant de l'architecture DiskANN d'origine.</p>\n\n<p>Le talon d'Achille des index à base de graphe en contexte filtré est la déconnexion sous faible sélectivité (<strong>low selectivity</strong>). Lorsque le prédicat ne qualifie qu'une infime fraction du dataset, le sous-graphe induit par les nœuds qualifiants devient clairsemé et se fragmente en composantes isolées. L'<strong>entry point</strong> (nœud d'entrée) de la traversée greedy se retrouve alors hors de la région qualifiante : faute de voisins valides accessibles à partir de sa position, la recherche s'arrête prématurément et le recall (rappel) s'effondre, pouvant atteindre 0 dans les cas extrêmes, sans signal d'erreur apparent pour le système appelant. ACORN contourne partiellement ce problème par l'exploration à deux sauts ; Filtered-DiskANN l'adresse dès la construction via la sélection <em>label-aware</em> des arêtes. Mais pour des filtres d'une sélectivité inférieure à quelques pourcents, le repli sur une recherche exhaustive du sous-ensemble filtré reste souvent la seule garantie de recall.</p>\n\n<p>Un résultat contre-intuitif émerge de l'étude systématique publiée en 2026 sur les architectures de bases de données vectorielles : en régime filtré clairsemé, IVFFlat peut surpasser HNSW. L'explication est structurelle. IVFFlat élague des listes entières avant tout calcul de distance dès que le prédicat les disqualifie ; son débit croît donc mécaniquement à mesure que la sélectivité se durcit. HNSW, à l'inverse, présente un débit largement insensible aux variations de sélectivité : la traversée greedy consomme un budget de calcul quasi-fixe quel que soit le taux de filtrage. En pratique, la frontière se situe autour de 1 % de sélectivité : en dessous, IVFFlat avec pre-filtering devient compétitif ou supérieur en QPS tout en maintenant un recall comparable. Ce résultat contredit la hiérarchie établie sur les benchmarks ANN standards, où HNSW domine IVFFlat sur tous les régimes.</p><figure class='fig'><svg viewBox='0 0 760 470' role='img' aria-label='Courbe du débit QPS en fonction de la sélectivité du filtre, de 100 % à moins de 1 %. HNSW reste quasi-plat tandis que IVFFlat avec pré-filtrage voit son débit croître quand le filtre se durcit ; les deux courbes se croisent autour de 1 % de sélectivité, en deçà duquel IVFFlat dépasse HNSW.'><title>Débit QPS contre sélectivité du filtre : croisement IVFFlat et HNSW</title><rect x='497' y='70' width='193' height='320' fill='var(--bordeaux-wash,#F3E3E6)' opacity='0.45'/><g stroke='var(--line-soft,#E7ECF3)' stroke-width='1'><line x1='110' y1='140' x2='690' y2='140'/><line x1='110' y1='215' x2='690' y2='215'/><line x1='110' y1='290' x2='690' y2='290'/></g><g stroke='var(--line,#D7DFE9)' stroke-width='1'><line x1='303' y1='70' x2='303' y2='390'/><line x1='690' y1='70' x2='690' y2='390'/></g><line x1='497' y1='70' x2='497' y2='390' stroke='var(--ink-faint,#7A889B)' stroke-width='1.2' stroke-dasharray='4 4'/><line x1='110' y1='390' x2='110' y2='64' stroke='var(--ink-faint,#7A889B)' stroke-width='1.5'/><line x1='110' y1='390' x2='716' y2='390' stroke='var(--ink-faint,#7A889B)' stroke-width='1.5'/><polygon points='110,56 104,68 116,68' fill='var(--ink-faint,#7A889B)'/><polygon points='724,390 712,384 712,396' fill='var(--ink-faint,#7A889B)'/><text x='300' y='362' text-anchor='middle' font-size='11' font-style='italic' fill='var(--ink-faint,#7A889B)'>régime standard : HNSW domine</text><text x='593' y='349' text-anchor='middle' font-size='11' fill='var(--bordeaux,#7C2A38)'>régime filtré clairsemé</text><text x='593' y='365' text-anchor='middle' font-size='11' font-weight='700' fill='var(--bordeaux,#7C2A38)'>IVFFlat dépasse HNSW</text><polyline points='110,181 303,185 497,188 690,192' fill='none' stroke='var(--blue,#23537F)' stroke-width='2.4'/><polyline points='110,332 155,326 200,316 250,304 303,288 350,270 400,248 450,220 497,188 545,162 594,138 642,115 690,95' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='2.4'/><line x1='491' y1='154' x2='497' y2='184' stroke='var(--ink,#15202E)' stroke-width='0.8'/><circle cx='497' cy='188' r='4.5' fill='var(--ink,#15202E)'/><text x='489' y='150' text-anchor='end' font-size='11' font-weight='700' fill='var(--ink,#15202E)'>croisement ≈ 1 %</text><text x='628' y='176' font-size='11' font-weight='700' fill='var(--blue,#23537F)'>HNSW</text><text x='540' y='126' font-size='11' font-weight='700' fill='var(--bordeaux,#7C2A38)'>IVFFlat</text><rect x='126' y='80' width='290' height='60' rx='6' fill='var(--card,#FFFFFF)' stroke='var(--line,#D7DFE9)'/><line x1='138' y1='102' x2='162' y2='102' stroke='var(--blue,#23537F)' stroke-width='2.4'/><text x='170' y='106' font-size='11' fill='var(--ink-soft,#43536A)'>HNSW — débit quasi-plat (budget fixe)</text><line x1='138' y1='124' x2='162' y2='124' stroke='var(--bordeaux,#7C2A38)' stroke-width='2.4'/><text x='170' y='128' font-size='11' fill='var(--ink-soft,#43536A)'>IVFFlat pré-filtré — listes élaguées</text><g font-size='11' fill='var(--ink-faint,#7A889B)' text-anchor='middle'><text x='110' y='408'>100 %</text><text x='303' y='408'>10 %</text><text x='497' y='408'>1 %</text><text x='690' y='408'>&lt;1 %</text></g><text x='400' y='430' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)'>Sélectivité du filtre — part du dataset qualifiée (échelle log)</text><text x='400' y='448' text-anchor='middle' font-size='10' font-style='italic' fill='var(--ink-faint,#7A889B)'>vers la droite : le filtre qualifie de moins en moins de vecteurs</text><text x='30' y='230' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)' transform='rotate(-90 30 230)'>Débit — requêtes/s (QPS)</text></svg><figcaption><span class='fcap-k'></span>En régime filtré clairsemé, le débit de HNSW reste quasi constant (budget de traversée fixe) alors que celui d'IVFFlat avec pré-filtrage croît à mesure que la sélectivité se durcit : les deux courbes se croisent autour de 1 % de sélectivité, en deçà duquel IVFFlat dépasse HNSW.</figcaption></figure>\n\n<p>Le benchmark filtré unifié (arXiv 2509.07789) couvre six datasets de natures et d'échelles variées : arXiv (132 678 vecteurs, 768D), YFCC (1 M, 192D), YouTube-Audio (5 M, 128D), YouTube-Video (1 M, 1 024D), LAION1M (1 M, 512D) et TripClick (1,05 M, 768D). Une observation transversale mérite attention : augmenter la taille du dataset de 10 % à 100 % n'a qu'un impact marginal sur le QPS pour la plupart des algorithmes évalués. Ce résultat suggère que la sélectivité du filtre — et non la taille brute de l'index — est le facteur dominant de la difficulté du problème filtré, et invite à reconsidérer les protocoles d'évaluation qui font uniquement varier l'échelle pour caractériser la performance en régime de production.</p>",
+      "claims": [
+        "claim:27",
+        "claim:28",
+        "claim:29",
+        "claim:30"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "deploiements-production",
+      "heading": "En production : FAISS, pgvector, Milvus, Voyager",
+      "level": 3,
+      "prose": "<p>Le passage d'un algorithme de recherche approchée à un système de production capable d'absorber des centaines de millions de requêtes par jour impose des contraintes que les articles fondateurs ignorent : empreinte mémoire mesurée en octets par vecteur, pipelines GPU opérationnels, observabilité, et intégration à l'infrastructure existante. Cinq systèmes matérialisent aujourd'hui ce spectre — FAISS en bibliothèque de référence, ScaNN comme moteur d'un service managé cloud, Voyager comme fork durci issu d'un retour d'expérience de recommandation musicale, pgvector comme extension PostgreSQL, et Milvus comme base vectorielle cloud-native autonome — et leurs choix de conception illustrent des arbitrages fondamentalement différents entre recall, latence, mémoire et coût opérationnel.</p>\n\n<p>FAISS (Facebook AI Similarity Search), publié par Meta FAIR en 2017, est la bibliothèque de référence industrielle pour l'indexation à grande échelle. Sa contribution mémoire centrale repose sur le Product Quantization (quantification par produit cartésien) : chaque vecteur est approximé en environ 20 octets — contre 512 octets pour un vecteur float32 de 128 dimensions non compressé — rendant la recherche sur un milliard de vecteurs praticable dans une RAM contrainte. Sur le benchmark Deep1B (un milliard de descripteurs d'images issus d'un réseau convolutif), FAISS était 8,5× plus rapide que l'état de l'art précédent ; une implémentation GPU sur architecture Pascal atteignait alors 20× les performances CPU sur matériel équivalent. En mai 2025, Meta et NVIDIA ont intégré la bibliothèque cuVS dans FAISS v1.10.0, introduisant notamment l'index graphe CAGRA : la construction est 12,3× plus rapide que HNSW CPU sur des text embeddings (embeddings de texte), et la latence de recherche IVF PQ chute jusqu'à 8,1× sur ces mêmes charges. FAISS supporte les index IVF, PQ, IVFADC/IVFPQR, HNSW, NSG et multi-index inversé, avec wrappers Python complets et accélération GPU via CUDA.</p>\n\n<p>ScaNN (Scalable Nearest Neighbors), publié à l'ICML 2020 par Google Research, cible le Maximum Inner Product Search (MIPS) — la primitive dominante des systèmes de recommandation et de récupération sémantique. Son innovation distinctive est l'anisotropic vector quantization (quantification vectorielle anisotrope) : l'erreur de quantification parallèle à la direction du vecteur original est pénalisée plus fortement que l'erreur perpendiculaire, alignant la perte de compression sur l'objectif de classement plutôt que sur la distance euclidienne brute. Lors de son lancement en 2020, Google affirmait que ScaNN traitait environ deux fois plus de requêtes par seconde qu'un concurrent équivalent à recall fixé sur GloVe-100-angular (onze bibliothèques comparées) ; le README actuel du dépôt revendique désormais plus sobrement « state-of-the-art performance on ann-benchmarks.com », sans reproduire ce facteur 2. ScaNN est le moteur sous-jacent de Vertex AI Matching Engine, le service managé de recherche vectorielle de Google Cloud.</p>\n\n<p>L'expérience de Spotify illustre le cycle d'upgrade production typique. Depuis 2013, la plateforme utilisait Annoy — sa propre bibliothèque ANN basée sur des arbres aléatoires, rendue publique en open source — pour alimenter Discover Weekly, Home et la recherche. En 2022–2023, Annoy se retrouvait « solidement au milieu du peloton » face à l'état de l'art, et l'équipe migra vers Voyager, un fork durci d'hnswlib (l'implémentation de référence de HNSW). Rendu public en open source en octobre 2023 après dix-huit mois de service en production, Voyager atteint plus de 10× le débit d'Annoy à recall équivalent, et jusqu'à 50 % de meilleure précision à débit équivalent. Le levier mémoire clé est le format flottant 8 bits E4M3 pour les vecteurs stockés : il divise par 4 la RAM par rapport à Annoy et par 16 la mémoire nécessaire à la construction de l'index par rapport à hnswlib brut, ce qui a permis à Spotify de réduire significativement l'empreinte de ses pipelines de recommandation interrogés des centaines de millions de fois par jour.</p>\n\n<p>Pour les équipes qui ne peuvent ou ne souhaitent pas justifier un store vectoriel dédié, pgvector intègre la recherche ANN directement dans PostgreSQL. La version 0.8.0 (octobre 2024) expose deux familles d'index : HNSW avec les valeurs par défaut m=16, ef_construction=64, ef_search=40 — et IVFFlat avec un seul probe par défaut. Les deux supportent jusqu'à 2 000 dimensions pour les types halfvec, et six opérateurs de distance couvrent les cas d'usage usuels : L2 (<code>&lt;-&gt;</code>), cosinus (<code>&lt;=&gt;</code>), produit scalaire (<code>&lt;#&gt;</code>), L1 (<code>&lt;+&gt;</code>), Hamming (<code>&lt;~&gt;</code>) et Jaccard (<code>&lt;%&gt;</code>) pour vecteurs binaires. Un benchmark AWS conduit sur environ 58 600 documents de 1 536 dimensions (sortie typique d'un modèle d'embedding OpenAI) sur instance db.r5.large mesure : scan séquentiel ≈ 650 ms, IVFFlat ≈ 2,4 ms, HNSW ≈ 1,5 ms. La contrepartie est le temps de construction : IVFFlat ≈ 15 s contre ≈ 81 s pour HNSW sur le même corpus — réduit à ≈ 30 s dans pgvector 0.6.0 grâce aux optimisations de build parallèle. Pour le paramètre <code>lists</code> d'IVFFlat, AWS recommande rows / 1 000 en dessous d'un million de vecteurs, √rows au-delà ; le paramètre <code>probes</code> augmente le recall en explorant davantage de clusters au prix d'une latence accrue.</p>\n\n<p>Milvus, présenté à l'ACM SIGMOD 2021, prend le pari architectural opposé : une base vectorielle cloud-native avec stockage et calcul entièrement découplés. Les données persistantes résident sur un object storage compatible S3, tandis que les nœuds de requête et les nœuds de données peuvent évoluer indépendamment pour absorber respectivement les pics de lecture et d'écriture. La couche d'index réutilise les kernels FAISS pour IVF, PQ, OPQ et HNSW, en ajoutant son propre orchestrateur pour l'exécution distribuée des requêtes et la gestion des métadonnées. Pour les équipes qui ont besoin d'élasticité cloud, de multi-tenancy et de scale-out horizontal sur des corpus de plusieurs dizaines de milliards de vecteurs, Milvus occupe un registre délibérément différent de l'approche « colonne vectorielle dans votre base existante » portée par pgvector.</p>",
+      "claims": [
+        "claim:31",
+        "claim:32",
+        "claim:33",
+        "claim:34"
+      ]
+    },
+    {
+      "type": "exercise",
+      "part": "IVF, Product Quantization et leur combinaison",
+      "question": "Soit un vecteur SIFT de 128 dimensions stocké en <code>float32</code>. (a) Quelle est sa taille brute en octets ? (b) Avec une Product Quantization de paramètres m = 8 sous-vecteurs et k* = 256 centroïdes, quelle est la taille du code PQ et le facteur de compression ? (c) En IVF-PQ, pourquoi quantifie-t-on le <em>résidu</em> r = y − c₁(y) plutôt que le vecteur brut, et pourquoi FAISS retient-il l'ADC plutôt que le SDC ?",
+      "answer": "<p><strong>(a)</strong> 128 dimensions × 4 octets = <strong>512 octets</strong>.</p><p><strong>(b)</strong> Le code occupe m · log₂(k*) = 8 × log₂(256) = 8 × 8 = 64 bits = <strong>8 octets</strong>, soit un facteur de compression de 512 / 8 = <strong>×64</strong>.</p><p><strong>(c)</strong> Le résidu r = y − c₁(y) (différence entre le vecteur et le centroïde de sa cellule de Voronoï) est centré autour de zéro et a une variance sensiblement plus faible que le vecteur original ; à budget binaire constant, les codebooks PQ en capturent donc la structure avec une erreur de reconstruction moindre, d'où un meilleur recall. FAISS retient l'<strong>ADC</strong> (asymmetric distance computation) parce qu'elle garde la requête à pleine précision — seul le vecteur base est quantifié : l'analyse de Jégou et al. (2011) borne son erreur quadratique espérée par MSE(q), contre 2·MSE(q) pour le SDC, qui cumule les bruits de quantification des deux côtés.</p>"
+    },
+    {
+      "type": "exercise",
+      "part": "Ce qui est prouvable — HNSW, HENN et LSH",
+      "question": "On lit fréquemment que « HNSW a une complexité O(log n) ». Est-ce un théorème démontré ? Que HNSW garantit-il réellement en pire cas, qu'apporte HENN (2025), et par contraste quelle garantie — et quelle limite — offre le LSH ?",
+      "answer": "<p><strong>Ce n'est pas un théorème.</strong> Malkov &amp; Yashunin (2018) avancent une requête en O(log n) et une construction en O(n log n) sans <em>aucune</em> preuve formelle : l'algorithme est présenté explicitement comme une heuristique, sans ratio d'approximation. Sur entrées adversariales, le greedy beam search peut dégénérer en O(n) — faute de critère d'arrêt garanti, la traversée explore potentiellement tout le graphe.</p><p><strong>HENN (Dehghankar &amp; Asudeh, 2025)</strong> comble partiellement le vide : son Corollaire 3 établit que si la construction aléatoire d'HNSW produit des ε-nets — ce qui arrive avec haute probabilité — alors HNSW atteint une complexité de requête polylogarithmique probabiliste, première justification théorique de son comportement empirique. La construction HENN elle-même va plus loin : son Théorème 4 garantit O(d·d*·ρ_δ·log²n) en pire cas, <em>indépendamment de la distribution des données</em>.</p><p><strong>Le LSH</strong> résout le <em>c-approximate nearest neighbor</em> : si le vrai voisin est à distance ≤ r, il retourne un point à distance ≤ c·r avec probabilité ≥ 1 − δ, en temps O(n^ρ) avec ρ = log(1/p₁)/log(1/p₂) < 1. Sa limite : il admet des faux négatifs et n'offre aucune garantie sur le vrai plus proche voisin lorsque celui-ci se situe hors du seuil r.</p>"
+    },
+    {
+      "type": "biblio",
+      "entries": [
+        {
+          "label": "Vector Search with FAISS: Approximate Nearest Neighbor (ANN) Explained — PyImageSearch",
+          "href": "https://pyimagesearch.com/2026/02/16/vector-search-with-faiss-approximate-nearest-neighbor-ann-explained/"
+        },
+        {
+          "label": "Vector Search Explained — Weaviate Blog",
+          "href": "https://weaviate.io/blog/vector-search-explained"
+        },
+        {
+          "label": "Bang for the Buck: Vector Search on Cloud CPUs (arXiv 2505.07621)",
+          "href": "https://arxiv.org/pdf/2505.07621"
+        },
+        {
+          "label": "Faiss: A library for efficient similarity search — Engineering at Meta",
+          "href": "https://engineering.fb.com/2017/03/29/data-infrastructure/faiss-a-library-for-efficient-similarity-search/"
+        },
+        {
+          "label": "Exact vs Approximate Nearest Neighbor (ANN) Explained — Krunal Kanojiya",
+          "href": "https://krunalkanojiya.com/blog/exact-vs-approximate-nearest-neighbor"
+        },
+        {
+          "label": "ANN-Benchmarks — Benchmarks for Approximate Nearest Neighbor Algorithms",
+          "href": "https://ann-benchmarks.com/"
+        },
+        {
+          "label": "Weaviate ANN Benchmarks",
+          "href": "https://docs.weaviate.io/weaviate/benchmarks/ann"
+        },
+        {
+          "label": "Understanding IVF Vector Index: How It Works and When to Choose It Over HNSW — Milvus Blog",
+          "href": "https://milvus.io/blog/understanding-ivf-vector-index-how-It-works-and-when-to-choose-it-over-hnsw.md"
+        },
+        {
+          "label": "Enhancing GPU-Accelerated Vector Search in Faiss with NVIDIA cuVS — NVIDIA Technical Blog",
+          "href": "https://developer.nvidia.com/blog/enhancing-gpu-accelerated-vector-search-in-faiss-with-nvidia-cuvs/"
+        },
+        {
+          "label": "HNSW vs IVF-PQ: Vector Database Index Performance Guide (DrCodes)",
+          "href": "https://drcodes.com/posts/hnsw-vs-ivf-pq-vector-database-index-performance-guide"
+        },
+        {
+          "label": "Why HNSW is Not the Answer to Vector Databases (VectorChord Blog)",
+          "href": "https://blog.vectorchord.ai/why-hnsw-is-not-the-answer"
+        },
+        {
+          "label": "The Shortcut Through Space — HNSW in Vector Search, Part 2 (Medium / Adnan Masood)",
+          "href": "https://medium.com/@adnanmasood/the-shortcut-through-space-hierarchical-navigable-small-worlds-hnsw-in-vector-search-part-2-ba2e8a64134e"
+        },
+        {
+          "label": "Product Quantization: Compressing high-dimensional vectors by 97% | Pinecone",
+          "href": "https://www.pinecone.io/learn/series/faiss/product-quantization/"
+        },
+        {
+          "label": "Product Quantization | Arpit Bhayani",
+          "href": "https://arpitbhayani.me/blogs/product-quantization/"
+        },
+        {
+          "label": "How does product quantization (PQ) reduce the memory footprint of a vector index — Milvus AI Quick Reference",
+          "href": "https://milvus.io/ai-quick-reference/how-does-product-quantization-pq-reduce-the-memory-footprint-of-a-vector-index-and-what-impact-does-this-compression-have-on-search-recall-and-precision"
+        },
+        {
+          "label": "David Stutz — Review: Video Google: A Text Retrieval Approach to Object Matching in Videos",
+          "href": "https://davidstutz.de/video-google-text-retrieval-approach-object-matching-videos-sivic-zisserman/"
+        },
+        {
+          "label": "Ryan Lei — [aMMAI_02] Efficient visual search of videos cast as text retrieval",
+          "href": "https://ryanlei.wordpress.com/2011/03/09/ammai_02-efficient-visual-search-of-videos-cast-as-text-retrieval/"
+        },
+        {
+          "label": "Introduction to the Bag of Features Paradigm for Image Classification and Retrieval (arXiv:1101.3354)",
+          "href": "https://ar5iv.labs.arxiv.org/html/1101.3354"
+        },
+        {
+          "label": "Faster search — FAISS Wiki (facebookresearch)",
+          "href": "https://github.com/facebookresearch/faiss/wiki/Faster-search"
+        },
+        {
+          "label": "Nearest Neighbor Indexes for Similarity Search — Pinecone",
+          "href": "https://www.pinecone.io/learn/series/faiss/vector-indexes/"
+        },
+        {
+          "label": "FAISS Issue #514 — recall@r decreases as nprobe's value increases",
+          "href": "https://github.com/facebookresearch/faiss/issues/514"
+        },
+        {
+          "label": "FAISS Issue #2096 — IVFPQ recall decreases with increasing nprobe",
+          "href": "https://github.com/facebookresearch/faiss/issues/2096"
+        },
+        {
+          "label": "Pinecone — FAISS Tutorial (IVF, nlist, nprobe)",
+          "href": "https://www.pinecone.io/learn/series/faiss/faiss-tutorial/"
+        },
+        {
+          "label": "Why IndexIvfx is slower than IndexFlatL2? · Issue #1656 · facebookresearch/faiss",
+          "href": "https://github.com/facebookresearch/faiss/issues/1656"
+        },
+        {
+          "label": "Faiss indexes (FAISS official wiki) — citation exacte : \"as a first approximation, this fraction is nprobe/nlist, but this approximation is usually under-estimated because the inverted lists have not equal lengths.\"",
+          "href": "https://github.com/facebookresearch/faiss/wiki/Faiss-indexes"
+        },
+        {
+          "label": "Product Quantization for Nearest Neighbor Search — Jégou et al. (TPAMI 2011), author preprint IRISA",
+          "href": "https://www.irisa.fr/texmex/people/jegou/papers/jegou_searching_with_quantization.pdf"
+        },
+        {
+          "label": "Inside FAISS: Billion-Scale Similarity Search — Frema Consulting AI/ML blog",
+          "href": "https://fremaconsulting.ch/blog/faiss"
+        },
+        {
+          "label": "Product Quantization for Nearest Neighbor Search — Jégou, Douze, Schmid (arXiv preprint 1102.3828)",
+          "href": "https://arxiv.org/pdf/1102.3828"
+        },
+        {
+          "label": "David Stutz — secondary synthesis confirming the inversion exists",
+          "href": "https://davidstutz.de/product-quantization-for-nearest-neighbor-search-jegou-douze-schmid/"
+        },
+        {
+          "label": "Similarity Search with IVFPQ — Towards Data Science",
+          "href": "https://towardsdatascience.com/similarity-search-with-ivfpq-9c6348fd4db3/"
+        },
+        {
+          "label": "Product Quantizer Tutorial Part 2 — mccormickml.com",
+          "href": "https://mccormickml.com/2017/10/22/product-quantizer-tutorial-part-2/"
+        },
+        {
+          "label": "arXiv 2401.08281v4 — survey sur la compression de vecteurs pour la recherche ANN",
+          "href": "https://arxiv.org/html/2401.08281v4"
+        },
+        {
+          "label": "Understanding HNSW — Amandeep Singh blog (formule l = ⌊−ln U / ln m⌋ et densité N·m^(−l) vérifiées directement)",
+          "href": "https://amandeepsp.github.io/blog/hnsw/"
+        },
+        {
+          "label": "Efficient and robust approximate nearest neighbor search using Hierarchical Navigable Small World graphs — Malkov & Yashunin 2016 (source primaire : distribution à décroissance exponentielle, mL paramètre libre)",
+          "href": "https://arxiv.org/abs/1603.09320"
+        },
+        {
+          "label": "Understanding HNSW — Keyur Ramoliya (confirme la formule floor(-ln(U)*mL) et que mL = 1/ln(M) est la valeur recommandée, pas la seule)",
+          "href": "https://keyurramoliya.com/posts/Understading-HNSW-Hierarchical-Navigable-Small-World/"
+        },
+        {
+          "label": "ANN-Benchmarks — sift-128-euclidean (k = 10)",
+          "href": "https://ann-benchmarks.com/sift-128-euclidean_10_euclidean.html"
+        },
+        {
+          "label": "Comparing different Indexes for RAG (saidines12, Medium)",
+          "href": "https://medium.com/@saidines12/comparing-different-indexes-for-rag-62ecd798d5ac"
+        },
+        {
+          "label": "Indexing 1M vectors — FAISS Wiki (facebookresearch)",
+          "href": "https://github.com/facebookresearch/faiss/wiki/Indexing-1M-vectors"
+        },
+        {
+          "label": "Paper review HNSW — EleventhHourEnthusiast (Medium) : preuve sous hypothèse graphe de Delaunay parfait, avec caveat explicite sur la déviation en pratique",
+          "href": "https://medium.com/@EleventhHourEnthusiast/paper-review-efficient-and-robust-approximate-nearest-neighbor-search-using-hierarchical-navigable-07f7241a0baf"
+        },
+        {
+          "label": "The Impacts of Data, Ordering, and Intrinsic Dimensionality on Recall in HNSW (arXiv 2405.17813v1, SIGIR 2024)",
+          "href": "https://arxiv.org/html/2405.17813v1"
+        },
+        {
+          "label": "Locality-sensitive hashing — Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/Locality-sensitive_hashing"
+        },
+        {
+          "label": "DB-LSH: Locality-Sensitive Hashing with Query-based Dynamic Bucketing (arXiv:2207.07823)",
+          "href": "https://arxiv.org/abs/2207.07823"
+        },
+        {
+          "label": "On the Problem of p₁⁻¹ in Locality-Sensitive Hashing (Ahle, 2020) — arXiv:2005.12065",
+          "href": "https://arxiv.org/abs/2005.12065"
+        },
+        {
+          "label": "Efficient Algorithms for Adversarially Robust Approximate Nearest Neighbor Search",
+          "href": "https://arxiv.org/html/2601.00272"
+        },
+        {
+          "label": "Optimal Data-Dependent Hashing for Approximate Near Neighbors (Andoni & Razenshteyn, 2015)",
+          "href": "https://arxiv.org/abs/1501.01062"
+        },
+        {
+          "label": "Optimal Lower Bounds for Locality Sensitive Hashing (Except When q is Tiny) — O'Donnell, Wu, Zhou, 2011",
+          "href": "https://arxiv.org/pdf/0912.0250"
+        },
+        {
+          "label": "Tight Lower Bounds for Data-Dependent Locality-Sensitive Hashing (Andoni & Razenshteyn, SoCG 2016)",
+          "href": "https://arxiv.org/abs/1507.04299"
+        },
+        {
+          "label": "Optimal Lower Bounds for Locality Sensitive Hashing (except when q is tiny) (O'Donnell, Wu & Zhou, 2011)",
+          "href": "https://arxiv.org/abs/0912.0250"
+        },
+        {
+          "label": "Approximate Nearest Neighbor Search in High Dimensions — arXiv 2401.08281v3",
+          "href": "https://arxiv.org/html/2401.08281v3"
+        },
+        {
+          "label": "CoveringLSH: Locality-Sensitive Hashing without False Negatives — arXiv 1507.03225",
+          "href": "https://arxiv.org/abs/1507.03225"
+        },
+        {
+          "label": "Worst-case Performance of Popular Approximate Nearest Neighbor Search Implementations (arxiv 2310.19126)",
+          "href": "https://arxiv.org/abs/2310.19126"
+        },
+        {
+          "label": "Hierarchical Epsilon-Net Graphs: Time Guarantees for HNSW in Approximate Nearest Neighbor Search (OpenReview ICLR 2025)",
+          "href": "https://openreview.net/forum?id=3UTv6iWRGl"
+        },
+        {
+          "label": "HENN: A Hierarchical Epsilon Net Navigation Graph for Approximate Nearest Neighbor Search (arXiv:2505.17368)",
+          "href": "https://arxiv.org/abs/2505.17368"
+        },
+        {
+          "label": "HENN — full HTML text with theorem/corollary list (arXiv:2505.17368)",
+          "href": "https://arxiv.org/html/2505.17368"
+        },
+        {
+          "label": "Faiss Wiki: Additive quantizers (Facebook Research)",
+          "href": "https://github.com/facebookresearch/faiss/wiki/Additive-quantizers/d36b674f5befe0ab68d022cb3f79fa7122c20d8d"
+        },
+        {
+          "label": "Stacked Quantizers for Compositional Vector Compression (Martinez et al., arXiv 1411.2173)",
+          "href": "https://arxiv.org/abs/1411.2173"
+        },
+        {
+          "label": "Generalized Residual Vector Quantization for Large Scale Data (arXiv 1609.05345)",
+          "href": "https://ar5iv.labs.arxiv.org/html/1609.05345"
+        },
+        {
+          "label": "Product Quantization for Nearest Neighbor Search — Jégou, Douze, Schmid (2011), papier original INRIA/HAL",
+          "href": "https://inria.hal.science/inria-00514462v1/document"
+        },
+        {
+          "label": "DiskANN: Fast Accurate Billion-point Nearest Neighbor Search on a Single Node — NeurIPS 2019 Proceedings (peer-reviewed abstract)",
+          "href": "https://proceedings.neurips.cc/paper_files/paper/2019/hash/09853c7fb1d3f8ee67a61b6bf4a7f8e6-Abstract.html"
+        },
+        {
+          "label": "pgblog 20210729 — DiskANN summary (independent blogger, July 2021)",
+          "href": "https://github.com/awaa/pgblog/blob/master/202107/20210729_03.md"
+        },
+        {
+          "label": "DiskANN: Fast Accurate Billion-point Nearest Neighbor Search on a Single Node — Microsoft Research (abstract NeurIPS 2019)",
+          "href": "https://www.microsoft.com/en-us/research/publication/diskann-fast-accurate-billion-point-nearest-neighbor-search-on-a-single-node/"
+        },
+        {
+          "label": "DiskANN, A Disk-based ANNS Solution with High Recall and High QPS on Billion-scale Dataset — Milvus Blog (analyse tierce)",
+          "href": "https://milvus.io/blog/2021-09-24-diskann.md"
+        },
+        {
+          "label": "Practical and Asymptotically Optimal Quantization of High-Dimensional Vectors in Euclidean Space for Approximate Nearest Neighbor Search (arXiv:2409.09913)",
+          "href": "https://arxiv.org/abs/2409.09913"
+        },
+        {
+          "label": "Optimal Compression of Approximate Inner Products and Dimension Reduction — Alon & Klartag, FOCS 2017 (arXiv:1610.00239)",
+          "href": "https://arxiv.org/abs/1610.00239"
+        },
+        {
+          "label": "RaBitQ: Quantizing High-Dimensional Vectors with a Theoretical Error Bound for Approximate Nearest Neighbor Search (arXiv:2405.12497, HTML)",
+          "href": "https://arxiv.org/html/2405.12497v1"
+        },
+        {
+          "label": "Optimal Compression of Approximate Inner Products and Dimension Reduction — Weizmann Institute (Alon & Klartag, FOCS 2017)",
+          "href": "https://weizmann.elsevierpure.com/en/publications/optimal-compression-of-approximate-inner-products-and-dimension-r/"
+        },
+        {
+          "label": "Revisiting RaBitQ and TurboQuant: A Symmetric Comparison of Methods, Theory, and Experiments (arXiv:2604.19528)",
+          "href": "https://arxiv.org/html/2604.19528v1"
+        },
+        {
+          "label": "Indexing 1T vectors · facebookresearch/faiss Wiki · GitHub",
+          "href": "https://github.com/facebookresearch/faiss/wiki/Indexing-1T-vectors"
+        },
+        {
+          "label": "Announcing ScaNN: Efficient Vector Similarity Search — Google Research Blog",
+          "href": "https://research.google/blog/announcing-scann-efficient-vector-similarity-search/"
+        },
+        {
+          "label": "A Brief Introduction to the ScaNN Index and How It Improves IVFPQ — Milvus Blog",
+          "href": "https://milvus.io/blog/a-brief-introduction-to-the-scann-index.md"
+        },
+        {
+          "label": "Similarity Search: ScaNN and 4-bit PQ (Medium / Takuma Yamaguchi)",
+          "href": "https://medium.com/@kumon/similarity-search-scann-and-4-bit-pq-ab98766b32bd"
+        },
+        {
+          "label": "Filtered Approximate Nearest Neighbor Search: A Unified Benchmark and Systematic Experimental Study (Shi, Cai, Zheng, 2025)",
+          "href": "https://arxiv.org/html/2509.07789v1"
+        },
+        {
+          "label": "ACORN: Performant and Predicate-Agnostic Search Over Vector Embeddings and Structured Data (Patel, Kraft, Guestrin, Zaharia, 2024)",
+          "href": "https://arxiv.org/html/2403.04871v1"
+        },
+        {
+          "label": "How we speed up filtered vector search with ACORN — Weaviate Blog",
+          "href": "https://weaviate.io/blog/speed-up-filtered-vector-search"
+        },
+        {
+          "label": "Curator: Efficient Indexing for Low-Selectivity Filtered Vector Search (arXiv:2601.01291)",
+          "href": "https://arxiv.org/html/2601.01291"
+        },
+        {
+          "label": "SIEVE: Effective Filtered Vector Search with Collection of Indexes (arXiv:2507.11907)",
+          "href": "https://arxiv.org/html/2507.11907"
+        },
+        {
+          "label": "Effects of filtered HNSW searches on Recall and Latency — Etienne Dilocker / TDS",
+          "href": "https://medium.com/data-science/effects-of-filtered-hnsw-searches-on-recall-and-latency-434becf8041c"
+        },
+        {
+          "label": "Filtered Approximate Nearest Neighbor Search in Vector Databases: System Design and Performance Analysis (arXiv:2602.11443)",
+          "href": "https://arxiv.org/html/2602.11443"
+        },
+        {
+          "label": "Attribute Filtering in Approximate Nearest Neighbor Search: An In-depth Experimental Study (2025)",
+          "href": "https://arxiv.org/html/2508.16263v1"
+        },
+        {
+          "label": "stanford-futuredata/ACORN — GitHub repository (SIGMOD '24)",
+          "href": "https://github.com/stanford-futuredata/ACORN"
+        },
+        {
+          "label": "Billion-scale similarity search with GPUs — Johnson, Douze, Jégou (arXiv 1702.08734)",
+          "href": "https://arxiv.org/abs/1702.08734"
+        },
+        {
+          "label": "Faiss on the GPU — documentation officielle (GitHub wiki)",
+          "href": "https://github.com/facebookresearch/faiss/wiki/Faiss-on-the-GPU"
+        },
+        {
+          "label": "Introducing Voyager: Spotify's New Nearest-Neighbor Search Library",
+          "href": "https://engineering.atspotify.com/2023/10/introducing-voyager-spotifys-new-nearest-neighbor-search-library"
+        },
+        {
+          "label": "Spotify Open-Sources Voyager Nearest-Neighbor Search Library – InfoQ",
+          "href": "https://www.infoq.com/news/2023/11/spotify-ann-voyager/"
+        },
+        {
+          "label": "ScaNN README actuel — google-research/google-research (GitHub)",
+          "href": "https://github.com/google-research/google-research/blob/master/scann/README.md"
+        },
+        {
+          "label": "ANN-Benchmarks — glove-100-angular (k=10)",
+          "href": "https://ann-benchmarks.com/glove-100-angular_10_angular.html"
+        },
+        {
+          "label": "Optimize generative AI applications with pgvector indexing: A deep dive into IVFFlat and HNSW techniques (AWS Blog)",
+          "href": "https://aws.amazon.com/blogs/database/optimize-generative-ai-applications-with-pgvector-indexing-a-deep-dive-into-ivfflat-and-hnsw-techniques/"
+        },
+        {
+          "label": "pgvector v0.5.0: Faster semantic search with HNSW indexes (Supabase Blog)",
+          "href": "https://supabase.com/blog/increase-performance-pgvector-hnsw"
+        },
+        {
+          "label": "Faster similarity search performance with pgvector indexes — Google Cloud Blog",
+          "href": "https://cloud.google.com/blog/products/databases/faster-similarity-search-performance-with-pgvector-indexes"
+        }
+      ]
+    },
+    {
+      "type": "pointers",
+      "title": "Pour aller plus loin",
+      "items": [
+        {
+          "name": "FAISS",
+          "url": "https://github.com/facebookresearch/faiss",
+          "kind": "library",
+          "blurb": "Bibliothèque open-source de Meta FAIR implémentant IVF, PQ, HNSW et leurs combinaisons (IndexIVFPQ), avec accélération GPU via CUDA, conçue pour des collections à l'échelle du milliard de vecteurs."
+        },
+        {
+          "name": "FAISS — Faiss indexes wiki",
+          "url": "https://github.com/facebookresearch/faiss/wiki/Faiss-indexes",
+          "kind": "implementation",
+          "blurb": "Guide pratique des index FAISS (IndexPQ, IndexIVFPQ, FastScan) avec paramètres m, k*, nlist, nprobe et leurs compromis vitesse/rappel/mémoire."
+        },
+        {
+          "name": "The Faiss Library — article 2024",
+          "url": "https://arxiv.org/abs/2401.08281",
+          "kind": "reading",
+          "blurb": "Article 2024 décrivant la hiérarchie de quantificateurs FAISS, les primitives de recherche de similarité et le benchmarking des fonctionnalités clés de la bibliothèque."
+        },
+        {
+          "name": "hnswlib",
+          "url": "https://github.com/nmslib/hnswlib",
+          "kind": "library",
+          "blurb": "Implémentation header-only C++ de HNSW par Malkov lui-même, avec bindings Python ; référence pour les benchmarks CPU single-threaded sur ANN-Benchmarks."
+        },
+        {
+          "name": "ANN-Benchmarks",
+          "url": "https://ann-benchmarks.com/",
+          "kind": "tool",
+          "blurb": "Cadre standardisé évaluant 37+ algorithmes ANN sur neuf jeux de données (SIFT, GloVe, GIST, Fashion-MNIST…) ; métrique principale : recall@10 vs queries par seconde."
+        },
+        {
+          "name": "Malkov & Yashunin 2018 — HNSW",
+          "url": "https://arxiv.org/abs/1603.09320",
+          "kind": "reading",
+          "blurb": "Article fondateur de HNSW (IEEE TPAMI 2018) : construction multicouche, preuve de complexité O(log N), paramètres M et ef_construction."
+        },
+        {
+          "name": "Jégou, Douze & Schmid 2011 — Product Quantization",
+          "url": "https://dl.acm.org/doi/10.1109/TPAMI.2010.57",
+          "kind": "reading",
+          "blurb": "Article fondateur de Product Quantization (IEEE TPAMI 2011) ; formalise la décomposition en sous-vecteurs et valide l'approche sur BIGANN (un milliard de vecteurs)."
+        },
+        {
+          "name": "DiskANN",
+          "url": "https://github.com/microsoft/DiskANN",
+          "kind": "library",
+          "blurb": "Bibliothèque Microsoft de référence pour l'indexation ANN par graphe Vamana sur SSD ; intégrée dans SQL Server 2025 et Azure AI Search."
+        },
+        {
+          "name": "ScaNN",
+          "url": "https://github.com/google-research/google-research/tree/master/scann",
+          "kind": "library",
+          "blurb": "Bibliothèque Google de similarity search à quantification anisotrope pour MIPS, open source depuis 2020."
+        },
+        {
+          "name": "pgvector",
+          "url": "https://github.com/pgvector/pgvector",
+          "kind": "package",
+          "blurb": "Extension PostgreSQL ajoutant les index HNSW et IVFFlat, six métriques de distance, et la recherche hybride dans une base relationnelle existante."
+        },
+        {
+          "name": "LoRANN",
+          "url": "https://github.com/ejaasaari/lorann",
+          "kind": "implementation",
+          "blurb": "Implémentation Python/C++ de la méthode NeurIPS 2024 de régression à rang réduit pour ANN sur CPU."
+        },
+        {
+          "name": "NSG (Navigating Spreading-out Graph)",
+          "url": "https://github.com/ZJULearning/nsg",
+          "kind": "implementation",
+          "blurb": "Implémentation de référence du graphe NSG (PVLDB 2019) pour corpus statiques à grande échelle, déployé en production chez Taobao."
+        },
+        {
+          "name": "RaBitQ — SIGMOD 2024",
+          "url": "https://arxiv.org/abs/2405.12497",
+          "kind": "reading",
+          "blurb": "Article SIGMOD 2024 établissant la borne théorique O(1/√D) de la quantification 1-bit-par-dimension après rotation orthogonale aléatoire."
+        },
+        {
+          "name": "IVF-RaBitQ GPU (2025)",
+          "url": "https://arxiv.org/abs/2602.23999",
+          "kind": "reading",
+          "blurb": "Extension GPU (CUDA) de RaBitQ dans un cadre IVF pour la recherche ANN native sur GPU à grande échelle."
+        },
+        {
+          "name": "ACORN: Performant and Predicate-Agnostic Search Over Vector Embeddings and Structured Data",
+          "url": "https://arxiv.org/abs/2403.04871",
+          "kind": "reading",
+          "blurb": "Article SIGMOD 2024 présentant ACORN-1 et ACORN-γ ; contient la taxonomie filter-then-search / search-then-filter / hybrid search et la preuve théorique de déconnexion de graphe sous faible sélectivité."
+        },
+        {
+          "name": "stanford-futuredata/ACORN",
+          "url": "https://github.com/stanford-futuredata/ACORN",
+          "kind": "implementation",
+          "blurb": "Implémentation de référence d'ACORN (Stanford), construite au-dessus de FAISS ; inclut ACORN-1 et ACORN-γ avec benchmarks reproductibles."
+        },
+        {
+          "name": "Speed up filtered vector search with ACORN — Weaviate blog",
+          "url": "https://weaviate.io/blog/speed-up-filtered-vector-search",
+          "kind": "reading",
+          "blurb": "Explication accessible du problème de déconnexion de graphe sous filtre sélectif et de la solution two-hop de l'ACORN-1, illustrée par des comparaisons de débit sur cas concrets."
+        },
+        {
+          "name": "Filtered-DiskANN: Graph Algorithms for Approximate Nearest Neighbor Search with Filters",
+          "url": "https://dl.acm.org/doi/10.1145/3543507.3583552",
+          "kind": "reading",
+          "blurb": "Article WWW 2023 (Microsoft Research) introduisant FilteredVamana et StitchedVamana, deux algorithmes de recherche hybride sur base Vamana intégrant les étiquettes dès la construction."
+        },
+        {
+          "name": "Filtered Approximate Nearest Neighbor Search: A Unified Benchmark and Systematic Experimental Study",
+          "url": "https://arxiv.org/abs/2509.07789",
+          "kind": "reading",
+          "blurb": "Benchmark unifié 2025 comparant plusieurs algorithmes de filtered ANN sur 6 datasets sous différents types de filtres et sélectivités, avec une taxonomie filter-then-search / search-then-filter / hybrid."
+        },
+        {
+          "name": "Filtered Approximate Nearest Neighbor Search in Vector Databases: System Design and Performance Analysis",
+          "url": "https://arxiv.org/abs/2602.11443",
+          "kind": "reading",
+          "blurb": "Étude systématique 2026 sur l'implémentation du filtrage dans les moteurs vectoriels (FAISS, Milvus, pgvector) ; introduit la métrique GLS (Global-Local Selectivity) et le dataset MoReVec."
+        },
+        {
+          "name": "Curator: Efficient Vector Search with Low-Selectivity Filters",
+          "url": "https://arxiv.org/abs/2601.01291",
+          "kind": "reading",
+          "blurb": "Article SIGMOD 2026 proposant un index à partitions adaptatif complémentaire aux approches graphe pour le filtered ANNS à très faible sélectivité."
+        }
+      ]
+    },
+    {
+      "type": "glossary"
+    }
+  ]
+}
