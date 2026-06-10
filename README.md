@@ -150,3 +150,7 @@ générés par `/monograph` ou sa variante économe `/frugalmonograph` (les plus
   Pipeline à **8 phases** (Sweep → Plan → Extract → Verify → Author → **Widgets** → Compose →
   Build), document unique « best-of » + widgets pilotés par concept. Éprouvé sur **14 thèmes**
   hors APO (voir ci-dessus) et publié via GitHub Pages.
+
+## Licence
+
+Code sous licence MIT — voir [`LICENSE`](LICENSE).
