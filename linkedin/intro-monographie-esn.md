@@ -10,7 +10,7 @@ C'est ce que la monographie **« IA et productivité dans les ESN : annonces et 
 
 Au programme : pourquoi les gains de labo ne survivent pas à la production, où l'IA aide vraiment (et où elle nuit), et ce que ça impose au modèle économique des ESN.
 
-105 sources, des chiffres vérifiés, des références bibliographiques valides, de jolies figures et des widgets interactifs qui à défaut de faire bouger les lignes permettent d'illustrer dynamiquement les concepts clés.
+105 sources, des chiffres vérifiés, des références bibliographiques valides, de jolies figures et des widgets interactifs qui à défaut de faire bouger les lignes permettent d'illustrer dynamiquement les concepts clés en bougeant des curseurs.
 
 👉 https://sandjab.github.io/scriptorium/ia-productivite-esn/ia-productivite-esn.html
 
