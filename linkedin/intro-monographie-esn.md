@@ -12,7 +12,8 @@ Au programme : pourquoi les gains de labo ne survivent pas à la production, où
 
 105 sources, des chiffres vérifiés, des références bibliographiques valides, de jolies figures et des widgets interactifs qui à défaut de faire bouger les lignes permettent d'illustrer dynamiquement les concepts clés en bougeant des curseurs.
 
-👉 https://sandjab.github.io/scriptorium/ia-productivite-esn/ia-productivite-esn.html
+👉 Le lien en commentaire
+https://sandjab.github.io/scriptorium/ia-productivite-esn/ia-productivite-esn.html
 
 ## Disclaimer
 
