@@ -49,8 +49,9 @@ Les chiffres réels (extraits des journaux d'exécution) :
 - 1 à 3 heures de génération, dominé par l'attente des limitations de débit serveur, pas par le calcul ;
 - 159 affirmations sur 204 (78 %) corrigées par le council avant publication, sur les 6 derniers thèmes.
 
-Ce dernier chiffre est le plus parlant. 78 % du premier jet était imprécis ou faux.
-C'est exactement ce qu'un outil grand public publierait sans filet avec un prompt type « génère moi un playground interactif sur X »: un rendu convaincant, soigné… et factuellement non garanti. Un deep research classique fait mieux (il cite), mais rend de la prose à lire, sans artefact interactif ni build qui refuse les affirmations non sourcées.
+Ce dernier chiffre est le plus parlant. Au global, 78 % du premier jet était imprécis ou faux.
+C'est exactement ce qu'un outil grand public publierait sans filet avec un prompt type « génère moi un playground interactif sur X »: un rendu convaincant, soigné… et factuellement non garanti.
+Un deep research classique fait mieux (il cite), mais rend de la prose à lire, sans artefact interactif ni build qui refuse les affirmations non sourcées.
 
 Ici, la vérification est adversariale, multi-passes et opposable : chaque article garde sa piste d'audit, affirmation par affirmation.
 
@@ -58,11 +59,9 @@ Avantages / limites:
 + Fiabilité factuelle vérifiable et opposable ; livrable unique, interactif, reproductible. 
 - Ni instantané ni gratuit, opérationnellement complexe et surdimensionné pour un sujet trivial.
 
-La valeur n'est pas dans le prompt magique, mais dans le harnais autour du modèle : contradiction, vérification croisée, assemblage déterministe. 
-
 👉 Les liens en commentaire
 
 Note: Il existe aussi une variante dite "frugale" qui n'économise pas en réduisant la matière, mais simplement en déplaçant ~65 % de la génération vers un modèle moins cher (Sonnet pour la recherche et la vérification, Opus restant réservé au jugement structurant) et divise par ~5 l'entrée facturée plein tarif en bornant le fan-out par des plafonds durs. 
 
-#IA #LLM #ESN #Conseil #IngénierieLogicielle #Agents
+#IA #LLM #IngénierieLogicielle #Agents
 
