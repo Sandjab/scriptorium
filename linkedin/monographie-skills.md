@@ -62,7 +62,7 @@ Avantages / limites:
 
 La valeur n'est pas dans le prompt magique, mais dans le harnais autour du modèle : contradiction, vérification croisée, assemblage déterministe. 
 
-C'est là que se joue la différence entre une démo impressionnante et un livrable sur lequel on engage sa signature.
+👉 Les liens en commentaire
 
 #IA #LLM #ESN #Conseil #IngénierieLogicielle #Agents
 
