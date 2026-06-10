@@ -38,5 +38,4 @@ Et cette fonction là, elle vous appartient encore.
 
 Peut être pas pour longtemps.
 
-
-\#IA #ESN #GenAI #Productivité
+\#IA #LLM #ESN #Conseil #IngénierieLogicielle #GenAI #Productivité
