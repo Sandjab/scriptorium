@@ -26,7 +26,7 @@ Au pire, vous aurez peut être appris de nouvelles notions. Au mieux, vous aurez
 
 De plus, le domaine évolue tellement vite que ce qui était vrai hier ne l'est plus aujourd'hui, et ce qui pourrait être vrai aujourd'hui ne le sera plus demain. La valeur d'une étude datant de plus de 3 mois est donc déjà questionnable. Tout le monde apprend en marchant, même si on peut dire sans trop s'avancer que l'amélioration des modéles, des harnais ainsi que la mutation des organisations et des process vont forcément dans le sens d'une augmentation mécanique de la productivité (et que l'eau mouille).
 
-## Et maintenant l'inénarrable Call To Action bien téléphoné: 
+## Et maintenant l'incontournable Call To Action bien téléphoné: 
 
 Et vous, qu'observez-vous, vous, sur le terrain : gains réels, ou écart annonces/réalités ? Commentez MONOGRAPH et je vous enverrai un joli PDF qui enfonce bien des portes ouvertes.
 
