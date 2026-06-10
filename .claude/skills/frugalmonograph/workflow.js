@@ -771,16 +771,20 @@ await A(
     model: M_IO, phase: 'Author', label: 'write:knowledge' }
 );
 // Écriture du rapport d'audit (2 fichiers annexes : JSON réexploitable + MD lisible). Best-effort :
-// son échec ne doit pas tuer un run par ailleurs réussi → try/catch.
-try {
-  await A(
-    `Crée le dossier si besoin (mkdir -p ${themeDir}) puis écris VERBATIM ces DEUX fichiers (un Write chacun, sans rien modifier).\n` +
-    `--- Fichier 1 : ${themeDir}/audit-report.json ---\n${JSON.stringify(auditReport, null, 2)}\n` +
-    `--- Fichier 2 : ${themeDir}/audit-report.md ---\n${auditReportMd}`,
-    { schema: { type:'object', additionalProperties:false, required:['files_written'], properties:{ files_written:{ type:'array', items:{type:'string'} } } },
-      model: M_IO, phase: 'Author', label: 'write:audit-report' }
-  );
-} catch (e) { log(`[audit] rapport non écrit (${e.message}) — run continue.`); }
+// son échec ne doit pas tuer un run par ailleurs réussi → try/catch. UN agent PAR fichier : tout écrire
+// en un seul agent fait dépasser la limite de tokens de SORTIE (le contenu est ré-émis verbatim) sur les
+// thèmes à nombreux claims — chaque fichier seul reste sous le plafond.
+const _writeVerbatim = async (path, content, label) => {
+  try {
+    await A(
+      `Crée le dossier si besoin (mkdir -p ${themeDir}) puis écris VERBATIM, sans aucune modification, le fichier suivant.\nChemin : ${path}\nContenu :\n${content}`,
+      { schema: { type:'object', additionalProperties:false, required:['written'], properties:{ written:{type:'boolean'} } },
+        model: M_IO, phase: 'Author', label }
+    );
+  } catch (e) { log(`[audit] ${path} non écrit (${e.message}) — run continue.`); }
+};
+await _writeVerbatim(`${themeDir}/audit-report.json`, JSON.stringify(auditReport, null, 2), 'write:audit-report.json');
+await _writeVerbatim(`${themeDir}/audit-report.md`, auditReportMd, 'write:audit-report.md');
 const sectionsBrief = arch.outline.filter(o => liveOutlineIds.has(o.id)).map(o => `- ${o.id} : ${o.heading}`).join('\n');
 const authored = await A(authorPrompt(sectionsBrief), { schema: S_AUTHOR, phase: 'Author', label: 'author' });
 log(`Author : ${authored.files_written.length} fichiers écrits`);
