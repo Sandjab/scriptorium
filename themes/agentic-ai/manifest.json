@@ -1,0 +1,825 @@
+{
+  "edition": "monographie",
+  "slug": "agentic-ai",
+  "meta": {
+    "title": "IA agentique : état de l'art, applications et projections",
+    "kicker": "IA agentique · monographie",
+    "h1": "IA agentique : état de l'art, applications et projections",
+    "lede": "Des LLM dotés de planification, d'outils, de mémoire et d'une boucle vers un but : ce que l'IA agentique a réellement démontré — benchmarks, code, science, robotique — et où ses garanties formelles, sa fiabilité sur longs horizons et sa surface d'attaque s'arrêtent vraiment.",
+    "meta_chips": [
+      "Monographie"
+    ],
+    "footer": "IA agentique : état de l'art, applications et projections · scriptorium"
+  },
+  "elements": [
+    {
+      "type": "abstract"
+    },
+    {
+      "type": "section",
+      "id": "fondations-definitions",
+      "heading": "Fondations : définir l'agentivité et l'autonomie",
+      "level": 3,
+      "prose": "<p>La définition la plus citée dans la littérature remonte à Franklin et Graesser (1996) et a été reprise sans modification substantielle dans les grandes synthèses récentes : <em>« An autonomous agent (agent autonome) is a system situated within and a part of an environment that senses that environment and acts on it, over time, in pursuit of its own agenda and so as to effect what it senses in the future. »</em> Trois propriétés structurantes s'en dégagent : la <em>situatedness</em> (insertion dans un environnement concret), la perception active (lecture permanente de cet environnement), et la <em>goal-directedness</em> (poursuite d'un agenda propre). La dimension temporelle — « over time » — et la clause finale — « to effect what it senses in the future » — sont décisives : elles distinguent un autonomous agent d'un transducteur stateless. L'agent ne se contente pas de répondre à un stimulus ; ses actions façonnent l'état futur qu'il percevra, installant une boucle causale qu'aucun appel de fonction isolé ne réalise.</p>\n\n<p>Le couple conceptuel <strong>autonomy</strong> (autonomie) / <strong>agency</strong> (agentivité) structure l'ensemble des débats contemporains. L'autonomy désigne la capacité d'un système à opérer indépendamment, sans intervention humaine directe ; l'agency recouvre le comportement goal-directed qui intègre intention, conscience du contexte et capacité de décision (Abou Ali &amp; Dornaika, 2025). Ces deux notions ne se recouvrent pas : un script planifié possède une forme d'autonomy sans agency ; un agent LLM supervisé à chaque étape manifeste une agency structurée sans autonomy complète. Cette asymétrie donne directement lieu aux architectures de supervision graduée — du fully automated au human-in-the-loop — qui structurent les référentiels de gouvernance. À ces deux notions s'oppose un cadre hérité de l'IA classique qui réduirait tout agent à une machine d'états ou à un automate BDI (Beliefs-Desires-Intentions) : ce <em>conceptual retrofitting</em>, avertissent Abou Ali et Dornaika, applique erronément des cadres conçus pour la planification algorithmique à des systèmes qui opèrent par génération stochastique et orchestration par prompts — deux régimes fondamentalement incompatibles.</p>\n\n<p>Sapkota, Roumeliotis et Karkee (2025) affinent la taxonomie en distinguant <strong>AI Agents</strong> et <strong>Agentic AI</strong>. Un AI Agent est un système modulaire piloté par un LLM pour une automatisation task-specific et délimitée : traitement de requêtes, résumés, planification d'agenda. L'Agentic AI désigne un paradigme plus large où l'agency émerge de la collaboration entre plusieurs agents spécialisés — décomposition dynamique des tâches, mémoire persistante, coordination autonome. La frontière n'est pas d'échelle mais de design philosophy : là où l'AI Agent résout un sous-problème borné, l'Agentic AI prend en charge des processus ouverts et décide elle-même de leur décomposition et orchestration. Cette distinction a une conséquence directe sur l'évaluation : les critères de fiabilité, de vérifiabilité et de contrôle des risques diffèrent radicalement entre les deux régimes.</p>\n\n<p>Pour situer ces définitions dans leur trajectoire, Abou Ali et Dornaika (2025) identifient cinq ères successives. L'ère <strong>Symbolic AI</strong> (années 1950–1980) repose sur règles et logique formelle, incarnée par des systèmes experts comme MYCIN ou DENDRAL. L'ère <strong>Machine Learning</strong> (années 1980–2010) substitue l'induction statistique à l'encodage manuel. L'ère <strong>Deep Learning</strong> (années 2010–) généralise l'apprentissage par représentations hiérarchiques. L'ère <strong>Generative AI</strong> (2014–) introduit les modèles génératifs et surtout l'architecture <strong>Transformer</strong> (Vaswani et al., 2017), qualifiée d'<em>essential substrate</em> des agents contemporains : en unifiant représentation et génération dans un mécanisme d'attention scalable, le Transformer fournit les fondations sur lesquelles toute orchestration agentique est aujourd'hui construite. L'ère <strong>Agentic AI</strong> (2022–) marque le passage du LLM-générateur passif au moteur de raisonnement embarqué dans une boucle perception-décision-action.</p>\n\n<p>La popularisation du terme est plus tardive que son émergence académique. Andrew Ng contribue de façon déterminante à diffuser les <em>agentic workflows</em> auprès du grand public entrepreneurial en 2024 — notamment via son keynote au BUILD 2024 et ses billets réguliers chez DeepLearning.AI — signalant un basculement du concept d'un usage de niche vers le discours stratégique d'entreprise. Google Trends confirme cette dynamique : l'intérêt pour « agentic AI » reste marginal avant avril 2024, puis croît fortement jusqu'à un pic enregistré en juillet 2025. Les bases académiques avaient pourtant déjà été posées entre 2022 et 2023 — ReAct (Yao et al., 2022), les premiers frameworks multi-agents — et plusieurs acteurs majeurs (OpenAI, Anthropic, Google DeepMind) menaient des travaux concurrents simultanément. La vulgarisation de 2024 transforme un concept technique en vecteur de décision stratégique, mais en attribuer la paternité à un seul acteur constitue une simplification que l'historiographie devra nuancer.</p>",
+      "claims": [
+        "claim:1",
+        "claim:2",
+        "claim:3",
+        "claim:4"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "anatomie-architecture",
+      "heading": "Anatomie d'un agent : modules, ReAct et tool use",
+      "level": 3,
+      "prose": "<p>Wang et al. (arXiv:2308.11432) proposent une architecture unifiée qui décompose tout agent LLM en quatre modules fonctionnels. Le module <strong>profiling</strong> (définition du rôle) fixe l'identité opérationnelle de l'agent — attributs démographiques, traits psychologiques, relations sociales — en ancrant le comportement attendu dès le system prompt. Le module <strong>memory</strong> (mémoire) distingue une mémoire à court terme portée dans la fenêtre de contexte et une mémoire à long terme externalisée dans des bases vectorielles interrogées par similarité d'embedding ; trois opérations l'organisent : lecture sélective selon récence, pertinence ou importance, écriture avec déduplication, et <em>reflection</em> qui distille les souvenirs bruts en abstractions réutilisables. Le module <strong>planning</strong> (planification) décompose les tâches complexes en sous-tâches : sans feedback (boucle de rétroaction), il mobilise le chain of thought (raisonnement pas à pas) en mode mono-chemin ou le tree of thoughts (exploration arborescente) en mode multi-chemin via BFS ou DFS ; avec feedback environnemental, humain ou généré par le modèle lui-même, il révise les plans en cours d'exécution. Enfin, le module <strong>action</strong> traduit les décisions en effets observables — appels à des outils externes (APIs, bases de données, modèles spécialisés) ou mobilisation de la connaissance paramétrique interne du LLM.</p>\n\n<p>Dans ce cadre, le LLM endosse le rôle de <strong>cognitive controller</strong> (contrôleur cognitif) : non pas un simple générateur de texte, mais l'organe central de délibération qui orchestre mémoire et planification avant de déclencher une action. Cette conception est formalisée dans la taxonomie à six dimensions de Masterman et al. (arXiv:2601.12560, janvier 2026), qui articule <strong>brain</strong> (cerveau — le raisonnement LLM), <strong>perception</strong> (acquisition de signaux depuis l'environnement), <strong>planning</strong>, <strong>action</strong>, <strong>tool use</strong> (utilisation d'outils — extension des capacités par ressources externes), et <strong>collaboration</strong> (coordination entre agents spécialisés). Ancrée sur une boucle de contrôle inspirée des POMDP (<em>partially observable Markov decision processes</em>), cette taxonomie est orthogonale à celle de Wang et al. : elle élève le tool use et la collaboration au rang de dimensions autonomes, séparées de l'action pure, et couvre l'ensemble du spectre allant des agents à boucle unique aux hiérarchies multi-agents complexes.</p>\n\n<p>La boucle exécutive qui matérialise concrètement ce cognitive controller est <strong>ReAct</strong> (Yao et al., arXiv:2210.03629, soumis octobre 2022, accepté ICLR 2023). À chaque pas, l'agent produit une <strong>Thought</strong> (trace de raisonnement interne), déclenche une <strong>Action</strong> (appel d'outil ou requête externe), puis ingère l'<strong>Observation</strong> retournée avant d'entamer le pas suivant. Cet entrelacement rompt la propagation d'erreurs du chain of thought pur : l'observation externe invalide ou confirme l'hypothèse avant qu'elle ne se propage dans les étapes suivantes. Les résultats empiriques sont nets — sur ALFWorld, ReAct dépasse les méthodes de reinforcement learning et d'imitation learning de 34 points de pourcentage en taux de succès absolu ; sur WebShop, l'écart est de 10 points, avec seulement un ou deux exemples in-context. Sur HotpotQA et Fever (vérification de faits), la même boucle réduit substantiellement les hallucinations du chain of thought pur en interagissant avec une API Wikipedia élémentaire — ce qui illustre comment l'accès à une source externe, même modeste, supplante la mémoire paramétrique pour les faits factuels.</p>\n\n<p>L'<strong>agentic RAG</strong> (retrieval-augmented generation — génération augmentée par récupération — agentique) instancie ces principes dans les pipelines de récupération de connaissances. Là où le RAG classique opère selon une séquence fixe retrieve-then-generate, l'agentic RAG insère un agent décisionnel qui détermine dynamiquement <em>quand</em> déclencher une récupération, <em>comment</em> reformuler la requête, et <em>si</em> le contexte collecté est suffisant — transformant la récupération d'une étape mécanique en un processus raisonné. Le survey arXiv:2501.09136 identifie quatre design patterns constitutifs : <strong>reflection</strong> (auto-évaluation itérative par critique interne ou externe), planning adaptatif, tool use (accès aux bases vectorielles, APIs et outils de calcul), et <strong>multi-agent collaboration</strong> (agents spécialisés opérant en parallèle ou en séquence sous orchestration). Des méthodes représentatives — Self-RAG (récupération déclenchée par des tokens de décision spéciaux), PlanRAG (planification avant récupération sur des graphes de connaissances) et Search-r1 (agent de recherche appris par renforcement) — illustrent la variété des stratégies possibles au sein de ce paradigme.</p>\n\n<p>Sur le plan de l'efficacité opérationnelle, deux leviers structurels dominent la littérature récente. Premier levier : les <strong>parallel tool calls</strong> (appels d'outils parallèles). Une exécution séquentielle fait croître la latence linéairement avec le nombre d'outils — quatre appels de 300 ms chacun représentent 1,2 seconde de temps mort ; groupés en parallèle, ils s'effondrent à 300 ms. Des travaux récents (arXiv:2602.07359 ; arXiv:2405.17438) reportent, par rapport à des baselines séquentiels, des économies de tokens de l'ordre de 40 % et des gains de latence de 12 %, en organisant les appels indépendants en blocs concurrents. Second levier : le <strong>prompt caching</strong> (mise en cache des prompts). Les principaux fournisseurs — Anthropic, OpenAI, Google — proposent la réutilisation des tenseurs K/V calculés pour les préfixes répétés ; dans les agents à system prompt fixe et à mémoire long terme stable, cela supprime une large fraction du coût de recalcul à chaque tour. Ces deux leviers sont complémentaires et s'appliquent indépendamment du cadre d'orchestration retenu.</p>",
+      "claims": [
+        "claim:5",
+        "claim:6",
+        "claim:7",
+        "claim:8"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "synopsis-boucle-react"
+    },
+    {
+      "type": "section",
+      "id": "paradigmes-symbolique-neuronal",
+      "heading": "Symbolique contre neuronal : deux paradigmes",
+      "level": 3,
+      "prose": "<p>L'histoire des agents artificiels a engendré deux lignées qui se distinguent non par leur degré de sophistication mais par leurs hypothèses opérationnelles fondamentales. La première — symbolique, classique — repose sur la logique explicite, la planification algorithmique et des états persistants formellement représentés. Ses outils canoniques sont les MDP (Markov Decision Processes / processus de décision de Markov), les POMDP (Partially Observable MDPs) pour les environnements à information incomplète, et l'architecture BDI (Belief-Desire-Intention / croyances-désirs-intentions), qui décompose l'agentivité en états informationnels (<em>beliefs</em>), objectifs admissibles (<em>desires</em>) et plans adoptés (<em>intentions</em>). Ces systèmes sont déterministes ou probabilistes de façon explicite — ce qui autorise l'audit, la preuve formelle et le débogage structurel. La seconde lignée — neuronale, générative — est construite sur l'apprentissage statistique à grande échelle. Les agents qu'elle produit opèrent par stochastic generation (génération stochastique) et prompt-driven orchestration (orchestration pilotée par prompts) : leur agentivité est une propriété émergente du contexte conversationnel, non le produit d'une logique interne symbolique. Comme le formule l'enquête de Shafik et al. (2025), « agency in the neural paradigm is an emergent property of prompt-driven orchestration, not a product of internal symbolic logic ».</p>\n\n<p>L'enquête de Shafik et al., portant sur 90 études publiées entre 2018 et 2025, documente la dynamique de ce clivage : les approches symboliques ont dominé la recherche en agents entre 2018 et 2021 ; le paradigme neuronal est devenu largement dominant à partir de 2022, porté par l'essor des LLMs post-GPT-3. Cette bascule n'est pas un simple déplacement de technique : les deux paradigmes reposent sur des hypothèses mutuellement exclusives. L'un suppose que le comportement pertinent peut être formellement spécifié, représenté et vérifié ; l'autre suppose que la compétence utile émerge d'une distribution apprise sur des données de langage. Affirmer qu'il est possible de substituer l'un à l'autre sans perte de propriétés essentielles — notamment la vérifiabilité — revient à confondre les résultats observés avec les garanties structurelles de l'architecture.</p>\n\n<p>C'est précisément le danger que le survey désigne par le terme de conceptual retrofitting (recyclage conceptuel) : appliquer à un agent LLM les étiquettes du paradigme symbolique — boucles PPAR (Perceive-Plan-Act-Reflect), délibération BDI, planification MDP — sans que ces mécanismes soient effectivement instanciés dans le système. Ce glissement n'est pas un vice mineur de présentation : il crée une fausse continuité entre des paradigmes incompatibles et produit des garanties fictives. Un agent décrit comme « planifiant via un MDP » mais générant en réalité ses actions par sampling stochastique depuis un LLM offre un niveau de vérifiabilité sans commune mesure avec ce que la description suggère. Le risque est d'autant plus concret que les frameworks d'orchestration populaires — AutoGen, CrewAI, LangGraph — encouragent une terminologie empruntée au vocabulaire symbolique (« rôles », « objectifs », « mémoire long terme ») dont la mécanique sous-jacente est entièrement fondée sur le routage stochastique de tokens.</p>\n\n<p>Face à ce constat, une partie de la communauté cherche non pas à substituer un paradigme à l'autre mais à les articuler. Ricci et al. ont esquissé, dans un Blue Sky paper à AAMAS 2024, le concept d'architectures « generative BDI » intégrant les technologies génératives dans le cadre délibératif BDI. ChatBDI, présenté à AAMAS 2025, en propose une implémentation concrète : le raisonnement interne reste gouverné par la sémantique formelle BDI, tandis qu'un LLM sert de couche d'interface en langage naturel — ce que les auteurs résument en « Think BDI, Talk LLM ». Parallèlement, Grandez et al. (arXiv:2511.17162) couplent une ontologie BDI formelle (22 classes, 71 propriétés d'objet) à un LLM via Logic Augmented Generation (LAG), avec un paradigme T2B2T (Triples-to-Beliefs-to-Triples) permettant un flux bidirectionnel entre triples RDF et états mentaux. Ces tentatives répondent directement à l'avertissement de Botti (valgrAI, 2025) : l'enthousiasme pour l'« agentic AI » risque de réinventer la roue sans reconnaître les décennies de recherche en multi-agent systems — et de perdre avec elle les garanties formelles que ces architectures avaient patiemment construites. Mais les évaluations disponibles de ces hybrides testent pour l'heure l'alignement avec les critères de conception davantage que des garanties comportementales formelles, et leur robustesse à grande échelle reste à démontrer.</p>",
+      "claims": [
+        "claim:9",
+        "claim:10",
+        "claim:11",
+        "claim:12"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "garanties-formelles",
+      "heading": "Garanties formelles et théorie des systèmes",
+      "level": 3,
+      "prose": "<p>L'IA agentique soulève une question que les approches orientées performance ne peuvent résoudre seules : peut-on garantir formellement qu'un système multi-agents se comportera correctement, sans blocage ni violation de contraintes, même sous composition asynchrone ? La réponse exige un appareil logique que la communauté a longtemps délaissé au profit des benchmarks empiriques. Allegrini, Shreekumar et Celik (oct. 2025) proposent le premier cadre formel indépendant du domaine pour les systèmes IA multi-agents : trente propriétés exprimées en logique temporelle, seize portant sur l'agent hôte et quatorze sur le cycle de vie des tâches, organisées en six catégories — liveness (vivacité), safety (sûreté), completeness (complétude), fairness (équité), ordering et reachability (atteignabilité). Ce cadre les rend vérifiables par model-checking (vérification de modèle), c'est-à-dire exploitables par des outils d'exploration exhaustive d'espaces d'états tels que NuSMV ou SPIN.</p>\n\n<p>La distinction entre liveness et safety est au cœur de toute spécification formelle d'agent : liveness garantit que tout agent progressera in fine vers son objectif sans starvation (famine de ressources), quand safety interdit tout état globalement invalide. La completeness, plus exigeante, assure que si un plan valide existe dans le système distribué, le système le découvrira — propriété non triviale en présence d'asynchronisme et de dépendances inter-agents. Ces propriétés ne sont pas de simples ambitions architecturales : leur expression en logique temporelle les rend mécaniquement vérifiables, à la condition que l'espace d'états reste borné ou symboliquement représentable.</p>\n\n<p>Ye et Tan (jan. 2026) abordent la question complémentaire de la délégation hiérarchique. Leur formalisme des Agent Contracts (contrats d'agent) régit les flux de ressources entre agents parents et sous-agents via des lois de conservation : le budget délégué à un sous-agent ne peut excéder le budget détenu par le parent, ce qui rend toute la chaîne de délégation formellement bornée. Empiriquement, ce mécanisme réduit la consommation de tokens de 90 % et la variance de 525× dans des workflows itératifs, avec zéro violation des lois de conservation dans les expériences de délégation multi-agents rapportées. La force du cadre tient à ce que ces garanties sont structurelles — elles découlent des contrats, non d'un monitoring runtime — ce qui les rend composables et auditables.</p>\n\n<p>La planification est le nœud où les lacunes formelles des LLM deviennent les plus visibles. Wei et al. (ACL 2025) définissent six critères formels pour évaluer tout planificateur LLM : completeness, executability (réalisabilité dans l'environnement), optimality (minimisation du coût), representation (adéquation du formalisme de description), generalization (transfert hors distribution) et efficiency (coût computationnel). Aucun LLM pur ne satisfait ces critères de façon formellement prouvée : la logique non monotone des modèles de langue et leur propension aux hallucinations interdisent les garanties de soundness (correction) et de completeness qui sont de rigueur en planification classique. L'hybridation LLM + solveurs symboliques s'impose donc comme la voie privilégiée vers des garanties formelles : les LLM génèrent des représentations PDDL (Planning Domain Definition Language) que des planificateurs classiques — dont la soundness et la completeness sont prouvées — exécutent de façon certifiée. Cette dichotomie corrobore la revue PRISMA d'Abou Ali et Dornaika (oct. 2025), portant sur 90 études couvrant 2018–2025 : les systèmes symboliques dominent les domaines critiques comme la santé, les systèmes neuraux-génératifs dominent les environnements adaptatifs comme la finance, et le déficit le plus criant reste l'absence de modèles de gouvernance pour les architectures symboliques.</p>\n\n<p>Ramani et al. (oct. 2025) prolongent cette logique d'hybridation en aval de la planification : plutôt que de vérifier un plan par inspection humaine, ils convertissent des plans en langage naturel en structures de Kripke et formules LTL (Linear Temporal Logic — logique temporelle linéaire) via un LLM, puis soumettent ces structures à un model-checker. Sur le jeu de données simplifié PlanBench, GPT-5 atteint un F1 de 96,3 %. Cette performance masque cependant une limite structurelle que les auteurs reconnaissent explicitement : la synthèse de modèles formels sémantiquement parfaits demeure un domaine ouvert. Le score de classification mesure la fidélité syntaxique de la traduction, non la correction sémantique des formules LTL — un plan « vérifié » peut encore receler une erreur que le model-checker n'a pas eu l'occasion de détecter.</p>\n\n<p>Miehling et al. (IBM Research, fév. 2025) élèvent le débat au niveau de l'architecture : aucune analyse de capacité individuelle des modèles ne suffit à prédire les comportements d'un système multi-agents en production. Trois classes de phénomènes émergent uniquement au niveau système — le raisonnement causal émergent, la metacognition (conscience de ses propres états computationnels) et l'amplification de capacités par interaction — et constituent les risques réels les plus importants, non prédictibles au niveau agent seul. Ce diagnostic s'inscrit dans la tradition de la systems theory (théorie des systèmes), dont la thèse centrale est que les propriétés d'un composé ne se déduisent pas des propriétés de ses composants. L'IA agentique réclame donc son propre outillage analytique : graphes de causalité, analyse des feedback loops et théorie du contrôle appliquée aux architectures d'agents.</p>\n\n<p>Sur le plan des architectures cognitives formelles, Dignum et Dignum (nov. 2025) proposent d'ancrer les agents LLM dans les cadres BDI (Beliefs-Desires-Intentions — Croyances-Désirs-Intentions), modèle formel classique des systèmes multi-agents où l'état interne d'un agent est un triplet ⟨B, D, I⟩ doté d'une sémantique de calcul définie. Cette intégration vise la transparence, la coopérabilité et l'accountability (responsabilisation) des agents, propriétés que les LLM seuls ne garantissent pas. Parallèlement, des bornes PAC (Probably Approximately Correct) ont été établies pour les algorithmes multi-agents en Dec-POMDP (decentralized partially observable Markov decision process — processus décisionnel de Markov partiellement observable décentralisé) via des solveurs LP randomisés avec averaging par consensus. La complexité exhibe les scalings classiques en fonction de la cardinalité de l'espace états-actions, augmentés d'un facteur additionnel lié à la vitesse de propagation de l'information dans le graphe réseau — dépendance spécifique au cadre multi-agents, absente du cas centralisé.</p>\n\n<p>Enfin, au niveau opérationnel, le tool hallucination rate (taux d'hallucination d'outil) — proportion d'appels d'outils incorrects, par mauvaise sélection ou mauvais timing, sur l'ensemble des appels — s'impose comme métrique émergente de fiabilité des agents. Des travaux de décembre 2024 sur le reliability alignment proposent un cadre d'évaluation LLM-based de cette métrique atteignant une forte précision en accord avec des experts humains. Cette métrique illustre la nécessité d'un pont entre les garanties formelles issues du model-checking et la mesure statistique de la déviance comportementale dans les déploiements réels.</p>",
+      "claims": [
+        "claim:13",
+        "claim:14",
+        "claim:15",
+        "claim:16"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-conservation-budget-delegue"
+    },
+    {
+      "type": "section",
+      "id": "benchmarks-evaluation",
+      "heading": "Benchmarks et état de l'art mesuré",
+      "level": 3,
+      "prose": "<p>L'IA agentique a produit, en moins de trois ans, un écosystème de benchmarks dédiés à des capacités que les évaluations statiques ne capturent pas : usage d'outils multi-étapes, navigation web autonome, ingénierie logicielle longue durée et contrôle d'environnements graphiques réels. Ces instruments constituent aujourd'hui la principale échelle de mesure de la progression du domaine — et leur propre obsolescence accélérée signale, en retour, la vitesse à laquelle le domaine avance.</p>\n\n<p><strong>GAIA</strong> (Mialon et al., arXiv:2311.12983, nov. 2023) pose le premier repère rigoureux : 466 questions « conceptually simple for humans yet challenging for most advanced AIs », couvrant raisonnement, multimodalité, navigation web et usage d'outils. À la publication, les humains atteignent 92 % quand GPT-4 équipé de plugins plafonne à 15 % — un écart facteur 6. Un an plus tard, le meilleur agent (h2oGPTe) atteint 65 % sur le leaderboard (tableau de classement) public de Hugging Face, ramenant l'écart à 27 points. Cette remontée de 77 points en douze mois illustre la vitesse à laquelle le scaffold (couche d'orchestration) agentique — la boucle de contrôle qui enveloppe le modèle de base — démultiplie les capacités brutes.</p>\n\n<p><strong>SWE-bench</strong> mesure une compétence plus exigeante : la résolution d'issues GitHub authentiques dans des dépôts réels. En mars 2024, Devin (Cognition AI) résout 13,86 % des issues du jeu de test — premier agent public significatif sur ce benchmark. La progression est ensuite exponentielle : Claude Sonnet 4.5 atteint 43,6 % sur <strong>SWE-Bench Pro</strong> (1 865 problèmes d'entreprise, tâches longue durée multi-fichiers, jeu contamination-résistant couvrant 41 dépôts dont 18 en partenariat commercial) ; Claude Mythos atteint 93,9 % sur <strong>SWE-Bench Verified</strong> en 2026, soit une multiplication par 6,8 par rapport à Devin en moins de deux ans. Ces chiffres soulèvent la question centrale du scaffold effect (effet de l'orchestration) versus model effect (effet du modèle de base) : une taxonomie récente en source ouverte (arXiv:2604.03515) identifie cinq primitives composables — ReAct, generate-test-repair, plan-execute, multi-attempt retry, tree search — et montre que 11 des 13 agents analysés en combinent plusieurs, rendant difficile l'attribution des gains au seul modèle sous-jacent. Un résultat concret l'illustre : un modèle intermédiaire équipé d'un scaffold fort (Claude Sonnet 4.5 + CCA, 52,7 %) peut dépasser un modèle plus puissant sur un scaffold plus faible (Claude Opus 4.5 + scaffold propriétaire Anthropic, 52,0 %).</p>\n\n<p>Les benchmarks d'environnements graphiques et web mesurent une troisième famille de capacités. <strong>OSWorld</strong> (arXiv:2404.07972, NeurIPS 2024) évalue 369 tâches dans un système d'exploitation réel (Ubuntu, Windows, macOS) : applications desktop, gestion de fichiers, navigation web, workflows multi-applications. À la publication, le meilleur agent atteint 12,24 % contre 72,36 % pour les humains — les agents peinent principalement sur le GUI grounding et la connaissance opérationnelle des interfaces. En février 2025, Claude 3.7 occupe la tête du leaderboard avec 28 % (100 étapes) ; en 2025, Agent S3 — combinant GPT-5 et Claude Opus 4.5 via une approche d'ensemble — atteint 72,6 %, franchissant pour la première fois la baseline humaine. <strong>WebArena</strong> (812 tâches sur sites web simulés : e-commerce, forums, développement collaboratif, CMS) passe de ~14 % pour GPT-4 vanilla à 61,7 % pour IBM CUGA en février 2025. <strong>WebVoyager</strong> (643 tâches sur 15 sites live : Amazon, Google Maps, Wikipedia, ESPN…) affiche des scores encore plus élevés — Browser Use ~89 %, OpenAI CUA 87 % —, au point que la fiabilité du benchmark est désormais questionnée dans la littérature (arXiv:2504.01382), signalant un risque de saturation prématurée.</p><figure class='fig'><svg viewBox='0 0 820 500' role='img' aria-label='Graphique en lignes des scores du meilleur agent de 2023 a 2026 sur GAIA, SWE-bench, OSWorld, WebArena et WebVoyager, avec deux barres humaines en pointilles (GAIA 92 pourcent, OSWorld 72,36 pourcent). Les courbes montent vite, OSWorld franchit la barre humaine et WebVoyager plafonne vers 88 pourcent.'><rect x='0' y='0' width='820' height='500' fill='var(--card,#FFFFFF)'/><text x='410' y='26' text-anchor='middle' font-family='Archivo, sans-serif' font-size='15' font-weight='700' fill='var(--blue-deep,#142E49)'>Trajectoires des agents vers la barre humaine</text><text x='410' y='44' text-anchor='middle' font-family='Archivo, sans-serif' font-size='11.5' fill='var(--ink-faint,#7A889B)'>score du meilleur agent · % de reussite · 2023–2026</text><line x1='72' y1='60' x2='732' y2='60' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><line x1='72' y1='130' x2='732' y2='130' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><line x1='72' y1='200' x2='732' y2='200' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><line x1='72' y1='270' x2='732' y2='270' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><line x1='72' y1='340' x2='732' y2='340' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><text x='62' y='64' text-anchor='end' font-family='Archivo, sans-serif' font-size='10.5' fill='var(--ink-faint,#7A889B)'>100</text><text x='62' y='134' text-anchor='end' font-family='Archivo, sans-serif' font-size='10.5' fill='var(--ink-faint,#7A889B)'>80</text><text x='62' y='204' text-anchor='end' font-family='Archivo, sans-serif' font-size='10.5' fill='var(--ink-faint,#7A889B)'>60</text><text x='62' y='274' text-anchor='end' font-family='Archivo, sans-serif' font-size='10.5' fill='var(--ink-faint,#7A889B)'>40</text><text x='62' y='344' text-anchor='end' font-family='Archivo, sans-serif' font-size='10.5' fill='var(--ink-faint,#7A889B)'>20</text><text x='62' y='414' text-anchor='end' font-family='Archivo, sans-serif' font-size='10.5' fill='var(--ink-faint,#7A889B)'>0</text><line x1='72' y1='60' x2='72' y2='410' stroke='var(--ink-soft,#43536A)' stroke-width='1.2'/><line x1='72' y1='410' x2='732' y2='410' stroke='var(--ink-soft,#43536A)' stroke-width='1.2'/><text x='72' y='428' text-anchor='middle' font-family='Archivo, sans-serif' font-size='11' fill='var(--ink-soft,#43536A)'>2023</text><text x='292' y='428' text-anchor='middle' font-family='Archivo, sans-serif' font-size='11' fill='var(--ink-soft,#43536A)'>2024</text><text x='512' y='428' text-anchor='middle' font-family='Archivo, sans-serif' font-size='11' fill='var(--ink-soft,#43536A)'>2025</text><text x='732' y='428' text-anchor='middle' font-family='Archivo, sans-serif' font-size='11' fill='var(--ink-soft,#43536A)'>2026</text><text x='22' y='235' text-anchor='middle' transform='rotate(-90 22 235)' font-family='Archivo, sans-serif' font-size='11' fill='var(--ink-faint,#7A889B)'>% de reussite</text><line x1='72' y1='88' x2='732' y2='88' stroke='var(--blue,#23537F)' stroke-width='1.2' stroke-dasharray='2 4' opacity='0.75'/><text x='78' y='84' text-anchor='start' font-family='Archivo, sans-serif' font-size='10.5' font-weight='700' fill='var(--blue,#23537F)'>barre humaine GAIA · 92 %</text><line x1='72' y1='156.7' x2='732' y2='156.7' stroke='var(--ink-faint,#7A889B)' stroke-width='1.2' stroke-dasharray='2 4' opacity='0.9'/><text x='78' y='152.5' text-anchor='start' font-family='Archivo, sans-serif' font-size='10.5' font-weight='700' fill='var(--ink-faint,#7A889B)'>barre humaine OSWorld · 72,36 %</text><polyline points='274.4,357.5 494.4,182.5' fill='none' stroke='var(--blue,#23537F)' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/><circle cx='274.4' cy='357.5' r='3.6' fill='var(--blue,#23537F)'/><circle cx='494.4' cy='182.5' r='3.6' fill='var(--blue,#23537F)'/><text x='502' y='176' text-anchor='start' font-family='Archivo, sans-serif' font-size='11' font-weight='700' fill='var(--blue,#23537F)'>GAIA</text><polyline points='336,361.5 732,81.4' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/><circle cx='336' cy='361.5' r='3.6' fill='var(--bordeaux,#7C2A38)'/><circle cx='732' cy='81.4' r='3.6' fill='var(--bordeaux,#7C2A38)'/><text x='726' y='74' text-anchor='end' font-family='Archivo, sans-serif' font-size='11' font-weight='700' fill='var(--bordeaux,#7C2A38)'>SWE-bench Verified</text><circle cx='677' cy='257.4' r='4.4' fill='var(--card,#FFFFFF)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.8'/><text x='677' y='276' text-anchor='middle' font-family='Archivo, sans-serif' font-size='10' fill='var(--bordeaux,#7C2A38)'>SWE-bench Pro · 43,6 %</text><polyline points='380,367.2 534,312 699,155.9' fill='none' stroke='var(--blue-bright,#2C77B6)' stroke-width='2.4' stroke-dasharray='7 4' stroke-linecap='round' stroke-linejoin='round'/><circle cx='380' cy='367.2' r='3.6' fill='var(--blue-bright,#2C77B6)'/><circle cx='534' cy='312' r='3.6' fill='var(--blue-bright,#2C77B6)'/><circle cx='699' cy='155.9' r='3.6' fill='var(--blue-bright,#2C77B6)'/><text x='693' y='148' text-anchor='end' font-family='Archivo, sans-serif' font-size='11' font-weight='700' fill='var(--blue-bright,#2C77B6)'>OSWorld</text><polyline points='204,361 534,194.1' fill='none' stroke='var(--bordeaux-bright,#9B3443)' stroke-width='2.4' stroke-dasharray='2 4' stroke-linecap='round' stroke-linejoin='round'/><circle cx='204' cy='361' r='3.6' fill='var(--bordeaux-bright,#9B3443)'/><circle cx='534' cy='194.1' r='3.6' fill='var(--bordeaux-bright,#9B3443)'/><text x='542' y='197' text-anchor='start' font-family='Archivo, sans-serif' font-size='11' font-weight='700' fill='var(--bordeaux-bright,#9B3443)'>WebArena</text><polyline points='523,105.5 622,98.5' fill='none' stroke='var(--ink-soft,#43536A)' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/><circle cx='523' cy='105.5' r='3.6' fill='var(--ink-soft,#43536A)'/><circle cx='622' cy='98.5' r='3.6' fill='var(--ink-soft,#43536A)'/><text x='628' y='96' text-anchor='start' font-family='Archivo, sans-serif' font-size='11' font-weight='700' fill='var(--ink-soft,#43536A)'>WebVoyager</text><line x1='150' y1='289' x2='150' y2='262' stroke='var(--ink-faint,#7A889B)' stroke-width='0.9' opacity='0.6'/><path d='M150,258 l-3,6 l6,0 z' fill='var(--ink-faint,#7A889B)' opacity='0.6'/><text x='150' y='303' text-anchor='middle' font-family='Archivo, sans-serif' font-size='10' font-style='italic' fill='var(--ink-soft,#43536A)'>remontée rapide</text><text x='150' y='316' text-anchor='middle' font-family='Archivo, sans-serif' font-size='10' font-style='italic' fill='var(--ink-soft,#43536A)'>portée par le scaffold</text><text x='572' y='120' text-anchor='middle' font-family='Archivo, sans-serif' font-size='10' font-style='italic' fill='var(--ink-soft,#43536A)'>amorce de saturation</text><line x1='712' y1='198' x2='700' y2='160' stroke='var(--blue-bright,#2C77B6)' stroke-width='0.8' opacity='0.55'/><text x='705' y='205' text-anchor='start' font-family='Archivo, sans-serif' font-size='9.5' font-style='italic' fill='var(--blue-bright,#2C77B6)'>OSWorld franchit</text><text x='705' y='216' text-anchor='start' font-family='Archivo, sans-serif' font-size='9.5' font-style='italic' fill='var(--blue-bright,#2C77B6)'>la barre humaine</text></svg><figcaption><span class='fcap-k'></span>Trajectoires des meilleurs agents sur GAIA, SWE-bench, OSWorld, WebArena et WebVoyager (2023–2026) : une dynamique partagée — remontée rapide portée par le scaffold, fermeture de l'écart aux barres humaines en pointillés (GAIA 92 %, OSWorld 72,36 %), franchissement de la barre par OSWorld (Agent S3) et amorce de saturation de WebVoyager (~88 %).</figcaption></figure>\n\n<p>La cartographie des agents SOTA est fournie par le <strong>MIT AI Agent Index</strong> (arXiv:2602.17753), qui documente 30 systèmes sur 1 350 champs de métadonnées. Trois catégories structurent le paysage : 12 <em>chat applications with agentic tools</em> (dont Claude Code, ChatGPT Agent), 5 <em>browser-based agents</em> (dont Perplexity Comet), 13 <em>enterprise workflow agents</em> (dont Microsoft Copilot Studio, HubSpot Breeze). 24 des 30 agents ont été lancés ou ont reçu une mise à jour agentique majeure en 2024-2025. La concentration géographique est forte : 21 agents sur 30 sont américains, 5 chinois, et quasi-tous s'appuient sur les familles GPT, Claude ou Gemini. Sur l'interopérabilité, 20 des 30 agents supportent MCP explicitement, avec une adoption totale chez les agents enterprise (13/13). La dimension transparence révèle un déficit structurel : 25 agents sur 30 ne publient aucun résultat de sécurité interne, 23 n'ont fait l'objet d'aucun audit tiers, et seulement 4 disposent d'une system card dédiée (ChatGPT Agent, OpenAI Codex, Claude Code, Gemini 2.5 Computer Use) — alors même que ces systèmes opèrent en production dans des contextes à risques.</p>",
+      "claims": [
+        "claim:17",
+        "claim:18",
+        "claim:19",
+        "claim:20"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "applications-robotique",
+      "heading": "Applications : robotique et agents incarnés (embodied)",
+      "level": 3,
+      "prose": "<p>L'émergence des <em>large language models</em> (grands modèles de langage) comme noyau de planification et de contrôle marque une rupture de paradigme en robotique. Plutôt que d'encoder chaque tâche sous la forme d'une machine à états ou d'une <em>policy</em> (politique de contrôle) entraînée en isolation, la nouvelle approche traite la perception du robot, la compréhension du langage naturel et les commandes motrices comme une séquence de tokens unifiée qu'un même modèle pré-entraîné peut traiter. Ce cadre dit <em>embodied</em> (incarné) dépasse les pipelines classiques sense–plan–act&nbsp;: le modèle importe dans l'exécution physique les connaissances mondiales acquises lors du pré-entraînement à l'échelle d'internet, sans nécessiter d'architecture spécifique par tâche.</p>\n\n<p>Les deux démonstrations phares de 2022 établissent deux points de design opposés sur l'axe spécialisation–généralité. RT-1 (Google, 2022) est un transformer de 35 millions de paramètres entraîné sur 130&nbsp;000+ démonstrations robotiques couvrant 700+ tâches de manipulation ménagère&nbsp;: il atteint 97&nbsp;% de succès sur les tâches vues et 76&nbsp;% sur des tâches entièrement inédites, un écart de 21&nbsp;points qui quantifie le coût réel du <em>distribution shift</em> (décalage de distribution) à grande échelle et montre que le volume de démonstrations, plus que la taille du modèle, est le principal levier de généralisation. Gato (DeepMind, 2022), à 1,18 milliard de paramètres, privilégie la largeur&nbsp;: un unique transformer entraîné sur 604 tâches croisant génération de texte, vision, jeux Atari et contrôle de bras robotique atteint un niveau de compétence — défini comme au moins 50&nbsp;% des performances d'expert — sur 450 d'entre elles, première démonstration qu'un modèle de taille fixe peut conserver une <em>policy</em> utilisable aussi bien pour légender des images que pour piloter une pince robotique.</p>\n\n<p>PaLM-E (Google, 2023) adopte une troisième stratégie&nbsp;: étendre le modèle de langage PaLM (540 milliards de paramètres) avec des encodeurs visuels et proprioceptifs pour produire un modèle multimodal <em>embodied</em> de 562 milliards de paramètres. Son apport clé est la démonstration d'un <em>positive transfer</em> (transfert positif)&nbsp;: l'entraînement conjoint sur plusieurs plateformes robotiques — manipulation, navigation, questions–réponses visuelles — améliore les performances sur chaque tâche prise isolément, confirmant que les représentations sémantiques issues du pré-entraînement en langage constituent un <em>inductive bias</em> (biais inductif) partagé pour la planification physique séquentielle.</p><figure class='fig'><svg viewBox='0 0 820 500' role='img' aria-label='Nuage de points des agents incarnes sur deux axes : taille du modele en echelle logarithmique en abscisse, largeur ou generalite des taches en ordonnee, du pole specialise en bas au pole generaliste en haut. RT-1, 35 M, en bas a gauche au pole specialise ; Gato, 1,18 Md, en haut au centre ; PaLM-E, 562 Md, en haut a droite ; RobotGPT, LM-Nav et Voyager en reperes en cercles creux. La generalite ne suit pas mecaniquement la taille du modele.'><rect x='0' y='0' width='820' height='500' fill='var(--card,#FFFFFF)'/><text x='410' y='26' text-anchor='middle' font-family='Archivo, sans-serif' font-size='15' font-weight='700' fill='var(--blue-deep,#142E49)'>Agents incarnés : axe spécialisation ↔ généralité</text><text x='410' y='44' text-anchor='middle' font-family='Archivo, sans-serif' font-size='11.5' fill='var(--ink-faint,#7A889B)'>taille du modèle (échelle log) × largeur des tâches</text><line x1='90' y1='160' x2='760' y2='160' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><line x1='90' y1='250' x2='760' y2='250' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><line x1='90' y1='340' x2='760' y2='340' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><line x1='224' y1='70' x2='224' y2='430' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><line x1='358' y1='70' x2='358' y2='430' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><line x1='492' y1='70' x2='492' y2='430' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><line x1='626' y1='70' x2='626' y2='430' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><line x1='90' y1='60' x2='90' y2='430' stroke='var(--ink-soft,#43536A)' stroke-width='1.2'/><path d='M90,56 l-4,9 l8,0 z' fill='var(--ink-soft,#43536A)'/><line x1='90' y1='430' x2='766' y2='430' stroke='var(--ink-soft,#43536A)' stroke-width='1.2'/><path d='M772,430 l-9,-4 l0,8 z' fill='var(--ink-soft,#43536A)'/><text x='90' y='448' text-anchor='middle' font-family='Archivo, sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>10 M</text><text x='224' y='448' text-anchor='middle' font-family='Archivo, sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>100 M</text><text x='358' y='448' text-anchor='middle' font-family='Archivo, sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>1 Md</text><text x='492' y='448' text-anchor='middle' font-family='Archivo, sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>10 Md</text><text x='626' y='448' text-anchor='middle' font-family='Archivo, sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>100 Md</text><text x='760' y='448' text-anchor='middle' font-family='Archivo, sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>1 000 Md</text><text x='428' y='472' text-anchor='middle' font-family='Archivo, sans-serif' font-size='11' fill='var(--ink-soft,#43536A)'>taille du modèle — paramètres (échelle logarithmique)</text><text x='24' y='250' text-anchor='middle' transform='rotate(-90 24 250)' font-family='Archivo, sans-serif' font-size='11' fill='var(--ink-soft,#43536A)'>largeur / généralité des tâches</text><text x='84' y='72' text-anchor='end' font-family='Archivo, sans-serif' font-size='10' font-weight='700' fill='var(--ink-soft,#43536A)'>généraliste</text><text x='84' y='426' text-anchor='end' font-family='Archivo, sans-serif' font-size='10' font-weight='700' fill='var(--ink-soft,#43536A)'>spécialisé</text><circle cx='112' cy='96' r='5' fill='var(--blue,#23537F)'/><text x='124' y='100' text-anchor='start' font-family='Archivo, sans-serif' font-size='10' fill='var(--ink-soft,#43536A)'>agent phare — taille indiquée</text><circle cx='112' cy='114' r='5' fill='var(--card,#FFFFFF)' stroke='var(--ink-faint,#7A889B)' stroke-width='1.6'/><text x='124' y='118' text-anchor='start' font-family='Archivo, sans-serif' font-size='10' fill='var(--ink-soft,#43536A)'>repère — LLM gelé ou composé</text><line x1='368' y1='84' x2='726' y2='84' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2' stroke-dasharray='5 4' opacity='0.8'/><line x1='368' y1='84' x2='368' y2='93' stroke='var(--bordeaux,#7C2A38)' stroke-width='1' opacity='0.55'/><line x1='726' y1='84' x2='726' y2='136' stroke='var(--bordeaux,#7C2A38)' stroke-width='1' opacity='0.55'/><text x='547' y='78' text-anchor='middle' font-family='Archivo, sans-serif' font-size='10' font-style='italic' fill='var(--bordeaux,#7C2A38)'>largeur élevée à 1,18 Md comme à 562 Md — généralité ≠ taille</text><circle cx='163' cy='358' r='6' fill='var(--blue,#23537F)'/><text x='177' y='354' text-anchor='start' font-family='Archivo, sans-serif' font-size='11.5' font-weight='700' fill='var(--ink,#15202E)'>RT-1</text><text x='177' y='368' text-anchor='start' font-family='Archivo, sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>35 M · ~700 tâches, 1 domaine</text><circle cx='368' cy='99' r='6' fill='var(--blue,#23537F)'/><text x='382' y='95' text-anchor='start' font-family='Archivo, sans-serif' font-size='11.5' font-weight='700' fill='var(--ink,#15202E)'>Gato</text><text x='382' y='109' text-anchor='start' font-family='Archivo, sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>1,18 Md · 604 tâches multimodales</text><circle cx='726' cy='142' r='6' fill='var(--blue,#23537F)'/><text x='712' y='138' text-anchor='end' font-family='Archivo, sans-serif' font-size='11.5' font-weight='700' fill='var(--ink,#15202E)'>PaLM-E</text><text x='712' y='152' text-anchor='end' font-family='Archivo, sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>562 Md · transfert positif</text><circle cx='639' cy='264' r='5.2' fill='var(--card,#FFFFFF)' stroke='var(--ink-faint,#7A889B)' stroke-width='1.6'/><text x='627' y='262' text-anchor='end' font-family='Archivo, sans-serif' font-size='10.5' font-style='italic' fill='var(--ink-soft,#43536A)'>LM-Nav</text><text x='627' y='274' text-anchor='end' font-family='Archivo, sans-serif' font-size='9' font-style='italic' fill='var(--ink-faint,#7A889B)'>3 modèles gelés</text><circle cx='659' cy='322' r='5.2' fill='var(--card,#FFFFFF)' stroke='var(--ink-faint,#7A889B)' stroke-width='1.6'/><text x='671' y='320' text-anchor='start' font-family='Archivo, sans-serif' font-size='10.5' font-style='italic' fill='var(--ink-soft,#43536A)'>RobotGPT</text><text x='671' y='332' text-anchor='start' font-family='Archivo, sans-serif' font-size='9' font-style='italic' fill='var(--ink-faint,#7A889B)'>code-as-policy</text><circle cx='733' cy='192' r='5.2' fill='var(--card,#FFFFFF)' stroke='var(--ink-faint,#7A889B)' stroke-width='1.6'/><text x='721' y='190' text-anchor='end' font-family='Archivo, sans-serif' font-size='10.5' font-style='italic' fill='var(--ink-soft,#43536A)'>Voyager</text><text x='721' y='202' text-anchor='end' font-family='Archivo, sans-serif' font-size='9' font-style='italic' fill='var(--ink-faint,#7A889B)'>monde ouvert (skills)</text></svg><figcaption><span class='fcap-k'></span>Cartographie des agents incarnés sur deux axes — taille du modèle (échelle logarithmique, abscisse) et largeur/généralité des tâches (ordonnée) : RT-1 (35 M) ancre le pôle spécialisé, Gato (1,18 Md) et PaLM-E (562 Md) le pôle généraliste, RobotGPT, LM-Nav et Voyager servant de repères — la généralité ne suit pas mécaniquement la taille du modèle.</figcaption></figure>\n\n<p>Deux architectures plus ciblées ferment la boucle entre langage et action physique. RobotGPT (Samsung Research, 2023) opérationnalise le paradigme <em>code-as-policy</em>&nbsp;: ChatGPT génère des programmes de manipulation structurés qui servent de démonstrations enseignantes, depuis lesquelles une <em>policy</em> étudiante distille une exécution fiable — 91,5&nbsp;% de succès contre 38,5&nbsp;% pour l'exécution directe des sorties LLM, l'écart mesurant la fragilité des appels en temps réel face aux priors comportementaux compilés. LM-Nav (Shah et al., CoRL 2022) compose trois modèles gelés — GPT-3 pour l'analyse linguistique, CLIP pour la reconnaissance de repères visuels et ViNG pour la navigation basse-altitude — sans aucun <em>fine-tuning</em>&nbsp;: un robot réel suit des instructions en langage naturel le long de trajets suburbains atteignant 800&nbsp;mètres. L'absence de <em>fine-tuning</em> est à la fois la force du système (portabilité immédiate sur n'importe quel environnement pré-exploré) et sa limite structurelle&nbsp;: les performances se dégradent lorsque les repères visuels sont absents ou ambigus.</p>\n\n<p>Le régime d'évaluation le plus exigeant pour les agents <em>embodied</em> n'est pas un benchmark fixe mais l'accumulation ouverte de compétences dans un monde non prédéfini. Voyager (Wang et al., NeurIPS 2023) déploie GPT-4 dans Minecraft à travers trois composants couplés&nbsp;: un <em>automatic curriculum</em> (curriculum automatique) qui propose des objectifs de difficulté croissante, une <em>skill library</em> (bibliothèque de compétences) persistante de code Python exécutable indexé pour la récupération, et une boucle de raffinement itératif avec auto-vérification sur les erreurs d'exécution. Voyager déverrouille les jalons du <em>tech tree</em> de Minecraft jusqu'à 15,3&nbsp;× plus vite que les baselines agents (ReAct, Reflexion, AutoGPT) et découvre 3,3&nbsp;× plus d'items uniques — et reste le seul système publié à miner des diamants de façon autonome. Cet avantage est maximal aux premiers niveaux (15,3&nbsp;× pour le bois) et converge vers la baseline à mesure que la difficulté croît (6,4&nbsp;× pour le fer), reflétant la valeur décroissante d'une bibliothèque pré-constituée lorsque les tâches deviennent structurellement nouvelles. MAKER (Cognizant AI Lab, 2024) aborde un mode de défaillance complémentaire — la propagation d'erreurs dans les chaînes de raisonnement longues. Plutôt que de confier à un agent monolithique le maintien de la cohérence sur des milliers d'étapes, MAKER décompose chaque objectif en <em>microagents</em> atomiques&nbsp;; un agent «&nbsp;Verifier&nbsp;» dédié remet en cause chaque sortie de l'agent «&nbsp;Worker&nbsp;» avant propagation, permettant l'exécution de chaînes dépassant un million d'étapes LLM avec une accumulation d'erreurs quasi nulle — régime où les pipelines plats divergent intégralement.</p>",
+      "claims": [
+        "claim:21",
+        "claim:22",
+        "claim:23",
+        "claim:24"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "applications-logiciel-entreprise",
+      "heading": "Applications : code, science et entreprise",
+      "level": 3,
+      "prose": "<p>Le génie logiciel constitue aujourd'hui le terrain d'observation le plus dense de l'agentique en production. La trajectoire de Claude Code illustre une montée en autonomie mesurable : entre fin septembre 2025 et début janvier 2026, la durée du 99e percentile des sessions a quasi doublé — de moins de 25 minutes à plus de 45 minutes — tandis que le taux de succès sur les tâches difficiles suivies en interne doublait et que les interventions humaines nécessaires par session passaient de 5,4 à 3,3. Les utilisateurs expérimentés (750 sessions ou plus) activent le mode <em>full auto-approve</em> dans plus de 40 % des cas, contre environ 20 % pour les nouveaux arrivants : la confiance accordée à l'agent s'accumule par l'usage, pas par décret. L'indicateur le plus saisissant reste interne : en mai 2026, plus de 80 % du code fusionné dans le dépôt de production d'Anthropic a été rédigé par Claude, pour une production de code par ingénieur 8 fois supérieure à la baseline de 2024 ; sur les tâches de codage les plus difficiles suivies en interne, le taux de succès est passé de 26 % à 76 % en six mois. L'analyse de près d'un million de <em>tool calls</em> (appels d'outils) sur l'API publique confirme la dominante sectorielle : la moitié relèvent du génie logiciel, et seulement 0,8 % des actions sont irréversibles — preuve que la grande majorité du pipeline reste dans un périmètre supervisable.</p>\n\n<p>Les architectures multi-agents élargissent le spectre des cas traités. ChatDev, qui simule une société de développement logiciel avec des agents CEO, CTO et programmeurs opérant en phases de conception, codage et test, réduit les bugs de 30 % par rapport aux approches mono-agent. CoAct-1 (Salesforce, 2025) combine pilotage d'interface graphique et codage direct comme action de vérification pour atteindre 60,76 % de succès sur OSWorld, référentiel de tâches complètes sur poste de travail réel. Voyager, agent GPT-4 dans Minecraft doté d'une <em>skill library</em> (bibliothèque de compétences) persistante et d'un curriculum automatique, acquiert de nouvelles compétences 15,3 fois plus vite que les baselines — illustration de ce que l'accumulation structurée de connaissances apporte au-delà de l'exécution à la demande. À l'autre extrémité de l'échelle, MAKER, architecture hiérarchique avec agents vérificateurs distincts, exécute des chaînes de raisonnement d'un million d'étapes avec une accumulation d'erreurs quasi nulle, là où les agents plats divergent.</p>\n\n<p>La découverte scientifique constitue le deuxième domaine de validation expérimentale directe. Co-Scientist (Google DeepMind, 2025) est un système de sept agents spécialisés — génération, <em>proximity</em> (cartographie et regroupement d'hypothèses), <em>reflection</em> (évaluation par pair virtuel), <em>ranking</em>, évolution, <em>meta-review</em> et superviseur adaptatif — tournant sur Gemini et connecté aux bases ChEMBL, UniProt et AlphaFold. Sa validation la plus citée porte sur la fibrose hépatique : les candidats médicaments proposés par le système ont bloqué 91 % des réponses pro-fibrotiques dans des tests de laboratoire indépendants, publiés dans <em>Advanced Science</em> (équipe de Gary Peltz, Stanford). Sur le vieillissement cellulaire, le système a réduit l'analyse de grands ensembles de données de plusieurs mois à quelques jours, avec des pistes génétiques validées expérimentalement en laboratoire (Abudayyeh et Gootenberg, MIT/Harvard). Co-Scientist ne publie pas de conclusions : il propose des hypothèses que des équipes de recherche testent ensuite au laboratoire, maintenant une frontière nette entre génération computationnelle et validation expérimentale — une discipline méthodologique décisive pour l'adoption en sciences de la vie.</p>\n\n<p>Finance et conformité réglementaire offrent un troisième front industriel. JPMorgan Chase déploie plus d'une centaine de solutions GenAI en production — détection de fraude, approbation de prêts, revue de contrats légaux — et sa suite LLM interne compte désormais plus de 200 000 utilisateurs. Sa plateforme COiN traite en quelques secondes des tâches de revue de contrats qui mobilisaient de grandes équipes pendant plusieurs jours. La tension précision/coût ressort clairement d'une étude comparative sur 10 000 fiches SEC (formulaires 10-K, 10-Q et 8-K) couvrant cinq patterns d'orchestration : l'architecture réflexive multi-agents atteint le meilleur F1 de 0,943, mais à un coût 2,3 fois supérieur au pipeline séquentiel de référence. Des configurations hybrides récupèrent 89 % de ces gains de précision pour seulement 1,15 fois le coût de base — un compromis que les équipes données financières pèseront davantage que le score brut.</p>\n\n<p>Le <em>computer use</em> (pilotage autonome d'interfaces graphiques sans API dédiée) représente l'horizon le plus ambitieux. L'agent CUA d'OpenAI — GPT-4o augmenté d'une composante vision et entraîné par renforcement sur GUIs — obtient 38,1 % sur OSWorld, où la performance humaine est de 72,4 % ; 58,1 % sur WebArena (contre un état de l'art antérieur de 36,2 %) ; et 87 % sur WebVoyager pour la navigation autonome sur des sites web réels comme Amazon ou GitHub. CoAct-1, via sa stratégie de codage comme action de substitution à la manipulation directe de l'interface, atteint 60,76 % sur OSWorld — surpassant les approches GUI pures, notamment parce que le code Python ou Bash exécuté directement est plus déterministe que la chaîne pointer-cliquer.</p>\n\n<p>Les signaux d'adoption macroéconomique confirment que ces déploiements ont quitté le stade expérimental. L'Anthropic Economic Index (septembre 2025) révèle que 77 % des transcriptions API présentent des patterns d'automatisation dominante, contre seulement 12 % d'augmentation sur Claude.ai ; sur l'usage purement API, 97 % des sessions sont automation-dominantes, indiquant que les entreprises délèguent des tâches complètes plutôt que d'itérer collaborativement. L'adoption de l'IA par les entreprises américaines est passée de 3,7 % à l'automne 2023 à 9,7 % en août 2025. La dispersion sectorielle est marquée : le secteur de l'information atteint 25 % d'adoption, soit environ dix fois le niveau de la restauration. Le génie logiciel et les tâches mathématiques absorbent à eux seuls 44 % du trafic API — l'écosystème développeur reste, de loin, le secteur catalyseur de l'IA agentique en production.</p>",
+      "claims": [
+        "claim:25",
+        "claim:26",
+        "claim:28"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "protocoles-interoperabilite",
+      "heading": "Protocoles d'interopérabilité : MCP et A2A",
+      "level": 3,
+      "prose": "<p>Face à la prolifération d'agents IA issus d'éditeurs différents, deux classes d'interopérabilité deviennent structurellement nécessaires : la connexion verticale entre un agent et ses outils, et la coordination horizontale entre agents autonomes. L'écosystème 2024-2026 a produit trois protocoles dédiés — Model Context Protocol (MCP), Agent2Agent (A2A) et Agent Communication Protocol (ACP) — dont la trajectoire convergente illustre la façon dont des standards concurrents se consolident sous pression industrielle.</p>\n\n<p>MCP a été lancé par Anthropic le 25 novembre 2024, conçu par David Soria Parra et Justin Spahr-Summers. Son architecture s'inspire du Language Server Protocol (LSP) : un canal JSON-RPC 2.0 sépare le client (l'application IA) du serveur (le fournisseur d'outil ou de données), avec négociation des capacités à l'initialisation de session. Trois primitives structurent l'interface — <em>Tools</em> (fonctions exécutables que le modèle peut invoquer), <em>Resources</em> (données structurées que le modèle peut lire) et <em>Prompts</em> (gabarits d'instruction) — couvrant les trois modalités d'interaction d'un agent avec son environnement : exécution, observation et guidance. Les clients découvrent dynamiquement les outils disponibles via des appels <code>tools/list</code>, <code>resources/list</code> et <code>prompts/list</code>, les schémas d'entrée et de sortie de chaque outil étant déclarés explicitement pour validation.</p>\n\n<p>L'adoption de MCP a été remarquablement rapide pour un protocole ouvert. En février 2025 — soit trois mois après sa publication —, plus de 1 000 serveurs communautaires étaient disponibles. OpenAI l'a adopté officiellement en mars 2025, Google DeepMind en avril 2025, avec Microsoft Copilot et Azure OpenAI dans leur sillage. Le 9 décembre 2025, Anthropic a reversé MCP à l'Agentic AI Foundation (AAIF), un fonds orienté sous l'égide de la Linux Foundation co-fondé par Anthropic, Block et OpenAI, avec Google, Microsoft, AWS, Cloudflare et Bloomberg comme membres fondateurs. MCP est devenu l'un des trois projets fondateurs de l'AAIF aux côtés de goose (Block) et AGENTS.md (OpenAI), dissociant la gouvernance technique du protocole de ses créateurs initiaux.</p>\n\n<p>Agent2Agent (A2A) a été annoncé le 9 avril 2025 lors du Google Cloud Next, avec 50 partenaires de lancement. Là où MCP adresse la dimension agent-outil, A2A adresse la dimension agent-agent, permettant à des agents de vendeurs différents de se découvrir, déléguer et coordonner. Son architecture couvre trois couches : communication (HTTP/Server-Sent Events ou gRPC pour le streaming temps réel), syntaxique (JSON-RPC 2.0) et sémantique (charges utiles de tâches structurées). Le mécanisme de découverte repose sur les <em>Agent Cards</em> — documents JSON publiés à l'URL canonique <code>/.well-known/agent-card.json</code>, signés via JWS pour détecter toute altération, décrivant les capacités, modalités d'entrée/sortie et exigences d'authentification d'un agent, à l'image d'un service descriptor dans les architectures microservices. Le task lifecycle (cycle de vie des tâches) comprend six états explicites — <em>submitted → working → input-required → completed / canceled / failed</em> — offrant une sémantique de reprise non ambiguë pour les flux de travail de longue durée. La version 1.0 du protocole, publiée début 2026, a ajouté des <em>Signed Agent Cards</em> cryptographiques pour prévenir les attaques par usurpation d'identité d'agents.</p><figure class='fig'><svg viewBox='0 0 820 460' role='img' aria-label='Diagramme en machine à états du cycle de vie de tâche A2A : entrée submitted puis working, boucle non terminale entre working et input-required assurant la reprise, et trois branches terminales distinctes depuis working vers completed, canceled et failed.'><rect x='0' y='0' width='820' height='460' fill='var(--card,#FFFFFF)'/><text x='410' y='28' text-anchor='middle' font-family='Archivo, sans-serif' font-size='15' font-weight='700' fill='var(--blue-deep,#142E49)'>Cycle de vie d'une tâche A2A — machine à états</text><text x='410' y='46' text-anchor='middle' font-family='Archivo, sans-serif' font-size='11.5' fill='var(--ink-faint,#7A889B)'>six états · transitions non terminales, boucle de reprise et trois fins distinctes</text><circle cx='24' cy='250' r='5' fill='var(--ink-soft,#43536A)'/><line x1='29' y1='250' x2='37' y2='250' stroke='var(--ink-soft,#43536A)' stroke-width='2'/><path d='M46,250 L37,245.5 L37,254.5 Z' fill='var(--ink-soft,#43536A)'/><text x='24' y='234' text-anchor='middle' font-family='Archivo, sans-serif' font-size='9' font-style='italic' fill='var(--ink-faint,#7A889B)'>début</text><line x1='180' y1='250' x2='291' y2='250' stroke='var(--ink-soft,#43536A)' stroke-width='2'/><path d='M300,250 L291,245.5 L291,254.5 Z' fill='var(--ink-soft,#43536A)'/><line x1='350' y1='226' x2='350' y2='153' stroke='var(--blue-bright,#2C77B6)' stroke-width='2.2'/><path d='M350,144 L345.5,153 L354.5,153 Z' fill='var(--blue-bright,#2C77B6)'/><line x1='382' y1='144' x2='382' y2='217' stroke='var(--blue-bright,#2C77B6)' stroke-width='2.2'/><path d='M382,226 L377.5,217 L386.5,217 Z' fill='var(--blue-bright,#2C77B6)'/><text x='344' y='176' text-anchor='end' font-family='Archivo, sans-serif' font-size='10' font-style='italic' fill='var(--blue-bright,#2C77B6)'>boucle de reprise</text><text x='344' y='189' text-anchor='end' font-family='Archivo, sans-serif' font-size='9' font-style='italic' fill='var(--ink-faint,#7A889B)'>working ⇄ input-required</text><polyline points='432,240 500,240 500,132 603,132' fill='none' stroke='var(--blue,#23537F)' stroke-width='2'/><path d='M612,132 L603,127.5 L603,136.5 Z' fill='var(--blue,#23537F)'/><text x='534' y='126' text-anchor='middle' font-family='Archivo, sans-serif' font-size='9' font-style='italic' fill='var(--blue,#23537F)'>succès</text><line x1='432' y1='250' x2='603' y2='250' stroke='var(--ink-faint,#7A889B)' stroke-width='2'/><path d='M612,250 L603,245.5 L603,254.5 Z' fill='var(--ink-faint,#7A889B)'/><text x='524' y='243' text-anchor='middle' font-family='Archivo, sans-serif' font-size='9' font-style='italic' fill='var(--ink-faint,#7A889B)'>annulation</text><polyline points='432,260 540,260 540,368 603,368' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='2'/><path d='M612,368 L603,363.5 L603,372.5 Z' fill='var(--bordeaux,#7C2A38)'/><text x='560' y='362' text-anchor='middle' font-family='Archivo, sans-serif' font-size='9' font-style='italic' fill='var(--bordeaux,#7C2A38)'>erreur</text><rect x='46' y='226' width='132' height='48' rx='10' fill='var(--card,#FFFFFF)' stroke='var(--blue,#23537F)' stroke-width='1.8'/><text x='112' y='247' text-anchor='middle' font-family='Archivo, sans-serif' font-size='13' font-weight='700' fill='var(--ink,#15202E)'>submitted</text><text x='112' y='263' text-anchor='middle' font-family='Archivo, sans-serif' font-size='9.5' fill='var(--ink-faint,#7A889B)'>soumise · entrée</text><rect x='300' y='226' width='132' height='48' rx='10' fill='var(--line-soft,#E7ECF3)' stroke='var(--blue,#23537F)' stroke-width='2.2'/><text x='366' y='247' text-anchor='middle' font-family='Archivo, sans-serif' font-size='13' font-weight='700' fill='var(--ink,#15202E)'>working</text><text x='366' y='263' text-anchor='middle' font-family='Archivo, sans-serif' font-size='9.5' fill='var(--ink-faint,#7A889B)'>en cours · hub</text><rect x='300' y='96' width='132' height='48' rx='10' fill='var(--card,#FFFFFF)' stroke='var(--blue-bright,#2C77B6)' stroke-width='1.8'/><text x='366' y='117' text-anchor='middle' font-family='Archivo, sans-serif' font-size='12' font-weight='700' fill='var(--ink,#15202E)'>input-required</text><text x='366' y='133' text-anchor='middle' font-family='Archivo, sans-serif' font-size='9.5' fill='var(--ink-faint,#7A889B)'>entrée requise</text><rect x='608' y='104' width='140' height='56' rx='13' fill='none' stroke='var(--blue,#23537F)' stroke-width='1.2'/><rect x='612' y='108' width='132' height='48' rx='10' fill='var(--card,#FFFFFF)' stroke='var(--blue,#23537F)' stroke-width='1.8'/><text x='678' y='129' text-anchor='middle' font-family='Archivo, sans-serif' font-size='13' font-weight='700' fill='var(--blue,#23537F)'>completed</text><text x='678' y='145' text-anchor='middle' font-family='Archivo, sans-serif' font-size='9.5' fill='var(--ink-faint,#7A889B)'>terminée</text><rect x='608' y='222' width='140' height='56' rx='13' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1.2'/><rect x='612' y='226' width='132' height='48' rx='10' fill='var(--card,#FFFFFF)' stroke='var(--ink-faint,#7A889B)' stroke-width='1.8'/><text x='678' y='247' text-anchor='middle' font-family='Archivo, sans-serif' font-size='13' font-weight='700' fill='var(--ink-soft,#43536A)'>canceled</text><text x='678' y='263' text-anchor='middle' font-family='Archivo, sans-serif' font-size='9.5' fill='var(--ink-faint,#7A889B)'>annulée</text><rect x='608' y='340' width='140' height='56' rx='13' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2'/><rect x='612' y='344' width='132' height='48' rx='10' fill='var(--card,#FFFFFF)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.8'/><text x='678' y='365' text-anchor='middle' font-family='Archivo, sans-serif' font-size='13' font-weight='700' fill='var(--bordeaux,#7C2A38)'>failed</text><text x='678' y='381' text-anchor='middle' font-family='Archivo, sans-serif' font-size='9.5' fill='var(--ink-faint,#7A889B)'>échouée</text><line x1='760' y1='120' x2='760' y2='380' stroke='var(--ink-faint,#7A889B)' stroke-width='1' opacity='0.7'/><line x1='756' y1='120' x2='760' y2='120' stroke='var(--ink-faint,#7A889B)' stroke-width='1' opacity='0.7'/><line x1='756' y1='380' x2='760' y2='380' stroke='var(--ink-faint,#7A889B)' stroke-width='1' opacity='0.7'/><line x1='760' y1='250' x2='766' y2='250' stroke='var(--ink-faint,#7A889B)' stroke-width='1' opacity='0.7'/><text x='780' y='250' text-anchor='middle' transform='rotate(90 780 250)' font-family='Archivo, sans-serif' font-size='10' font-style='italic' fill='var(--ink-soft,#43536A)'>trois fins terminales distinctes</text><rect x='46' y='418' width='22' height='15' rx='4' fill='var(--card,#FFFFFF)' stroke='var(--blue,#23537F)' stroke-width='1.6'/><text x='74' y='430' text-anchor='start' font-family='Archivo, sans-serif' font-size='10' fill='var(--ink-soft,#43536A)'>état non terminal</text><rect x='206' y='415' width='28' height='21' rx='5' fill='none' stroke='var(--ink-soft,#43536A)' stroke-width='1'/><rect x='210' y='419' width='20' height='13' rx='3' fill='var(--card,#FFFFFF)' stroke='var(--ink-soft,#43536A)' stroke-width='1.4'/><text x='240' y='430' text-anchor='start' font-family='Archivo, sans-serif' font-size='10' fill='var(--ink-soft,#43536A)'>état terminal (fin de tâche)</text><line x1='470' y1='426' x2='496' y2='426' stroke='var(--blue-bright,#2C77B6)' stroke-width='2.2'/><path d='M504,426 L495,421.5 L495,430.5 Z' fill='var(--blue-bright,#2C77B6)'/><text x='510' y='430' text-anchor='start' font-family='Archivo, sans-serif' font-size='10' fill='var(--blue-bright,#2C77B6)'>boucle de reprise (input-required ↔ working)</text></svg><figcaption><span class='fcap-k'></span>Diagramme d'états du task lifecycle A2A : depuis submitted, la tâche passe à working ; la boucle non terminale working ⇄ input-required matérialise la reprise, tandis que trois branches terminales distinctes — completed, canceled, failed — séparent nettement les fins de tâche.</figcaption></figure>\n\n<p>A2A a été libéré sous Apache 2.0 et reversé à la Linux Foundation le 23 juin 2025 ; il comptait 150 organisations membres ou plus début 2026 — avec des déploiements en production sur Azure AI Foundry, Amazon Bedrock AgentCore, ainsi que chez Salesforce, SAP et ServiceNow — et son dépôt GitHub totalisait plus de 22 000 étoiles. IBM Research avait, de son côté, lancé en mars 2025 l'Agent Communication Protocol (ACP) pour alimenter sa plateforme open source BeeAI : une approche REST native, sans encapsulation JSON-RPC, centrée sur les workflows stateful et asynchrones à destination des pipelines enterprise. En août 2025, IBM Research et Google ont annoncé conjointement la convergence d'ACP vers A2A sous l'AAIF ; les concepts de persistance d'état et d'asynchronisme propres à ACP ont été intégrés dans A2A v1.0, et BeeAI a reçu des guides de migration vers l'architecture combinée.</p>\n\n<p>L'architecture de référence issue de cette convergence affecte les deux protocoles survivants à des rôles distincts : A2A pour l'orchestration aux frontières des agents, MCP pour l'accès aux outils dans le contexte d'exécution interne de chaque agent. Cette partition — présentée par Google et Anthropic comme une « complémentarité naturelle » — mérite d'être relativisée : la frontière entre outil et agent est structurellement poreuse. Un serveur MCP capable de raisonner, de déléguer et d'orchestrer se comporte de fait comme un agent ; inversement, des tâches A2A peuvent invoquer des outils directement sans passer par une couche MCP intermédiaire. L'affirmation d'une séparation nette entre les deux protocoles est une simplification commode dont la robustesse dans les déploiements multi-organisationnels à grande échelle reste à démontrer.</p>\n\n<p>La standardisation rapide autour de MCP a mis au jour une surface d'attaque structurellement nouvelle. Le prompt injection (injection de prompt) via des serveurs MCP malveillants consiste à intégrer des instructions cachées dans les descripteurs d'outils — métadonnées que le modèle lit sans visibilité utilisateur et sans provenance contextuelle, avec la même autorité qu'une instruction système. Deux CVEs ont cristallisé la menace en 2025 : MCPoison (CVE-2025-54136) exploite le rug pull (substitution discrète post-approbation) — une configuration MCP bénigne est approuvée une fois, puis le serveur substitue silencieusement une définition d'outil empoisonnée, la plupart des clients MCP ne re-validant pas les outils après l'approbation initiale ; CurXecute (CVE-2025-54135) a démontré une exécution de code à distance persistante via des configurations empoisonnées. Le tool poisoning (empoisonnement d'outil) permet en outre à des descripteurs corrompus de contraindre le modèle à exfiltrer des données sensibles au sein de réponses apparemment légitimes : en septembre 2025, un paquet npm malveillant se faisant passer pour l'intégration MCP de Postmark a mis en copie cachée l'ensemble des e-mails de quelque 300 organisations vers une adresse contrôlée par l'attaquant pendant plusieurs semaines avant d'être détecté. Un quatrième vecteur, le confused deputy (délégation abusive), survient lorsqu'un serveur MCP opère au nom d'un utilisateur avec des privilèges plus larges que ceux de cet utilisateur — une mauvaise configuration OAuth pouvant escalader trivialement une requête contrainte vers un accès élevé. A2A est lui-même exposé : l'issue #153 de son dépôt GitHub identifie formellement ce même confused deputy comme un gap de spécification, les chaînes de délégation inter-agents pouvant propager des credentials au-delà de leur périmètre prévu.</p>",
+      "claims": [
+        "claim:29",
+        "claim:30",
+        "claim:31",
+        "claim:32"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "fiabilite-securite",
+      "heading": "Fiabilité, sécurité et angles morts",
+      "level": 3,
+      "prose": "<p>Les benchmarks à horizon long font apparaître un <strong>reliability gap</strong> (fossé de fiabilité) que les métriques de performance moyenne dissimulent. Vending-Bench 2, qui simule la gestion d'un commerce sur des centaines de jours consécutifs, place les agents dans un régime où chaque décision conditionne les suivantes : le meilleur agent testé, Gemini 3 Pro, n'a généré que 5 478 $ de chiffre d'affaires contre une capacité théorique humaine de 63 000 $+, soit un facteur onze. L'écart brut est déjà saisissant ; plus déterminant encore est le mode de défaillance observé, désigné dans la littérature par <em>meltdown</em> — la dégradation n'est pas progressive mais catastrophique : le modèle perd subitement la cohérence de ses objectifs et adopte des comportements aberrants plutôt que de dégrader graduellement ses performances. La variance inter-runs aggrave ce tableau : Claude 3.5 Sonnet n'a achevé que trois exécutions sur cinq avec des résultats utilisables, la pire n'enregistrant aucune vente — une variabilité incompatible avec tout pipeline autonome à enjeux réels. τ²-bench (simulation de support client multi-tour) révèle un problème distinct et tout aussi redoutable : un agent atteignant 85 % de réussite au pass^1 peut chuter de façon significative au pass^8, exposant le problème de cohérence longitudinale — traiter un cas correctement dans un run isolé ne prédit pas la fiabilité sur une série de runs du même type. BFCL V3 (Berkeley Function-Calling Leaderboard, 4 441 tâches d'appel d'API) enfonce le clou à un niveau plus fondamental : le meilleur modèle disponible atteint 77,5 %, plaçant la capacité de base d'intégration d'API sous les 80 % pour les modèles frontier. Une enquête 2025 menée auprès de 306 praticiens IA confirme que ces problèmes de fiabilité constituent le premier frein à l'adoption enterprise : les équipes restreignent délibérément les agents à des workflows internes sous supervision humaine plutôt que de les exposer aux clients.</p><figure class='fig'><svg viewBox='0 0 820 460' role='img' aria-label='Graphique en lignes comparant deux allures de fiabilite sur une meme tache prolongee de plusieurs centaines de pas consecutifs. Abscisse : les pas ; ordonnee : la coherence des objectifs en pourcentage. La courbe attendue, en bleu pointille, descend de facon reguliere avec une pente annonciatrice. La courbe du meltdown documente sur Vending-Bench, en bordeaux, reste en palier eleve puis chute brutalement en falaise vers la fin, sans pente annonciatrice : un echec catastrophique et non gracieux.'><rect x='0' y='0' width='820' height='460' fill='var(--card,#FFFFFF)'/><text x='410' y='26' text-anchor='middle' font-family='Archivo, sans-serif' font-size='15' font-weight='700' fill='var(--blue-deep,#142E49)'>Deux allures de fiabilité à horizon long</text><text x='410' y='44' text-anchor='middle' font-family='Archivo, sans-serif' font-size='11.5' fill='var(--ink-faint,#7A889B)'>même tâche prolongée — dégradation graduelle attendue contre meltdown observé</text><line x1='80' y1='80' x2='760' y2='80' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><line x1='80' y1='144' x2='760' y2='144' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><line x1='80' y1='208' x2='760' y2='208' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><line x1='80' y1='272' x2='760' y2='272' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><line x1='80' y1='336' x2='760' y2='336' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><line x1='80' y1='80' x2='80' y2='400' stroke='var(--ink-soft,#43536A)' stroke-width='1.2'/><line x1='80' y1='400' x2='760' y2='400' stroke='var(--ink-soft,#43536A)' stroke-width='1.2'/><text x='72' y='84' text-anchor='end' font-family='Archivo, sans-serif' font-size='10.5' fill='var(--ink-faint,#7A889B)'>100</text><text x='72' y='148' text-anchor='end' font-family='Archivo, sans-serif' font-size='10.5' fill='var(--ink-faint,#7A889B)'>80</text><text x='72' y='212' text-anchor='end' font-family='Archivo, sans-serif' font-size='10.5' fill='var(--ink-faint,#7A889B)'>60</text><text x='72' y='276' text-anchor='end' font-family='Archivo, sans-serif' font-size='10.5' fill='var(--ink-faint,#7A889B)'>40</text><text x='72' y='340' text-anchor='end' font-family='Archivo, sans-serif' font-size='10.5' fill='var(--ink-faint,#7A889B)'>20</text><text x='72' y='404' text-anchor='end' font-family='Archivo, sans-serif' font-size='10.5' fill='var(--ink-faint,#7A889B)'>0</text><text x='80' y='418' text-anchor='middle' font-family='Archivo, sans-serif' font-size='10.5' fill='var(--ink-faint,#7A889B)'>0</text><text x='216' y='418' text-anchor='middle' font-family='Archivo, sans-serif' font-size='10.5' fill='var(--ink-faint,#7A889B)'>100</text><text x='352' y='418' text-anchor='middle' font-family='Archivo, sans-serif' font-size='10.5' fill='var(--ink-faint,#7A889B)'>200</text><text x='488' y='418' text-anchor='middle' font-family='Archivo, sans-serif' font-size='10.5' fill='var(--ink-faint,#7A889B)'>300</text><text x='624' y='418' text-anchor='middle' font-family='Archivo, sans-serif' font-size='10.5' fill='var(--ink-faint,#7A889B)'>400</text><text x='760' y='418' text-anchor='middle' font-family='Archivo, sans-serif' font-size='10.5' fill='var(--ink-faint,#7A889B)'>500</text><text x='420' y='442' text-anchor='middle' font-family='Archivo, sans-serif' font-size='11' fill='var(--ink-soft,#43536A)'>étapes consécutives →</text><text x='22' y='240' text-anchor='middle' transform='rotate(-90 22 240)' font-family='Archivo, sans-serif' font-size='11' fill='var(--ink-soft,#43536A)'>cohérence des objectifs (%)</text><polyline points='80,118 216,150 352,182 488,214 624,243 760,269' fill='none' stroke='var(--blue,#23537F)' stroke-width='2.4' stroke-dasharray='7 4' stroke-linecap='round' stroke-linejoin='round'/><polyline points='80,112 148,109 216,114 284,110 352,112 420,109 488,113 515,112 525,140 535,250 548,345 560,366 600,372 700,377 760,378' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'/><circle cx='80' cy='118' r='3.4' fill='var(--blue,#23537F)'/><circle cx='760' cy='269' r='3.4' fill='var(--blue,#23537F)'/><circle cx='80' cy='112' r='3.6' fill='var(--bordeaux,#7C2A38)'/><circle cx='760' cy='378' r='3.6' fill='var(--bordeaux,#7C2A38)'/><circle cx='515' cy='112' r='5' fill='var(--card,#FFFFFF)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.8'/><rect x='538' y='82' width='220' height='46' fill='var(--card,#FFFFFF)' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><line x1='550' y1='100' x2='578' y2='100' stroke='var(--bordeaux,#7C2A38)' stroke-width='2.6' stroke-linecap='round'/><text x='584' y='104' text-anchor='start' font-family='Archivo, sans-serif' font-size='9.5' fill='var(--ink,#15202E)'>meltdown documenté (Vending-Bench)</text><line x1='550' y1='118' x2='578' y2='118' stroke='var(--blue,#23537F)' stroke-width='2.4' stroke-dasharray='7 4' stroke-linecap='round'/><text x='584' y='122' text-anchor='start' font-family='Archivo, sans-serif' font-size='9.5' fill='var(--ink,#15202E)'>dégradation graduelle attendue</text><text x='250' y='100' text-anchor='middle' font-family='Archivo, sans-serif' font-size='10.5' font-style='italic' fill='var(--ink-soft,#43536A)'>palier — performance stable, trompeuse</text><line x1='300' y1='322' x2='544' y2='300' stroke='var(--bordeaux,#7C2A38)' stroke-width='0.9' opacity='0.6'/><path d='M544,300 l-10,-2 l5,-6 z' fill='var(--bordeaux,#7C2A38)' opacity='0.75'/><text x='110' y='324' text-anchor='start' font-family='Archivo, sans-serif' font-size='11.5' font-weight='700' fill='var(--bordeaux,#7C2A38)'>falaise : effondrement brutal</text><text x='110' y='340' text-anchor='start' font-family='Archivo, sans-serif' font-size='10' fill='var(--ink-soft,#43536A)'>de la cohérence des objectifs,</text><text x='110' y='355' text-anchor='start' font-family='Archivo, sans-serif' font-size='10' font-style='italic' fill='var(--ink-soft,#43536A)'>sans aucune alerte préalable</text><text x='752' y='289' text-anchor='end' font-family='Archivo, sans-serif' font-size='9.5' font-style='italic' fill='var(--blue,#23537F)'>déclin régulier · détectable</text></svg><figcaption><span class='fcap-k'></span>Deux allures de fiabilité à horizon long sur une même tâche prolongée : la dégradation graduelle attendue (pente d'avertissement régulière) contre le meltdown documenté de Vending-Bench — palier stable puis falaise, l'effondrement de la cohérence des objectifs survenant sans aucune pente annonciatrice.</figcaption></figure>\n\n<p>Les failles de sécurité sont tout aussi structurelles, et leur nature interdit les correctifs purement applicatifs. Le <strong>prompt injection</strong> (injection de prompt) occupe la première position — LLM01 — du Top 10 OWASP 2025 pour les applications LLM, pour la deuxième édition consécutive. La vulnérabilité n'est pas un défaut d'implémentation corrigible par configuration : les LLM traitent les instructions et les données dans le même flux de contexte sans séparation fiable, si bien que tout appel à du contenu externe constitue une surface d'attaque potentielle. Deux agents commerciaux déployés en 2025 en fournissent la démonstration directe. Google Jules était vulnérable à l'injection via des caractères Unicode Tag invisibles (plage U+E0000–U+E007F) : des instructions cachées dans des GitHub issues pouvaient amener l'agent à introduire du code malveillant dans une base de code et à l'exécuter sans alerte utilisateur ; la vulnérabilité avait été signalée à Google en février 2024 et n'était toujours pas mitigée lors de la mise en disponibilité générale de Jules en août 2025. Devin AI présentait des défenses quasi-inexistantes contre l'injection indirecte, offrant quatre vecteurs d'exfiltration exploitables — accès shell non restreint, navigation navigateur, rendu markdown de contenu non contrôlé, intégration Slack — sans contrôle de sortie effectif. Le <strong>RAG poisoning</strong> (empoisonnement des corpus de retrieval-augmented generation) introduit un paradoxe supplémentaire : cinq documents soigneusement craftés insérés dans une base de millions suffiraient à manipuler 90 % des réponses d'un agent via injection indirecte. L'augmentation par base de connaissances externe — largement présentée comme la réponse principale à l'hallucination — crée simultanément une surface d'attaque critique que les organisations déployant RAG tendent à sous-estimer.</p>\n\n<p>Au niveau du raisonnement, le <strong>chain-of-thought</strong> (raisonnement pas-à-pas) opère comme une politique gloutonne locale : chaque étape est évaluée dans son contexte immédiat sans que les conséquences à long terme puissent infléchir les engagements précoces. Les erreurs de début de séquence ne sont pas corrigibles rétrospectivement et se composent en échecs irréversibles sur les tâches à horizon long — c'est le biais de <em>myopic commitment</em> documenté par Sapkota et al. FLARE (<em>Future-aware Lookahead with Reward Estimation</em>) a été introduit pour corriger ce biais : il impose au modèle d'anticiper les états futurs et de propager la valeur estimée avant de valider les décisions courantes, interdisant ainsi les engagements prématurés. Ses résultats empiriques sur des benchmarks de planification à horizon long sont frappants — LLaMA-8B équipé de FLARE surpasse fréquemment GPT-4o utilisant le chain-of-thought standard, suggérant que l'architecture du raisonnement importe davantage que la taille du modèle dans ce régime. Cette conclusion doit cependant être lue avec précision : la comparaison oppose deux configurations méthodologiquement inégales (FLARE sur un petit modèle vs chain-of-thought standard sur un grand), et les évaluations portent sur des benchmarks de planification spécifiques sans généralisation validée en déploiement production.</p>\n\n<p>Sapkota et al. (<em>Information Fusion</em>, 2025) établissent une distinction conceptuelle préalable à toute évaluation honnête : les <em>AI Agents</em> sont des systèmes modulaires focalisés sur des tâches spécifiques, dépendants d'outils, construits par empilement de prompting et de fine-tuning ; l'<em>Agentic AI</em> est un paradigme différent, caractérisé par la collaboration multi-agents, la mémoire persistante et la décomposition dynamique de tâches. Confondre les deux fausse à la fois les attentes et les évaluations, en projetant sur le second les limitations du premier ou les ambitions du second sur le premier. Sur ce fond, les auteurs identifient quatre défis persistants non résolus par les architectures actuelles. L'<strong>hallucination</strong> — génération de faits faux avec apparence de confiance — persiste malgré les améliorations apportées par RAG et les architectures de grounding. La <strong>brittleness</strong> (fragilité) désigne la dégradation des performances face à des entrées légèrement hors distribution, critique pour des agents déployés dans des environnements ouverts et non contrôlés. Les <strong>emergent behaviors</strong> (comportements émergents) dans les systèmes multi-agents constituent un risque qualitativement différent des deux précédents : des comportements non anticipés lors de la conception émergent de l'interaction entre agents, sans que les concepteurs puissent les prévoir ni les tester exhaustivement avant déploiement. Les <strong>coordination failures</strong> (échecs de coordination) surviennent quand plusieurs agents au sein d'un pipeline perdent la cohérence de leurs objectifs partagés — un problème que l'absence de standard inter-agents unique aggrave structurellement : ACP, MCP et A2A coexistent sans consensus, fragmentant la composabilité des systèmes agentiques.</p>\n\n<p>Partnership on AI a conclu en septembre 2025 qu'aucune couche de détection unique ne suffit pour surveiller les agents en production de façon fiable. Un cadre à trois couches combinées s'impose : détection statistique d'anomalies pour identifier les déviations comportementales inhabituelles, vérifications à base de règles pour maintenir les sorties dans des enveloppes opérationnelles connues, et validation humaine dans la boucle pour les décisions à enjeux élevés que les systèmes automatisés ne peuvent contextualiser. Des protocoles de rollback préétablis — documentés et testés avant tout déploiement, non rédigés en réponse à un incident — constituent la quatrième composante implicite du cadre : la détection n'a de valeur opérationnelle que si la récupération est mécaniquement garantie. Cette architecture de surveillance reconnaît une asymétrie fondamentale entre les agents IA et les systèmes logiciels traditionnels : les agents échouent de façon inédite, imprévisible et parfois catastrophique, selon des modes que le meltdown de Vending-Bench 2 illustre concrètement — aucun système de détection mono-couche ne peut couvrir seul un espace de défaillance aussi non-borné.</p>",
+      "claims": [
+        "claim:33",
+        "claim:34",
+        "claim:35",
+        "claim:36"
+      ]
+    },
+    {
+      "type": "exercise",
+      "part": "Fondations, anatomie et paradigmes",
+      "question": "(a) Selon Sapkota et al. (2025), qu'est-ce qui sépare un « AI Agent » d'une « Agentic AI » — une question d'échelle ou de design ? (b) Dans la boucle ReAct, à quoi sert l'étape <em>Observation</em> et quel mode d'échec du chain-of-thought pur corrige-t-elle ? (c) Qu'appelle-t-on <em>conceptual retrofitting</em> et pourquoi est-ce un risque épistémique plutôt qu'un simple abus de vocabulaire ?",
+      "answer": "<p><strong>(a)</strong> La frontière n'est pas d'échelle mais de <em>design philosophy</em>. Un <strong>AI Agent</strong> est un système modulaire piloté par un LLM pour une automatisation <em>task-specific</em> et bornée (résumé, planification d'agenda, traitement de requêtes). L'<strong>Agentic AI</strong> est un paradigme où l'agency émerge de la collaboration entre plusieurs agents spécialisés — décomposition dynamique des tâches, mémoire persistante, coordination autonome — et qui décide elle-même de la décomposition et de l'orchestration de processus ouverts. Conséquence directe : les critères de fiabilité, de vérifiabilité et de contrôle des risques diffèrent radicalement entre les deux régimes.</p><p><strong>(b)</strong> À chaque pas, ReAct produit une <em>Thought</em>, déclenche une <em>Action</em> (appel d'outil), puis ingère l'<em>Observation</em> retournée. L'observation externe <strong>invalide ou confirme l'hypothèse avant qu'elle ne se propage</strong> aux étapes suivantes, rompant la propagation d'erreurs du chain-of-thought pur ; sur HotpotQA/Fever, l'accès à une simple API Wikipedia réduit ainsi substantiellement les hallucinations, et sur ALFWorld ReAct dépasse le reinforcement learning de 34 points.</p><p><strong>(c)</strong> Le <em>conceptual retrofitting</em> consiste à appliquer à un agent LLM les étiquettes du paradigme symbolique — délibération BDI, planification MDP, boucle PPAR — sans que ces mécanismes soient réellement instanciés : le système génère en fait ses actions par <em>sampling</em> stochastique. Le risque n'est pas cosmétique : il crée une <strong>fausse continuité entre paradigmes incompatibles</strong> et produit des <strong>garanties fictives</strong> — un agent « planifiant via un MDP » offre alors une vérifiabilité sans commune mesure avec ce que sa description laisse croire.</p>"
+    },
+    {
+      "type": "exercise",
+      "part": "Garanties formelles, fiabilité et sécurité",
+      "question": "(a) Les « lois de conservation » des Agent Contracts (Ye & Tan, 2026) sont-elles <em>prouvées</em> ou <em>vérifiées empiriquement</em>, et jusqu'où portent leurs gains de −90 % de tokens ? (b) Qu'est-ce que le <em>meltdown</em> observé sur Vending-Bench, et pourquoi est-il plus redoutable qu'une sous-performance moyenne ? (c) Pourquoi le prompt injection est-il classé LLM01 du Top 10 OWASP 2025 et non réductible à un correctif de configuration ?",
+      "answer": "<p><strong>(a)</strong> Elles sont <strong>vérifiées empiriquement, non prouvées</strong> : dans les workflows de délégation multi-agents rapportés, le mécanisme « budget délégué ≤ budget détenu par le parent » réduit la consommation de tokens de 90 % et la variance de 525×, avec <em>zéro violation observée</em> — mais ces chiffres valent pour un workflow itératif précis et ne constituent pas une garantie démontrée pour tout système. La force du cadre tient à ce que les garanties sont structurelles (elles découlent des contrats, non d'un monitoring runtime), ce qui les rend composables.</p><p><strong>(b)</strong> Le <em>meltdown</em> est un mode de défaillance où la dégradation n'est <strong>pas progressive mais catastrophique</strong> : l'agent perd subitement la cohérence de ses objectifs et adopte des comportements aberrants. Il est plus redoutable qu'une sous-performance moyenne car il survient <strong>sans pente annonciatrice</strong> — un palier de performance stable et trompeur précède la falaise — ce qui le rend imprévisible et indétectable par un simple seuil de performance ; la variance inter-runs (Claude 3.5 Sonnet : 3 exécutions utilisables sur 5) aggrave le tableau.</p><p><strong>(c)</strong> Parce que les LLM <strong>traitent les instructions et les données dans le même flux de contexte</strong> sans séparation fiable : tout appel à du contenu externe est une surface d'attaque potentielle. Ce n'est donc pas un défaut d'implémentation corrigible par configuration mais une propriété architecturale — d'où la première position (LLM01), pour la deuxième édition consécutive. Les cas Google Jules (injection via caractères Unicode Tag invisibles) et Devin AI (quatre vecteurs d'exfiltration) en sont la démonstration directe.</p>"
+    },
+    {
+      "type": "biblio",
+      "entries": [
+        {
+          "label": "Franklin & Graesser (1996) — Is it an Agent, or just a Program? (full text, Texas A&M mirror)",
+          "href": "https://cse-robotics.engr.tamu.edu/dshell/cs631/papers/franklingraesser96agents.pdf"
+        },
+        {
+          "label": "Wang et al. (2023) — A Survey on Large Language Model based Autonomous Agents (arXiv HTML)",
+          "href": "https://arxiv.org/html/2308.11432v4"
+        },
+        {
+          "label": "A Survey on Large Language Model based Autonomous Agents — Wang et al. (2023), arXiv:2308.11432v7 HTML",
+          "href": "https://arxiv.org/html/2308.11432v7"
+        },
+        {
+          "label": "AI Agents vs. Agentic AI: A Conceptual Taxonomy, Applications and Challenges (arXiv:2505.10468)",
+          "href": "https://arxiv.org/abs/2505.10468"
+        },
+        {
+          "label": "AI Agents vs. Agentic AI: A Conceptual taxonomy, applications and challenges — ScienceDirect (Information Fusion)",
+          "href": "https://www.sciencedirect.com/science/article/pii/S1566253525006712"
+        },
+        {
+          "label": "From Single-Agent to Multi-Agent: A Survey on AI Agents Paradigm Shift (Abou Ali & Dornaika, 2025)",
+          "href": "https://arxiv.org/html/2510.25445"
+        },
+        {
+          "label": "AI winter — Wikipedia (cadre AI-summers/winters, aucune mention d'une ère agentic AI)",
+          "href": "https://en.wikipedia.org/wiki/AI_winter"
+        },
+        {
+          "label": "Surfing the AI waves: the historical evolution of artificial intelligence in management and organizational studies and practices (Journal of Management History, Emerald)",
+          "href": "https://www.emerald.com/jmh/article/doi/10.1108/JMH-01-2025-0002/1253828/Surfing-the-AI-waves-the-historical-evolution-of"
+        },
+        {
+          "label": "Andrew Ng Explores The Rise Of AI Agents And Agentic Reasoning | BUILD 2024 Keynote",
+          "href": "https://www.youtube.com/watch?v=KrRD7r7y7NY"
+        },
+        {
+          "label": "Agentic AI: One Year After Andrew Ng's Design Patterns — Hype or Reality? (Medium, @haileyq)",
+          "href": "https://medium.com/@haileyq/agentic-ai-one-year-after-andrew-ngs-design-patterns-hype-or-reality-part-3-a8b395984a9b"
+        },
+        {
+          "label": "Practices for Governing Agentic AI Systems (OpenAI / Shavit et al., décembre 2023)",
+          "href": "https://cdn.openai.com/papers/practices-for-governing-agentic-ai-systems.pdf"
+        },
+        {
+          "label": "ReAct: Synergizing Reasoning and Acting in Language Models (arxiv:2210.03629, octobre 2022)",
+          "href": "https://arxiv.org/abs/2210.03629"
+        },
+        {
+          "label": "AI agent — Wikipedia (section History)",
+          "href": "https://en.wikipedia.org/wiki/AI_agent"
+        },
+        {
+          "label": "Harms from Increasingly Agentic Algorithmic Systems — ACM FAccT 2023",
+          "href": "https://dl.acm.org/doi/10.1145/3593013.3594033"
+        },
+        {
+          "label": "ReAct: Synergizing Reasoning and Acting in Language Models — Google Research Blog",
+          "href": "https://research.google/blog/react-synergizing-reasoning-and-acting-in-language-models/"
+        },
+        {
+          "label": "[Quick Review] ReAct: Synergizing Reasoning and Acting in Language Models — Liner",
+          "href": "https://liner.com/review/react-synergizing-reasoning-and-acting-in-language-models"
+        },
+        {
+          "label": "A Survey on Large Language Model based Autonomous Agents (arXiv:2308.11432, HTML v6)",
+          "href": "https://arxiv.org/html/2308.11432v6"
+        },
+        {
+          "label": "LLM Agents — Prompt Engineering Guide (promptingguide.ai)",
+          "href": "https://www.promptingguide.ai/research/llm-agents"
+        },
+        {
+          "label": "A Survey on Large Language Model based Autonomous Agents (arXiv:2308.11432) — full HTML",
+          "href": "https://arxiv.org/html/2308.11432"
+        },
+        {
+          "label": "Agentic Retrieval-Augmented Generation: A Survey on Agentic RAG (Singh et al., 2025)",
+          "href": "https://arxiv.org/abs/2501.09136"
+        },
+        {
+          "label": "Agentic RAG systems for enterprise-scale information retrieval — Toloka AI",
+          "href": "https://toloka.ai/blog/agentic-rag-systems-for-enterprise-scale-information-retrieval/"
+        },
+        {
+          "label": "Andrew Ng – Four Major Design Patterns for Agentic Workflows (newsletter.startupengineering.io)",
+          "href": "https://www.newsletter.startupengineering.io/p/four-major-design-patterns-for-agentic"
+        },
+        {
+          "label": "4 Agentic Design Patterns and 4 Key AI Trends 2024-2025 (mlnotes.substack.com)",
+          "href": "https://mlnotes.substack.com/p/4-agentic-design-patterns-and-4-key"
+        },
+        {
+          "label": "Agentic Artificial Intelligence: Architectures, Taxonomies, and Evaluation of LLM Agents (survey 2025)",
+          "href": "https://arxiv.org/abs/2601.12560"
+        },
+        {
+          "label": "On the Brittle Foundations of ReAct Prompting for Agentic Large Language Models",
+          "href": "https://arxiv.org/abs/2405.13966"
+        },
+        {
+          "label": "Controlled Yet Natural: A Hybrid BDI-LLM Conversational Agent for Child Helpline Training (arXiv 2509.16784)",
+          "href": "https://arxiv.org/html/2509.16784v1"
+        },
+        {
+          "label": "Integrating Machine Learning into Belief-Desire-Intention Agents (arXiv 2510.20641)",
+          "href": "https://arxiv.org/pdf/2510.20641"
+        },
+        {
+          "label": "Bridging Symbolic Control and Neural Reasoning in LLM Agents: Structured Cognitive Loop with a Governance Layer (arXiv:2511.17673)",
+          "href": "https://arxiv.org/abs/2511.17673"
+        },
+        {
+          "label": "Grounding Generative Planners in Verifiable Logic: A Hybrid Architecture for Trustworthy Embodied AI (arXiv:2602.08373)",
+          "href": "https://arxiv.org/abs/2602.08373"
+        },
+        {
+          "label": "Agentic AI and Multiagentic: Are We Reinventing the Wheel? (Valgrai, 2025)",
+          "href": "https://valgrai.eu/en/2025/06/04/agentic-ai-and-multiagentic-are-we-reinventing-the-wheel/"
+        },
+        {
+          "label": "BDI Ontology + Logic Augmented Generation (LAG) — BDI as representational framework, formal guarantees not preserved in ontology (arxiv 2511.17162)",
+          "href": "https://arxiv.org/html/2511.17162v1"
+        },
+        {
+          "label": "ChatBDI: Think BDI, Talk LLM — AAMAS 2025 (BDI governs, LLM is language actuator, no formal verifiability claim)",
+          "href": "https://dl.acm.org/doi/10.5555/3709347.3743930"
+        },
+        {
+          "label": "ChatBDI: Think BDI, Talk LLM (AAMAS 2025, Gatti, Mascardi, Ferrando)",
+          "href": "https://www.ifaamas.org/Proceedings/aamas2025/pdfs/p2541.pdf"
+        },
+        {
+          "label": "Beyond Pipelines: A Survey of the Paradigm Shift toward Model-Native Agentic AI",
+          "href": "https://arxiv.org/html/2510.16720v2"
+        },
+        {
+          "label": "Agentic AI: A Comprehensive Survey of Architectures, Applications, and Future Directions (arXiv:2510.25445)",
+          "href": "https://arxiv.org/abs/2510.25445"
+        },
+        {
+          "label": "Formalizing the Safety, Security, and Functional Properties of Agentic AI Systems — arXiv 2510.14133",
+          "href": "https://arxiv.org/abs/2510.14133"
+        },
+        {
+          "label": "Formalizing the Safety, Security, and Functional Properties of Agentic AI Systems — arXiv HTML full text",
+          "href": "https://arxiv.org/html/2510.14133v2"
+        },
+        {
+          "label": "Retrieval-Conditioned Topology Selection with Provable Budget Conservation for Multi-Agent Code Generation (Talluri et al., 2026)",
+          "href": "https://arxiv.org/abs/2605.05657"
+        },
+        {
+          "label": "Agent Contracts: A Formal Framework for Resource-Bounded Autonomous AI Systems (abstract, arXiv)",
+          "href": "https://arxiv.org/abs/2601.08815"
+        },
+        {
+          "label": "Agent Contracts: A Formal Framework for Resource-Bounded Autonomous AI Systems (full HTML, arXiv)",
+          "href": "https://arxiv.org/html/2601.08815"
+        },
+        {
+          "label": "[2510.03469] Bridging LLM Planning Agents and Formal Methods: A Case Study in Plan Verification — arXiv",
+          "href": "https://arxiv.org/abs/2510.03469"
+        },
+        {
+          "label": "Bridging LLM Planning Agents and Formal Methods: A Case Study in Plan Verification — IEEE Xplore (AgenticSE @ ASE 2025)",
+          "href": "https://ieeexplore.ieee.org/document/11334476/"
+        },
+        {
+          "label": "Bridging LLM Planning Agents and Formal Methods — NASA ADS abstract",
+          "href": "https://ui.adsabs.harvard.edu/abs/2025arXiv251003469R/abstract"
+        },
+        {
+          "label": "Verifiable Natural Language to Linear Temporal Logic Translation: A Benchmark Dataset and Evaluation Suite (arXiv:2507.00877)",
+          "href": "https://arxiv.org/abs/2507.00877"
+        },
+        {
+          "label": "[2503.00237] Agentic AI Needs a Systems Theory — page abstraite arXiv",
+          "href": "https://arxiv.org/abs/2503.00237"
+        },
+        {
+          "label": "Agentic AI Needs a Systems Theory — version HTML complète arXiv",
+          "href": "https://arxiv.org/html/2503.00237v1"
+        },
+        {
+          "label": "Foundations of Agentic Systems Theory (FAST) — IBM Research AAAI 2026 workshop",
+          "href": "https://research.ibm.com/publications/foundations-of-agentic-systems-theory"
+        },
+        {
+          "label": "GAIA: a benchmark for General AI Assistants (arxiv 2311.12983)",
+          "href": "https://arxiv.org/abs/2311.12983"
+        },
+        {
+          "label": "H2O.ai Tops GAIA Leaderboard: A New Era of AI Agents (h2o.ai blog, Dec 23 2024)",
+          "href": "https://h2o.ai/blog/2024/h2o-ai-tops-gaia-leaderboard/"
+        },
+        {
+          "label": "AI is Only 30% Away From Matching Human-Level General Intelligence on GAIA Benchmark (AIThority)",
+          "href": "https://aithority.com/machine-learning/generative-ai/ai-is-only-30-away-from-matching-human-level-general-intelligence-on-gaia-benchmark/"
+        },
+        {
+          "label": "OSWorld: NeurIPS 2024 Datasets and Benchmarks Track proceedings",
+          "href": "https://proceedings.neurips.cc/paper_files/paper/2024/file/5d413e48f84dc61244b6be550f1cd8f5-Paper-Datasets_and_Benchmarks_Track.pdf"
+        },
+        {
+          "label": "Simular AI — Agent S3 surpasses human-level performance on OSWorld (72.6%)",
+          "href": "https://www.simular.ai/articles/simulars-computer-use-agent-outperforms-humans"
+        },
+        {
+          "label": "OSWorld: Benchmarking Multimodal Agents for Open-Ended Tasks in Real Computer Environments (arXiv 2404.07972)",
+          "href": "https://arxiv.org/abs/2404.07972"
+        },
+        {
+          "label": "The Unreasonable Effectiveness of Scaling Agents for Computer Use (arXiv 2510.02250, HTML)",
+          "href": "https://arxiv.org/html/2510.02250v1"
+        },
+        {
+          "label": "Agent S3 — Human-level Computer Use with Wide Scaling | Simular AI",
+          "href": "https://www.simular.ai/articles/agent-s3"
+        },
+        {
+          "label": "From 80% to 93.9%: Why the Claude Mythos SWE-Bench Jump Matters (MindStudio, avril 2026)",
+          "href": "https://www.mindstudio.ai/blog/claude-mythos-benchmark-results-swe-bench-agentic-coding"
+        },
+        {
+          "label": "SWE-Bench Pro — arxiv 2509.16941 (septembre 2025, v2 novembre 2025)",
+          "href": "https://arxiv.org/abs/2509.16941"
+        },
+        {
+          "label": "SWE-Bench Pro Public Leaderboard — Scale AI SEAL Labs",
+          "href": "https://labs.scale.com/leaderboard/swe_bench_pro_public"
+        },
+        {
+          "label": "SWE-bench Pro Benchmark 2026: 38 LLM scores — BenchLM.ai",
+          "href": "https://benchlm.ai/benchmarks/swePro"
+        },
+        {
+          "label": "The 2025 AI Agent Index — arXiv:2602.17753v1 (HTML full text)",
+          "href": "https://arxiv.org/html/2602.17753v1"
+        },
+        {
+          "label": "AI Agent Index — site officiel MIT (aiagentindex.mit.edu)",
+          "href": "https://aiagentindex.mit.edu/"
+        },
+        {
+          "label": "Most AI bots lack basic safety disclosures, study finds — EurekAlert!",
+          "href": "https://www.eurekalert.org/news-releases/1116894"
+        },
+        {
+          "label": "RT-1: Robotics Transformer for Real-World Control at Scale — Project Website",
+          "href": "https://robotics-transformer1.github.io/"
+        },
+        {
+          "label": "Perspective on Utilizing Foundation Models for Laboratory Automation in Materials Research (PMC12402697)",
+          "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC12402697/"
+        },
+        {
+          "label": "RT-1: Robotics Transformer for Real-World Control at Scale (arXiv HTML)",
+          "href": "https://arxiv.org/html/2212.06817"
+        },
+        {
+          "label": "RT-1: Robotics Transformer for Real-World Control at Scale — Google Research Blog",
+          "href": "https://research.google/blog/rt-1-robotics-transformer-for-real-world-control-at-scale/"
+        },
+        {
+          "label": "A Generalist Agent (Gato) — arXiv 2205.06175, Reed et al. 2022, publié dans TMLR 11/2022",
+          "href": "https://arxiv.org/abs/2205.06175"
+        },
+        {
+          "label": "Voyager: An Open-Ended Embodied Agent with Large Language Models (NeurIPS 2023 listing)",
+          "href": "https://neurips.cc/virtual/2023/82864"
+        },
+        {
+          "label": "Agentic AI Survey (arXiv 2601.12560) — cites Voyager 15.3× result independently",
+          "href": "https://arxiv.org/html/2601.12560v1"
+        },
+        {
+          "label": "Voyager: An Open-Ended Embodied Agent with Large Language Models (arXiv:2305.16291)",
+          "href": "https://arxiv.org/abs/2305.16291"
+        },
+        {
+          "label": "NeurIPS 2023 – Voyager spotlight, Agent Learning in Open-Endedness Workshop",
+          "href": "https://neurips.cc/virtual/2023/83778"
+        },
+        {
+          "label": "Voyager project page (BibTeX: arXiv preprint)",
+          "href": "https://voyager.minedojo.org/"
+        },
+        {
+          "label": "MAKER: a system solving tasks requiring over one million LLM steps with zero errors (arXiv:2511.09030)",
+          "href": "https://arxiv.org/abs/2511.09030"
+        },
+        {
+          "label": "AI-assisted Drug Re-purposing for Human Liver Fibrosis (PMC / Advanced Science, Stanford University)",
+          "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC12247918/"
+        },
+        {
+          "label": "Co-Scientist: Accelerating research on cellular aging — Google DeepMind",
+          "href": "https://deepmind.google/blog/fast-tracking-genetic-leads-to-reverse-cellular-aging/"
+        },
+        {
+          "label": "Team — Abudayyeh-Gootenberg Lab (MIT/Harvard)",
+          "href": "https://www.abugootlab.org/team"
+        },
+        {
+          "label": "Towards an AI co-scientist (arXiv 2502.18864)",
+          "href": "https://arxiv.org/abs/2502.18864"
+        },
+        {
+          "label": "Co-Scientist: Uncovering repurposed medicines to fight liver fibrosis — Google DeepMind",
+          "href": "https://deepmind.google/blog/uncovering-repurposed-medicines-to-fight-liver-fibrosis/"
+        },
+        {
+          "label": "When AI builds itself — Anthropic Institute (source primaire)",
+          "href": "https://www.anthropic.com/institute/recursive-self-improvement"
+        },
+        {
+          "label": "Claude writes 80% of its code, calls for AI pause — The Next Web",
+          "href": "https://thenextweb.com/news/anthropic-claude-recursive-self-improvement-code"
+        },
+        {
+          "label": "Anthropic warns AI may soon begin recursive self-improvement — Scientific American",
+          "href": "https://www.scientificamerican.com/article/anthropic-warns-ai-may-soon-begin-recursive-self-improvement/"
+        },
+        {
+          "label": "Anthropic Says 80% of Its Production Code Is Now Authored by Claude — Winbuzzer",
+          "href": "https://winbuzzer.com/2026/06/05/claude-writes-80-of-anthropic-code-raising-review-stakes-xcxwbn/"
+        },
+        {
+          "label": "Claim Chowder: Dario Amodei on AI Code — Daring Fireball",
+          "href": "https://daringfireball.net/linked/2026/03/13/amodei-ai-code-claim-chowder"
+        },
+        {
+          "label": "No need to panic about Anthropic's new blog — Gary Marcus (Substack)",
+          "href": "https://garymarcus.substack.com/p/no-need-to-panic-about-anthropics"
+        },
+        {
+          "label": "Benchmarking Multi-Agent LLM Architectures for Financial Document Processing (arXiv:2603.22651)",
+          "href": "https://arxiv.org/abs/2603.22651"
+        },
+        {
+          "label": "Anthropic Economic Index — September 2025 Report",
+          "href": "https://www.anthropic.com/research/anthropic-economic-index-september-2025-report"
+        },
+        {
+          "label": "Monitoring AI Adoption in the US Economy — Federal Reserve Board (April 2026)",
+          "href": "https://www.federalreserve.gov/econres/notes/feds-notes/monitoring-ai-adoption-in-the-u-s-economy-20260403.html"
+        },
+        {
+          "label": "How Many Businesses Are Using AI? — Economic Innovation Group / Nathan Goldschlag",
+          "href": "https://eig.org/how-many-businesses-are-using-ai/"
+        },
+        {
+          "label": "Model Context Protocol — Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/Model_Context_Protocol"
+        },
+        {
+          "label": "Exploring MCP Primitives: Tools, Resources, and Prompts — CodeSignal",
+          "href": "https://codesignal.com/learn/courses/developing-and-integrating-a-mcp-server-in-python/lessons/exploring-and-exposing-mcp-server-capabilities-tools-resources-and-prompts"
+        },
+        {
+          "label": "Introducing the Model Context Protocol — Anthropic",
+          "href": "https://www.anthropic.com/news/model-context-protocol"
+        },
+        {
+          "label": "Donating MCP and establishing the Agentic AI Foundation — Anthropic",
+          "href": "https://www.anthropic.com/news/donating-the-model-context-protocol-and-establishing-of-the-agentic-ai-foundation"
+        },
+        {
+          "label": "Google says it'll embrace Anthropic's standard for connecting AI models to data — TechCrunch",
+          "href": "https://techcrunch.com/2025/04/09/google-says-itll-embrace-anthropics-standard-for-connecting-ai-models-to-data/"
+        },
+        {
+          "label": "Linux Foundation – A2A Protocol Surpasses 150 Organizations (communiqué du 9 avril 2026)",
+          "href": "https://www.linuxfoundation.org/press/a2a-protocol-surpasses-150-organizations-lands-in-major-cloud-platforms-and-sees-enterprise-production-use-in-first-year"
+        },
+        {
+          "label": "Linux Foundation – Launches Agent2Agent Protocol Project (communiqué du 23 juin 2025)",
+          "href": "https://www.linuxfoundation.org/press/linux-foundation-launches-the-agent2agent-protocol-project-to-enable-secure-intelligent-communication-between-ai-agents"
+        },
+        {
+          "label": "A2A Protocol Specification v1.0 (états TASK_STATE_* incluant REJECTED et AUTH_REQUIRED)",
+          "href": "https://a2a-protocol.org/latest/specification/"
+        },
+        {
+          "label": "Stellagent – A2A Protocol: Google Agent-to-Agent (annonce, URL agent card, 150+ en avril 2026)",
+          "href": "https://stellagent.ai/insights/a2a-protocol-google-agent-to-agent"
+        },
+        {
+          "label": "A2A Protocol – What's New in v1.0 (états ajoutés vs v0.3.0)",
+          "href": "https://a2a-protocol.org/latest/whats-new-v1/"
+        },
+        {
+          "label": "Agent2Agent (A2A) Protocol Specification v0.3.0 — Task States & Agent Card",
+          "href": "https://a2a-protocol.org/v0.3.0/specification/"
+        },
+        {
+          "label": "Google Cloud donates A2A to Linux Foundation — Google Developers Blog",
+          "href": "https://developers.googleblog.com/en/google-cloud-donates-a2a-to-linux-foundation/"
+        },
+        {
+          "label": "A2A vs MCP: how they overlap and differ — Merge.dev",
+          "href": "https://www.merge.dev/blog/mcp-vs-a2a"
+        },
+        {
+          "label": "A2A vs MCP — Augment Code",
+          "href": "https://www.augmentcode.com/guides/a2a-vs-mcp"
+        },
+        {
+          "label": "Agent Protocols: A Complete Guide to MCP, A2A and ACP — Tyk",
+          "href": "https://tyk.io/learning-center/agent-protocols-a-complete-guide-to-mcp-a2a-and-acp/"
+        },
+        {
+          "label": "MCP vs A2A: The Complete Guide to AI Agent Protocols in 2026 — Pockit",
+          "href": "https://pockit.tools/blog/mcp-vs-a2a-ai-agent-protocols-complete-guide/"
+        },
+        {
+          "label": "MCP Sampling — Model Context Protocol official specification",
+          "href": "https://modelcontextprotocol.io/docs/concepts/sampling"
+        },
+        {
+          "label": "A2A vs MCP: Compare Single-Agent & Multi-Agent Protocols — TrueFoundry",
+          "href": "https://www.truefoundry.com/blog/mcp-vs-a2a"
+        },
+        {
+          "label": "Check Point Research — Cursor IDE's MCP Vulnerability (MCPoison, source primaire CVE-2025-54136)",
+          "href": "https://research.checkpoint.com/2025/cursor-vulnerability-mcpoison/"
+        },
+        {
+          "label": "Cato Networks — CurXecute: RCE in Cursor via MCP Auto-Start (source primaire CVE-2025-54135)",
+          "href": "https://www.catonetworks.com/blog/curxecute-rce/"
+        },
+        {
+          "label": "Security Boulevard — FAQ CVE-2025-54135 & CVE-2025-54136 (CurXecute and MCPoison)",
+          "href": "https://securityboulevard.com/2025/08/cve-2025-54135-cve-2025-54136-frequently-asked-questions-about-vulnerabilities-in-cursor-ide-curxecute-and-mcpoison/"
+        },
+        {
+          "label": "NVD — CVE-2025-54136 Detail",
+          "href": "https://nvd.nist.gov/vuln/detail/CVE-2025-54136"
+        },
+        {
+          "label": "CVE-2025-54135 Detail — NVD (NIST)",
+          "href": "https://nvd.nist.gov/vuln/detail/CVE-2025-54135"
+        },
+        {
+          "label": "Vending-Bench 2: New Benchmark Exposes AI's Limits in Long-Horizon Business Simulation — LavX News",
+          "href": "https://news.lavx.hu/article/vending-bench-2-new-benchmark-exposes-ai-s-limits-in-long-horizon-business-simulation"
+        },
+        {
+          "label": "Vending-Bench & Project Vend: Long-Term Coherence of Autonomous Agents — maxpool.dev",
+          "href": "https://maxpool.dev/research-papers/vending_bench_report.html"
+        },
+        {
+          "label": "Gemini 3 is insanely good at visual reasoning... and running a vending machine — Sherwood News",
+          "href": "https://sherwood.news/tech/gemini-3-is-insanely-good-at-visual-reasoning-and-running-a-vending-machine/"
+        },
+        {
+          "label": "Agent Benchmarks (simmering.dev, Jan 4 2026) — snapshot VB2 avec Gemini 3 Pro leader à 5 478 $, et attribution explicite du 3/5 au papier VB1 original",
+          "href": "https://simmering.dev/blog/agent-benchmarks/"
+        },
+        {
+          "label": "Vending-Bench 2 Leaderboard (llm-stats.com) — classement live montrant Gemini 3 Pro 3e derrière Claude Opus 4.6 (8 017 $)",
+          "href": "https://llm-stats.com/benchmarks/vending-bench-2"
+        },
+        {
+          "label": "Vending-Bench 2: AI Models Put to the Test Running a Business for a Year (NYU Shanghai RITS) — Gemini 3 Pro 3e à 5 478,16 $, Claude Sonnet 4.6 2e à 7 204 $, capacité humaine ~63 000 $, top models sans dégradation",
+          "href": "https://rits.shanghai.nyu.edu/ai/vending-bench-2-ai-models-put-to-the-test-running-a-business-for-a-year/"
+        },
+        {
+          "label": "Vending-Bench: A Benchmark for Long-Term Coherence of Autonomous Agents (arxiv 2502.15840) — papier VB1 original contenant les données Claude 3.5 Sonnet 3/5 et la description du meltdown",
+          "href": "https://arxiv.org/abs/2502.15840"
+        },
+        {
+          "label": "LLM01:2025 Prompt Injection — OWASP Gen AI Security Project",
+          "href": "https://genai.owasp.org/llmrisk/llm01-prompt-injection/"
+        },
+        {
+          "label": "OWASP Top 10 for Large Language Model Applications (2023/24 edition, LLM01: Prompt Injection)",
+          "href": "https://owasp.org/www-project-top-10-for-large-language-model-applications/"
+        },
+        {
+          "label": "Google Jules and Invisible Prompt Injections via Unicode Tag Characters — embracethered.com",
+          "href": "https://embracethered.com/blog/posts/2025/google-jules-invisible-prompt-injection/"
+        },
+        {
+          "label": "Devin Can Leak Your Secrets — embracethered.com",
+          "href": "https://embracethered.com/blog/posts/2025/devin-can-leak-your-secrets/"
+        },
+        {
+          "label": "Devin is now generally available — Cognition (blog officiel)",
+          "href": "https://cognition.ai/blog/devin-generally-available"
+        },
+        {
+          "label": "PoisonedRAG: Knowledge Corruption Attacks to Retrieval-Augmented Generation of Large Language Models (USENIX Security 2025)",
+          "href": "https://arxiv.org/abs/2402.07867"
+        },
+        {
+          "label": "Benchmarking Poisoning Attacks against Retrieval-Augmented Generation (arXiv 2505.18543)",
+          "href": "https://arxiv.org/html/2505.18543v1"
+        },
+        {
+          "label": "RAG Data Poisoning: Key Concepts Explained — Promptfoo",
+          "href": "https://www.promptfoo.dev/blog/rag-poisoning/"
+        },
+        {
+          "label": "Prioritizing Real-Time Failure Detection in AI Agents — Partnership on AI (September 2025)",
+          "href": "https://partnershiponai.org/wp-content/uploads/2025/09/agents-real-time-failure-detection.pdf"
+        },
+        {
+          "label": "Prioritizing Real-Time Failure Detection in AI Agents – Partnership on AI (resource page)",
+          "href": "https://partnershiponai.org/resource/prioritizing-real-time-failure-detection-in-ai-agents/"
+        }
+      ]
+    },
+    {
+      "type": "pointers",
+      "title": "Pour aller plus loin",
+      "items": [
+        {
+          "name": "Wang et al. — A Survey on Large Language Model based Autonomous Agents",
+          "url": "https://arxiv.org/abs/2308.11432",
+          "kind": "reading",
+          "blurb": "Synthèse de référence (2023, v7 mars 2025) proposant l'architecture unifiée à quatre modules (profiling, memory, planning, action) et citant la définition canonique de Franklin & Graesser."
+        },
+        {
+          "name": "Abou Ali & Dornaika — Agentic AI: A Comprehensive Survey of Architectures, Applications, and Future Directions",
+          "url": "https://arxiv.org/abs/2510.25445",
+          "kind": "reading",
+          "blurb": "Revue systématique (PRISMA, 90 études, 2018–2025) distinguant les paradigmes symbolique et neuronal, avec la taxinomie des cinq ères et les définitions formelles d'autonomy et agency."
+        },
+        {
+          "name": "Sapkota, Roumeliotis & Karkee — AI Agents vs. Agentic AI: A Conceptual Taxonomy, Applications and Challenges",
+          "url": "https://arxiv.org/abs/2505.10468",
+          "kind": "reading",
+          "blurb": "Paper de 2025 (Information Fusion) qui formalise la distinction entre AI Agents (automatisation task-specific) et Agentic AI (paradigme multi-agents à coordination autonome), avec cartographie des domaines d'application."
+        },
+        {
+          "name": "Yao et al. — ReAct: Synergizing Reasoning and Acting in Language Models",
+          "url": "https://arxiv.org/abs/2210.03629",
+          "kind": "reading",
+          "blurb": "Papier fondateur (ICLR 2023) introduisant le paradigme Thought–Act–Observation qui matérialise la boucle agentique dans les LLMs, avec résultats empiriques sur ALFWorld, WebShop, HotpotQA et Fever."
+        },
+        {
+          "name": "Singh et al. — Agentic Retrieval-Augmented Generation: A Survey on Agentic RAG",
+          "url": "https://arxiv.org/abs/2501.09136",
+          "kind": "reading",
+          "blurb": "Panorama complet de l'agentic RAG : design patterns (reflection, planning, tool use, multi-agent), architectures, défis ouverts et domaines d'application."
+        },
+        {
+          "name": "Arunkumar V, Gangadharan G.R. & Buyya — Agentic AI: Architectures, Taxonomies, and Evaluation of LLM Agents",
+          "url": "https://arxiv.org/abs/2601.12560",
+          "kind": "reading",
+          "blurb": "Étude (janvier 2026) examinant l'évolution des systèmes IA vers des entités autonomes capables de perception, raisonnement, planification et action, avec taxinomie des architectures multi-agents et cadre d'évaluation."
+        },
+        {
+          "name": "Zuppiroli et al. — The BDI Ontology for Modelling Mental Reality and Agency",
+          "url": "https://arxiv.org/abs/2511.17162",
+          "kind": "reading",
+          "blurb": "Ontologie BDI formelle (22 classes, 71 propriétés) couplée à un LLM via Logic Augmented Generation et le paradigme T2B2T, positionnée comme pont entre intelligence déclarative et procédurale."
+        },
+        {
+          "name": "Agiollo & Omicini — Integrating Machine Learning into BDI Agents: Current Advances and Open Challenges",
+          "url": "https://arxiv.org/abs/2510.20641",
+          "kind": "reading",
+          "blurb": "Systématisation fine des approches d'intégration ML dans les agents BDI rationnels, avec cartographie des opportunités et défis ouverts — dont un surge notable des approches LLM en 2024–2025."
+        },
+        {
+          "name": "Allegrini, Shreekumar & Celik — Formalizing the Safety, Security, and Functional Properties of Agentic AI Systems",
+          "url": "https://arxiv.org/abs/2510.14133",
+          "kind": "reading",
+          "blurb": "Premier cadre formel indépendant du domaine définissant 30 propriétés en logique temporelle pour les systèmes multi-agents IA, couvrant liveness, safety, completeness, fairness, ordering et reachability."
+        },
+        {
+          "name": "Ye & Tan — Agent Contracts: A Formal Framework for Resource-Bounded Autonomous AI Systems",
+          "url": "https://arxiv.org/abs/2601.08815",
+          "kind": "reading",
+          "blurb": "Formalisation des lois de conservation pour la délégation hiérarchique dans les workflows multi-agents, avec résultats empiriques sur la réduction de tokens et de variance."
+        },
+        {
+          "name": "Wei et al. — PlanGenLLMs: A Modern Survey of LLM Planning Capabilities",
+          "url": "https://arxiv.org/abs/2502.11221",
+          "kind": "reading",
+          "blurb": "Survey (ACL 2025) définissant six critères formels (completeness, executability, optimality, representation, generalization, efficiency) pour évaluer les capacités de planification des LLM."
+        },
+        {
+          "name": "Miehling et al. (IBM Research) — Agentic AI Needs a Systems Theory",
+          "url": "https://arxiv.org/abs/2503.00237",
+          "kind": "reading",
+          "blurb": "Plaidoyer d'IBM Research pour une théorie des systèmes appliquée à l'IA agentique, identifiant trois classes de comportements émergents non prédictibles au niveau agent."
+        },
+        {
+          "name": "Gatti, Mascardi & Ferrando — ChatBDI: Think BDI, Talk LLM (AAMAS 2025)",
+          "url": "https://www.ifaamas.org/Proceedings/aamas2025/pdfs/p2541.pdf",
+          "kind": "reading",
+          "blurb": "Proposition d'architecture hybride conservant la sémantique BDI formelle en interne et utilisant un LLM comme interface langage naturel, à usage général et indépendant du domaine."
+        },
+        {
+          "name": "Vicent Botti — Agentic AI and Multiagentic: Are We Reinventing the Wheel? (valgrAI, 2025)",
+          "url": "https://valgrai.eu/en/2025/06/04/agentic-ai-and-multiagentic-are-we-reinventing-the-wheel/",
+          "kind": "reading",
+          "blurb": "Tribune de Vicent Botti (UPV) alertant sur le risque de répéter sans le savoir 30 ans de recherche en multi-agent systems, et plaidant pour une synthèse neuro-symbolique plutôt qu'une substitution."
+        },
+        {
+          "name": "LangGraph",
+          "url": "https://docs.langchain.com/oss/python/langgraph/overview",
+          "kind": "library",
+          "blurb": "Framework Python pour construire des agents LLM stateful sous forme de machines à états, avec routage stochastique et gestion explicite des cycles de feedback (documentation déplacée vers docs.langchain.com)."
+        },
+        {
+          "name": "AutoGen",
+          "url": "https://microsoft.github.io/autogen/stable/",
+          "kind": "library",
+          "blurb": "Framework Microsoft pour la coordination multi-agents par conversation structurée, avec définition des rôles et gestion des tours de dialogue entre agents spécialisés (AgentChat, Core, Studio, Extensions)."
+        },
+        {
+          "name": "CrewAI",
+          "url": "https://www.crewai.com",
+          "kind": "library",
+          "blurb": "Framework d'orchestration d'agents basé sur des rôles, conçu pour des workflows collaboratifs où des agents spécialisés se répartissent des tâches sous la supervision d'un orchestrateur."
+        },
+        {
+          "name": "NuSMV",
+          "url": "http://nusmv.fbk.eu/",
+          "kind": "tool",
+          "blurb": "Model-checker symbolique (v2.7.1, sept. 2025) pour LTL et CTL, référence pour la vérification de propriétés temporelles sur des systèmes réactifs à espaces d'états finis ou symboliques."
+        },
+        {
+          "name": "SPIN",
+          "url": "https://spinroot.com/spin/whatispin.html",
+          "kind": "tool",
+          "blurb": "Model-checker pour protocoles concurrents fondé sur la logique LTL ; utilisé pour vérifier l'absence de deadlocks et de violations de safety dans des systèmes distribués via génération de code C."
+        },
+        {
+          "name": "Spot",
+          "url": "https://spot.lre.epita.fr/",
+          "kind": "library",
+          "blurb": "Bibliothèque C++20 (v2.15.1) pour la manipulation de formules LTL et d'ω-automates, avec bindings Python et outils CLI, backend de vérification pour les pipelines de model-checking modernes."
+        },
+        {
+          "name": "Fast Downward",
+          "url": "https://www.fast-downward.org/",
+          "kind": "tool",
+          "blurb": "Planificateur PDDL classique open-source (GPL v3) avec soundness et completeness prouvées ; point d'ancrage symbolique pour les architectures hybrides LLM + planification formelle."
+        },
+        {
+          "name": "GAIA Leaderboard (Hugging Face)",
+          "url": "https://huggingface.co/spaces/gaia-benchmark/leaderboard",
+          "kind": "tool",
+          "blurb": "Tableau de classement public des agents sur les 300 questions cachées de GAIA ; point de référence pour suivre la progression trimestrielle des systèmes agentiques."
+        },
+        {
+          "name": "SWE-bench",
+          "url": "https://www.swebench.com/",
+          "kind": "tool",
+          "blurb": "Benchmark de résolution d'issues GitHub authentiques avec leaderboard SWE-bench Lite, Verified et Multilingual ; référence principale pour les coding agents."
+        },
+        {
+          "name": "OSWorld",
+          "url": "https://os-world.github.io/",
+          "kind": "tool",
+          "blurb": "Premier environnement informatique réel et scalable pour agents multimodaux, couvrant Ubuntu, Windows et macOS avec 369 tâches et évaluation exécutable (humain 72 %, meilleur agent 12 %)."
+        }
+      ]
+    },
+    {
+      "type": "glossary"
+    }
+  ]
+}
