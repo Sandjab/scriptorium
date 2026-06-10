@@ -115,7 +115,7 @@ flowchart TD
 ## Thèmes
 
 Chaque document est sous `themes/<slug>/dist/`. Hors APO (construit à la main), tous sont
-générés par `/monograph`.
+générés par `/monograph` ou sa variante économe `/frugalmonograph` (les plus récents).
 
 - **automatic-prompt-optimization** — panorama des approches d'APO + contrat d'architecture.
   Édition **construite à la main** (avant le skill), 3 documents ; le pipeline d'origine est
@@ -129,12 +129,24 @@ générés par `/monograph`.
 - **prompt-optimization** — optimisation de prompts.
 - **ensemble-learning** — méthodes d'ensemble : bagging, boosting (25 faits confirmés, 15 corrigés).
 - **backpropagation** — rétropropagation du gradient (34 confirmés, 13 corrigés, 1 rejeté).
+- **time-series-forecasting** — prévision de séries temporelles : panorama des familles de
+  méthodes (statistiques, ML, modèles de fondation) (5 confirmés, 30 corrigés, 1 rejeté).
+- **minimal-perfect-hashing** — fonctions de hachage parfaites minimales (MPHF) : construction,
+  espace, état de l'art (12 confirmés, 18 corrigés, 1 rejeté).
+- **approximate-nearest-neighbor** — recherche approchée de plus proches voisins : HNSW, IVF,
+  PQ, LSH (12 confirmés, 22 corrigés).
+- **diffusion-models** — modèles de diffusion génératifs : DDPM, score matching, SDE/PF-ODE,
+  flow matching (7 confirmés, 25 corrigés).
+- **ia-productivite-esn** — IA et gains de productivité dans les ESN : annonces vs réalités
+  (3 confirmés, 32 corrigés).
+- **agentic-ai** — IA agentique : état de l'art, applications, projections (3 confirmés,
+  32 corrigés, 1 rejeté).
 
 ## Statut
 
 - Phase 0 — restructure & migration : ✅
-- Phase 1 — générateur déterministe (`.claude/skills/monograph/` : charte + `build.py`, 8 tests) : ✅
-- Phase 2 — workflow multi-agents + `SKILL.md` du skill `monograph` : ✅
+- Phase 1 — générateur déterministe (`.claude/skills/monograph/` : charte + `build.py`, 16 tests) : ✅
+- Phase 2 — workflow multi-agents + `SKILL.md` des skills `monograph` et `frugalmonograph` : ✅
   Pipeline à **8 phases** (Sweep → Plan → Extract → Verify → Author → **Widgets** → Compose →
-  Build), document unique « best-of » + widgets pilotés par concept. Éprouvé sur plusieurs
-  thèmes (voir ci-dessus) et publié via GitHub Pages.
+  Build), document unique « best-of » + widgets pilotés par concept. Éprouvé sur **14 thèmes**
+  hors APO (voir ci-dessus) et publié via GitHub Pages.
