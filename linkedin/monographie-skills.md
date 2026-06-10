@@ -54,7 +54,7 @@ C'est exactement ce qu'un outil grand public publierait sans filet avec un promp
 
 Ici, la vérification est adversariale, multi-passes et opposable : chaque article garde sa piste d'audit, affirmation par affirmation.
 
-Il existe aussi une variante dite frugale qui n'économise pas en réduisant la matière, mais simplement en déplaçant ~65 % de la génération vers un modèle moins cher (Sonnet pour la recherche et la vérification, Opus restant réservé au jugement structurant), divise par ~5 l'entrée facturée plein tarif en bornant le fan-out par des plafonds durs. 
+Il existe aussi une variante dite frugale qui n'économise pas en réduisant la matière, mais simplement en déplaçant ~65 % de la génération vers un modèle moins cher (Sonnet pour la recherche et la vérification, Opus restant réservé au jugement structurant) et divise par ~5 l'entrée facturée plein tarif en bornant le fan-out par des plafonds durs. 
 
 Avantages / limites:
 + Fiabilité factuelle vérifiable et opposable ; livrable unique, interactif, reproductible. 
