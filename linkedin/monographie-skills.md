@@ -33,7 +33,7 @@ Aux prix catalogue de l'API (Opus 4.8 : 5/25 $ le M de tokens entrée/sortie ; S
 ## Présentation ##
 L'IA sait écrire vite et bien, mais peut-on lui faire confiance sur les faits ?
 
-Pour y répondre, j'ai tenté par l'ingénierie de transformer n'importe quel sujet en une monographie complète, avec une exigence simple : toute affirmation « confirmée » doit s'appuyer sur au moins 2 sources indépendantes, contrôlées en code.
+Pour y répondre, le projet Scriptorium tente par l'ingénierie de transformer n'importe quel sujet en une monographie complète, avec une exigence simple : toute affirmation « confirmée » doit s'appuyer sur au moins 2 sources indépendantes, contrôlées en code.
 
 Pour cela, un workflow multi-agents enchaine les étapes suivantes:
 - Recherche multi-angles (fondements, théorie, variantes, applications, idées reçues, écosystème) ;
