@@ -44,11 +44,13 @@ Peut être pas pour longtemps.
 
 ## Raw
 
-L'IA vous rend-elle vraiment plus productif ou vous sentez-vous seulement plus productif ?
+L'IA vous rend-elle vraiment plus productif ?
 
 Entre +55,8 % en laboratoire et −19 % sur le terrain.
 
-Pourquoi ? Des plafonds structurels, une distribution très inégale des gains, et un coût caché en dette technique.
+Pourquoi un tel écart? 
+
+Des plafonds structurels, une distribution très inégale des gains, et un coût caché en dette technique.
 
 
 
