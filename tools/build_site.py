@@ -76,6 +76,27 @@ def collect(themes_dir: Path):
     return themes
 
 
+def load_taxonomy(taxonomy_path: Path) -> list[dict]:
+    """Lit taxonomy.json, valide la structure ; échoue bruyamment sinon."""
+    if not taxonomy_path.is_file():
+        raise SystemExit(f"build_site: taxonomy.json manquant : {taxonomy_path}")
+    data = json.loads(taxonomy_path.read_text(encoding="utf-8"))
+    domains = data.get("domains")
+    if not isinstance(domains, list) or not domains:
+        raise SystemExit("build_site: 'domains' doit être une liste non vide")
+    ids = set()
+    for d in domains:
+        for key in ("id", "label", "blurb", "themes"):
+            if key not in d:
+                raise SystemExit(f"build_site: domaine sans clé '{key}': {d!r}")
+        if not isinstance(d["themes"], list) or not d["themes"]:
+            raise SystemExit(f"build_site: domaine '{d['id']}': 'themes' liste non vide requise")
+        if d["id"] in ids:
+            raise SystemExit(f"build_site: id de domaine dupliqué : {d['id']}")
+        ids.add(d["id"])
+    return domains
+
+
 def render_index(themes) -> str:
     """Page d'accueil — esthétique alignée sur charte.css (tokens, polices)."""
     e = html.escape
