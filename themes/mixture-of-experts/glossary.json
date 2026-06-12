@@ -1,0 +1,37 @@
+[
+  {
+    "term": "Sparsely-gated Mixture of Experts (MoE)",
+    "definition": "Couche qui remplace le FFN dense d'un Transformer par N sous-réseaux experts et un routeur (gating) appris : pour chaque token, seuls k experts (k ≪ N) sont effectivement calculés, et la sortie est la somme pondérée de leurs k sorties (Shazeer et al., 2017). Elle découple *approximativement* la capacité (paramètres totaux ∝ N) du calcul (FLOPs experts ∝ k) — « approximativement » car le routeur calcule un score pour chacun des N experts (projection linéaire d×N, coût O(N)) avant la sélection top-k, de sorte que le coût total par token conserve une composante en N.",
+    "see_also": "Top-k gating, Expert parallelism, Auxiliary load-balancing loss"
+  },
+  {
+    "term": "Top-k gating",
+    "definition": "Routing (routage) qui sélectionne, pour chaque token, les k experts de plus haut score parmi N : k=1 (Switch Transformer), k=2 (GShard, Mixtral, GLaM). Le noisy top-k gating de Shazeer (2017) ajoute aux scores un bruit gaussien d'amplitude apprise avant la sélection pour aider l'équilibrage ; les architectures modernes lui substituent une auxiliary loss (Switch, Mixtral) ou un biais dynamique sans bruit (DeepSeek-V3). À distinguer selon qui décide : token-choice (le token choisit ses experts) vs expert-choice (l'expert choisit ses tokens, incompatible avec la génération autoregressive).",
+    "see_also": "Sparsely-gated Mixture of Experts (MoE), Auxiliary load-balancing loss, Expert collapse"
+  },
+  {
+    "term": "Auxiliary load-balancing loss",
+    "definition": "Perte auxiliaire d'équilibrage de charge ajoutée à la perte tâche pour forcer le routeur à répartir les tokens uniformément entre experts, faute de quoi un expert collapse survient. Forme Switch Transformer : L_aux = α·N·Σᵢ (fᵢ·Pᵢ), où fᵢ est la fraction observée de tokens routés vers l'expert i, Pᵢ sa probabilité de routage moyenne, et α = 0,01. DeepSeek-V3 s'en affranchit (auxiliary-loss-free) via un biais bᵢ par expert ajusté dynamiquement, ajouté aux scores de sélection mais exclu de la pondération des sorties.",
+    "see_also": "Capacity factor, Expert collapse, Top-k gating"
+  },
+  {
+    "term": "Capacity factor",
+    "definition": "Facteur de capacité fixant le nombre maximal de tokens qu'un expert traite par batch (capacité ≈ facteur × tokens/experts) ; au-delà du seuil, les tokens excédentaires sont écartés (token dropping). Un dropping atteignant 11 % reste tolérable en fine-tuning mais nuit au pré-entraînement (gain de validation 1,73× moindre, MegaBlocks). L'expert-choice routing (chaque expert prend exactement c tokens) et les reformulations block-sparse (MegaBlocks) éliminent le dropping.",
+    "see_also": "Auxiliary load-balancing loss, Top-k gating"
+  },
+  {
+    "term": "Expert collapse",
+    "definition": "Effondrement / sur-spécialisation du routing où quelques experts monopolisent les tokens dans une boucle rich-get-richer, les experts non sélectionnés subissant une privation de gradient (gradient starvation : zéro gradient pour un token non routé), tandis que les favoris s'améliorent et renforcent leur sélection. Tendance non universelle : avec un routing top-2 et des données diversifiées, un équilibrage naturel peut émerger sans contrainte explicite (architectures de type Mixtral). Motive l'auxiliary load-balancing loss et le noisy gating.",
+    "see_also": "Auxiliary load-balancing loss"
+  },
+  {
+    "term": "Shared expert / fine-grained expert",
+    "definition": "Voie DeepSeekMoE combinant des shared experts (experts partagés, toujours actifs, captant les connaissances communes) et la fine-grained expert segmentation (segmentation en experts fins : N experts découpés en mN experts plus petits, top-mk activés). Cela étend l'espace de routing — par ex. de C(16,2)=120 à C(64,8)≈4,4 milliards de configurations par token — sans modifier le coût de calcul nominal par forward pass. DeepSeek-V3 met cette voie à l'échelle : 1 expert partagé + 256 experts routés, top-8, 671 B paramètres totaux pour 37 B actifs par token.",
+    "see_also": "Sparsely-gated Mixture of Experts (MoE), Top-k gating"
+  },
+  {
+    "term": "Expert parallelism",
+    "definition": "Parallélisme d'experts : les N experts sont répartis sur plusieurs devices, chacun en hébergeant un sous-ensemble. Il impose deux opérations collectives all-to-all par couche MoE — un dispatch (tokens vers les experts) puis un combine (sorties vers les devices d'origine). Déployé à grande échelle par GShard (600 B paramètres, 2 048 experts sur 2 048 TPUs v3). La communication all-to-all domine souvent le temps d'entraînement, sauf en topologie intra-rack tout-NVLink ; elle explique aussi l'empreinte mémoire « dense » (tous les experts résidents) du service.",
+    "see_also": "Sparsely-gated Mixture of Experts (MoE)"
+  }
+]

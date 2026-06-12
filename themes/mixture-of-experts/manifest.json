@@ -1,0 +1,589 @@
+{
+  "edition": "monograph",
+  "slug": "mixture-of-experts",
+  "meta": {
+    "title": "Mixture of Experts (MoE) : la couche sparsely-gated qui découple capacité et calcul",
+    "kicker": "MoE & calcul conditionnel · monographie",
+    "h1": "Mixture of Experts (MoE) : la couche sparsely-gated qui découple capacité et calcul",
+    "lede": "N experts, un routeur appris qui n'en active que k par token : comment la couche sparsely-gated découple — approximativement — la capacité paramétrique du coût de calcul, et tout ce que cela coûte en équilibrage de charge et en mémoire.",
+    "meta_chips": [
+      "Monographie"
+    ],
+    "footer": "Mixture of Experts (MoE) : la couche sparsely-gated qui découple capacité et calcul · scriptorium"
+  },
+  "elements": [
+    {
+      "type": "abstract"
+    },
+    {
+      "type": "section",
+      "id": "principe-sparsely-gated",
+      "heading": "Le principe : la couche sparsely-gated MoE et le conditional computation",
+      "level": 3,
+      "prose": "<p>La notion de partager l'espace des entrées entre sous-réseaux spécialisés remonte à Jacobs, Jordan, Nowlan et Hinton (1991), dont l'article fondateur <em>Adaptive Mixtures of Local Experts</em> décrit un système où un <strong>gating network</strong> (réseau de routage) à softmax dense, appris conjointement aux experts par backpropagation (rétropropagation), assigne chaque entrée au sous-réseau le plus compétent. Jordan et Jacobs (1994) en proposent une version hiérarchique avec l'algorithme EM. Ces architectures demeurent toutefois confinées à de petits réseaux. Shazeer et al. (2017) réinstaurent le principe à une échelle entièrement différente avec la <strong>sparsely-gated MoE layer</strong> (couche MoE à gating sparse), insérée à l'intérieur d'un réseau récurrent profond pour le traitement du langage à très grande échelle.</p>\n\n<p>La couche sparsely-gated MoE remplace un <strong>FFN</strong> (feed-forward network, réseau pleinement connecté) dense par N sous-réseaux FFN indépendants — les <em>experts</em> E₁, …, Eₙ — accompagnés d'un gating network appris G. La sortie de la couche pour une entrée x s'écrit : <code>y = Σᵢ G(x)ᵢ · Eᵢ(x)</code>. Le vecteur G(x) ∈ ℝᴺ est sparse par construction : seuls k indices portent une valeur non nulle, les N−k autres valent exactement zéro. Les experts dont G(x)ᵢ = 0 ne sont pas calculés — leur forward pass est court-circuité. C'est le cœur du <strong>conditional computation</strong> (calcul conditionnel) : la capacité du modèle — le nombre total de paramètres — croît linéairement avec N, tandis que le coût actif en FLOPs par token reste proportionnel à k, indépendamment de N. Capacité et calcul évoluent ainsi selon deux axes indépendants.</p><figure class='fig'><svg viewBox='0 0 760 410' role='img' aria-label='Graphique à deux axes illustrant le découplage capacité / calcul dans une couche MoE : la courbe des paramètres totaux croît linéairement avec le nombre d’experts N, tandis que la courbe des FLOPs actifs par token reste quasi plate et ne remonte que légèrement à grand N sous l’effet du coût de routeur en O(d·N) avant la sélection top-k.'><text x='380' y='30' text-anchor='middle' font-family='Georgia, serif' font-size='17' font-weight='bold' fill='var(--ink,#15202E)'>Découpler capacité et calcul dans une couche MoE</text><text x='380' y='50' text-anchor='middle' font-family='sans-serif' font-size='12.5' font-style='italic' fill='var(--ink-faint,#7A889B)'>k experts actifs fixés (top-k) ; N total variable</text><polygon points='95,300 700,300 700,250' fill='var(--bordeaux-wash,#F3E3E6)' stroke='none'/><line x1='95' y1='300' x2='700' y2='300' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-dasharray='4,4'/><line x1='95' y1='62' x2='95' y2='345' stroke='var(--ink,#15202E)' stroke-width='1.5'/><polygon points='95,56 90,66 100,66' fill='var(--ink,#15202E)'/><line x1='95' y1='345' x2='712' y2='345' stroke='var(--ink,#15202E)' stroke-width='1.5'/><polygon points='712,345 702,340 702,350' fill='var(--ink,#15202E)'/><text x='34' y='205' text-anchor='middle' font-family='sans-serif' font-size='12.5' font-style='italic' fill='var(--ink-faint,#7A889B)' transform='rotate(-90 34 205)'>coût relatif (échelle schématique)</text><text x='400' y='384' text-anchor='middle' font-family='sans-serif' font-size='13' font-style='italic' fill='var(--ink-faint,#7A889B)'>nombre d'experts N par couche &#8594;</text><line x1='150' y1='342' x2='150' y2='348' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='150' y='362' text-anchor='middle' font-family='sans-serif' font-size='10.5' fill='var(--ink-faint,#7A889B)'>N petit</text><line x1='660' y1='342' x2='660' y2='348' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='660' y='362' text-anchor='middle' font-family='sans-serif' font-size='10.5' fill='var(--ink-faint,#7A889B)'>N grand</text><line x1='95' y1='332' x2='700' y2='95' stroke='var(--blue,#23537F)' stroke-width='2.6'/><circle cx='700' cy='95' r='4' fill='var(--blue,#23537F)'/><line x1='95' y1='300' x2='700' y2='250' stroke='var(--bordeaux,#7C2A38)' stroke-width='2.6'/><circle cx='700' cy='250' r='4' fill='var(--bordeaux,#7C2A38)'/><text x='232' y='188' font-family='sans-serif' font-size='13.5' font-weight='bold' fill='var(--blue,#23537F)'>paramètres totaux</text><text x='232' y='206' font-family='sans-serif' font-size='13.5' font-weight='bold' fill='var(--blue,#23537F)'>(capacité) &#8733; N</text><text x='128' y='320' font-family='sans-serif' font-size='12.5' font-weight='bold' fill='var(--bordeaux,#7C2A38)'>FLOPs actifs / token &#8733; k</text><text x='128' y='336' font-family='sans-serif' font-size='11' fill='var(--bordeaux,#7C2A38)'>(&#8776; constant, quasi-indépendant de N)</text><text x='575' y='286' text-anchor='middle' font-family='sans-serif' font-size='10.5' fill='var(--bordeaux-bright,#9B3443)'>surcoût routeur O(d&#183;N)</text><line x1='620' y1='131' x2='620' y2='252' stroke='var(--ink,#15202E)' stroke-width='1.3'/><polygon points='620,126 615,136 625,136' fill='var(--ink,#15202E)'/><polygon points='620,257 615,247 625,247' fill='var(--ink,#15202E)'/><text x='606' y='191' text-anchor='middle' font-family='sans-serif' font-size='11.5' font-weight='bold' fill='var(--ink-soft,#43536A)' transform='rotate(-90 606 191)'>découplage</text></svg><figcaption><span class='fcap-k'></span>Capacité et calcul suivent deux pentes distinctes : les paramètres totaux croissent linéairement avec le nombre d'experts N, alors que les FLOPs actifs par token restent quasi constants (proportionnels à k) ; ils ne remontent que progressivement à grand N, sous l'effet du coût de routeur en O(d·N) précédant la sélection top-k.</figcaption></figure>\n\n<p>Pour produire ce vecteur sparse, Shazeer et al. introduisent le <strong>noisy top-k gating</strong>. Le score brut de l'expert i pour l'entrée x est calculé comme <code>H(x)ᵢ = (x · W_g)ᵢ + StandardNormal() · Softplus((x · W_noise)ᵢ)</code>, puis <code>G(x) = Softmax(KeepTopK(H(x), k))</code>, où KeepTopK fixe à −∞ toutes les valeurs hors du top-k avant le softmax. La matrice W_noise est elle-même apprise par backpropagation : le bruit gaussien dont elle module la variance perturbe les classements d'experts à la marge, favorisant l'exploration de différents experts en entraînement et homogénéisant statistiquement la répartition de charge — les experts sous-sollicités bénéficient ponctuellement de scores bruités plus élevés, ce qui leur permet d'être activés et d'apprendre. Ce mécanisme constitue la solution inaugurale au problème d'équilibrage de charge dans les MoE ; les architectures ultérieures le remplaceront largement par d'autres approches.</p>\n\n<p>Dans l'implémentation de 2017, la couche MoE est insérée entre des couches LSTM empilées — pas encore dans un Transformer — avec k ∈ {2, 4} et N pouvant atteindre 131 072 experts. Le modèle le plus large atteint 137 milliards de paramètres, soit plus de 1 000 fois la capacité des LSTM de référence de l'époque, pour un coût computationnel par batch que les auteurs qualifient de « seulement légèrement dégradé ». Sur le 1 Billion Word Benchmark, ce modèle établit la meilleure perplexité publiée ; en traduction automatique, il dépasse les systèmes concurrents en score BLEU à budget computationnel inférieur aux modèles denses contemporains.</p>\n\n<p>Il est enfin essentiel de distinguer la couche sparsely-gated MoE d'un <strong>ensemble method</strong> (méthode d'ensemble) classique tel que le bagging ou le boosting : dans un ensemble, tous les modèles traitent toutes les entrées et leurs prédictions sont agrégées de façon dense — le coût de calcul est O(N) fois celui d'un modèle de base. Dans un MoE sparse, le routing est conditionnel et appris de bout en bout par backpropagation : seuls k experts parmi N sont activés par token, le coût actif est O(k) — constant en N — et l'agrégation n'est pas fixe mais dynamique, spécifique à chaque token. Augmenter N dans un MoE accroît la capacité sans modifier le coût de calcul actif par token ; augmenter N dans un ensemble multiplie le coût proportionnellement.</p>",
+      "claims": [
+        "claim:1",
+        "claim:2",
+        "claim:3"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "routing-et-gating",
+      "heading": "Routing et gating : top-k, noisy gating, token-choice vs expert-choice",
+      "level": 3,
+      "prose": "<p>Le routeur (ou <strong>gating network</strong>, réseau de sélection) est le composant qui décide, pour chaque token entrant, quels experts sont activés et avec quels poids de combinaison. La formulation canonique, le <strong>noisy top-<em>k</em> gating</strong> (gating bruité), est introduite par Shazeer et al. (ICLR 2017). Le calcul procède en trois étapes enchaînées. Premièrement, un score logit bruité est attribué à chaque expert : H(x)<sub>i</sub> = (x·W<sub>g</sub>)<sub>i</sub> + StandardNormal()·Softplus((x·W<sub>noise</sub>)<sub>i</sub>), où W<sub>g</sub> et W<sub>noise</sub> sont deux matrices de paramètres appris. Le terme de bruit d'amplitude apprise — StandardNormal() multiplié par Softplus((x·W<sub>noise</sub>)<sub>i</sub>) — est samplé indépendamment à chaque forward pass d'entraînement, perturbant les classements de façon différente à chaque itération et empêchant le routeur de converger vers un ensemble statique d'experts favoris. Deuxièmement, KeepTopK(H(x), k) impose −∞ à tous les scores hors du top-<em>k</em> : ces experts sont exclus du softmax avec un poids exactement nul. Troisièmement, G(x) = Softmax(KeepTopK(H(x), k)) normalise les <em>k</em> scores retenus en poids de combinaison sommant à 1. À l'inférence, le sampling gaussien est désactivé ; W<sub>noise</sub> reste dans le graphe mais n'est plus utilisé, et le routage devient entièrement déterministe.</p>\n\n<p>Le choix de <em>k</em> structure profondément le comportement du système. Switch Transformer (Fedus, Zoph, Shazeer ; JMLR 2022) adopte k = 1 (<strong>top-1 gating</strong>) : chaque token est dispatché vers un unique expert, ce qui simplifie le flux de communication <strong>all-to-all</strong> (un seul envoi par token), réduit l'overhead et facilite l'analyse de l'équilibrage de charge. GShard (Lepikhin et al., ICLR 2021) et Mixtral 8×7B (Mistral AI, 2024) optent pour k = 2, combinant les sorties de deux experts par token. Dans GShard, la sélection est hybride : le premier expert est déterminé de façon <em>déterministe</em> par l'argmax du vecteur de scores, tandis que le second est tiré <em>probabilistement</em> avec une probabilité proportionnelle au score de gating de chaque expert restant. Ce <strong>random routing</strong> (routage aléatoire) du second expert distribue la charge sans requérir de terme auxiliaire supplémentaire sur ce deuxième slot d'allocation. Mixtral utilise un top-2 standard (les deux argmax), chaque token activant ainsi 12,9 milliards de paramètres sur 46,7 milliards totaux.</p>\n\n<p>La dichotomie <strong>token-choice routing</strong> (routage piloté par le token) contre <strong>expert-choice routing</strong> (routage piloté par l'expert) — formalisée par Zhou et al. (NeurIPS 2022) — porte sur <em>qui</em> décide de l'appariement. Dans le schéma token-choice (toutes les approches antérieures), chaque token calcule ses scores sur les N experts et retient les k favoris : c'est le token qui \"choisit\" ses experts. Ce mécanisme n'impose aucune contrainte sur la charge reçue par chaque expert : des centaines de tokens peuvent converger simultanément vers les mêmes experts populaires, excédant le buffer de capacité et forçant le <strong>token dropping</strong>. L'expert-choice routing inverse la logique : chaque expert sélectionne les <em>c</em> tokens de plus fort score dans le batch courant et traite exactement <em>c</em> tokens par construction. L'équilibrage de charge est alors garanti sans auxiliary loss ni capacity factor, et la convergence à l'entraînement est accélérée de plus de 2× par rapport aux stratégies token-choice top-1 et top-2.</p>\n\n<p>La limite structurelle de l'expert-choice routing est une violation de causalité en génération autorégressive. Déterminer si un token t appartient au top-<em>c</em> d'un expert exige de comparer son score à celui de <em>tous</em> les tokens du batch, y compris les tokens postérieurs à t — tokens qui n'existent pas encore lors de la génération séquentielle. Cette fuite d'information causale est connue sous le nom de <strong>token leakage</strong>. Elle crée un décalage entraînement-inférence (<strong>train-inference mismatch</strong>) structurel : à l'entraînement sur un batch complet, l'expert voit l'ensemble des scores et sélectionne ses <em>c</em> tokens de façon globalement optimale ; à l'inférence autorégressive, cette sélection globale est impossible puisque les tokens futurs sont masqués, et le mécanisme d'équilibrage s'effondre. L'expert-choice routing reste ainsi principalement applicable aux architectures encodeur ou aux modèles entraînés en parallèle sur des séquences complètes, non aux décodeurs purs utilisés en génération token-à-token.</p>",
+      "claims": [
+        "claim:4",
+        "claim:5",
+        "claim:6",
+        "claim:7"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-noisy-topk-gating"
+    },
+    {
+      "type": "section",
+      "id": "equilibrage-de-charge",
+      "heading": "Équilibrage de charge : auxiliary loss, capacity factor, expert collapse",
+      "level": 3,
+      "prose": "<p>\nSans contrainte explicite, un réseau de gating apprend naturellement à concentrer les tokens sur les experts déjà performants. Plus un expert est sélectionné, plus il reçoit de gradient, plus il s'améliore, ce qui renforce encore son score de gating. Ce mécanisme dit <em>rich-get-richer</em> produit l'<strong>expert collapse</strong> (effondrement des experts) : un petit nombre d'experts monopolise le flux de tokens, les autres stagnent faute de gradient, et la couche MoE devient fonctionnellement équivalente à un modèle bien plus petit que sa capacité nominale. Toute la littérature sur l'équilibrage de charge vise à rompre ce cycle auto-renforçant.\n</p>\n\n<p>\nLa réponse canonique est l'<strong>auxiliary load-balancing loss</strong> (perte auxiliaire d'équilibrage de charge), introduite dans sa forme moderne par le Switch Transformer (Fedus, Zoph, Shazeer, JMLR 2022) et ajoutée à la perte principale avec un coefficient α faible :\n</p>\n\n<p style=\"font-family: monospace; margin-left: 2em;\">\nL<sub>aux</sub> = α · N · Σ<sub>i</sub> f<sub>i</sub> · P<sub>i</sub>\n</p>\n\n<p>\nIci, N est le nombre d'experts, f<sub>i</sub> la fraction des tokens du batch effectivement routés vers l'expert i (calculée via un indicateur <em>stop-gradient</em>), et P<sub>i</sub> la probabilité de routage moyenne vers cet expert selon le <strong>softmax</strong> du routeur. À équilibre parfait — chaque f<sub>i</sub> = P<sub>i</sub> = 1/N — la somme Σ f<sub>i</sub>·P<sub>i</sub> vaut 1/N et L<sub>aux</sub> = α. Le coefficient α = 0,01 est suffisant pour encourager l'équilibre sans dominer la perte principale. Shazeer et al. (2017) avaient proposé deux variantes antérieures — une <em>importance loss</em> pénalisant la variance de l'utilisation cumulée des experts et une <em>load loss</em> fondée sur le coefficient de variation des activations — dont l'auxiliary loss du Switch est une simplification directement différentiable et plus stable.\n</p>\n\n<p>\nL'auxiliary loss agit en amont de la capacité allouée par expert. Cette capacité est réglée par le <strong>capacity factor</strong> (CF) :\n</p>\n\n<p style=\"font-family: monospace; margin-left: 2em;\">\nExpert Capacity = (tokens_per_batch / N_experts) × CF\n</p>\n\n<p>\nCF = 1,0 correspond à la charge idéale uniforme ; CF = 1,25 (valeur recommandée dans le Switch Transformer) autorise 25 % de marge pour absorber les fluctuations. Les tokens excédentaires dépassant cette capacité sont <strong>droppés</strong> : leurs représentations sont transmises inchangées via la connexion résiduelle, sans traverser l'expert. La plage pratique est CF ∈ [1,0 ; 2,0] ; au-delà, les buffers surdimensionnés gaspillent davantage de mémoire et de bande passante que le gain de robustesse justifié. En production, l'auxiliary loss maintient le token dropping sous 1 % en lissant la charge a priori. Il est important de distinguer cette cible de fonctionnement nominal de la tolérance empirique maximale : le travail ST-MoE (Zoph et al., 2022) a montré que même 11 % de tokens droppés n'entraîne pas de dégradation significative de la qualité finale — une limite supérieure de tolérance, et non une cible.\n</p>\n\n<p>\nUne seconde instabilité numérique est propre au <strong>softmax</strong> du routeur : l'exponentiation des logits amplifie les grands logits en gradients explosifs. La <strong>router z-loss</strong>, formalisée dans ST-MoE, ajoute une régularisation sur les logits bruts z<sub>i</sub> du routeur avant exponentiation :\n</p>\n\n<p style=\"font-family: monospace; margin-left: 2em;\">\nz_loss = β · Σ<sub>i</sub> (log z<sub>i</sub>)²\n</p>\n\n<p>\navec β ≈ 0,001. Elle pénalise les logits à grande magnitude sans modifier la décision de routage finale. Un détail d'implémentation critique : même si les poids des experts opèrent en bfloat16, les logits du routeur doivent être calculés en float32 — utiliser bfloat16 pour le routage produit un entraînement instable, constatation directe des auteurs du Switch Transformer.\n</p>\n\n<p>\nDeepSeek-V3 (décembre 2024 ; 671 B paramètres totaux, 37 B actifs par token) propose une alternative structurelle à la perte auxiliaire : le <strong>biais dynamique b<sub>i</sub></strong> par expert. La sélection des K<sub>r</sub> experts actifs opère sur un score augmenté :\n</p>\n\n<p style=\"font-family: monospace; margin-left: 2em;\">\nTopk({s<sub>j,t</sub> + b<sub>j</sub>}, K<sub>r</sub>)\n</p>\n\n<p>\nmais seul le score original s<sub>j,t</sub> — sans b<sub>j</sub> — intervient dans le calcul des poids de gating finaux. Les biais sont ajustés après chaque pas d'optimisation : +γ si l'expert est sous-chargé, −γ s'il est surchargé. Cette mécanique dissocie explicitement la <em>décision de routage</em> (biaisée pour l'équilibre) de la <em>pondération des sorties</em> (fidèle au signal appris), évitant que l'auxiliary loss perturbe la descente de gradient principale. Résultat : aucun token droppé sur les 14,8 T tokens de pré-entraînement, et une convergence non polluée par un terme correcteur. Le prix est un hyperparamètre γ supplémentaire et un état mutable (les biais b<sub>i</sub>) à synchroniser entre les replicas distribués.\n</p>",
+      "claims": [
+        "claim:8",
+        "claim:9",
+        "claim:10",
+        "claim:11"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "synopsis-forward-couche-moe"
+    },
+    {
+      "type": "section",
+      "id": "fine-grained-et-shared-experts",
+      "heading": "Fine-grained et shared experts : la voie DeepSeekMoE",
+      "level": 3,
+      "prose": "<p>Le MoE sparsely-gated standard souffre d'une combinatoire de routing intrinsèquement restreinte : avec N = 16 experts et un top-2, seules C(16, 2) = 120 configurations de sélection distinctes existent par token. DeepSeekMoE (Dai et al., 2024) diagnostique ce plafond comme la cause principale de la redondance entre experts — des sous-réseaux contraints de couvrir des connaissances communes au lieu de se spécialiser — et introduit deux innovations architecturales complémentaires pour le lever sans augmenter le budget de calcul par token.</p>\n\n<p>La première innovation, la <em>fine-grained expert segmentation</em>, subdivise chaque expert FFN en m sous-experts de dimension intermédiaire 1/m, portant le total à mN experts routés parmi lesquels top-mK sont sélectionnés par token. Le coût par forward pass reste nominalement constant (mK sélections × dimension 1/m = K × dimension pleine), mais l'espace de routing explose de façon combinatoire : pour m = 4, N = 16, K = 2 — les hyperparamètres de DeepSeekMoE-16B — on passe de C(16, 2) = 120 patterns à C(64, 8) ≈ 4,4 milliards de configurations distinctes. Cette démultiplication permet au routeur de composer des sous-expertises à grain fin plutôt que d'affecter une sémantique entière à un bloc de grande dimension, ce qui réduit la coactivation redondante de connaissances générales entre experts routés et accroît la granularité de spécialisation atteignable.</p>\n\n<p>La seconde innovation, le <em>shared expert isolation</em> (isolation d'experts partagés), désigne K_s experts qui restent systématiquement actifs à chaque token, indépendamment des décisions du routeur. Ces experts partagés absorbent les représentations transverses que tout token doit traverser — structures syntaxiques, connaissances factuelles communes — et libèrent les experts routés de cette pression d'accumulation. En découplant explicitement les deux rôles, l'architecture garantit que la pression d'équilibrage de charge ne peut pas inciter un expert routé à dériver vers des généralités au détriment de sa spécialisation. DeepSeekMoE-16B emploie 2 experts partagés parmi 64 routés (top-8) ; DeepSeek-V2 monte à 2 partagés sur 160 routés (top-6, distribués sur 8 devices) ; DeepSeek-V3 à 1 partagé sur 256 routés (top-8).</p>\n\n<p>Les résultats empiriques valident les deux innovations conjointement. DeepSeekMoE-16B atteint le niveau de LLaMA 2 7B dense avec environ 40 % de ses FLOPs ; le modèle DeepSeekMoE-145B égale DeepSeek 67B dense en utilisant 28,5 % de ses opérations. La progression vers DeepSeek-V2 (236 B paramètres totaux, 21 B actifs par token) et DeepSeek-V3 (671 B totaux, 37 B actifs, 14,8 T tokens d'entraînement) confirme que l'architecture passe à l'échelle sans régression de l'efficacité relative. DeepSeek-V3 y ajoute un load balancing auxiliary-loss-free reposant sur des biais dynamiques b_i par expert — b_i diminué de γ si l'expert est surchargé, augmenté de γ s'il est sous-chargé — qui découple l'objectif d'équilibrage de l'objectif de langage principal, évitant le mode de défaillance classique où la pression d'équilibrage dégrade la qualité sur la tâche cible.</p>",
+      "claims": [
+        "claim:12",
+        "claim:13",
+        "claim:14",
+        "claim:15"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "systemes-et-expert-parallelism",
+      "heading": "Systèmes et passage à l'échelle : expert parallelism, all-to-all et empreinte mémoire",
+      "level": 3,
+      "prose": "<p>L'<strong>expert parallelism</strong> (parallélisme d'experts) partitionne le pool d'experts entre les devices disponibles : chaque expert — ou sous-groupe d'experts — réside sur un GPU ou TPU distinct. Lors d'un <em>forward pass</em>, les tokens sont traités localement par les couches partagées (attention, embedding) puis routés vers le device hébergeant leurs experts sélectionnés. GShard (Lepikhin et al., 2021) est le premier à avoir déployé ce paradigme à échelle industrielle : 2 048 experts répartis sur 2 048 TPUs, pour un Transformer multilingue de 600 milliards de paramètres entraîné en environ quatre jours. Cette démonstration fondatrice a établi la viabilité de l'expert parallelism comme forme de parallélisme à part entière, distincte du data parallelism et du tensor parallelism.</p><p>Le coût structurel de ce schéma est double : chaque couche MoE génère exactement deux opérations <strong>all-to-all</strong> collectives. Le <em>dispatch</em> envoie chaque token depuis son device d'origine vers le ou les devices hébergeant ses experts sélectionnés ; le <em>combine</em> renvoie les sorties d'experts vers le device d'origine pour sommation avant passage à la couche suivante. Ces deux collectives traversent l'intégralité du fabric réseau — NVLink en intra-nœud, InfiniBand ou RoCE en inter-nœuds. La fraction du temps de step absorbée par ces opérations dépend du rapport entre bande passante réseau et débit de calcul : sur des clusters à interconnexion dense (H100 SXM avec NVLink Switch), le recouvrement calcul/communication (<em>compute/communication overlap</em>), rendu possible par les noyaux asynchrones de librairies comme NCCL ou MSCCL, atténue significativement ce goulot ; sur des topologies à plus faible <em>bisection bandwidth</em>, les all-to-all peuvent représenter une part dominante de la latence d'entraînement.</p><figure class='fig'><svg viewBox='0 0 900 560' role='img' aria-label='Schéma topologique du parallélisme d’experts sur quatre devices répartis en deux nœuds : chaque device réplique les couches partagées (attention, embedding) et héberge un sous-ensemble d’experts ; chaque couche MoE déclenche deux all-to-all, le dispatch (flèches bleues) route chaque token vers le device de ses experts puis le combine (flèches bordeaux) renvoie les sorties vers le device d’origine pour sommation ; les flèches traversent le fabric réseau, trait plein pour NVLink en intra-nœud et pointillés pour InfiniBand en inter-nœuds.'><defs><marker id='moe-ar-blue' markerWidth='9' markerHeight='9' refX='7.5' refY='3' orient='auto'><path d='M0,0 L7.5,3 L0,6 Z' fill='var(--blue,#23537F)'/></marker><marker id='moe-ar-bord' markerWidth='9' markerHeight='9' refX='7.5' refY='3' orient='auto'><path d='M0,0 L7.5,3 L0,6 Z' fill='var(--bordeaux,#7C2A38)'/></marker></defs><text x='450' y='28' text-anchor='middle' font-family='Georgia, serif' font-size='17' font-weight='bold' fill='var(--ink,#15202E)'>Expert parallelism : les deux all-to-all par couche MoE</text><text x='450' y='47' text-anchor='middle' font-family='sans-serif' font-size='12' font-style='italic' fill='var(--ink-faint,#7A889B)'>4 devices (GPU/TPU) · couches partagées répliquées · experts partitionnés</text><text x='450' y='64' text-anchor='middle' font-family='sans-serif' font-size='11' fill='var(--ink-soft,#43536A)'>fabric réseau : NVLink (intra-nœud, trait plein) · InfiniBand (inter-nœuds, pointillés)</text><rect x='178' y='110' width='176' height='350' rx='6' fill='var(--blue,#23537F)' fill-opacity='0.06'/><rect x='558' y='110' width='180' height='350' rx='6' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.06'/><text x='102' y='92' text-anchor='middle' font-family='sans-serif' font-size='11' font-weight='bold' fill='var(--ink-soft,#43536A)'>Couches partagées</text><text x='266' y='92' text-anchor='middle' font-family='sans-serif' font-size='11' font-weight='bold' fill='var(--blue,#23537F)'>all-to-all DISPATCH</text><text x='453' y='92' text-anchor='middle' font-family='sans-serif' font-size='11' font-weight='bold' fill='var(--ink-soft,#43536A)'>Experts (locaux)</text><text x='648' y='92' text-anchor='middle' font-family='sans-serif' font-size='11' font-weight='bold' fill='var(--bordeaux,#7C2A38)'>all-to-all COMBINE</text><text x='810' y='92' text-anchor='middle' font-family='sans-serif' font-size='11' font-weight='bold' fill='var(--ink-soft,#43536A)'>Σ → couche suiv.</text><path d='M30,137 L20,137 L20,276 L30,276' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1.3'/><text x='13' y='206' text-anchor='middle' font-family='sans-serif' font-size='10' font-weight='bold' fill='var(--ink-faint,#7A889B)' transform='rotate(-90 13 206)'>Nœud A</text><path d='M30,303 L20,303 L20,442 L30,442' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1.3'/><text x='13' y='372' text-anchor='middle' font-family='sans-serif' font-size='10' font-weight='bold' fill='var(--ink-faint,#7A889B)' transform='rotate(-90 13 372)'>Nœud B</text><rect x='40' y='137' width='124' height='56' rx='7' fill='var(--ink-faint,#7A889B)' fill-opacity='0.06' stroke='var(--ink-soft,#43536A)' stroke-width='1.2'/><text x='102' y='156' text-anchor='middle' font-family='sans-serif' font-size='12' font-weight='bold' fill='var(--ink,#15202E)'>GPU 0</text><text x='102' y='171' text-anchor='middle' font-family='sans-serif' font-size='9' fill='var(--ink-soft,#43536A)'>Attention + Emb.</text><text x='102' y='184' text-anchor='middle' font-family='sans-serif' font-size='8.5' font-style='italic' fill='var(--ink-faint,#7A889B)'>répliqué</text><rect x='40' y='220' width='124' height='56' rx='7' fill='var(--ink-faint,#7A889B)' fill-opacity='0.06' stroke='var(--ink-soft,#43536A)' stroke-width='1.2'/><text x='102' y='239' text-anchor='middle' font-family='sans-serif' font-size='12' font-weight='bold' fill='var(--ink,#15202E)'>GPU 1</text><text x='102' y='254' text-anchor='middle' font-family='sans-serif' font-size='9' fill='var(--ink-soft,#43536A)'>Attention + Emb.</text><text x='102' y='267' text-anchor='middle' font-family='sans-serif' font-size='8.5' font-style='italic' fill='var(--ink-faint,#7A889B)'>répliqué</text><rect x='40' y='303' width='124' height='56' rx='7' fill='var(--ink-faint,#7A889B)' fill-opacity='0.06' stroke='var(--ink-soft,#43536A)' stroke-width='1.2'/><text x='102' y='322' text-anchor='middle' font-family='sans-serif' font-size='12' font-weight='bold' fill='var(--ink,#15202E)'>GPU 2</text><text x='102' y='337' text-anchor='middle' font-family='sans-serif' font-size='9' fill='var(--ink-soft,#43536A)'>Attention + Emb.</text><text x='102' y='350' text-anchor='middle' font-family='sans-serif' font-size='8.5' font-style='italic' fill='var(--ink-faint,#7A889B)'>répliqué</text><rect x='40' y='386' width='124' height='56' rx='7' fill='var(--ink-faint,#7A889B)' fill-opacity='0.06' stroke='var(--ink-soft,#43536A)' stroke-width='1.2'/><text x='102' y='405' text-anchor='middle' font-family='sans-serif' font-size='12' font-weight='bold' fill='var(--ink,#15202E)'>GPU 3</text><text x='102' y='420' text-anchor='middle' font-family='sans-serif' font-size='9' fill='var(--ink-soft,#43536A)'>Attention + Emb.</text><text x='102' y='433' text-anchor='middle' font-family='sans-serif' font-size='8.5' font-style='italic' fill='var(--ink-faint,#7A889B)'>répliqué</text><rect x='362' y='137' width='182' height='56' rx='7' fill='var(--blue,#23537F)' fill-opacity='0.06' stroke='var(--blue,#23537F)' stroke-width='1.2'/><text x='372' y='150' font-family='sans-serif' font-size='10' font-weight='bold' fill='var(--ink,#15202E)'>GPU 0</text><rect x='372' y='156' width='74' height='28' rx='4' fill='var(--blue,#23537F)' fill-opacity='0.14' stroke='var(--blue,#23537F)' stroke-width='1'/><text x='409' y='174' text-anchor='middle' font-family='sans-serif' font-size='11' font-weight='bold' fill='var(--blue,#23537F)'>E0</text><rect x='456' y='156' width='74' height='28' rx='4' fill='var(--blue,#23537F)' fill-opacity='0.14' stroke='var(--blue,#23537F)' stroke-width='1'/><text x='493' y='174' text-anchor='middle' font-family='sans-serif' font-size='11' font-weight='bold' fill='var(--blue,#23537F)'>E1</text><rect x='362' y='220' width='182' height='56' rx='7' fill='var(--blue,#23537F)' fill-opacity='0.06' stroke='var(--blue,#23537F)' stroke-width='1.2'/><text x='372' y='233' font-family='sans-serif' font-size='10' font-weight='bold' fill='var(--ink,#15202E)'>GPU 1</text><rect x='372' y='239' width='74' height='28' rx='4' fill='var(--blue,#23537F)' fill-opacity='0.14' stroke='var(--blue,#23537F)' stroke-width='1'/><text x='409' y='257' text-anchor='middle' font-family='sans-serif' font-size='11' font-weight='bold' fill='var(--blue,#23537F)'>E2</text><rect x='456' y='239' width='74' height='28' rx='4' fill='var(--blue,#23537F)' fill-opacity='0.14' stroke='var(--blue,#23537F)' stroke-width='1'/><text x='493' y='257' text-anchor='middle' font-family='sans-serif' font-size='11' font-weight='bold' fill='var(--blue,#23537F)'>E3</text><rect x='362' y='303' width='182' height='56' rx='7' fill='var(--blue,#23537F)' fill-opacity='0.06' stroke='var(--blue,#23537F)' stroke-width='1.2'/><text x='372' y='316' font-family='sans-serif' font-size='10' font-weight='bold' fill='var(--ink,#15202E)'>GPU 2</text><rect x='372' y='322' width='74' height='28' rx='4' fill='var(--blue,#23537F)' fill-opacity='0.14' stroke='var(--blue,#23537F)' stroke-width='1'/><text x='409' y='340' text-anchor='middle' font-family='sans-serif' font-size='11' font-weight='bold' fill='var(--blue,#23537F)'>E4</text><rect x='456' y='322' width='74' height='28' rx='4' fill='var(--blue,#23537F)' fill-opacity='0.14' stroke='var(--blue,#23537F)' stroke-width='1'/><text x='493' y='340' text-anchor='middle' font-family='sans-serif' font-size='11' font-weight='bold' fill='var(--blue,#23537F)'>E5</text><rect x='362' y='386' width='182' height='56' rx='7' fill='var(--blue,#23537F)' fill-opacity='0.06' stroke='var(--blue,#23537F)' stroke-width='1.2'/><text x='372' y='399' font-family='sans-serif' font-size='10' font-weight='bold' fill='var(--ink,#15202E)'>GPU 3</text><rect x='372' y='405' width='74' height='28' rx='4' fill='var(--blue,#23537F)' fill-opacity='0.14' stroke='var(--blue,#23537F)' stroke-width='1'/><text x='409' y='423' text-anchor='middle' font-family='sans-serif' font-size='11' font-weight='bold' fill='var(--blue,#23537F)'>E6</text><rect x='456' y='405' width='74' height='28' rx='4' fill='var(--blue,#23537F)' fill-opacity='0.14' stroke='var(--blue,#23537F)' stroke-width='1'/><text x='493' y='423' text-anchor='middle' font-family='sans-serif' font-size='11' font-weight='bold' fill='var(--blue,#23537F)'>E7</text><rect x='746' y='137' width='128' height='56' rx='7' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.06' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2'/><text x='810' y='156' text-anchor='middle' font-family='sans-serif' font-size='12' font-weight='bold' fill='var(--ink,#15202E)'>GPU 0</text><text x='810' y='171' text-anchor='middle' font-family='sans-serif' font-size='9' fill='var(--ink-soft,#43536A)'>Σ sorties</text><text x='810' y='184' text-anchor='middle' font-family='sans-serif' font-size='8.5' fill='var(--ink-faint,#7A889B)'>→ couche suiv.</text><rect x='746' y='220' width='128' height='56' rx='7' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.06' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2'/><text x='810' y='239' text-anchor='middle' font-family='sans-serif' font-size='12' font-weight='bold' fill='var(--ink,#15202E)'>GPU 1</text><text x='810' y='254' text-anchor='middle' font-family='sans-serif' font-size='9' fill='var(--ink-soft,#43536A)'>Σ sorties</text><text x='810' y='267' text-anchor='middle' font-family='sans-serif' font-size='8.5' fill='var(--ink-faint,#7A889B)'>→ couche suiv.</text><rect x='746' y='303' width='128' height='56' rx='7' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.06' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2'/><text x='810' y='322' text-anchor='middle' font-family='sans-serif' font-size='12' font-weight='bold' fill='var(--ink,#15202E)'>GPU 2</text><text x='810' y='337' text-anchor='middle' font-family='sans-serif' font-size='9' fill='var(--ink-soft,#43536A)'>Σ sorties</text><text x='810' y='350' text-anchor='middle' font-family='sans-serif' font-size='8.5' fill='var(--ink-faint,#7A889B)'>→ couche suiv.</text><rect x='746' y='386' width='128' height='56' rx='7' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.06' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2'/><text x='810' y='405' text-anchor='middle' font-family='sans-serif' font-size='12' font-weight='bold' fill='var(--ink,#15202E)'>GPU 3</text><text x='810' y='420' text-anchor='middle' font-family='sans-serif' font-size='9' fill='var(--ink-soft,#43536A)'>Σ sorties</text><text x='810' y='433' text-anchor='middle' font-family='sans-serif' font-size='8.5' fill='var(--ink-faint,#7A889B)'>→ couche suiv.</text><line x1='166' y1='165' x2='356' y2='248' stroke='var(--blue,#23537F)' stroke-width='1.5' stroke-opacity='0.85' marker-end='url(#moe-ar-blue)'/><line x1='166' y1='165' x2='356' y2='331' stroke='var(--blue,#23537F)' stroke-width='1.5' stroke-opacity='0.85' stroke-dasharray='5,4' marker-end='url(#moe-ar-blue)'/><line x1='166' y1='248' x2='356' y2='165' stroke='var(--blue,#23537F)' stroke-width='1.5' stroke-opacity='0.85' marker-end='url(#moe-ar-blue)'/><line x1='166' y1='248' x2='356' y2='414' stroke='var(--blue,#23537F)' stroke-width='1.5' stroke-opacity='0.85' stroke-dasharray='5,4' marker-end='url(#moe-ar-blue)'/><line x1='166' y1='331' x2='356' y2='414' stroke='var(--blue,#23537F)' stroke-width='1.5' stroke-opacity='0.85' marker-end='url(#moe-ar-blue)'/><line x1='166' y1='331' x2='356' y2='165' stroke='var(--blue,#23537F)' stroke-width='1.5' stroke-opacity='0.85' stroke-dasharray='5,4' marker-end='url(#moe-ar-blue)'/><line x1='166' y1='414' x2='356' y2='331' stroke='var(--blue,#23537F)' stroke-width='1.5' stroke-opacity='0.85' marker-end='url(#moe-ar-blue)'/><line x1='166' y1='414' x2='356' y2='248' stroke='var(--blue,#23537F)' stroke-width='1.5' stroke-opacity='0.85' stroke-dasharray='5,4' marker-end='url(#moe-ar-blue)'/><line x1='546' y1='248' x2='744' y2='165' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.5' stroke-opacity='0.85' marker-end='url(#moe-ar-bord)'/><line x1='546' y1='331' x2='744' y2='165' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.5' stroke-opacity='0.85' stroke-dasharray='5,4' marker-end='url(#moe-ar-bord)'/><line x1='546' y1='165' x2='744' y2='248' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.5' stroke-opacity='0.85' marker-end='url(#moe-ar-bord)'/><line x1='546' y1='414' x2='744' y2='248' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.5' stroke-opacity='0.85' stroke-dasharray='5,4' marker-end='url(#moe-ar-bord)'/><line x1='546' y1='414' x2='744' y2='331' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.5' stroke-opacity='0.85' marker-end='url(#moe-ar-bord)'/><line x1='546' y1='165' x2='744' y2='331' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.5' stroke-opacity='0.85' stroke-dasharray='5,4' marker-end='url(#moe-ar-bord)'/><line x1='546' y1='331' x2='744' y2='414' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.5' stroke-opacity='0.85' marker-end='url(#moe-ar-bord)'/><line x1='546' y1='248' x2='744' y2='414' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.5' stroke-opacity='0.85' stroke-dasharray='5,4' marker-end='url(#moe-ar-bord)'/><line x1='44' y1='486' x2='72' y2='486' stroke='var(--blue,#23537F)' stroke-width='1.8' marker-end='url(#moe-ar-blue)'/><text x='80' y='490' font-family='sans-serif' font-size='10.5' fill='var(--ink-soft,#43536A)'>all-to-all dispatch (token → device de l’expert)</text><line x1='480' y1='486' x2='508' y2='486' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.8' marker-end='url(#moe-ar-bord)'/><text x='516' y='490' font-family='sans-serif' font-size='10.5' fill='var(--ink-soft,#43536A)'>all-to-all combine (sortie → device d’origine)</text><line x1='44' y1='512' x2='72' y2='512' stroke='var(--ink-faint,#7A889B)' stroke-width='1.8'/><text x='80' y='516' font-family='sans-serif' font-size='10.5' fill='var(--ink-soft,#43536A)'>NVLink : intra-nœud (trait plein)</text><line x1='480' y1='512' x2='508' y2='512' stroke='var(--ink-faint,#7A889B)' stroke-width='1.8' stroke-dasharray='5,4'/><text x='516' y='516' font-family='sans-serif' font-size='10.5' fill='var(--ink-soft,#43536A)'>InfiniBand : inter-nœuds (pointillés)</text></svg><figcaption><span class='fcap-k'></span>Sous expert parallelism, chaque device réplique les couches partagées et héberge un sous-ensemble d’experts ; chaque couche MoE déclenche deux all-to-all — un dispatch qui route les tokens vers le device de leurs experts, puis un combine qui ramène les sorties vers le device d’origine pour sommation — dont le trafic traverse le fabric NVLink en intra-nœud et InfiniBand en inter-nœuds.</figcaption></figure><p>Plusieurs stratégies limitent ce surcoût. Le <strong>device-limited routing</strong> (routage limité par device) contraint chaque token à n'atteindre qu'au plus D<sub>max</sub> devices distincts, bornant mécaniquement le volume de trafic all-to-all : DeepSeek-V2 fixe D<sub>max</sub> = 3 sur 8 devices, réduisant de 62,5 % le nombre maximal de destinations possibles par token sans dégradation sensible de la qualité. Le <strong>node-limited routing</strong> étend cette contrainte au niveau du nœud physique plutôt que du device individuel. Orthogonalement, le recouvrement calcul/communication permet de pipeliner les all-to-all avec les calculs d'attention des couches adjacentes, en exploitant l'asynchronisme des primitives collectives des backends de communication modernes. Ces mitigations peuvent être combinées, comme le montrent les architectures DeepSeek-V2 et DeepSeek-V3 qui associent device-limited routing, balancing multi-niveau et chevauchement des communications.</p><p>Le trade-off central au déploiement est la dissociation entre empreinte mémoire et coût de calcul. Parce que le routeur peut envoyer un token vers n'importe quel expert lors de chaque <em>forward pass</em>, la totalité des poids de tous les experts doit résider en VRAM simultanément pour être accessible. Un modèle MoE est donc <strong>dense en mémoire mais sparse en calcul</strong>. Mixtral 8x7B illustre ce paradoxe : ses 46,7 milliards de paramètres totaux exigent environ 90 Go de VRAM en FP16, alors que seuls 12,9 milliards sont activés à chaque forward pass. L'avantage en FLOPs est réel — Mixtral 8x7B dépasse Llama 2 70B sur la majorité des benchmarks avec une inférence environ six fois plus rapide — mais il ne dispense pas de provisionner la VRAM pour l'ensemble du modèle. À l'inverse d'un modèle dense de taille comparable en paramètres actifs, le coût d'hébergement d'un MoE est piloté par ses paramètres totaux, pas par ses paramètres actifs ; c'est cette asymétrie qui rend la quantization des MoE, et non leur architecture seule, critique pour un déploiement économique.</p>",
+      "claims": [
+        "claim:16",
+        "claim:17",
+        "claim:18"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "instances-reelles",
+      "heading": "Instances réelles : de GShard et Switch à Mixtral, DeepSeek et Qwen",
+      "level": 3,
+      "prose": "<p>GShard (Lepikhin et al., 2020) marque l'entrée des MoE dans l'ère industrielle : premier modèle à franchir 600 milliards de paramètres, il est entraîné sur 2 048 TPU v3 en quatre jours pour la traduction de 100 langues vers l'anglais. Son top-2 routing — deux experts actifs par token — est exposé via des annotations XLA qui pilotent la répartition des calculs sur les workers avec des modifications minimales du code modèle. L'année suivante, le Switch Transformer (Fedus, Zoph, Shazeer, 2021) pousse l'idée dans l'autre sens : simplifier le routing à top-1 (k=1, un seul expert par token), rendant le calcul de la porte trivial et réduisant la communication inter-devices. Les variantes Switch atteignent 1,6 trillion de paramètres et jusqu'à 7× d'accélération vs T5-Base à iso-ressources computationnelles — premier entraînement MoE stable en bfloat16, qui ramène l'empreinte mémoire d'environ 50 % par rapport au float32.</p>\n\n<p>GLaM (Du et al., 2021, Google) centre son propos sur l'efficacité énergétique. Avec 1,2 trillion de paramètres totaux, 64 experts par couche MoE et un top-2 routing, seulement 96,6 milliards de paramètres sont actifs par token, soit 8 % du total. L'entraînement complet consomme 456 MWh contre 1 287 MWh pour GPT-3 (environ 2,8 fois moins). Pour atteindre des performances comparables à GPT-3 sur 280 milliards de tokens, la consommation tombe à 213 MWh — un sixième du coût de GPT-3. Sur 29 tâches NLP en zero-, one- et few-shot, GLaM dépasse GPT-3 de +10,2 %, +6,3 % et +4,4 % respectivement, tout en utilisant environ moitié moins de FLOPs d'inférence par token.</p>\n\n<p>Mixtral 8×7B (Mistral AI, janvier 2024) est le premier grand MoE open-weights à cette échelle : architecture identique à Mistral 7B, sauf que chaque couche FFN (feed-forward network, couche de projection dense) est remplacée par 8 experts. Le top-2 routing sélectionne 2 experts par token — les deux pouvant différer d'un pas à l'autre — pour 46,7 G paramètres totaux et 12,9 G actifs par forward pass (passe avant), une fenêtre de contexte de 32 768 tokens et une licence Apache 2.0. Mixtral surpasse LLaMA 2 70B sur la majorité des benchmarks — notamment en mathématiques, code et multilinguisme — tout en réduisant le calcul actif d'environ 72 % par rapport à un dense de taille équivalente (46,7 G). La version instruction-tuned dépasse GPT-3.5 Turbo, Claude-2.1 et Gemini Pro sur l'évaluation humaine.</p>\n\n<p>DeepSeek a systématisé deux innovations architecturales introduites dans DeepSeekMoE (Dai et al., 2024) : le fine-grained expert segmentation (segmentation fine des experts) — les N experts standard sont subdivisés en mN experts de taille 1/m, avec activation de mK d'entre eux, permettant des combinaisons plus flexibles et une décomposition plus granulaire des connaissances — et les shared experts (experts partagés), un sous-ensemble K<sub>s</sub> d'experts toujours activés quel que soit le token pour capturer des connaissances communes, libérant les experts routés pour une spécialisation accrue. DeepSeek-V2 (2024) porte ces principes à 236 G paramètres totaux / 21 G actifs, avec 160 experts routés + 2 experts partagés et top-6 routing. DeepSeek-V3 (fin 2024) atteint 671 G / 37 G actifs (256 experts routés + 1 expert partagé, top-8 routing, contexte de 128 k tokens), avec comme innovation centrale l'auxiliary-loss-free load balancing (équilibrage sans auxiliary loss) : au lieu d'une auxiliary loss (perte auxiliaire) classique qui dégrade la qualité du modèle si le coefficient est trop élevé, un terme de biais dynamique est ajouté aux logits de routing — ajusté pendant l'entraînement selon la charge effective de chaque expert — sans affecter le calcul pondéré des sorties. En complément, le device-limited routing (routage à devices limités) restreint la sélection des experts aux M meilleurs devices selon le score agrégé, réduisant les communications all-to-all cross-device. Le coût d'entraînement total de DeepSeek-V3 s'établit à 2,788 millions d'heures GPU H800.</p>\n\n<p>La lignée Qwen illustre la déclinaison de ces principes à différentes échelles. Qwen1.5-MoE-A2.7B (Alibaba, 2024) adopte une architecture hybride : 4 shared experts toujours actifs + 60 experts routés dont 4 activés par top-4 routing, pour 14,3 G paramètres totaux et 2,7 G actifs. Le coût d'entraînement recule de 75 % par rapport à Qwen1.5-7B dense, et l'inférence est 1,74× plus rapide (2,01 req/s vs 1,15 req/s) ; sur GSM8K, le modèle atteint 61,5 contre 47,5 pour Mistral-7B. Qwen3 (2025) généralise la formule à grande échelle et modifie le compromis architecturel : le modèle phare Qwen3-235B-A22B compte 235 G paramètres totaux / 22 G actifs (ratio d'activation ≈ 9,4 %), avec 128 experts par couche et top-8 routing, et <em>supprime</em> les shared experts par rapport à Qwen2.5-MoE, au profit d'un global-batch load balancing loss favorisant une spécialisation maximale de chaque expert. Le modèle Qwen3-30B-A3B (30 G / 3 G actifs, même configuration 128 experts / top-8) décline la formule à moindre échelle. Selon le rapport technique Qwen3, entraînés sur les mêmes données que leurs homologues denses, ces modèles MoE atteignent des performances comparables avec seulement 1/5 des paramètres activés.</p><figure class='fig'><svg viewBox='0 0 880 560' role='img' aria-label='Graphique en segments (dumbbell) sur échelle logarithmique comparant, pour sept MoE réels, les paramètres totaux (capacité, points bleus) aux paramètres actifs par token (calcul, points bordeaux) ; la longueur de chaque segment matérialise le découplage capacité/calcul : Switch-C 1,6 T et GShard 600 G donnés en capacité totale seule, GLaM 1,2 T pour 96,6 G actifs, DeepSeek-V3 671 G pour 37 G, DeepSeek-V2 236 G pour 21 G, Qwen3-235B-A22B 235 G pour 22 G et Mixtral 8x7B 46,7 G pour 12,9 G.'><text x='440' y='30' text-anchor='middle' font-family='Georgia, serif' font-size='17' font-weight='bold' fill='var(--ink,#15202E)'>Paysage des MoE réels : capacité totale vs calcul actif par token</text><text x='440' y='50' text-anchor='middle' font-family='sans-serif' font-size='12.5' font-style='italic' fill='var(--ink-faint,#7A889B)'>Échelle logarithmique ; chaque segment relie les paramètres actifs (calcul) aux paramètres totaux (capacité)</text><line x1='220' y1='96' x2='220' y2='445' stroke='var(--ink,#15202E)' stroke-width='1.3'/><line x1='780' y1='96' x2='780' y2='445' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-opacity='0.5'/><line x1='463.4' y1='96' x2='463.4' y2='445' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-dasharray='3,4' stroke-opacity='0.6'/><line x1='706.7' y1='96' x2='706.7' y2='445' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-dasharray='3,4' stroke-opacity='0.6'/><line x1='220' y1='445' x2='780' y2='445' stroke='var(--ink,#15202E)' stroke-width='1.3'/><text x='220' y='461' text-anchor='middle' font-family='sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>10</text><text x='463.4' y='461' text-anchor='middle' font-family='sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>100</text><text x='706.7' y='461' text-anchor='middle' font-family='sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>1 000</text><text x='780' y='461' text-anchor='middle' font-family='sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>2 000</text><text x='500' y='483' text-anchor='middle' font-family='sans-serif' font-size='11' font-style='italic' fill='var(--ink-faint,#7A889B)'>paramètres (en milliards) — échelle logarithmique &#8594;</text><line x1='798' y1='100' x2='798' y2='430' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-dasharray='3,4' stroke-opacity='0.6'/><text x='836' y='108' text-anchor='middle' font-family='sans-serif' font-size='9.5' font-style='italic' fill='var(--ink-faint,#7A889B)'>actif / total</text><text x='206' y='124' text-anchor='end' font-family='sans-serif' font-size='11.5' font-weight='bold' fill='var(--ink,#15202E)'>Switch-C</text><line x1='747.4' y1='120' x2='706.4' y2='120' stroke='var(--ink-faint,#7A889B)' stroke-width='1.3' stroke-dasharray='3,3' stroke-opacity='0.75'/><text x='726.9' y='136' text-anchor='middle' font-family='sans-serif' font-size='9' font-style='italic' fill='var(--ink-faint,#7A889B)'>actifs n.c.</text><circle cx='756.4' cy='120' r='6' fill='var(--blue,#23537F)'/><text x='756.4' y='109' text-anchor='middle' font-family='sans-serif' font-size='10' font-weight='bold' fill='var(--blue,#23537F)'>1,6 T</text><text x='836' y='124' text-anchor='middle' font-family='sans-serif' font-size='11' font-style='italic' fill='var(--ink-faint,#7A889B)'>n.c.</text><text x='206' y='172' text-anchor='end' font-family='sans-serif' font-size='11.5' font-weight='bold' fill='var(--ink,#15202E)'>GLaM</text><line x1='459.7' y1='168' x2='725.9' y2='168' stroke='var(--ink-faint,#7A889B)' stroke-width='5' stroke-linecap='round' stroke-opacity='0.3'/><circle cx='459.7' cy='168' r='5.5' fill='var(--bordeaux,#7C2A38)'/><circle cx='725.9' cy='168' r='6' fill='var(--blue,#23537F)'/><text x='725.9' y='157' text-anchor='middle' font-family='sans-serif' font-size='10' font-weight='bold' fill='var(--blue,#23537F)'>1,2 T</text><text x='459.7' y='185' text-anchor='middle' font-family='sans-serif' font-size='9.5' fill='var(--bordeaux,#7C2A38)'>96,6 G</text><text x='836' y='172' text-anchor='middle' font-family='sans-serif' font-size='11' font-weight='bold' fill='var(--ink-soft,#43536A)'>&#8776; 8 %</text><text x='206' y='220' text-anchor='end' font-family='sans-serif' font-size='11.5' font-weight='bold' fill='var(--ink,#15202E)'>DeepSeek-V3</text><line x1='358.3' y1='216' x2='664.5' y2='216' stroke='var(--ink-faint,#7A889B)' stroke-width='5' stroke-linecap='round' stroke-opacity='0.3'/><circle cx='358.3' cy='216' r='5.5' fill='var(--bordeaux,#7C2A38)'/><circle cx='664.5' cy='216' r='6' fill='var(--blue,#23537F)'/><text x='664.5' y='205' text-anchor='middle' font-family='sans-serif' font-size='10' font-weight='bold' fill='var(--blue,#23537F)'>671 G</text><text x='358.3' y='233' text-anchor='middle' font-family='sans-serif' font-size='9.5' fill='var(--bordeaux,#7C2A38)'>37 G</text><text x='836' y='220' text-anchor='middle' font-family='sans-serif' font-size='11' font-weight='bold' fill='var(--ink-soft,#43536A)'>&#8776; 5,5 %</text><text x='206' y='268' text-anchor='end' font-family='sans-serif' font-size='11.5' font-weight='bold' fill='var(--ink,#15202E)'>GShard</text><line x1='643.7' y1='264' x2='602.7' y2='264' stroke='var(--ink-faint,#7A889B)' stroke-width='1.3' stroke-dasharray='3,3' stroke-opacity='0.75'/><text x='623.2' y='280' text-anchor='middle' font-family='sans-serif' font-size='9' font-style='italic' fill='var(--ink-faint,#7A889B)'>actifs n.c.</text><circle cx='652.7' cy='264' r='6' fill='var(--blue,#23537F)'/><text x='652.7' y='253' text-anchor='middle' font-family='sans-serif' font-size='10' font-weight='bold' fill='var(--blue,#23537F)'>600 G</text><text x='836' y='268' text-anchor='middle' font-family='sans-serif' font-size='11' font-style='italic' fill='var(--ink-faint,#7A889B)'>n.c.</text><text x='206' y='316' text-anchor='end' font-family='sans-serif' font-size='11.5' font-weight='bold' fill='var(--ink,#15202E)'>DeepSeek-V2</text><line x1='298.4' y1='312' x2='554.1' y2='312' stroke='var(--ink-faint,#7A889B)' stroke-width='5' stroke-linecap='round' stroke-opacity='0.3'/><circle cx='298.4' cy='312' r='5.5' fill='var(--bordeaux,#7C2A38)'/><circle cx='554.1' cy='312' r='6' fill='var(--blue,#23537F)'/><text x='554.1' y='301' text-anchor='middle' font-family='sans-serif' font-size='10' font-weight='bold' fill='var(--blue,#23537F)'>236 G</text><text x='298.4' y='329' text-anchor='middle' font-family='sans-serif' font-size='9.5' fill='var(--bordeaux,#7C2A38)'>21 G</text><text x='836' y='316' text-anchor='middle' font-family='sans-serif' font-size='11' font-weight='bold' fill='var(--ink-soft,#43536A)'>&#8776; 9 %</text><text x='206' y='364' text-anchor='end' font-family='sans-serif' font-size='11.5' font-weight='bold' fill='var(--ink,#15202E)'>Qwen3-235B-A22B</text><line x1='303.3' y1='360' x2='553.7' y2='360' stroke='var(--ink-faint,#7A889B)' stroke-width='5' stroke-linecap='round' stroke-opacity='0.3'/><circle cx='303.3' cy='360' r='5.5' fill='var(--bordeaux,#7C2A38)'/><circle cx='553.7' cy='360' r='6' fill='var(--blue,#23537F)'/><text x='553.7' y='349' text-anchor='middle' font-family='sans-serif' font-size='10' font-weight='bold' fill='var(--blue,#23537F)'>235 G</text><text x='303.3' y='377' text-anchor='middle' font-family='sans-serif' font-size='9.5' fill='var(--bordeaux,#7C2A38)'>22 G</text><text x='836' y='364' text-anchor='middle' font-family='sans-serif' font-size='11' font-weight='bold' fill='var(--ink-soft,#43536A)'>&#8776; 9,4 %</text><text x='206' y='412' text-anchor='end' font-family='sans-serif' font-size='11.5' font-weight='bold' fill='var(--ink,#15202E)'>Mixtral 8&#215;7B</text><line x1='246.9' y1='408' x2='382.9' y2='408' stroke='var(--ink-faint,#7A889B)' stroke-width='5' stroke-linecap='round' stroke-opacity='0.3'/><circle cx='246.9' cy='408' r='5.5' fill='var(--bordeaux,#7C2A38)'/><circle cx='382.9' cy='408' r='6' fill='var(--blue,#23537F)'/><text x='382.9' y='397' text-anchor='middle' font-family='sans-serif' font-size='10' font-weight='bold' fill='var(--blue,#23537F)'>46,7 G</text><text x='246.9' y='425' text-anchor='middle' font-family='sans-serif' font-size='9.5' fill='var(--bordeaux,#7C2A38)'>12,9 G</text><text x='836' y='412' text-anchor='middle' font-family='sans-serif' font-size='11' font-weight='bold' fill='var(--ink-soft,#43536A)'>&#8776; 28 %</text><line x1='40' y1='498' x2='840' y2='498' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-opacity='0.4'/><circle cx='70' cy='515' r='6' fill='var(--blue,#23537F)'/><text x='84' y='519' font-family='sans-serif' font-size='10.5' fill='var(--ink-soft,#43536A)'>paramètres totaux (capacité — tous les experts résident en mémoire)</text><circle cx='70' cy='537' r='5.5' fill='var(--bordeaux,#7C2A38)'/><text x='84' y='541' font-family='sans-serif' font-size='10.5' fill='var(--ink-soft,#43536A)'>paramètres actifs par token (calcul — FLOPs effectifs)</text><line x1='465' y1='515' x2='487' y2='515' stroke='var(--ink-faint,#7A889B)' stroke-width='5' stroke-linecap='round' stroke-opacity='0.3'/><text x='495' y='519' font-family='sans-serif' font-size='10.5' fill='var(--ink-soft,#43536A)'>longueur du segment = découplage capacité/calcul (sparsité)</text><text x='465' y='541' font-family='sans-serif' font-size='10.5' fill='var(--ink-soft,#43536A)'>n.c. : actifs/token non rapportés ici (Switch-C top-1, GShard top-2)</text></svg><figcaption><span class='fcap-k'></span>Sur une échelle logarithmique, chaque modèle MoE relie ses paramètres actifs par token (calcul) à ses paramètres totaux (capacité) : la longueur du segment matérialise le découplage capacité/calcul, de Mixtral 8×7B (≈ 28 % de paramètres actifs) aux très sparses GLaM, DeepSeek-V3 et Qwen3 (≈ 5,5–9,4 %) ; GShard et Switch-C sont donnés en capacité totale seule.</figcaption></figure>",
+      "claims": [
+        "claim:20",
+        "claim:21",
+        "claim:22",
+        "claim:23"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "moe-vs-ensemble-classique",
+      "heading": "MoE n'est pas un ensemble : routing sparse appris vs agrégation dense",
+      "level": 3,
+      "prose": "<p>Un <em>ensemble</em> au sens statistique — bagging (échantillonnage bootstrap et vote), boosting (apprenants séquentiels pondérés) ou stacking — soumet <strong>chaque</strong> exemple d'entrée à <strong>tous</strong> les sous-modèles du comité, puis agrège leurs sorties : vote majoritaire, moyenne pondérée, ou méta-modèle. Le coût de calcul croît linéairement avec le nombre de membres N, et les poids sont appris indépendamment (bagging) ou séquentiellement (boosting), en dehors de tout mécanisme de dispatching conditionnel. La diversité visée y est <em>forcée</em> — par des perturbations de données, une contrainte de corrélation minimale entre membres, ou l'ordre de construction — non découverte.</p>\n\n<p>Un MoE <em>sparsely-gated</em> (à portes éparses) est structurellement différent à chaque niveau. Il constitue un <strong>unique modèle</strong> dont N sous-réseaux — les <em>experts</em> — partagent les couches d'attention et les embeddings. À chaque couche MoE, un <em>router</em> (routeur) — typiquement une projection linéaire suivie d'un softmax — produit des scores d'affinité pour chaque expert, sélectionne les top-<em>k</em> experts, et route le token uniquement vers ces <em>k</em> destinations. La sortie de la couche est la somme pondérée des <em>k</em> sorties actives par leurs scores de gating normalisés. Ce routeur est appris <em>end-to-end</em> (de bout en bout) par rétropropagation, conjointement avec tous les poids du modèle. Le coût effectif par token est proportionnel à <em>k</em> et non à N : c'est le principe de <em>conditional computation</em> (calcul conditionnel) formalisé dans la littérature et instancié à grande échelle par Shazeer et al. (2017).</p>\n\n<p>La distinction formelle est donc double. Premièrement, le dispatching est conditionnel et <em>sparse</em> : un token n'active en moyenne qu'une fraction k/N des paramètres disponibles, alors qu'un ensemble active la totalité de ses membres. Deuxièmement, la spécialisation n'est pas prescrite mais <em>émergente</em> : aucun sous-réseau n'est entraîné sur un sous-ensemble séparé de données ni contraint à minimiser une corrélation avec ses voisins — les experts se différencient parce que le gradient de la loss globale les pousse à occuper des niches où leur activation est cohérente avec le contenu du token. Il n'y a ni apprenants indépendants, ni agrégation à postériori, ni diversification délibérée : un MoE produit une sortie <em>conditionnelle</em> sur le token courant, un ensemble produit une sortie <em>consensuelle</em> sur l'incertitude du comité.</p>\n\n<p>Cette distinction a des implications pratiques directes. Contrairement à un ensemble, un MoE peut être évalué sans passer par N modèles complets : seuls <em>k</em> experts sont activés, ce qui maintient les FLOPs actifs à une fraction k/N du total paramétrique. En revanche, l'ensemble des poids de tous les N experts doit résider en mémoire GPU simultanément, quelle que soit leur fréquence d'activation — une contrainte mémoire sans équivalent dans un comité de modèles indépendants déployables à la demande. La capacité totale (paramètres) et le coût de calcul par token sont ainsi découplés : c'est précisément ce découplage qui est impossible dans un ensemble classique où ces deux quantités évoluent ensemble.</p><figure class='fig'><svg viewBox='0 0 900 500' role='img' aria-label='Schéma contrastif côte à côte. À gauche, un ensemble classique (bagging, boosting, stacking) : une entrée x traverse TOUS les N sous-modèles, tous calculés, puis leurs sorties sont agrégées densément (vote, moyenne ou méta-modèle) avant la sortie y ; coût O(N), sous-modèles appris séparément, capacité et calcul couplés. À droite, un MoE sparsely-gated : le token passe par un routeur (gating softmax) qui sélectionne le top-k parmi N experts ; seuls k experts (ici 2 sur 4) sont calculés, leurs sorties sont sommées pondérément par les scores de gating, les autres ne sont pas routés ; les experts partagent attention et embeddings et le routeur est appris end-to-end ; coût O(k), capacité proportionnelle à N et calcul proportionnel à k, donc découplés.'><defs><marker id='moe-ens-arb' markerWidth='9' markerHeight='9' refX='7.5' refY='3' orient='auto'><path d='M0,0 L7.5,3 L0,6 Z' fill='var(--bordeaux,#7C2A38)'/></marker><marker id='moe-ens-arbl' markerWidth='9' markerHeight='9' refX='7.5' refY='3' orient='auto'><path d='M0,0 L7.5,3 L0,6 Z' fill='var(--blue,#23537F)'/></marker></defs><text x='450' y='28' text-anchor='middle' font-family='Georgia, serif' font-size='17' font-weight='bold' fill='var(--ink,#15202E)'>Combiner N sous-modèles : ensemble dense vs MoE sparse</text><text x='450' y='47' text-anchor='middle' font-family='sans-serif' font-size='12' font-style='italic' fill='var(--ink-faint,#7A889B)'>Même N sous-modèles ; ce qui diffère, c’est le flux des données et le coût de calcul</text><rect x='22' y='68' width='414' height='416' rx='8' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.03'/><rect x='464' y='68' width='414' height='416' rx='8' fill='var(--blue,#23537F)' fill-opacity='0.03'/><line x1='450' y1='66' x2='450' y2='480' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-dasharray='2,5' stroke-opacity='0.7'/><text x='235' y='86' text-anchor='middle' font-family='sans-serif' font-size='13' font-weight='bold' fill='var(--bordeaux,#7C2A38)'>Ensemble classique</text><text x='235' y='102' text-anchor='middle' font-family='sans-serif' font-size='10.5' fill='var(--ink-faint,#7A889B)'>bagging &#183; boosting &#183; stacking</text><rect x='200' y='116' width='70' height='28' rx='6' fill='var(--ink-faint,#7A889B)' fill-opacity='0.08' stroke='var(--ink-soft,#43536A)' stroke-width='1.1'/><text x='235' y='134' text-anchor='middle' font-family='sans-serif' font-size='11.5' font-weight='bold' fill='var(--ink,#15202E)'>entrée x</text><line x1='235' y1='145' x2='105' y2='193' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.4' marker-end='url(#moe-ens-arb)'/><line x1='235' y1='145' x2='192' y2='193' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.4' marker-end='url(#moe-ens-arb)'/><line x1='235' y1='145' x2='278' y2='193' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.4' marker-end='url(#moe-ens-arb)'/><line x1='235' y1='145' x2='365' y2='193' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.4' marker-end='url(#moe-ens-arb)'/><rect x='70' y='196' width='70' height='42' rx='6' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.10' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.3'/><text x='105' y='215' text-anchor='middle' font-family='sans-serif' font-size='12' font-weight='bold' fill='var(--bordeaux,#7C2A38)'>M1</text><text x='105' y='230' text-anchor='middle' font-family='sans-serif' font-size='8' fill='var(--ink-soft,#43536A)'>calculé</text><rect x='157' y='196' width='70' height='42' rx='6' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.10' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.3'/><text x='192' y='215' text-anchor='middle' font-family='sans-serif' font-size='12' font-weight='bold' fill='var(--bordeaux,#7C2A38)'>M2</text><text x='192' y='230' text-anchor='middle' font-family='sans-serif' font-size='8' fill='var(--ink-soft,#43536A)'>calculé</text><rect x='243' y='196' width='70' height='42' rx='6' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.10' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.3'/><text x='278' y='215' text-anchor='middle' font-family='sans-serif' font-size='12' font-weight='bold' fill='var(--bordeaux,#7C2A38)'>M3</text><text x='278' y='230' text-anchor='middle' font-family='sans-serif' font-size='8' fill='var(--ink-soft,#43536A)'>calculé</text><rect x='330' y='196' width='70' height='42' rx='6' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.10' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.3'/><text x='365' y='215' text-anchor='middle' font-family='sans-serif' font-size='12' font-weight='bold' fill='var(--bordeaux,#7C2A38)'>M4</text><text x='365' y='230' text-anchor='middle' font-family='sans-serif' font-size='8' fill='var(--ink-soft,#43536A)'>calculé</text><line x1='105' y1='239' x2='235' y2='298' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.4' marker-end='url(#moe-ens-arb)'/><line x1='192' y1='239' x2='235' y2='298' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.4' marker-end='url(#moe-ens-arb)'/><line x1='278' y1='239' x2='235' y2='298' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.4' marker-end='url(#moe-ens-arb)'/><line x1='365' y1='239' x2='235' y2='298' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.4' marker-end='url(#moe-ens-arb)'/><rect x='70' y='300' width='330' height='40' rx='6' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.06' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2'/><text x='235' y='317' text-anchor='middle' font-family='sans-serif' font-size='11.5' font-weight='bold' fill='var(--ink,#15202E)'>Agrégation dense (tous les N)</text><text x='235' y='332' text-anchor='middle' font-family='sans-serif' font-size='9.5' fill='var(--ink-soft,#43536A)'>vote &#183; moyenne &#183; méta-modèle</text><line x1='235' y1='340' x2='235' y2='384' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.4' marker-end='url(#moe-ens-arb)'/><rect x='200' y='386' width='70' height='28' rx='6' fill='var(--ink-faint,#7A889B)' fill-opacity='0.08' stroke='var(--ink-soft,#43536A)' stroke-width='1.1'/><text x='235' y='404' text-anchor='middle' font-family='sans-serif' font-size='11.5' font-weight='bold' fill='var(--ink,#15202E)'>sortie y</text><text x='235' y='440' text-anchor='middle' font-family='sans-serif' font-size='10.5' fill='var(--ink-soft,#43536A)'>Les N sous-modèles sont tous calculés &#8594; coût O(N)</text><text x='235' y='457' text-anchor='middle' font-family='sans-serif' font-size='10.5' fill='var(--ink-soft,#43536A)'>sous-modèles appris séparément (pas de routing appris)</text><text x='235' y='476' text-anchor='middle' font-family='sans-serif' font-size='11' font-weight='bold' fill='var(--bordeaux,#7C2A38)'>capacité ET calcul couplés : croissent avec N</text><text x='670' y='86' text-anchor='middle' font-family='sans-serif' font-size='13' font-weight='bold' fill='var(--blue,#23537F)'>MoE sparsely-gated</text><text x='670' y='102' text-anchor='middle' font-family='sans-serif' font-size='10.5' fill='var(--ink-faint,#7A889B)'>routeur appris &#183; top-k experts</text><rect x='635' y='116' width='70' height='28' rx='6' fill='var(--ink-faint,#7A889B)' fill-opacity='0.08' stroke='var(--ink-soft,#43536A)' stroke-width='1.1'/><text x='670' y='134' text-anchor='middle' font-family='sans-serif' font-size='11.5' font-weight='bold' fill='var(--ink,#15202E)'>token</text><line x1='670' y1='145' x2='670' y2='171' stroke='var(--blue,#23537F)' stroke-width='1.4' marker-end='url(#moe-ens-arbl)'/><rect x='560' y='173' width='220' height='34' rx='6' fill='var(--blue,#23537F)' fill-opacity='0.10' stroke='var(--blue,#23537F)' stroke-width='1.4'/><text x='670' y='194' text-anchor='middle' font-family='sans-serif' font-size='11.5' font-weight='bold' fill='var(--blue,#23537F)'>Routeur (gating softmax) &#8594; top-k</text><line x1='670' y1='208' x2='619' y2='246' stroke='var(--blue,#23537F)' stroke-width='1.6' marker-end='url(#moe-ens-arbl)'/><line x1='670' y1='208' x2='824' y2='246' stroke='var(--blue,#23537F)' stroke-width='1.6' marker-end='url(#moe-ens-arbl)'/><line x1='670' y1='208' x2='516' y2='246' stroke='var(--ink-faint,#7A889B)' stroke-width='1.1' stroke-dasharray='3,4' stroke-opacity='0.6'/><line x1='670' y1='208' x2='721' y2='246' stroke='var(--ink-faint,#7A889B)' stroke-width='1.1' stroke-dasharray='3,4' stroke-opacity='0.6'/><rect x='480' y='248' width='72' height='44' rx='6' fill='var(--ink-faint,#7A889B)' fill-opacity='0.06' stroke='var(--ink-faint,#7A889B)' stroke-width='1.1' stroke-dasharray='4,3'/><text x='516' y='269' text-anchor='middle' font-family='sans-serif' font-size='12' font-weight='bold' fill='var(--ink-faint,#7A889B)'>E1</text><text x='516' y='284' text-anchor='middle' font-family='sans-serif' font-size='8' font-style='italic' fill='var(--ink-faint,#7A889B)'>non routé</text><rect x='583' y='248' width='72' height='44' rx='6' fill='var(--blue,#23537F)' fill-opacity='0.12' stroke='var(--blue,#23537F)' stroke-width='1.4'/><text x='619' y='269' text-anchor='middle' font-family='sans-serif' font-size='12' font-weight='bold' fill='var(--blue,#23537F)'>E2</text><text x='619' y='284' text-anchor='middle' font-family='sans-serif' font-size='8' fill='var(--blue,#23537F)'>actif</text><rect x='685' y='248' width='72' height='44' rx='6' fill='var(--ink-faint,#7A889B)' fill-opacity='0.06' stroke='var(--ink-faint,#7A889B)' stroke-width='1.1' stroke-dasharray='4,3'/><text x='721' y='269' text-anchor='middle' font-family='sans-serif' font-size='12' font-weight='bold' fill='var(--ink-faint,#7A889B)'>E3</text><text x='721' y='284' text-anchor='middle' font-family='sans-serif' font-size='8' font-style='italic' fill='var(--ink-faint,#7A889B)'>non routé</text><rect x='788' y='248' width='72' height='44' rx='6' fill='var(--blue,#23537F)' fill-opacity='0.12' stroke='var(--blue,#23537F)' stroke-width='1.4'/><text x='824' y='269' text-anchor='middle' font-family='sans-serif' font-size='12' font-weight='bold' fill='var(--blue,#23537F)'>E4</text><text x='824' y='284' text-anchor='middle' font-family='sans-serif' font-size='8' fill='var(--blue,#23537F)'>actif</text><line x1='619' y1='293' x2='670' y2='325' stroke='var(--blue,#23537F)' stroke-width='1.6' marker-end='url(#moe-ens-arbl)'/><line x1='824' y1='293' x2='670' y2='325' stroke='var(--blue,#23537F)' stroke-width='1.6' marker-end='url(#moe-ens-arbl)'/><rect x='540' y='327' width='260' height='36' rx='6' fill='var(--blue,#23537F)' fill-opacity='0.06' stroke='var(--blue,#23537F)' stroke-width='1.2'/><text x='670' y='343' text-anchor='middle' font-family='sans-serif' font-size='11' font-weight='bold' fill='var(--ink,#15202E)'>Σ pondérée par les scores de gating</text><text x='670' y='356' text-anchor='middle' font-family='sans-serif' font-size='9' fill='var(--ink-soft,#43536A)'>somme des k=2 sorties actives, spécifique au token</text><line x1='670' y1='363' x2='670' y2='384' stroke='var(--blue,#23537F)' stroke-width='1.4' marker-end='url(#moe-ens-arbl)'/><rect x='635' y='386' width='70' height='28' rx='6' fill='var(--ink-faint,#7A889B)' fill-opacity='0.08' stroke='var(--ink-soft,#43536A)' stroke-width='1.1'/><text x='670' y='404' text-anchor='middle' font-family='sans-serif' font-size='11.5' font-weight='bold' fill='var(--ink,#15202E)'>sortie y</text><text x='670' y='440' text-anchor='middle' font-family='sans-serif' font-size='10.5' fill='var(--ink-soft,#43536A)'>seuls k experts sur N sont calculés &#8594; coût O(k)</text><text x='670' y='457' text-anchor='middle' font-family='sans-serif' font-size='10.5' fill='var(--ink-soft,#43536A)'>experts partagent attention + embeddings, appris end-to-end</text><text x='670' y='476' text-anchor='middle' font-family='sans-serif' font-size='11' font-weight='bold' fill='var(--blue,#23537F)'>capacité &#8733; N, calcul &#8733; k : découplés</text></svg><figcaption><span class='fcap-k'></span>À gauche, un ensemble calcule ses N sous-modèles puis les agrège densément (coût O(N), capacité et calcul couplés) ; à droite, un MoE sparsely-gated ne route le token que vers k experts sur N via un routeur appris, dont les sorties sont sommées pondérément — calcul O(k), capacité et calcul découplés.</figcaption></figure>",
+      "claims": [
+        "claim:24",
+        "claim:25",
+        "claim:26",
+        "claim:27"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "limites-et-trade-offs",
+      "heading": "Limites : instabilités d'entraînement, fine-tuning et coût mémoire au service",
+      "level": 3,
+      "prose": "<p>Les modèles MoE héritent d'une fragilité structurelle au niveau du routeur : l'exponentielle du softmax amplifie de petites différences entre logits de routage, et l'accumulation de grandes valeurs peut déstabiliser la dynamique d'entraînement. Le <strong>router z-loss</strong> (pénalité sur les logits de routage), introduit dans ST-MoE, contrecarre ce phénomène en pénalisant les valeurs absolues élevées — L<sub>z</sub> = (1/B)·Σ<sub>i</sub>(log Σ<sub>j</sub> exp(x<sub>ij</sub>))² — sans dégrader la qualité mesurée. La sensibilité aux hyperparamètres est en outre nettement plus marquée que pour les modèles denses : learning rate, taille de batch et initialisation des poids du routeur constituent autant de leviers d'instabilité. Une configuration sous-optimale suffit à déclencher l'<strong>expert collapse</strong> (effondrement des experts), boucle de rétroaction positive où un expert dominant capte l'essentiel des tokens et prive les autres de gradient utile. Switch Transformer résout une partie de cette fragilité par une stratégie de précision sélective : les entrées du routeur sont castées en float32 pour la stabilité des logits, tandis que le reste du forward pass reste en bfloat16 — première démonstration qu'un grand modèle sparse peut s'entraîner en précision réduite sans instabilité rapportée.</p>\n\n<p>Le fine-tuning amplifie ces tensions. Lors du supervised fine-tuning, la distribution des tokens d'entrée change par rapport au pré-entraînement, et le routing appris — convergé sur les patterns du corpus d'origine — doit s'adapter à un nouveau domaine. Or le gating tend à se verrouiller sur ces patterns ; si le domaine cible s'éloigne suffisamment (passage d'un corpus généraliste à du code ou à une langue spécialisée), la réadaptation du routeur peut déclencher un expert collapse secondaire. En RLHF et entraînement par renforcement, le problème est encore plus aigu : de minuscules différences numériques entre récompenses peuvent modifier le choix d'expert à la marge, induisant des discontinuités dans les gradients et une instabilité cumulative. La pression de load balancing — utile en pré-entraînement — devient contre-productive si l'auxiliary loss est trop forte : elle peut forcer des routings sous-optimaux et dégrader la qualité sur la tâche cible.</p>\n\n<p>Sur le plan qualitatif, les données empiriques disponibles dessinent un pattern nuancé. À budget paramétrique contrôlé, les modèles sparse montrent un avantage relatif sur les tâches <em>knowledge-intensive</em> — questions ouvertes factuelles, où le volume total de paramètres compense la sparseté — tout en présentant des faiblesses sur certains benchmarks de raisonnement déductif, où les modèles denses conservent un avantage. Ce contraste est documenté dans MoE-RBench (denses supérieurs sur TruthfulQA multiple-choice, MoE supérieurs sur Natural Questions), mais reste contesté : DeepSeek-V3 et Mixtral, tous deux MoE, dominent les frontières de Pareto sur des benchmarks de raisonnement dur comme AIME et GPQA-Diamond, ce qui suggère que le désavantage observé tient davantage à l'échelle du fine-tuning et à l'ajustement des hyperparamètres qu'à une limite intrinsèque de l'architecture. Les modèles MoE bénéficient notamment de tailles de batch plus petites et de learning rates plus élevés que leurs homologues denses lors du fine-tuning.</p>\n\n<p>Deux mitigations pratiques s'imposent lors du fine-tuning. La première est le gel des couches non-MoE (attention, layer norms, embeddings) pendant la première phase d'adaptation, en ne laissant s'entraîner que les couches d'experts elles-mêmes : cela réduit le risque d'oubli catastrophique et stabilise le routing hérité du pré-entraînement. La seconde est la knowledge distillation sparse→dense : Switch Transformer montre qu'un mélange de 25 % de probabilités du modèle teacher et 75 % du label de vérité terrain préserve environ 30 % des gains de qualité du modèle sparse dans un modèle dense n'utilisant que 5 % de ses paramètres — solution allégée pour un déploiement sans infrastructure d'expert parallelism, au prix d'une perte de capacité substantielle.</p>\n\n<p>Au service, la contrainte principale est mémorielle : tous les experts doivent résider simultanément en VRAM pour être accessibles au routeur, même si seuls <em>k</em> d'entre eux sont actifs par token. Mixtral 8×7B en est l'illustration directe — 46,7 milliards de paramètres à charger (~90 GB en FP16) pour seulement 12,9 milliards activement parcourus par forward pass. À plus grande échelle, Switch-C (1 571 milliards de paramètres) exige théoriquement 3,2 TB de mémoire — hors de portée de tout serveur standard sans compression. Cette asymétrie définit le trade-off central du déploiement MoE : la capacité du modèle est bon marché en FLOPs actifs, mais coûteuse en VRAM résidente.</p>\n\n<p>La quantization au service est la mitigation la plus efficace de ce coût mémoire, au point de redéfinir le seuil de praticabilité. QMoE (Frantar &amp; Alistarh, MLSys 2024) comprime Switch-C de 3,2 TB à moins de 160 GB — 0,8 bit par paramètre en moyenne, facteur 20× — avec une perte de qualité mineure, en moins d'une journée sur un seul GPU. Cette compression rend pour la première fois exécutable un modèle trillion-paramètre sur un serveur équipé de 4 × NVIDIA A6000 ou 8 × RTX 3090, avec un overhead d'inférence inférieur à 5 % par rapport à l'idéal non compressé. QMoE exploite la robustesse particulière des couches d'experts à la quantization agressive — propriété confirmée indépendamment dans MoQE — et constitue aujourd'hui la voie principale pour déployer des MoE sur une infrastructure GPU à budget contraint. Pour les méthodes de quantization sous-jacentes (PTQ, GPTQ, calibration), voir le thème <em>quantization</em>.</p>",
+      "claims": [
+        "claim:28",
+        "claim:29",
+        "claim:30",
+        "claim:31"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "ecosystem",
+      "heading": "Écosystème et pour aller plus loin",
+      "level": 3,
+      "prose": "<p>La trajectoire académique des MoE modernes couvre huit ans de littérature dense. Le point de départ est <em>Outrageously Large Neural Networks : The Sparsely-Gated Mixture-of-Experts Layer</em> (Shazeer et al., ICLR 2017), qui fixe la formulation canonique du noisy top-k gating et introduit les premières pertes auxiliaires (importance loss, load loss). GShard (Lepikhin et al., 2020) transporte ce cadre dans les Transformers à très grande échelle et définit le capacity threshold, le token dropping et l'expert parallelism par all-to-all sur 2 048 TPU v3. Le Switch Transformer (Fedus, Zoph, Shazeer, JMLR 2022) radicalise le routage en top-1 et formalise la perte auxiliaire en produit <em>f</em>ᵢ · <em>P</em>ᵢ différentiable. ST-MoE (Zoph et al., 2022) est le guide de conception qui diagnostique les instabilités d'entraînement en bfloat16 et introduit la router z-loss pour stabiliser les logits d'entrée du softmax. GLaM (Du et al., ICML 2022) illustre l'argument de l'efficacité énergétique à 1,2 trillion de paramètres. L'expert-choice routing (Zhou et al., NeurIPS 2022) inverse la direction du routage pour garantir l'équilibre par construction, au prix d'une inadaptation à l'inférence autoregressive naïve. La vague 2024-2025 comprend DeepSeekMoE et ses fine-grained experts avec shared experts toujours actifs, DeepSeek-V2 (236B total / 21B actifs) et DeepSeek-V3 (671B total / 37B actifs) avec son bias-based routing sans perte auxiliaire, Mixtral 8×7B (Apache 2.0) de Mistral AI, et les rapports techniques Qwen2-MoE et Qwen3-235B-A22B.</p><p>Trois ressources secondaires couvrent le terrain avec des angles complémentaires. Le billet « Mixture of Experts Explained » de Hugging Face (décembre 2023) reste la synthèse la plus citée : il guide de Shazeer à Mixtral, inclut des recommandations pratiques d'affinage (fine-tuning) et chiffre les contraintes mémoire au déploiement. La revue de NormalUhr, « A Review on the Evolvement of Load Balancing Strategy in MoE LLMs : Pitfalls and Lessons » (janvier 2025, republié sur le blog Hugging Face), retrace chronologiquement toutes les variantes de perte d'équilibrage — de la load loss de GShard à la bias-correction de DeepSeek-V3 — et formule les questions ouvertes restantes sur le plan théorique. Cameron R. Wolfe (newsletter <em>Deep (Learning) Focus</em>) propose deux niveaux d'entrée complémentaires : « Mixture-of-Experts (MoE) LLMs », une synthèse orientée praticiens couvrant architecture, entraînement et inférence sur Mixtral, Grok, DBRX et DeepSeek-V2/V3, et « nanoMoE », une implémentation complète from scratch en PyTorch pré-entraînée sur 25 milliards de tokens qui couvre routage, perte auxiliaire, capacity management et stabilisation avec code reproductible.</p><p>Pour le déploiement à grande échelle, trois bibliothèques se partagent le terrain des noyaux GPU. MegaBlocks (Gale et al., MLSys 2023, maintenu par Databricks) reformule le dispatch MoE en block-sparse matrix multiplication pour éliminer le token dropping tout en maintenant l'exécution parallèle de tous les experts ; il est intégré dans Nanotron (Hugging Face), GPT-NeoX (EleutherAI) et l'implémentation de référence de Mixtral 8×7B. Tutel (Microsoft, MLSys 2023) propose un adaptive parallelism — data parallelism, expert parallelism ou leur combinaison — sélectionné dynamiquement selon la capacité, avec des noyaux all-to-all pipelinés atteignant jusqu'à 5,75× d'accélération sur un cluster A100 de 2 048 GPU Azure ; sa version 2025 supporte GptOss, DeepSeek, Kimi-K2 et Qwen3. DeepSpeed-MoE (Microsoft) offre une API haut niveau documentée par des tutoriels dédiés à l'entraînement NLG et à l'inférence à grande échelle. La contrainte mémoire est par ailleurs attaquée par la quantization : QMoE (Frantar &amp; Alistarh, MLSys 2024) comprime le Switch Transformer-c2048 (1,6 trillion de paramètres) en dessous de 160 Go à 0,8 bit par paramètre, permettant pour la première fois d'inférer un modèle d'un trillion de paramètres sur du hardware abordable (4× NVIDIA A6000 ou 8× RTX 3090) avec moins de 5 % de surcoût.</p>",
+      "claims": [
+        "claim:32",
+        "claim:33",
+        "claim:34"
+      ]
+    },
+    {
+      "type": "exercise",
+      "part": "Découplage capacité / calcul",
+      "question": "<p>Une couche MoE passe de N = 8 à N = 256 experts en gardant k = 2 experts actifs par token. Le coût de calcul par token reste-t-il rigoureusement inchangé&nbsp;? Sous quelle condition l'approximation « calcul indépendant de N » tient-elle&nbsp;?</p>",
+      "answer": "<p>Non&nbsp;: le découplage capacité/calcul n'est qu'<em>approximatif</em>. Le coût d'exécution des experts reste bien proportionnel à k — on ne calcule que 2 FFN, quel que soit N. Mais avant la sélection top-k, le routeur attribue un score à <em>chacun</em> des N experts via une projection linéaire H(x)&nbsp;=&nbsp;x·W_g avec W_g ∈ ℝ<sup>d×N</sup>, soit un coût O(d·N) qui croît avec N. Le coût total par token est donc O(d·N&nbsp;+&nbsp;k·d_ff), pas O(k·d_ff). En passant de 8 à 256 experts, le terme de routage est multiplié par 32. L'approximation « calcul indépendant de N » ne tient que lorsque ce terme de routage est négligeable devant le coût FFN des experts actifs, c'est-à-dire quand les experts sont assez lourds&nbsp;: d_ff ≫ d·N/k. Le papier de Shazeer et al. (2017) ne revendique d'ailleurs pas une indépendance absolue de N, mais «&nbsp;only minor losses in computational efficiency&nbsp;».</p>"
+    },
+    {
+      "type": "exercise",
+      "part": "Équilibrage de charge",
+      "question": "<p>Sans contrainte explicite, le routeur d'un MoE top-1 tend à concentrer les tokens sur quelques experts. Comment nomme-t-on ce phénomène et quel en est le mécanisme&nbsp;? En quoi le load balancing <em>auxiliary-loss-free</em> de DeepSeek-V3 se distingue-t-il d'une auxiliary loss classique à la Switch Transformer&nbsp;?</p>",
+      "answer": "<p>C'est l'<strong>expert collapse</strong>, produit par une boucle <em>rich-get-richer</em>&nbsp;: plus un expert est sélectionné, plus il reçoit de gradient, plus il s'améliore, plus son score de gating monte — tandis que les experts non routés subissent une privation de gradient (<em>gradient starvation</em>&nbsp;: zéro gradient par token non routé) et stagnent. La couche devient alors fonctionnellement équivalente à un modèle bien plus petit que sa capacité nominale.</p><p>La parade canonique ajoute à la perte principale une <strong>auxiliary load-balancing loss</strong> (Switch&nbsp;: L<sub>aux</sub>&nbsp;=&nbsp;α·N·Σ<sub>i</sub> f<sub>i</sub>·P<sub>i</sub>, α&nbsp;=&nbsp;0,01), mais un coefficient trop élevé perturbe la descente de gradient principale et peut dégrader la qualité sur la tâche cible. DeepSeek-V3 s'en affranchit&nbsp;: il ajoute un <strong>biais dynamique b<sub>i</sub> par expert</strong> aux scores de <em>sélection</em> — TopK({s<sub>j,t</sub>&nbsp;+&nbsp;b<sub>j</sub>}, K<sub>r</sub>), b<sub>i</sub> incrémenté si l'expert est sous-chargé, décrémenté s'il est surchargé après chaque pas — mais exclut b<sub>i</sub> du calcul des <em>poids de gating finaux</em>. Il dissocie ainsi la décision de routage (biaisée pour l'équilibre) de la pondération des sorties (fidèle au signal appris), sans polluer le gradient de langage&nbsp;: résultat, aucun token droppé sur les 14,8&nbsp;T tokens de pré-entraînement. Le prix est un hyperparamètre γ supplémentaire et un état mutable (les b<sub>i</sub>) à synchroniser entre replicas.</p>"
+    },
+    {
+      "type": "biblio",
+      "entries": [
+        {
+          "label": "Switch Transformers: Scaling to Trillion Parameter Models with Simple and Efficient Sparsity (Fedus et al., 2021)",
+          "href": "https://arxiv.org/abs/2101.03961"
+        },
+        {
+          "label": "Mixture of experts — Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/Mixture_of_experts"
+        },
+        {
+          "label": "Outrageously Large Neural Networks: The Sparsely-Gated Mixture-of-Experts Layer (arXiv:1701.06538)",
+          "href": "https://arxiv.org/abs/1701.06538"
+        },
+        {
+          "label": "Understanding the Sparsely-Gated MoE Layer — Bhushan Shah (Medium)",
+          "href": "https://medium.com/@bhushan.shah05/outrageously-large-neural-networks-understanding-the-sparsely-gated-mixture-of-experts-layer-b009f156941e"
+        },
+        {
+          "label": "Papers Explained 448: Sparsely-Gated MoE Layer — Ritvik Rastogi (Medium)",
+          "href": "https://ritvik19.medium.com/papers-explained-448-sparsely-gated-mixture-of-experts-layer-e3462e8c0232"
+        },
+        {
+          "label": "Outrageously Large Neural Networks — paper page (Hugging Face)",
+          "href": "https://huggingface.co/papers/1701.06538"
+        },
+        {
+          "label": "Mixture of Experts Explained — Hugging Face Blog",
+          "href": "https://huggingface.co/blog/moe"
+        },
+        {
+          "label": "A Review on the Evolvement of Load Balancing Strategy in MoE LLMs — Hugging Face Blog",
+          "href": "https://huggingface.co/blog/NormalUhr/moe-balance"
+        },
+        {
+          "label": "Auxiliary-Loss-Free Load Balancing Strategy for Mixture-of-Experts (Wang et al., 2024)",
+          "href": "https://arxiv.org/html/2408.15664v1"
+        },
+        {
+          "label": "GShard: Scaling Giant Models with Conditional Computation and Automatic Sharding (ICLR 2021)",
+          "href": "https://arxiv.org/abs/2006.16668"
+        },
+        {
+          "label": "GShard: Scaling Giant Models with Conditional Computation and Automatic Sharding (ICLR 2021, OpenReview)",
+          "href": "https://openreview.net/pdf/cdb90e31da8446076492c5aef0c8c6ae35dd472a.pdf"
+        },
+        {
+          "label": "Mixture-of-Experts with Expert Choice Routing (Zhou et al., 2022)",
+          "href": "https://arxiv.org/abs/2202.09368"
+        },
+        {
+          "label": "Expert Threshold Routing for Autoregressive Language Modeling with Dynamic Computation Allocation and Load Balancing (2025)",
+          "href": "https://arxiv.org/abs/2603.11535"
+        },
+        {
+          "label": "Expert Threshold Routing for Autoregressive Language Modeling with Dynamic Computation Allocation and Load Balancing",
+          "href": "https://arxiv.org/html/2603.11535"
+        },
+        {
+          "label": "Mixture-of-Experts with Expert Choice Routing — Google Research Blog",
+          "href": "https://research.google/blog/mixture-of-experts-with-expert-choice-routing/"
+        },
+        {
+          "label": "Expert-Choice Routing Enables Adaptive Computation in Diffusion Language Models (arXiv:2604.01622)",
+          "href": "https://arxiv.org/html/2604.01622"
+        },
+        {
+          "label": "Switch Transformers: Scaling to Trillion Parameter Models with Simple and Efficient Sparsity (ar5iv HTML, Section 2.2)",
+          "href": "https://ar5iv.labs.arxiv.org/html/2101.03961"
+        },
+        {
+          "label": "Routing and balancing losses with Mixture of Experts (DEV Community)",
+          "href": "https://dev.to/lewis_won/routing-and-balancing-losses-with-mixture-of-experts-19be"
+        },
+        {
+          "label": "Switch Transformer paper review – DOCSAID",
+          "href": "https://docsaid.org/en/papers/transformers/switch-transformer/"
+        },
+        {
+          "label": "Mixture of Experts — Yuxi Liu (yuxi.ml)",
+          "href": "https://yuxi.ml/essays/posts/mixture-of-experts/"
+        },
+        {
+          "label": "How MoE Models Actually Learn: A Guide to Auxiliary Losses and Expert Balancing (Chris Hughes, Medium)",
+          "href": "https://medium.com/@chris.p.hughes10/how-moe-models-actually-learn-a-guide-to-auxiliary-losses-and-expert-balancing-293084e3f600"
+        },
+        {
+          "label": "Switch Transformers vs. Mixtral's Natural Balance (Uday Aditya, Medium)",
+          "href": "https://medium.com/@pilliudayaditya1207/understanding-mixture-of-experts-switch-transformers-load-balancing-vs-mixtral-s-natural-balance-25ed528cadfe"
+        },
+        {
+          "label": "MegaBlocks: Efficient Sparse Training with Mixture-of-Experts (arXiv 2211.15841) — pré-entraînement : no-drop 1,73× meilleur",
+          "href": "https://arxiv.org/abs/2211.15841"
+        },
+        {
+          "label": "OpenMoE: An Early Effort on Open Mixture-of-Experts Language Models (arXiv 2402.01739) — Drop-Towards-the-End, dégradation sur tâches séquentielles",
+          "href": "https://arxiv.org/abs/2402.01739"
+        },
+        {
+          "label": "ST-MoE: Designing Stable and Transferable Sparse Expert Models (Zoph et al., 2022) — arXiv 2202.08906",
+          "href": "https://arxiv.org/abs/2202.08906"
+        },
+        {
+          "label": "DeepSeek-V3 Technical Report (arXiv:2412.19437)",
+          "href": "https://arxiv.org/html/2412.19437"
+        },
+        {
+          "label": "DeepSeek-V3 — Advances in MoE Load Balancing and Multi-Token Prediction Training (Yugen.ai / Medium)",
+          "href": "https://medium.com/yugen-ai-technology-blog/deepseek-v3-advances-in-moe-load-balancing-and-multi-token-prediction-training-f6d68c59749c"
+        },
+        {
+          "label": "DeepSeek-V3 Technical Report (arXiv:2412.19437)",
+          "href": "https://arxiv.org/abs/2412.19437"
+        },
+        {
+          "label": "Auxiliary-Loss-Free Load Balancing Strategy for Mixture-of-Experts (arXiv:2408.15664)",
+          "href": "https://arxiv.org/abs/2408.15664"
+        },
+        {
+          "label": "DeepSeekMoE: Towards Ultimate Expert Specialization in Mixture-of-Experts Language Models (arXiv HTML)",
+          "href": "https://arxiv.org/html/2401.06066v1"
+        },
+        {
+          "label": "Review — DeepSeekMoE: Towards Ultimate Expert Specialization in Mixture-of-Experts Language Models (Sik-Ho Tsang, Medium)",
+          "href": "https://sh-tsang.medium.com/review-deepseekmoe-towards-ultimate-expert-specialization-in-mixture-of-experts-language-models-e1536c4304cb"
+        },
+        {
+          "label": "DeepSeekMoE: Towards Ultimate Expert Specialization in Mixture-of-Experts Language Models (arXiv 2401.06066)",
+          "href": "https://arxiv.org/html/2401.06066"
+        },
+        {
+          "label": "DeepSeekMoE: Towards Ultimate Expert Specialization in Mixture-of-Experts Language Models (arXiv 2401.06066)",
+          "href": "https://arxiv.org/abs/2401.06066"
+        },
+        {
+          "label": "DeepSeekMoE: Towards Ultimate Expert Specialization in Mixture-of-Experts Language Models (ACL 2024, peer-reviewed)",
+          "href": "https://aclanthology.org/2024.acl-long.70/"
+        },
+        {
+          "label": "SonicMoE: A Hardware-Efficient and Software-Extensible Blueprint for Fine-Grained MoEs (arxiv 2512.14080)",
+          "href": "https://arxiv.org/html/2512.14080v1"
+        },
+        {
+          "label": "MoE at Scale: Making Sparse Models Fast on Real Hardware (Cerebras)",
+          "href": "https://www.cerebras.ai/blog/moe-guide-scale"
+        },
+        {
+          "label": "The qs Inequality: Quantifying the Double Penalty of Mixture-of-Experts at Inference (arxiv 2603.08960)",
+          "href": "https://arxiv.org/abs/2603.08960"
+        },
+        {
+          "label": "DeepSeek-V3 — NVIDIA NeMo Megatron Bridge documentation",
+          "href": "https://docs.nvidia.com/nemo/megatron-bridge/0.2.0/models/llm/deepseek-v3.html"
+        },
+        {
+          "label": "DeepSeek-V3 Technical Details — Grigory Sapunov (Gonzo ML Substack)",
+          "href": "https://gonzoml.substack.com/p/deepseek-v3-technical-details"
+        },
+        {
+          "label": "The Inner Workings of DeepSeek-V3 — Chris McCormick",
+          "href": "https://mccormickml.com/2025/02/12/the-inner-workings-of-deep-seek-v3/"
+        },
+        {
+          "label": "GShard: Scaling Giant Models with Conditional Computation and Automatic Sharding (ar5iv HTML, papier complet)",
+          "href": "https://ar5iv.labs.arxiv.org/html/2006.16668"
+        },
+        {
+          "label": "Shortcut-connected Expert Parallelism for Accelerating Mixture-of-Experts (arxiv 2404.05019)",
+          "href": "https://arxiv.org/html/2404.05019v1"
+        },
+        {
+          "label": "Expert Parallelism in Deep Learning — DigitalOcean Community Tutorial",
+          "href": "https://www.digitalocean.com/community/tutorials/expert-parallelism-in-deep-learning"
+        },
+        {
+          "label": "Brief Review — GShard: Scaling Giant Models with Conditional Computation and Automatic Sharding (Sik-Ho Tsang, Medium)",
+          "href": "https://sh-tsang.medium.com/brief-review-gshard-scaling-giant-models-with-conditional-computation-and-automatic-sharding-91393d98f7a4"
+        },
+        {
+          "label": "Optimizing Communication for Mixture-of-Experts Training with Hybrid Expert Parallel (NVIDIA Technical Blog)",
+          "href": "https://developer.nvidia.com/blog/optimizing-communication-for-mixture-of-experts-training-with-hybrid-expert-parallel/"
+        },
+        {
+          "label": "MegaScale-MoE: Large-Scale Communication-Efficient Training of Mixture-of-Experts Models in Production (arXiv 2505.11432)",
+          "href": "https://arxiv.org/html/2505.11432v3"
+        },
+        {
+          "label": "Comet: Fine-grained Computation-communication Overlapping for Mixture-of-Experts (arXiv 2025)",
+          "href": "https://arxiv.org/html/2502.19811"
+        },
+        {
+          "label": "Scaling Large MoE Models with Wide Expert Parallelism on NVL72 Rack Scale Systems — NVIDIA Technical Blog",
+          "href": "https://developer.nvidia.com/blog/scaling-large-moe-models-with-wide-expert-parallelism-on-nvl72-rack-scale-systems/"
+        },
+        {
+          "label": "Mixtral of Experts (arXiv 2401.04088, Mistral AI)",
+          "href": "https://arxiv.org/abs/2401.04088"
+        },
+        {
+          "label": "Mixtral-8x7B: Understanding and Running the Sparse Mixture of Experts — Kaitchup/Substack",
+          "href": "https://kaitchup.substack.com/p/mixtral-8x7b-understanding-and-running"
+        },
+        {
+          "label": "MoE Models Explained: Why Mixtral Uses 46B Parameters But Runs Like 13B — InsiderLLM",
+          "href": "https://insiderllm.com/guides/moe-models-explained/"
+        },
+        {
+          "label": "mistralai/Mixtral-8x7B-v0.1 · [AUTOMATED] Model Memory Requirements — Hugging Face",
+          "href": "https://huggingface.co/mistralai/Mixtral-8x7B-v0.1/discussions/43"
+        },
+        {
+          "label": "DeepSeek-V2: A Strong, Economical, and Efficient Mixture-of-Experts Language Model (arXiv HTML)",
+          "href": "https://arxiv.org/html/2405.04434"
+        },
+        {
+          "label": "Papers Explained 449: Switch Transformers — analyse indépendante (Ritvik Rastogi, Medium, sept. 2025)",
+          "href": "https://ritvik19.medium.com/papers-explained-449-switch-transformers-5c3d3d877fb7"
+        },
+        {
+          "label": "GLaM: Efficient Scaling of Language Models with Mixture-of-Experts (arXiv 2112.06905, ar5iv full text)",
+          "href": "https://ar5iv.labs.arxiv.org/html/2112.06905"
+        },
+        {
+          "label": "OpenAI Presents GPT-3, a 175 Billion Parameters Language Model — NVIDIA Technical Blog",
+          "href": "https://developer.nvidia.com/blog/openai-presents-gpt-3-a-175-billion-parameters-language-model/"
+        },
+        {
+          "label": "Mixtral of Experts — Mistral AI official announcement",
+          "href": "https://mistral.ai/news/mixtral-of-experts/"
+        },
+        {
+          "label": "Mixtral 8x7B: paving the trend to adopt the Mixture of Experts model — HPE Developer Portal",
+          "href": "https://developer.hpe.com/blog/mixtral-8x7b-that-may-pave-the-trend-to-adopt-the-mixture-of-experts-model/"
+        },
+        {
+          "label": "DeepSeek v3 and R1 Model Architecture — Fireworks AI",
+          "href": "https://fireworks.ai/blog/deepseek-model-architecture"
+        },
+        {
+          "label": "DeepSeek-V3 Technical Report (arXiv:2412.19437v1)",
+          "href": "https://arxiv.org/html/2412.19437v1"
+        },
+        {
+          "label": "Mixture of Experts: How an Ensemble of AI Models Act as One — Deepgram",
+          "href": "https://deepgram.com/learn/mixture-of-experts-ml-model-guide"
+        },
+        {
+          "label": "Viola–Jones object detection framework — Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/Viola%E2%80%93Jones_object_detection_framework"
+        },
+        {
+          "label": "Divide, Specialize, and Route: A New Approach to Efficient Ensemble Learning (arXiv 2506.20814)",
+          "href": "https://arxiv.org/html/2506.20814v1"
+        },
+        {
+          "label": "Sparsely-gated Mixture of Experts (MoE) — Eli Bendersky's website",
+          "href": "https://eli.thegreenplace.net/2025/sparsely-gated-mixture-of-experts-moe/"
+        },
+        {
+          "label": "The Myth of Expert Specialization in MoEs: Why Routing Reflects Geometry, Not Necessarily Domain Expertise (arXiv:2604.09780)",
+          "href": "https://arxiv.org/abs/2604.09780"
+        },
+        {
+          "label": "OLMoE: Open Mixture-of-Experts Language Models (arXiv:2409.02060)",
+          "href": "https://arxiv.org/html/2409.02060v1"
+        },
+        {
+          "label": "Multilingual Routing in Mixture-of-Experts (arXiv:2510.04694)",
+          "href": "https://arxiv.org/html/2510.04694v2"
+        },
+        {
+          "label": "ST-MoE: Designing Stable and Transferable Sparse Expert Models (Zoph et al., 2022)",
+          "href": "https://arxiv.org/pdf/2202.08906"
+        },
+        {
+          "label": "HuggingFace Transformers — SwitchTransformersTop1Router.forward(), float32 casting du softmax",
+          "href": "https://github.com/huggingface/transformers/blob/main/src/transformers/models/switch_transformers/modeling_switch_transformers.py"
+        },
+        {
+          "label": "QMoE: Practical Sub-1-Bit Compression of Trillion-Parameter Models (arXiv:2310.16795)",
+          "href": "https://arxiv.org/abs/2310.16795"
+        },
+        {
+          "label": "Switch Transformers C–2048 (1.6T params) — Hacker News discussion",
+          "href": "https://news.ycombinator.com/item?id=38348671"
+        },
+        {
+          "label": "QMoE: Sub-1-bit compression of trillion parameter models — ISTA Research Explorer",
+          "href": "https://research-explorer.ista.ac.at/record/18061"
+        },
+        {
+          "label": "MoE-RBench: Towards Building Reliable Language Models with Sparse Mixture-of-Experts (arXiv 2406.11353)",
+          "href": "https://arxiv.org/html/2406.11353v1"
+        },
+        {
+          "label": "MoE-RBench: Towards a Comprehensive Assessment of Mixture-of-Experts Reliability (arXiv:2406.11353)",
+          "href": "https://arxiv.org/abs/2406.11353"
+        },
+        {
+          "label": "Compute-Accuracy Pareto Frontiers for Open-Source Reasoning LLMs (arXiv:2512.24776)",
+          "href": "https://arxiv.org/abs/2512.24776"
+        },
+        {
+          "label": "Run Mixtral-8x7B on Consumer Hardware with Expert Offloading (Medium/TDS)",
+          "href": "https://medium.com/data-science/run-mixtral-8x7b-on-consumer-hardware-with-expert-offloading-bd3ada394688"
+        },
+        {
+          "label": "QMoE: Sub-1-Bit Compression of Trillion Parameter Models — MLSys 2024 Proceedings",
+          "href": "https://proceedings.mlsys.org/paper_files/paper/2024/hash/c74b624843218d9b6713fcf299d6d5e4-Abstract-Conference.html"
+        },
+        {
+          "label": "stanford-futuredata/megablocks — GitHub (auteurs, MLSys 2023, block-sparse, Megatron-LM)",
+          "href": "https://github.com/stanford-futuredata/megablocks"
+        },
+        {
+          "label": "EleutherAI/gpt-neox — GitHub (confirme intégration MegaBlocks comme moe_type par défaut)",
+          "href": "https://github.com/eleutherai/gpt-neox"
+        },
+        {
+          "label": "huggingface/nanotron issue #159 — MoE indépendant, non intégration MegaBlocks",
+          "href": "https://github.com/huggingface/nanotron/issues/159"
+        },
+        {
+          "label": "mistralai/mistral-src — GitHub (pas de mention de MegaBlocks dans l'implémentation de référence)",
+          "href": "https://github.com/mistralai/mistral-src"
+        },
+        {
+          "label": "EleutherAI/gpt-neox README — DMoE via megablocks",
+          "href": "https://github.com/EleutherAI/gpt-neox/blob/main/README.md"
+        },
+        {
+          "label": "QMoE full paper — ar5iv HTML render",
+          "href": "https://ar5iv.labs.arxiv.org/html/2310.16795"
+        }
+      ]
+    },
+    {
+      "type": "pointers",
+      "title": "Pour aller plus loin",
+      "items": [
+        {
+          "name": "Outrageously Large Neural Networks: The Sparsely-Gated Mixture-of-Experts Layer (Shazeer et al., 2017)",
+          "url": "https://arxiv.org/abs/1701.06538",
+          "kind": "reading",
+          "blurb": "Article fondateur du noisy top-k gating : formules complètes du routeur, importance loss et load loss ; démontre plus de 1 000× d'augmentation de capacité jusqu'à 137 B paramètres."
+        },
+        {
+          "name": "Mixture-of-Experts with Expert Choice Routing (Zhou et al., NeurIPS 2022)",
+          "url": "https://arxiv.org/abs/2202.09368",
+          "kind": "reading",
+          "blurb": "Inversion du routage : chaque expert sélectionne ses top-c tokens, garantissant l'équilibre par construction sans perte auxiliaire ; accélère la convergence de 2× sur 8B/64 experts, avec la limite autorégressive identifiée."
+        },
+        {
+          "name": "Mixture of Experts Explained — Hugging Face Blog",
+          "url": "https://huggingface.co/blog/moe",
+          "kind": "reading",
+          "blurb": "Synthèse pédagogique couvrant noisy top-k gating, capacity factor, token dropping et expert-choice routing, avec pseudocode et comparaisons d'implémentations open-source."
+        },
+        {
+          "name": "Switch Transformers: Scaling to Trillion Parameter Models with Simple and Efficient Sparsity (Fedus, Zoph, Shazeer — JMLR 2022)",
+          "url": "https://arxiv.org/abs/2101.03961",
+          "kind": "reading",
+          "blurb": "Top-1 routing ; formalise la perte auxiliaire fᵢ · Pᵢ et le capacity factor ; Switch-Base atteint le niveau de T5-Base 7,5× plus vite à FLOPs/token identiques, avec analyse des instabilités bfloat16."
+        },
+        {
+          "name": "ST-MoE: Designing Stable and Transferable Sparse Expert Models (Zoph et al., 2022)",
+          "url": "https://arxiv.org/abs/2202.08906",
+          "kind": "reading",
+          "blurb": "Formalisation de la router z-loss, analyse du token dropping tolérable (jusqu'à 11 %) et stratégies de fine-tuning stable sur un modèle à 269 B paramètres."
+        },
+        {
+          "name": "GShard: Scaling Giant Models with Conditional Computation and Automatic Sharding (Lepikhin et al., 2020)",
+          "url": "https://arxiv.org/abs/2006.16668",
+          "kind": "reading",
+          "blurb": "Premier MoE industriel à 600 B paramètres ; introduit le top-2 routing avec random routing secondaire et l'auto-sharding XLA pour la traduction multilingue à 100 langues."
+        },
+        {
+          "name": "GLaM: Efficient Scaling of Language Models with Mixture-of-Experts (Du et al., ICML 2022)",
+          "url": "https://arxiv.org/abs/2112.06905",
+          "kind": "reading",
+          "blurb": "1,2 T paramètres totaux, 97 B actifs par token, 64 experts, top-2 ; consomme environ 1/3 de l'énergie d'entraînement de GPT-3 pour des performances supérieures sur 29 benchmarks NLP."
+        },
+        {
+          "name": "GLaM — Google Research Blog",
+          "url": "https://research.google/blog/more-efficient-in-context-learning-with-glam/",
+          "kind": "reading",
+          "blurb": "Annonce officielle Google Research du GLaM (décembre 2021) : 1,2 T paramètres totaux, 97 B actifs par token via top-2 routing, avec comparaison d'efficacité énergétique et de performances vs GPT-3."
+        },
+        {
+          "name": "Mixtral of Experts (Jiang et al., arXiv 2401.04088)",
+          "url": "https://arxiv.org/abs/2401.04088",
+          "kind": "reading",
+          "blurb": "Premier grand MoE open-weights (46,7 B total / 12,9 B actifs) ; rapport technique décrivant l'architecture 8×7B et les benchmarks comparatifs vs Llama 2 70B et GPT-3.5."
+        },
+        {
+          "name": "DeepSeekMoE: Towards Ultimate Expert Specialization in Mixture-of-Experts Language Models (Dai et al., 2024)",
+          "url": "https://arxiv.org/abs/2401.06066",
+          "kind": "reading",
+          "blurb": "Introduit le fine-grained expert segmentation (hidden_dim réduit à 1/m) et les shared experts toujours actifs pour absorber les connaissances générales et libérer les experts routés pour la spécialisation."
+        },
+        {
+          "name": "DeepSeek-V2: A Strong, Economical, and Efficient Mixture-of-Experts Language Model (2024)",
+          "url": "https://arxiv.org/abs/2405.04434",
+          "kind": "reading",
+          "blurb": "236 B total / 21 B actifs : 160 experts routés + 2 shared, top-8 routing, trois niveaux de perte d'équilibrage (expert-level, device-level, communication cross-device)."
+        },
+        {
+          "name": "DeepSeek-V3 Technical Report (DeepSeek-AI, 2024)",
+          "url": "https://arxiv.org/abs/2412.19437",
+          "kind": "reading",
+          "blurb": "671 B paramètres totaux / 37 B actifs ; décrit l'auxiliary-loss-free load balancing par biais dynamique b_i par expert, 256 experts routés, et le multi-token prediction comme objectif additionnel."
+        },
+        {
+          "name": "Qwen3 Technical Report (Alibaba Qwen Team, arXiv 2505.09388)",
+          "url": "https://arxiv.org/abs/2505.09388",
+          "kind": "reading",
+          "blurb": "Série Qwen3 MoE (235B-A22B, 30B-A3B) : top-8 routing sur 128 experts, suppression des shared experts par rapport à DeepSeekMoE, environ 1/5 des paramètres actifs pour performances équivalentes aux modèles denses."
+        },
+        {
+          "name": "QMoE — IST-DASLab (GitHub)",
+          "url": "https://github.com/IST-DASLab/qmoe",
+          "kind": "implementation",
+          "blurb": "Implémentation officielle de QMoE (Frantar & Alistarh) : compression sub-1-bit du Switch Transformer trillion-paramètre, avec kernels CUDA de décompression à la volée et modèles pré-compressés sur Hugging Face."
+        },
+        {
+          "name": "MoE-RBench: Towards Building Reliable Language Models with Sparse Mixture-of-Experts (arXiv 2406.11353)",
+          "url": "https://arxiv.org/html/2406.11353v1",
+          "kind": "reading",
+          "blurb": "Benchmark de fiabilité des LLM sparse : comparaison systématique MoE vs dense sur sécurité, hallucinations, robustesse adversariale et robustesse out-of-distribution."
+        }
+      ]
+    },
+    {
+      "type": "glossary"
+    }
+  ]
+}

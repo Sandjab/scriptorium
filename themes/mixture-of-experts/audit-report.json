@@ -1,0 +1,1072 @@
+{
+  "generator": "frugalmonograph",
+  "theme": {
+    "slug": "mixture-of-experts",
+    "title": "Mixture of Experts (MoE) : la couche sparsely-gated qui découple capacité et calcul"
+  },
+  "summary": {
+    "sections_total": 9,
+    "sections_retained": 9,
+    "claims_total": 34,
+    "confirmed": 8,
+    "corrected": 25,
+    "rejected": 1,
+    "retained": 33
+  },
+  "claims": [
+    {
+      "id": "claim:1",
+      "section": "principe-sparsely-gated",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "La couche sparsely-gated MoE de Shazeer et al. (2017) découple *approximativement* capacité paramétrique et coût de calcul : les paramètres experts croissent avec N tandis que le coût d'exécution des experts actifs est proportionnel à k. Cependant, le découplage n'est pas exact : le réseau de gating doit calculer H(x) = x·W_g avec W_g ∈ ℝ^{d×N}, soit un coût O(d·N) qui dépend bien de N avant la sélection top-k. Le coût total par token est O(d·N + k·d_ff), pas simplement O(k·d_ff). Le papier lui-même ne revendique pas une indépendance absolue de N mais « only minor losses in computational efficiency » — ce qui suppose que la condition d_ff ≫ d·N/k soit satisfaite (experts assez lourds pour amortir le routage).",
+      "original_statement": "La couche sparsely-gated MoE de Shazeer et al. (2017) découple capacité paramétrique et coût de calcul : le nombre total de paramètres croît avec N (nombre d'experts) tandis que le coût en FLOPs actifs par token reste proportionnel à k (experts activés), indépendamment de N.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "L'énoncé surévalue l'indépendance par rapport à N : le réseau de gating (W_g ∈ ℝ^{d×N}) exige O(d·N) FLOPs pour scorer tous les experts avant top-k, donc le coût par token dépend bien de N. Le papier revendique une quasi-indépendance conditionnelle (experts suffisamment larges), pas une indépendance absolue — il parle de « minor losses in efficiency », non de zéro coût additionnel."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le papier Shazeer et al. (2017) confirme explicitement le découplage : le masque de gating met G(x)_i=0 pour les experts non sélectionnés, donc seuls k experts sont calculés par token quel que soit N ; les données empiriques montrent ~8.7M ops/timestep pour k=4 que N=256 ou N=4096. La seule nuance : le réseau de gating calcule des scores pour les N experts (coût O(N)), mais ce coût est négligeable face aux passes FFN des experts actifs — le papier et la littérature subséquente (Switch Transformer) traitent bien le coût actif comme proportionnel à k, indépendamment de N."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « La couche sparsely-gated MoE de Shazeer et al. (2017) découple capacité paramétrique et coût de calcul : le nombre total de paramètres croît avec N (nombre d'experts) tandis que le coût en FLOPs actifs par token reste proportionnel à k (experts activés), indépendamment de N. »"
+    },
+    {
+      "id": "claim:2",
+      "section": "principe-sparsely-gated",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Shazeer et al. (2017) proposent des modèles MoE pouvant atteindre jusqu'à 137 milliards de paramètres — mais ce modèle est utilisé sur le corpus Google News (100 milliards de mots), pas sur le 1 Billion Word Benchmark. Ce sont des modèles MoE d'environ 4 milliards de paramètres (~28× la capacité du meilleur LSTM de référence, Jozefowicz et al. 2016, 151 M params) qui établissent la meilleure perplexité publiée sur le 1 Billion Word Benchmark (28,0 contre 34,7). Le \"plus de 1 000 fois\" cité dans le papier désigne l'amélioration de capacité à budget computationnel équivalent — pas le rapport brut au meilleur LSTM de l'époque (137B/151M ≈ 907×, strictement inférieur à 1 000×). Les meilleures performances BLEU en traduction (40,56 sur WMT'14 En→Fr ; 26,03 sur En→De) sont atteintes par un modèle de 8,7 milliards de paramètres à budget computationnel inférieur à celui de GNMT. Les résultats BLEU et d'efficacité computationnelle sont confirmés ; la liaison entre le modèle à 137 milliards de paramètres et le benchmark 1 Billion Word est erronée.",
+      "original_statement": "Le modèle MoE de Shazeer et al. (2017) atteint 137 milliards de paramètres — plus de 1 000 fois la capacité des LSTM de référence de l'époque — et établit la meilleure perplexité publiée sur le 1 Billion Word Benchmark ainsi que les meilleures performances BLEU en traduction automatique, à budget computationnel inférieur aux modèles denses concurrents.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Deux erreurs factuelles distinctes : (1) le modèle à 137 milliards de paramètres est expérimenté sur le corpus Google News (100B mots), non sur le 1 Billion Word Benchmark — les résultats de perplexité sur ce benchmark proviennent de modèles à ~4,3 milliards de paramètres (Table 1, PDF p. 6-7) ; (2) le « plus de 1 000 fois » du papier désigne la capacité par unité de calcul à budget équivalent, et non le rapport brut de paramètres avec le meilleur LSTM contemporain (Jozefowicz et al., 151 M params → 137B/151M ≈ 907×, inférieur à 1 000×). Les claims BLEU (40,56/26,03) et d'infériorité du budget computationnel sont confirmés par la Table 2/3 du papier."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le claim « plus de 1 000 fois la capacité des LSTM de référence » est incorrect : le ratio direct est 137 B / 151 M ≈ 907×, soit moins de 1 000×. Le « >1000× » utilisé dans le papier original désigne l'efficacité du conditional computation (même budget compute qu'un modèle dense ~137 M de paramètres, mais 1 000× plus de capacité totale), non une comparaison directe au LSTM de Jozefowicz et al. Tous les autres sous-claims (137 B, meilleure perplexité sur 1 B Word, meilleur BLEU, coût inférieur aux denses) sont confirmés par le papier source."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Le modèle MoE de Shazeer et al. (2017) atteint 137 milliards de paramètres — plus de 1 000 fois la capacité des LSTM de référence de l'époque — et établit la meilleure perplexité publiée sur le 1 Billion Word Benchmark ainsi que les meilleures performances BLEU en traduction automatique, à budget computationnel inférieur aux modèles denses concurrents. »"
+    },
+    {
+      "id": "claim:3",
+      "section": "principe-sparsely-gated",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Le noisy top-k gating — ajout d'un bruit gaussien dont l'amplitude est apprise aux scores d'experts avant la sélection du top-k — est le mécanisme fondateur pour équilibrer la charge dans les MoE sparses (Shazeer et al., 2017) ; les architectures modernes majeures lui ont substitué des pertes auxiliaires d'équilibrage sans bruit (Switch Transformer), des biais expert-level ajustés dynamiquement sans loss auxiliaire (DeepSeek-V3), ou n'utilisent aucun bruit de routage explicite (Mixtral).",
+      "original_statement": "Le noisy top-k gating — ajout d'un bruit gaussien appris aux scores d'experts avant la sélection du top-k — est le mécanisme standard pour équilibrer la charge dans les architectures MoE sparses modernes.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 5,
+          "note": "La description technique est exacte pour le papier original de 2017, mais l'énoncé échoue sur \"mécanisme standard des architectures modernes\" : Switch Transformer (2021) a explicitement abandonné le bruit gaussien au profit d'une auxiliary loss pure, Mixtral n'utilise aucun mécanisme de bruit explicite, et DeepSeek-V3 adopte une approche sans auxiliary loss basée sur des biais expert-level dynamiques — la littérature récente confirme que le noisy top-k n'est plus la norme dominante."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "La description du mécanisme est précise : le bruit est bien gaussien (StandardNormal), sa magnitude est apprise via W_noise, et il est ajouté avant KeepTopK pour favoriser l'équilibrage — tel que défini page 4 du papier original. En revanche, qualifier ce mécanisme de « standard pour les architectures MoE sparses modernes » est inexact : Switch Transformer (2021) l'a remplacé par une perte auxiliaire déterministe, approche suivie par la quasi-totalité des modèles MoE post-2021."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « Le noisy top-k gating — ajout d'un bruit gaussien appris aux scores d'experts avant la sélection du top-k — est le mécanisme standard pour équilibrer la charge dans les architectures MoE sparses modernes. »"
+    },
+    {
+      "id": "claim:4",
+      "section": "routing-et-gating",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Le noisy top-k gating (Shazeer 2017) calcule H(x)_i = (x·W_g)_i + StandardNormal()·Softplus((x·W_noise)_i), applique KeepTopK pour annuler les experts hors sélection (−∞), puis normalise via softmax. Le bruit gaussien d'amplitude apprise (W_noise) sert à l'équilibrage de charge pendant l'entraînement ; le papier original ne stipule pas explicitement qu'il est désactivé à l'inférence.",
+      "original_statement": "Le noisy top-k gating (Shazeer 2017) calcule H(x)_i = (x·W_g)_i + StandardNormal()·Softplus((x·W_noise)_i), applique KeepTopK pour annuler les experts hors sélection (−∞), puis normalise via softmax ; le bruit gaussien d'amplitude apprise (W_noise) est actif uniquement à l'entraînement et désactivé à l'inférence.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le triplet formule/KeepTopK/softmax est exactement conforme aux équations (3)–(5) du papier. En revanche, le papier ne contient aucune instruction explicite désactivant le bruit W_noise à l'inférence : la seule mention « at inference time » du document concerne un masque-seuil distinct (Eq. 19), sans rapport avec le terme de bruit. La claim d'une désactivation à l'inférence est une convention d'implémentation répandue mais non énoncée dans Shazeer 2017, ni confirmée par le blog HuggingFace."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "La formule H(x)_i, le KeepTopK (−∞ hors top-k) et la normalisation softmax sont exacts et confirmés dans l'équation 4-5 du papier. En revanche, l'assertion « actif uniquement à l'entraînement et désactivé à l'inférence » n'est nulle part énoncée dans Shazeer 2017 : le papier présente le bruit comme faisant partie intégrante de la fonction de gating sans préciser son statut à l'inférence, et le HuggingFace MoE blog (source secondaire indépendante) confirme la formule sans non plus mentionner cette restriction."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « Le noisy top-k gating (Shazeer 2017) calcule H(x)_i = (x·W_g)_i + StandardNormal()·Softplus((x·W_noise)_i), applique KeepTopK pour annuler les experts hors sélection (−∞), puis normalise via softmax ; le bruit gaussien d'amplitude apprise (W_noise) est actif uniquement à l'entraînement et désactivé à l'inférence. »"
+    },
+    {
+      "id": "claim:5",
+      "section": "routing-et-gating",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Dans GShard (top-2 gating), les deux experts sont identifiés de façon déterministe par la fonction top_2 (1er et 2e argmax du score de gating). Le premier expert (e1) est dispatché de façon déterministe (sous contrainte de capacité). Le second expert (e2, également identifié de façon déterministe comme 2e meilleur score) est dispatché avec une probabilité 2·g₂, où g₂ est son poids de gating normalisé par (g₁+g₂). Le mécanisme dit « random routing » porte donc sur la décision binaire de dispatcher vers ce second expert déjà identifié — et non sur un tirage de son identité parmi les experts restants — et la probabilité de dispatch est proportionnelle au poids normalisé par (g₁+g₂), pas au score parmi l'ensemble des experts restants.",
+      "original_statement": "Dans GShard (top-2 gating), le premier expert est sélectionné de façon déterministe (argmax du score de gating), tandis que le second est tiré probabilistement avec une probabilité proportionnelle à son score de gating parmi les experts restants — mécanisme dit random routing.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "L'algorithme 1 du papier GShard (lignes 7 et 17) montre que top_2 identifie les deux experts de façon déterministe ; la probabilité de dispatch vers e2 est 2·g₂ avec g₂ normalisé par (g₁+g₂) uniquement, et non par la somme des scores de tous les experts restants. La formulation « tiré probabilistement parmi les experts restants » confond la décision de dispatch (binaire, probabiliste) avec un tirage multinomial sur les experts non-sélectionnés, ce qui est inexact."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le papier GShard (ICLR 2021) confirme explicitement le mécanisme : le 1er expert est l'argmax (déterministe via top-2), et le 2e expert est dispatché avec une probabilité proportionnelle à son poids g₂ (2·g₂ dans l'algorithme exact, g₂ dans la prose). La section s'intitule littéralement « Random routing ». Nuance mineure : le 2e expert est identifié de façon déterministe comme le 2e du top-2, et la part probabiliste concerne le dispatch, pas la sélection parmi un pool d'experts restants — mais cela correspond à la description en prose du papier lui-même."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Dans GShard (top-2 gating), le premier expert est sélectionné de façon déterministe (argmax du score de gating), tandis que le second est tiré probabilistement avec une probabilité proportionnelle à son score de gating parmi les experts restants — mécanisme dit random routing. »"
+    },
+    {
+      "id": "claim:6",
+      "section": "routing-et-gating",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "L'expert-choice routing est structurellement incompatible avec la génération autoregressivé : sélectionner les top-k tokens par expert requiert d'observer l'ensemble du batch, positions futures incluses, ce qui (a) fait fuir de l'information future à l'entraînement et (b) ne peut être reproduit à l'inférence, où ces positions n'existent pas encore. Un simple masque causal ne suffit pas à combler ce décalage, car le classement relatif des tokens visibles change dès que les positions futures sont masquées. Les adaptations viables existent (ex. Expert Threshold routing à seuils EMA), mais elles impliquent un mécanisme de routage fondamentalement différent, pas un patch de masquage.",
+      "original_statement": "L'expert-choice routing peut être adapté aux modèles de langue autoregressifs moyennant un simple masque de causalité, sans décalage significatif entre entraînement et inférence.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le papier 2603.11535 établit explicitement le problème : « Selecting top-k requires comparing against the entire batch that includes future positions », ce qui crée un décalage entraînement–inférence qualifié d'« insurmountable » pour l'EC pur. Le papier 2604.01622 confirme a contrario que l'EC routing fonctionne naturellement pour les modèles de diffusion (accès bidirectionnel), mais précisément PAS pour les modèles autoregressifs. La solution proposée dans 2603.11535 est un routage à seuils EMA entièrement causal, non un masque causal greffé sur l'EC existant."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le papier 2603.11535 démontre explicitement que l'EC « viole fondamentalement la causalité » pour les modèles autorégressifs — la sélection dépend des scores de tous les tokens du batch, y compris les tokens futurs — et mesure empiriquement un large écart entraînement/évaluation (perte de validation 2.910 avec batch 2k vs 2.843 avec batch 512k). Le papier original de Zhou et al. 2022 (2202.09368) ne prévoit aucun mécanisme d'adaptation aux modèles autorégressifs, confirmant que l'EC a été conçu pour des architectures non autorégressives."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « L'expert-choice routing peut être adapté aux modèles de langue autoregressifs moyennant un simple masque de causalité, sans décalage significatif entre entraînement et inférence. »"
+    },
+    {
+      "id": "claim:7",
+      "section": "routing-et-gating",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "L'expert-choice routing (Zhou et al. 2022) améliore le temps de convergence à l'entraînement de plus de 2× par rapport aux stratégies token-choice top-1 (Switch) et top-2 (GShard), en garantissant par construction que chaque expert traite exactement c tokens par batch et en supprimant le besoin de toute auxiliary load-balancing loss.",
+      "original_statement": "L'expert-choice routing (Zhou et al. 2022) améliore le temps de convergence à l'entraînement de plus de 2× par rapport aux stratégies token-choice top-1 (Switch) et top-2 (GShard), en garantissant par construction que chaque expert traite exactement c tokens par batch et en supprimant le besoin de toute auxiliary load-balancing loss.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Les trois propriétés revendiquées sont confirmées par la source primaire (Zhou et al. 2022, NeurIPS) : (1) > 2× de gain de convergence mesuré sur un modèle 8B/64E par rapport à Switch top-1 et GShard top-2 ; (2) chaque expert sélectionne exactement c tokens — invariant algorithmique strict, pas statistique ; (3) l'auxiliary load-balancing loss est éliminée par construction. Seule omission mineure : le papier compare aussi à GLaM (top-2) en plus de Switch et GShard, et le chiffre > 2× est spécifique au modèle 8B/64E — ce sont des précisions absentes du statement, non des falsifications."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "L'abstract de Zhou et al. 2022 confirme explicitement les trois sous-claims : speedup >2× vs Switch top-1 et GShard top-2, taille fixe de buffer par expert (mécanisme qui garantit exactement c tokens par expert par batch), et absence d'auxiliary load-balancing loss. La seconde source (arXiv 2408.15664, équipe DeepSeek) confirme indépendamment que l'EC « assigns exactly the same number of tokens to each expert » et atteint le load-balance sans perte auxiliaire, tout en notant la contrainte de causalité associée — ce qui ne contredit pas les claims vérifiés."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:8",
+      "section": "equilibrage-de-charge",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "L'auxiliary load-balancing loss du Switch Transformer s'écrit L_aux = α · N · Σ_i (f_i · P_i), où f_i est la fraction observée de tokens routés vers l'expert i et P_i la probabilité de routage moyenne ; avec α = 0,01, la perte encourage une distribution uniforme dont la valeur cible est α (soit 0,01).",
+      "original_statement": "L'auxiliary load-balancing loss du Switch Transformer s'écrit L_aux = α · N · Σ_i (f_i · P_i), où f_i est la fraction observée de tokens routés vers l'expert i et P_i la probabilité de routage moyenne ; avec α = 0,01, la perte encourage une distribution uniforme dont la valeur cible est α (soit 0,01).",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "La formule, les définitions de fᵢ (fraction de tokens assignés à l'expert i via argmax) et Pᵢ (= (1/T)·Σₓ pᵢ(x), moyenne des probabilités de routage), le coefficient α = 10⁻² = 0,01, et la valeur minimale α sous distribution uniforme (fᵢ = Pᵢ = 1/N → L_aux = α·N·(1/N) = α) sont tous confirmés par le papier source arXiv:2101.03961 et deux sources secondaires indépendantes. Aucun contre-exemple ni erreur factuelle n'a pu être établi."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "La formule L_aux = α · N · Σ_i (f_i · P_i) avec α = 0,01 est confirmée par le papier original (Fedus et al., JMLR 2022) et deux sources indépendantes. Sous distribution uniforme, chaque terme f_i · P_i vaut 1/N², la somme sur N experts donne 1/N, et après multiplication par N on obtient α — la valeur cible est donc bien α = 0,01. L'énoncé est exact, sans correction nécessaire."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:9",
+      "section": "equilibrage-de-charge",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Sans contrainte d'équilibrage et avec un routage top-1, le gating réseau tend à converger vers un expert collapse : quelques experts monopolisent les tokens dans une boucle rich-get-richer, les experts non sélectionnés subissant une privation de gradient (gradient starvation : zéro gradient par token non routé) tandis que les experts favoris s'améliorent et renforcent leur sélection. Cette tendance n'est cependant pas universelle : avec un routage top-2 et des données diversifiées, un équilibrage naturel peut émerger sans contrainte explicite (architectures de type Mixtral).",
+      "original_statement": "Sans contrainte d'équilibrage, le gating réseau converge spontanément vers un expert collapse : quelques experts monopolisent les tokens parce qu'ils accumulent davantage de gradient et s'améliorent plus vite, renforçant leur sélection dans une boucle rich-get-richer qui laisse les autres experts sans mise à jour effective.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Deux imprécisions fragilisent l'énoncé : (1) le mécanisme réel est une privation de gradient (gradient starvation : zéro gradient par token pour les experts non sélectionnés), non une simple accumulation différentielle — le HuggingFace blog et la littérature primaire distinguent explicitement les deux faces du phénomène ; (2) \"converge spontanément\" est trop absolu — la sévérité du collapse dépend fortement de la stratégie de routage (top-1 vs top-2) et de la diversité des données d'entraînement, et des architectures modernes (k=2) peuvent atteindre un équilibre naturel sans contrainte explicite."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les deux sources confirment indépendamment le mécanisme : sans contrainte d'équilibrage, les experts initialement favorisés reçoivent plus de tokens, accumulent davantage de gradient via la rétropropagation, s'améliorent plus vite et voient leur sélection renforcée — boucle rich-get-richer documentée empiriquement dès 1991 (Jacobs et al.) et dans les architectures modernes (Switch Transformer, ST-MoE). L'énoncé est mécanistiquement précis et tient tel quel."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « Sans contrainte d'équilibrage, le gating réseau converge spontanément vers un expert collapse : quelques experts monopolisent les tokens parce qu'ils accumulent davantage de gradient et s'améliorent plus vite, renforçant leur sélection dans une boucle rich-get-richer qui laisse les autres experts sans mise à jour effective. »"
+    },
+    {
+      "id": "claim:10",
+      "section": "equilibrage-de-charge",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Lors de la phase de fine-tuning uniquement, un token dropping atteignant 11 % des tokens par batch ne dégrade pas significativement la qualité — ce résultat ne s'étend pas au pré-entraînement, où le dropping nuit substantiellement à la qualité (gain de validation 1,73× moindre selon MegaBlocks), et ne relativise donc pas l'importance du capacity factor dans sa globalité.",
+      "original_statement": "Un token dropping atteignant 11 % des tokens par batch ne dégraderait pas significativement la qualité finale du modèle, ce qui relativiserait l'importance du capacity factor exact.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 4,
+          "note": "Le chiffre de 11 % provient de ST-MoE et ne vaut que pour le fine-tuning : le HuggingFace blog, seule source candidate, l'indique explicitement dans ce contexte. En pré-entraînement, plusieurs sources indépendantes (MegaBlocks, Switch Transformers, OpenMoE) montrent que le token dropping dégrade significativement la qualité et que le capacity factor reste un paramètre critique — la généralisation à la « qualité finale du modèle » est donc incorrecte."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "La source primaire (ST-MoE, section 4.4, Table 5) confirme la robustesse au token dropping uniquement pour le fine-tuning, avec un seuil de 10-15 % (10,6 % précisément pour le cas aux loss ON). L'énoncé omet ce périmètre crucial : pour le pré-entraînement, le même papier montre que le capacity factor impacte bien la qualité (Table 8). Par ailleurs, le chiffre « 11 % » est une approximation du blog HuggingFace, et l'attribution au « no aux loss » dans ce blog est inexacte (10,6 % correspond au cas avec aux loss)."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « Un token dropping atteignant 11 % des tokens par batch ne dégraderait pas significativement la qualité finale du modèle, ce qui relativiserait l'importance du capacity factor exact. »"
+    },
+    {
+      "id": "claim:11",
+      "section": "equilibrage-de-charge",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "DeepSeek-V3 atteint un équilibrage sans perte auxiliaire (auxiliary-loss-free) grâce à un biais dynamique b_i par expert ajouté aux scores de sélection mais exclu du calcul des poids de gating finaux, dissociant ainsi la décision de routage de la pondération des sorties.",
+      "original_statement": "DeepSeek-V3 atteint un équilibrage sans perte auxiliaire (auxiliary-loss-free) grâce à un biais dynamique b_i par expert ajouté aux scores de sélection mais exclu du calcul des poids de gating finaux, dissociant ainsi la décision de routage de la pondération des sorties.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Tous les éléments de l'énoncé sont confirmés par le rapport technique primaire (arXiv:2412.19437, HTML, eq. 13 et 16) : b_i est dynamique (ajusté à chaque step au rythme γ), ajouté à s_{i,t} uniquement pour la sélection top-K des experts, et exclu du calcul des gating weights (qui n'utilisent que s_{i,t} original). Une nuance reste silencieuse dans l'énoncé : la stratégie \"auxiliary-loss-free\" n'élimine pas toute perte auxiliaire — V3 conserve une petite \"complementary sequence-wise balance loss\" (eq. 17, coefficient α très faible) ; mais le papier lui-même emploie le label \"auxiliary-loss-free\" pour désigner cette approche, donc l'énoncé est fidèle à la terminologie officielle."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Le HTML du rapport technique DeepSeek-V3 confirme mot pour mot le mécanisme : la sélection top-K utilise s_{i,t} + b_i, mais les poids de gating sont calculés depuis le score original s_{i,t} seul ; b_i est ajusté dynamiquement par ±γ selon la charge de l'expert. Le papier fondateur arXiv:2408.15664 (même groupe DeepSeek, antérieur à V3) énonce explicitement que b_i « is not added to the g_{i,t} that weights the output of the selected experts ». L'article Yugen.ai constitue une confirmation tierce indépendante de ce découplage."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:12",
+      "section": "fine-grained-et-shared-experts",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "La fine-grained expert segmentation de DeepSeekMoE (m=4, N=16, K=2) étend l'espace de routing de C(16,2) = 120 patterns à C(64,8) ≈ 4,4 milliards de configurations distinctes par token, sans modifier le coût nominal de calcul par forward pass.",
+      "original_statement": "La fine-grained expert segmentation de DeepSeekMoE (m=4, N=16, K=2) étend l'espace de routing de C(16,2) = 120 patterns à C(64,8) ≈ 4,4 milliards de configurations distinctes par token, sans modifier le coût nominal de calcul par forward pass.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les trois affirmations numériques sont exactes : C(16,2)=120, C(64,8)=4 426 165 368 ≈ 4,4 Md, et le coût FLOP par token est maintenu constant (le paper l'indique explicitement, confirmé par les tables de FLOPs). Nuance non mentionnée : dans le modèle 16B de production, 2 shared experts sont toujours activés et seuls 6 experts routés (non 8) sont sélectionnés parmi 64, réduisant l'espace de routing routé à C(64,6) ≈ 75 M ; la valeur 4,4 Md correspond strictement au cas conceptuel (m=4, N=16, K=2 sans shared experts), qui est précisément ce que l'énoncé paramétrise — donc pas d'erreur factuelle, mais un périmètre qui ne couvre pas le 16B production."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le papier source (arXiv 2401.06066) contient verbatim les chiffres cités : « if N=16, a typical top-2 routing strategy can yield C(16,2)=120 possible combinations; if each expert is split into 4 smaller experts, we can yield C(64,8)=4,426,165,368 potential combinations », avec m=4 confirmé, et affirme explicitement « maintaining a consistent number of expert parameters and computational cost ». La formule est mathématiquement vérifiée (C(64,8)=4 426 165 368 ≈ 4,43 milliards, arrondi correct à 4,4). La review indépendante de Tsang reproduit le même exemple chiffré sans ambiguïté."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:13",
+      "section": "fine-grained-et-shared-experts",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "DeepSeekMoE-16B atteint le niveau de performance de LLaMA 2 7B avec environ 40 % de ses FLOPs ; DeepSeekMoE-145B atteint le niveau de DeepSeek 67B avec 28,5 % de ses opérations.",
+      "original_statement": "DeepSeekMoE-16B atteint le niveau de performance de LLaMA 2 7B avec environ 40 % de ses FLOPs ; DeepSeekMoE-145B atteint le niveau de DeepSeek 67B avec 28,5 % de ses opérations.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Les deux chiffres sont confirmés par la source primaire. Le 39,6 % (≈ \"environ 40 %\") est exact — l'abstract du papier lui-même emploie \"about 40%\". Le 28,5 % est bien cité dans le papier, mais accompagné d'une parenthèse \"(maybe even 18,2 %)\" que la déclaration omet : la valeur réelle des FLOPs de DeepSeekMoE-145B pourrait donc être encore plus basse que 28,5 %, rendant l'efficience du modèle potentiellement sous-estimée par la formulation testée."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les deux chiffres sont confirmés par la source primaire : le corps du papier cite 39,6 % pour DeepSeekMoE-16B vs LLaMA 2 7B (l'abstract arrondit à « about 40 % », cohérent avec « environ 40 % »). Le chiffre de 28,5 % pour DeepSeekMoE-145B vs DeepSeek 67B est exact dans l'abstract ; le papier mentionne aussi 18,2 % pour une variante « Half Activated » (142B avec la moitié des experts activés), qui est un modèle distinct non visé par l'énoncé."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:14",
+      "section": "fine-grained-et-shared-experts",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "L'équivalence théorique de FLOPs entre routing fine-grained et routing grossier (mK experts × dimension 1/m = K × dimension pleine) est exacte sur le papier, mais ignore la dégradation du débit GPU sur de petites multiplications matricielles, ce qui pourrait rendre le coût réel en temps-mur supérieur à ce que les calculs nominaux suggèrent.",
+      "original_statement": "L'équivalence théorique de FLOPs entre routing fine-grained et routing grossier (mK experts × dimension 1/m = K × dimension pleine) est exacte sur le papier, mais ignore la dégradation du débit GPU sur de petites multiplications matricielles, ce qui pourrait rendre le coût réel en temps-mur supérieur à ce que les calculs nominaux suggèrent.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "L'équivalence FLOPs est confirmée algébriquement : SonicMoE énonce explicitement « increasing granularity requires decreasing n and proportionally increasing K for constant FLOPs », ce qui correspond exactement à la formule mK×(d/m) = K×d. La dégradation GPU sur les petites matrices est documentée et quantifiée : SonicMoE montre que « increasing granularity leads to a decreasing arithmetic intensity » et que « reducing FLOPs does not directly translate to better hardware utilization since MoE computation features more dynamic IO accesses » ; Cerebras confirme indépendamment que les promesses de réduction de FLOPs « fail to transfer into actual wall-clock speedups ». L'énoncé tient tel quel — le qualificateur « pourrait » est justifié par la dépendance au batch size, au matériel et aux optimisations de kernels (SonicMoE existe précisément pour réduire ce gap)."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le papier DeepSeekMoE (Section 3.1) confirme explicitement l'équivalence FLOPs (mK petits experts × dimension 1/m = K × dimension pleine). Il ne modélise pas la dégradation du débit GPU : la Section 5.1.2 mentionne en une phrase que la granularité excessivement fine n'est pas retenue à cause d'une \"potential reduction in computational efficiency\" sans aucune analyse du mécanisme. Le papier $qs$ Inequality confirme indépendamment que l'efficacité théorique en FLOPs est un proxy incomplet pour les performances d'inférence réelles dans les MoE, le temps-mur pouvant dépasser largement les prédictions nominales (avantage 4,5× pour un dense équivalent à long contexte)."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:15",
+      "section": "fine-grained-et-shared-experts",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "DeepSeek-V3 met à l'échelle l'architecture fine-grained + shared expert à 671 B paramètres totaux / 37 B actifs par token (1 expert partagé + 256 routés, top-8), pré-entraîné sur 14,8 T tokens sans loss spike irrecoverable ni rollback signalé.",
+      "original_statement": "DeepSeek-V3 met à l'échelle l'architecture fine-grained + shared expert à 671 B paramètres totaux / 37 B actifs par token (1 expert partagé + 256 routés, top-8), pré-entraîné sur 14,8 T tokens sans loss spike irrecoverable ni rollback signalé.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Chaque chiffre de l'énoncé est confirmé mot pour mot par le rapport technique : 671 B paramètres totaux, 37 B actifs par token, 1 expert partagé + 256 routés top-8, 14,8 T tokens d'entraînement, et la formule exacte « we did not experience any irrecoverable loss spikes or perform any rollbacks » figure dans le papier. La documentation NVIDIA corrobore indépendamment 671 B / 37 B / 256 experts routés. Aucun contre-exemple trouvé."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Tous les chiffres de l'énoncé sont confirmés par le papier primaire (arxiv 2412.19437) et par deux analyses indépendantes : 671 B paramètres totaux / 37 B actifs par token, 1 expert partagé + 256 routés top-8, 14,8 T tokens de pré-entraînement, et la phrase exacte « we did not experience any irrecoverable loss spikes or perform any rollbacks » figure dans l'abstract du rapport technique."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:16",
+      "section": "systemes-et-expert-parallelism",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "L'expert parallelism impose deux opérations all-to-all collectives par couche MoE — un dispatch (tokens vers experts) puis un combine (sorties vers devices d'origine) — schéma déployé à grande échelle par GShard (600 B paramètres, 2 048 experts sur exactement 2 048 TPUs v3), qui s'inscrit dans la lignée des travaux de Shazeer et al. (2017) sur les MoE à gating parcimonieux ; GShard ne revendique pas lui-même la primauté du parallélisme d'experts.",
+      "original_statement": "L'expert parallelism impose exactement deux opérations all-to-all collectives par couche MoE — un dispatch (tokens vers experts) puis un combine (sorties vers devices d'origine) — schéma déployé pour la première fois à grande échelle par GShard (600 B paramètres, 2 048 experts sur 2 048+ TPUs).",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Deux erreurs factuelles : (1) le papier GShard rapporte exactement 2 048 TPU v3, pas « 2 048+ » ; (2) GShard ne revendique pas être le premier déploiement à grande échelle du parallélisme d'experts — il cite explicitement les travaux antérieurs (Shazeer et al. 2017). Le patron dispatch/combine en deux all-to-all est en revanche bien établi et confirmé par plusieurs sources indépendantes."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Les deux all-to-all par couche MoE (dispatch + combine), les 2 048 experts et les 600 B paramètres sont confirmés par le papier GShard. En revanche, le papier indique explicitement « 2 048 TPU v3 devices » — pas « 2 048+ » : le signe « + » n'est pas supporté par la source primaire ni par les revues indépendantes consultées."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « L'expert parallelism impose exactement deux opérations all-to-all collectives par couche MoE — un dispatch (tokens vers experts) puis un combine (sorties vers devices d'origine) — schéma déployé pour la première fois à grande échelle par GShard (600 B paramètres, 2 048 experts sur 2 048+ TPUs). »"
+    },
+    {
+      "id": "claim:17",
+      "section": "systemes-et-expert-parallelism",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "La nuance est valide mais restreinte à des configurations intra-rack tout-NVLink (ex. GB200 NVL72, EP ≤ 72 GPUs dans le fabric 130 TB/s) où la communication descend à ~20 % du temps d'exécution. Les déploiements cross-nœud sur InfiniBand NDR maintiennent 40–60 % de surcharge de communication même après optimisation partielle, ce qui laisse la communication comme facteur dominant. Citer « NVLink, InfiniBand NDR » comme conditions suffisantes pour que le calcul reste limitant est inexact : seule la topologie pure-NVLink intra-rack atteint clairement ce régime compute-bound.",
+      "original_statement": "Les opérations all-to-all constituent le goulot d'étranglement dominant du temps d'entraînement des grands modèles MoE — affirmation fréquente mais contingente : sur des clusters à forte interconnexion (NVLink, InfiniBand NDR) avec recouvrement calcul/communication efficace, le calcul peut rester le facteur limitant plutôt que la communication.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 4,
+          "note": "Sur H800 NVLink (haute bande passante), la communication représente encore 47 % du temps d'exécution (COMET) ; sur H100 cross-nœud via InfiniBand, 40–60 %. Seule la configuration pure-NVLink intra-rack (GB200 NVL72, EP ≤ 72) réduit la communication à ~20 %, permettant au calcul de dominer. La désignation d'InfiniBand NDR comme condition suffisante pour un régime compute-bound est contredite par les données disponibles."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "L'énoncé est exact et bien qualifié. La littérature primaire confirme que l'all-to-all est un goulot dominant fréquent (43,6% du forward pass selon MegaScale-MoE, >50% sur DeepSeek-V3 sans optimisation selon NVIDIA), ET que cette domination est contingente : MegaScale-MoE dérive formellement un ratio R = (3/2) × h_ffn × (bandwidth/peak) tel que R > 1 signifie que le calcul dépasse la communication — possible sur NVLink intra-nœud (400 GB/s) avec recouvrement fin. La prudence s'impose cependant pour l'InfiniBand inter-nœud : MegaScale-MoE évite précisément le placement cross-nœud car le recouvrement y devient peu pratique, de sorte que la formulation \"peut rester\" (CAN remain) est plus défendable que \"reste généralement\" pour l'InfiniBand NDR."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « Les opérations all-to-all constituent le goulot d'étranglement dominant du temps d'entraînement des grands modèles MoE — affirmation fréquente mais contingente : sur des clusters à forte interconnexion (NVLink, InfiniBand NDR) avec recouvrement calcul/communication efficace, le calcul peut rester le facteur limitant plutôt que la communication. »"
+    },
+    {
+      "id": "claim:18",
+      "section": "systemes-et-expert-parallelism",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Mixtral 8x7B requiert l'hébergement de 46,7 milliards de paramètres totaux en VRAM (≈ 93–94 Go en FP16 pour les seuls poids, et davantage avec le KV-cache en inférence) bien que seuls ≈ 13 milliards soient actifs par token, matérialisant le trade-off MoE : dense en mémoire, sparse en calcul.",
+      "original_statement": "Mixtral 8x7B requiert l'hébergement de 46,7 milliards de paramètres totaux en VRAM (≈ 90 Go en FP16) bien que seuls 12,9 milliards soient actifs par token, matérialisant le trade-off MoE : dense en mémoire, sparse en calcul.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le chiffre \"≈ 90 Go en FP16\" est un arrondi par défaut injustifié : 46,7 B × 2 octets = 93,4 Go pour les seuls poids, et la source kaitchup mesure 96,8 Go sur disque en précision complète. Le chiffre de 12,9 B actifs est une approximation secondaire ; le papier primaire (arxiv 2401.04088) dit explicitement \"13B active parameters\"."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Deux corrections s'imposent : (1) le papier Mixtral (source primaire) indique « 13B active parameters », non 12,9B ; (2) la VRAM en FP16 ressort à ~93 Go (calcul théorique 46,7B × 2 octets = 93,4 Go ; HuggingFace automated : 87,25 GiB ≈ 93,7 Go décimaux ; InsiderLLM : « ~93 GB »), et non ≈ 90 Go. La description du trade-off MoE (dense mémoire / sparse calcul) est, elle, exacte."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « Mixtral 8x7B requiert l'hébergement de 46,7 milliards de paramètres totaux en VRAM (≈ 90 Go en FP16) bien que seuls 12,9 milliards soient actifs par token, matérialisant le trade-off MoE : dense en mémoire, sparse en calcul. »"
+    },
+    {
+      "id": "claim:19",
+      "section": "systemes-et-expert-parallelism",
+      "section_retained": true,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "Le device-limited routing de DeepSeek-V2 borne à 3 le nombre de devices distincts qu'un token peut atteindre (sur 8 au total), réduisant mécaniquement le volume de trafic all-to-all inter-device sans dégradation mesurable de la qualité du modèle.",
+      "original_statement": "Le device-limited routing de DeepSeek-V2 borne à 3 le nombre de devices distincts qu'un token peut atteindre (sur 8 au total), réduisant mécaniquement le volume de trafic all-to-all inter-device sans dégradation mesurable de la qualité du modèle.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Deux inexactitudes. D'abord, la contrainte est « at most M devices » (au plus 3), non un exact 3 pour chaque token. Ensuite et surtout, l'énoncé affirme « sans dégradation mesurable », alors que le papier dit uniquement « roughly aligned » — formulation qualitative sans aucun chiffre d'ablation (pas de scores benchmark, pas de perplexité comparée) ; « roughly » reconnaît explicitement une approximation, pas une absence prouvée de dégradation."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Le papier primaire confirme explicitement M=3, D=8 et l'objectif de réduction des coûts de communication inter-device. Seule réserve de formulation : le papier dit « roughly aligned with unrestricted top-K routing » (pour M≥3), formulation légèrement plus prudente que « sans dégradation mesurable », mais compatible avec l'énoncé. Toutes les sources secondaires examinées (Martin Fowler, Chipstrat, Medium) sont des commentaires dérivés du même papier et ne constituent pas des sources indépendantes au sens strict."
+        }
+      ],
+      "audit_note": "Rejeté : 1 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+    },
+    {
+      "id": "claim:20",
+      "section": "instances-reelles",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Le Switch Transformer atteint jusqu'à 7× d'accélération de pré-entraînement vs T5-Base à iso-FLOPS par token. C'est le premier modèle MoE entraîné de façon stable grâce à une précision sélective (bfloat16 pour les activations et poids, float32 conservé pour les logits du routeur) — l'entraînement en bfloat16 pur diverge. Le papier ne revendique pas de réduction mémoire de ~50 % liée au format numérique.",
+      "original_statement": "Le Switch Transformer atteint jusqu'à 7× d'accélération vs T5-Base à iso-ressources computationnelles, et est le premier modèle MoE entraîné de façon stable en bfloat16, réduisant l'empreinte mémoire d'environ 50 % par rapport au float32.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Deux des trois sous-claims sont inexacts : (1) la précision bfloat16 est sélective (routeur en float32 — le bfloat16 pur diverge, Table 2), ce que \"entraîné en bfloat16\" occulte ; (2) la réduction mémoire de ~50 % n'est pas affirmée dans le papier et est surestimée pour une approche mixte. Seul le 7× à iso-FLOPS est confirmé textuellement dans l'abstract et l'introduction."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les deux premiers sous-claims (7× et premier MoE bfloat16) sont confirmés mot pour mot dans l'abstract du papier source. Le troisième (≈50 % mémoire) est une conséquence mathématique directe du passage 16-bit → 32-bit et est cohérente avec la formulation du papier (\"communication cost between cores by two\"), mais le papier ne l'exprime pas en pourcentage d'empreinte mémoire ; l'entraînement est en précision sélective (float32 local dans le routeur), ce qui rend les économies mémoire réelles légèrement inférieures à 50 % en pratique — sans invalider l'ordre de grandeur \"environ 50 %\"."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Le Switch Transformer atteint jusqu'à 7× d'accélération vs T5-Base à iso-ressources computationnelles, et est le premier modèle MoE entraîné de façon stable en bfloat16, réduisant l'empreinte mémoire d'environ 50 % par rapport au float32. »"
+    },
+    {
+      "id": "claim:21",
+      "section": "instances-reelles",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "GLaM (1,2 trillion de paramètres) consomme environ un tiers de l'énergie de GPT-3 (456 MWh vs 1 287 MWh), mais cet entraînement complet (600B tokens) produit des performances nettement supérieures à GPT-3 sur 29 benchmarks NLP — pas simplement comparables. Pour des performances comparables à GPT-3, le papier cite 213 MWh (280B tokens, checkpoint intermédiaire), soit 1/6 — et non 1/3 — de l'énergie de GPT-3. La nuance sur l'hétérogénéité matérielle (V100 pour GPT-3, TPU v4 pour GLaM) est correcte et reconnue par le papier lui-même.",
+      "original_statement": "GLaM (1,2 trillion de paramètres) consomme environ un tiers de l'énergie de GPT-3 pour des performances comparables (456 MWh vs 1 287 MWh) — chiffre fréquemment cité, mais qui confronte deux architectures matérielles différentes (V100 pour GPT-3, TPU v4 pour GLaM) ; l'écart énergétique reflète donc en partie le progrès matériel entre 2020 et 2022, pas seulement l'efficacité de l'architecture MoE.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "L'erreur factuelle est le couplage « 456 MWh / un tiers / performances comparables » : à 456 MWh (entraînement complet sur 600B tokens), GLaM surpasse GPT-3 sur 29 tâches NLP ; la parité de performance est atteinte dès 213 MWh (1/6 de l'énergie GPT-3, checkpoint à 280B tokens). La nuance sur l'hétérogénéité V100/TPU-v4 est en revanche exacte et reconnue par le papier GLaM lui-même."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Tous les chiffres clés (456 MWh, 1 287 MWh, ~1/3, 1,2T paramètres, TPU v4) sont confirmés textuellement dans le papier GLaM. Le papier lui-même reconnaît que les économies d'énergie proviennent à la fois de l'architecture MoE ET de l'efficacité du matériel TPU v4, validant exactement la nuance soulevée dans l'énoncé. Seule correction : GLaM « surpasse » GPT-3 (6/7 catégories) plutôt que d'égaler ses performances, ce qui renforce l'argument sans le contredire."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « GLaM (1,2 trillion de paramètres) consomme environ un tiers de l'énergie de GPT-3 pour des performances comparables (456 MWh vs 1 287 MWh) — chiffre fréquemment cité, mais qui confronte deux architectures matérielles différentes (V100 pour GPT-3, TPU v4 pour GLaM) ; l'écart énergétique reflète donc en partie le progrès matériel entre 2020 et 2022, pas seulement l'efficacité de l'architecture MoE. »"
+    },
+    {
+      "id": "claim:22",
+      "section": "instances-reelles",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Mixtral 8×7B (46,7 G paramètres totaux selon le blog officiel Mistral AI, ou ~47 G selon l'arXiv ; 12,9 G actifs par forward pass) surpasse LLaMA 2 70B sur 10 des 12 benchmarks testés (perd sur HellaSwag et TriviaQA), sous licence Apache 2.0. La réduction de ~72 % représente la fraction des paramètres de Mixtral lui-même qui ne sont PAS activés par token (sparsité interne : 1 − 12,9/46,7) ; la réduction effective du calcul actif par rapport à LLaMA 2 70B (70 G paramètres) est d'environ 81 %.",
+      "original_statement": "Mixtral 8×7B (46,7 G paramètres totaux, 12,9 G actifs par forward pass) surpasse LLaMA 2 70B sur la majorité des benchmarks avec environ 72 % de réduction du calcul actif par token, sous licence Apache 2.0.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le chiffre de 72 % est réel mais mal cadré : c'est le ratio de sparsité interne à Mixtral (active/total = 12,9/46,7), non la réduction de calcul face à LLaMA 2 70B qui serait ~81 % (12,9/70). La formulation originale induit en erreur en associant « surpasse LLaMA 2 70B » et « 72 % de réduction », laissant entendre que c'est l'avantage comparatif sur LLaMA 2 70B. Par ailleurs, le paper arXiv arrondit à 47 G / 13 G, les chiffres 46,7 G / 12,9 G provenant du blog officiel Mistral AI."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Tous les chiffres clés sont confirmés : 46,7 G paramètres totaux, 12,9 G actifs par token (vérifié sur le blog officiel Mistral AI et indépendamment sur le portail HPE Developer), licence Apache 2.0, et supériorité sur la majorité des benchmarks face à LLaMA 2 70B. Le « 72 % » s'obtient par (46,7 − 12,9) / 46,7 ≈ 72,4 %, soit la fraction de paramètres inactifs par token — formulation cohérente avec l'architecture MoE. La seule nuance notée est que Mixtral 8×7B cède légèrement à LLaMA 2 70B sur certains benchmarks de compréhension de lecture, ce que couvre le qualificatif « majorité » de l'énoncé."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Mixtral 8×7B (46,7 G paramètres totaux, 12,9 G actifs par forward pass) surpasse LLaMA 2 70B sur la majorité des benchmarks avec environ 72 % de réduction du calcul actif par token, sous licence Apache 2.0. »"
+    },
+    {
+      "id": "claim:23",
+      "section": "instances-reelles",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "DeepSeek-V3 (671 G / 37 G actifs, top-8 routing sur 256 experts routés + 1 expert partagé) remplace l'auxiliary loss classique par un auxiliary-loss-free load balancing via un terme de biais dynamique ajouté aux scores d'affinité de routing post-sigmoid (sᵢ,ₜ = Sigmoid(uₜᵀ eᵢ)), sans affecter le calcul pondéré des sorties d'experts.",
+      "original_statement": "DeepSeek-V3 (671 G / 37 G actifs, top-8 routing sur 256 experts routés + 1 expert partagé) remplace l'auxiliary loss classique par un auxiliary-loss-free load balancing via un terme de biais dynamique ajusté sur les logits de routing, sans affecter le calcul pondéré des sorties d'experts.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Tous les chiffres (671B/37B, top-8, 256 routed + 1 shared, auxiliary-loss-free, absence d'effet sur le calcul pondéré) sont confirmés. L'unique imprecision est terminologique mais réelle : l'énoncé dit « logits de routing » alors que le biais bᵢ est explicitement additionné aux scores d'affinité post-sigmoid sᵢ,ₜ (équation 16 du rapport), et non aux logits bruts pré-sigmoid uₜᵀ eᵢ — distinction que le papier maintient rigoureusement et que la source secondaire reproduit avec le terme « affinity score »."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "L'énoncé est exact sur tous les points vérifiés : 671B/37B actifs, top-8 sur 256 experts routés + 1 expert partagé (confirmé par le fichier config_671B.json officiel : n_routed_experts=256, n_shared_experts=1, n_activated_experts=8), mécanisme de biais dynamique ajouté aux affinity scores uniquement pour la sélection top-K, et valeur de gating (multiplicateur des sorties d'experts) dérivée des scores originaux sans le biais — exactement comme décrit dans le papier."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « DeepSeek-V3 (671 G / 37 G actifs, top-8 routing sur 256 experts routés + 1 expert partagé) remplace l'auxiliary loss classique par un auxiliary-loss-free load balancing via un terme de biais dynamique ajusté sur les logits de routing, sans affecter le calcul pondéré des sorties d'experts. »"
+    },
+    {
+      "id": "claim:24",
+      "section": "moe-vs-ensemble-classique",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Dans les formes standard et plates de bagging, boosting et stacking, tous les sous-modèles traitent effectivement chaque exemple et le coût croît en O(N). Cependant : (1) les variantes en cascade du boosting (ex. AdaBoost cascade / Viola-Jones) introduisent un rejet précoce — un exemple refusé à l'étape k n'atteint pas les classifieurs k+1…N, ce qui ramène le coût moyen bien en dessous de O(N) pour les entrées faciles ; (2) des méthodes d'ensemble modernes (ex. Hellsemble) apprennent un routeur conditionnel de bout en bout réduisant le coût à O(1) en taille d'ensemble. L'énoncé ne vaut donc qu'avec la restriction « ensemble plat non cascadé et sans routeur appris ».",
+      "original_statement": "Dans un ensemble (bagging, boosting, stacking), tous les sous-modèles traitent chaque exemple d'entrée et leurs sorties sont agrégées ; le coût de calcul croît en O(N) avec le nombre de membres N, et aucun routeur conditionnel n'est appris de bout en bout.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Deux failles avérées : (1) le cascade boosting (Viola-Jones/AdaBoost) est une variante boosting établie où le rejet précoce fait que ni tous les classifieurs ne voient chaque exemple, ni le coût n'est O(N) ; (2) Hellsemble (2025) montre qu'un ensemble peut embarquer un routeur conditionnel appris de bout en bout avec coût O(1), réfutant l'universalité de la dernière clause."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les deux sources confirment la distinction structurelle : dans les ensembles classiques (bagging, boosting, stacking), tous les sous-modèles traitent chaque entrée et leurs sorties sont agrégées de façon fixe ou via un méta-modèle non conditionnel, ce qui implique un coût O(N) ; aucun routeur appris de bout en bout ne sélectionne conditionnellement un sous-ensemble de modèles, contrairement au MoE (gating sparse appris conjointement). Nuance stacking : le méta-modèle est bien appris, mais il n'est pas un routeur conditionnel et n'est pas entraîné de bout en bout avec les modèles de base — l'énoncé reste exact dans sa formulation précise."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « Dans un ensemble (bagging, boosting, stacking), tous les sous-modèles traitent chaque exemple d'entrée et leurs sorties sont agrégées ; le coût de calcul croît en O(N) avec le nombre de membres N, et aucun routeur conditionnel n'est appris de bout en bout. »"
+    },
+    {
+      "id": "claim:25",
+      "section": "moe-vs-ensemble-classique",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Dans un MoE sparsely-gated, seuls k experts parmi N sont activés pour le calcul expert par token via un routeur entraîné par gradient sur une combinaison de perte tâche et de pertes auxiliaires d'équilibrage de charge (avec injection de bruit pour rendre le top-k entraînable, le seuillage discret étant non-différentiable). La sortie est la somme pondérée des k sorties actives. Le coût expert par token est proportionnel à k, mais le routeur lui-même calcule un score pour chacun des N experts (projection linéaire d×N, coût O(N)), de sorte que le coût total par token inclut une composante en N et n'est pas formellement indépendant de N. En pratique, si le coût du routeur est négligeable devant le coût FFN des experts, la dépendance en N est souvent omise, mais elle reste formellement présente.",
+      "original_statement": "Dans un MoE sparsely-gated, seuls k experts parmi N sont activés par token via un routeur appris par gradient descent ; la sortie est la somme pondérée des k sorties actives uniquement — le coût effectif par token est proportionnel à k, indépendant de N.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Deux défauts structurels : (1) le routeur calcule un score pour chacun des N experts avant le top-k (projection x·W_g de dimension d×N, coût O(N) par token, confirmé par le code et les sources), ce qui contredit l'affirmation « indépendant de N » ; (2) l'entraînement du routeur n'est pas un simple gradient descent — le top-k discret étant non-différentiable, le papier original introduit le Noisy Top-k Gating (bruit gaussien appris) et des pertes auxiliaires d'équilibrage de charge, absentes de l'énoncé."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les trois sous-claims sont confirmés par le papier fondateur (Shazeer et al. 2017) : sélection top-k via KeepTopK (éq. 3–5), entraînement par rétropropagation (§2.1 : « simple back-propagation »), sortie = somme pondérée des k actifs uniquement (éq. 1 + « Wherever G(x)_i = 0, we need not compute E_i(x) »). La nuance sur « indépendant de N » : la projection du routeur (x·W_g) coûte O(N) par token, mais ce coût est négligeable face à k × coût_expert — confirmé concrètement par Mixtral 8x7B (k=2 sur N=8 : ~12B actifs vs 47B totaux). L'énoncé tient tel quel dans son interprétation conventionnelle."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Dans un MoE sparsely-gated, seuls k experts parmi N sont activés par token via un routeur appris par gradient descent ; la sortie est la somme pondérée des k sorties actives uniquement — le coût effectif par token est proportionnel à k, indépendant de N. »"
+    },
+    {
+      "id": "claim:26",
+      "section": "moe-vs-ensemble-classique",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "La spécialisation des experts MoE en catégories syntaxiques de surface (ponctuation, noms propres) peut émerger dans les encodeurs ou les premières/dernières couches, mais elle n'est ni systématique ni prévisible : elle est supprimée par les pertes d'équilibrage de charge (aucune spécialisation linguistique observée en multilingue), quasi-absente dans les décodeurs et dans les modèles issus de sparse upcycling (ex. Mistral), et — selon des travaux récents — le routing reflète avant tout la géométrie des représentations internes plutôt que des domaines d'expertise sémantiques explicites.",
+      "original_statement": "La spécialisation des experts MoE en catégories sémantiques ou linguistiques distinctes est une propriété émergente systématique et prévisible du routing appris, observable quel que soit le régime de pré-entraînement.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 4,
+          "note": "Quatre sources indépendantes convergent pour invalider l'énoncé : (1) le blog HF/ST-MoE montre que les décodeurs spécialisent peu et que l'équilibrage de charge supprime toute spécialisation par langue en multilingue ; (2) le papier \"Myth of Expert Specialization\" (arXiv 2604.09780, 2026) démontre que le routing suit la géométrie des hidden states, que le recouvrement inter-modèles sur des questions identiques n'est que ~60 %, et que les couches profondes activent les mêmes experts pour des entrées sémantiquement sans rapport ; (3) OLMoE note explicitement que les modèles type Mistral (sparse upcycling) ne présentent pas de spécialisation significative ; (4) le papier Multilingual Routing révèle une dépendance forte à la couche (spécialisation aux extrémités, alignement inter-langues au centre). L'énoncé pèche donc sur deux points : la qualification \"systématique et prévisible\" et la clause \"quel que soit le régime de pré-entraînement\"."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Trois sources indépendantes convergent : la spécialisation est avérée pour les encodeurs sur des traits syntaxiques superficiels, mais absente dans les décodeurs (ST-MoE 2022) et non prédictible par le contenu sémantique du prompt (arXiv 2604.09780, 2026). La clause « quel que soit le régime de pré-entraînement » est directement réfutée par l'asymétrie encodeur/décodeur et par l'absence de spécialisation par langue en entraînement multilingue."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « La spécialisation des experts MoE en catégories sémantiques ou linguistiques distinctes est une propriété émergente systématique et prévisible du routing appris, observable quel que soit le régime de pré-entraînement. »"
+    },
+    {
+      "id": "claim:27",
+      "section": "moe-vs-ensemble-classique",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Un MoE sparsely-gated constitue un unique modèle où les experts (dans un transformer, les sous-réseaux FFN) sont entraînés de façon jointe et non indépendante, avec les couches d'attention et les embeddings effectivement partagés — contrairement à un ensemble classique où des modèles complets sont souvent entraînés séparément. En revanche, la claim \"pas d'agrégation sur l'incertitude du comité\" ne tient pas pour le cas standard top-k avec k≥2 : les sorties de k experts sont combinées par somme pondérée de leurs scores de gating (y = Σ G(x)ᵢ·Eᵢ(x)), ce qui constitue une forme d'agrégation douce sur un sous-comité sélectionné. Seul le routage top-1 (ex. Switch Transformer) élimine toute agrégation. Par ailleurs, \"partager l'attention et les embeddings\" est une propriété du MoE transformer, non du MoE sparsely-gated en général (le papier original Shazeer 2017 utilise des LSTMs).",
+      "original_statement": "Un MoE sparsely-gated constitue un unique modèle à N sous-réseaux partageant attention et embeddings — il n'y a ni entraînement indépendant des experts ni agrégation sur l'incertitude du comité, contrairement à un ensemble classique.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Deux failles matérielles : (1) avec top-k routing k≥2 (cas standard dans Shazeer 2017 et la majorité des MoE modernes, dont Mixtral), les sorties de plusieurs experts sont bien combinées par somme pondérée des scores de gating — c'est une agrégation sur un sous-comité, pas une délégation exclusive ; (2) \"partager attention et embeddings\" est spécifique aux MoE sur architecture transformer, alors que le papier fondateur 1701.06538 est basé sur des LSTMs."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les deux sources confirment que le MoE sparsely-gated est un unique modèle entraîné conjointement, où seules les couches FFN sont les \"experts\" tandis qu'embeddings et attention sont partagés — sans entraînement indépendant ni agrégation bayésienne à la Bayesian ensemble. Nuance mineure : le papier original (1701.06538) utilisait des LSTM sans attention ; l'affirmation \"partageant attention et embeddings\" est exacte pour les MoE transformers modernes (Mixtral-style), qui sont aujourd'hui l'acception dominante du terme."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Un MoE sparsely-gated constitue un unique modèle à N sous-réseaux partageant attention et embeddings — il n'y a ni entraînement indépendant des experts ni agrégation sur l'incertitude du comité, contrairement à un ensemble classique. »"
+    },
+    {
+      "id": "claim:28",
+      "section": "limites-et-trade-offs",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Switch Transformer résout les instabilités numériques du routeur en castant ses entrées en float32 pour la stabilité du softmax du routeur, tandis que le reste du forward pass reste en bfloat16 — première démonstration documentée qu'un grand modèle sparse peut s'entraîner en précision réduite sans instabilité.",
+      "original_statement": "Switch Transformer résout les instabilités numériques du routeur en castant ses entrées en float32 pour la stabilité des logits, tandis que le reste du forward pass reste en bfloat16 — première démonstration documentée qu'un grand modèle sparse peut s'entraîner en précision réduite sans instabilité.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "L'imprecision est dans la cause déclarée : le papier attribue explicitement l'instabilité au « softmax computation » du routeur (où exp() déborde en bfloat16), non aux logits eux-mêmes. Le code HuggingFace confirme que le softmax est forcé en float32 via un argument dtype explicite. Les logits sont certes aussi en float32 (conséquence du cast de l'entrée), mais ils ne sont pas la source primaire d'instabilité citée — remplacer « stabilité des logits » par « stabilité du softmax du routeur » corrige l'énoncé sans toucher au reste, qui tient."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le mécanisme est confirmé mot pour mot par la Section 2.4 du papier Switch Transformer (2101.03961) : les entrées du routeur sont castées en float32 localement, les tenseurs résultants (dispatch/combine) sont recastés en bfloat16 avant toute communication, et le reste du forward pass reste en bfloat16. L'abstract affirme explicitement « for the first time » pour l'entraînement en bfloat16 de grands modèles sparse. Le ST-MoE (2202.08906) corrobore la technique comme pratique établie sous le nom « selective precision », bien qu'il soit issu du même laboratoire et cite le papier Switch. Mineure imprécision : « pour la stabilité des logits » est une formulation plus étroite que ce que le papier décrit (stabilité de l'ensemble de la fonction routeur, logits + softmax) — sans être fausse."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Switch Transformer résout les instabilités numériques du routeur en castant ses entrées en float32 pour la stabilité des logits, tandis que le reste du forward pass reste en bfloat16 — première démonstration documentée qu'un grand modèle sparse peut s'entraîner en précision réduite sans instabilité. »"
+    },
+    {
+      "id": "claim:29",
+      "section": "limites-et-trade-offs",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "QMoE comprime Switch-C (1 571 milliards de paramètres, 3,2 TB en bfloat16) à moins de 160 GB (0,8 bit par paramètre, facteur de compression ~20×, soit exactement 19,81× avec 158,6 GB) avec une perte de qualité mineure, en moins d'une journée sur un seul GPU, rendant exécutable un modèle trillion-paramètre sur 4 × NVIDIA A6000 ou 8 × RTX 3090 avec un overhead d'inférence inférieur à 5 %.",
+      "original_statement": "QMoE comprime Switch-C (1 571 milliards de paramètres, 3,2 TB en FP16) à moins de 160 GB (0,8 bit par paramètre, facteur de compression 20×) avec une perte de qualité mineure, en moins d'une journée sur un seul GPU, rendant exécutable un modèle trillion-paramètre sur 4 × NVIDIA A6000 ou 8 × RTX 3090 avec un overhead d'inférence inférieur à 5 %.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Tous les chiffres-clés (160 GB, 0,8 bpp, 20×, moins d'un jour, 4×A6000 / 8×RTX 3090) sont reproduits mot pour mot dans l'abstract de QMoE ; le paramétrage exact de Switch-C (1 571 B) est confirmé par le papier Switch Transformer original. Seul bémol : la borne « moins de 5 % overhead » est qualifiée dans le papier de « relative to ideal uncompressed inference » (baseline théorique, non un déploiement réel non compressé), nuance absente de l'énoncé. Le chiffre 3,2 TB est légèrement arrondi par les auteurs (calcul exact : 1 571 × 10⁹ × 2 octets ≈ 3,14 TB), mais c'est la valeur utilisée dans le papier source lui-même."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Tous les chiffres quantitatifs clés sont confirmés par le papier QMoE (MLSys 2024). La seule inexactitude est « FP16 » : le papier spécifie bfloat16 (BF16), format 16-bit distinct de FP16 (même taille en octets, donc 3,2 TB reste juste). Les deux sources candidates sont deux versions du même papier (préprint + actes de conférence) et ne constituent pas deux sources indépendantes ; aucune vérification expérimentale tierce n'a été trouvée."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « QMoE comprime Switch-C (1 571 milliards de paramètres, 3,2 TB en FP16) à moins de 160 GB (0,8 bit par paramètre, facteur de compression 20×) avec une perte de qualité mineure, en moins d'une journée sur un seul GPU, rendant exécutable un modèle trillion-paramètre sur 4 × NVIDIA A6000 ou 8 × RTX 3090 avec un overhead d'inférence inférieur à 5 %. »"
+    },
+    {
+      "id": "claim:30",
+      "section": "limites-et-trade-offs",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Les modèles MoE sparse, à perplexité de pré-entraînement fixée, tendent à moins bien performer que les modèles denses sur les tâches de raisonnement (au sens large) mais mieux sur les tâches knowledge-intensive — contraste issu de la littérature MoE générale (Artetxe et al. 2021, Fedus et al.), et NON documenté comme tel dans MoE-RBench, qui évalue la fiabilité (sécurité, robustesse adversariale, OOD) sans inclure de benchmark de raisonnement déductif ; par ailleurs, les performances récentes de modèles MoE à grande échelle (DeepSeek-V3 : 59.1 GPQA-Diamond, 39.2 AIME 2024) défient le contraste, mais sur le plan inférentiel et non de fine-tuning spécifiquement.",
+      "original_statement": "Les modèles MoE sparse fine-tuneraient plus mal que les modèles denses comparables sur les tâches de raisonnement déductif, mais mieux sur les tâches knowledge-intensive — contraste documenté dans MoE-RBench mais fragilisé par les performances récentes de DeepSeek-V3 et Mixtral sur AIME et GPQA-Diamond.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Deux erreurs factuelles majeures. Premièrement, MoE-RBench (2406.11353) porte sur la fiabilité (sécurité/hallucination, robustesse adversariale, résilience OOD) et n'évalue aucun benchmark de raisonnement déductif (pas de GSM8K, ARC, LogiQA, BBH) : le contraste « raisonnement déductif pire / knowledge-intensive meilleur » n'y est pas documenté en tant que tel — la seule tâche knowledge-intensive confirmée est Natural Questions (avantage MoE). Deuxièmement, le terme « raisonnement déductif » ne figure pas dans MoE-RBench ; la littérature MoE parle de « reasoning tasks » au sens large. Le fond du contraste existe dans la littérature (notamment Artetxe et al. 2021, et confirmé pour Mixtral-8×7B sur GSM8K/MATH), mais son attribution à MoE-RBench est inexacte. La « fragilisation » par DeepSeek-V3 et Mixtral est partiellement fondée (MoE compétitif sur AIME/GPQA-Diamond), mais ces scores relèvent de la performance à l'inférence, pas du fine-tuning, ce qui brouille la comparaison."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le contraste documenté dans MoE-RBench oppose véracité/hallucination (TruthfulQA, où MoE sous-performe) à récupération de connaissances (Natural Questions, où MoE surperforme), et non raisonnement déductif vs knowledge-intensive. L'énoncé commet une double erreur : il nomme mal la dimension de faiblesse MoE dans MoE-RBench, et attribue à 2512.24776 des résultats DeepSeek-V3/Mixtral sur AIME/GPQA-Diamond que ce papier ne contient pas."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « Les modèles MoE sparse fine-tuneraient plus mal que les modèles denses comparables sur les tâches de raisonnement déductif, mais mieux sur les tâches knowledge-intensive — contraste documenté dans MoE-RBench mais fragilisé par les performances récentes de DeepSeek-V3 et Mixtral sur AIME et GPQA-Diamond. »"
+    },
+    {
+      "id": "claim:31",
+      "section": "limites-et-trade-offs",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Au service, en configuration standard tous les experts d'un modèle MoE résident en VRAM (bien qu'un déchargement vers la RAM CPU soit possible via expert offloading), rendant le modèle dense en mémoire mais sparse en calcul : Mixtral 8×7B exige ~93 GB en FP16 pour ses 46,7 milliards de paramètres, n'en activant que 12,9 milliards par token.",
+      "original_statement": "Au service, tous les experts d'un modèle MoE doivent résider simultanément en VRAM, rendant le modèle dense en mémoire mais sparse en calcul : Mixtral 8×7B exige ~90 GB en FP16 pour ses 46,7 milliards de paramètres, n'en activant que 12,9 milliards par token.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 4,
+          "note": "Deux défauts factuels : (1) le verbe \"doivent\" est faux — l'expert offloading (mixtral-offloading, llama.cpp) permet de ne garder en VRAM que les experts actifs, au prix d'une latence accrue ; (2) \"~90 GB\" sous-estime le besoin FP16, qui est ~93 GB pour les seuls poids (46,7 G × 2 octets) et ~96-97 GB pour le fichier modèle complet, d'après plusieurs sources indépendantes. Les chiffres 46,7 milliards total et 12,9 milliards actifs par token sont confirmés par la source primaire Mistral AI."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Les chiffres 46,7 milliards de paramètres totaux et 12,9 milliards actifs par token sont confirmés par le blog officiel Mistral et l'arxiv 2401.04088 (qui les arrondit à ~47B / ~13B). En revanche, la figure «~90 GB» est inexacte : le calcul direct donne 46,7B × 2 octets = 93,4 GB (≈ 93-94 GB), et la mesure HuggingFace automatisée donne 87,25 GB (poids seuls, float16/bfloat16) ; ni l'un ni l'autre ne s'arrondit naturellement à 90 GB. Par ailleurs, l'expert offloading vers la RAM CPU existe (Mixtral-offloading), donc «must reside in VRAM» est une simplification : la contrainte stricte s'applique à l'inférence GPU standard sans offloading."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « Au service, tous les experts d'un modèle MoE doivent résider simultanément en VRAM, rendant le modèle dense en mémoire mais sparse en calcul : Mixtral 8×7B exige ~90 GB en FP16 pour ses 46,7 milliards de paramètres, n'en activant que 12,9 milliards par token. »"
+    },
+    {
+      "id": "claim:32",
+      "section": "ecosystem",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "QMoE (Frantar & Alistarh, MLSys 2024) comprime le Switch Transformer-c2048 (1,6 trillion de paramètres) en dessous de 160 Go à 0,8 bit par paramètre, permettant son inférence sur 4× NVIDIA A6000 ou 8× RTX 3090 avec moins de 5 % de surcoût à l'inférence.",
+      "original_statement": "QMoE (Frantar & Alistarh, MLSys 2024) comprime le Switch Transformer-c2048 (1,6 trillion de paramètres) en dessous de 160 Go à 0,8 bit par paramètre, permettant son inférence sur 4× NVIDIA A6000 ou 8× RTX 3090 avec moins de 5 % de surcoût à l'inférence.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Tous les chiffres de l'énoncé (1,6 trillion de paramètres, < 160 Go, 0,8 bpp, 4× A6000 ou 8× RTX 3090, < 5 % de surcoût) sont reproduits mot pour mot dans l'abstract arXiv et dans les actes MLSys 2024. La seule nuance absente : le surcoût de 5 % est mesuré par rapport à une « ideal uncompressed inference » (baseline théorique irréalisable sur ce matériel), non à une inférence non compressée réelle — ce qui rend la comparaison favorable mais ne rend pas l'énoncé faux."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "L'intégralité des chiffres est confirmée mot pour mot par les deux sources : SwitchTransformer-c2048 à 1,6 trillion de paramètres, compression sous 160 Go à 0,8 bit par paramètre, inférence sur 4× A6000 ou 8× NVIDIA 3090 (RTX 3090), moins de 5 % de surcoût — publié à MLSys 2024 par Frantar et Alistarh. Aucun écart détecté."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:33",
+      "section": "ecosystem",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "MegaBlocks (Gale et al., MLSys 2023) reformule le dispatch MoE en block-sparse operations pour éliminer le token dropping tout en exécutant tous les experts en parallèle ; il est officiellement intégré dans Megatron-LM et GPT-NeoX. L'inférence de Mixtral 8×7B via vLLM peut exploiter MegaBlocks, mais ce n'est pas l'implémentation de référence Mistral (mistral-src) ; Nanotron possède sa propre implémentation MoE indépendante inspirée de MegaBlocks, sans l'intégrer comme dépendance.",
+      "original_statement": "MegaBlocks (Gale et al., MLSys 2023) reformule le dispatch MoE en block-sparse matrix multiplication pour éliminer le token dropping tout en exécutant tous les experts en parallèle ; il est intégré dans les implémentations de référence de Mixtral 8×7B, Nanotron et GPT-NeoX.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 6,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 4,
+          "note": "La description technique est exacte (block-sparse, pas de token dropping, MLSys 2023, Gale et al.). Le problème est dans les intégrations : Nanotron a sa propre implémentation MoE inspirée de MegaBlocks sans l'utiliser directement, et Mixtral 8×7B ne dépend de MegaBlocks que dans le chemin vLLM (inférence), pas dans son implémentation de référence officielle ; l'intégration formellement documentée par MegaBlocks est Megatron-LM, omise de l'énoncé."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le coeur technique (block-sparse, sans token dropping, tous experts en parallèle) est exact et confirmé par deux sources indépendantes. En revanche, l'implémentation de référence officielle de Mixtral 8×7B (mistral-inference/moe.py) utilise du PyTorch standard sans MegaBlocks — c'est vLLM qui intègre MegaBlocks pour l'inférence Mixtral, via un fork archivé de Mistral AI (mistralai/megablocks-public). L'intégration dans GPT-NeoX est directement attestée dans le README ; celle dans Nanotron est confirmée par les imports dans nanotron/examples/moe/moe.py."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (6 sources indépendantes). Origine : « MegaBlocks (Gale et al., MLSys 2023) reformule le dispatch MoE en block-sparse matrix multiplication pour éliminer le token dropping tout en exécutant tous les experts en parallèle ; il est intégré dans les implémentations de référence de Mixtral 8×7B, Nanotron et GPT-NeoX. »"
+    },
+    {
+      "id": "claim:34",
+      "section": "ecosystem",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Les résultats de QMoE portent effectivement exclusivement sur Switch Transformer (architecture encoder-decoder, trois variantes : base128, large128, c2048). Cependant, l'article original ne formule aucun « claim de compression générique des MoE » : il reconnaît explicitement que l'étude est « confined to a limited set of models, as only very few massive and accurate MoEs are available publicly ». L'absence de Mixtral 8×7B et de DeepSeek-V3 est une contrainte chronologique (ces modèles n'existaient pas en octobre 2023), non un manque de rigueur de l'article. La portée restreinte est donc assumée et documentée par les auteurs eux-mêmes ; reprocher à l'article un « claim non étayé » qu'il ne formule pas est un homme de paille.",
+      "original_statement": "Les résultats publiés de QMoE portent exclusivement sur Switch Transformer (architecture encoder-decoder) ; son applicabilité aux grands MoE decoder-only (Mixtral 8×7B, DeepSeek-V3) et les pertes de qualité associées ne sont pas documentées dans l'article original, ce qui rend le claim de « compression générique des MoE » partiellement non étayé.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "L'énoncé ne tient pas : sa prémisse centrale — que QMoE overclaime une « compression générique des MoE » — est fausse. Le papier déclare lui-même sa limitation de périmètre et ne fait aucune promesse de généricité. Par ailleurs, Mixtral 8×7B est sorti deux mois après la soumission du papier, rendant son absence d'évaluation inévitable et non significative."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "La section Experiments déclare explicitement : « We focus our experiments on the SwitchTransformer family of models » (base128, large128, c2048), et le texte confirme que SwitchTransformer est « encoder-decoder architecture ». La section Discussion reconnaît elle-même la portée limitée : « Our study is confined to a limited set of models… specifically SwitchTransformers » et indique l'extension à d'autres variantes MoE comme travaux futurs. Mixtral 8×7B (déc. 2023) et DeepSeek-V3 (déc. 2024) sont postérieurs à la soumission (25 oct. 2023) et ne figurent dans aucune version du papier."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « Les résultats publiés de QMoE portent exclusivement sur Switch Transformer (architecture encoder-decoder) ; son applicabilité aux grands MoE decoder-only (Mixtral 8×7B, DeepSeek-V3) et les pertes de qualité associées ne sont pas documentées dans l'article original, ce qui rend le claim de « compression générique des MoE » partiellement non étayé. »"
+    }
+  ]
+}
