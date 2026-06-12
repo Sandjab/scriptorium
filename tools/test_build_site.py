@@ -53,3 +53,57 @@ def test_load_taxonomy_missing_key_fails(tmp_path):
     p = _write_taxo(tmp_path, [{"id": "d1", "label": "A", "themes": ["x"]}])  # pas de blurb
     with pytest.raises(SystemExit):
         build_site.load_taxonomy(p)
+
+
+LEGACY = "automatic-prompt-optimization"
+
+
+def _collected(*slugs):
+    """Imite la sortie de collect() : (slug, label, docs)."""
+    return [(s, s.title(), [(f"{s}/{s}.html", s, s)]) for s in slugs]
+
+
+def test_group_orders_and_alpha_sorts(tmp_path):
+    domains = [
+        {"id": "d2", "label": "D2", "blurb": "b", "themes": ["gamma", "alpha"]},
+        {"id": "d1", "label": "D1", "blurb": "b", "themes": ["beta"]},
+    ]
+    secs = build_site.group_by_domain(_collected("alpha", "beta", "gamma"), domains, LEGACY)
+    assert [s["kind"] for s in secs] == ["domain", "domain"]
+    assert secs[0]["id"] == "d2"
+    assert [t[0] for t in secs[0]["themes"]] == ["alpha", "gamma"]  # tri alpha intra-domaine
+
+
+def test_group_slug_without_dist_fails():
+    domains = [{"id": "d1", "label": "D1", "blurb": "b", "themes": ["ghost"]}]
+    with pytest.raises(SystemExit):
+        build_site.group_by_domain(_collected("alpha"), domains, LEGACY)
+
+
+def test_group_slug_in_two_domains_fails():
+    domains = [
+        {"id": "d1", "label": "D1", "blurb": "b", "themes": ["alpha"]},
+        {"id": "d2", "label": "D2", "blurb": "b", "themes": ["alpha"]},
+    ]
+    with pytest.raises(SystemExit):
+        build_site.group_by_domain(_collected("alpha"), domains, LEGACY)
+
+
+def test_group_empty_domain_fails():
+    domains = [{"id": "d1", "label": "D1", "blurb": "b", "themes": []}]
+    with pytest.raises(SystemExit):
+        build_site.group_by_domain(_collected("alpha"), domains, LEGACY)
+
+
+def test_group_unclassified_bucket():
+    domains = [{"id": "d1", "label": "D1", "blurb": "b", "themes": ["alpha"]}]
+    secs = build_site.group_by_domain(_collected("alpha", "orphan"), domains, LEGACY)
+    assert secs[-1]["kind"] == "unclassified"
+    assert [t[0] for t in secs[-1]["themes"]] == ["orphan"]
+
+
+def test_group_legacy_last():
+    domains = [{"id": "d1", "label": "D1", "blurb": "b", "themes": ["alpha"]}]
+    secs = build_site.group_by_domain(_collected("alpha", LEGACY), domains, LEGACY)
+    assert secs[-1]["kind"] == "legacy"
+    assert secs[-1]["theme"][0] == LEGACY

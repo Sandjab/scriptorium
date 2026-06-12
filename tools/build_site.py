@@ -97,6 +97,53 @@ def load_taxonomy(taxonomy_path: Path) -> list[dict]:
     return domains
 
 
+def group_by_domain(collected, domains, legacy_slug):
+    """Croise les thèmes publiés et la taxonomie -> sections ordonnées.
+
+    Retourne une liste de dicts :
+      {"kind":"domain","id","label","blurb","themes":[(slug,label,docs),...]}
+      {"kind":"unclassified","themes":[...]}   (seulement si non vide)
+      {"kind":"legacy","theme":(slug,label,docs)}  (seulement si publié)
+    Échoue bruyamment : slug classé sans dist, slug dans 2 domaines, domaine vide,
+    slug legacy classé dans un domaine.
+    """
+    by_slug = {slug: (label, docs) for slug, label, docs in collected}
+    seen = set()
+    sections = []
+    for dom in domains:
+        entries = []
+        for slug in sorted(dom["themes"]):
+            if slug == legacy_slug:
+                raise SystemExit(f"build_site: legacy '{slug}' ne doit pas être classé")
+            if slug not in by_slug:
+                raise SystemExit(
+                    f"build_site: thème '{slug}' (domaine '{dom['id']}') sans dist/"
+                )
+            if slug in seen:
+                raise SystemExit(f"build_site: thème '{slug}' classé dans plusieurs domaines")
+            seen.add(slug)
+            label, docs = by_slug[slug]
+            entries.append((slug, label, docs))
+        if not entries:
+            raise SystemExit(f"build_site: domaine '{dom['id']}' vide")
+        sections.append(
+            {"kind": "domain", "id": dom["id"], "label": dom["label"],
+             "blurb": dom["blurb"], "themes": entries}
+        )
+    unclassified = sorted(
+        s for s in by_slug if s not in seen and s != legacy_slug
+    )
+    if unclassified:
+        sections.append(
+            {"kind": "unclassified",
+             "themes": [(s, *by_slug[s]) for s in unclassified]}
+        )
+    if legacy_slug in by_slug:
+        label, docs = by_slug[legacy_slug]
+        sections.append({"kind": "legacy", "theme": (legacy_slug, label, docs)})
+    return sections
+
+
 def render_index(themes) -> str:
     """Page d'accueil — esthétique alignée sur charte.css (tokens, polices)."""
     e = html.escape
