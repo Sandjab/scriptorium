@@ -133,3 +133,19 @@ def test_render_unclassified_and_legacy_last():
     out = build_site.render_index(secs, n_themes=3, n_docs=3)
     assert "À classer" in out
     assert out.index("À classer") < out.index("Legacy")  # bucket avant legacy
+
+
+def test_main_end_to_end(tmp_path):
+    themes = tmp_path / "themes"
+    _publish(themes, "alpha", "Alpha")
+    _publish(themes, "beta", "Beta")
+    taxo = _write_taxo(tmp_path, [
+        {"id": "d1", "label": "Domaine Un", "blurb": "b", "themes": ["alpha", "beta"]},
+    ])
+    site = tmp_path / "_site"
+    rc = build_site.main(themes_dir=themes, taxonomy_path=taxo, site_dir=site)
+    assert rc == 0
+    index = (site / "index.html").read_text(encoding="utf-8")
+    assert "Domaine Un" in index
+    assert (site / "alpha" / "alpha.html").is_file()
+    assert (site / "beta" / "beta.html").is_file()

@@ -18,7 +18,6 @@ import html
 import json
 import re
 import shutil
-import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -289,26 +288,29 @@ def render_index(sections, n_themes, n_docs) -> str:
 '''
 
 
-def main() -> int:
-    themes = collect()
-    if not themes:
-        sys.exit(f"build_site: aucun document trouvé sous {THEMES_DIR}/*/dist/*.html")
+def main(themes_dir: Path = THEMES_DIR, taxonomy_path: Path = TAXONOMY_PATH,
+         site_dir: Path = SITE_DIR) -> int:
+    collected = collect(themes_dir)
+    if not collected:
+        raise SystemExit(f"build_site: aucun document sous {themes_dir}/*/dist/*.html")
+    domains = load_taxonomy(taxonomy_path)
+    sections = group_by_domain(collected, domains, LEGACY_SLUG)
 
-    if SITE_DIR.exists():
-        shutil.rmtree(SITE_DIR)
-    SITE_DIR.mkdir(parents=True)
+    n_themes = len(collected)
+    n_docs = sum(len(docs) for _, _, docs in collected)
 
-    n_docs = 0
-    for slug, _, docs in themes:
-        (SITE_DIR / slug).mkdir(parents=True, exist_ok=True)
+    if site_dir.exists():
+        shutil.rmtree(site_dir)
+    site_dir.mkdir(parents=True)
+    for slug, _, docs in collected:
+        (site_dir / slug).mkdir(parents=True, exist_ok=True)
         for href, *_ in docs:
-            src = THEMES_DIR / slug / "dist" / Path(href).name
-            shutil.copy2(src, SITE_DIR / href)
-            n_docs += 1
+            shutil.copy2(themes_dir / slug / "dist" / Path(href).name, site_dir / href)
 
-    (SITE_DIR / "index.html").write_text(render_index(themes), encoding="utf-8")
-
-    print(f"build_site: {len(themes)} thèmes, {n_docs} documents -> {SITE_DIR}")
+    (site_dir / "index.html").write_text(
+        render_index(sections, n_themes, n_docs), encoding="utf-8"
+    )
+    print(f"build_site: {n_themes} thèmes, {n_docs} documents -> {site_dir}")
     return 0
 
 
