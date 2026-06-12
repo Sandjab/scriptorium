@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import datetime as _dt
 import html
+import json
 import re
 import shutil
 import sys
@@ -23,6 +24,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 THEMES_DIR = ROOT / "themes"
 SITE_DIR = ROOT / "_site"
+TAXONOMY_PATH = Path(__file__).resolve().parent / "taxonomy.json"
 
 # Suffixe de variante (triptyque) -> libellé affiché.
 VARIANTS = {
@@ -52,15 +54,12 @@ def theme_label(slug: str) -> str:
     return slug.replace("-", " ").title()
 
 
-def collect():
-    """[(slug, label, [(href, link_label, full_title), ...]), ...] trié."""
+def collect(themes_dir: Path):
+    """[(slug, label, [(href, link_label, full_title), ...]), ...], trié alpha."""
     themes = []
-    # Le thème legacy passe toujours en dernier (True trie après False) ; sinon alphabétique.
-    theme_dirs = sorted(
-        (p for p in THEMES_DIR.iterdir() if p.is_dir()),
-        key=lambda p: (p.name == LEGACY_SLUG, p.name),
-    )
-    for theme_dir in theme_dirs:
+    for theme_dir in sorted(
+        (p for p in themes_dir.iterdir() if p.is_dir()), key=lambda p: p.name
+    ):
         dist = theme_dir / "dist"
         if not dist.is_dir():
             continue
