@@ -1,0 +1,1072 @@
+{
+ "generator": "frugalmonograph",
+ "theme": {
+  "slug": "quantization",
+  "title": "Quantization des réseaux de neurones : théorie, méthodes et déploiement"
+ },
+ "summary": {
+  "sections_total": 9,
+  "sections_retained": 9,
+  "claims_total": 34,
+  "confirmed": 10,
+  "corrected": 21,
+  "rejected": 3,
+  "retained": 31
+ },
+ "claims": [
+  {
+   "id": "claim:1",
+   "section": "fondations",
+   "section_retained": true,
+   "retained": true,
+   "audit": "corrected",
+   "kind": "established",
+   "statement": "Les formules x_q = clamp(round(x / s + z), q_min, q_max) et x̂ = s · (x_q − z) définissent la grille de quantification uniforme affine via trois paramètres : le scale factor s, le zero-point entier z, et la largeur de bits b (qui fixe les bornes entières [q_min, q_max]). Ces trois paramètres sont nécessaires et suffisants ; s et z seuls sont insuffisants car ils ne spécifient pas la taille de la grille entière ni l'opération de clipping. De plus, la dequantisation est une approximation, non une reconstruction exacte.",
+   "original_statement": "Les formules x_q = round(x / s + z) et x = s · (x_q − z) définissent complètement la grille de quantization via deux paramètres : le scale factor s et le zero-point entier z — ces deux paramètres sont nécessaires et suffisants pour convertir tout réel en entier et réciproquement.",
+   "corroborated": 0,
+   "refuted": 2,
+   "corrected": 2,
+   "n_sources": 3,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 2,
+     "note": "Deux sources indépendantes confirment qu'un troisième paramètre (bit-width b, ou équivalemment [q_min, q_max]) est requis au-delà de s et z : la formule correcte inclut un clamp sur la plage entière, sans lequel la conversion est mal définie pour tout réel hors plage. L'énoncé omet ce paramètre et cette opération, rendant le claim de suffisance faux."
+    },
+    {
+     "lens": "indépendance",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 2,
+     "note": "Les deux formules (round pour quantifier, s·(x_q−z) pour déquantifier) sont mathématiquement correctes, mais la prétention de suffisance est fausse : sans l'opération clamp(·, n, p) bornant le résultat à la plage entière cible (e.g. [−128, 127] pour int8), x_q = round(x/s + z) produit un entier non borné — la grille reste infinie. Un troisième paramètre (les bornes [n, p] ou, de façon équivalente, le bit-width b) est nécessaire pour définir un ensemble discret fini."
+    }
+   ],
+   "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Les formules x_q = round(x / s + z) et x = s · (x_q − z) définissent complètement la grille de quantization via deux paramètres : le scale factor s et le zero-point entier z — ces deux paramètres sont nécessaires et suffisants pour convertir tout réel en entier et réciproquement. »"
+  },
+  {
+   "id": "claim:2",
+   "section": "fondations",
+   "section_retained": true,
+   "retained": true,
+   "audit": "corrected",
+   "kind": "established",
+   "statement": "La quantization affine (z ≠ 0) couvre la plage réelle des activations unilatérales [0, max] avec la totalité du dynamique entier tout en garantissant la représentation exacte du zéro flottant (universellement requise, notamment pour le zero-padding) ; la quantization symétrique (z = 0) — qui représente aussi exactement le zéro, de façon triviale — élimine le terme de zero-point des noyaux de calcul, au prix d'une plage forcément centrée qui gaspille environ la moitié du dynamique entier pour des activations post-ReLU. L'avantage décisif de la quantization affine pour les distributions unilatérales est l'efficacité du dynamique, non la seule représentation du zéro.",
+   "original_statement": "La quantization affine (z ≠ 0) représente exactement le zéro flottant dans la plage entière — condition indispensable pour les activations à distribution unilatérale — tandis que la quantization symétrique (z = 0) élimine le terme de zero-point des noyaux de calcul au prix d'une plage forcément centrée.",
+   "corroborated": 1,
+   "refuted": 1,
+   "corrected": 1,
+   "n_sources": 3,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 2,
+     "note": "La chaîne causale \"représentation exacte du zéro → condition indispensable pour distributions unilatérales\" est inexacte sur deux points : (1) la quantization symétrique (z = 0) représente aussi exactement 0.0 de façon triviale, donc cette propriété n'est pas exclusive à la quantization affine ; (2) la vraie raison pour laquelle la quantization affine est préférable avec les activations post-ReLU est l'utilisation efficace de la plage entière (pas de gaspillage sur les négatifs absents), et non la seule représentation exacte du zéro — qui est, elle, une contrainte universelle liée au zero-padding."
+    },
+    {
+     "lens": "indépendance",
+     "holds": true,
+     "corrected": false,
+     "n_sources": 3,
+     "note": "Les quatre sous-claims sont confirmés par trois sources indépendantes : exacte représentation de zéro par l'affine (garantie par le choix de z), avantage pour les distributions unilatérales type ReLU (la symétrique signée gaspille la moitié de la plage entière), élimination du zero-point dans les noyaux par la symétrique, et plage forcément centrée. Nuance : la symétrique représente aussi float 0 exactement (entier 0) ; l'avantage décisif de l'affine pour les distributions unilatérales est la flexibilité de plage, pas uniquement la représentation de zéro. \"Indispensable\" est légèrement fort — la symétrique non signée (uint8) convient aussi aux sorties ReLU — mais l'énoncé résume fidèlement les compromis standards de la littérature pour la quantization signée."
+    }
+   ],
+   "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « La quantization affine (z ≠ 0) représente exactement le zéro flottant dans la plage entière — condition indispensable pour les activations à distribution unilatérale — tandis que la quantization symétrique (z = 0) élimine le terme de zero-point des noyaux de calcul au prix d'une plage forcément centrée. »"
+  },
+  {
+   "id": "claim:3",
+   "section": "fondations",
+   "section_retained": true,
+   "retained": true,
+   "audit": "corrected",
+   "kind": "contestable",
+   "statement": "Passer à une représentation 4 bits offre un potentiel théorique de réduction 8× de l'empreinte mémoire par rapport au FP32, ou seulement 4× par rapport au FP16 — la base habituelle des LLMs en inférence. Les gains de latence sont distincts et plus modestes (2× à 3,5× selon l'implémentation). En pratique, les réductions observées se situent entre 4× et 8×. Le chiffre de 16× correspond au rapport FP64/INT4, rarement pertinent pour les LLMs, et est cité comme potentiel théorique dans la littérature, non comme objectif régulièrement atteignable.",
+   "original_statement": "Passer à une représentation 4 bits ou moins offre un potentiel de réduction 16× de l'empreinte mémoire et de la latence — un facteur régulièrement cité dans la littérature comme objectif atteignable pour les LLMs quantifiés.",
+   "corroborated": 0,
+   "refuted": 2,
+   "corrected": 2,
+   "n_sources": 3,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 3,
+     "note": "Le facteur 16× ne s'applique qu'au rapport FP64/INT4, sans rapport avec la base FP16 standard des LLMs (qui donne 4×). De plus, la seule source qui mentionne 16× (arxiv 2103.13630) précise explicitement que les réductions pratiques sont de 4× à 8×, contredisant la qualification d'« objectif atteignable ». Enfin, mémoire et latence ne se réduisent pas du même facteur : les gains de débit mesurés en conditions réelles sont de 2× à 3,5×, pas 16×."
+    },
+    {
+     "lens": "source-primaire",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 2,
+     "note": "Le papier arxiv 2103.13630 cite bien le chiffre 16× pour « quatre bits ou moins depuis une représentation flottante », mais il s'agit d'un survey sur les réseaux de neurones en général (pas les LLMs), et le même abstract indique que les gains pratiques sont de 4-8×. Mathématiquement, 16× exige de descendre à 2 bits depuis FP32 (32/2=16) ; à 4 bits depuis FP32 on obtient 8×, et depuis FP16 (baseline standard des LLMs) seulement 4×. La guide Hivenet, vérifié indépendamment, confirme ce chiffre de 4× pour INT4 depuis FP16. Qualifier ce facteur de « régulièrement cité comme objectif atteignable pour les LLMs » est donc inexact : c'est un plafond théorique mentionné dans un seul survey, non une norme de la littérature LLM."
+    }
+   ],
+   "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Passer à une représentation 4 bits ou moins offre un potentiel de réduction 16× de l'empreinte mémoire et de la latence — un facteur régulièrement cité dans la littérature comme objectif atteignable pour les LLMs quantifiés. »"
+  },
+  {
+   "id": "claim:4",
+   "section": "fondations",
+   "section_retained": true,
+   "retained": true,
+   "audit": "confirmed",
+   "kind": "established",
+   "statement": "Le Post-Training Quantization (PTQ) calibre les paramètres de quantization sans ré-entraînement ni données labellisées ; le Quantization-Aware Training (QAT) simule le rounding en forward pass et utilise le Straight-Through Estimator (STE) — qui approche la dérivée de round(·) par 1 — pour rendre le backward pass différentiable.",
+   "original_statement": "Le Post-Training Quantization (PTQ) calibre les paramètres de quantization sans ré-entraînement ni données labellisées ; le Quantization-Aware Training (QAT) simule le rounding en forward pass et utilise le Straight-Through Estimator (STE) — qui approche la dérivée de round(·) par 1 — pour rendre le backward pass différentiable.",
+   "corroborated": 2,
+   "refuted": 0,
+   "corrected": 0,
+   "n_sources": 3,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": true,
+     "corrected": false,
+     "n_sources": 2,
+     "note": "Les deux affirmations tiennent : PTQ utilise des données de calibration non labellisées (aucun ré-entraînement, aucune donnée labellisée, conformément à la formulation) ; le STE pour l'opération round(·) spécifiquement est bien approximé par 1 (identité) selon la formulation classique de Bengio 2013, ce que la source leimao confirme. La nuance à garder à l'esprit est que le STE appliqué à la fonction de quantization complète (round + clip) donne 1 dans la plage valide et 0 hors plage — mais l'énoncé cible précisément round(·), ce qui est exact."
+    },
+    {
+     "lens": "indépendance",
+     "holds": true,
+     "corrected": false,
+     "n_sources": 2,
+     "note": "Les deux sources indépendantes confirment les trois claims : PTQ calibre les paramètres (scales/zero-points) sans ré-entraînement ni données labellisées (calibration sur données non-labellisées suffisante) ; QAT simule le rounding en forward pass ; le STE approche la dérivée de round(·) par 1 (dans la plage de clipping valide) pour rendre le backward pass différentiable — formulation standard et précise."
+    }
+   ],
+   "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+  },
+  {
+   "id": "claim:5",
+   "section": "garanties-theoriques-et-bornes",
+   "section_retained": true,
+   "retained": true,
+   "audit": "confirmed",
+   "kind": "established",
+   "statement": "Pour un signal sinusoïdal pleine échelle, le SNR d'un quantificateur uniforme à N bits vaut 1,76 + 6,02·N dB, chaque bit supplémentaire apportant ~6,02 dB — conséquence directe de la puissance du quantization noise σ²_e = Δ²/12.",
+   "original_statement": "Pour un signal sinusoïdal pleine échelle, le SNR d'un quantificateur uniforme à N bits vaut 1,76 + 6,02·N dB, chaque bit supplémentaire apportant ~6,02 dB — conséquence directe de la puissance du quantization noise σ²_e = Δ²/12.",
+   "corroborated": 2,
+   "refuted": 0,
+   "corrected": 0,
+   "n_sources": 3,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": true,
+     "corrected": false,
+     "n_sources": 2,
+     "note": "La formule 1,76 + 6,02·N dB pour un sinus pleine échelle est mathématiquement exacte dans le modèle granulaire standard (SNR = (3/2)·4^N, confirmé par Wikipedia et Testbook). Elle tient comme approximation de haute résolution. La limite principale — non mentionnée dans l'énoncé — est que σ²_e = Δ²/12 suppose l'erreur uniformément distribuée, hypothèse qui cède à bas N ou pour des signaux à faible amplitude, ce que Wikipedia signale explicitement. La source candidate (Fiveable) présente par ailleurs une incohérence interne (elle additionne deux fois le terme sinusoïdal), mais cela ne contredit pas la formule soumise."
+    },
+    {
+     "lens": "indépendance",
+     "holds": true,
+     "corrected": false,
+     "n_sources": 2,
+     "note": "Les deux sources vérifient indépendamment la formule SNR ≈ 1,76 + 6,02·N dB pour un signal sinusoïdal pleine échelle, et confirment que la puissance du bruit de quantification vaut Δ²/12 — dont découle directement la constante 6,02 dB/bit (= 20·log10 2) et le terme 1,76 dB (= 10·log10(3/2)). L'énoncé est exact sans correction nécessaire."
+    }
+   ],
+   "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+  },
+  {
+   "id": "claim:6",
+   "section": "garanties-theoriques-et-bornes",
+   "section_retained": true,
+   "retained": true,
+   "audit": "confirmed",
+   "kind": "established",
+   "statement": "Le quantificateur scalaire optimal de Lloyd-Max satisfait deux conditions nécessaires simultanées : midpoint condition (frontière de décision au milieu des niveaux adjacents) et centroid condition (niveau de reconstruction = espérance conditionnelle dans la cellule) ; l'algorithme de Lloyd converge vers un minimum local garanti de la MSE.",
+   "original_statement": "Le quantificateur scalaire optimal de Lloyd-Max satisfait deux conditions nécessaires simultanées : midpoint condition (frontière de décision au milieu des niveaux adjacents) et centroid condition (niveau de reconstruction = espérance conditionnelle dans la cellule) ; l'algorithme de Lloyd converge vers un minimum local garanti de la MSE.",
+   "corroborated": 2,
+   "refuted": 0,
+   "corrected": 0,
+   "n_sources": 4,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": true,
+     "corrected": false,
+     "n_sources": 3,
+     "note": "Les deux conditions (midpoint = frontière = (c_i+c_{i+1})/2 ; centroid = niveau = E[X|X∈cellule]) sont des conditions nécessaires bien établies pour tout quantificateur MSE-optimal, et les sources primaires (Lloyd 1982, Max 1960) sont concordantes. La convergence de l'algorithme vers un minimum LOCAL est correcte : la MSE décroît de façon monotone à chaque itération, est bornée inférieurement par zéro, donc la suite converge ; le point fixe satisfait simultanément les deux conditions, ce qui est précisément la définition d'un minimum local du problème joint. La mention «minimum local» (et non global) est exacte : la référence Trushkin (1982) «Sufficient conditions for uniqueness of a locally optimal quantizer» confirme que l'unicité — et donc la globalité — exige des conditions supplémentaires (log-concavité de la densité), non revendiquées dans l'énoncé. Aucun contre-exemple ni nuance majeure ne permet d'invalider l'énoncé tel que formulé."
+    },
+    {
+     "lens": "indépendance",
+     "holds": true,
+     "corrected": false,
+     "n_sources": 1,
+     "note": "Les deux conditions nécessaires (midpoint et centroid) sont conformes à la littérature classique (Lloyd 1982, Max 1960). La convergence vers un minimum local est garantie par la propriété de décroissance monotone de la MSE à chaque itération (descente par coordonnées) ; la nuance importante — non enfreinte par l'énoncé — est que ce minimum local n'est pas nécessairement le minimum global."
+    }
+   ],
+   "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+  },
+  {
+   "id": "claim:7",
+   "section": "garanties-theoriques-et-bornes",
+   "section_retained": true,
+   "retained": true,
+   "audit": "corrected",
+   "kind": "established",
+   "statement": "TurboQuant propose deux quantificateurs distincts aux propriétés non cumulables : (1) Q_mse atteint une distorsion MSE au plus (√3π/2)·(1/4^b) — un facteur √3π/2 ≈ 2,7 de la borne information-théorique de Shannon 1/4^b, pour tout b ≥ 0 — mais son estimateur du produit scalaire est biaisé (facteur multiplicatif 2/π) ; (2) Q_prod, méthode en deux étapes (Q_mse à b−1 bits puis QJL 1-bit sur le résidu), fournit un estimateur du produit scalaire sans biais, avec une borne de distorsion différente en (√3π²·‖y‖²₂)/(d·4^b) dépendant de la dimension d. Aucun quantificateur ne réunit simultanément la borne MSE optimale et l'estimation sans biais.",
+   "original_statement": "TurboQuant atteint une distorsion MSE au plus (√3π/2)·(1/4^b), à un facteur constant √3π/2 ≈ 2,7 de la borne information-théorique de Shannon 1/4^b, pour tout nombre de bits b ; l'estimateur du produit scalaire est de plus sans biais.",
+   "corroborated": 1,
+   "refuted": 1,
+   "corrected": 1,
+   "n_sources": 4,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 2,
+     "note": "Le papier source (arXiv 2504.19874) énonce explicitement que les quantificateurs optimaux au sens MSE (Q_mse) produisent un estimateur de produit scalaire biaisé (facteur 2/π), et qu'un schéma différent — Q_prod, composite en deux étapes — est nécessaire pour l'absence de biais. L'énoncé vérifié attribue incorrectement les deux propriétés au même quantificateur via la locution « de plus »."
+    },
+    {
+     "lens": "indépendance",
+     "holds": true,
+     "corrected": false,
+     "n_sources": 2,
+     "note": "Les trois claims centraux sont confirmés par la source primaire (ar5iv, rendu LaTeX fidèle) : Théorème 1 donne D_mse ≤ (√3·π)/2 · (1/4^b) avec le LaTeX explicite \\frac{\\sqrt{3}\\pi}{2}, Théorème 3 établit la borne inférieure 1/4^b, Théorème 2 garantit l'absence de biais (E[⟨y,x̃⟩] = ⟨y,x⟩). La valeur numérique (√3·π)/2 ≈ 2,7207 est correcte et compatible avec \"≈ 2,7\". La borne vaut pour b ≥ 1 (entiers naturels positifs, usage standard en quantification)."
+    }
+   ],
+   "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « TurboQuant atteint une distorsion MSE au plus (√3π/2)·(1/4^b), à un facteur constant √3π/2 ≈ 2,7 de la borne information-théorique de Shannon 1/4^b, pour tout nombre de bits b ; l'estimateur du produit scalaire est de plus sans biais. »"
+  },
+  {
+   "id": "claim:8",
+   "section": "garanties-theoriques-et-bornes",
+   "section_retained": true,
+   "retained": true,
+   "audit": "confirmed",
+   "kind": "contestable",
+   "statement": "La règle '~6 dB par bit' est souvent présentée comme une loi universelle de la quantification uniforme, mais la formule complète SNR = 1,76 + 6,02·N dB suppose strictement une entrée sinusoïdale pleine échelle : pour d'autres distributions la constante varie, et en présence de clipping (saturation hors plage) la relation log-linéaire s'effondre.",
+   "original_statement": "La règle '~6 dB par bit' est souvent présentée comme une loi universelle de la quantification uniforme, mais la formule complète SNR = 1,76 + 6,02·N dB suppose strictement une entrée sinusoïdale pleine échelle : pour d'autres distributions la constante varie, et en présence de clipping (saturation hors plage) la relation log-linéaire s'effondre.",
+   "corroborated": 2,
+   "refuted": 0,
+   "corrected": 0,
+   "n_sources": 6,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": true,
+     "corrected": false,
+     "n_sources": 3,
+     "note": "Les trois sources indépendantes vérifiées confirment que la formule SNR = 1,76 + 6,02·N dB est dérivée pour une entrée sinusoïdale pleine échelle (le terme 1,76 provient du facteur de crête √2 d'un sinus) ; pour d'autres distributions la constante additive est différente (0 dB pour une distribution uniforme), tandis que la saturation introduit une distortion d'écrêtage non linéaire qui brise la proportionnalité SNR ∝ 6,02·N. La source candidate (Fiveable) attribue à tort la formule à une « distribution uniforme », illustrant précisément le glissement dénoncé par l'énoncé."
+    },
+    {
+     "lens": "source-primaire",
+     "holds": true,
+     "corrected": false,
+     "n_sources": 4,
+     "note": "Les trois assertions de l'énoncé sont confirmées par les sources primaires : (1) la constante 1,76 dB = 10·log10(3/2) provient explicitement de l'hypothèse d'un sinus pleine échelle (signal RMS = A/√2) ; pour une distribution uniforme on obtient SNR = 6,02N dB sans constante, et pour un signal général SNR = 6,02N + 4,76 − 20·log10(Vmax/σx) dB — la constante varie donc bien selon la PDF du signal. (2) En régime de clipping, la distorsion non linéaire de saturation supplante le bruit de granularité uniforme, ce qui invalide entièrement les hypothèses du modèle additif et fait s'effondrer la relation log-linéaire."
+    }
+   ],
+   "audit_note": "Confirmé : 2/2 jurés, 6 sources indépendantes."
+  },
+  {
+   "id": "claim:9",
+   "section": "ste-et-apprentissage-quantise",
+   "section_retained": true,
+   "retained": false,
+   "audit": "rejected",
+   "kind": "established",
+   "statement": "When ρ := n·C·(‖v‖₁/‖v‖₂)²/√N < 1/5 in a two-layer binary network, the STE coarse gradient is positively correlated with the population gradient, constituting a valid descent direction; below this threshold, drift structurally dominates perturbation in the finite-sample dynamics, with wrong-sign excursions lasting one step on average against correct-sign phases lasting (1−2ρ)/ρ steps.",
+   "original_statement": "When ρ := n·C·(‖v‖₁/‖v‖₂)²/√N < 1/5 in a two-layer binary network, the STE coarse gradient is positively correlated with the population gradient, constituting a valid descent direction; below this threshold, drift structurally dominates perturbation in the finite-sample dynamics, with wrong-sign excursions lasting one step on average against correct-sign phases lasting (1−2ρ)/ρ steps.",
+   "corroborated": 0,
+   "refuted": 2,
+   "corrected": 2,
+   "n_sources": 1,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 1,
+     "note": "Four inaccuracies found: (1) the ρ formula drops the C″Kξ‖v‖₁ correction term and the factor of 2 in the denominator; (2) the \"positively correlated with population gradient\" property is attributed to prior work [60], not derived by this paper; (3) wrong-sign excursions last exactly one step, not \"on average\"; (4) correct-sign phase length is a lower bound ⌈(1−2ρ)/ρ⌉, not an exact value, and the ceiling is missing."
+    },
+    {
+     "lens": "indépendance",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 0,
+     "note": "arXiv:2505.18113 Theorem 5 confirms the 1/5 threshold, the Markov chain phase durations, and the drift-dominates-perturbation interpretation, but the formula for ρ in the claim silently drops the label-noise term C''Kξ‖v‖₁ (making it an underestimate in any noisy setting). Additionally, the \"positively correlated with population gradient / valid descent direction\" language is attributed by the paper to prior work on the expected STE gradient, whereas Theorem 5 itself proves the strictly stronger result of ergodic convergence of the weight iterates. No independent source confirming these specific results was found."
+    }
+   ],
+   "audit_note": "Rejeté : 0 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+  },
+  {
+   "id": "claim:10",
+   "section": "ste-et-apprentissage-quantise",
+   "section_retained": true,
+   "retained": true,
+   "audit": "confirmed",
+   "kind": "established",
+   "statement": "For two-layer binary networks trained with STE under label noise, ergodic averaging converges with O(n²) samples (‖w̄_T − w*‖_∞ ≲ O(√(n/N) + 1/(√n·T))), while last-iterate convergence requires O(n⁴) samples — a factor-n² overhead driven by the recurrence structure of the dynamics; under continuous noise, iterates escape the optimal binary solution with probability ≥ 1/2, making time-averaging the correct operating mode.",
+   "original_statement": "For two-layer binary networks trained with STE under label noise, ergodic averaging converges with O(n²) samples (‖w̄_T − w*‖_∞ ≲ O(√(n/N) + 1/(√n·T))), while last-iterate convergence requires O(n⁴) samples — a factor-n² overhead driven by the recurrence structure of the dynamics; under continuous noise, iterates escape the optimal binary solution with probability ≥ 1/2, making time-averaging the correct operating mode.",
+   "corroborated": 2,
+   "refuted": 0,
+   "corrected": 0,
+   "n_sources": 2,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": true,
+     "corrected": true,
+     "n_sources": 1,
+     "note": "Tous les chiffres clés (O(n²)/O(n⁴), la borne exacte, le facteur n²) sont confirmés verbatim dans le Theorème 1 et Theorème 2 (informal) de arXiv:2505.18113. Seul point à corriger : l'énoncé écrit « probability ≥ 1/2 » comme une borne formelle, alors que le papier dit explicitement « roughly at least 1/2 » — un résultat informel/approché. Par ailleurs, aucune source indépendante n'existe (preprint unique, mai 2025, non peer-reviewed), ce qui ne justifie pas un rejet mais limite la force épistémique de l'énoncé."
+    },
+    {
+     "lens": "indépendance",
+     "holds": true,
+     "corrected": false,
+     "n_sources": 1,
+     "note": "Tous les éléments quantitatifs de l'énoncé sont confirmés par la lecture directe d'arxiv:2505.18113 (Jeong, Xin, Yin, mai 2025) : borne ergodique ‖w̄_T − w*‖_∞ ≲ O(√(n/N) + 1/(√n·T)) → O(n²) échantillons, non-ergodique → O(n⁴), overhead n² attribué à l'analyse d'occupation-time des dynamiques récurrentes, et échappement avec probabilité \"roughly at least 1/2\" sous bruit continu non nul. La seule source indépendante trouvée (arXiv:2012.05529, antérieur) confirme le phénomène de récurrence (visite infinie du minimum global) pour des réseaux quantifiés à deux couches, sans fournir les bornes de complexité échantillonnale spécifiques, lesquelles sont des résultats nouveaux sans corroboration indépendante à ce jour."
+    }
+   ],
+   "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+  },
+  {
+   "id": "claim:11",
+   "section": "ste-et-apprentissage-quantise",
+   "section_retained": true,
+   "retained": true,
+   "audit": "corrected",
+   "kind": "established",
+   "statement": "Under quantized SGD for high-dimensional linear regression, the expected excess risk is upper-bounded (not exactly decomposed) by four additive terms — variance error, bias error, approximation error, and a quantized error. The quantized error contains a factor of 2‖D‖, where D = E[(Q(x)−x)(Q(x)−x)^T] is the quantization-noise covariance (not a \"data-covariance distortion operator\" in the paper's terminology), multiplied by sums over the full eigenspectrum of the quantized-data feature covariance matrix H^(q); the dependence on D is therefore richer than simple proportionality to its spectral norm, as D also influences the bound through the eigenspectrum of H^(q).",
+   "original_statement": "Under quantized SGD for high-dimensional linear regression, the expected excess risk decomposes into four additive terms — variance error, bias error, approximation error, and a quantized error proportional to the spectral norm of the data-covariance distortion operator — where the last term depends on the full eigenspectrum of the quantized-data feature covariance matrix.",
+   "corroborated": 0,
+   "refuted": 2,
+   "corrected": 2,
+   "n_sources": 2,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 2,
+     "note": "Theorem 4.1 of arXiv:2510.18259 gives an upper bound (≤), not an exact decomposition, and defines D as the quantization-noise covariance E[(Q(x)−x)(Q(x)−x)^T] — not a \"data-covariance distortion operator.\" The QuantizedErr = 2‖D‖ × [eigenspectrum sums over λᵢ^(q)], so D enters both through its spectral norm and, implicitly, through the eigenspectrum of H^(q); characterizing the dependence solely as proportionality to ‖D‖ understates this entanglement. Both verified sources point to the same paper and are not truly independent."
+    },
+    {
+     "lens": "indépendance",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 1,
+     "note": "The four-term structure and eigenspectrum dependence are confirmed by Theorem 4.1 of arXiv:2510.18259. However, two inaccuracies disqualify the statement as written: (1) the QuantizedErr is not 'proportional to' ‖D‖ in the strict sense — it is bounded by 2‖D‖ times a separate eigenspectrum-dependent sum from H^q, making 'proportional' misleading; (2) the paper never uses the term 'data-covariance distortion operator' — the matrix D is formally called the 'quantization error covariance matrix'. No truly independent source corroborating this specific four-term decomposition could be verified."
+    }
+   ],
+   "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « Under quantized SGD for high-dimensional linear regression, the expected excess risk decomposes into four additive terms — variance error, bias error, approximation error, and a quantized error proportional to the spectral norm of the data-covariance distortion operator — where the last term depends on the full eigenspectrum of the quantized-data feature covariance matrix. »"
+  },
+  {
+   "id": "claim:12",
+   "section": "ste-et-apprentissage-quantise",
+   "section_retained": true,
+   "retained": true,
+   "audit": "corrected",
+   "kind": "contestable",
+   "statement": "Under a polynomial-decay eigenvalue spectrum (λᵢ ~ i^{−a}, a > 1) and constant-level optimal parameters, additive quantization — which conceptually parallels integer formats like INT8 — carries an ε_d·d penalty in excess risk growing linearly with ambient dimension, while multiplicative quantization — which conceptually parallels floating-point formats like FP8 — achieves an effective dimension d_eff^(M) = [N·γ·(1+ε_d)]^(1/a) that does not scale with d. Under these spectral assumptions the two schemes are non-equivalent in high dimensions; however, INT8 ↔ additive and FP8 ↔ multiplicative are conceptual correspondences (not formal equivalences), and all dimension-dependent conclusions are conditional on the polynomial-decay spectral assumption — neither holds in general.",
+   "original_statement": "Additive quantization (INT8) is asymptotically unsuitable for high-dimensional learning: its excess risk carries an ε_d·d penalty growing linearly with ambient dimension, whereas multiplicative quantization (FP8) achieves a dimension-independent effective dimension d_eff^(M) = [N·γ·(1+ε_d)]^(1/a) — making the two schemes fundamentally non-equivalent in high-dimensional regimes.",
+   "corroborated": 1,
+   "refuted": 1,
+   "corrected": 1,
+   "n_sources": 2,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 1,
+     "note": "The formulas cited (d_eff^(M) = [N·γ·(1+ε_d)]^(1/a) and ε_d·d penalty) are real but appear only in Corollary 4.3 under Assumption 4.1 (polynomial-decay spectrum), which the statement omits entirely; the INT8/FP8 ↔ additive/multiplicative mapping is explicitly labelled a conceptual parallel, not a formal equivalence, in Section 3.1; and the second candidate source (arXiv 2411.06084) contains none of these results and cannot corroborate the claim."
+    },
+    {
+     "lens": "source-primaire",
+     "holds": true,
+     "corrected": false,
+     "n_sources": 1,
+     "note": "L'énoncé retranscrit fidèlement le Corollaire 4.3 de arXiv:2510.18259 : le papier associe explicitement INT8↔quantification additive et FP8↔quantification multiplicative, établit que l'excès de risque additif contient un terme ε_d·d croissant linéairement avec la dimension ambiante, et donne la formule exacte d_eff^(M) = [N·γ·(1+ε_d)]^(1/a) pour le cas multiplicatif. En revanche, la deuxième source candidate (arXiv:2411.06084, Hasan 2024) est un papier empirique sur PTQ/QAT pour LLMs sans lien avec ce cadre théorique : elle ne constitue pas une source indépendante pour ces claims."
+    }
+   ],
+   "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « Additive quantization (INT8) is asymptotically unsuitable for high-dimensional learning: its excess risk carries an ε_d·d penalty growing linearly with ambient dimension, whereas multiplicative quantization (FP8) achieves a dimension-independent effective dimension d_eff^(M) = [N·γ·(1+ε_d)]^(1/a) — making the two schemes fundamentally non-equivalent in high-dimensional regimes. »"
+  },
+  {
+   "id": "claim:13",
+   "section": "verification-formelle-qnn",
+   "section_retained": true,
+   "retained": true,
+   "audit": "corrected",
+   "kind": "established",
+   "statement": "L'encodage ILP d'un QNN (méthode AAAI 2024, arXiv 2312.12679) est présenté comme sound et complete, mais de manière conditionnelle et dans un périmètre restreint (quantification statique PyTorch, couches FC/CNN). L'affirmation d'absence de variable flottante résiduelle est directement contredite par le papier lui-même : la variable intermédiaire ŷ₀ʲ de l'encodage Round est explicitement déclarée de type réel (non entier). De plus, la contrainte Round dépend d'un paramètre ε à calibrer correctement pour chaque couche, et la contrainte ReLU repose sur la méthode big-M (constante M « très grande »), source connue d'instabilité numérique dans les solveurs MILP — ce qui rend les garanties de soundness et de completeness théoriques plutôt que pratiques et inconditionnelles.",
+   "original_statement": "L'encodage ILP d'un QNN est à la fois sound et complete : si l'ILP certifie la propriété, elle est vraie dans le réseau ; si la propriété est vraie, l'ILP la certifie nécessairement — garantie directe du fait que Round, Clip et ReLU se traduisent en contraintes entières exactes, sans variable flottante résiduelle.",
+   "corroborated": 0,
+   "refuted": 2,
+   "corrected": 2,
+   "n_sources": 4,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 2,
+     "note": "Deux faits factuels invalident l'énoncé : (1) le papier source lui-même indique que ŷ₀ʲ « is not of integer type » — il existe bien des variables réelles résiduelles dans l'encodage Round, contrairement à l'affirmation ; (2) l'encodage ReLU par big-M introduit une constante M « très grande » dont la valeur numérique insuffisante ou excessive peut rompre soundness ou completeness en pratique. La garantie théorique est de plus conditionnée à un choix correct de ε par couche et limitée à un sous-ensemble de QNNs PyTorch, non aux QNNs en général."
+    },
+    {
+     "lens": "indépendance",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 2,
+     "note": "Les deux parties centrales du claim sont confirmées : l'ILP de QNN est bien sound et complete, et Round/Clip/ReLU se traduisent bien en contraintes entières exactes. Mais l'attribution causale est inexacte : selon le papier AAAI 2024 lui-même, l'absence de variables flottantes résiduelles est un choix d'ingénierie visant l'efficacité du solveur (pure-ILP plus facile à résoudre que MILP), et non la source théorique des garanties de soundness/completeness — lesquelles découlent simplement du fait que l'ILP est une méthode exacte (non approximative) encodant fidèlement la sémantique du réseau."
+    }
+   ],
+   "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « L'encodage ILP d'un QNN est à la fois sound et complete : si l'ILP certifie la propriété, elle est vraie dans le réseau ; si la propriété est vraie, l'ILP la certifie nécessairement — garantie directe du fait que Round, Clip et ReLU se traduisent en contraintes entières exactes, sans variable flottante résiduelle. »"
+  },
+  {
+   "id": "claim:14",
+   "section": "verification-formelle-qnn",
+   "section_retained": true,
+   "retained": true,
+   "audit": "corrected",
+   "kind": "established",
+   "statement": "La local robustness à la norme L∞ — F(x) = l* pour tout x ∈ B∞(x*, r) — est la propriété cible dominante (et non exclusivement canonique) de la vérification formelle des QNNs. La boule L∞ génère des contraintes de borne linéaires (box constraints) sur l'espace d'entrée de l'ILP, mais aucune source ne justifie explicitement ce choix par cette seule traductibilité : l'avantage structurel de l'ILP pour les QNNs tient avant tout à la nature entière de la quantification (round, clip, ReLU encodés en variables booléennes/entières), et la littérature considère également d'autres normes Lp (p ∈ {0, 1, 2, ∞}).",
+   "original_statement": "La local robustness à la norme L∞ — F(x) = l* pour tout x ∈ B∞(x*, r) — est la propriété cible canonique de la vérification formelle des QNNs, retenue pour sa traductibilité directe en bornes linéaires dans l'ILP.",
+   "corroborated": 0,
+   "refuted": 2,
+   "corrected": 2,
+   "n_sources": 3,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 2,
+     "note": "Le papier EQV (2312.12679) confirme la définition formelle et l'usage de L∞ dans un cadre ILP, mais ne motive jamais le choix de L∞ par sa traductibilité en bornes linéaires — il le traite comme un benchmark standard. La motivation ILP-L∞ implicite (box constraints) est plausible mais n'est pas la raison déclarée ; de plus, le terme « bornes linéaires » renvoie davantage aux méthodes de bound propagation (IBP/CROWN) qu'à l'ILP, ce qui crée une ambiguïté technique non négligeable."
+    },
+    {
+     "lens": "indépendance",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 2,
+     "note": "Les deux sources vérifiées confirment que L∞ est bien la propriété cible utilisée empiriquement, et que la balle L∞ se traduit en contraintes de bornes sur les entrées. Mais (1) aucune ne qualifie explicitement L∞ de propriété « canonique » pour les QNNs spécifiquement, et (2) ni l'une ni l'autre ne présente la traductibilité directe en bornes linéaires comme la raison du choix de L∞ : l'encodage ILP pour QNNs est principalement motivé par l'arithmétique entière de la quantification (rounding via inégalités ε, clipping via big-M + variables binaires), ce qui dépasse largement de simples bornes linéaires."
+    }
+   ],
+   "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « La local robustness à la norme L∞ — F(x) = l* pour tout x ∈ B∞(x*, r) — est la propriété cible canonique de la vérification formelle des QNNs, retenue pour sa traductibilité directe en bornes linéaires dans l'ILP. »"
+  },
+  {
+   "id": "claim:15",
+   "section": "verification-formelle-qnn",
+   "section_retained": true,
+   "retained": true,
+   "audit": "corrected",
+   "kind": "contestable",
+   "statement": "Le gain « jusqu'à 100× » d'EQV sur l'ILP nu provient d'une combinaison de deux composantes non-ILP : l'analyse par intervalles (interprétation abstraite, sound mais incomplete) et la recherche par gradient/PGD (ni sound ni complete). Aux petits rayons — cas les plus fréquents — l'analyse par intervalles est dominante et apporte l'essentiel du gain (≈91 % dans les ablations de la Table 2) ; la recherche par gradient ne devient dominante qu'aux grands rayons, où elle trouve rapidement des contre-exemples. L'énoncé est donc inexact sur deux points : (1) il attribue le gain « majoritairement » à la composante gradient-based, alors que c'est l'analyse par intervalles qui domine sur les instances typiques ; (2) il omet que cette dernière est sound, contrairement à la recherche par gradient. La seconde partie — gain bien inférieur sur les instances difficiles confiées à l'ILP exact — est cohérente avec les données du papier (78 % de « unknown » sur FC2-512, r=16), mais ne découle pas du raisonnement erroné qui la précède.",
+   "original_statement": "Le gain annoncé d'EQV — 'jusqu'à 100×' par rapport à l'ILP nu — est souvent cité comme représentatif des capacités de vérification formelle, alors qu'il provient majoritairement de la composante gradient-based search, qui n'est ni sound ni complete ; sur les instances difficiles non résolues par l'heuristique et confiées à l'ILP exact, le gain réel est bien inférieur.",
+   "corroborated": 0,
+   "refuted": 2,
+   "corrected": 2,
+   "n_sources": 3,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 2,
+     "note": "L'ablation de la Table 2 du papier montre que l'analyse d'intervalles (sound) contribue à ≈91 % du gain total sur les instances à petit rayon, contre ≈9 % pour le PGD ; la Figure 6 confirme que la recherche par gradient ne domine qu'aux grands rayons. L'énoncé confond deux composantes aux propriétés de soundness différentes et inverse leur contribution respective au gain global. Note de limite : les deux URL pointent vers le même papier primaire — aucune source indépendante n'a pu être identifiée pour corroborer ou contredire l'interprétation des résultats."
+    },
+    {
+     "lens": "source-primaire",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 2,
+     "note": "La source primaire (arXiv 2312.12679v2, Figure 6) montre explicitement que le gain de 100× survient aux petits rayons où la propagation de bornes (bound propagation) est l'accélérateur dominant ; la recherche par gradient intervient aux grands rayons pour trouver des contre-exemples mais n'est pas le moteur du chiffre-phare. L'énoncé attribue ce gain à la mauvaise composante."
+    }
+   ],
+   "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Le gain annoncé d'EQV — 'jusqu'à 100×' par rapport à l'ILP nu — est souvent cité comme représentatif des capacités de vérification formelle, alors qu'il provient majoritairement de la composante gradient-based search, qui n'est ni sound ni complete ; sur les instances difficiles non résolues par l'heuristique et confiées à l'ILP exact, le gain réel est bien inférieur. »"
+  },
+  {
+   "id": "claim:16",
+   "section": "verification-formelle-qnn",
+   "section_retained": true,
+   "retained": true,
+   "audit": "confirmed",
+   "kind": "established",
+   "statement": "QEBVerif (CAV 2023) est sound et complete grâce à son architecture en deux étapes : la differential reachability analysis (DRA) propage couche par couche un intervalle d'erreur de quantification entre le réseau flottant et son équivalent quantisé, et encode le problème en MILP uniquement si la DRA ne peut pas conclure directement.",
+   "original_statement": "QEBVerif (CAV 2023) est sound et complete grâce à son architecture en deux étapes : la differential reachability analysis (DRA) propage couche par couche un intervalle d'erreur de quantification entre le réseau flottant et son équivalent quantisé, et encode le problème en MILP uniquement si la DRA ne peut pas conclure directement.",
+   "corroborated": 2,
+   "refuted": 0,
+   "corrected": 0,
+   "n_sources": 3,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": true,
+     "corrected": false,
+     "n_sources": 3,
+     "note": "L'énoncé est fidèle au papier : trois sources confirment que QEBVerif est le « premier outil sound, complete et raisonnablement efficace » pour la vérification de QNNs ; la DRA effectue bien une analyse différentielle couche par couche entre le DNN flottant et son équivalent quantisé pour calculer un intervalle d'erreur, et le MILP n'est invoqué que lorsque la DRA retourne Unknown. La complétude de l'ensemble tient au fait que le MILP est une méthode exacte qui tranche toujours ce que la DRA ne peut résoudre seule."
+    },
+    {
+     "lens": "indépendance",
+     "holds": true,
+     "corrected": false,
+     "n_sources": 2,
+     "note": "L'abstract du preprint arXiv confirme mot pour mot que QEBVerif est « sound, complete and reasonably efficient », qu'il combine une DRA (difference analysis layer-by-layer pour calculer un tight quantization error interval entre le DNN et son équivalent quantisé) et un MILP utilisé en fallback lorsque la DRA ne peut conclure. Le GitHub repo confirme indépendamment le venue CAV 2023 et la même description de méthode. Tous les éléments du claim sont exacts."
+    }
+   ],
+   "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+  },
+  {
+   "id": "claim:17",
+   "section": "methodes-ptq-poids",
+   "section_retained": true,
+   "retained": true,
+   "audit": "corrected",
+   "kind": "established",
+   "statement": "GPTQ quantifie un modèle de 175 milliards de paramètres à 3–4 bits en ≈ 4 GPU-heures sur un seul GPU NVIDIA A100 (80 Go) via une mise à jour one-shot de second ordre basée sur l'information de Hessienne approximée. Les gains de débit cités (≈ 3,25× sur A100 et ≈ 4,5× sur A6000) sont réels mais issus d'une comparaison asymétrique en nombre de GPU : 1 A100 quantifié 3-bit vs 5 A100 FP16, et 2 A6000 quantifiés 3-bit vs 8 A6000 FP16 — OPT-175B ne tenant pas en FP16 sur le même nombre de GPU. Ces speedups portent spécifiquement sur la quantification à 3 bits, pas sur 3–4 bits indifféremment.",
+   "original_statement": "GPTQ quantifie un modèle de 175 milliards de paramètres à 3–4 bits en ≈ 4 GPU-heures sur NVIDIA A100 via une mise à jour one-shot de second ordre basée sur la Hessian, obtenant ≈ 3,25× de gain de débit sur A100 et ≈ 4,5× sur A6000 par rapport à FP16.",
+   "corroborated": 1,
+   "refuted": 1,
+   "corrected": 1,
+   "n_sources": 3,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 2,
+     "note": "Les chiffres bruts de l'énoncé sont présents dans le papier, mais « ≈ 3,25× sur A100 par rapport à FP16 » est trompeur : il s'agit d'1 GPU GPTQ 3-bit contre 5 GPU FP16 (Table 6), non d'une comparaison iso-matériel. De plus, ces speedups sont mesurés à 3 bits spécifiquement, et non pour la plage « 3–4 bits » évoquée."
+    },
+    {
+     "lens": "indépendance",
+     "holds": true,
+     "corrected": false,
+     "n_sources": 2,
+     "note": "Toutes les valeurs de l'énoncé sont exactes telles que publiées dans le papier primaire GPTQ (arXiv:2210.17323) : quantification de OPT-175B en ~4 GPU-heures sur A100, 3–4 bits, méthode one-shot à information de second ordre (Hessien, via le cadre OBQ), gain de débit de 3,25× sur A100 et 4,53× (≈4,5×) sur A6000 par rapport à FP16. Le handbook indépendant BentoML confirme de manière concordante les chiffres principaux (~4 GPU-heures, 3–4 bits, ~3,25× sur A100)."
+    }
+   ],
+   "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « GPTQ quantifie un modèle de 175 milliards de paramètres à 3–4 bits en ≈ 4 GPU-heures sur NVIDIA A100 via une mise à jour one-shot de second ordre basée sur la Hessian, obtenant ≈ 3,25× de gain de débit sur A100 et ≈ 4,5× sur A6000 par rapport à FP16. »"
+  },
+  {
+   "id": "claim:18",
+   "section": "methodes-ptq-poids",
+   "section_retained": true,
+   "retained": true,
+   "audit": "confirmed",
+   "kind": "established",
+   "statement": "AWQ sélectionne les canaux de poids saillants par magnitude d'activation (et non par magnitude des poids eux-mêmes), puis les protège par un channel-wise scaling offline sans rétropropagation, réduisant la dégradation à un niveau quasi nul pour la quantification 4 bits.",
+   "original_statement": "AWQ sélectionne les canaux de poids saillants par magnitude d'activation (et non par magnitude des poids eux-mêmes), puis les protège par un channel-wise scaling offline sans rétropropagation, réduisant la dégradation à un niveau quasi nul pour la quantification 4 bits.",
+   "corroborated": 2,
+   "refuted": 0,
+   "corrected": 0,
+   "n_sources": 4,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": true,
+     "corrected": false,
+     "n_sources": 2,
+     "note": "Les trois composantes du mécanisme sont confirmées par le papier : (1) la saillance est bien déterminée par la magnitude d'activation et non des poids (Table 1 : weight-based donne 22,37 PPL contre 11,36 pour activation-based sur OPT-6.7B en INT3-g128 — écart dramatique) ; (2) le scaling est bien per-channel, calculé offline sur des statistiques d'activation, sans rétropropagation (verbatim : \"does not rely on any backpropagation or reconstruction\") ; (3) \"quasi nul\" est une qualification défendable pour INT4-g128 (+0,10–0,13 PPL sur LLaMA), mais le papier lui-même dit \"greatly reduced\" et non \"near-zero\", et ces résultats sont conditionnés à l'usage d'une quantification par groupe (g128) — sans group quantization, la dégradation serait plus marquée."
+    },
+    {
+     "lens": "indépendance",
+     "holds": true,
+     "corrected": false,
+     "n_sources": 2,
+     "note": "Tous les points techniques sont confirmés par le papier originel (arxiv 2306.00978 / MLSys 2024) et deux sources indépendantes : la saillance est bien déterminée par la magnitude des activations (le papier montre explicitement que la sélection par magnitude de poids ne dépasse pas la sélection aléatoire), le scaling canal-par-canal est bien offline et sans rétropropagation. « Quasi nul » correspond au qualificatif « negligible performance loss » employé par les auteurs eux-mêmes ; la dégradation mesurable est de 0,1–0,5 point de perplexité sur les modèles LLaMA-2 et d'environ 2 % sur MMLU — faible mais non strictement nul."
+    }
+   ],
+   "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+  },
+  {
+   "id": "claim:19",
+   "section": "methodes-ptq-poids",
+   "section_retained": true,
+   "retained": true,
+   "audit": "corrected",
+   "kind": "established",
+   "statement": "AQLM établit une Pareto-optimalité à 2 bits sur la courbe perplexité/compression : Llama-2-7B atteint environ 6,59 de perplexité (WikiText-2), soit environ 1,63 point sous la meilleure méthode antérieure (QuIP# à 8,22), et Llama-2-70B atteint 3,94.",
+   "original_statement": "AQLM établit une Pareto-optimalité à 2 bits sur la courbe perplexité/compression : Llama-2-7B atteint 6,93 de perplexité (WikiText-2), soit 1,29 point sous la meilleure méthode antérieure, et Llama-2-70B atteint 3,94.",
+   "corroborated": 1,
+   "refuted": 1,
+   "corrected": 1,
+   "n_sources": 3,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": true,
+     "corrected": false,
+     "n_sources": 1,
+     "note": "Les trois chiffres (6,93 pour Llama-2-7B, écart de 1,29 sur QuIP# à 8,22, et 3,94 pour Llama-2-70B) sont confirmés dans la Table 1 de la version originale du papier (v1). La Pareto-optimalité est revendiquée dans l'abstract pour « less than 3 bits per parameter », ce qui couvre le régime 2 bits. Réserve notable : des révisions ultérieures du papier avec PV-tuning ont amélioré le résultat Llama-2-7B de 6,93 à 6,59 ; la valeur 6,93 est exacte pour le papier original mais a été dépassée depuis."
+    },
+    {
+     "lens": "indépendance",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 2,
+     "note": "Le chiffre 6,93 pour Llama-2-7B est erroné : le papier AQLM rapporte 6,59–6,64 selon la version, ce qui donne un écart d'environ 1,58–1,63 point sous QuIP# (8,22), non 1,29. Le chiffre 3,94 pour Llama-2-70B est en revanche confirmé. La valeur 6,93 semble résulter d'un calcul inverse erroné (8,22 − 1,29 = 6,93) plutôt que d'une lecture directe du papier."
+    }
+   ],
+   "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « AQLM établit une Pareto-optimalité à 2 bits sur la courbe perplexité/compression : Llama-2-7B atteint 6,93 de perplexité (WikiText-2), soit 1,29 point sous la meilleure méthode antérieure, et Llama-2-70B atteint 3,94. »"
+  },
+  {
+   "id": "claim:20",
+   "section": "methodes-ptq-poids",
+   "section_retained": true,
+   "retained": true,
+   "audit": "corrected",
+   "kind": "contestable",
+   "statement": "La dégradation de précision de GPTQ à 3–4 bits est souvent qualifiée de « négligeable » sur la base de la perplexité (WikiText-2) et de quelques tâches zero-shot (ARC, PIQA, StoryCloze, LAMBADA). Cette qualification est généralement défendable à 4 bits, où la dégradation sur les tâches de raisonnement et de mathématiques reste souvent modeste (1–3 points sur GSM8K pour les modèles ≥ 7B sur architectures récentes). En revanche, à 3 bits, la perplexité est un proxy imparfait — mais non simplement « insuffisant » (corrélation Pearson ≈ 0,79 avec la précision aval) : la dégradation sur les tâches de raisonnement, de code et de mathématiques est sensiblement plus élevée, et peut être catastrophique sur les modèles inférieurs à 13B (ex. LLaMA-7B 3-bit : GSM8K chute à ≈ 2 % contre ≈ 14 % en FP16). La limite de l'énoncé est de traiter « 3–4 bits » comme une catégorie homogène : le problème est massivement concentré sur le 3-bit, et est très dépendant de l'architecture (les modèles Qwen-2.5 7B sont nettement plus robustes que les LLaMA de première génération).",
+   "original_statement": "La dégradation de précision de GPTQ à 3–4 bits est souvent qualifiée de « négligeable » sur la base de la perplexité (WikiText-2), mais cette qualification est trompeuse : la perplexité est un proxy insuffisant pour les tâches raisonnement, code et mathématiques, où la dégradation est sensiblement plus élevée, particulièrement sur les modèles inférieurs à 13B paramètres à 3 bits.",
+   "corroborated": 1,
+   "refuted": 1,
+   "corrected": 1,
+   "n_sources": 7,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 5,
+     "note": "L'énoncé est directionnellement juste pour le 3-bit sur petits modèles (LLaMA-7B 3-bit : GSM8K s'effondre à ≈ 2 %, confirmé par 2502.13178), mais deux sur-généralisations le fragilisent : (1) il traite « 3–4 bits » comme un bloc homogène alors qu'à 4 bits la dégradation sur raisonnement/math reste souvent < 3 points, rendant le qualificatif « négligeable » défendable ; (2) « proxy insuffisant » est trop fort — la corrélation Pearson perplexité/précision aval mesurée par 2402.16775 est de 0,79, et 2407.04965 note que la quantisation « préserve mieux que l'élagage à la fois la perplexité et les performances aval ». L'énoncé aurait dû circonscrire la critique au 3-bit et au registre « proxy imparfait » plutôt qu' « insuffisant »."
+    },
+    {
+     "lens": "source-primaire",
+     "holds": true,
+     "corrected": false,
+     "n_sources": 3,
+     "note": "Le papier GPTQ original (2210.17323) revendique explicitement « negligible accuracy degradation » mesuré quasi exclusivement via la perplexité WikiText-2 sur des modèles 175B, mais signale lui-même une dégradation de perplexité sévère dès les petits modèles à 3 bits (OPT-1.3B : 20,97 vs 14,63 en précision complète). Les papiers 2402.16775 et 2505.11574 confirment indépendamment que la perplexité est un proxy insuffisant pour les tâches de raisonnement et mathématiques (GSM8K/MATH/AIME), avec des dégradations allant jusqu'à 69,81 % sur des modèles sub-7B à 4 bits ; la généralisation à 3 bits est directionnellement correcte mais les données de tâches aval à 3 bits sur sous-13B restent majoritairement indirectes (extrapolées depuis 4 bits et depuis la dégradation de perplexité 3 bits du papier original)."
+    }
+   ],
+   "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (7 sources indépendantes). Origine : « La dégradation de précision de GPTQ à 3–4 bits est souvent qualifiée de « négligeable » sur la base de la perplexité (WikiText-2), mais cette qualification est trompeuse : la perplexité est un proxy insuffisant pour les tâches raisonnement, code et mathématiques, où la dégradation est sensiblement plus élevée, particulièrement sur les modèles inférieurs à 13B paramètres à 3 bits. »"
+  },
+  {
+   "id": "claim:21",
+   "section": "outliers-activations",
+   "section_retained": true,
+   "retained": true,
+   "audit": "corrected",
+   "kind": "established",
+   "statement": "Les outliers d'activation ont été observés émergeant systématiquement au-delà d'environ 6,7 milliards de paramètres dans les modèles de la génération 2022 entraînés en FP16 (OPT, BLOOM), concentrés dans un très petit nombre de dimensions fixes (~6 sur des milliers) qui persistent à travers les exemples d'entrée, avec des amplitudes environ 100× supérieures à la majorité des valeurs — rendant la quantification des activations plus difficile que celle des poids pour ces architectures. Cependant, cette propriété n'est pas universelle : les modèles modernes entraînés en bfloat16 (Llama-2/3, Mistral, Command-R) présentent une résistance substantielle aux outliers même au-delà de 35B paramètres, ce qui invalide le qualificatif « systématiquement » comme propriété générale du passage à l'échelle.",
+   "original_statement": "Les activation outliers émergent systématiquement au-delà d'environ 6,7 milliards de paramètres, concentrés dans des dimensions de features récurrentes à travers les exemples d'entrée, avec des amplitudes environ 100× supérieures à la majorité des valeurs d'activation — rendant la quantification des activations structurellement plus difficile que celle des poids.",
+   "corroborated": 0,
+   "refuted": 2,
+   "corrected": 2,
+   "n_sources": 4,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 4,
+     "note": "Les faits numériques centraux (seuil 6,7B, ratio ~100×, dimensions fixes) sont confirmés par LLM.int8() et SmoothQuant pour les modèles OPT/BLOOM de 2022. Mais le terme « systématiquement » est réfuté par la littérature de 2024 (arxiv 2405.20835) : les LLMs modernes entraînés en bfloat16 comme Llama-2/3 et Command-R 35B ne présentent pas ce comportement, et la quantification W8A8 naïve y fonctionne sans effondrement de performance — ce qui montre que le phénomène est lié aux choix d'entraînement, pas à l'échelle en soi."
+    },
+    {
+     "lens": "indépendance",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 2,
+     "note": "Les deux sources candidates confirment les chiffres clés (seuil ~6,7B, concentration dans ~6 dimensions, ratio ~100×, activation quantization plus difficile que weight quantization) pour les modèles OPT-era. L'énoncé pèche toutefois par sur-généralisation : il érige ces observations en loi universelle d'échelle, alors que LLM.int8() lui-même précise que l'émergence suit la perplexité plutôt que la taille, et que des travaux indépendants postérieurs (Ahmadian et al. 2024, arxiv:2405.20835) montrent que les LLMs modernes (Llama-2/3, Mistral) ne présentent pas ce pattern — les outliers étant un artefact des méthodes d'entraînement de l'époque, pas une propriété intrinsèque de l'échelle."
+    }
+   ],
+   "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « Les activation outliers émergent systématiquement au-delà d'environ 6,7 milliards de paramètres, concentrés dans des dimensions de features récurrentes à travers les exemples d'entrée, avec des amplitudes environ 100× supérieures à la majorité des valeurs d'activation — rendant la quantification des activations structurellement plus difficile que celle des poids. »"
+  },
+  {
+   "id": "claim:22",
+   "section": "outliers-activations",
+   "section_retained": true,
+   "retained": true,
+   "audit": "corrected",
+   "kind": "established",
+   "statement": "SmoothQuant applique off-line une transformation per-channel mathématiquement équivalente (s_j = max|X_j|^α / max|W_j|^(1-α), avec α variable selon le modèle : 0,5 pour OPT et BLOOM, 0,85–0,9 pour Llama/Llama-2, 0,6–0,7 pour Falcon) pour migrer la difficulté de quantification des activations vers les poids, permettant un W8A8 PTQ avec jusqu'à 1,56× de speedup et ~2× de réduction mémoire et une perte d'accuracy généralement négligeable sur les familles OPT, BLOOM, Llama et Falcon.",
+   "original_statement": "SmoothQuant applique off-line une transformation per-channel mathématiquement équivalente (s_j = max|X_j|^α / max|W_j|^(1-α), α≈0,5) pour migrer la difficulté de quantification des activations vers les poids, permettant un W8A8 PTQ avec jusqu'à 1,56× de speedup et 2× de réduction mémoire et une perte d'accuracy négligeable sur les familles OPT, BLOOM, Llama et Falcon.",
+   "corroborated": 1,
+   "refuted": 1,
+   "corrected": 1,
+   "n_sources": 4,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 2,
+     "note": "Le point de défaillance est α≈0,5 présenté comme universel. Le dépôt officiel et le papier montrent que la valeur optimale est fortement dépendante du modèle : α=0,5 pour OPT/BLOOM, mais α=0,85–0,9 pour Llama/Llama-2, α=0,75 pour GLM-130B, et α=0,6–0,7 pour Falcon — deux familles explicitement citées dans l'énoncé. Présenter α≈0,5 comme valeur représentative pour un énoncé couvrant Llama et Falcon est donc factuellement inexact. Par ailleurs, la réduction mémoire de « 2× » est une approximation (la valeur exacte rapportée est 1,96× sur PyTorch) et Llama-3-8B montre une légère dégradation de perplexité (6,258 vs 6,138 en FP16), nuançant l'affirmation de perte d'accuracy « négligeable » sans restriction."
+    },
+    {
+     "lens": "indépendance",
+     "holds": true,
+     "corrected": true,
+     "n_sources": 2,
+     "note": "Tous les éléments techniques (formule, α≈0,5, per-channel, offline, W8A8, 1,56× speedup, 2× mémoire, accuracy négligeable) sont confirmés par la source primaire (arxiv HTML) et par la documentation AMD Quark. Le seul bémol : la liste de familles \"OPT, BLOOM, Llama et Falcon\" est incomplète — la version ICML 2023 publiée porte principalement sur OPT, BLOOM, GLM et MT-NLG (Llama y est mentionné, Falcon n'apparaît que dans les mises à jour arxiv postérieures) ; le claim omet GLM et MT-NLG qui sont centraux dans les expériences originales."
+    }
+   ],
+   "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « SmoothQuant applique off-line une transformation per-channel mathématiquement équivalente (s_j = max|X_j|^α / max|W_j|^(1-α), α≈0,5) pour migrer la difficulté de quantification des activations vers les poids, permettant un W8A8 PTQ avec jusqu'à 1,56× de speedup et 2× de réduction mémoire et une perte d'accuracy négligeable sur les familles OPT, BLOOM, Llama et Falcon. »"
+  },
+  {
+   "id": "claim:23",
+   "section": "outliers-activations",
+   "section_retained": true,
+   "retained": true,
+   "audit": "confirmed",
+   "kind": "contestable",
+   "statement": "QuaRot est dit « outlier-free » : la randomized Hadamard transformation élimine les activation outliers. En réalité, la rotation redistribue l'énergie outlier uniformément sur toutes les dimensions (réduction de la kurtosis vers un profil quasi-gaussien) sans l'annuler ; à W4A4, une perte de perplexité résiduelle reste mesurable — +0,63 sur LLaMA-2-7B et +0,47 sur LLaMA-2-70B — ce qui contredit une « élimination » stricte.",
+   "original_statement": "QuaRot est dit « outlier-free » : la randomized Hadamard transformation élimine les activation outliers. En réalité, la rotation redistribue l'énergie outlier uniformément sur toutes les dimensions (réduction de la kurtosis vers un profil quasi-gaussien) sans l'annuler ; à W4A4, une perte de perplexité résiduelle reste mesurable — +0,63 sur LLaMA-2-7B et +0,47 sur LLaMA-2-70B — ce qui contredit une « élimination » stricte.",
+   "corroborated": 2,
+   "refuted": 0,
+   "corrected": 0,
+   "n_sources": 3,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": true,
+     "corrected": true,
+     "n_sources": 1,
+     "note": "Les chiffres de perplexité (+0,63 LLaMA-2-7B, +0,47 LLaMA-2-70B à W4A4 GPTQ) sont vérifiés dans le papier primaire (Table 1). La terminologie « outlier-free » et « removes outliers » est confirmée. En revanche, la description « réduction de la kurtosis vers un profil quasi-gaussien » n'est pas dans le papier QuaRot — c'est une interprétation mécaniste correcte mais importée de la littérature externe (notamment KurTail, EMNLP 2025). L'énoncé tient sur le fond mais surévalue légèrement la portée de la « contradiction » : les auteurs rapportent eux-mêmes la perte résiduelle et ne revendiquent nulle part une quantification sans perte."
+    },
+    {
+     "lens": "source-primaire",
+     "holds": true,
+     "corrected": false,
+     "n_sources": 2,
+     "note": "Les chiffres de perplexité (+0,63 sur LLaMA-2-7B, +0,47 sur LLaMA-2-70B à W4A4) sont confirmés exactement dans le Tableau 1 du papier QuaRot. Le papier emploie bien \"completely eliminates outlier features\" alors que la transformation de Hadamard est orthogonale (conservation de l'énergie), donc redistribue nécessairement les magnitudes — le vocabulaire kurtosis/quasi-gaussien n'est pas celui du papier mais est techniquement fondé et corroboré par la littérature de quantification connexe. La perte résiduelle mesurable contredit logiquement toute \"élimination stricte\"."
+    }
+   ],
+   "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+  },
+  {
+   "id": "claim:24",
+   "section": "quantification-extreme-sub-2-bit",
+   "section_retained": true,
+   "retained": true,
+   "audit": "corrected",
+   "kind": "established",
+   "statement": "BitNet b1.58 restreint chaque poids aux valeurs ternaires {−1, 0, +1} (≈ 1,58 bit/paramètre), ce qui élimine les multiplications flottantes au profit d'additions entières ; à 70 B paramètres sur deux A100 80 Go, cela se traduit par 8,9× plus de débit (2 977 contre 333 tokens/s), 4,1× moins de latence et environ 86-87 % d'économie mémoire (≈ 7× moins) par rapport à FP16 — les mesures utilisent un noyau 2-bit, et le papier ne revendique pas le seuil de 90 %.",
+   "original_statement": "BitNet b1.58 restreint chaque poids aux valeurs ternary {−1, 0, +1} (≈ 1,58 bit/paramètre), ce qui convertit les matrix multiplications en additions et négations ; à 70B paramètres sur deux A100 80 Go, cela se traduit par 8,9× plus de débit (2 977 contre 333 tokens/s), 4,1× moins de latence et plus de 90 % d'économie mémoire par rapport à FP16.",
+   "corroborated": 0,
+   "refuted": 2,
+   "corrected": 2,
+   "n_sources": 3,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 2,
+     "note": "Les chiffres de débit (8,9×, 2 977 vs 333 tokens/s) et de latence (4,1×) à 70 B sur deux A100 80 Go sont confirmés par le papier. En revanche, « plus de 90 % d'économie mémoire » n'est ni revendiqué ni mesuré dans le papier : les benchmarks utilisent un noyau 2-bit (économie réelle ≈ 87,5 %, soit environ 7× de réduction), et le papier note explicitement qu'il y a « room for optimization » au-delà de ce noyau ; les 90 % ne sont dépassés que par le calcul purement théorique log₂(3)/16 ≈ 90,1 %, que le papier n'avance pas comme résultat atteint. Par ailleurs, la terminologie exacte du papier est « integer addition » (addition entière), et non « additions et négations »."
+    },
+    {
+     "lens": "indépendance",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 1,
+     "note": "Tous les chiffres de débit (8,9×, 2 977 vs 333 tokens/s) et de latence (4,1×) sont confirmés mot pour mot dans l'article original. Deux points ne tiennent pas tel quel : (1) « additions et négations » paraphrase le terme de l'article « integer addition » — la négation pour {−1} est implicite dans l'arithmétique ternaire mais n'est pas nommée séparément ; (2) la réduction mémoire « >90 % » pour le modèle 70 B n'est pas déclarée explicitement dans l'article — la seule mesure directe est 3,55× (72 %) à 3 B, et l'avantage 11× de batch à 70 B est cohérent avec ~90 % d'économie sur les poids mais reste un calcul dérivé, non un chiffre annoncé. Aucune source indépendante ayant reproduit les benchmarks GPU 70 B n'a pu être localisée."
+    }
+   ],
+   "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « BitNet b1.58 restreint chaque poids aux valeurs ternary {−1, 0, +1} (≈ 1,58 bit/paramètre), ce qui convertit les matrix multiplications en additions et négations ; à 70B paramètres sur deux A100 80 Go, cela se traduit par 8,9× plus de débit (2 977 contre 333 tokens/s), 4,1× moins de latence et plus de 90 % d'économie mémoire par rapport à FP16. »"
+  },
+  {
+   "id": "claim:25",
+   "section": "quantification-extreme-sub-2-bit",
+   "section_retained": true,
+   "retained": true,
+   "audit": "corrected",
+   "kind": "contestable",
+   "statement": "Les gains énergétiques fréquemment cités autour de la famille BitNet — 38,8× de réduction totale pour un modèle de 30B paramètres et 71,4× pour les opérations arithmétiques de matrix multiplication — proviennent de deux papiers distincts : le 38,8× est issu du papier BitNet original (2310.11453, poids 1-bit), non de BitNet b1.58 (2402.17764), lequel analyse des modèles de 7B, 13B et 70B et rapporte uniquement le 71,4×. Les deux sont des projections issues d'un modèle d'estimation énergétique (Horowitz, ISSCC 2014) calibré sur des données de technologie 7 nm — et non des simulations de circuits au sens propre (SPICE/RTL) —, ni des mesures sur des GPU commerciaux CUDA, qui ne disposent d'aucune unité de calcul ternaire native.",
+   "original_statement": "Les gains énergétiques fréquemment cités pour BitNet b1.58 — 38,8× de réduction totale pour un modèle de 30B paramètres et 71,4× pour les opérations arithmétiques de matrix multiplication — sont des projections issues de simulations de circuits sur technologie 7 nm, non des mesures sur des GPU commerciaux CUDA, qui ne disposent d'aucune unité de calcul ternaire native.",
+   "corroborated": 1,
+   "refuted": 1,
+   "corrected": 1,
+   "n_sources": 3,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": true,
+     "corrected": true,
+     "n_sources": 2,
+     "note": "L'énoncé est factuellement solide : les chiffres 71,4× et 38,8× proviennent bien d'un modèle énergétique théorique à 7 nm (Horowitz 2014 + Zhang et al. 2022), pas de mesures GPU. La seule imprecision est le terme « simulations de circuits » : l'article source parle d'« energy model » et d'« estimate ». Le modèle Horowitz est une caractérisation circuit-level des coûts par opération à chaque nœud technologique, ce qui rend la formulation raisonnable mais légèrement trop technique par rapport au vocabulaire du papier."
+    },
+    {
+     "lens": "source-primaire",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 2,
+     "note": "Le 71,4× pour la matrix multiplication est bien dans le papier BitNet b1.58 (2402.17764), sur 7 nm, via un modèle d'énergie (Horowitz 2014), non des simulations de circuits. En revanche, le 38,8× pour un modèle 30B est absent de ce papier : il se déduit des données de Table 1 du papier BitNet original (2310.11453), qui n'analyse pas le format ternaire b1.58. Dire « simulations de circuits » est une imprécision : les papiers citent explicitement un « energy model » basé sur des coûts par opération publiés, pas une simulation SPICE ou RTL."
+    }
+   ],
+   "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Les gains énergétiques fréquemment cités pour BitNet b1.58 — 38,8× de réduction totale pour un modèle de 30B paramètres et 71,4× pour les opérations arithmétiques de matrix multiplication — sont des projections issues de simulations de circuits sur technologie 7 nm, non des mesures sur des GPU commerciaux CUDA, qui ne disposent d'aucune unité de calcul ternaire native. »"
+  },
+  {
+   "id": "claim:26",
+   "section": "quantification-extreme-sub-2-bit",
+   "section_retained": true,
+   "retained": false,
+   "audit": "rejected",
+   "kind": "established",
+   "statement": "Sous 2 bits, le PTQ échoue de façon catastrophique là où le QAT réussit : sur Whisper Small, un PTQ à 2 bits produit un WER de 37,06 % (la baseline FP16 est à 6,77 %) tandis qu'un QAT à 1,58 bit atteint 6,38 % de WER — meilleur que FP16 — avec une compression 8× et une inférence 2,46× plus rapide, grâce à la convergence vers des flat minima tolérants aux perturbations ternaires.",
+   "original_statement": "Sous 2 bits, le PTQ échoue de façon catastrophique là où le QAT réussit : sur Whisper Small, un PTQ à 2 bits produit un WER de 37,06 % (la baseline FP16 est à 6,77 %) tandis qu'un QAT à 1,58 bit atteint 6,38 % de WER — meilleur que FP16 — avec une compression 8× et une inférence 2,46× plus rapide, grâce à la convergence vers des flat minima tolérants aux perturbations ternaires.",
+   "corroborated": 1,
+   "refuted": 1,
+   "corrected": 1,
+   "n_sources": 1,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 1,
+     "note": "Les métriques PTQ (37,06 %), compression (8×) et speedup (2,46×) sont confirmées par le blog ENERZAi, seule source couvrant Whisper Small. Le sens de la différence de 0,39 pp entre QAT et FP16 est ambigu — il n'est pas établi que le QAT surpasse le FP16 plutôt que de lui être légèrement inférieur — et arxiv 2402.17764 n'apporte aucune donnée Whisper, invalidant l'indépendance des sources revendiquée."
+    },
+    {
+     "lens": "indépendance",
+     "holds": true,
+     "corrected": false,
+     "n_sources": 0,
+     "note": "Les chiffres spécifiques (PTQ 2-bit : 37,06 % WER ; FP16 : 6,77 % implicite ; QAT 1,58-bit : 6,38 % ; 8× de compression ; 2,46× de rapidité ; flat minima) sont tous cohérents avec le blog ENERZAi et proviennent exclusivement de leurs propres expériences internes sur Whisper Small. L'article arxiv 2402.17764 (BitNet b1.58) porte sur la quantification de LLMs en langage naturel et ne contient aucune donnée WER sur Whisper — il n'est pas une source pour ces chiffres. Aucune publication académique indépendante n'a été trouvée pour reproduire ou confirmer ces résultats ; l'énoncé tient factuellement mais repose sur une source unique (ENERZAi), sans corroboration extérieure."
+    }
+   ],
+   "audit_note": "Rejeté : 1 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+  },
+  {
+   "id": "claim:27",
+   "section": "formats-flottants-materiel-deploiement",
+   "section_retained": true,
+   "retained": true,
+   "audit": "corrected",
+   "kind": "established",
+   "statement": "Transformer Engine assigne E4M3 (±448, précision maximale) au forward pass — activations et poids — et E5M2 (±57 344, plage dynamique étendue) aux gradients du backward pass, avec gestion automatique des scaling factors à la granularité du tenseur (un facteur FP32 distinct par tenseur FP8) ; dans le mode HYBRID par défaut, le choix E4M3/E5M2 est uniforme par phase (forward vs backward) pour toutes les couches, et non sélectionnable à la granularité de la couche.",
+   "original_statement": "Transformer Engine assigne E4M3 (±448, précision maximale) au forward pass — activations et poids — et E5M2 (±57 344, plage dynamique étendue) aux gradients du backward pass, avec sélection de format à la granularité de la couche et gestion automatique des scaling factors.",
+   "corroborated": 0,
+   "refuted": 2,
+   "corrected": 2,
+   "n_sources": 5,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 3,
+     "note": "Les valeurs numériques (±448, ±57 344) et l'attribution E4M3/E5M2 par phase (forward/backward) sont confirmées par la documentation officielle NVIDIA. L'erreur porte sur la granularité : la doc TE dit explicitement \"distinct scaling factors for each FP8 tensor\" (per-tensor), non par couche ; le choix du format dans Format.HYBRID est global par phase, pas sélectionnable individuellement par couche."
+    },
+    {
+     "lens": "indépendance",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 2,
+     "note": "Les quatre faits centraux sont confirmés par deux sources indépendantes : E4M3 (±448) pour les activations et poids du forward, E5M2 (±57 344) pour les gradients du backward, et gestion automatique des scaling factors. L'inexactitude porte sur la « granularité de la couche » : le choix du format (E4M3/E5M2) est piloté par une recette HYBRID globale (Format.HYBRID), pas couche par couche ; c'est le scaling factor (amax history) qui est géré au niveau du tenseur/couche."
+    }
+   ],
+   "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « Transformer Engine assigne E4M3 (±448, précision maximale) au forward pass — activations et poids — et E5M2 (±57 344, plage dynamique étendue) aux gradients du backward pass, avec sélection de format à la granularité de la couche et gestion automatique des scaling factors. »"
+  },
+  {
+   "id": "claim:28",
+   "section": "formats-flottants-materiel-deploiement",
+   "section_retained": true,
+   "retained": true,
+   "audit": "corrected",
+   "kind": "contestable",
+   "statement": "FP8 W8A8 is effectively lossless on aggregate benchmarks across the tested sizes (8B to 405B). However, the characterisation that well-calibrated INT8 W8A8 \"shows 1–3% degradation at all scales\" is inaccurate: in the primary study (2411.02355, Llama-3.1), average benchmark recovery for INT8 is +0.31% at 8B (INT8 exceeds baseline), −0.13% at 70B, and −0.68% at 405B — all well under 1% on aggregate. The \"1–3%\" phrase from the paper's abstract describes per-task worst-case ranges on harder benchmarks (GPQA, Big Bench Hard), not a universal average across scales. There is also a scale-dependent pattern: INT8 matches or outperforms FP8 on average at 8B–70B, with FP8's advantage becoming most visible at 405B. No 1-billion-parameter threshold is supported by the literature.",
+   "original_statement": "L'idée qu'il existerait un seuil à « un milliard de paramètres » à partir duquel FP8 surclasserait INT8 n'est pas étayée par la littérature : FP8 W8A8 est effectivement sans perte à toutes les tailles testées (8B à 405B paramètres), tandis qu'INT8 W8A8 bien calibré accuse 1 à 3 % de dégradation à toutes les échelles — sans discontinuité dimensionnelle identifiée.",
+   "corroborated": 1,
+   "refuted": 1,
+   "corrected": 1,
+   "n_sources": 2,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 2,
+     "note": "The claim lifts \"1–3% degradation\" directly from the abstract of 2411.02355 and treats it as a universal average across all scales, but the paper's own recovery tables contradict this: INT8 at 8B averages +0.31% (above baseline) and at 70B only −0.13%, both far below 1%. The \"1–3%\" is a per-task worst-case envelope on hard tasks, not an aggregate. FP8 is also not strictly lossless at the task level (e.g., −1.56% on Big Bench Hard at 70B). The claim therefore misrepresents both the magnitude and the uniformity of INT8 degradation."
+    },
+    {
+     "lens": "source-primaire",
+     "holds": true,
+     "corrected": false,
+     "n_sources": 2,
+     "note": "Le paper arXiv:2411.02355 (Kurtic et al.) cite mot pour mot que FP8 W8A8 est \"effectively lossless across all model scales\" et qu'INT8 W8A8 atteint \"1–3% accuracy degradation\" sur Llama-3.1 8B/70B/405B — aucun seuil à 1B n'est évoqué. Le paper arXiv:2502.01070v1 constitue un contexte complémentaire (teste 1B–70B en FP8) mais ne fournit pas de comparaison directe FP8 vs INT8 avec chiffres ; il n'est donc pas une source indépendante pour la partie INT8 de l'énoncé. L'énoncé reste vrai : il reflète fidèlement ce que la littérature primaire dit, sous réserve que « effectivement sans perte » désigne l'expression \"effectively lossless\" du paper (variations dans la marge d'erreur statistique, pas une stricte identité)."
+    }
+   ],
+   "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « L'idée qu'il existerait un seuil à « un milliard de paramètres » à partir duquel FP8 surclasserait INT8 n'est pas étayée par la littérature : FP8 W8A8 est effectivement sans perte à toutes les tailles testées (8B à 405B paramètres), tandis qu'INT8 W8A8 bien calibré accuse 1 à 3 % de dégradation à toutes les échelles — sans discontinuité dimensionnelle identifiée. »"
+  },
+  {
+   "id": "claim:29",
+   "section": "formats-flottants-materiel-deploiement",
+   "section_retained": true,
+   "retained": false,
+   "audit": "rejected",
+   "kind": "established",
+   "statement": "TensorRT-LLM atteint 10 907 tokens/s en sortie sur un seul GPU H100 SXM en FP8 (GPT-J 6B, batch 64, 128 tokens d'entrée et de sortie), avec un time-to-first-token de 102 ms — 4,6 fois les performances de l'A100 dans la même configuration.",
+   "original_statement": "TensorRT-LLM atteint 10 907 tokens/s en sortie sur un seul GPU H100 SXM en FP8 (GPT-J 6B, batch 64, 128 tokens d'entrée et de sortie), avec un time-to-first-token de 102 ms — 4,6 fois les performances de l'A100 dans la même configuration.",
+   "corroborated": 0,
+   "refuted": 2,
+   "corrected": 2,
+   "n_sources": 1,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 1,
+     "note": "Les chiffres absolus (10 907 tok/s, 102 ms TTFT, GPT-J 6B, batch 64, 128 in/out, H100 SXM FP8) sont conformes à la source NVIDIA. Le ratio « 4,6× » est faux : le débit est 3,0× l'A100 et la latence TTFT est 4,7× meilleure — et la comparaison porte sur A100 FP16, non FP8."
+    },
+    {
+     "lens": "indépendance",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 0,
+     "note": "Les chiffres bruts (10 907 tokens/s, TTFT 102 ms, GPT-J 6B, batch 64, ISL/OSL 128) sont confirmés par le blog officiel NVIDIA TensorRT-LLM (H100vsA100.html). En revanche, le ratio « 4,6× » est une confusion : pour cette configuration précise, le speedup de débit est de 3,0× et celui du TTFT de 4,7× ; le « 4,6× » est le maximum global observé sur l'ensemble des configurations, pas le ratio de ce benchmark spécifique. Aucune source indépendante de NVIDIA n'a pu être vérifiée qui confirme ces chiffres."
+    }
+   ],
+   "audit_note": "Rejeté : 0 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+  },
+  {
+   "id": "claim:30",
+   "section": "formats-flottants-materiel-deploiement",
+   "section_retained": true,
+   "retained": true,
+   "audit": "confirmed",
+   "kind": "established",
+   "statement": "Blackwell (B200) introduit FP4 natif avec logique de déquantization matérielle, sous deux dialectes : NVFP4 (blocs de 16, facteurs E4M3) et MXFP4 standard ouvert (blocs de 32, facteurs E8M0), atteignant 9 000 TFLOPS FP4 dense sur B200.",
+   "original_statement": "Blackwell (B200) introduit FP4 natif avec logique de déquantization matérielle, sous deux dialectes : NVFP4 (blocs de 16, facteurs E4M3) et MXFP4 standard ouvert (blocs de 32, facteurs E8M0), atteignant 9 000 TFLOPS FP4 dense sur B200.",
+   "corroborated": 2,
+   "refuted": 0,
+   "corrected": 0,
+   "n_sources": 4,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": true,
+     "corrected": false,
+     "n_sources": 3,
+     "note": "Les quatre éléments de l'énoncé sont confirmés par des sources primaires vérifiées : la logique de déquantization matérielle, les spécificités bloc/facteur de NVFP4 (16, E4M3) et MXFP4 (32, E8M0) sont attestées par l'arxiv 2512.02189v1 ; les 9 000 TFLOPS FP4 dense par GPU B200 sont confirmés par la page officielle NVIDIA HGX B200 (72 PFLOPS dense pour le système 8-GPU). L'écart observé dans le benchmark arxiv (~8 000 TFLOPS mesurés) reflète un overhead applicatif, pas une erreur de spec."
+    },
+    {
+     "lens": "indépendance",
+     "holds": true,
+     "corrected": false,
+     "n_sources": 2,
+     "note": "Tous les éléments de l'énoncé sont confirmés par au moins deux sources indépendantes : la déquantization native dans les Tensor Cores (sans kernel séparé), NVFP4 blocs de 16 avec facteurs E4M3, MXFP4 blocs de 32 avec facteurs E8M0, et le pic officiel de 9 000 TFLOPS FP4 dense sur B200 (9 petaflops confirmés par le blog NVIDIA developer). La légère différence relevée dans l'arXiv (7 702 TFLOPS à 96,3 % de leur pic empirique ≈ 8 000 TFLOPS mesurés) reflète l'écart habituel entre throughput mesuré sur un benchmark spécifique et pic théorique du matériel, sans invalider la spécification officielle de 9 000 TFLOPS."
+    }
+   ],
+   "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+  },
+  {
+   "id": "claim:31",
+   "section": "limites-et-idees-recues",
+   "section_retained": true,
+   "retained": true,
+   "audit": "confirmed",
+   "kind": "established",
+   "statement": "L'accuracy sur les benchmarks à choix multiples (MMLU) est un proxy trompeur de la qualité réelle d'un modèle quantisé : des modèles compressés peuvent la préserver tout en exhibant des flips significatifs et une dégradation mesurable sur les tâches de génération libre (MT-Bench).",
+   "original_statement": "L'accuracy sur les benchmarks à choix multiples (MMLU) est un proxy trompeur de la qualité réelle d'un modèle quantisé : des modèles compressés peuvent la préserver tout en exhibant des flips significatifs et une dégradation mesurable sur les tâches de génération libre (MT-Bench).",
+   "corroborated": 2,
+   "refuted": 0,
+   "corrected": 0,
+   "n_sources": 2,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": true,
+     "corrected": false,
+     "n_sources": 1,
+     "note": "Le papier confirme empiriquement l'énoncé pour la majorité des schémas (5/6) : accuracy MCQ préservée à ±0-2%, flips jusqu'à 5.65% sur Llama2-70b (13.6% sur modèles plus petits), et MT-Bench dégradé de -0.37 à -0.43 points. Cependant, GPTQ W8A16 est explicitement exempté (seulement 0.26% de flips, -0.21 MT-Bench), ce qui constitue un contre-exemple direct et limite la portée générale de l'énoncé. De plus, le papier évalue 7 benchmarks MCQ collectivement — pas MMLU seul — donc le phénomène est propre aux métriques de précision MCQ en général, non spécifique à MMLU."
+    },
+    {
+     "lens": "indépendance",
+     "holds": true,
+     "corrected": false,
+     "n_sources": 2,
+     "note": "Les deux sources, indépendantes l'une de l'autre (groupes d'auteurs distincts, juillet 2024), confirment le claim. La première quantifie les trois éléments clés : précision MMLU préservée à 0–2 %, flips jusqu'à 13,6 % malgré cette préservation, dégradation MT-Bench jusqu'à 10 % sur les questions turn-2 pour Llama2-70b. La seconde documente indépendamment que la compression maintient mieux la précision MC que les scores MT-Bench, corroborant le découplage entre les deux types d'évaluation. L'usage de « peuvent » dans l'énoncé est approprié : l'effet est méthode-dépendant (GPTQ W8A16 présente des flips négligeables)."
+    }
+   ],
+   "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+  },
+  {
+   "id": "claim:32",
+   "section": "limites-et-idees-recues",
+   "section_retained": true,
+   "retained": true,
+   "audit": "corrected",
+   "kind": "established",
+   "statement": "Sur les tâches longue-portée, les méthodes INT4 présentent une hétérogénéité importante : BNB-nf4 peut atteindre jusqu'à 59 % de dégradation dans des cas extrêmes (tâche ONERULER, Llama-3.1 70B), tandis qu'AWQ-int4 n'affiche en moyenne que 1,8 % et GPTQ-int4 que 2,7 %. Les méthodes 8-bit sont plus robustes (FP8 : ~0,2 % en moyenne ; GPTQ-int8 : ~0,8 % en moyenne). La sensibilité est fortement dépendante de la méthode de quantification, de l'architecture du modèle et de la tâche — et non uniformément distribuée au sein de la famille INT4.",
+   "original_statement": "Sur les tâches longue-portée, les méthodes INT4 (AWQ-int4, GPTQ-int4, BNB-nf4) causent une dégradation pouvant atteindre 59 %, contre ~0,8 % pour les méthodes 8-bit, avec une sensibilité fortement dépendante de l'architecture du modèle.",
+   "corroborated": 0,
+   "refuted": 2,
+   "corrected": 2,
+   "n_sources": 2,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 2,
+     "note": "L'énoncé est doublement trompeur : (1) il attribue implicitement le pic de 59 % à l'ensemble des méthodes INT4, alors qu'il est spécifique à BNB-nf4 sur une seule combinaison tâche/modèle — AWQ-int4 ne dégrade que de 1,8 % en moyenne ; (2) il compare un maximum extrême pour INT4 à une moyenne pour 8-bit (~0,8 %), mélangeant deux mesures statistiques incompatibles sans le signaler."
+    },
+    {
+     "lens": "indépendance",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 0,
+     "note": "Les chiffres 59 % et 0,8 % sont fidèles à l'unique source candidate (arxiv 2505.20276 / EMNLP 2025), mais deux problèmes empêchent de valider l'énoncé tel quel : (1) le terme « longue-portée » ne correspond pas au terme technique du papier (« long-context tasks »), distinction réelle en NLP ; (2) BNB-nf4 est présenté comme causant « jusqu'à 59 % » alors que le papier montre explicitement sa robustesse sur certaines architectures — le 59 % est un cas extrême parmi les méthodes 4-bit, pas un plafond partagé. Aucune source indépendante n'a pu être trouvée pour confirmer ces valeurs précises."
+    }
+   ],
+   "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « Sur les tâches longue-portée, les méthodes INT4 (AWQ-int4, GPTQ-int4, BNB-nf4) causent une dégradation pouvant atteindre 59 %, contre ~0,8 % pour les méthodes 8-bit, avec une sensibilité fortement dépendante de l'architecture du modèle. »"
+  },
+  {
+   "id": "claim:33",
+   "section": "limites-et-idees-recues",
+   "section_retained": true,
+   "retained": true,
+   "audit": "corrected",
+   "kind": "contestable",
+   "statement": "La perplexité est un indicateur corrélé mais imparfait des performances d'un LLM quantisé : elle prédit correctement la dégradation sur plusieurs benchmarks de raisonnement (MMLU, GSM8K, C-EVAL), mais échoue sur les tâches de génération textuelle (XSum ROUGE-2 : corrélation −0,49 ; ROUGE-L : −0,22) et sur des tâches NLI comme SNLI (corrélation −0,58) ; de plus, à 4 bits, la perplexité augmente notablement alors que la performance sur les benchmarks reste comparable, ce qui illustre une divergence systématique. Elle ne peut donc pas être qualifiée de « fiable » sans restriction de domaine.",
+   "original_statement": "La perplexity est un indicateur fiable de la performance d'un LLM quantisé sur les benchmarks standards.",
+   "corroborated": 0,
+   "refuted": 2,
+   "corrected": 2,
+   "n_sources": 4,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 2,
+     "note": "La source candidate (2402.16775) concède elle-même que la perplexité ne fonctionne que sur « la plupart » des benchmarks, avec une corrélation moyenne de Pearson de 0,79 masquant des échecs sévères sur la génération (XSum) et l'inférence logique (SNLI). Une seconde source indépendante (2602.04099) démontre que la perplexité est également sensible au protocole d'évaluation (la taille de fenêtre seule fait varier la perplexité de 57–62 %) et ne corrèle pas systématiquement avec la performance en tâche aval. L'énoncé tel quel, sans restriction, est donc trop fort."
+    },
+    {
+     "lens": "source-primaire",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 2,
+     "note": "La source primaire (2402.16775) dit explicitement « most benchmarks », pas tous : les corrélations de Pearson vont de -0.930 (C-EVAL) à -0.222 (XSum ROUGE-L) et -0.583 (SNLI). Une seconde étude indépendante (2410.23771) mesure une corrélation de -0.18 entre perplexité et LongBench, confirmant que l'énoncé est trop absolu et donc inexact tel quel."
+    }
+   ],
+   "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « La perplexity est un indicateur fiable de la performance d'un LLM quantisé sur les benchmarks standards. »"
+  },
+  {
+   "id": "claim:34",
+   "section": "limites-et-idees-recues",
+   "section_retained": true,
+   "retained": true,
+   "audit": "corrected",
+   "kind": "established",
+   "statement": "Avec quantification dynamique des activations, FP8 W8A8 est quasi-sans perte pour la famille Llama-3.1 sur les benchmarks académiques courants ; en revanche, FP8 statique peut dégrader l'accuracy de plus de 12 points sur des tâches de raisonnement. INT4 weight-only (W4A16) rivalise avec les méthodes 8-bit uniquement dans les déploiements synchrones à faible batch (latence-critiques) — en continuous batching asynchrone, cas dominant en production, W8A8 reste nettement supérieur (×1,6 de débit). L'avantage d'INT4 est donc réel mais limité à un sous-ensemble des scénarios de déploiement.",
+   "original_statement": "FP8 W8A8 est effectivement sans perte pour la famille Llama-3.1, et INT4 weight-only (W4A16) rivalise en pratique avec les méthodes 8-bit — davantage qu'anticipé par la littérature antérieure.",
+   "corroborated": 0,
+   "refuted": 2,
+   "corrected": 2,
+   "n_sources": 4,
+   "jurors": [
+    {
+     "lens": "réfutation",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 3,
+     "note": "Deux failles majeures : (1) la losslessness de FP8 W8A8 est conditionnelle au scaling dynamique des activations — le scaling statique dégrade GSM8K de 83 % à 70 % (arxiv 2502.01070), condition absente de l'énoncé ; (2) la rivalité d'INT4 W4A16 avec les méthodes 8-bit est réelle mais strictement bornée aux déploiements synchrones à faible batch — le papier source lui-même reconnaît que W8A8 domine en continuous batching asynchrone, qui est le cas dominant en production serveur."
+    },
+    {
+     "lens": "indépendance",
+     "holds": false,
+     "corrected": true,
+     "n_sources": 1,
+     "note": "La source indépendante (2409.11055, Lee et al., ETRI/KETI/Neubla, sept. 2024) confirme la quasi-absence de perte pour FP8 W8A8 sur Llama-3.1-8B et 70B (< 1 %), mais contredit le volet INT4 : sur le modèle 8B, INT4 est inférieur à INT8 sur 12 benchmarks ; la compétitivité de W4A16 face aux méthodes 8-bit n'est établie qu'à partir de 70B. L'énoncé original, calqué sur 2411.02355, généralise trop en affirmant que W4A16 « rivalise en pratique » pour l'ensemble de la famille Llama-3.1."
+    }
+   ],
+   "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « FP8 W8A8 est effectivement sans perte pour la famille Llama-3.1, et INT4 weight-only (W4A16) rivalise en pratique avec les méthodes 8-bit — davantage qu'anticipé par la littérature antérieure. »"
+  }
+ ]
+}
