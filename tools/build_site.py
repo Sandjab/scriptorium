@@ -144,43 +144,57 @@ def group_by_domain(collected, domains, legacy_slug):
     return sections
 
 
-def render_index(themes) -> str:
-    """Page d'accueil — esthétique alignée sur charte.css (tokens, polices)."""
+def render_index(sections, n_themes, n_docs) -> str:
+    """Page d'accueil groupée par domaine — esthétique alignée sur charte.css."""
     e = html.escape
-    n_docs = sum(len(docs) for _, _, docs in themes)
     built = _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
     def render_link(href, lbl, title):
-        # Doc unique : lbl == title -> une seule ligne (pas de sous-titre redondant).
         inner = f'<span class="doc">{e(lbl)}</span>'
         if lbl != title:
             inner += f'<span class="ttl">{e(title)}</span>'
-        return f'        <li><a href="{e(href)}">{inner}</a></li>'
+        return f'          <li><a href="{e(href)}">{inner}</a></li>'
 
-    cards = []
-    for slug, label, docs in themes:
+    def render_card(slug, label, docs, *, legacy=False):
         links = "\n".join(render_link(*d) for d in docs)
-        if slug == LEGACY_SLUG:
-            cards.append(
-                f'''      <article class="card legacy">
-        <p class="badge-legacy">Legacy</p>
-        <h2>{e(label)}</h2>
-        <ul>
-{links}
-        </ul>
-        <p class="legacy-note">{e(LEGACY_NOTE)}</p>
-      </article>'''
+        if legacy:
+            return (
+                f'        <article class="card legacy">\n'
+                f'          <p class="badge-legacy">Legacy</p>\n'
+                f'          <h2>{e(label)}</h2>\n'
+                f'          <ul>\n{links}\n          </ul>\n'
+                f'          <p class="legacy-note">{e(LEGACY_NOTE)}</p>\n'
+                f'        </article>'
             )
-        else:
-            cards.append(
-                f'''      <article class="card">
-        <h2>{e(label)}</h2>
-        <ul>
-{links}
-        </ul>
-      </article>'''
-            )
-    cards_html = "\n".join(cards)
+        return (
+            f'        <article class="card">\n'
+            f'          <h2>{e(label)}</h2>\n'
+            f'          <ul>\n{links}\n          </ul>\n'
+            f'        </article>'
+        )
+
+    blocks = []
+    for sec in sections:
+        if sec["kind"] == "legacy":
+            slug, label, docs = sec["theme"]
+            cards = render_card(slug, label, docs, legacy=True)
+            head = '      <h2 class="dhead">Legacy</h2>'
+            blurb = ""
+        elif sec["kind"] == "unclassified":
+            cards = "\n".join(render_card(s, l, d) for s, l, d in sec["themes"])
+            head = '      <h2 class="dhead">À classer</h2>'
+            blurb = ('      <p class="dblurb">Thèmes publiés pas encore rangés dans '
+                     'un domaine (lancer <code>/arrange</code>).</p>')
+        else:  # domain
+            cards = "\n".join(render_card(s, l, d) for s, l, d in sec["themes"])
+            head = f'      <h2 class="dhead">{e(sec["label"])}</h2>'
+            blurb = f'      <p class="dblurb">{e(sec["blurb"])}</p>'
+        blurb_line = (blurb + "\n") if blurb else ""
+        blocks.append(
+            f'    <section class="domain">\n{head}\n{blurb_line}'
+            f'      <div class="cards">\n{cards}\n      </div>\n    </section>'
+        )
+    sections_html = "\n".join(blocks)
 
     return f'''<!DOCTYPE html>
 <html lang="fr">
@@ -218,8 +232,14 @@ def render_index(themes) -> str:
   .meta span{{font-size:11.5px;letter-spacing:.04em;border:1px solid rgba(157,194,224,.35);
     color:#B7CFE4;padding:5px 11px;border-radius:2px;font-family:"JetBrains Mono",monospace;}}
 
-  main{{max-width:var(--maxw);margin:0 auto;padding:48px 28px 100px;
-    display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:24px;}}
+  main{{max-width:var(--maxw);margin:0 auto;padding:48px 28px 100px;}}
+  .domain{{margin:0 0 46px;}}
+  .dhead{{font-size:14px;letter-spacing:.16em;text-transform:uppercase;
+    color:var(--bordeaux);margin:0 0 4px;font-weight:700;}}
+  .dblurb{{margin:0 0 18px;color:var(--ink-soft);font-size:15px;
+    border-bottom:1px solid var(--line);padding-bottom:14px;}}
+  .dblurb code{{font-family:"JetBrains Mono",monospace;font-size:13px;color:var(--blue);}}
+  .cards{{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:24px;}}
   .card{{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--blue);
     border-radius:7px;padding:22px 24px;box-shadow:0 1px 2px rgba(20,46,73,.04);}}
   .card h2{{font-size:19px;margin:0 0 14px;color:var(--blue-deep);font-weight:800;
@@ -253,13 +273,13 @@ def render_index(themes) -> str:
       <p class="lede">Documents de référence uniques, un par thème : chaque fait
         confirmé s'appuie sur au moins deux sources indépendantes.</p>
       <div class="meta">
-        <span>{len(themes)} thèmes</span>
+        <span>{n_themes} thèmes</span>
         <span>{n_docs} documents</span>
       </div>
     </div>
   </header>
   <main>
-{cards_html}
+{sections_html}
   </main>
   <footer>
     Généré le {built} · <a href="https://github.com/Sandjab/scriptorium">github.com/Sandjab/scriptorium</a>

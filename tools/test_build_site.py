@@ -107,3 +107,29 @@ def test_group_legacy_last():
     secs = build_site.group_by_domain(_collected("alpha", LEGACY), domains, LEGACY)
     assert secs[-1]["kind"] == "legacy"
     assert secs[-1]["theme"][0] == LEGACY
+
+
+def test_render_domain_headers_in_order():
+    secs = [
+        {"kind": "domain", "id": "d1", "label": "Premier", "blurb": "b1",
+         "themes": [("alpha", "Alpha", [("alpha/alpha.html", "Alpha", "Alpha")])]},
+        {"kind": "domain", "id": "d2", "label": "Second", "blurb": "b2",
+         "themes": [("beta", "Beta", [("beta/beta.html", "Beta", "Beta")])]},
+    ]
+    out = build_site.render_index(secs, n_themes=2, n_docs=2)
+    assert out.index("Premier") < out.index("Second")
+    assert "b1" in out and "b2" in out
+
+
+def test_render_unclassified_and_legacy_last():
+    secs = [
+        {"kind": "domain", "id": "d1", "label": "Dom", "blurb": "b",
+         "themes": [("alpha", "Alpha", [("alpha/alpha.html", "Alpha", "Alpha")])]},
+        {"kind": "unclassified",
+         "themes": [("orphan", "Orphan", [("orphan/orphan.html", "Orphan", "Orphan")])]},
+        {"kind": "legacy",
+         "theme": (LEGACY, "Apo", [(f"{LEGACY}/x.html", "Réf", "Réf")])},
+    ]
+    out = build_site.render_index(secs, n_themes=3, n_docs=3)
+    assert "À classer" in out
+    assert out.index("À classer") < out.index("Legacy")  # bucket avant legacy
