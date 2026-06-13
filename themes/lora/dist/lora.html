@@ -1,0 +1,1862 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LoRA : adaptation de bas rang pour le fine-tuning efficace en paramètres des LLM</title>
+<style>
+/* vietnamese */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLySOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLyTOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLySOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLyTOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 700;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLySOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 700;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLyTOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 700;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 800;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLySOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 800;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLyTOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 800;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx3cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxTcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxPcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx_cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx7cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxDcwgknk-4.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx3cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxTcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxPcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx_cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx7cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxDcwgknk-4.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx3cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxTcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxPcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx_cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx7cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxDcwgknk-4.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCt-xNNww_2s0amA9M8onfmTNmnUHowCw.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCt-xNNww_2s0amA9M8on7mTNmnUHowCw.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCt-xNNww_2s0amA9M8onXmTNmnUHowCw.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCt-xNNww_2s0amA9M8onTmTNmnUHowCw.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCt-xNNww_2s0amA9M8onrmTNmnUHo.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCr-xNNww_2s0amA9M0knjsS_ulYHs.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCr-xNNww_2s0amA9M9knjsS_ulYHs.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCr-xNNww_2s0amA9M2knjsS_ulYHs.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCr-xNNww_2s0amA9M3knjsS_ulYHs.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCr-xNNww_2s0amA9M5knjsS_ul.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vKsW3MafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vKsW3FafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vKsW3OafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vKsW3PafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vKsW3BafaPWnII.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vmtm3MafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vmtm3FafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vmtm3OafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vmtm3PafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vmtm3BafaPWnII.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* =====================================================================
+   charte.css — Charte graphique commune (monograph skill)
+   Sources :
+     (1) themes/automatic-prompt-optimization/legacy/apo-base.html  l.11-192
+     (2) themes/automatic-prompt-optimization/legacy/build/assemble.py  EXTRA_CSS
+     (3) themes/automatic-prompt-optimization/legacy/build/widgets/theme-tooltips.html  <style> blocks
+   NE PAS modifier — fichier de référence distillé depuis le legacy APO.
+   ===================================================================== */
+
+/* ===== (1) BASE : tokens + typographie + composants de mise en page ===== */
+
+  :root{
+    --paper:#F4F6FA; --card:#FFFFFF;
+    --ink:#15202E; --ink-soft:#43536A; --ink-faint:#7A889B;
+    --blue:#23537F; --blue-deep:#142E49; --blue-bright:#2C77B6; --blue-wash:#E7EEF6;
+    --bordeaux:#7C2A38; --bordeaux-bright:#9B3443; --bordeaux-wash:#F3E3E6;
+    --line:#D7DFE9; --line-soft:#E7ECF3;
+    --code:#11283F;
+    --maxw:1240px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Spectral",Georgia,serif; font-size:17px; line-height:1.62;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,h4,.lbl,.chip,nav,th,.tag,.fcap-k{font-family:"Archivo",system-ui,sans-serif;}
+  code,kbd,.mono{font-family:"JetBrains Mono",monospace;}
+
+  /* progress bar */
+  #prog{position:fixed;top:0;left:0;height:3px;width:0;background:var(--bordeaux-bright);z-index:60;transition:width .08s linear;}
+
+  /* header */
+  header.top{
+    background:linear-gradient(165deg,var(--blue-deep),#0E2236 70%);
+    color:#EAF1F8; padding:62px 28px 54px;
+    border-bottom:3px solid var(--bordeaux);
+  }
+  .top-in{max-width:var(--maxw);margin:0 auto;}
+  .kicker{font-family:"JetBrains Mono",monospace;font-size:12.5px;letter-spacing:.22em;
+    text-transform:uppercase;color:#9DC2E0;margin:0 0 16px;}
+  header.top h1{font-size:clamp(30px,4.6vw,52px);line-height:1.05;margin:0;font-weight:800;letter-spacing:-.01em;}
+  header.top h1 em{font-style:normal;color:#E7B3BD;}
+  header.top .lede{font-size:18px;max-width:760px;margin:20px 0 0;color:#C7D7E6;line-height:1.55;}
+  .meta{margin-top:26px;display:flex;flex-wrap:wrap;gap:10px;}
+  .meta span{font-family:"JetBrains Mono",monospace;font-size:11.5px;letter-spacing:.04em;
+    border:1px solid rgba(157,194,224,.35);color:#B7CFE4;padding:5px 11px;border-radius:2px;}
+
+  /* layout */
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 28px;display:grid;
+    grid-template-columns:248px minmax(0,1fr);gap:48px;align-items:start;}
+  nav.toc{position:sticky;top:22px;padding:30px 0 60px;font-size:13.5px;max-height:calc(100vh - 30px);overflow:auto;}
+  nav.toc .navhead{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);margin:18px 0 9px;font-weight:700;}
+  nav.toc a{display:block;color:var(--ink-soft);text-decoration:none;padding:4px 12px;border-left:2px solid var(--line);
+    line-height:1.32;margin:1px 0;transition:.15s;}
+  nav.toc a:hover{color:var(--blue-bright);border-left-color:var(--blue-bright);}
+  nav.toc a.active{color:var(--bordeaux);border-left-color:var(--bordeaux);font-weight:600;background:var(--bordeaux-wash);}
+  nav.toc a.sub{padding-left:24px;font-size:12.5px;}
+
+  main{padding:42px 0 100px;min-width:0;}
+  section{margin-bottom:30px;scroll-margin-top:18px;}
+  .part-band{margin:54px 0 10px;padding:14px 0 12px;border-top:2px solid var(--blue-deep);border-bottom:1px solid var(--line);}
+  .part-band .pk{font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.2em;color:var(--bordeaux);text-transform:uppercase;}
+  .part-band h2{font-size:clamp(24px,3.2vw,34px);margin:6px 0 0;font-weight:800;letter-spacing:-.01em;color:var(--blue-deep);}
+  h3{font-size:22px;margin:36px 0 8px;color:var(--blue-deep);font-weight:700;letter-spacing:-.005em;}
+  h4{font-size:16px;margin:22px 0 6px;color:var(--ink);font-weight:700;}
+  p{margin:11px 0;}
+  a.ref{color:var(--blue-bright);text-decoration:none;border-bottom:1px solid var(--blue-wash);font-weight:500;}
+  a.ref:hover{border-bottom-color:var(--blue-bright);}
+  strong{font-weight:600;}
+  .hl{color:var(--bordeaux);font-weight:600;}
+  em.term{font-style:italic;color:var(--ink);}
+  .lead{font-size:18.5px;color:var(--ink-soft);line-height:1.6;}
+
+  /* cards & components */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:7px;padding:22px 24px;margin:16px 0;
+    box-shadow:0 1px 2px rgba(20,46,73,.04);}
+  .opt{border-left:3px solid var(--blue);}
+  .opt .lbl{font-family:"Archivo";font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--blue);font-weight:700;}
+  .opt h4{margin:3px 0 8px;font-size:18px;}
+  .pc{display:grid;grid-template-columns:1fr 1fr;gap:10px 26px;margin-top:12px;}
+  @media(max-width:620px){.pc{grid-template-columns:1fr;}}
+  .pc ul{margin:4px 0;padding:0;list-style:none;font-size:15px;}
+  .pc li{padding:3px 0 3px 22px;position:relative;line-height:1.45;color:var(--ink-soft);}
+  .pros .k,.cons .k{font-family:"Archivo";font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;display:block;margin-bottom:3px;}
+  .pros .k{color:var(--blue);}.cons .k{color:var(--bordeaux);}
+  .pros li::before{content:"+";position:absolute;left:4px;color:var(--blue-bright);font-weight:700;}
+  .cons li::before{content:"–";position:absolute;left:5px;color:var(--bordeaux-bright);font-weight:700;}
+  .links{margin-top:13px;font-family:"JetBrains Mono",monospace;font-size:12.5px;display:flex;gap:16px;flex-wrap:wrap;}
+  .links a{color:var(--blue);text-decoration:none;border-bottom:1px dotted var(--blue);}
+  .links a:hover{color:var(--bordeaux);border-bottom-color:var(--bordeaux);}
+  .links a::before{content:"↗ ";opacity:.6;}
+
+  /* callout */
+  .callout{background:var(--bordeaux-wash);border:1px solid #E3C3C9;border-left:4px solid var(--bordeaux);
+    border-radius:6px;padding:18px 22px;margin:20px 0;}
+  .callout .ct{font-family:"Archivo";font-weight:700;color:var(--bordeaux);font-size:13px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
+  .note{background:var(--blue-wash);border:1px solid #CFE0EF;border-left:4px solid var(--blue);border-radius:6px;padding:18px 22px;margin:20px 0;}
+  .note .ct{font-family:"Archivo";font-weight:700;color:var(--blue);font-size:13px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
+
+  /* figures */
+  figure.fig{margin:24px 0;background:var(--card);border:1px solid var(--line);border-radius:7px;padding:24px 22px 16px;}
+  figure.fig svg{width:100%;height:auto;display:block;}
+  figcaption{margin-top:12px;font-size:13.5px;color:var(--ink-faint);line-height:1.45;border-top:1px solid var(--line-soft);padding-top:10px;}
+  figcaption .fcap-k{color:var(--bordeaux);font-weight:700;font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin-right:8px;}
+
+  /* table */
+  .tbl-w{overflow-x:auto;margin:18px 0;border:1px solid var(--line);border-radius:7px;}
+  table{border-collapse:collapse;width:100%;font-size:14px;background:var(--card);}
+  th{background:var(--blue-deep);color:#E7F0F8;text-align:left;padding:11px 14px;font-size:12px;letter-spacing:.04em;font-weight:600;position:sticky;top:0;}
+  td{padding:11px 14px;border-top:1px solid var(--line-soft);vertical-align:top;line-height:1.45;color:var(--ink-soft);}
+  td:first-child{color:var(--ink);font-weight:600;font-family:"Archivo";font-size:13.5px;}
+  tr:hover td{background:#FAFCFE;}
+  .tag{display:inline-block;font-family:"JetBrains Mono",monospace;font-size:11px;padding:2px 7px;border-radius:3px;background:var(--blue-wash);color:var(--blue);}
+  .tag.b{background:var(--bordeaux-wash);color:var(--bordeaux);}
+
+  code{background:#E9EEF4;color:var(--code);padding:1.5px 6px;border-radius:4px;font-size:14px;}
+  .axis-chips{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 4px;}
+  .axis-chips a{font-family:"Archivo";font-size:12.5px;font-weight:600;text-decoration:none;color:var(--blue);
+    background:var(--card);border:1px solid var(--line);padding:7px 13px;border-radius:30px;transition:.15s;}
+  .axis-chips a:hover{background:var(--blue-deep);color:#fff;border-color:var(--blue-deep);}
+
+  /* decision path (interactive Part II) */
+  .dpath{margin:18px 0;}
+  .fork{background:var(--card);border:1px solid var(--line);border-radius:7px;margin:10px 0;overflow:hidden;}
+  .fork-h{padding:13px 18px;background:#F0F4F9;border-bottom:1px solid var(--line);
+    font-family:"Archivo";font-weight:700;font-size:14px;color:var(--blue-deep);display:flex;gap:10px;align-items:baseline;}
+  .fork-h .n{font-family:"JetBrains Mono";color:var(--bordeaux);font-size:12px;}
+  .branches{display:grid;grid-template-columns:1fr 1fr;}
+  @media(max-width:620px){.branches{grid-template-columns:1fr;}}
+  .br{padding:14px 18px;font-size:14.5px;line-height:1.5;color:var(--ink-faint);border-right:1px solid var(--line-soft);}
+  .br.chosen{color:var(--ink);background:linear-gradient(0deg,var(--bordeaux-wash),#fff);border-left:3px solid var(--bordeaux);}
+  .br .st{font-family:"Archivo";font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:5px;}
+  .br.chosen .st{color:var(--bordeaux);}
+  .br.alt .st{color:var(--ink-faint);}
+  .br.chosen .st::after{content:" ◆ retenu";color:var(--bordeaux);}
+
+  /* collapsible examples */
+  details.ex{margin:18px 0;border:1px solid var(--line);border-radius:6px;background:#FBFCFE;overflow:hidden;}
+  details.ex>summary{cursor:pointer;list-style:none;padding:12px 18px;font-family:"Archivo",sans-serif;
+    font-weight:700;font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--blue-deep);
+    background:#EBF1F7;display:flex;align-items:center;gap:11px;user-select:none;transition:.15s;}
+  details.ex>summary::-webkit-details-marker{display:none;}
+  details.ex>summary::before{content:"▸";color:var(--bordeaux);font-size:13px;line-height:1;
+    transition:transform .2s ease;display:inline-block;}
+  details.ex[open]>summary::before{transform:rotate(90deg);}
+  details.ex>summary:hover{background:#E1EAF3;color:var(--bordeaux);}
+  details.ex>summary .cnt{margin-left:auto;font-family:"JetBrains Mono",monospace;font-size:10px;
+    letter-spacing:.04em;color:var(--ink-faint);font-weight:400;}
+  .exbody{padding:8px 20px 16px;font-size:15px;line-height:1.55;color:var(--ink-soft);}
+  .exbody p{margin:9px 0;}
+  .eg{margin:11px 0;padding:11px 15px;border-left:3px solid var(--blue);background:#fff;
+    border:1px solid var(--line-soft);border-left:3px solid var(--blue);border-radius:0 5px 5px 0;}
+  .eg.b{border-left-color:var(--bordeaux);}
+  .eg .egk{font-family:"Archivo",sans-serif;font-size:11.5px;font-weight:700;letter-spacing:.04em;
+    color:var(--blue-deep);display:block;margin-bottom:4px;}
+  .eg.b .egk{color:var(--bordeaux);}
+  .eg p{margin:5px 0;}
+  .exbody code{font-size:13px;}
+  .arrow{color:var(--bordeaux);font-weight:600;}
+
+  /* worked examples: code / diff / calc / steps */
+  .exbody pre.code{background:#0E2132;color:#D6E3EF;border:1px solid #1C3650;border-radius:6px;
+    padding:12px 14px;margin:11px 0;font-family:"JetBrains Mono",monospace;font-size:11.8px;line-height:1.62;
+    overflow-x:auto;white-space:pre;}
+  .exbody pre.code .h{color:#E7B3BD;}
+  .exbody pre.code .c{color:#7C9DBA;}
+  .exbody pre.code .del{display:block;background:rgba(155,52,67,.32);color:#F2C6CC;}
+  .exbody pre.code .add{display:block;background:rgba(44,119,182,.30);color:#C5DEF3;}
+  .calc{background:#fff;border:1px solid var(--line-soft);border-left:3px solid var(--blue-deep);
+    border-radius:0 5px 5px 0;padding:9px 14px;margin:10px 0;font-family:"JetBrains Mono",monospace;
+    font-size:12px;line-height:1.75;color:var(--ink);overflow-x:auto;white-space:pre-wrap;}
+  .calc .r{color:var(--bordeaux);font-weight:700;}
+  .calc .g{color:#1C6A4C;font-weight:700;}
+  .calc .c{color:var(--ink-faint);}
+  ol.steps{counter-reset:s;margin:11px 0;padding:0;list-style:none;}
+  ol.steps li{position:relative;padding:5px 0 5px 32px;font-size:14.5px;line-height:1.5;margin:3px 0;color:var(--ink-soft);}
+  ol.steps li b{color:var(--ink);}
+  ol.steps li::before{counter-increment:s;content:counter(s);position:absolute;left:0;top:4px;
+    width:21px;height:21px;background:var(--blue-deep);color:#fff;border-radius:50%;
+    font-family:"JetBrains Mono",monospace;font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:600;}
+  .eg pre.code{margin:8px 0;}
+
+  footer{background:var(--blue-deep);color:#A9C2D8;padding:34px 28px;font-size:13px;}
+  footer .fin{max-width:var(--maxw);margin:0 auto;font-family:"JetBrains Mono",monospace;letter-spacing:.03em;}
+
+  @media(max-width:900px){
+    .wrap{grid-template-columns:1fr;gap:0;}
+    nav.toc{position:static;max-height:none;border-bottom:1px solid var(--line);margin-bottom:10px;
+      display:grid;grid-template-columns:1fr 1fr;gap:0 18px;}
+  }
+
+/* ===== (2) ENRICHISSEMENTS : blocs xwrap / xabstract / xtldr / gloss-grid / gterm ===== */
+
+  /* ===== enrichissements (blocs ajoutes) ===== */
+  .xwrap{max-width:var(--maxw);margin:0 auto;padding:0 28px;}
+  .xabstract{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--bordeaux);
+    border-radius:8px;padding:24px 28px;margin:28px 0 0;box-shadow:0 1px 2px rgba(20,46,73,.05);}
+  .xabstract .xk{font-family:"Archivo",system-ui,sans-serif;font-size:11px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--bordeaux);font-weight:700;margin:0 0 9px;}
+  .xabstract .xthese{font-size:19px;line-height:1.5;color:var(--ink);font-weight:600;margin:0 0 12px;
+    font-family:"Spectral",Georgia,serif;}
+  .xabstract ul{margin:8px 0 0;padding:0;list-style:none;}
+  .xabstract li{position:relative;padding:5px 0 5px 22px;font-size:15px;color:var(--ink-soft);line-height:1.5;}
+  .xabstract li::before{content:"\25B8";position:absolute;left:2px;color:var(--blue-bright);font-weight:700;}
+  .xabstract .xpath li::before{content:counter(xp);counter-increment:xp;background:var(--blue-deep);color:#fff;
+    width:19px;height:19px;border-radius:50%;font-family:"JetBrains Mono",monospace;font-size:10px;left:0;top:5px;
+    display:flex;align-items:center;justify-content:center;}
+  .xabstract ul.xpath{counter-reset:xp;}
+  .xabstract .xfoot{font-size:13px;color:var(--ink-faint);margin:14px 0 0;line-height:1.5;}
+  .xtldr{background:var(--blue-wash);border:1px solid #CFE0EF;border-left:4px solid var(--blue);
+    border-radius:6px;padding:14px 20px;margin:16px 0 4px;}
+  .xtldr .xk{font-family:"Archivo",system-ui,sans-serif;font-size:11px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--blue);font-weight:700;margin-bottom:7px;}
+  .xtldr ul{margin:0;padding-left:19px;}
+  .xtldr li{font-size:14px;color:var(--ink-soft);line-height:1.5;margin:4px 0;}
+  .gloss-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin:18px 0;}
+  @media(max-width:760px){.gloss-grid{grid-template-columns:1fr;}}
+  .gterm{background:var(--card);border:1px solid var(--line);border-radius:7px;padding:14px 17px;
+    border-left:3px solid var(--blue);}
+  .gterm .gt-name{font-family:"Archivo",system-ui,sans-serif;font-weight:700;color:var(--blue-deep);
+    font-size:14.5px;display:block;margin-bottom:5px;}
+  .gterm .gt-def{font-size:13.5px;color:var(--ink-soft);line-height:1.5;margin:0;}
+  .gterm .gt-see{font-family:"JetBrains Mono",monospace;font-size:10.5px;color:var(--ink-faint);
+    margin:8px 0 0;}
+
+  .xptr-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin:18px 0;}
+  @media(max-width:760px){.xptr-grid{grid-template-columns:1fr;}}
+  .xptr{background:var(--card);border:1px solid var(--line);border-radius:7px;padding:14px 17px;
+    border-left:3px solid var(--blue-bright);}
+  .xptr .xptr-name{font-family:"Archivo",system-ui,sans-serif;font-weight:700;color:var(--blue);
+    font-size:14.5px;text-decoration:none;}
+  .xptr .xptr-name:hover{text-decoration:underline;}
+  .xptr .xptr-kind{font-family:"JetBrains Mono",monospace;font-size:9.5px;letter-spacing:.08em;
+    text-transform:uppercase;color:#fff;background:var(--blue-bright);border-radius:4px;
+    padding:1px 6px;margin-left:8px;vertical-align:middle;}
+  .xptr .xptr-blurb{font-size:13.5px;color:var(--ink-soft);line-height:1.5;margin:8px 0 0;}
+
+/* ===== (3) DARK MODE + BOUTON THÈME + TOOLTIPS ===== */
+
+  /* Transitions douces sur les surfaces principales lors de la bascule */
+  html.theme-anim body,
+  html.theme-anim .card,
+  html.theme-anim .callout,
+  html.theme-anim .note,
+  html.theme-anim figure.fig,
+  html.theme-anim .tbl-w,
+  html.theme-anim nav.toc a{
+    transition:background-color .25s ease, color .25s ease, border-color .25s ease;
+  }
+
+  html[data-theme="dark"]{
+    /* papier sombre, encre claire */
+    --paper:#0E1620; --card:#16212E;
+    --ink:#E4EBF3; --ink-soft:#AFC0D2; --ink-faint:#7C8DA1;
+    /* bleus : on éclaircit pour rester lisibles sur fond foncé */
+    --blue:#6FA8D8; --blue-deep:#0A1521; --blue-bright:#7FB6E4; --blue-wash:#1B2C3E;
+    /* bordeaux : accent gardé lisible, remonté en clarté */
+    --bordeaux:#C66875; --bordeaux-bright:#D67C88; --bordeaux-wash:#2C1A1F;
+    --line:#2A3848; --line-soft:#212E3C;
+    --code:#0A1521;
+    color-scheme:dark;
+  }
+
+  /* Ajustements ciblés sur surfaces déjà opaques du doc (non pilotées par les variables) */
+  html[data-theme="dark"] body{background:var(--paper);color:var(--ink);}
+  html[data-theme="dark"] header.top{
+    background:linear-gradient(165deg,#0A1521,#060D16 70%);
+    border-bottom-color:var(--bordeaux);
+  }
+  html[data-theme="dark"] th{background:#0A1521;color:#D7E6F4;}
+  html[data-theme="dark"] tr:hover td{background:#1B2735;}
+  html[data-theme="dark"] code{background:#0E1C2A;color:#CFE0F2;}
+  html[data-theme="dark"] .card{box-shadow:0 1px 2px rgba(0,0,0,.45);}
+  html[data-theme="dark"] details.ex{background:#101A25;}
+  html[data-theme="dark"] details.ex>summary{background:#142231;color:#CFE0F2;}
+  html[data-theme="dark"] details.ex>summary:hover{background:#1A2C3E;}
+  html[data-theme="dark"] .eg{background:#101A25;}
+  html[data-theme="dark"] .calc{background:#101A25;}
+  html[data-theme="dark"] .fork-h{background:#142231;}
+  html[data-theme="dark"] footer{background:#0A1521;color:#8CA6BE;}
+  /* la coloration de pre.code reste codée en dur dans le doc (déjà sombre, cohérente) */
+
+  #theme_toggle{
+    position:fixed; top:14px; right:14px; z-index:120;
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:"Archivo",system-ui,sans-serif; font-size:12px; font-weight:700;
+    letter-spacing:.08em; text-transform:uppercase;
+    color:var(--blue); background:var(--card);
+    border:1px solid var(--line); border-radius:30px;
+    padding:8px 14px; cursor:pointer; line-height:1;
+    box-shadow:0 2px 6px rgba(20,46,73,.14);
+    transition:background-color .15s, color .15s, border-color .15s, box-shadow .15s;
+  }
+  #theme_toggle:hover{
+    color:#fff; background:var(--blue-deep); border-color:var(--blue-deep);
+  }
+  #theme_toggle:focus-visible{
+    outline:2px solid var(--bordeaux); outline-offset:2px;
+  }
+  #theme_toggle #theme_toggle_ico{font-size:14px;}
+  html[data-theme="dark"] #theme_toggle{
+    box-shadow:0 2px 8px rgba(0,0,0,.5);
+  }
+  html[data-theme="dark"] #theme_toggle:hover{
+    color:#0A1521; background:var(--blue-bright); border-color:var(--blue-bright);
+  }
+  @media print{ #theme_toggle{display:none;} }
+
+  .theme-gloss{
+    cursor:help; text-decoration:none;
+    border-bottom:1px dotted var(--bordeaux);
+    color:inherit; outline:none;
+  }
+  .theme-gloss:focus-visible{
+    outline:2px solid var(--bordeaux); outline-offset:2px; border-radius:2px;
+  }
+  abbr.theme-gloss{text-decoration:none;}
+
+  #theme_tip{
+    position:absolute; z-index:130; max-width:300px;
+    background:var(--blue-deep); color:#EAF1F8;
+    border:1px solid var(--bordeaux);
+    border-radius:6px; padding:9px 12px;
+    font-family:"Archivo",system-ui,sans-serif; font-size:13px; line-height:1.45;
+    box-shadow:0 6px 20px rgba(10,21,33,.4);
+    opacity:0; transform:translateY(3px); pointer-events:none;
+    transition:opacity .14s ease, transform .14s ease;
+  }
+  #theme_tip[data-show="1"]{ opacity:1; transform:translateY(0); }
+  #theme_tip::after{
+    content:""; position:absolute; left:var(--theme-tip-ax,16px);
+    bottom:-6px; width:10px; height:10px;
+    background:var(--blue-deep);
+    border-right:1px solid var(--bordeaux); border-bottom:1px solid var(--bordeaux);
+    transform:rotate(45deg);
+  }
+  #theme_tip[data-below="1"]::after{
+    bottom:auto; top:-6px;
+    border-right:none; border-bottom:none;
+    border-left:1px solid var(--bordeaux); border-top:1px solid var(--bordeaux);
+  }
+  html[data-theme="dark"] #theme_tip{
+    background:#1B2C3E; color:#E4EBF3;
+  }
+  html[data-theme="dark"] #theme_tip::after{ background:#1B2C3E; }
+  @media print{ #theme_tip{display:none;} }
+
+</style>
+</head>
+<body>
+<div id="prog" style="width:0%"></div>
+<header class="top"><div class="top-in">
+  <p class="kicker">LoRA &amp; fine-tuning efficace · monographie</p>
+  <h1>LoRA : adaptation de bas rang pour le fine-tuning efficace en paramètres des LLM</h1>
+  <p class="lede">Geler les poids pré-entraînés et n'apprendre qu'une mise à jour factorisée ΔW = B·A de rang r ≪ min(d, k) : comment LoRA réduit radicalement le coût du fine-tuning, se fusionne à l'inférence sans latence, et où ses garanties — souvent réduites à des heuristiques — cèdent en pratique.</p>
+  <div class="meta"><span>Monographie</span></div>
+</div></header>
+<div class="wrap">
+<nav class="toc" id="toc"><a href="#principe-et-formulation">Principe : ΔW = B·A sur poids figés</a>
+<a href="#hyperparametres-rang-alpha-cibles">Hyperparamètres : rang r, alpha et matrices cibles</a>
+<a href="#proprietes-theoriques">Propriétés théoriques : rang intrinsèque, bornes et stabilité</a>
+<a href="#fusion-et-zero-latence">Fusion à l'inférence et zéro latence</a>
+<a href="#qlora-quantification">QLoRA : adaptation sur modèle de base quantifié 4 bits</a>
+<a href="#variantes-dora-adalora">DoRA et AdaLoRA : décomposition et budget adaptatif</a>
+<a href="#serving-multi-adaptateurs">Serving à l'échelle : milliers d'adaptateurs concurrents</a>
+<a href="#limites-et-idees-recues">Limites et idées reçues</a>
+<a href="#ecosysteme">Écosystème &amp; pour aller plus loin</a></nav>
+<main>
+<div class="xwrap"><div class="xabstract"><div class="xk">Résumé</div><p class="xthese">LoRA (Low-Rank Adaptation) fine-tune un LLM en gelant ses poids et en n'entraînant qu'une mise à jour de bas rang ΔW = B·A, gouvernée par deux hyperparamètres (rang r, facteur α) : à un coût de paramètres et de mémoire radicalement réduit, l'adaptateur se fusionne à l'inférence sans surcoût de latence, et ses variantes (QLoRA, DoRA, AdaLoRA) étendent l'idée à la quantification 4 bits et à l'allocation adaptative — mais les garanties sont conditionnelles : le modèle fusionné n'est pas structurellement identique à un fine-tuning complet (intruder dimensions), QLoRA dégrade sur les tâches difficiles, et la plupart des règles populaires (α = 2r, gains uniformes) sont des heuristiques tâche-dépendantes plutôt que des lois.</p><ul><li>Le principe : LoRA gèle les poids pré-entraînés W₀ et n'apprend qu'une mise à jour factorisée ΔW = B·A de rang r ≪ min(d, k). Le forward pass devient h = W₀x + (α/r)·BAx ; B initialisé à zéro (A en Kaiming-uniforme par défaut dans PEFT, gaussien dans le papier) garantit ΔW = 0 au départ — c'est B = 0, et non le schéma d'initialisation de A, qui assure cette propriété. Sur GPT-3 175B, cibler W_q et W_v à r=4 réduit les paramètres entraînables d'un facteur ~10 000 et la mémoire GPU d'un facteur ~3 face à un fine-tuning complet avec Adam (pour une couche 768→768 à r=8, 589 824 → 12 288 paramètres, soit ~98 % de réduction).</li><li>Deux hyperparamètres pilotent l'adaptateur : le rang r (capacité et budget de paramètres) et le coefficient α (facteur d'échelle α/r), traité par les auteurs comme un learning rate effectif. La règle α = 2r est une heuristique communautaire — ni une recommandation des auteurs, ni une nécessité aux rangs élevés ; aucune heuristique fiable n'existe pour choisir r, entièrement tâche- et données-dépendant. Le choix des matrices cibles compte : à paramètres égaux, inclure les couches MLP/FFN tend à surpasser le ciblage des seules projections d'attention, mais le gain n'est pas universel et peut être marginal (&lt; 2 %).</li><li>La fusion donne le zéro-latence : à l'inférence, l'adaptateur se replie dans les poids via W_merged = W₀ + (α/r)·BA (merge_and_unload() dans PEFT), éliminant tout surcoût face au modèle de base — contrairement aux adapter layers séquentiels. En mode non fusionné (serving multi-adaptateurs), un surcoût de calcul réapparaît, mais il reste inférieur à celui des adapter layers classiques.</li><li>Les variantes étendent l'idée : QLoRA quantifie le modèle de base en NF4 (4-bit NormalFloat, quantiles d'une normale, optimal pour des poids gaussiens) et garde les adaptateurs en bf16 ; DoRA décompose les poids en magnitude et direction et applique LoRA sur la direction ; AdaLoRA paramétrise ΔW = PΛQ (SVD) et alloue le rang adaptativement via un budget scheduler. À l'échelle, S-LoRA calcule les deltas on-the-fly et sert des milliers d'adaptateurs concurrents (jusqu'à 4× le débit de vLLM-packed, 30× celui de PEFT).</li><li>Stabilité du scaling : rsLoRA prouve (Théorème 3.2) que γ_r ∈ Θ(1/√r) est la condition nécessaire et suffisante de rang-stabilisation — le scaling original α/r provoque un gradient collapse pour r grand (le m-ième moment de la sortie → 0 quand r → ∞), corrigé par α/√r qui rend ce moment indépendant de r. La stabilité des activations, elle, n'est pas clairement établie. La borne NTK décroît exponentiellement avec r (favorable) : 4N² exp(−(ε²−ε³)r/4).</li><li>Fusion ≠ fine-tuning complet : le modèle fusionné a la latence d'un modèle de base, mais sa décomposition spectrale diffère — LoRA introduit des intruder dimensions (vecteurs singuliers absents du fine-tuning complet) qui corrèlent fortement avec l'oubli du pré-entraînement (ρ = 0,971) sans corréler à la précision aval — preuve que des performances identiques masquent des structures de poids divergentes, avec des effets sur la robustesse hors-distribution et l'apprentissage séquentiel.</li><li>QLoRA n'est pas gratuit : la double quantification économise ~0,37 bit/paramètre et Guanaco-65B atteint 99,3 % de ChatGPT sur Vicuna en 24 h sur un seul GPU 48 Go (vs &gt; 780 Go pour le fine-tuning complet 16 bits). Mais la parité tient sur les tâches fermées (MMLU) et se fissure en génération ouverte (AlpacaEval) ; sur des tâches précises, la chute est forte (mathématiques : 11,8 % vs 26,0 % en full fine-tuning sur Orca-Math). La qualité de QLoRA est fortement tâche-dépendante, et non quasi-équivalente partout.</li><li>Coûts et idées reçues : DoRA ajoute un overhead d'entraînement et d'inférence non fusionné non négligeable. Le switching d'adaptateur en mode fusionné, distinct de DoRA, a un overhead mémoire minimal (2–7 % VRAM) mais peut induire 2,5×–9,5× de latence (appels CUDA fragmentés). Côté écosystème, Hugging Face PEFT (v0.19.1, avril 2025) unifie LoRA, AdaLoRA, LoHa, LoKr, X-LoRA sous une API commune — DoRA et rsLoRA sont des flags de LoraConfig (use_dora, use_rslora), QLoRA n'est pas une méthode distincte mais la combinaison quantification (bitsandbytes) + LoRA. Les accélérations annoncées (Unsloth : 1,5–3,9×, ~14–74 % de VRAM selon le matériel) sont des plages, non des chiffres fixes.</li></ul></div></div>
+<section id="principe-et-formulation">
+<h3>Principe : ΔW = B·A sur poids figés</h3>
+<p>LoRA (Low-Rank Adaptation), proposé par Edward J. Hu, Yelong Shen et al. (Microsoft Research) dans l'article <em>LoRA: Low-Rank Adaptation of Large Language Models</em> (arXiv:2106.09685, juin 2021), repose sur une observation empirique : lors du fine-tuning, les mises à jour de poids exhibent une faible dimension intrinsèque (<em>intrinsic dimension</em>). Plutôt que de modifier directement les poids pré-entraînés W₀ ∈ ℝ<sup>d×k</sup>, LoRA les gèle et leur adjoint une mise à jour factorisée de bas rang. Le forward pass d'une couche adaptée s'écrit :</p>
+
+<p><code>h = W₀x + (α/r) · B·A·x</code></p>
+
+<p>où A ∈ ℝ<sup>r×k</sup> et B ∈ ℝ<sup>d×r</sup> sont les deux matrices entraînables, r ≪ min(d, k) est le rang, et α est un hyperparamètre de mise à l'échelle (scaling) indépendant du rang. Le terme (α/r) découple l'apprentissage du choix de r : fixer α constant et varier r revient à ajuster la learning rate effective de la mise à jour sans réaccorder α à chaque expérience.</p>
+
+<p>L'initialisation est asymétrique et délibérée : A est initialisée par une distribution gaussienne aléatoire (selon le papier original), tandis que B est initialisée à zéro. Il en résulte que ΔW = B·A = 0 au début de l'entraînement, ce qui garantit que le modèle démarre exactement à partir des poids pré-entraînés, sans perturbation initiale. En pratique, la bibliothèque PEFT de Hugging Face utilise par défaut une initialisation Kaiming-uniforme pour A (conforme à son implémentation de référence), mais expose le paramètre <code>init_lora_weights="gaussian"</code> pour retrouver exactement le comportement du papier original.</p>
+
+<p>Le bénéfice en paramètres entraînables est immédiat : pour une couche d×k, le fine-tuning complet requiert d×k paramètres ; LoRA n'en requiert que (d + k)×r. Pour une projection 768→768 avec r = 8, cela représente 12 288 paramètres contre 589 824 pour le fine-tuning complet, soit une réduction d'environ 98 %. À l'échelle de GPT-3 (175 milliards de paramètres), les auteurs rapportent une réduction du nombre de paramètres entraînables d'un facteur 10 000 et une réduction de la mémoire GPU d'un facteur 3 par rapport à Adam sur fine-tuning complet, tout en atteignant des performances comparables ou supérieures sur plusieurs benchmarks.</p>
+
+<p>Dans les Transformers, LoRA est appliqué prioritairement aux matrices de projection d'attention (<em>query</em> et <em>value</em>, soit <code>q_proj</code> et <code>v_proj</code>) : le papier original montre que l'adaptation de W<sub>q</sub> et W<sub>v</sub> conjointement donne le meilleur rapport qualité/paramètres. Les matrices <code>k_proj</code> et <code>o_proj</code>, voire les couches MLP, peuvent également être ciblées via le paramètre <code>target_modules</code> dans PEFT. À l'inférence, les matrices A et B peuvent être fusionnées avec les poids d'origine selon W<sub>merged</sub> = W₀ + (α/r)·B·A via <code>model.merge_and_unload()</code>, ce qui élimine toute latence supplémentaire par rapport à un modèle non adapté.</p>
+</section>
+<div class="widget pflr-root" id="pflr-root">
+  <style>
+    .pflr-root{--pflr-ink:var(--ink,#15202E);--pflr-soft:var(--ink-soft,#43536A);
+      --pflr-faint:var(--ink-faint,#7A889B);--pflr-card:var(--card,#fff);
+      --pflr-line:var(--line,#D7DFE9);--pflr-line-soft:var(--line-soft,#E7ECF3);
+      --pflr-blue:var(--blue,#23537F);--pflr-bright:var(--blue-bright,#2C77B6);
+      --pflr-wash:var(--blue-wash,#E7EEF6);--pflr-bord:var(--bordeaux,#7C2A38);
+      --pflr-bord-br:var(--bordeaux-bright,#9B3443);--pflr-bord-wash:var(--bordeaux-wash,#F3E3E6);
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--pflr-ink);
+      border:1px solid var(--pflr-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--pflr-card);max-width:680px}
+    .pflr-root *{box-sizing:border-box}
+    .pflr-k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;
+      color:var(--pflr-faint);font-weight:600;margin:0 0 2px}
+    .pflr-title{font-weight:700;font-size:1.05rem;margin:0 0 12px}
+    .pflr-ctl{margin:0 0 14px}
+    .pflr-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+    .pflr-row+.pflr-row{margin-top:9px}
+    .pflr-lab{flex:0 0 150px;font-weight:600;font-size:.85rem;color:var(--pflr-soft)}
+    .pflr-lab small{color:var(--pflr-faint);font-weight:500}
+    .pflr-slider{flex:1 1 200px;min-width:140px;height:22px}
+    .pflr-slider.pflr-sr{accent-color:var(--pflr-bord-br)}
+    .pflr-slider.pflr-sd{accent-color:var(--pflr-bright)}
+    .pflr-val{flex:0 0 auto;font:700 .95rem/1 ui-monospace,monospace;
+      min-width:5.2em;text-align:right}
+    .pflr-val.pflr-vr{color:var(--pflr-bord-br)}
+    .pflr-val.pflr-vd{color:var(--pflr-bright)}
+    .pflr-quick{display:flex;gap:6px;flex-wrap:wrap;margin-top:11px}
+    .pflr-quick button{border:1px solid var(--pflr-bright);border-radius:7px;
+      background:transparent;color:var(--pflr-bright);font:600 12px/1 inherit;
+      padding:6px 9px;cursor:pointer}
+    .pflr-quick button:hover{background:var(--pflr-wash)}
+    .pflr-quick button.pflr-on{background:var(--pflr-blue);border-color:var(--pflr-blue);color:#fff}
+    .pflr-stage{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;margin:8px 0 0;
+      justify-content:center}
+    .pflr-matwrap{flex:0 0 auto;display:flex;flex-direction:column;align-items:center}
+    .pflr-op{flex:0 0 auto;align-self:center;font:700 1.3rem/1 ui-monospace,monospace;
+      color:var(--pflr-faint);padding:0 1px}
+    .pflr-svg{display:block}
+    .pflr-mcap{font:600 .7rem/1.35 ui-monospace,monospace;color:var(--pflr-soft);
+      margin-top:6px;text-align:center}
+    .pflr-mcap b.pflr-b{color:var(--pflr-bord-br)}
+    .pflr-mcap b.pflr-a{color:var(--pflr-bright)}
+    .pflr-mcap b.pflr-w{color:var(--pflr-ink)}
+    .pflr-mcap span{display:block;color:var(--pflr-faint);font-weight:500}
+    .pflr-bars{margin:16px 0 0}
+    .pflr-bar{margin:0 0 12px}
+    .pflr-bhead{display:flex;justify-content:space-between;align-items:baseline;
+      font-size:.8rem;margin:0 0 4px;gap:8px}
+    .pflr-bname{font-weight:700}
+    .pflr-bname.pflr-full{color:var(--pflr-bord-br)}
+    .pflr-bname.pflr-lora{color:var(--pflr-bright)}
+    .pflr-bform{font:.72rem/1 ui-monospace,monospace;color:var(--pflr-faint)}
+    .pflr-btrack{height:22px;background:var(--pflr-line-soft);border-radius:5px;
+      overflow:hidden;position:relative}
+    .pflr-bfill{height:100%;width:0;border-radius:5px;transition:width .2s ease;
+      display:flex;align-items:center;justify-content:flex-end}
+    .pflr-bfill.pflr-full{background:linear-gradient(90deg,var(--pflr-bord),var(--pflr-bord-br))}
+    .pflr-bfill.pflr-lora{background:linear-gradient(90deg,var(--pflr-blue),var(--pflr-bright))}
+    .pflr-bcount{font:700 .76rem/1 ui-monospace,monospace;color:#fff;padding-right:8px;
+      white-space:nowrap}
+    .pflr-read{margin:14px 0 0;padding:11px 13px;border-radius:8px;
+      border:1px solid var(--pflr-line);background:var(--pflr-wash);
+      font-size:.86rem;line-height:1.5;color:var(--pflr-ink)}
+    .pflr-read b{font-weight:700}
+    .pflr-read .pflr-pct{color:var(--pflr-bright);font-weight:700}
+    .pflr-warn{margin:10px 0 0;padding:9px 11px;border-radius:7px;
+      background:var(--pflr-bord-wash);border:1px solid #E3C3C9;
+      font-size:.8rem;line-height:1.45;color:var(--pflr-ink);display:none}
+    .pflr-warn.pflr-show{display:block}
+    .pflr-note{margin:11px 0 0;font-size:.74rem;color:var(--pflr-faint);line-height:1.45}
+    .pflr-note code{font-family:ui-monospace,monospace;font-size:.95em}
+  </style>
+
+  <p class="pflr-k">Démonstration interactive</p>
+  <p class="pflr-title">ΔW = B·A : deux matrices fines au lieu d'une grande</p>
+
+  <div class="pflr-ctl">
+    <div class="pflr-row">
+      <span class="pflr-lab">Dimension sortie <small>(d)</small></span>
+      <input class="pflr-slider pflr-sd" id="pflr-d" type="range" min="8" max="48" step="1" value="24"
+             aria-label="dimension de sortie d (lignes de ΔW)">
+      <span class="pflr-val pflr-vd" id="pflr-dval">d = 24</span>
+    </div>
+    <div class="pflr-row">
+      <span class="pflr-lab">Dimension entrée <small>(k)</small></span>
+      <input class="pflr-slider pflr-sd" id="pflr-k" type="range" min="8" max="48" step="1" value="24"
+             aria-label="dimension d'entrée k (colonnes de ΔW)">
+      <span class="pflr-val pflr-vd" id="pflr-kval">k = 24</span>
+    </div>
+    <div class="pflr-row">
+      <span class="pflr-lab">Rang LoRA <small>(r)</small></span>
+      <input class="pflr-slider pflr-sr" id="pflr-r" type="range" min="1" max="24" step="1" value="4"
+             aria-label="rang r de la factorisation de bas rang">
+      <span class="pflr-val pflr-vr" id="pflr-rval">r = 4</span>
+    </div>
+    <div class="pflr-quick" id="pflr-quick" aria-label="exemples typiques">
+      <button type="button" data-d="24" data-k="24" data-r="1">r = 1&nbsp;: rang minimal</button>
+      <button type="button" data-d="24" data-k="24" data-r="4">cas de référence</button>
+      <button type="button" data-d="24" data-k="24" data-r="24">r = min(d,k)&nbsp;: plus de gain</button>
+    </div>
+  </div>
+
+  <div class="pflr-stage">
+    <div class="pflr-matwrap">
+      <svg class="pflr-svg" id="pflr-svgB" role="img" aria-label="matrice B, d lignes par r colonnes"></svg>
+      <div class="pflr-mcap"><b class="pflr-b">B</b> = d×r<span id="pflr-capB">24×4</span></div>
+    </div>
+    <span class="pflr-op">·</span>
+    <div class="pflr-matwrap">
+      <svg class="pflr-svg" id="pflr-svgA" role="img" aria-label="matrice A, r lignes par k colonnes"></svg>
+      <div class="pflr-mcap"><b class="pflr-a">A</b> = r×k<span id="pflr-capA">4×24</span></div>
+    </div>
+    <span class="pflr-op">=</span>
+    <div class="pflr-matwrap">
+      <svg class="pflr-svg" id="pflr-svgW" role="img" aria-label="produit ΔW égal B fois A, d lignes par k colonnes, de rang au plus r"></svg>
+      <div class="pflr-mcap"><b class="pflr-w">ΔW</b> = d×k<span id="pflr-capW">rang ≤ 4</span></div>
+    </div>
+  </div>
+
+  <div class="pflr-bars">
+    <div class="pflr-bar">
+      <div class="pflr-bhead">
+        <span class="pflr-bname pflr-full">Fine-tuning complet</span>
+        <span class="pflr-bform">d·k</span>
+      </div>
+      <div class="pflr-btrack"><div class="pflr-bfill pflr-full" id="pflr-ffull">
+        <span class="pflr-bcount" id="pflr-cfull">—</span></div></div>
+    </div>
+    <div class="pflr-bar">
+      <div class="pflr-bhead">
+        <span class="pflr-bname pflr-lora">LoRA (A + B)</span>
+        <span class="pflr-bform">(d+k)·r</span>
+      </div>
+      <div class="pflr-btrack"><div class="pflr-bfill pflr-lora" id="pflr-flora">
+        <span class="pflr-bcount" id="pflr-clora">—</span></div></div>
+    </div>
+  </div>
+
+  <div class="pflr-read" id="pflr-read"></div>
+  <div class="pflr-warn" id="pflr-warn"></div>
+
+  <p class="pflr-note">LoRA n'entraîne que <code>A</code> (r×k) et <code>B</code> (d×r) ; le poids
+    figé <code>W</code> ne bouge pas. Leur produit <code>ΔW = B·A</code> a la forme pleine d×k mais un
+    <em>rang au plus r</em> — il vit dans un sous-espace de dimension r, ce que la carte de chaleur rend
+    visible (lignes et colonnes corrélées). Le compte de paramètres passe de <code>d·k</code> à
+    <code>(d+k)·r</code> : dès que <code>r ≪ min(d,k)</code>, l'économie est massive. Les valeurs des
+    matrices sont illustratives (motif déterministe) ; seuls les <em>comptes</em> et le <em>rang</em>
+    reflètent le mécanisme réel.</p>
+
+  <script>
+  (function(){
+    var root=document.getElementById("pflr-root");
+    if(!root||root.dataset.pflrInit)return; root.dataset.pflrInit="1";
+    var SVGNS="http://www.w3.org/2000/svg";
+
+    var elD=document.getElementById("pflr-d"),   elDval=document.getElementById("pflr-dval");
+    var elK=document.getElementById("pflr-k"),   elKval=document.getElementById("pflr-kval");
+    var elR=document.getElementById("pflr-r"),   elRval=document.getElementById("pflr-rval");
+    var quick=document.getElementById("pflr-quick");
+    var svgB=document.getElementById("pflr-svgB"),
+        svgA=document.getElementById("pflr-svgA"),
+        svgW=document.getElementById("pflr-svgW");
+    var capB=document.getElementById("pflr-capB"),
+        capA=document.getElementById("pflr-capA"),
+        capW=document.getElementById("pflr-capW");
+    var ffull=document.getElementById("pflr-ffull"), cfull=document.getElementById("pflr-cfull");
+    var flora=document.getElementById("pflr-flora"), clora=document.getElementById("pflr-clora");
+    var readEl=document.getElementById("pflr-read"), warnEl=document.getElementById("pflr-warn");
+
+    var MAXPX=120;            // côté visuel max d'une matrice
+    var GAPC=0.6;             // léger interstice entre cellules
+
+    // motif DÉTERMINISTE et borné : A[i][j] et B[i][j] dans [-1,1], sans aléa.
+    // sin/cos croisés → colonnes/lignes corrélées, ce qui rend le bas rang lisible.
+    function aVal(i,j){ return Math.sin(0.7*i + 0.45*j + 1.0)*Math.cos(0.3*j - 0.2*i); }
+    function bVal(i,j){ return Math.cos(0.55*i - 0.4*j)*Math.sin(0.35*i + 0.6*j + 0.5); }
+
+    // couleur divergente bleu(négatif)→blanc(0)→bordeaux(positif), v∈[-1,1]
+    function heat(v){
+      if(v>1)v=1; if(v<-1)v=-1;
+      var t=Math.abs(v), r, g, b;
+      if(v>=0){ // 0→blanc, +1→bordeaux
+        r=255+t*(155-255); g=255+t*(52-255); b=255+t*(56-255);
+      }else{    // 0→blanc, -1→bleu
+        r=255+t*(44-255); g=255+t*(119-255); b=255+t*(182-255);
+      }
+      return "rgb("+Math.round(r)+","+Math.round(g)+","+Math.round(b)+")";
+    }
+
+    function drawGrid(svg, rows, cols, fillFn){
+      svg.textContent="";
+      var cell=Math.max(2.2, Math.min(MAXPX/cols, MAXPX/rows, 16));
+      var w=cols*cell, h=rows*cell;
+      svg.setAttribute("width", w);
+      svg.setAttribute("height", h);
+      svg.setAttribute("viewBox","0 0 "+w+" "+h);
+      var bg=document.createElementNS(SVGNS,"rect");
+      bg.setAttribute("x",0);bg.setAttribute("y",0);
+      bg.setAttribute("width",w);bg.setAttribute("height",h);
+      bg.setAttribute("fill","var(--pflr-card)");
+      svg.appendChild(bg);
+      for(var i=0;i<rows;i++){
+        for(var j=0;j<cols;j++){
+          var rc=document.createElementNS(SVGNS,"rect");
+          rc.setAttribute("x",j*cell);rc.setAttribute("y",i*cell);
+          var s=Math.max(1, cell-(cell>4?GAPC:0));
+          rc.setAttribute("width",s);rc.setAttribute("height",s);
+          rc.setAttribute("fill",heat(fillFn(i,j)));
+          svg.appendChild(rc);
+        }
+      }
+      var fr=document.createElementNS(SVGNS,"rect");
+      fr.setAttribute("x",0.5);fr.setAttribute("y",0.5);
+      fr.setAttribute("width",w-1);fr.setAttribute("height",h-1);
+      fr.setAttribute("fill","none");
+      fr.setAttribute("stroke","var(--pflr-line)");fr.setAttribute("stroke-width","1");
+      svg.appendChild(fr);
+    }
+
+    function fmt(x){ return Math.round(x).toLocaleString("fr-FR"); }
+
+    // ajoute du texte / des fragments stylés à un conteneur, sans innerHTML
+    function emit(container, pieces){
+      container.textContent="";
+      pieces.forEach(function(p){
+        if(typeof p==="string"){ container.appendChild(document.createTextNode(p)); }
+        else if(p.b){ var b=document.createElement("b"); b.textContent=p.b; container.appendChild(b); }
+        else if(p.pct){ var s=document.createElement("span"); s.className="pflr-pct";
+          s.textContent=p.pct; container.appendChild(s); }
+      });
+    }
+
+    function render(){
+      var d=parseInt(elD.value,10), k=parseInt(elK.value,10), r=parseInt(elR.value,10);
+      var rcap=Math.min(d,k);
+      if(r>rcap){ r=rcap; elR.value=r; }     // r ne peut dépasser min(d,k)
+      elDval.textContent="d = "+d;
+      elKval.textContent="k = "+k;
+      elRval.textContent="r = "+r;
+      elR.max=rcap;
+
+      // B = d×r , A = r×k , ΔW = B·A (produit RÉEL → rang ≤ r authentique)
+      drawGrid(svgB, d, r, function(i,j){ return bVal(i,j); });
+      drawGrid(svgA, r, k, function(i,j){ return aVal(i,j); });
+      drawGrid(svgW, d, k, function(i,j){
+        var sum=0; for(var p=0;p<r;p++) sum += bVal(i,p)*aVal(p,j);
+        return sum/Math.max(1, Math.sqrt(r)); // normalise l'échelle de couleur, pas le rang
+      });
+      capB.textContent=d+"×"+r;
+      capA.textContent=r+"×"+k;
+      capW.textContent="rang ≤ "+r;
+
+      // comptes de paramètres ENTRAÎNABLES
+      var full=d*k, lora=(d+k)*r;
+      var ratio=lora/full;                  // part conservée
+      var reduc=(1-ratio)*100;              // % de réduction
+      ffull.style.width="100%";
+      flora.style.width=Math.max(3, ratio*100)+"%";
+      cfull.textContent=fmt(full);
+      clora.textContent=fmt(lora);
+
+      // bouton actif
+      var qb=quick.querySelectorAll("button");
+      for(var i=0;i<qb.length;i++){
+        qb[i].classList.toggle("pflr-on",
+          +qb[i].getAttribute("data-d")===d && +qb[i].getAttribute("data-k")===k &&
+          +qb[i].getAttribute("data-r")===r);
+      }
+
+      // lecture narrative
+      emit(readEl, [
+        {b:"(d+k)·r contre d·k. "},
+        "Avec d="+d+", k="+k+", r="+r+" : LoRA n'entraîne que ",
+        {b:fmt(lora)+" paramètres"},
+        " (A : "+fmt(r*k)+" + B : "+fmt(d*r)+") au lieu de ",
+        {b:fmt(full)},
+        " pour le fine-tuning complet — une réduction de ",
+        {pct:reduc.toFixed(reduc<10?1:0).replace(".",",")+" %"},
+        ". Le produit ΔW a bien la forme "+d+"×"+k+", mais son rang ne dépasse pas r="+r+
+        " : c'est pourquoi r ≪ min(d,k)="+rcap+" suffit."
+      ]);
+
+      // avertissement quand le bas rang ne sert plus
+      if(r>=rcap){
+        warnEl.classList.add("pflr-show");
+        emit(warnEl, [
+          {b:"r = min(d,k) : la factorisation ne gagne plus rien. "},
+          "À ce rang, (d+k)·r = "+fmt(lora)+" ≥ d·k = "+fmt(full)+
+          " : deux matrices fines coûtent autant — ou plus — que la grande. Le bénéfice de LoRA "+
+          "vient justement de r petit."
+        ]);
+      }else{
+        warnEl.classList.remove("pflr-show");
+        warnEl.textContent="";
+      }
+    }
+
+    elD.addEventListener("input",render);
+    elK.addEventListener("input",render);
+    elR.addEventListener("input",render);
+    quick.addEventListener("click",function(e){
+      var t=e.target.closest("button"); if(!t)return;
+      elD.value=t.getAttribute("data-d");
+      elK.value=t.getAttribute("data-k");
+      elR.value=t.getAttribute("data-r");
+      render();
+    });
+
+    render();
+  })();
+  </script>
+</div>
+
+<section id="hyperparametres-rang-alpha-cibles">
+<h3>Hyperparamètres : rang r, alpha et matrices cibles</h3>
+<p>Le rang <em>r</em> est le hyperparamètre central de LoRA : il fixe la dimensionalité du sous-espace dans lequel la mise à jour ΔW = B·A est confinée. En pratique, les valeurs comprises entre 4 et 32 couvrent la grande majorité des cas d'usage ; commencer à <em>r</em> = 4 ou 8 est conseillé, car des rangs élevés n'apportent souvent pas de gain proportionnel à leur coût. Le papier original montre, sur GPT-3 175B, qu'un rang aussi faible que 1 suffit pour adapter W_q et W_v conjointement — les auteurs concluent eux-mêmes que « le rang ne couvre pas un sous-espace plus riche en augmentant r », preuve que le delta d'adaptation utile est intrinsèquement de faible dimension. Databricks confirme expérimentalement que passer de <em>r</em> = 8 à <em>r</em> = 16 double le nombre de paramètres entraînables sans amélioration perceptible de la qualité.</p>
+
+<p>Le second hyperparamètre clé est le facteur d'échelle <code>lora_alpha</code> (noté α), qui module la contribution des adaptateurs via le ratio α/r appliqué à chaque forward pass. Deux conventions coexistent : fixer α = r (baseline stable) ou α = 2r (heuristique agressive largement adoptée). Le papier original justifie ce choix en observant que « régler α revient approximativement à régler le learning rate si l'on scale l'initialisation de façon appropriée » — ce qui rend α absorbable dans le learning rate et suggère de le fixer à la première valeur de r testée. La variante rsLoRA (Kalajdzievski, 2023) démontre que le facteur α/r original fait s'effondrer les activations et les gradients de l'adaptateur à mesure que r croît, et propose le remplacement par α/√r, activable via <code>use_rslora=True</code> dans <code>LoraConfig</code> — ce qui débloque le potentiel des rangs élevés sans instabilité.</p>
+
+<p>Le choix des <code>target_modules</code> — les projections linéaires auxquelles les adaptateurs sont greffés — est au moins aussi important que le rang. Le papier fondateur concentre ses expériences sur W_q et W_v : Table 5 montre que cette combinaison (r = 4, 18 M paramètres budget) atteint WikiSQL 73,7 % / MNLI 91,3 %, surpassant chaque matrice prise isolément, et égale les quatre matrices d'attention réunies (r = 2) — conclusion : « il vaut mieux adapter plus de types de matrices à rang faible que de concentrer les paramètres sur un seul type. » Les pratiques actuelles vont plus loin : cibler l'ensemble des couches linéaires (<code>target_modules = "all-linear"</code>, incluant q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj) produit des résultats nettement supérieurs à un ciblage limité aux seuls blocs d'attention, avec un surcoût mémoire modeste.</p>
+
+<p>Pour les cas nécessitant une allocation budgétaire fine, PEFT expose <code>rank_pattern</code> et <code>alpha_pattern</code> : des dictionnaires faisant correspondre des noms de couches (ou des expressions régulières) à des valeurs de rang et d'alpha spécifiques, distinctes des valeurs globales <em>r</em> et <code>lora_alpha</code>. Cette configuration hétérogène permet, par exemple, d'attribuer un rang plus élevé aux couches MLP (qui stockent davantage de connaissances paramétriques) et un rang plus faible aux couches d'attention — stratégie alignée sur les résultats d'AdaLoRA qui alloue dynamiquement le budget de rang selon un score d'importance par matrice singulière.</p>
+</section>
+<section id="proprietes-theoriques">
+<h3>Propriétés théoriques : rang intrinsèque, bornes et stabilité</h3>
+<p>L'idée centrale derrière LoRA n'est pas purement algorithmique : elle repose sur une hypothèse de structure. Aghajanyan et al. (2020) ont montré empiriquement que les modèles de langage pré-entraînés possèdent une <em>intrinsic dimension</em> (dimension intrinsèque) remarquablement basse — c'est-à-dire qu'une descente de gradient projetée dans un sous-espace aléatoire de petite dimension retrouve presque toute la performance du fine-tuning complet. Hu et al. (2021) transposent cette observation aux mises à jour de poids elles-mêmes : lors de l'adaptation à une tâche, ΔW vivrait dans un sous-espace de faible rang. Cette <em>intrinsic rank hypothesis</em> prédit donc que l'essentiel de l'information utile à la tâche peut être capturé par une matrice de mise à jour de rang r très petit. Les expériences de la section 7.2 de l'article LoRA original le confirment de manière frappante : sur WikiSQL et MNLI, un rang r = 1 ou r = 2 suffit à récupérer l'essentiel de la performance, et passer à r = 8 puis r = 64 n'apporte que des gains marginaux. L'analyse en sous-espaces singuliers va plus loin : les vecteurs propres dominants d'un adaptateur entraîné à r = 8 et d'un entraîné à r = 64 se chevauchent très fortement, ce qui indique que l'information d'adaptation est effectivement concentrée dans un nombre réduit de directions.</p>
+
+<p>Sur le plan formel, la revue de 2025 (arxiv:2501.00365) apporte deux bornes complémentaires. La première est une borne d'expressivité : pour des réseaux entièrement connectés, un rang r ≥ (largeur) × √(profondeur cible / profondeur source) est nécessaire pour exprimer une cible arbitraire ; pour les Transformers, des adaptateurs de rang égal à embedding_size / 2 suffisent à adapter un modèle vers un autre de même taille. La seconde est une borne NTK (Neural Tangent Kernel) de préservation du noyau : Pr[∃ i,j ∈ [N], |𝒦<sub>LoRA</sub>(i,j) − 𝒦(i,j)| ≥ c²ε] ≤ 4N² exp(−(ε² − ε³)r/4). Cette inégalité montre que LoRA perturbe approximativement le noyau NTK du modèle original d'une quantité controlée par ε, la probabilité d'excès décroissant exponentiellement avec r : plus le rang est élevé, meilleure est la préservation du régime d'apprentissage. La même revue établit aussi une borne de généralisation motivant la variante LoRA-FA (frozen A) : |gen(μ, B)| ≤ √(2rqσ² ln 2 / n · Σ<sub>i</sub> d<sub>out</sub><sup>(i)</sup>). Geler A et n'entraîner que B produit une borne strictement plus serrée qu'entraîner les deux matrices, car le modèle s'expose à moins de degrés de liberté lors de la phase de fine-tuning — résultat qui justifie théoriquement la réduction mémoire de LoRA-FA sans pénalité de généralisation.</p>
+
+<p>Contrairement à ce que l'hypothèse du rang intrinsèque pourrait laisser croire, augmenter naïvement r avec le scaling standard α/r ne conduit pas à de meilleures performances : cela produit un effondrement des gradients (gradient collapse). L'intuition est géométrique. Le m-ième moment de la sortie de l'adaptateur vaut Θ((γ<sub>r</sub>² · r)<sup>m</sup>) : avec γ<sub>r</sub> = α/r, ce terme vaut Θ((α²/r)<sup>m</sup>), qui tend vers zéro quand r croît. Le signal en forward pass s'affaiblit, et par la chain rule (dérivation des fonctions composées), les gradients en backward pass s'effondrent à leur tour. En pratique, on observe un ralentissement brutal de l'apprentissage et un plafond de performance dès que r dépasse une dizaine, ce qui a longtemps cantonné LoRA à des rangs très bas. Kalajdzievski (2023) formalise ce diagnostic dans son Théorème 3.2 : un adaptateur LoRA de la forme γ<sub>r</sub>·BA est dit <em>rang-stabilisé</em> si et seulement si γ<sub>r</sub> ∈ Θ(1/√r). La condition nécessaire et suffisante impose que γ<sub>r</sub>² · r = Θ(1), ce que satisfait γ<sub>r</sub> = α/√r mais pas γ<sub>r</sub> = α/r. rsLoRA pose donc le facteur d'échelle à α/√r, ce qui maintient les magnitudes en forward pass et en backward pass dans le même ordre de grandeur pour tout r, libérant un compromis calcul/performance auparavant inaccessible : des rangs plus élevés deviennent enfin exploitables lorsque le budget de calcul le permet.</p><figure class='fig'><svg viewBox='0 0 720 380' role='img' aria-label='Magnitude de la sortie de l adaptateur LoRA en fonction du rang r : avec le scaling alpha sur r la courbe s effondre vers zero quand r croit (gradient collapse), tandis qu avec alpha sur racine de r la courbe reste plate (rsLoRA, condition gamma_r au carre fois r egale Theta de 1).'><rect x='0' y='0' width='720' height='380' fill='none'/><text x='100' y='34' fill='var(--ink,#15202E)' font-family='Georgia,serif' font-size='17' font-weight='bold'>Magnitude sortie / gradient de l adaptateur</text><line x1='100' y1='60' x2='100' y2='320' stroke='var(--ink,#15202E)' stroke-width='1.5'/><line x1='100' y1='320' x2='680' y2='320' stroke='var(--ink,#15202E)' stroke-width='1.5'/><text x='52' y='66' fill='var(--ink-faint,#7A889B)' font-family='Georgia,serif' font-size='12'>elevee</text><text x='52' y='318' fill='var(--ink-faint,#7A889B)' font-family='Georgia,serif' font-size='12'>0</text><text x='84' y='200' fill='var(--ink-faint,#7A889B)' font-family='Georgia,serif' font-size='12' transform='rotate(-90 84 200)'>magnitude</text><text x='660' y='345' fill='var(--ink,#15202E)' font-family='Georgia,serif' font-size='13' text-anchor='middle'>rang r</text><text x='100' y='340' fill='var(--ink-faint,#7A889B)' font-family='Georgia,serif' font-size='11' text-anchor='middle'>1</text><text x='354.5' y='340' fill='var(--ink-faint,#7A889B)' font-family='Georgia,serif' font-size='11' text-anchor='middle'>8</text><text x='456.4' y='340' fill='var(--ink-faint,#7A889B)' font-family='Georgia,serif' font-size='11' text-anchor='middle'>16</text><text x='660' y='340' fill='var(--ink-faint,#7A889B)' font-family='Georgia,serif' font-size='11' text-anchor='middle'>32</text><line x1='354.5' y1='317' x2='354.5' y2='323' stroke='var(--ink,#15202E)' stroke-width='1'/><line x1='456.4' y1='317' x2='456.4' y2='323' stroke='var(--ink,#15202E)' stroke-width='1'/><line x1='660' y1='317' x2='660' y2='323' stroke='var(--ink,#15202E)' stroke-width='1'/><polyline points='100.0,80.8 150.9,80.8 201.8,80.8 252.7,80.8 303.6,80.8 354.5,80.8 405.5,80.8 456.4,80.8 507.3,80.8 558.2,80.8 609.1,80.8 660.0,80.8' fill='none' stroke='var(--blue,#23537F)' stroke-width='2.5'/><polyline points='100.0,60.0 150.9,190.0 201.8,233.3 252.7,255.0 303.6,276.7 354.5,287.5 405.5,298.3 456.4,303.8 507.3,307.0 558.2,309.2 609.1,310.7 660.0,311.9' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='2.5'/><circle cx='100.0' cy='60.0' r='2.5' fill='var(--bordeaux,#7C2A38)'/><circle cx='100.0' cy='80.8' r='2.5' fill='var(--blue,#23537F)'/><text x='470' y='74' fill='var(--blue,#23537F)' font-family='Georgia,serif' font-size='14' font-weight='bold'>alpha / racine(r)  &#8212;  rsLoRA</text><text x='474' y='90' fill='var(--ink-faint,#7A889B)' font-family='Georgia,serif' font-size='11'>gamma_r&#178;&#183;r = &#920;(1), plate</text><text x='240' y='225' fill='var(--bordeaux,#7C2A38)' font-family='Georgia,serif' font-size='14' font-weight='bold'>alpha / r  &#8212;  original</text><text x='244' y='242' fill='var(--ink-faint,#7A889B)' font-family='Georgia,serif' font-size='11'>moment &#8733; (&#945;&#178;/r)&#7504; &#8594; 0 (collapse)</text></svg><figcaption><span class="fcap-k">Figure 1</span>Magnitude de la sortie et des gradients de l adaptateur selon le rang r : le scaling original &#945;/r effondre le signal vers 0 quand r croit (gradient collapse, m-ieme moment &#8733; (&#945;&#178;/r)&#7504;), tandis que le scaling rsLoRA &#945;/&#8730;r maintient une magnitude plate (&#947;&#7523;&#178;&#183;r = &#920;(1), Theoreme 3.2).</figcaption></figure>
+</section>
+<section id="fusion-et-zero-latence">
+<h3>Fusion à l'inférence et zéro latence</h3>
+<p>La force architecturale de LoRA tient dans une équation simple : une fois l'entraînement terminé, la mise à jour apprise n'est pas un module indépendant ajouté en séquence, mais un delta matriciel additif. Le forward pass d'entraînement calcule <em>h = W₀x + (α/r)·B·A·x</em>, mais au déploiement cette somme peut être précalculée une fois pour toutes : <em>W_merged = W₀ + (α/r)·B·A</em>. Le modèle résultant est structurellement identique à un modèle intégralement fine-tuné — même nombre de paramètres, même graphe de calcul — et produit exactement la même sortie. Hu et al. (2021) formalisent ce point dans la section 4.1 : « notre conception linéaire simple nous permet de fusionner les matrices entraînables avec les poids gelés au déploiement, n'introduisant aucune latence d'inférence par rapport à un modèle intégralement fine-tuné, par construction. »</p><figure class='fig'><svg viewBox='0 0 760 360' role='img' aria-label='Trois graphes de calcul compares : a gauche le forward d entrainement avec deux chemins paralleles W0.x et (alpha/r).B.A.x sommes ; au centre la fusion pre-calculee en une seule matrice W_merged = W0 + (alpha/r).B.A, graphe identique au modele de base, latence nulle ; a droite des adapter layers inserees en serie dans le chemin, calcul serialise, plus 20 a 30 pourcent de latence.'><rect x='0' y='0' width='760' height='360' fill='none'/><line x1='253' y1='40' x2='253' y2='330' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-dasharray='4 4'/><line x1='507' y1='40' x2='507' y2='330' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-dasharray='4 4'/><text x='126' y='30' text-anchor='middle' fill='var(--ink,#15202E)' font-family='Georgia,serif' font-size='14' font-weight='bold'>Entrainement</text><text x='380' y='30' text-anchor='middle' fill='var(--blue,#23537F)' font-family='Georgia,serif' font-size='14' font-weight='bold'>LoRA fusionne &#8212; latence nulle</text><text x='633' y='30' text-anchor='middle' fill='var(--bordeaux,#7C2A38)' font-family='Georgia,serif' font-size='14' font-weight='bold'>Adapters en serie</text><circle cx='126' cy='70' r='5' fill='var(--ink,#15202E)'/><text x='126' y='62' text-anchor='middle' fill='var(--ink,#15202E)' font-family='Georgia,serif' font-size='12'>x</text><line x1='126' y1='75' x2='70' y2='120' stroke='var(--ink,#15202E)' stroke-width='1.5'/><line x1='126' y1='75' x2='182' y2='120' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.5'/><rect x='40' y='122' width='60' height='34' rx='3' fill='none' stroke='var(--ink,#15202E)' stroke-width='1.5'/><text x='70' y='144' text-anchor='middle' fill='var(--ink,#15202E)' font-family='Georgia,serif' font-size='13'>W&#8320;</text><text x='70' y='170' text-anchor='middle' fill='var(--ink-faint,#7A889B)' font-family='Georgia,serif' font-size='10'>fige</text><rect x='152' y='122' width='60' height='34' rx='3' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.5'/><text x='182' y='144' text-anchor='middle' fill='var(--bordeaux,#7C2A38)' font-family='Georgia,serif' font-size='12'>B&#183;A</text><text x='182' y='170' text-anchor='middle' fill='var(--ink-faint,#7A889B)' font-family='Georgia,serif' font-size='10'>(&#945;/r), entraine</text><line x1='70' y1='156' x2='126' y2='205' stroke='var(--ink,#15202E)' stroke-width='1.5'/><line x1='182' y1='156' x2='126' y2='205' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.5'/><circle cx='126' cy='212' r='13' fill='none' stroke='var(--ink,#15202E)' stroke-width='1.5'/><text x='126' y='217' text-anchor='middle' fill='var(--ink,#15202E)' font-family='Georgia,serif' font-size='15'>+</text><line x1='126' y1='225' x2='126' y2='265' stroke='var(--ink,#15202E)' stroke-width='1.5'/><circle cx='126' cy='270' r='5' fill='var(--ink,#15202E)'/><text x='126' y='292' text-anchor='middle' fill='var(--ink,#15202E)' font-family='Georgia,serif' font-size='12'>h = W&#8320;x + (&#945;/r)BAx</text><text x='126' y='318' text-anchor='middle' fill='var(--ink-faint,#7A889B)' font-family='Georgia,serif' font-size='11'>2 chemins paralleles</text><circle cx='380' cy='70' r='5' fill='var(--ink,#15202E)'/><text x='380' y='62' text-anchor='middle' fill='var(--ink,#15202E)' font-family='Georgia,serif' font-size='12'>x</text><line x1='380' y1='75' x2='380' y2='130' stroke='var(--blue,#23537F)' stroke-width='2'/><rect x='322' y='132' width='116' height='44' rx='3' fill='none' stroke='var(--blue,#23537F)' stroke-width='2'/><text x='380' y='152' text-anchor='middle' fill='var(--blue,#23537F)' font-family='Georgia,serif' font-size='12'>W_merged</text><text x='380' y='169' text-anchor='middle' fill='var(--blue,#23537F)' font-family='Georgia,serif' font-size='11'>= W&#8320; + (&#945;/r)BA</text><line x1='380' y1='176' x2='380' y2='265' stroke='var(--blue,#23537F)' stroke-width='2'/><circle cx='380' cy='270' r='5' fill='var(--ink,#15202E)'/><text x='380' y='292' text-anchor='middle' fill='var(--ink,#15202E)' font-family='Georgia,serif' font-size='12'>h = W_merged &#183; x</text><text x='380' y='318' text-anchor='middle' fill='var(--blue,#23537F)' font-family='Georgia,serif' font-size='11'>1 seul GEMM &#8212; graphe du modele de base</text><circle cx='633' cy='70' r='5' fill='var(--ink,#15202E)'/><text x='633' y='62' text-anchor='middle' fill='var(--ink,#15202E)' font-family='Georgia,serif' font-size='12'>x</text><line x1='633' y1='75' x2='633' y2='105' stroke='var(--ink,#15202E)' stroke-width='1.5'/><rect x='593' y='107' width='80' height='30' rx='3' fill='none' stroke='var(--ink,#15202E)' stroke-width='1.5'/><text x='633' y='126' text-anchor='middle' fill='var(--ink,#15202E)' font-family='Georgia,serif' font-size='12'>W&#8320;</text><line x1='633' y1='137' x2='633' y2='162' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.5'/><rect x='593' y='164' width='80' height='30' rx='3' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.5'/><text x='633' y='183' text-anchor='middle' fill='var(--bordeaux,#7C2A38)' font-family='Georgia,serif' font-size='11'>adapter</text><line x1='633' y1='194' x2='633' y2='219' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.5'/><rect x='593' y='221' width='80' height='30' rx='3' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.5'/><text x='633' y='240' text-anchor='middle' fill='var(--bordeaux,#7C2A38)' font-family='Georgia,serif' font-size='11'>adapter</text><line x1='633' y1='251' x2='633' y2='265' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.5'/><circle cx='633' cy='270' r='5' fill='var(--ink,#15202E)'/><text x='633' y='292' text-anchor='middle' fill='var(--bordeaux,#7C2A38)' font-family='Georgia,serif' font-size='12'>calcul serialise</text><text x='633' y='318' text-anchor='middle' fill='var(--bordeaux,#7C2A38)' font-family='Georgia,serif' font-size='11'>+20 a +30 % de latence</text></svg><figcaption><span class="fcap-k">Figure 2</span>Fusion du delta a l inference : les deux chemins paralleles de l entrainement (W&#8320;x et (&#945;/r)BAx) se pre-calculent en une matrice unique W_merged = W&#8320; + (&#945;/r)BA, rendant le graphe identique au modele de base (latence nulle), la ou des adapter layers inserees en serie serialisent le calcul et ajoutent 20 a 30 % de latence.</figcaption></figure>
+
+<p>L'avantage sur les adapters séquentiels (Houlsby et al., 2019) est quantifié dans le papier original : sur GPT-2 medium, batch size 1 et longueur de séquence 128, LoRA fusionné atteint 19,8 ms, contre 23,9 ms pour AdapterL (+20,7 %) et 25,8 ms pour AdapterH (+30,3 %). La cause est structurelle : les adapter layers doivent être traversées séquentiellement, couche par couche, ce qui sérialise le calcul là où le hardware (GPU/TPU) tire sa performance du parallélisme. LoRA court-circuite ce goulot en absorbant le delta dans la matrice de poids elle-même avant de servir.</p>
+
+<p>Dans l'écosystème Hugging Face PEFT, la fonction <code>merge_and_unload()</code> implémente cette fusion : elle calcule <em>W_merged = W₀ + (α/r)·B·A</em> pour chaque couche ciblée, supprime les matrices A et B de la mémoire, et retourne un objet <code>transformers</code> standard (plus de <code>PeftModel</code>). L'alternative <code>merge_adapter()</code> effectue la même fusion tout en conservant l'enveloppe <code>PeftModel</code>, ce qui permet d'appeler ensuite <code>unmerge_adapter()</code> pour défusionner et récupérer les poids originaux W₀ — un cycle réversible utile en phase expérimentale.</p>
+
+<p>Le switching de tâche sans rechargement du modèle de base repose sur cette réversibilité. Le papier LoRA l'énonce explicitement : « quand on doit passer à une autre tâche, on peut récupérer W₀ en soustrayant B·A puis en ajoutant un différent B'·A' — une opération rapide avec très peu d'overhead mémoire. » Dans PEFT, ce mécanisme est exposé via <code>set_adapter(adapter_name)</code>, qui active un adaptateur nommé parmi ceux chargés, et via <code>load_adapter()</code> qui permet d'en charger plusieurs simultanément sous des noms distincts. La soustraction/addition de B·A n'est pas scriptée manuellement : PEFT gère l'état de fusion en interne et effectue défusion puis refusion à la volée lors du changement d'adaptateur actif. Cela contraste avec le serving multi-adaptateurs au niveau d'un moteur d'inférence (S-LoRA, NIM), qui n'effectue jamais de fusion et calcule le delta LoRA à la volée à chaque requête pour pouvoir mélanger des centaines d'adaptateurs simultanément.</p>
+
+<p>Pour combiner plusieurs LoRA en un seul adaptateur composite, PEFT expose <code>add_weighted_adapter(adapters, weights, adapter_name, combination_type)</code>. En mode <code>"linear"</code> basique, la combinaison est <em>ΔW_merged = Σᵢ wᵢ · (Bᵢ·Aᵢ)</em> ; les modes <code>"ties"</code> et <code>"dare_ties"</code> intègrent les méthodes TIES (TrIm, Elect, and Merge) et DARE (Drop And REscale) pour gérer les paramètres redondants ou aux signes conflictuels entre adaptateurs issus de tâches incompatibles. L'adaptateur composite ainsi créé peut être activé par <code>set_adapter()</code> ou fusionné définitivement par <code>merge_and_unload()</code>, bouclant la pipeline de composition multi-tâche sans jamais recharger le modèle de base.</p>
+</section>
+<section id="qlora-quantification">
+<h3>QLoRA : adaptation sur modèle de base quantifié 4 bits</h3>
+<p>QLoRA (Dettmers, Pagnoni et al., NeurIPS 2023) résout un problème fondamental : LoRA standard exige que le modèle de base reste en précision pleine (bf16 ou fp16) pendant l'entraînement, ce qui plafonne la taille des modèles accessibles au fine-tuning. QLoRA brise ce plafond en quantifiant les poids gelés en 4 bits, puis en rétropropageant (backpropagating) les gradients exclusivement à travers les adaptateurs LoRA maintenus en bf16. Le modèle de base ne reçoit aucun gradient — ses poids restent figés et quantifiés — mais les adaptateurs A et B, situés en amont dans le graphe de calcul, reçoivent bien toute la signal d'erreur. À chaque forward pass, les poids quantifiés sont dequantifiés juste-à-temps en bf16 pour le calcul matriciel, selon la formule <code>Y^BF16 = X^BF16 · dequant(W^NF4) + X^BF16 · A^BF16 · B^BF16</code>, puis retombent dans leur format de stockage NF4. Il n'existe donc pas de « rétropropagation à travers la quantification » au sens strict : les poids NF4 sont figés, et les gradients ne transitent que par les adaptateurs en haute précision.</p>
+
+<p>La première innovation centrale de QLoRA est le type de données NF4 (4-bit NormalFloat, NormalFloat 4 bits). Les poids pré-entraînés des LLM suivent empiriquement une distribution gaussienne centrée en zéro avec un écart-type σ. L'idée de NF4 est de calculer les quantiles théoriques d'une normale standard et d'en dériver 16 niveaux de quantification optimaux, normalisés dans l'intervalle [−1, 1]. En normalisant chaque bloc de poids par son propre σ avant quantification, on ramène tous les poids à la même distribution, ce qui rend NF4 théoriquement optimal au sens de l'information (information-theoretically optimal) pour des distributions gaussiennes — contrairement à INT4, dont les niveaux uniformément espacés gaspillent de la capacité de représentation sur les queues peu peuplées. La quantification est appliquée par blocs de 64 éléments, chaque bloc disposant de sa propre constante d'échelle en 32 bits.</p>
+
+<p>La deuxième innovation, la double quantification (double quantization), s'attaque précisément au coût de ces constantes d'échelle par blocs : avec des blocs de 64 poids et des constantes fp32, la surcharge atteint 32/64 = 0,5 bit par paramètre. QLoRA quantifie à nouveau ces constantes d'échelle de 32 bits en flottants 8 bits, avec un blocksize de 256, ramenant la surcharge nette à environ 0,37 bit par paramètre — une économie significative à l'échelle des dizaines de milliards de paramètres.</p>
+
+<p>La troisième innovation, les paged optimizers (optimiseurs paginés), cible les pics mémoire qui surviennent lors du gradient checkpointing. QLoRA exploite le mécanisme de mémoire unifiée de NVIDIA : les états de l'optimiseur (momentum Adam) sont alloués en RAM CPU et paginés vers le GPU uniquement lors des mises à jour, puis renvoyés en RAM dès que la mise à jour est terminée. Cela empêche les débordements mémoire (out-of-memory) lors des mini-batchs irrégulièrement longs, au prix d'une légère latence de transfert PCIe que le pipeline d'entraînement amortit.</p>
+
+<p>L'effet combiné de ces trois mécanismes est saisissant. Le fine-tuning complet d'un LLaMA 65B en 16 bits nécessite plus de 780 Go de VRAM GPU ; QLoRA ramène ce besoin à 48 Go, soit la capacité d'un seul GPU A40 ou A100 40 Go (deux chips en NVLink, ou un A100-80 Go). L'équipe a entraîné Guanaco-65B de cette façon en 24 heures sur un seul GPU, atteignant 99,3 % des performances de ChatGPT évaluées sur le benchmark Vicuna — un résultat qui a repositionné le fine-tuning de grands modèles comme une opération accessible à une équipe de recherche sans cluster dédié. Les modèles Guanaco plus petits (33B) sont accessibles sur un GPU grand public de 24 Go (RTX 3090 / 4090) en moins de 12 heures.</p>
+
+<p>Un point de vigilance s'impose cependant : la quantification NF4 introduit une erreur de représentation dans les poids du modèle de base. QLoRA soutient que cette erreur est compensée par l'expressivité des adaptateurs LoRA et que les performances finales sont équivalentes au fine-tuning 16 bits. Cette équivalence a été vérifiée sur des benchmarks d'instruction-following mais peut se dégrader sur des tâches nécessitant une très haute fidélité numérique ou sur des distributions très éloignées du pré-entraînement — un point encore débattu dans la littérature.</p>
+</section>
+<section id="variantes-dora-adalora">
+<h3>DoRA et AdaLoRA : décomposition et budget adaptatif</h3>
+<p>LoRA traite les mises à jour de poids comme un bloc monolithique de bas rang. DoRA (Weight-Decomposed Low-Rank Adaptation, Liu et al., ICML 2024 Oral) repart d'une observation analytique : le fine-tuning complet et LoRA n'exhibent pas le même couplage entre les variations d'amplitude et les variations de direction des poids. Le fine-tuning complet présente une corrélation négative marquée entre Δmagnitude et Δdirection — signe que les deux grandeurs s'ajustent de façon relativement indépendante — alors que LoRA les couple implicitement, limitant sa capacité d'adaptation. DoRA répond à cela en décomposant explicitement chaque matrice de poids pré-entraînée W ∈ ℝ<sup>d×k</sup> en une composante magnitude et une composante directionnelle : <code>W = m · (V / ‖V‖<sub>c</sub>)</code>, où m ∈ ℝ<sup>1×k</sup> est un vecteur de magnitude entraînable et V / ‖V‖<sub>c</sub> est la matrice directionnelle normalisée colonne par colonne. Lors du fine-tuning, m est mis à jour directement, tandis que la direction est modifiée via une adaptation LoRA standard : la mise à jour effective de V prend la forme <code>V + B·A</code>, avec B et A les matrices habituelles de bas rang. Le résultat est une update globale <code>W' = m · ((W₀ + B·A) / ‖W₀ + B·A‖<sub>c</sub>)</code>, où W₀ désigne les poids figés. L'overhead paramétrique dû au vecteur m est infime (de l'ordre de 0,01 % de paramètres supplémentaires par rapport à LoRA à rang égal), et il n'existe aucune latence additionnelle à l'inférence puisque tout peut être fusionné dans les poids. Sur LLaMA-7B, DoRA améliore LoRA de 3,7 points en moyenne sur les tâches de commonsense reasoning en utilisant moins de la moitié des paramètres entraînables pour les modules MLP, et obtient des gains consistants sur LLaVA (instruction tuning visuelle) et VL-BART (compréhension image/vidéo-texte).</p>
+
+<p>AdaLoRA (Zhang et al., ICLR 2023) attaque un problème différent : LoRA affecte le même rang r à toutes les matrices cibles, alors que les matrices de poids n'ont pas la même importance relative. AdaLoRA paramétrise chaque mise à jour incrémentielle sous forme de singular value decomposition (décomposition en valeurs singulières) : ΔW = P Λ Q, où P ∈ ℝ<sup>d₁×r</sup> et Q ∈ ℝ<sup>r×d₂</sup> jouent le rôle des vecteurs singuliers gauches et droits, soumis à une contrainte d'orthogonalité maintenue par une pénalité dans la fonction de perte, et Λ est une matrice diagonale r×r de valeurs singulières apprises. La granularité d'attribution du budget s'effectue au niveau du triplet singulier G<sub>i</sub> = (p<sub>i</sub>, λ<sub>i</sub>, q<sub>i</sub>). L'importance de chaque triplet est quantifiée par un score combinant sensibilité et incertitude : la sensibilité est estimée par le produit paramètre–gradient (|θ · ∇<sub>θ</sub>ℓ|), lissée par une moyenne mobile exponentielle avec β₁ = 0,85, et multipliée par une mesure d'incertitude (variance glissante de la sensibilité, lissée avec β₂ = 0,85). Les triplets dont le score est bas voient leur valeur singulière mise à zéro — élagage réversible, contrairement à une suppression directe de paramètres. Le budget total en rang est piloté par un scheduler à décroissance cubique : l'entraînement débute à un budget initial b⁰ ≈ 1,5 × b<sup>T</sup>, décroît vers le budget cible b<sup>T</sup> selon une trajectoire cubique après une phase de warm-up, puis maintient b<sup>T</sup> fixe jusqu'à la fin. Ce profil évite une réduction trop brutale en début d'entraînement. Les gains sont particulièrement nets en régime de faible budget : sur GLUE (RTE) avec seulement 0,3M de paramètres, AdaLoRA surpasse la meilleure baseline de 1,8 points ; sur SQuAD v2.0, il atteint 88,78 % de F1 avec un budget aussi bas que 0,16 % des paramètres du modèle, performance qui égale ou dépasse des méthodes à budget plus élevé.</p>
+
+<p>Deux variantes méritent mention en marge de DoRA et AdaLoRA. PiSSA (Principal Singular Values and Singular Vectors Adaptation, NeurIPS 2024 Spotlight) partage l'architecture de LoRA mais initialise les matrices A et B non pas de façon aléatoire/nulle, mais sur les composantes principales (valeurs et vecteurs singuliers dominants) de W₀, en figeant le résidu. Cette réinitialisation accélère la convergence et améliore les performances finales : Mistral-7B affiné avec PiSSA atteint 72,86 % sur GSM8K contre 67,7 % pour LoRA. LoRA+ (Hayou et al., arXiv 2402.12354) adopte un angle différent, purement d'optimisation : il démontre par des arguments de scaling en large width que l'usage d'un learning rate identique pour A et B est sous-optimal, et préconise un ratio η<sub>B</sub> ≫ η<sub>A</sub> — ce qui procure 1 à 2 points d'amélioration et jusqu'à 2× d'accélération de convergence à coût computationnel constant.</p>
+</section>
+<div class="widget dmd-root" id="dmd-root">
+  <style>
+    .dmd-root{--dmd-ink:var(--ink,#15202E);--dmd-soft:var(--ink-soft,#43536A);
+      --dmd-faint:var(--ink-faint,#7A889B);--dmd-card:var(--card,#fff);
+      --dmd-line:var(--line,#D7DFE9);--dmd-lsoft:var(--line-soft,#E7ECF3);
+      --dmd-blue:var(--blue,#23537F);--dmd-bright:var(--blue-bright,#2C77B6);
+      --dmd-wash:var(--blue-wash,#E7EEF6);--dmd-deep:var(--blue-deep,#142E49);
+      --dmd-bord:var(--bordeaux,#7C2A38);--dmd-bord-br:var(--bordeaux-bright,#9B3443);
+      --dmd-bwash:var(--bordeaux-wash,#F3E3E6);
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--dmd-ink);
+      border:1px solid var(--dmd-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--dmd-card);max-width:720px}
+    .dmd-root *{box-sizing:border-box}
+    .dmd-k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;
+      color:var(--dmd-faint);font-weight:600;margin:0 0 2px}
+    .dmd-title{font-weight:700;font-size:1.05rem;margin:0 0 4px}
+    .dmd-sub{font-size:.88rem;color:var(--dmd-soft);margin:0 0 12px}
+    .dmd-sub code,.dmd-formula code{font:600 .85em ui-monospace,SFMono-Regular,Menlo,monospace;
+      background:rgba(0,0,0,.045);border-radius:4px;padding:1px 4px}
+
+    .dmd-formula{font-size:.9rem;background:#F7F9FC;border:1px solid var(--dmd-lsoft);
+      border-radius:8px;padding:10px 12px;margin:0 0 14px;color:var(--dmd-ink);
+      font-variant-numeric:tabular-nums;line-height:1.65;overflow-x:auto}
+    .dmd-formula b{color:var(--dmd-bord-br)}
+    .dmd-formula i{color:var(--dmd-bright);font-style:normal;font-weight:600}
+
+    .dmd-ctl{margin:0 0 12px}
+    .dmd-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+    .dmd-row+.dmd-row{margin-top:10px}
+    .dmd-lab{flex:0 0 auto;font-weight:600;font-size:.82rem;color:var(--dmd-soft);min-width:10.5em}
+    .dmd-lab b{color:var(--dmd-bord-br);font-variant-numeric:tabular-nums}
+    .dmd-slider{flex:1 1 180px;min-width:140px;accent-color:var(--dmd-bord-br);height:22px;cursor:pointer}
+    .dmd-slider.dmd-blueacc{accent-color:var(--dmd-bright)}
+
+    .dmd-stage{display:flex;gap:14px;flex-wrap:wrap;margin:2px 0 0}
+    .dmd-pan{flex:1 1 320px;min-width:280px}
+    .dmd-pcap{font-size:.72rem;letter-spacing:.04em;text-transform:uppercase;font-weight:600;
+      color:var(--dmd-faint);margin:0 0 4px}
+    .dmd-svg{width:100%;height:auto;display:block;border:1px solid var(--dmd-lsoft);
+      border-radius:9px;background:#FBFCFE;touch-action:none;-webkit-user-select:none;user-select:none}
+    .dmd-tip{cursor:grab}
+    .dmd-tip:active{cursor:grabbing}
+
+    .dmd-grid{stroke:var(--dmd-lsoft);stroke-width:1}
+    .dmd-axis{stroke:var(--dmd-line);stroke-width:1.2}
+    .dmd-circle{fill:none;stroke:var(--dmd-line);stroke-width:1;stroke-dasharray:3 4}
+    .dmd-vec{stroke-width:2.6;fill:none}
+    .dmd-v0{stroke:var(--dmd-faint)}
+    .dmd-vd{stroke:var(--dmd-bord-br)}
+    .dmd-vw{stroke:var(--dmd-blue)}
+    .dmd-vwp{stroke:var(--dmd-bright)}
+    .dmd-dir{stroke:var(--dmd-bright);stroke-width:1.6;stroke-dasharray:2 3;fill:none}
+    .dmd-handle{fill:var(--dmd-bord-br);stroke:#fff;stroke-width:2}
+    .dmd-end{stroke:#fff;stroke-width:1.6}
+    .dmd-vlab{font:700 11px/1 ui-monospace,monospace}
+    .dmd-tick{font:500 9.5px/1 ui-monospace,monospace;fill:var(--dmd-faint)}
+
+    .dmd-legend{display:flex;flex-wrap:wrap;gap:6px 13px;font-size:.74rem;color:var(--dmd-soft);margin:6px 0 0}
+    .dmd-legend span{display:inline-flex;align-items:center;gap:5px}
+    .dmd-sw{width:14px;height:4px;border-radius:2px;display:inline-block}
+
+    .dmd-stats{display:flex;gap:9px;flex-wrap:wrap;margin:14px 0 0}
+    .dmd-stat{flex:1 1 150px;min-width:140px;border:1px solid var(--dmd-line);
+      border-radius:10px;padding:9px 11px;background:var(--dmd-card)}
+    .dmd-stat .dmd-sk{font-size:.66rem;letter-spacing:.04em;text-transform:uppercase;
+      color:var(--dmd-faint);font-weight:600}
+    .dmd-stat .dmd-sv{font:800 1.28rem/1.1 ui-monospace,monospace;color:var(--dmd-blue);margin:3px 0 1px}
+    .dmd-stat .dmd-sn{font-size:.72rem;color:var(--dmd-soft);line-height:1.35}
+    .dmd-stat.dmd-mag .dmd-sv{color:var(--dmd-bord-br)}
+
+    .dmd-read{margin:14px 0 0;padding:11px 13px;border-radius:8px;border:1px solid var(--dmd-line);
+      background:var(--dmd-wash);font-size:.86rem;line-height:1.5;color:var(--dmd-ink)}
+    .dmd-read b{font-weight:700}
+    .dmd-read.dmd-rdec{border-color:var(--dmd-bright)}
+
+    .dmd-btn{margin:12px 0 0;padding:7px 12px;border:1px solid var(--dmd-blue);border-radius:8px;
+      background:transparent;color:var(--dmd-blue);font:600 13px/1 inherit;cursor:pointer}
+    .dmd-btn:hover{background:var(--dmd-wash)}
+
+    details.dmd-note{margin:12px 0 0;font-size:.78rem;color:var(--dmd-soft)}
+    details.dmd-note summary{cursor:pointer;font-weight:600;color:var(--dmd-faint);
+      font-size:.72rem;letter-spacing:.04em;text-transform:uppercase}
+    details.dmd-note p{margin:7px 0 0;line-height:1.5}
+    details.dmd-note code{font:.92em ui-monospace,monospace}
+  </style>
+
+  <p class="dmd-k">Probe interactif · DoRA</p>
+  <p class="dmd-title">Décomposition magnitude / direction</p>
+  <p class="dmd-sub">DoRA scinde une colonne de poids figée <code>W₀</code> en deux pièces entraînées
+    <em>séparément</em> : une <b>magnitude</b> <code>m</code> (scalaire) et une <b>direction</b> unitaire.
+    La mise à jour LoRA <code>B·A</code> agit sur la direction <em>non&nbsp;normalisée</em>
+    <code>W₀+B·A</code> ; DoRA la <b>renormalise</b> puis la <b>rééchelonne</b> par <code>m</code>.
+    Glisse la pointe rouge (la mise à jour <code>B·A</code>) ou le curseur <code>m</code> et observe que
+    longueur et orientation s'ajustent indépendamment — ce que LoRA, lui, couple.</p>
+
+  <div class="dmd-formula">
+    <i>W′</i> = <b>m̄</b> · ( <i>W₀</i> + <b>B·A</b> ) / ‖ <i>W₀</i> + <b>B·A</b> ‖<sub>c</sub>
+    &nbsp;&nbsp;<code>‖·‖<sub>c</sub></code> = norme de la colonne ·
+    direction&nbsp;=&nbsp;vecteur unitaire · magnitude&nbsp;=&nbsp;<code>m̄</code>
+  </div>
+
+  <div class="dmd-ctl">
+    <div class="dmd-row">
+      <span class="dmd-lab">Magnitude entraînée <b id="dmd-mlab">m̄ = 1,00</b></span>
+      <input class="dmd-slider dmd-blueacc" id="dmd-m" type="range" min="30" max="180" value="100"
+             aria-label="magnitude m">
+    </div>
+    <div class="dmd-row">
+      <span class="dmd-lab">Mise à jour LoRA <b id="dmd-balab">‖B·A‖ = 0,00</b></span>
+      <input class="dmd-slider" id="dmd-ba" type="range" min="0" max="160" value="62"
+             aria-label="amplitude de la mise à jour B·A">
+    </div>
+  </div>
+
+  <div class="dmd-stage">
+    <div class="dmd-pan">
+      <p class="dmd-pcap">1 · Direction — où pointe le vecteur</p>
+      <svg class="dmd-svg dmd-tip" id="dmd-svg-dir" viewBox="0 0 300 240"
+           aria-label="plan 2D : W0 figé, mise à jour B·A déplaçable, direction résultante"></svg>
+      <div class="dmd-legend">
+        <span><i class="dmd-sw" style="background:var(--dmd-faint)"></i>W₀ figé</span>
+        <span><i class="dmd-sw" style="background:var(--dmd-bord-br)"></i>+ B·A</span>
+        <span><i class="dmd-sw" style="background:var(--dmd-bright)"></i>direction unitaire</span>
+        <span><i class="dmd-sw" style="background:var(--dmd-blue)"></i>W′ final</span>
+      </div>
+    </div>
+    <div class="dmd-pan">
+      <p class="dmd-pcap">2 · Magnitude — quelle longueur, indépendamment</p>
+      <svg class="dmd-svg" id="dmd-svg-mag" viewBox="0 0 300 240"
+           aria-label="barres comparant les longueurs : direction unitaire, m, et W' final"></svg>
+      <div class="dmd-legend">
+        <span><i class="dmd-sw" style="background:var(--dmd-bright)"></i>‖dir‖ = 1 (toujours)</span>
+        <span><i class="dmd-sw" style="background:var(--dmd-bord-br)"></i>m̄ entraînée</span>
+        <span><i class="dmd-sw" style="background:var(--dmd-blue)"></i>‖W′‖ = m̄</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="dmd-stats">
+    <div class="dmd-stat" id="dmd-stat-ang">
+      <div class="dmd-sk">Rotation de direction</div>
+      <div class="dmd-sv" id="dmd-angv">0,0°</div>
+      <div class="dmd-sn">Angle entre W₀ et la direction de W′ : porté par B·A seul.</div>
+    </div>
+    <div class="dmd-stat dmd-mag" id="dmd-stat-len">
+      <div class="dmd-sk">Longueur ‖W′‖</div>
+      <div class="dmd-sv" id="dmd-lenv">1,00</div>
+      <div class="dmd-sn">Égale exactement m̄ : pilotée par le seul curseur magnitude.</div>
+    </div>
+    <div class="dmd-stat" id="dmd-stat-cpl">
+      <div class="dmd-sk">Couplage LoRA évité</div>
+      <div class="dmd-sv" id="dmd-cplv">—</div>
+      <div class="dmd-sn">Écart entre ‖W′‖ DoRA et la longueur qu'aurait LoRA (m̄ ignoré).</div>
+    </div>
+  </div>
+
+  <div class="dmd-read" id="dmd-read"></div>
+
+  <button type="button" class="dmd-btn" id="dmd-reset">Réinitialiser</button>
+
+  <details class="dmd-note">
+    <summary>Sous le capot · ce qui est calculé en direct</summary>
+    <p>Modèle-jouet en 2D pour une <em>colonne</em> de poids (DoRA décompose colonne par
+      colonne ; <code>‖·‖<sub>c</sub></code> est la norme vectorielle de la colonne). On fixe
+      <code>W₀</code>, la pointe rouge ajoute <code>B·A</code>, on calcule
+      <code>V = W₀ + B·A</code>, sa norme <code>‖V‖</code>, la direction
+      <code>V/‖V‖</code> (le cercle unité, en pointillés), puis
+      <code>W′ = m̄ · V/‖V‖</code>. La rotation affichée est l'angle entre <code>W₀</code> et
+      <code>V</code> (la renormalisation ne change pas l'orientation). La longueur de
+      <code>W′</code> vaut <code>m̄</code> par construction, <em>quelle que soit</em> la taille de
+      <code>B·A</code> : c'est tout l'intérêt — DoRA apprend l'orientation via <code>B·A</code> et
+      la longueur via <code>m̄</code>, séparément. La « longueur LoRA » de comparaison est
+      <code>‖W₀ + B·A‖</code> sans rééchelonnement, où direction et longueur restent liées.</p>
+  </details>
+
+  <script>
+  (function(){
+    var root=document.getElementById("dmd-root");
+    if(!root||root.dataset.dmdInit)return; root.dataset.dmdInit="1";
+    function el(id){return document.getElementById(id);}
+    function clear(n){ while(n.firstChild) n.removeChild(n.firstChild); }
+    var SVGNS="http://www.w3.org/2000/svg";
+    function mk(tag,attrs){
+      var e=document.createElementNS(SVGNS,tag);
+      for(var k in attrs) if(attrs.hasOwnProperty(k)) e.setAttribute(k,attrs[k]);
+      return e;
+    }
+    function fr(x,d){ return x.toFixed(d).replace(".",","); }
+
+    // ---- état ----
+    // W0 : colonne figée (constante). Unités "mathématiques", repère centré.
+    var W0={x:1.0,y:0.45};
+    // B·A : mise à jour, pilotée par la pointe rouge (drag) ; amplitude bornée par le curseur.
+    var BA={x:0.30,y:0.55};
+    var mBar=1.00;            // magnitude entraînée
+    var baCap=0.62;           // amplitude max de B·A (curseur)
+
+    // ---- géométrie panneau direction ----
+    var W=300,H=240,CX=150,CY=128,SCL=72; // SCL px par unité math
+    function px(p){ return {x:CX+p.x*SCL, y:CY-p.y*SCL}; }   // math -> svg
+    function toMath(sx,sy){ return {x:(sx-CX)/SCL, y:(CY-sy)/SCL}; }
+    function add(a,b){ return {x:a.x+b.x, y:a.y+b.y}; }
+    function nrm(v){ return Math.sqrt(v.x*v.x+v.y*v.y); }
+    function scale(v,s){ return {x:v.x*s, y:v.y*s}; }
+    function angle(a,b){ // angle (deg) entre a et b
+      var na=nrm(a), nb=nrm(b);
+      if(na<1e-9||nb<1e-9) return 0;
+      var c=(a.x*b.x+a.y*b.y)/(na*nb);
+      c=Math.max(-1,Math.min(1,c));
+      return Math.acos(c)*180/Math.PI;
+    }
+
+    var VCOL={"dmd-v0":"var(--dmd-faint)","dmd-vd":"var(--dmd-bord-br)",
+      "dmd-vwp":"var(--dmd-bright)","dmd-vw":"var(--dmd-blue)"};
+    function arrow(svg,from,to,cls,head){
+      var a=px(from), b=px(to);
+      svg.appendChild(mk("line",{x1:a.x,y1:a.y,x2:b.x,y2:b.y,class:"dmd-vec "+cls,
+        "stroke-linecap":"round"}));
+      if(head){
+        var ang=Math.atan2(b.y-a.y,b.x-a.x), hl=9, hw=4.6;
+        var p1x=b.x-hl*Math.cos(ang)+hw*Math.cos(ang+Math.PI/2);
+        var p1y=b.y-hl*Math.sin(ang)+hw*Math.sin(ang+Math.PI/2);
+        var p2x=b.x-hl*Math.cos(ang)-hw*Math.cos(ang+Math.PI/2);
+        var p2y=b.y-hl*Math.sin(ang)-hw*Math.sin(ang+Math.PI/2);
+        svg.appendChild(mk("polygon",{points:b.x+","+b.y+" "+p1x+","+p1y+" "+p2x+","+p2y,
+          fill:VCOL[cls]||"var(--dmd-ink)",stroke:"none"}));
+      }
+    }
+
+    function renderDir(){
+      var s=el("dmd-svg-dir"); clear(s);
+      // grille
+      for(var gi=-2;gi<=2;gi++){
+        var vx=px({x:gi*0.5,y:0});
+        s.appendChild(mk("line",{x1:vx.x,y1:14,x2:vx.x,y2:H-14,class:"dmd-grid"}));
+        var hy=px({x:0,y:gi*0.5});
+        s.appendChild(mk("line",{x1:14,y1:hy.y,x2:W-14,y2:hy.y,class:"dmd-grid"}));
+      }
+      // axes
+      s.appendChild(mk("line",{x1:14,y1:CY,x2:W-14,y2:CY,class:"dmd-axis"}));
+      s.appendChild(mk("line",{x1:CX,y1:14,x2:CX,y2:H-14,class:"dmd-axis"}));
+      // cercle unité (= ensemble des directions normalisées)
+      s.appendChild(mk("circle",{cx:CX,cy:CY,r:SCL,class:"dmd-circle"}));
+      var ut=px({x:-0.71,y:-0.71}); // étiquette en bas-gauche du cercle, hors des vecteurs
+      s.appendChild((function(){var t=mk("text",{x:ut.x-3,y:ut.y+11,"text-anchor":"end",class:"dmd-tick"});
+        t.textContent="cercle unité"; return t;})());
+
+      var V=add(W0,BA);            // direction non normalisée
+      var nV=nrm(V);
+      var dir = nV>1e-9 ? scale(V,1/nV) : {x:1,y:0};   // unitaire
+      var Wp = scale(dir, mBar);   // W' final
+
+      // W0 figé
+      arrow(s,{x:0,y:0},W0,"dmd-v0",true);
+      // V = W0 + B·A : segment B·A depuis la pointe de W0
+      arrow(s,W0,V,"dmd-vd",true);
+      // direction unitaire (sur le cercle)
+      arrow(s,{x:0,y:0},dir,"dmd-vwp",true);
+      // W' final
+      arrow(s,{x:0,y:0},Wp,"dmd-vw",true);
+
+      // poignée déplaçable = pointe de B·A (= bout de V)
+      var hp=px(V);
+      s.appendChild(mk("circle",{cx:hp.x,cy:hp.y,r:7,class:"dmd-handle"}));
+      // étiquette
+      var lp=px(scale(dir,Math.min(mBar,1.9)+0.12));
+      var tl=mk("text",{x:lp.x,y:lp.y,class:"dmd-vlab",fill:"var(--dmd-blue)",
+        "text-anchor":"middle"});
+      tl.textContent="W′"; s.appendChild(tl);
+
+      return {V:V,nV:nV,dir:dir,Wp:Wp};
+    }
+
+    function bar(svg,x,frac,col,labTop,labBot){
+      var x0=x, w=46, base=H-34, maxh=150;
+      var h=Math.max(2,frac*maxh);
+      svg.appendChild(mk("rect",{x:x0,y:base-h,width:w,height:h,rx:5,fill:col,opacity:.92}));
+      var t=mk("text",{x:x0+w/2,y:base-h-6,"text-anchor":"middle",class:"dmd-vlab",fill:col});
+      t.textContent=labTop; svg.appendChild(t);
+      var b=mk("text",{x:x0+w/2,y:base+15,"text-anchor":"middle",class:"dmd-tick"});
+      b.textContent=labBot; svg.appendChild(b);
+    }
+    function renderMag(){
+      var s=el("dmd-svg-mag"); clear(s);
+      var base=H-34, maxh=150;
+      // ligne de référence ‖dir‖ = 1
+      var yref=base-(1/2)*maxh; // échelle: 2.0 -> pleine hauteur
+      s.appendChild(mk("line",{x1:30,y1:yref,x2:W-20,y2:yref,class:"dmd-dir"}));
+      var tref=mk("text",{x:W-22,y:yref-4,"text-anchor":"end",class:"dmd-tick"});
+      tref.textContent="1"; s.appendChild(tref);
+      // 3 barres : direction unitaire (=1), m, ‖W'‖ (=m)
+      bar(s,40,1/2,"var(--dmd-bright)","1,00","‖dir‖");
+      bar(s,128,mBar/2,"var(--dmd-bord-br)",fr(mBar,2),"m̄");
+      bar(s,216,mBar/2,"var(--dmd-blue)",fr(mBar,2),"‖W′‖");
+    }
+
+    function render(){
+      // borne B·A à l'amplitude curseur
+      var nBA=nrm(BA);
+      if(nBA>baCap && nBA>1e-9){ BA=scale(BA,baCap/nBA); nBA=baCap; }
+
+      el("dmd-mlab").textContent="m̄ = "+fr(mBar,2);
+      el("dmd-balab").textContent="‖B·A‖ = "+fr(nBA,2);
+
+      var r=renderDir();
+      renderMag();
+
+      var ang=angle(W0,r.V);
+      var loraLen=r.nV;            // longueur que LoRA garderait (couplée)
+      el("dmd-angv").textContent=fr(ang,1)+"°";
+      el("dmd-lenv").textContent=fr(mBar,2);
+      el("dmd-cplv").textContent=(loraLen>=mBar?"+":"−")+fr(Math.abs(loraLen-mBar),2);
+
+      var read=el("dmd-read");
+      while(read.firstChild) read.removeChild(read.firstChild);
+      function t(x){return document.createTextNode(x);}
+      function b(x){var e=document.createElement("b");e.textContent=x;return e;}
+      var decoupled = Math.abs(loraLen-mBar)>0.08;
+      read.className="dmd-read"+(decoupled?" dmd-rdec":"");
+
+      if(nBA<0.02){
+        read.appendChild(t("Sans mise à jour (B·A ≈ 0), la direction reste celle de W₀ ; seule "));
+        read.appendChild(b("m̄ = "+fr(mBar,2)));
+        read.appendChild(t(" fixe la longueur. Glisse la pointe rouge pour faire tourner la direction."));
+      } else {
+        read.appendChild(t("B·A fait tourner la direction de "));
+        read.appendChild(b(fr(ang,1)+"°"));
+        read.appendChild(t(", mais ‖W′‖ reste collé à "));
+        read.appendChild(b("m̄ = "+fr(mBar,2)));
+        read.appendChild(t(". LoRA, lui, aurait gardé la longueur "));
+        read.appendChild(b(fr(loraLen,2)));
+        read.appendChild(t(" — direction et amplitude soudées. DoRA les "));
+        read.appendChild(b("découple"));
+        read.appendChild(t(" : la renormalisation efface l'effet de B·A sur la longueur, que m̄ règle à part."));
+      }
+    }
+
+    // ---- contrôles ----
+    el("dmd-m").addEventListener("input",function(){ mBar=this.value/100; render(); });
+    el("dmd-ba").addEventListener("input",function(){
+      baCap=this.value/100;
+      var n=nrm(BA);
+      if(n<1e-9){ BA={x:baCap,y:0}; }            // donne une direction par défaut
+      else { BA=scale(BA,baCap/n); }              // ajuste l'amplitude, garde l'orientation
+      render();
+    });
+
+    function svgPt(s,evt){
+      var r=s.getBoundingClientRect();
+      var sx=(evt.clientX-r.left)/r.width*W;
+      var sy=(evt.clientY-r.top)/r.height*H;
+      return {sx:sx,sy:sy};
+    }
+    var sdir=el("dmd-svg-dir"), dragging=false;
+    function setFromPointer(evt){
+      var p=svgPt(sdir,evt);
+      var m=toMath(p.sx,p.sy);              // position math de la pointe (= bout de V)
+      var v={x:m.x-W0.x, y:m.y-W0.y};       // B·A = pointe - W0
+      var n=nrm(v);
+      if(n>baCap && n>1e-9){ v=scale(v,baCap/n); }   // clamp à l'amplitude curseur
+      BA=v;
+      render();
+    }
+    sdir.addEventListener("pointerdown",function(e){
+      dragging=true; if(sdir.setPointerCapture) sdir.setPointerCapture(e.pointerId);
+      setFromPointer(e); e.preventDefault();
+    });
+    sdir.addEventListener("pointermove",function(e){ if(dragging) setFromPointer(e); });
+    sdir.addEventListener("pointerup",function(){ dragging=false; });
+    sdir.addEventListener("pointercancel",function(){ dragging=false; });
+
+    el("dmd-reset").addEventListener("click",function(){
+      mBar=1.00; baCap=0.62; BA={x:0.30,y:0.55};
+      el("dmd-m").value="100"; el("dmd-ba").value="62";
+      render();
+    });
+
+    render();
+  })();
+  </script>
+</div>
+
+<section id="serving-multi-adaptateurs">
+<h3>Serving à l'échelle : milliers d'adaptateurs concurrents</h3>
+<p>Déployer un seul adaptateur LoRA fondu dans les poids du modèle de base est trivial : la fusion (merge) absorbe ΔW = B·A dans W₀ avant inference, et le modèle résultant est indiscernable d'un modèle standard. Le problème change radicalement d'ordre de grandeur lorsqu'une plateforme doit servir simultanément des centaines, voire des milliers d'adaptateurs distincts — chacun correspond à un client, un cas d'usage, ou une langue différente — sur un seul modèle de base partagé. Fusionner N adaptateurs impliquerait de maintenir N copies complètes du modèle en VRAM, ce qui est économiquement et physiquement impossible au-delà d'une poignée d'adaptateurs.</p>
+
+<p>S-LoRA (2023, LMSYS / UC Berkeley) résout ce problème par trois innovations combinées. Première : l'<strong>Unified Paging</strong> (pagination unifiée). Plutôt que de gérer séparément le KV cache et les poids des adaptateurs, S-LoRA alloue un unique pool mémoire paginé, la taille de page étant calée sur la dimension cachée H — valeur commune aux deux types de tenseurs. Cette co-gestion élimine la fragmentation et maximise le batch size effectif. Deuxième : le calcul <strong>on-the-fly</strong> (à la volée). Les adaptateurs ne sont jamais fusionnés dans le modèle de base ; leur contribution B·A·x est calculée à chaque forward pass, en parallèle du passage dans les poids W₀ figés. Cela autorise un nombre illimité d'adaptateurs en mémoire hôte, dont seul un sous-ensemble résident en VRAM. Troisième : des <strong>kernels CUDA custom</strong> pour le batching hétérogène. Le prefill utilise un kernel Triton avec tiling qui traite en un seul appel des requêtes ayant des rangs r différents ; le decode utilise une version modifiée du kernel BGMV de Punica, capable d'opérer sur de la mémoire non-contiguë. Sur un seul A100 80 Go, S-LoRA atteint 7,6 à 8,0 requêtes/seconde avec 2 000 adaptateurs simultanés pour Llama-7B (rang 8), soit jusqu'à 4× le throughput de vLLM-packed (qui fusionne les poids) et jusqu'à 30× celui de Hugging Face PEFT. Le scaling en tensor parallelism sur 4 A100 (40 Go) versus 2 est super-linéaire : le système étant <em>memory-bound</em> plutôt que compute-bound, doubler la capacité mémoire augmente le throughput de plus de 2×.</p>
+
+<p>NVIDIA NIM adopte une philosophie proche mais orientée production d'entreprise. Son architecture implémente un <strong>cache multi-niveaux</strong> : les adaptateurs fréquemment sollicités résident en mémoire GPU, les autres sont relégués en mémoire hôte selon leur recency d'accès, avec swap dynamique entre niveaux. Pour le batching hétérogène — plusieurs requêtes arrivant simultanément, chacune avec un adaptateur différent — NIM recourt à la méthode <strong>SplitK via CUTLASS</strong> : l'opération GEMM est fractionnée en tuiles réparties sur plusieurs streaming multiprocessors (SMs), ce qui améliore leur taux d'utilisation lorsque la dimension de sortie est petite (typique des adaptateurs LoRA de bas rang). Les performances sont validées sur Llama 3 8B et 70B. Contrairement à S-LoRA qui publie des chiffres de throughput précis, NIM met en avant la surface de déploiement (intégration orchestrateur, SLA garanti) plutôt que des benchmarks comparatifs publics.</p>
+
+<p>La justification économique de cette infrastructure est directe. Le fine-tuning complet d'un modèle de 7 milliards de paramètres exige 100 à 120 Go de VRAM — soit deux A100 40 Go ou un H100 80 Go, représentant environ 50 000 $ de matériel pour une seule session d'entraînement, sans compter le temps de calcul cloud. QLoRA sur un RTX 4090 à environ 1 500 $ réduit ce besoin à 12–20 Go de VRAM et descend le coût d'une à deux heures de GPU cloud à 0,40–0,80 $/h. La question pertinente n'est donc pas « LoRA ou fine-tuning complet ? » mais « quel point de la courbe coût/qualité correspond à mon cas d'usage ? » — et les systèmes de serving à l'échelle comme S-LoRA déplacent encore ce curseur en rendant le coût d'<em>inférence</em> multi-adaptateur comparable à celui d'un modèle unique.</p>
+</section>
+<section id="limites-et-idees-recues">
+<h3>Limites et idées reçues</h3>
+<p>La première idée reçue concerne le choix du rang <em>r</em> : aucune heuristique fiable n'existe. Les expériences de Raschka montrent que <em>r</em>&nbsp;=&nbsp;256 surpasse <em>r</em>&nbsp;=&nbsp;32, 64, 128 et 512 sur un jeu de données spécifique, mais le rang optimal est entièrement tâche- et données-dépendant. La règle communautaire souvent citée «&nbsp;α&nbsp;=&nbsp;2&nbsp;×&nbsp;r&nbsp;» n'est pas non plus une recommandation des auteurs&nbsp;: le papier original justifie simplement de fixer α au premier <em>r</em> testé, «&nbsp;roughly the same as tuning the learning rate&nbsp;», ce qui revient à traiter α comme un learning rate effectif. Deux pièges d'entraînement découlent de cette liberté apparente&nbsp;: l'overfit multi-epoch (parcourir un dataset statique plusieurs fois dégrade les performances, constaté empiriquement dès 50&nbsp;k exemples) et le domain forgetting — un modèle fine-tuné sur Alpaca perd ses capacités arithmétiques faute d'exemples arithmétiques dans le dataset, LoRA ne protégeant pas automatiquement les connaissances hors distribution de fine-tuning.</p>
+
+<p>La pratique historique d'appliquer LoRA aux seules matrices Q et V est une sous-optimalité documentée&nbsp;: étendre l'adaptation à toutes les couches linéaires (target_modules="all-linear") multiplie les paramètres entraînables par environ cinq (de 4,2&nbsp;M à 20,3&nbsp;M) et augmente la mémoire de 14,18 à 16,62&nbsp;Go, avec des gains de performance sensibles. L'hypothèse du low intrinsic rank peut également échouer structurellement&nbsp;: les auteurs originaux reconnaissent eux-mêmes que si la tâche aval est dans une langue différente du pré-entraînement, un fine-tuning complet surpasserait LoRA avec un petit <em>r</em>.</p>
+
+<p>L'illusion d'équivalence (arXiv:2410.21228) est le résultat le plus contre-intuitif de la littérature récente. LoRA et le fine-tuning complet peuvent atteindre des performances aval identiques tout en produisant des structures de poids radicalement différentes. Par SVD, les poids adaptés par LoRA contiennent des «&nbsp;intruder dimensions&nbsp;» — des vecteurs singuliers de rang élevé sans similarité cosinus significative avec les vecteurs singuliers pré-entraînés, absents du fine-tuning complet. Ces dimensions corrèlent fortement avec l'oubli du pré-entraînement&nbsp;: ρ&nbsp;=&nbsp;0,971 (<em>p</em>&nbsp;≪&nbsp;0,001) sur des modèles RoBERTa, alors qu'elles ne corrèlent pas avec la précision aval (ρ&nbsp;=&nbsp;−0,338, p&nbsp;=&nbsp;0,218). La causalité est établie par une intervention&nbsp;: scaler la valeur singulière de la première intruder dimension à λ&nbsp;=&nbsp;0,7 post-entraînement réduit la perte de pré-entraînement d'environ 33&nbsp;% avec une perte de précision aval négligeable. Des sélections différentes de α et de learning rate produisent des comportements de généralisation radicalement différents malgré des précisions aval identiques&nbsp;: α&nbsp;=&nbsp;2r génère moins d'intruder dimensions et une meilleure généralisation qu'α&nbsp;=&nbsp;8 à performances égales.</p>
+
+<p>Les pièges de mise en œuvre (PEFT) s'ajoutent à ces limites conceptuelles. DoRA (Weight-Decomposed Low-Rank Adaptation) décompose la mise à jour en magnitude et direction, ce qui améliore les performances à bas rang mais au prix d'un overhead mesuré sur Llama-3.1-8B&nbsp;: +139&nbsp;% de temps et +4&nbsp;% de mémoire sans caching, réduits à +17&nbsp;% de temps et +41&nbsp;% de mémoire avec DoraCaching — la fusion des poids reste la solution recommandée pour l'inférence. Le scaling original α/r déstabilise les adaptateurs à rang élevé&nbsp;; rsLoRA substitue α/√r pour stabiliser et permettre d'exploiter de grands rangs sans divergence. Le batching multi-adaptateurs non fusionnés divise effectivement la taille de batch par le nombre d'adaptateurs distincts dans le batch. Enfin, appliquer LoRA à des couches MoE (paramètres nn.Parameter 3D) force PEFT à matérialiser la contribution LoRA pour chaque expert même si seule une fraction est activée&nbsp;; à l'inférence avec KV-cache (un token par pas), le ralentissement peut être substantiel — là encore, la fusion des poids est la solution.</p>
+</section>
+<section id="ecosysteme">
+<h3>Écosystème &amp; pour aller plus loin</h3>
+<p>La bibliothèque de référence de l'écosystème est <strong>Hugging Face PEFT</strong> (<em>Parameter-Efficient Fine-Tuning</em>, v0.19.1, avril 2026, ~21 k stars). Elle regroupe sous une API unifiée l'ensemble des grandes familles de méthodes : LoRA dans sa forme originale, QLoRA, AdaLoRA, DoRA, rsLoRA, LoHa (produit de Hadamard entre les matrices d'adaptation), LoKr (produit de Kronecker), X-LoRA (mixture d'experts LoRA), mais aussi IA³, prefix tuning et prompt tuning. L'entrée principale pour LoRA est <code>LoraConfig</code>, qui expose les paramètres essentiels : <code>r</code> (rang), <code>lora_alpha</code> (facteur d'échelle), <code>target_modules</code> (liste des couches ciblées, ex. <code>["query", "value"]</code>), <code>lora_dropout</code>, <code>bias</code> et le flag <code>use_rslora</code> pour activer le facteur α/√r de rsLoRA. AdaLoRA dispose de sa propre <code>AdaLoraConfig</code>, qui ajoute <code>init_r</code> (rang initial avant pruning), les paramètres <code>tinit</code>/<code>tfinal</code>/<code>deltaT</code> contrôlant le calendrier d'allocation dynamique, et impose d'appeler <code>update_and_allocate()</code> à chaque pas d'entraînement. Une fois l'adaptation terminée, PEFT expose <code>model.merge_and_unload()</code> pour fusionner les adapters dans les poids de base — éliminant ainsi tout overhead à l'inférence — et <code>model.unmerge_adapter()</code> pour revenir à l'état non-fusionné si nécessaire.</p>
+
+<p>La bibliothèque <strong>TRL</strong> (<em>Transformer Reinforcement Learning</em>) de Hugging Face simplifie encore le pipeline : <code>SFTTrainer</code> accepte directement un <code>peft_config=LoraConfig(...)</code> dans son constructeur, réduisant l'ensemble du pipeline SFT + LoRA à une seule classe. TRL supporte également GRPO, DPO et Reward Modeling via la même interface, ce qui rend la transition d'un SFT LoRA vers un fine-tuning par renforcement quasi transparent.</p>
+
+<p><strong>Unsloth</strong> adopte une approche orthogonale : plutôt que d'abstraire l'API, il réécrit manuellement le backpropagation des couches Transformer sous forme de kernels Triton personnalisés, en dérivant à la main la mathématique de la rétropropagation pour éliminer les opérations redondantes (copies, transpositions, allocations intermédiaires). Le résultat annoncé est un gain de 2 à 5× en vitesse et une réduction de VRAM de l'ordre de 70 % par rapport à LoRA standard, permettant de fine-tuner un modèle 7 B sous 8 GB de VRAM — contre 30 GB ou plus sans optimisation. Unsloth s'intègre avec PEFT et TRL et expose la même <code>LoraConfig</code>, ce qui en fait un accélérateur drop-in plutôt qu'un remplacement d'API.</p>
+
+<p>Côté dépôts de référence, <strong>artidoro/qlora</strong> (University of Washington, MIT license) est le code officiel du papier QLoRA et reste la référence implémentation pour les pipelines 4-bit + LoRA avant l'intégration native dans PEFT. <strong>NVlabs/DoRA</strong> (NVIDIA Labs, ICML 2024 Oral) contient l'implémentation PyTorch officielle de la décomposition magnitude/direction ; la méthode est également intégrée directement dans PEFT via le flag <code>use_dora=True</code> dans <code>LoraConfig</code>.</p>
+
+<p>Pour la littérature fondatrice, trois papiers forment le socle incontournable : le papier LoRA original (Hu et al., 2021, arXiv:2106.09685), QLoRA (Dettmers et al., 2023, arXiv:2305.14314) et DoRA (Liu et al., ICML 2024, arXiv:2402.09353). AdaLoRA (Zhang et al., arXiv:2303.10512) et rsLoRA (Kalajdzievski, arXiv:2312.03732) complètent ce corpus sur l'allocation adaptative de rang et la stabilité aux rangs élevés. Pour une synthèse récente de l'ensemble du champ, la revue « Parameter-Efficient Fine-Tuning in Large Models: A Survey of Methodologies » (arXiv:2410.19878, mise à jour avril 2025) offre une vue panoramique couvrant LoRA, adapters, prefix tuning et les directions futures. Côté pratique, le billet de Sebastian Raschka « Practical Tips for Finetuning LLMs Using LoRA » (novembre 2023) reste la référence empirique la plus citée par les praticiens : il documente des expériences comparatives sur le rang, le choix d'alpha, la couverture des couches et les compromis QLoRA en termes de mémoire vs vitesse.</p>
+</section>
+<details class="ex"><summary>Vérifie ta compréhension<span class="cnt">Partie Scaling α/r et gradient collapse</span></summary><div class="exbody"><p><b>Question.</b> <p>Un praticien observe que son adaptateur LoRA cesse d'apprendre dès qu'il pousse le rang <em>r</em> au-delà d'une dizaine, avec le scaling standard α/r. Pourquoi la magnitude du signal s'effondre-t-elle quand <em>r</em> croît, et quelle modification du facteur d'échelle corrige ce comportement&nbsp;? Énoncez la condition formelle sous-jacente.</p></p><div class="eg b"><span class="egk">Réponse</span><p>Avec γ<sub>r</sub> = α/r, le m-ième moment de la sortie de l'adaptateur vaut Θ((γ<sub>r</sub>²·r)<sup>m</sup>) = Θ((α²/r)<sup>m</sup>), qui tend vers zéro quand <em>r</em> augmente : le signal en forward pass s'affaiblit, et par la chain rule les gradients en backward pass s'effondrent à leur tour (<em>gradient collapse</em>). rsLoRA (Kalajdzievski, 2023) substitue le facteur α/√r&nbsp;: le même moment vaut alors Θ(α<sup>2m</sup>) = Θ(1), indépendant de <em>r</em>. La condition formelle est le Théorème&nbsp;3.2 : un adaptateur γ<sub>r</sub>·BA est <em>rang-stabilisé</em> si et seulement si γ<sub>r</sub> ∈ Θ(1/√r), soit γ<sub>r</sub>²·r = Θ(1) — satisfaite par α/√r mais pas par α/r. En pratique, on active ce scaling via <code>use_rslora=True</code> dans <code>LoraConfig</code>, ce qui débloque l'usage de rangs élevés. (À noter&nbsp;: la garantie porte clairement sur les gradients ; la stabilité des activations est moins nettement établie par le papier.)</p></div></div></details>
+<details class="ex"><summary>Vérifie ta compréhension<span class="cnt">Partie Fusion, latence et illusion d'équivalence</span></summary><div class="exbody"><p><b>Question.</b> <p>On entend souvent que « LoRA n'ajoute aucune latence d'inférence » et qu'un modèle LoRA fusionné est « équivalent » à un fine-tuning complet. Dans quel régime précis l'absence de latence est-elle vraie, et en quel sens un modèle fusionné <em>diffère</em> tout de même d'un fine-tuning complet&nbsp;?</p></p><div class="eg b"><span class="egk">Réponse</span><p>L'absence de latence est vraie uniquement dans le régime <strong>fusionné</strong> (<code>merge_and_unload()</code>)&nbsp;: la mise à jour est repliée dans les poids via W_merged = W₀ + (α/r)·B·A, le graphe redevient celui du modèle de base (un seul GEMM par couche), et la latence égale celle d'un modèle de même architecture — contrairement aux adapter layers séquentiels qui ajoutent ~20–30&nbsp;% de latence. En mode <strong>non fusionné</strong> (serving multi-adaptateurs, S-LoRA), le delta B·A·x est recalculé à chaque forward pass, réintroduisant un surcoût de calcul — quoique inférieur à celui des adapter layers classiques.</p><p>Mais latence identique n'implique pas <em>équivalence structurelle</em>. Par SVD, les poids fusionnés contiennent des « intruder dimensions » — des vecteurs singuliers absents du fine-tuning complet — qui corrèlent fortement avec l'oubli du pré-entraînement (ρ&nbsp;=&nbsp;0,971) sans corréler à la précision aval (ρ&nbsp;=&nbsp;−0,338, p&nbsp;=&nbsp;0,218). Deux modèles peuvent donc afficher la même précision aval tout en ayant des structures de poids divergentes, avec des effets sur la robustesse hors-distribution et l'apprentissage séquentiel. Sur QLoRA s'ajoute un piège numérique&nbsp;: fusionner sur un modèle de base quantifié sans dequantification préalable peut dégrader la qualité.</p></div></div></details>
+<section id="biblio"><h3>Bibliographie &amp; repos</h3><div><a href="https://arxiv.org/html/arXiv:2106.09685">LoRA: Low-Rank Adaptation of Large Language Models (arXiv:2106.09685) — HTML full text, Section 4.1</a></div><div><a href="https://arxiv.org/html/2106.09685v2">LoRA: Low-Rank Adaptation of Large Language Models (Hu et al., 2021) — HTML full text, Section 4.1</a></div><div><a href="https://medium.com/@indosambhav/lora-low-rank-adaptation-forward-pass-a-deep-dive-26a9c06a4a86">LoRA: Low-Rank Adaptation Forward Pass — A Deep Dive (Medium, independent exposition)</a></div><div><a href="https://arxiv.org/html/2106.09685">LoRA: Low-Rank Adaptation of Large Language Models (Hu et al. 2021) — arXiv HTML</a></div><div><a href="https://huggingface.co/docs/peft/main/en/conceptual_guides/lora">PEFT Conceptual Guide: LoRA — Hugging Face Documentation</a></div><div><a href="https://raw.githubusercontent.com/microsoft/LoRA/main/loralib/layers.py">Microsoft LoRA reference implementation — loralib/layers.py (raw)</a></div><div><a href="https://arxiv.org/abs/2106.09685">LoRA: Low-Rank Adaptation of Large Language Models (arXiv:2106.09685)</a></div><div><a href="https://en.wikipedia.org/wiki/LoRA_(machine_learning)">LoRA (machine learning) — Wikipedia</a></div><div><a href="https://arxiv.org/html/2511.00050">FLoRA: Fused forward-backward adapters (arXiv 2511.00050) — confirme la latence LoRA non-mergé et la comparaison avec adapters séquentiels</a></div><div><a href="https://docs.fireworks.ai/guides/understanding_lora_performance">Understanding LoRA performance — Fireworks AI Docs</a></div><div><a href="https://huggingface.co/docs/peft/main/conceptual_guides/lora">LoRA conceptual guide — Hugging Face PEFT docs</a></div><div><a href="https://unsloth.ai/docs/get-started/fine-tuning-llms-guide/lora-hyperparameters-guide">LoRA hyperparameters guide — Unsloth docs</a></div><div><a href="https://arxiv.org/html/2312.03732v1">A Rank Stabilization Scaling Factor for Fine-Tuning with LoRA (rsLoRA, arxiv 2312.03732)</a></div><div><a href="https://arxiv.org/html/2501.00365v1">Low-Rank Adaptation for Foundation Models: A Comprehensive Review (arxiv 2501.00365)</a></div><div><a href="https://arxiv.org/abs/2312.03732">A Rank Stabilization Scaling Factor for Fine-Tuning with LoRA (Kalajdzievski, 2023) — arXiv:2312.03732</a></div><div><a href="https://www.marktechpost.com/2026/04/26/the-lora-assumption-that-breaks-in-production/">The LoRA Assumption That Breaks in Production — MarkTechPost</a></div><div><a href="https://www.databricks.com/blog/efficient-fine-tuning-lora-guide-llms">Efficient Fine-Tuning with LoRA: A Guide to Optimal Parameter Selection for Large Language Models — Databricks</a></div><div><a href="https://thinkingmachines.ai/blog/lora/">LoRA Without Regret — Thinking Machines Lab</a></div><div><a href="https://www.amazon.science/blog/optimizing-lora-target-module-selection-for-efficient-fine-tuning">Optimizing LoRA target module selection for efficient fine-tuning (Amazon Science)</a></div><div><a href="https://ar5iv.labs.arxiv.org/html/2210.05643">A Kernel-Based View of Language Model Fine-Tuning — Malladi et al. 2022 (arXiv:2210.05643)</a></div><div><a href="https://arxiv.org/abs/2210.05643">A Kernel-Based View of Language Model Fine-Tuning — Malladi et al. (arXiv 2210.05643, ICML 2023)</a></div><div><a href="https://arxiv.org/html/2312.03732">rsLoRA: A Rank Stabilization Scaling Factor for Fine-Tuning of Large Language Models (Kalajdzievski, 2023) — arXiv:2312.03732</a></div><div><a href="https://arxiv.org/abs/2402.16842">Asymmetry in Low-Rank Adapters of Foundation Models (Zhu et al., ICML 2024)</a></div><div><a href="https://arxiv.org/abs/2501.00365">Low-Rank Adaptation for Foundation Models: A Comprehensive Review (Yang et al., 2025) — arXiv:2501.00365</a></div><div><a href="https://dev.to/natnael_alemseged/why-merged-lora-barely-changes-inference-time-2mhj">Why Merged LoRA Barely Changes Inference Time — DEV Community</a></div><div><a href="https://arxiv.org/abs/2410.21228">LoRA vs Full Fine-tuning: An Illusion of Equivalence (arXiv:2410.21228)</a></div><div><a href="https://github.com/huggingface/peft/issues/2105">merge_and_unload docs do not clarify behaviour for quantized base models — PEFT issue #2105</a></div><div><a href="https://openreview.net/forum?id=nZeVKeeFYf9">LoRA: Low-Rank Adaptation of Large Language Models (ICLR 2022, OpenReview)</a></div><div><a href="https://arxiv.org/html/2405.17741">LoRA-Switch: Boosting the Efficiency of Dynamic LLM Adapters via System-Algorithm Co-design (arXiv 2405.17741)</a></div><div><a href="https://www.lmsys.org/blog/2023-11-15-slora/">S-LoRA: Serving Thousands of Concurrent LoRA Adapters (LMSYS Blog, 2023)</a></div><div><a href="https://huggingface.co/docs/peft/developer_guides/model_merging">PEFT Developer Guide — Model Merging (Hugging Face)</a></div><div><a href="https://huggingface.co/docs/peft/en/package_reference/lora">PEFT Package Reference — LoraModel.add_weighted_adapter (Hugging Face)</a></div><div><a href="https://huggingface.co/docs/peft/v0.19.0/en/package_reference/lora#peft.LoraModel.add_weighted_adapter">PEFT — LoraModel.add_weighted_adapter API reference (v0.19.0)</a></div><div><a href="https://manalelaidouni.github.io/4Bit-Quantization-Models-QLoRa.html">4-Bit Quantization Models &amp; QLoRA — Manal El Aidouni</a></div><div><a href="https://mccormickml.com/2024/09/14/qlora-and-4bit-quantization/">QLoRA and 4-bit Quantization — Chris McCormick</a></div><div><a href="https://arxiv.org/abs/2305.14314">QLoRA: Efficient Finetuning of Quantized LLMs (arXiv:2305.14314)</a></div><div><a href="https://proceedings.neurips.cc/paper_files/paper/2023/hash/1feb87871436031bdc0f2beaa62a049b-Abstract-Conference.html">QLORA — NeurIPS 2023 Proceedings (Abstract)</a></div><div><a href="https://www.emergentmind.com/topics/4-bit-normalfloat-nf4-quantization">4-bit NormalFloat (NF4) Quantization — Emergent Mind</a></div><div><a href="https://medium.com/@niraj.h/deep-dive-into-quantization-in-qlora-1f82e04a4673">Deep Dive Into Quantization in QLoRA (Medium/@niraj.h)</a></div><div><a href="https://medium.com/@tayyibgondal2003/one-stop-guide-for-qlora-72abbad9fd0f">One stop guide for QLoRA — Tayyib Ul Hassan Gondal (Medium)</a></div><div><a href="https://sh-tsang.medium.com/brief-review-qlora-efficient-finetuning-of-quantized-llms-6f20a7255701">Brief Review: QLoRA — sh-tsang (Medium)</a></div><div><a href="https://huggingface.co/papers/2305.14314">QLoRA paper page — Hugging Face (confirming 780 GB figure explicitly)</a></div><div><a href="https://www.marktechpost.com/2023/08/01/meet-qlora-an-efficient-finetuning-approach-that-reduces-memory-usage-enough-to-finetune-a-65b-parameter-model-on-a-single-48gb-gpu-while-preserving-full-16-bit-finetuning-task-performance/">Meet QLORA: An Efficient Finetuning Approach — MarkTechPost</a></div><div><a href="https://arxiv.org/abs/2311.10702">Camels in a Changing Climate: Enhancing LM Adaptation with TÜLU 2 (Ivison et al., 2023)</a></div><div><a href="https://arxiv.org/html/2410.21228v3">LoRA vs Full Fine-tuning: An Illusion of Equivalence (2024)</a></div><div><a href="https://arxiv.org/abs/2402.09353">DoRA: Weight-Decomposed Low-Rank Adaptation (arXiv 2402.09353)</a></div><div><a href="https://proceedings.mlr.press/v235/liu24bn.html">DoRA: Weight-Decomposed Low-Rank Adaptation (ICML 2024, PMLR v235)</a></div><div><a href="https://github.com/NVlabs/DoRA">NVlabs/DoRA — Official GitHub repository</a></div><div><a href="https://arxiv.org/html/2402.09353">DoRA: Weight-Decomposed Low-Rank Adaptation (arXiv HTML, paper original)</a></div><div><a href="https://magazine.sebastianraschka.com/p/lora-and-dora-from-scratch">Improving LoRA: Implementing Weight-Decomposed Low-Rank Adaptation (DoRA) from Scratch — Sebastian Raschka</a></div><div><a href="https://medium.com/@az.tayyebi/dora-surpasses-lora-a-new-frontier-in-weight-decomposed-low-rank-adaptation-c0602a3c060c">DoRA Surpasses LoRA: A New Frontier in Weight-Decomposed Low-Rank Adaptation (Medium, az.tayyebi)</a></div><div><a href="https://arxiv.org/abs/2303.10512">AdaLoRA: Adaptive Budget Allocation for Parameter-Efficient Fine-Tuning (arXiv:2303.10512)</a></div><div><a href="https://ar5iv.labs.arxiv.org/abs/2303.10512">AdaLoRA: Adaptive Budget Allocation for Parameter-Efficient Fine-Tuning (ar5iv HTML rendering of arXiv:2303.10512)</a></div><div><a href="https://arxiv.org/html/2409.10673v1">A Bayesian Interpretation of Adaptive Low-Rank Adaptation (arXiv:2409.10673)</a></div><div><a href="https://arxiv.org/abs/2404.02948">PiSSA: Principal Singular Values and Singular Vectors Adaptation of Large Language Models (arXiv:2404.02948, NeurIPS 2024 Spotlight)</a></div><div><a href="https://github.com/huggingface/peft/blob/main/docs/source/developer_guides/lora.md">Hugging Face PEFT Documentation — LoRA developer guide (PiSSA section, maintained by Hugging Face team)</a></div><div><a href="https://arxiv.org/abs/2602.09492">Beware of the Batch Size: Hyperparameter Bias in Evaluating LoRA (Lee &amp; Lee, 2025)</a></div><div><a href="https://arxiv.org/html/2602.04998v1">Learning Rate Matters: Vanilla LoRA May Suffice for LLM Fine-tuning (arxiv 2602.04998, 2025)</a></div><div><a href="https://arxiv.org/html/2311.03285">S-LoRA: Serving Thousands of Concurrent LoRA Adapters — arXiv 2311.03285 (HTML)</a></div><div><a href="https://arxiv.org/abs/2311.03285">S-LoRA: Serving Thousands of Concurrent LoRA Adapters (arXiv paper, UC Berkeley / LMSYS)</a></div><div><a href="https://medium.com/@mukulranjan/serving-thousands-of-concurrent-lora-adapters-6b407e8df516">Serving Thousands of Concurrent LoRA Adapters — Medium (Mukul Ranjan)</a></div><div><a href="https://introl.com/blog/fine-tuning-infrastructure-lora-qlora-peft-scale-guide-2025">Fine-Tuning Infrastructure: LoRA, QLoRA, and PEFT at Scale (Introl, 2025)</a></div><div><a href="https://medium.com/@AntonioVFranco/qdora-explained-the-new-peft-standard-for-2025-5cf59afeb6ba">QDoRA Explained: The New PEFT Standard for 2025 (Medium, Antonio V. Franco)</a></div><div><a href="https://arxiv.org/html/2410.21228v1">LoRA vs Full Fine-tuning: An Illusion of Equivalence — arXiv:2410.21228</a></div><div><a href="https://developer.nvidia.com/blog/seamlessly-deploying-a-swarm-of-lora-adapters-with-nvidia-nim/">Seamlessly Deploying a Swarm of LoRA Adapters with NVIDIA NIM</a></div><div><a href="https://docs.nvidia.com/nim/large-language-models/1.15.0/peft.html">Parameter-Efficient Fine-Tuning — NVIDIA NIM for LLMs v1.15.0 (official docs)</a></div><div><a href="https://arxiv.org/html/2410.21228">LoRA Fine-tuning Introduces Intruder Dimensions (arXiv:2410.21228)</a></div><div><a href="https://magazine.sebastianraschka.com/p/practical-tips-for-finetuning-llms">Practical Tips for Finetuning LLMs Using LoRA (Sebastian Raschka)</a></div><div><a href="https://lightning.ai/pages/community/lora-insights/">Finetuning LLMs with LoRA and QLoRA: Insights from Hundreds of Experiments (Lightning AI)</a></div><div><a href="https://huggingface.co/docs/peft/developer_guides/lora">PEFT LoRA Developer Guide — DoRA section (Hugging Face)</a></div><div><a href="https://github.com/huggingface/peft">huggingface/peft — GitHub repository (v0.19.1, released April 16 2026)</a></div><div><a href="https://huggingface.co/docs/peft/en/task_guides/lora_based_methods">LoRA-based methods — PEFT task guide (HuggingFace official docs)</a></div><div><a href="https://github.com/huggingface/peft/releases/tag/v0.19.1">PEFT GitHub releases — v0.19.1 (April 16, 2025)</a></div><div><a href="https://huggingface.co/docs/peft/en/developer_guides/lora">HuggingFace PEFT docs — LoRA developer guide (DoRA as use_dora flag, rsLoRA as use_rslora flag)</a></div><div><a href="https://huggingface.co/blog/unsloth-trl">Unsloth x TRL — HuggingFace blog (benchmarks mesurés sur 59 runs, A100 + T4)</a></div><div><a href="https://github.com/unslothai/unsloth">unslothai/unsloth — README GitHub (chiffres officiels headline : up to 2×, up to 70%)</a></div><div><a href="https://medium.com/@balci.pelin/unsloth-vs-standard-training-92d4c35b8ad8">Unsloth vs Standard Training — Pelin Balci, Medium (test indépendant : 4× speed, ~50–70% VRAM, baseline QLoRA 4-bit T4)</a></div><div><a href="https://unsloth.ai/docs/blog/3x-faster-training-packing">3x Faster LLM Training with Unsloth Kernels + Packing – Unsloth Docs</a></div><div><a href="https://huggingface.co/docs/peft/en/package_reference/peft_model">PEFT PeftModel API Reference — merge_and_unload()</a></div><div><a href="https://huggingface.co/docs/peft/en/conceptual_guides/adapter">PEFT – Adapters conceptual guide (merge_and_unload &amp; LoRA overview)</a></div></section>
+<section id="pointers"><h3>Pour aller plus loin</h3><div class="xptr-grid"><div class="xptr"><a class="xptr-name" href="https://huggingface.co/docs/peft/en/package_reference/lora">PEFT — LoraConfig reference</a><span class="xptr-kind">library</span><p class="xptr-blurb">Documentation officielle de LoraConfig dans PEFT (Hugging Face) : paramètres r, lora_alpha, target_modules, rank_pattern, alpha_pattern, use_rslora, use_dora, ainsi que LoraModel et add_weighted_adapter().</p></div>
+<div class="xptr"><a class="xptr-name" href="https://huggingface.co/docs/peft/developer_guides/lora">PEFT — LoRA Developer Guide</a><span class="xptr-kind">library</span><p class="xptr-blurb">Guide développeur PEFT couvrant DoRA, rsLoRA, PiSSA, les couches MoE via target_parameters, le batching multi-adaptateurs et la fusion des poids.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://huggingface.co/docs/peft/main/conceptual_guides/lora">PEFT — Conceptual guide: LoRA</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Guide conceptuel Hugging Face couvrant la décomposition ΔW = BA, l'initialisation, le scaling α/r, rsLoRA et la sélection des target_modules.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://huggingface.co/docs/peft/developer_guides/model_merging">PEFT — Model Merging (TIES / DARE)</a><span class="xptr-kind">library</span><p class="xptr-blurb">Guide développeur sur la combinaison multi-adaptateurs via add_weighted_adapter() avec les méthodes TIES et DARE, avec exemples de code complets.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2106.09685">LoRA: Low-Rank Adaptation of Large Language Models — Hu et al. 2021</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Article fondateur présentant l'intrinsic rank hypothesis, l'initialisation BA, le scaling α/r et les résultats empiriques sur r = 1–64.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2312.03732">rsLoRA — A Rank Stabilization Scaling Factor for Fine-Tuning with LoRA</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Papier de Kalajdzievski (2023) prouvant que α/√r est le scaling optimal pour LoRA à rang variable, base théorique de use_rslora dans PEFT.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2303.10512">AdaLoRA — Adaptive Budget Allocation for Parameter-Efficient Fine-Tuning</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Papier AdaLoRA (ICLR 2023) : allocation adaptative du budget de rang via paramétrage SVD et scoring d'importance des triplets singuliers.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2402.09353">DoRA — Weight-Decomposed Low-Rank Adaptation</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Papier DoRA (ICML 2024 Oral) : décomposition magnitude/direction, analyse du couplage comparé au fine-tuning complet, résultats sur LLaMA, LLaVA et VL-BART.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2402.12354">LoRA+ — Efficient Low Rank Adaptation of Large Models</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Papier LoRA+ (Hayou et al., 2024) démontrant que fixer des learning rates asymétriques η_B ≫ η_A améliore la convergence à coût computationnel constant.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2308.03303">LoRA-FA — Memory-Efficient Low-Rank Adaptation</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Variante mémoire-efficace qui gèle A et n'entraîne que B, motivée par une borne de généralisation plus serrée.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2410.21228">LoRA vs Full Fine-tuning: An Illusion of Equivalence</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Analyse SVD montrant que LoRA produit des « intruder dimensions » absentes du fine-tuning complet et identifiant ces dimensions comme cause causale de l'oubli catastrophique.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/html/2501.00365v1">Low-Rank Adaptation for Foundation Models: A Comprehensive Review — 2025</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Revue 2025 unifiant les bornes NTK, les bornes de généralisation (LoRA-FA), les limites d'expressivité et l'analyse de LoRA+, étendue aux modèles de fondation au-delà des LLM.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2311.03285">S-LoRA — Serving Thousands of Concurrent LoRA Adapters</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Article de référence décrivant Unified Paging, les kernels CUDA hétérogènes et les résultats de throughput sur A100 pour le serving massif de LoRA.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2310.18547">Punica — Multi-Tenant LoRA Serving</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Système précurseur de S-LoRA dont les kernels CUDA de batching (opérations fusionnées pour des adaptateurs différents) ont inspiré les développements ultérieurs.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://huggingface.co/papers/2306.01708">TIES-Merging — Resolving Interference When Merging Models</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Papier fondateur de TIES (TrIm, Elect, and Merge) : méthode de fusion multi-modèles gérant les signes conflictuels, intégrée à add_weighted_adapter() dans PEFT.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://huggingface.co/papers/2311.03099">DARE — Language Models are Super Mario (Drop And REscale)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Drop And REscale : élagage aléatoire suivi d'un rescaling éliminant jusqu'à 99 % des delta-paramètres redondants avant fusion, utilisable en préparation de TIES dans PEFT.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://github.com/microsoft/LoRA">microsoft/LoRA — implémentation de référence (loralib)</a><span class="xptr-kind">implementation</span><p class="xptr-blurb">Implémentation originale de l'équipe Microsoft : couches nn.Linear, nn.Embedding et nn.Conv2d avec fusion optionnelle des poids, code canonique du papier Hu et al.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://github.com/NVlabs/DoRA">NVlabs/DoRA — implémentation officielle PyTorch</a><span class="xptr-kind">implementation</span><p class="xptr-blurb">Implémentation officielle PyTorch de DoRA (ICML 2024 Oral), avec scripts de fine-tuning pour LLaMA, LLaVA-1.5 et VL-BART.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://github.com/QingruZhang/AdaLoRA">QingruZhang/AdaLoRA — code officiel</a><span class="xptr-kind">implementation</span><p class="xptr-blurb">Code officiel AdaLoRA (ICLR 2023) implémentant SVDLinear et RankAllocator ; la version maintenue est désormais intégrée dans HuggingFace PEFT.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://github.com/MuLabPKU/PiSSA">MuLabPKU/PiSSA — implémentation officielle</a><span class="xptr-kind">implementation</span><p class="xptr-blurb">Implémentation de PiSSA (NeurIPS 2024 Spotlight) : réinitialisation LoRA sur les composantes singulières dominantes de W₀, avec scripts pour LLaMA et Qwen.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://www.databricks.com/blog/efficient-fine-tuning-lora-guide-llms">Databricks — LoRA hyperparameter guide</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Guide empirique comparant r = 8 vs r = 16, attention-only vs all-linear, LoRA vs QLoRA sur des benchmarks réels avec OpenLLaMA.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://magazine.sebastianraschka.com/p/practical-tips-for-finetuning-llms">Practical Tips for Fine-tuning LLMs Using LoRA (Raschka)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Guide empirique sur le choix du rang, des modules cibles, du nombre d'epochs et des tradeoffs QLoRA, avec mesures mémoire et runtime reproductibles.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://unsloth.ai/docs/get-started/fine-tuning-llms-guide/lora-hyperparameters-guide">Unsloth — LoRA hyperparameters guide</a><span class="xptr-kind">tool</span><p class="xptr-blurb">Guide pratique d'Unsloth sur le choix de r, alpha et target_modules, avec recommandations sur rsLoRA, all-linear et prévention du surapprentissage.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://www.lmsys.org/blog/2023-11-15-slora/">S-LoRA — LMSYS blog post</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Présentation accessible des trois innovations S-LoRA (Unified Paging, batching hétérogène, parallélisme tensoriel) avec tableaux de benchmarks comparatifs.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://developer.nvidia.com/blog/seamlessly-deploying-a-swarm-of-lora-adapters-with-nvidia-nim/">NVIDIA NIM LoRA serving — swarm d'adaptateurs</a><span class="xptr-kind">tool</span><p class="xptr-blurb">Article NVIDIA détaillant le cache multi-niveaux GPU/hôte et la méthode SplitK/CUTLASS pour le serving hétérogène de swarms d'adaptateurs LoRA.</p></div></div></section>
+<section id="glossaire"><h3>Glossaire</h3><div class="gloss-grid"><div class="gterm"><span class="gt-name">Low-Rank Adaptation (LoRA)</span><p class="gt-def">Adaptation de bas rang : méthode de fine-tuning efficace en paramètres (PEFT) qui gèle les poids pré-entraînés W₀ et n'entraîne qu'une mise à jour factorisée ΔW = B·A, avec A ∈ ℝ^{r×k}, B ∈ ℝ^{d×r} et r ≪ min(d, k). Le forward pass devient h = W₀x + (α/r)·BAx ; B est initialisé à zéro (et A en Kaiming-uniforme par défaut dans PEFT, gaussien dans le papier original), de sorte que ΔW = 0 au départ — c'est B = 0, et non le schéma d'initialisation de A, qui garantit cette propriété. Sur GPT-3 175B, cibler W_q et W_v à r=4 réduit les paramètres entraînables d'un facteur ~10 000 et la mémoire GPU d'un facteur ~3 face à un fine-tuning complet avec Adam.</p><p class="gt-see">→ Rank r and alpha (scaling factor), Weight merging (merge_and_unload), QLoRA (4-bit NormalFloat)</p></div>
+<div class="gterm"><span class="gt-name">Rank r and alpha (scaling factor)</span><p class="gt-def">Rang r et facteur alpha : les deux hyperparamètres clés de LoRA. Le rang r fixe la dimension du goulot d'étranglement de bas rang (donc le budget de paramètres et la capacité) ; il n'existe aucune heuristique fiable pour le choisir, le rang optimal étant entièrement tâche- et données-dépendant. Le coefficient α pilote le facteur d'échelle α/r de l'adaptateur, traité par les auteurs originaux comme un learning rate effectif. La règle α = 2r est une heuristique communautaire (et non une recommandation des auteurs ni une nécessité aux rangs élevés) ; pour les rangs élevés, la littérature (rsLoRA) recommande plutôt le scaling α/√r.</p><p class="gt-see">→ Low-Rank Adaptation (LoRA), rsLoRA (rank-stabilized scaling)</p></div>
+<div class="gterm"><span class="gt-name">rsLoRA (rank-stabilized scaling)</span><p class="gt-def">Rank-stabilized LoRA : variante remplaçant le facteur d'échelle α/r par α/√r. Le Théorème 3.2 (Kalajdzievski 2023) établit que γ_r ∈ Θ(1/√r) est la condition nécessaire et suffisante de rang-stabilisation : le scaling original α/r ne la satisfait pas pour r grand et provoque un gradient collapse (effondrement du gradient de l'adaptateur), alors que α/√r le corrige. Avec γ_r = α/r, le m-ième moment de la sortie vaut Θ((α²/r)^m) → 0 quand r → ∞ ; avec α/√r, il vaut Θ(1), indépendant de r. La stabilité des activations, en revanche, n'est pas clairement établie. Exposé dans PEFT via use_rslora=True.</p><p class="gt-see">→ Rank r and alpha (scaling factor)</p></div>
+<div class="gterm"><span class="gt-name">Weight merging (merge_and_unload)</span><p class="gt-def">Fusion des poids à l'inférence : à l'exécution, l'adaptateur se replie dans les poids d'origine, W_merged = W₀ + (α/r)·BA, ce qui supprime tout surcoût de latence — contrairement aux adapter layers séquentiels, qui ajoutent des couches dans le chemin de calcul. PEFT l'expose via merge_and_unload(), qui retourne un objet transformers standard sans couche supplémentaire. Nuance vérifiée : la fusion rend la latence identique à celle du modèle de base, mais le modèle fusionné n'est PAS structurellement identique à un fine-tuning complet — LoRA introduit des intruder dimensions absentes du fine-tuning complet. En mode non fusionné (serving multi-adaptateurs), LoRA réintroduit un surcoût de calcul, qui reste néanmoins inférieur à celui des adapter layers classiques.</p><p class="gt-see">→ Low-Rank Adaptation (LoRA), Intruder dimensions, S-LoRA (multi-adapter serving)</p></div>
+<div class="gterm"><span class="gt-name">QLoRA (4-bit NormalFloat)</span><p class="gt-def">Quantized LoRA : fine-tuning d'un modèle de base quantifié en 4 bits, les adaptateurs LoRA restant en bf16 pour la rétropropagation. Les poids gelés sont quantifiés en NF4 (4-bit NormalFloat), un type dont les 16 niveaux sont les quantiles d'une distribution normale, information-théoriquement optimal pour des poids gaussiens ; la double quantification re-quantifie les constantes d'échelle et économise ~0,37 bit/paramètre. QLoRA atteint 99,3 % des performances de ChatGPT sur Vicuna avec Guanaco-65B entraîné en 24 h sur un seul GPU de 48 Go, contre plus de 780 Go de VRAM pour le fine-tuning complet en 16 bits. La parité avec le fine-tuning complet tient sur les tâches fermées (MMLU) mais un écart subsiste en génération ouverte.</p><p class="gt-see">→ Low-Rank Adaptation (LoRA), Full fine-tuning equivalence (intruder dimensions)</p></div>
+<div class="gterm"><span class="gt-name">DoRA and AdaLoRA (variants)</span><p class="gt-def">Deux variantes de référence. DoRA (Weight-Decomposed Low-Rank Adaptation) décompose W₀ en une composante de magnitude m et une composante directionnelle, puis applique LoRA sur la direction avant normalisation : W' = m̄ · (W₀ + BA)/‖W₀ + BA‖_c ; son profil de changement magnitude/direction (corrélation négative −0,31) se rapproche du fine-tuning complet (−0,62), là où LoRA montre une corrélation positive (0,83). AdaLoRA paramétrise ΔW = PΛQ (singular value decomposition) et alloue le rang de façon adaptative via un score d'importance par triplet singulier (sensibilité + incertitude), piloté par un budget scheduler à décroissance cubique.</p><p class="gt-see">→ Low-Rank Adaptation (LoRA), Rank r and alpha (scaling factor)</p></div>
+<div class="gterm"><span class="gt-name">S-LoRA (multi-adapter serving)</span><p class="gt-def">Serving à l'échelle de milliers d'adaptateurs concurrents : S-LoRA calcule les deltas LoRA on-the-fly (à la volée) plutôt que de fusionner les poids, ce qui permet de servir des adaptateurs distincts par requête. Son Unified Paging utilise une taille de page égale à la dimension cachée H, valeur commune au KV cache (forme S×H) et aux poids d'adaptateurs (forme R×H), co-gérés dans un unique pool mémoire, ce qui réduit significativement (sans l'éliminer) la fragmentation. S-LoRA atteint jusqu'à 4× le throughput de vLLM-packed et jusqu'à 30× celui de Hugging Face PEFT, maintenant 7,6–8,0 req/s avec 2 000 adaptateurs simultanés sur un A100 80 Go.</p><p class="gt-see">→ Weight merging (merge_and_unload), Low-Rank Adaptation (LoRA)</p></div></div></section>
+</main>
+</div>
+<!-- ───────────────────────────────────────────────────────────────────
+     COUCHE THÈME — bouton bascule dark-mode + infobulles de glossaire.
+     Extrait du widget theme-tooltips (CSS exclus : voir charte.css).
+     Injecté verbatim dans toutes les éditions à l'emplacement du jeton THEME_LAYER.
+     ─────────────────────────────────────────────────────────────────── -->
+
+<!-- (B) BOUTON BASCULE -->
+<button id="theme_toggle" type="button" aria-pressed="false"
+        title="Basculer le thème clair / sombre">
+  <span id="theme_toggle_ico" aria-hidden="true">☾</span>
+  <span id="theme_toggle_lbl">Sombre</span>
+</button>
+
+<!-- Popover unique réutilisé (créé aussi par JS en secours) -->
+<div id="theme_tip" role="tooltip" aria-hidden="true"></div>
+
+<!-- SCRIPT — (B) bascule + persistance, (C) infobulles accessibles.
+     Tout en IIFE, fonctions préfixées theme_. Aucun alert. -->
+<script>
+(function(){
+  "use strict";
+  var KEY = "theme_pref_v1";
+  var docEl = document.documentElement;
+
+  /* ---- stockage sûr : jamais d'erreur si localStorage indisponible ---- */
+  function theme_read(){
+    try { return window.localStorage.getItem(KEY); } catch(e){ return null; }
+  }
+  function theme_write(v){
+    try { window.localStorage.setItem(KEY, v); } catch(e){ /* silencieux */ }
+  }
+
+  /* ---- (B) application du thème ---- */
+  function theme_apply(mode, persist){
+    var dark = (mode === "dark");
+    if (dark) docEl.setAttribute("data-theme","dark");
+    else docEl.removeAttribute("data-theme");
+    var btn = document.getElementById("theme_toggle");
+    if (btn){
+      btn.setAttribute("aria-pressed", dark ? "true" : "false");
+      var ico = document.getElementById("theme_toggle_ico");
+      var lbl = document.getElementById("theme_toggle_lbl");
+      if (ico) ico.textContent = dark ? "☀" : "☾";
+      if (lbl) lbl.textContent = dark ? "Clair" : "Sombre";
+    }
+    if (persist) theme_write(dark ? "dark" : "light");
+  }
+
+  /* Appliquer la préférence au plus tôt (limite le flash). */
+  theme_apply(theme_read() === "dark" ? "dark" : "light", false);
+
+  function theme_initToggle(){
+    var btn = document.getElementById("theme_toggle");
+    if (!btn) return;
+    btn.addEventListener("click", function(){
+      docEl.classList.add("theme-anim"); /* transitions seulement sur action */
+      var nowDark = docEl.getAttribute("data-theme") === "dark";
+      theme_apply(nowDark ? "light" : "dark", true);
+    });
+  }
+
+  /* ---- (C) infobulles accessibles ---- */
+  var tip = null, current = null, uid = 0;
+
+  function theme_tipEl(){
+    if (tip) return tip;
+    tip = document.getElementById("theme_tip");
+    if (!tip){
+      tip = document.createElement("div");
+      tip.id = "theme_tip";
+      tip.setAttribute("role","tooltip");
+      tip.setAttribute("aria-hidden","true");
+      document.body.appendChild(tip);
+    }
+    return tip;
+  }
+
+  function theme_show(el){
+    var def = el.getAttribute("data-def");
+    if (!def) return;
+    var t = theme_tipEl();
+    t.textContent = def; /* textContent : aucune injection HTML possible */
+    if (!el.id) el.id = "theme_gloss_" + (++uid);
+    t.id = "theme_tip"; /* stable */
+    el.setAttribute("aria-describedby", "theme_tip");
+
+    /* mesure puis positionnement (au-dessus si la place le permet) */
+    t.style.left = "0px"; t.style.top = "0px";
+    t.setAttribute("aria-hidden","false");
+    t.setAttribute("data-show","1");
+
+    var r = el.getBoundingClientRect();
+    var tw = t.offsetWidth, th = t.offsetHeight;
+    var sx = window.pageXOffset, sy = window.pageYOffset;
+    var margin = 8;
+
+    var left = r.left + sx + (r.width/2) - (tw/2);
+    left = Math.max(sx + margin, Math.min(left, sx + document.documentElement.clientWidth - tw - margin));
+
+    var below = (r.top < th + 12); /* pas de place au-dessus → on passe dessous */
+    var top = below ? (r.bottom + sy + 8) : (r.top + sy - th - 8);
+    if (below) t.setAttribute("data-below","1"); else t.removeAttribute("data-below");
+
+    /* recentre la flèche sur le terme */
+    var ax = (r.left + sx + r.width/2) - left;
+    ax = Math.max(8, Math.min(ax, tw - 16));
+    t.style.setProperty("--theme-tip-ax", ax + "px");
+
+    t.style.left = left + "px";
+    t.style.top = top + "px";
+    current = el;
+  }
+
+  function theme_hide(){
+    if (!tip) return;
+    tip.removeAttribute("data-show");
+    tip.setAttribute("aria-hidden","true");
+    if (current){
+      current.removeAttribute("aria-describedby");
+      current = null;
+    }
+  }
+
+  function theme_wire(el){
+    if (el.getAttribute("data-theme-wired")) return;
+    el.setAttribute("data-theme-wired","1");
+    if (!el.hasAttribute("tabindex")) el.setAttribute("tabindex","0");
+    el.addEventListener("mouseenter", function(){ theme_show(el); });
+    el.addEventListener("mouseleave", theme_hide);
+    el.addEventListener("focus", function(){ theme_show(el); });
+    el.addEventListener("blur", theme_hide);
+  }
+
+  function theme_scan(root){
+    var nodes = (root || document).querySelectorAll(".theme-gloss[data-def]");
+    for (var i=0;i<nodes.length;i++) theme_wire(nodes[i]);
+  }
+
+  /* Échap referme ; un défilement masque l'infobulle (position figée sinon) */
+  document.addEventListener("keydown", function(e){
+    if (e.key === "Escape" || e.keyCode === 27) theme_hide();
+  });
+  window.addEventListener("scroll", theme_hide, true);
+
+  /* Termes ajoutés dynamiquement après coup */
+  function theme_observe(){
+    if (typeof MutationObserver === "undefined") return;
+    var mo = new MutationObserver(function(muts){
+      for (var i=0;i<muts.length;i++){
+        var added = muts[i].addedNodes;
+        for (var j=0;j<added.length;j++){
+          var n = added[j];
+          if (n.nodeType === 1){
+            if (n.classList && n.classList.contains("theme-gloss")) theme_wire(n);
+            if (n.querySelectorAll) theme_scan(n);
+          }
+        }
+      }
+    });
+    mo.observe(document.body, {childList:true, subtree:true});
+  }
+
+  /* ---- init ---- */
+  function theme_init(){
+    theme_apply(theme_read() === "dark" ? "dark" : "light", false);
+    theme_initToggle();
+    theme_scan(document);
+    theme_observe();
+  }
+  if (document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", theme_init);
+  } else {
+    theme_init();
+  }
+})();
+</script>
+
+<footer><div class="fin">LoRA : adaptation de bas rang pour le fine-tuning efficace en paramètres des LLM · scriptorium</div></footer>
+<script>
+  const prog=document.getElementById('prog');
+  const onScroll=()=>{const h=document.documentElement;const sc=h.scrollTop;const max=h.scrollHeight-h.clientHeight;
+    prog.style.width=(max>0?(sc/max*100):0)+'%';};
+  document.addEventListener('scroll',onScroll,{passive:true});onScroll();
+  const links=[...document.querySelectorAll('nav.toc a')];
+  const map=new Map(links.map(a=>[a.getAttribute('href').slice(1),a]));
+  const obs=new IntersectionObserver((entries)=>{entries.forEach(e=>{
+    if(e.isIntersecting){links.forEach(l=>l.classList.remove('active'));
+      const a=map.get(e.target.id); if(a)a.classList.add('active');}});
+  },{rootMargin:'-12% 0px -78% 0px',threshold:0});
+  document.querySelectorAll('section[id]').forEach(s=>obs.observe(s));
+</script>
+</body></html>

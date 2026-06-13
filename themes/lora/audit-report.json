@@ -1,0 +1,1135 @@
+{
+  "generator": "frugalmonograph",
+  "regenerated": "déterministe depuis .frugalmonograph/sec-*.json + knowledge.json (agent write:audit-report > 32000 tokens de sortie lors du run)",
+  "theme": {
+    "slug": "lora",
+    "title": "LoRA : adaptation de bas rang pour le fine-tuning efficace en paramètres des LLM"
+  },
+  "summary": {
+    "sections_total": 9,
+    "sections_retained": 9,
+    "claims_total": 36,
+    "confirmed": 7,
+    "corrected": 26,
+    "rejected": 3,
+    "retained": 33
+  },
+  "claims": [
+    {
+      "id": "claim:1",
+      "section": "principe-et-formulation",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Dans LoRA, la mise à jour de poids est factorisée sous la forme ΔW = B·A, avec A ∈ ℝ^{r×k}, B ∈ ℝ^{d×r} et r ≪ min(d, k), et le forward pass s'écrit h = W₀x + (α/r)·BAx, les poids W₀ restant gelés tout au long de l'entraînement.",
+      "original_statement": "Dans LoRA, la mise à jour de poids est factorisée sous la forme ΔW = B·A, avec A ∈ ℝ^{r×k}, B ∈ ℝ^{d×r} et r ≪ min(d, k), et le forward pass s'écrit h = W₀x + (α/r)·BAx, les poids W₀ restant gelés tout au long de l'entraînement.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "La Section 4.1 du papier original confirme mot pour mot : B∈ℝ^{d×r}, A∈ℝ^{r×k}, r≪min(d,k), forward pass h=W₀x+BAx avec mise à l'échelle α/r sur ΔWx, et W₀ gelés. L'énoncé est exact, y compris l'ordre des matrices dans le produit B·A. Attention : un résultat de recherche web erroné inversait A et B — la source primaire fait foi."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Toutes les composantes de l'énoncé sont confirmées par la section 4.1 du papier original : ΔW = BA, A ∈ ℝ^{r×k}, B ∈ ℝ^{d×r}, r ≪ min(d,k), W₀ gelé. Nuance : le papier écrit h = W₀x + BAx et mentionne le facteur α/r séparément (\"We then scale ΔWx by α/r\"), mais la forme condensée h = W₀x + (α/r)·BAx est mathématiquement exacte et universellement adoptée comme représentation complète de la formule."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:2",
+      "section": "principe-et-formulation",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "L'initialisation de A par distribution gaussienne aléatoire et de B à zéro garantit que ΔW = BA = 0 au départ de l'entraînement — propriété qui tient également avec l'initialisation Kaiming-uniforme de A utilisée par défaut dans PEFT, car c'est B = 0 (et non le schéma d'initialisation de A) qui garantit ΔW = 0 dans les deux cas. Le papier original Hu et al. 2021 (section 4.1) spécifie bien une initialisation gaussienne pour A, mais l'implémentation de référence Microsoft (loralib/layers.py) utilise déjà kaiming_uniform_ pour lora_A — c'est cette implémentation que PEFT adopte par défaut, non une déviation de PEFT par rapport au papier seul.",
+      "original_statement": "L'initialisation de A par distribution gaussienne aléatoire et de B à zéro garantit que ΔW = BA = 0 au départ de l'entraînement — ce que garantit également l'initialisation Kaiming-uniforme utilisée par défaut dans PEFT — mais le papier original Hu et al. 2021 spécifie une initialisation gaussienne pour A, non Kaiming-uniforme.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Deux défauts : (1) l'énoncé attribue la propriété ΔW = 0 à l'initialisation de A alors qu'elle découle uniquement de B = 0 (vrai pour Kaiming-uniforme comme pour gaussienne) ; (2) l'initialisation Kaiming-uniforme n'est pas une divergence de PEFT par rapport au papier seulement — l'implémentation de référence des auteurs eux-mêmes (loralib) utilise déjà kaiming_uniform_, et PEFT la suit explicitement. La gaussienne est disponible dans PEFT via init_lora_weights=\"gaussian\" et est décrite comme le schéma de diffusers, non directement comme « le papier Hu et al. »."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le papier original (Hu et al. 2021, arXiv HTML) confirme explicitement : A est initialisée par distribution gaussienne aléatoire, B à zéro, de sorte que ΔW = BA = 0 au début de l'entraînement. La documentation PEFT confirme que l'initialisation par défaut de PEFT utilise bien Kaiming-uniform pour A (et non gaussienne), la gaussienne étant disponible via `init_lora_weights=\"gaussian\"`. L'énoncé est exact sur les trois sous-affirmations."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « L'initialisation de A par distribution gaussienne aléatoire et de B à zéro garantit que ΔW = BA = 0 au départ de l'entraînement — ce que garantit également l'initialisation Kaiming-uniforme utilisée par défaut dans PEFT — mais le papier original Hu et al. 2021 spécifie une initialisation gaussienne pour A, non Kaiming-uniforme. »"
+    },
+    {
+      "id": "claim:3",
+      "section": "principe-et-formulation",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Pour une couche 768→768 avec r = 8, LoRA réduit le nombre de paramètres entraînables de 589 824 à 12 288, soit une réduction d'environ 98 % (et non 95 %) ; à l'échelle de GPT-3 175B, la réduction atteint un facteur 10 000 pour les paramètres entraînables et un facteur 3 pour la mémoire GPU (par rapport à un fine-tuning complet avec Adam).",
+      "original_statement": "Pour une couche 768→768 avec r = 8, LoRA réduit le nombre de paramètres entraînables de 589 824 à 12 288, soit une réduction d'environ 95 % ; à l'échelle de GPT-3 175B, la réduction atteint un facteur 10 000 pour les paramètres et un facteur 3 pour la mémoire GPU.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "L'arithmétique de la couche est correcte (589 824 → 12 288), mais la réduction qui en découle est ≈ 97,9 %, pas ~95 % : l'énoncé sous-estime l'efficacité de LoRA sur ce point précis. Les chiffres GPT-3 (×10 000 paramètres, ×3 mémoire GPU) sont confirmés mot pour mot par l'abstract du papier original, avec la nuance importante qu'ils s'entendent par rapport à un fine-tuning complet avec Adam (r = 4, matrices Q et V uniquement)."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "L'arithmétique 768×768 = 589 824 et 2×768×8 = 12 288 est correcte, mais 12 288/589 824 ≈ 2,08 % de paramètres conservés, soit une réduction de ~97,9 % (facteur 48×), et non ~95 % (qui impliquerait un facteur ~20×). Les chiffres GPT-3 175B (10 000× paramètres, 3× mémoire GPU) sont confirmés verbatim par le papier Hu et al. 2021. La seule erreur de l'énoncé est le pourcentage « ~95 % » appliqué à l'exemple de couche individuelle."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Pour une couche 768→768 avec r = 8, LoRA réduit le nombre de paramètres entraînables de 589 824 à 12 288, soit une réduction d'environ 95 % ; à l'échelle de GPT-3 175B, la réduction atteint un facteur 10 000 pour les paramètres et un facteur 3 pour la mémoire GPU. »"
+    },
+    {
+      "id": "claim:4",
+      "section": "principe-et-formulation",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "À l'inférence, les matrices LoRA peuvent être fusionnées dans les poids d'origine (W_merged = W₀ + (α/r)·BA), éliminant toute latence supplémentaire — contrairement aux adapters séquentiels qui ajoutent des couches dans le chemin de calcul.",
+      "original_statement": "À l'inférence, les matrices LoRA peuvent être fusionnées dans les poids d'origine (W_merged = W₀ + (α/r)·BA), éliminant toute latence supplémentaire — contrairement aux adapters séquentiels qui ajoutent des couches dans le chemin de calcul.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "La formule W_merged = W₀ + (α/r)·BA est exactement celle du papier original (forward pass h = W₀x + (α/r)BAx, Section 4 de Hu et al. 2021). La comparaison avec les adapters séquentiels est documentée par le papier LoRA lui-même (latence mesurée +20–30 % batch=1). Nuance importante mais non invalidante : la fusion est optionnelle — en déploiement multi-adapter (S-LoRA), LoRA non-mergé ajoute bien une latence (~35 % TPOT selon FLoRA 2024) ; mais l'énoncé dit explicitement « peuvent être fusionnées », ce qui est correct."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Le papier original (Hu et al. 2021) formule la fusion comme W = W₀ + BA avec la mise à l'échelle α/r appliquée au terme de mise à jour — écrire W_merged = W₀ + (α/r)·BA est mathématiquement équivalent et largement adopté. Le papier mesure empiriquement un surcoût de latence de 20,7–30,3 % pour les adapters séquentiels (batch size 1) et confirme explicitement que LoRA n'ajoute aucune latence à l'inférence grâce à la fusion. Les trois sources sont indépendantes : papier de recherche primaire, documentation PEFT Hugging Face, et guide opérateur Fireworks AI."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:5",
+      "section": "hyperparametres-rang-alpha-cibles",
+      "section_retained": true,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "Dans le papier original LoRA, adapter conjointement W_q et W_v à rang r = 4 suffit à égaler ou dépasser l'adaptation des quatre matrices d'attention réunies à rang r = 2, sur un budget de paramètres équivalent (GPT-3, WikiSQL 73,7 % / MNLI 91,3 %).",
+      "original_statement": "Dans le papier original LoRA, adapter conjointement W_q et W_v à rang r = 4 suffit à égaler ou dépasser l'adaptation des quatre matrices d'attention réunies à rang r = 2, sur un budget de paramètres équivalent (GPT-3, WikiSQL 73,7 % / MNLI 91,3 %).",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Table 6 du papier montre explicitement que les quatre matrices à r=2 obtiennent 91,7 % sur MNLI contre 91,3 % pour W_q+W_v à r=4, à budget de paramètres identique (18 M). L'énoncé inverse la relation sur MNLI en affirmant que W_q+W_v « égale ou dépasse » la configuration à quatre matrices, ce qui est contredit par les chiffres publiés."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "La Table 5 du papier confirme les chiffres bruts (73,7 % / 91,3 % pour W_q+W_v à r=4), mais la conclusion de l'énoncé est inversée : sur MNLI, c'est la configuration à quatre matrices (r=2) qui surpasse W_q+W_v (r=4) avec 91,7 % contre 91,3 %, soit +0,4 point. L'énoncé attribue à tort la supériorité à W_q+W_v."
+        }
+      ],
+      "audit_note": "Rejeté : 0 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+    },
+    {
+      "id": "claim:6",
+      "section": "hyperparametres-rang-alpha-cibles",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "La convention α = 2r est souvent citée comme une heuristique populaire (par opposition à α = r), mais elle est présentée comme une option parmi d'autres, valable quel que soit le rang — non comme nécessaire spécifiquement pour les rangs élevés. De plus, la littérature technique (RSLoRA) suggère que c'est le scaling α/√r, et non α = 2r, qui est recommandé pour que les adaptateurs de rang élevé exploitent pleinement leur capacité.",
+      "original_statement": "La convention α = 2r est supérieure à α = r pour les rangs élevés de LoRA : elle est décrite comme nécessaire pour que les adaptateurs de rang élevé exploitent pleinement leur capacité expressive.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Aucune des deux sources ne décrit α = 2r comme nécessaire pour les rangs élevés : Unsloth présente α = r et α = 2r comme deux options équivalentes et rank-agnostiques ; HuggingFace PEFT ne mentionne pas du tout α = 2r et recommande au contraire RSLoRA (scaling α/√r) pour stabiliser les adaptateurs de rang élevé. L'énoncé confond une heuristique générale avec une prescription conditionnelle au rang élevé."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 4,
+          "note": "Le papier rsLoRA (source primaire sur le comportement aux rangs élevés) démontre que le scaling standard α/r provoque un effondrement du gradient (gradient collapse) aux rangs élevés, et propose α/√r comme correction — pas α = 2r. Le guide Unsloth cite α = 2r comme heuristique pratique parmi d'autres (α = r est présenté comme également valide), jamais comme une nécessité pour la capacité expressive."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « La convention α = 2r est supérieure à α = r pour les rangs élevés de LoRA : elle est décrite comme nécessaire pour que les adaptateurs de rang élevé exploitent pleinement leur capacité expressive. »"
+    },
+    {
+      "id": "claim:7",
+      "section": "hyperparametres-rang-alpha-cibles",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "rsLoRA remplace le facteur d'échelle α/r par α/√r, ce qui garantit la stabilité des gradients de l'adaptateur quand r augmente (Theorem 3.2 prouve que γ∈Θ(1/√r) est la seule condition pour éviter l'effondrement ou l'instabilité des gradients), corrigeant un défaut structurel du scaling original explicitement qualifié de « gradient collapse ». La stabilité des activations, en revanche, n'est pas clairement établie : l'annexe du papier note que « both methods looked benign » pour les activations, ce qui affaiblit la garantie symétrique annoncée.",
+      "original_statement": "rsLoRA remplace le facteur d'échelle α/r par α/√r, ce qui garantit la stabilité des activations et des gradients de l'adaptateur quand r augmente, corrigeant un défaut structurel du scaling original.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le remplacement α/r → α/√r et la correction du défaut structurel sont confirmés (Theorem 3.2 du papier, relayé par PEFT). Mais l'énoncé affirme une garantie symétrique sur « activations ET gradients » que le papier lui-même tempère : son annexe constate que les activations restent de faible amplitude dans les deux méthodes, sans différence nette — seule la stabilité des gradients est prouvée formellement."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Le papier originel (arXiv 2312.03732, Theorem 3.2) prouve formellement les deux garanties : stabilité en passe avant (moments des activations de sortie restent Θ(1)) et en passe arrière (gradients de la perte vers l'entrée restent Θ(1)), toutes deux conditionnées au facteur γ_r ∈ Θ(1/√r) — ce qui remplace exactement α/r de LoRA standard. La documentation PEFT (organisation indépendante) et l'article MarkTechPost (analyse empirique indépendante) confirment la substitution et l'effet stabilisateur. L'énoncé est exact dans tous ses éléments."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « rsLoRA remplace le facteur d'échelle α/r par α/√r, ce qui garantit la stabilité des activations et des gradients de l'adaptateur quand r augmente, corrigeant un défaut structurel du scaling original. »"
+    },
+    {
+      "id": "claim:8",
+      "section": "hyperparametres-rang-alpha-cibles",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Cibler l'ensemble des couches linéaires (all-linear) produit en général de meilleures performances que cibler uniquement les projections d'attention, mais l'avantage est dû en grande partie aux couches MLP (feed-forward), pas à un effet uniforme de l'all-linear. De plus, la comparaison « à rang égal » (même r) n'est pas un budget égal : all-linear entraîne ~5× plus de paramètres que attention-only au même r. Corrigé pour être vrai : « À paramètres entraînables égaux, cibler les couches MLP/FFN tend à surpasser le ciblage limité aux seules projections d'attention ; l'avantage de l'all-linear s'explique majoritairement par l'inclusion des couches MLP, et le gain n'est pas \"nettement supérieur\" sur toutes les tâches — les différences peuvent être marginales (< 2 %) selon le benchmark. »",
+      "original_statement": "Cibler l'ensemble des couches linéaires (all-linear : q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj) produit des performances nettement supérieures à un ciblage limité aux seules projections d'attention, à budget de rang égal.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "L'énoncé présente deux failles. (1) Le terme « budget de rang égal » est trompeur : au même rang r, all-linear entraîne ~5× plus de paramètres qu'attention-only (Databricks : 13 M vs 2,6 M à r=8) — ce n'est pas un budget équitable. (2) Des recherches indépendantes (Amazon Science) montrent que sur plusieurs benchmarks, l'attention-only (o_proj seule) est « within 2% of optimal » avec 22 % de latence en moins, et recommandent l'attention-only comme défaut pragmatique ; l'avantage de l'all-linear n'est donc pas « nettement supérieur » de façon universelle."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les deux sources vérifiées et indépendantes confirment l'énoncé : Databricks démontre empiriquement qu'à rang r=8 fixe, cibler toutes les couches linéaires produit des sorties « high quality » contre « low quality » pour l'attention seule, avec un surcoût modeste (+3,5 min, ×5 paramètres entraînables). Thinking Machines Lab, par une analyse distincte fondée sur la théorie du noyau tangent neural, montre que même attention-seule r=256 (0,25 B params) est inférieure à MLP-seule r=128 (0,24 B params), ce qui établit que la supériorité de all-linear n'est pas un simple effet de budget paramétrique. L'énoncé tient tel quel ; l'Unsloth doc a été écarté comme source indépendante car elle s'appuie directement sur les mêmes données du papier QLoRA (Dettmers et al., NeurIPS 2023) que les autres."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Cibler l'ensemble des couches linéaires (all-linear : q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj) produit des performances nettement supérieures à un ciblage limité aux seules projections d'attention, à budget de rang égal. »"
+    },
+    {
+      "id": "claim:9",
+      "section": "proprietes-theoriques",
+      "section_retained": true,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "L'hypothèse du rang intrinsèque (intrinsic rank hypothesis) est empiriquement soutenue par le fait que, pour de nombreuses tâches NLP, un rang r = 1 ou r = 2 récupère l'essentiel de la performance du fine-tuning complet, et que les directions singulières dominantes d'adaptateurs entraînés à r = 8 et r = 64 se chevauchent fortement.",
+      "original_statement": "L'hypothèse du rang intrinsèque (intrinsic rank hypothesis) est empiriquement soutenue par le fait que, pour de nombreuses tâches NLP, un rang r = 1 ou r = 2 récupère l'essentiel de la performance du fine-tuning complet, et que les directions singulières dominantes d'adaptateurs entraînés à r = 8 et r = 64 se chevauchent fortement.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "La source primaire (papier LoRA, Section 7.2) contredit deux points de l'énoncé : (1) la généralisation à « de nombreuses tâches NLP » — les auteurs limitent le résultat à WikiSQL et MNLI et écrivent explicitement « we do not expect a small r to work for every task or dataset » ; (2) le qualificatif « fortement » — le papier dit « significantly » et quantifie la similarité normalisée à > 0,5 pour le seul vecteur singulier dominant, ce qui est modéré, non fort. L'énoncé surestime donc la portée et la force des preuves empiriques rapportées."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Le papier source (LoRA, Hu et al. 2021) confirme le chevauchement des directions singulières entre r=8 et r=64 (similarité >0,5) et montre que r=1 « fonctionne bien » sur GPT-3 avec Wq+Wv adaptés. Cependant, la portée « de nombreuses tâches NLP » de l'énoncé est trop large : le papier précise lui-même que le rang suffisant varie selon la matrice adaptée et la tâche. Aucune source indépendante (non miroir du papier) n'a pu être identifiée qui vérifie empiriquement ces claims de façon autonome."
+        }
+      ],
+      "audit_note": "Rejeté : 0 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+    },
+    {
+      "id": "claim:10",
+      "section": "proprietes-theoriques",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "La borne NTK de préservation du noyau (revue 2025, d'après Malladi et al. ICML 2023) montre que LoRA maintient approximativement le Neural Tangent Kernel du modèle original : la probabilité qu'il existe une paire (i,j) avec un écart |K_LoRA(i,j) − K(i,j)| ≥ c²ε est bornée par 4N² exp(−(ε²−ε³)r/4). Cette borne DÉCROÎT exponentiellement avec r (elle tend vers 0 quand r augmente), ce qui est favorable — et non \"croissant\".",
+      "original_statement": "La borne NTK de préservation du noyau (revue 2025) montre que LoRA maintient approximativement le Neural Tangent Kernel du modèle original avec une probabilité d'écart en excès de c²ε bornée par 4N² exp(−(ε² − ε³)r/4), croissant exponentiellement favorablement avec r.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "La formule 4N² exp(−(ε²−ε³)r/4) et le seuil c²ε sont confirmés par la revue 2025 (elle-même citant Malladi et al. ICML 2023). L'erreur est dans \"croissant exponentiellement favorablement avec r\" : δ DÉCROÎT (tend vers 0) quand r augmente — c'est bien favorable, mais le mot \"croissant\" est incorrect et inversé. L'énoncé original est donc faux tel quel."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "La formule exacte Pr[∃i,j∈[N], |K_LoRA(i,j)−K(i,j)| ≥ c²ε] ≤ 4N² exp(−(ε²−ε³)r/4) est reproduite fidèlement dans la revue arXiv:2501.00365 (citant Malladi et al. 2022, Theorem D.5, arXiv:2210.05643). La notation r (rang LoRA) dans la revue correspond à k dans l'original : relabeling de convention, pas d'erreur. L'interprétation \"croissant exponentiellement favorablement avec r\" est correcte : la borne décroît vers 0 à mesure que r augmente. Limite : la source originale (Malladi et al.) utilise k pas r, et le corps formel de Theorem D.5 n'est accessible qu'en appendice du PDF, non vérifié directement ; le verdict repose sur la cohérence entre la revue et la version HTML de l'original."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « La borne NTK de préservation du noyau (revue 2025) montre que LoRA maintient approximativement le Neural Tangent Kernel du modèle original avec une probabilité d'écart en excès de c²ε bornée par 4N² exp(−(ε² − ε³)r/4), croissant exponentiellement favorablement avec r. »"
+    },
+    {
+      "id": "claim:11",
+      "section": "proprietes-theoriques",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le Théorème 3.2 de rsLoRA (Kalajdzievski 2023) établit que la condition nécessaire et suffisante de rang-stabilisation est γ_r ∈ Θ(1/√r) ; le scaling original α/r ne satisfait pas ce critère pour r grand et provoque un gradient collapse, alors que α/√r le corrige.",
+      "original_statement": "Le Théorème 3.2 de rsLoRA (Kalajdzievski 2023) établit que la condition nécessaire et suffisante de rang-stabilisation est γ_r ∈ Θ(1/√r) ; le scaling original α/r ne satisfait pas ce critère pour r grand et provoque un gradient collapse, alors que α/√r le corrige.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le Théorème 3.2 du papier rsLoRA (2312.03732) énonce bien « if and only if γ_r ∈ Θ_r(1/√r) », confirmant la condition nécessaire et suffisante. Une nuance : le théorème parle de « unstable or collapsing learning », et le terme « gradient collapse » apparaît dans les légendes de figures, pas dans l'énoncé formel — mais cela reste fidèle à l'esprit du papier. Tous les éléments factuels de l'énoncé sont vérifiés dans la source primaire."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Theorem 3.2 du papier source (arxiv 2312.03732, lu en HTML) est exact : il énonce bien une condition nécessaire ET suffisante (if and only if) que γᵣ ∈ Θ(1/√r) pour la rang-stabilisation en espérance sur l'initialisation ; le papier qualifie explicitement le scaling α/r de trop agressif causant « gradient collapse as the rank increases », et α/√r (rsLoRA) comme la correction. Le survey indépendant (2501.00365v1) confirme la même description sans citer de numéro de théorème, ce qui valide l'indépendance des sources."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:12",
+      "section": "proprietes-theoriques",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "La borne de Zhu et al. (ICML 2024, Lemme 4.5) implique que, à rang r identique, entraîner uniquement B (A gelé aléatoirement orthogonal) produit une borne de généralisation structurellement plus petite qu'entraîner A et B ensemble — d'un facteur √2 quand d_in = d_out — parce que le terme de complexité ne dépend que de d_out et non de (d_in + d_out). Cependant cette comparaison n'est pas à budget de paramètres égal (LoRA-FA à rang r utilise r·d_out paramètres entraînables contre r·(d_in+d_out) pour LoRA), la condition d'initialisation orthogonale de A est requise, et le papier lui-même recommande de doubler le rang pour compenser la matrice gelée — ce qui modifie la comparaison de bornes. L'amélioration n'est donc pas « inconditionnelle » : elle est conditionnelle à l'initialisation de A sur la variété de Stiefel et à un choix de rang adapté, et n'est pas universellement valide empiriquement sans ces ajustements.",
+      "original_statement": "La borne de généralisation de la revue 2025 implique que geler la matrice A et n'entraîner que B (variante LoRA-FA) produit une borne de généralisation strictement plus serrée qu'entraîner les deux matrices, ce qui justifierait LoRA-FA comme une amélioration théorique inconditionnelle de LoRA.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le Lemme 4.5 de Zhu et al. (ICML 2024) prouve bien une borne structurellement plus petite pour B-only, mais la comparaison est à rang identique (budget de paramètres inégal), suppose A initialisé orthogonalement, et le papier source lui-même reconnaît que les gains empiriques nécessitent un doublement du rang. La formulation « amélioration théorique inconditionnelle » est donc fausse : c'est une amélioration conditionnelle sous hypothèses précises, que la revue 2025 ne retranscrit pas fidèlement."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le Lemme 4.5 de Zhu et al. 2024 (source primaire) établit bien que la borne est mathématiquement plus petite pour LoRA-FA, mais le papier emploie « can improve » et pose des conditions (budget de paramètres, structure de l'entrée) — il ne revendique pas une amélioration théorique inconditionnelle. Par ailleurs, la borne issue du cadre information-theoretic est une borne supérieure potentiellement lâche : une borne plus serrée n'implique pas un meilleur écart de généralisation réel. L'énoncé à vérifier surinterprète donc la source."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « La borne de généralisation de la revue 2025 implique que geler la matrice A et n'entraîner que B (variante LoRA-FA) produit une borne de généralisation strictement plus serrée qu'entraîner les deux matrices, ce qui justifierait LoRA-FA comme une amélioration théorique inconditionnelle de LoRA. »"
+    },
+    {
+      "id": "claim:13",
+      "section": "fusion-et-zero-latence",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "La fusion LoRA à l'inférence via merge_and_unload() — W_merged = W₀ + (α/r)·B·A — supprime bien le surcoût d'adaptateur à l'exécution et rend la latence identique à celle d'un modèle de même architecture (base ou fully fine-tuned). En revanche, le modèle fusionné N'est PAS structurellement identique à un modèle intégralement fine-tuné : la décomposition spectrale des matrices résultantes est fondamentalement différente — LoRA introduit des « intruder dimensions » (nouveaux vecteurs singuliers de haut rang) absentes du fine-tuning complet, avec des conséquences sur la robustesse hors-distribution et l'apprentissage séquentiel. De plus, lorsque le modèle de base est quantifié (QLoRA), la fusion peut dégrader la qualité numérique si la dequantification préalable est omise.",
+      "original_statement": "La fusion LoRA à l'inférence (W_merged = W₀ + (α/r)·B·A via merge_and_unload()) produit un modèle structurellement identique à un modèle intégralement fine-tuné et n'introduit aucun surcoût de latence par rapport à celui-ci.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 4,
+          "note": "L'énoncé est faux sur deux points distincts : (1) « structurellement identique » est réfuté par arXiv:2410.21228 qui démontre que les matrices LoRA-fusionnées présentent des « intruder dimensions » spectrales absentes du fine-tuning complet — les deux méthodes explorent des régions différentes de l'espace des solutions ; (2) la clause « aucun surcoût de latence » est vraie par rapport aux méthodes d'adaptateurs appliqués à la volée (ce que le papier original clame), mais la comparaison directe avec un modèle fully fine-tuned (deux modèles denses de même architecture) est une tautologie qui masque la non-équivalence qualitative, et devient caduque pour les bases quantifiées (QLoRA) où la fusion sans dequantification dégrade la qualité."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "L'article original (Hu et al., 2021) affirme explicitement « no inference latency compared to a fully fine-tuned model, by construction » et que les poids peuvent être fusionnés en W = W₀ + (α/r)·BA avant déploiement. La structure du modèle fusionné (formes de tenseurs, nombre de couches) est bien identique à celle d'un modèle full fine-tuned. La seule nuance non exprimée dans l'énoncé : les *valeurs* des poids restent une approximation rang-r du fine-tuning complet (sauf si r = rang de W₀), ce qui n'affecte pas la latence mais distingue les deux modèles en termes de capacité d'expression."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « La fusion LoRA à l'inférence (W_merged = W₀ + (α/r)·B·A via merge_and_unload()) produit un modèle structurellement identique à un modèle intégralement fine-tuné et n'introduit aucun surcoût de latence par rapport à celui-ci. »"
+    },
+    {
+      "id": "claim:14",
+      "section": "fusion-et-zero-latence",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Le switching de tâche LoRA sans rechargement du modèle de base s'effectue, dans le cas des poids fusionnés, en soustrayant le delta B·A de la tâche courante de W (= W₀ + B·A) pour récupérer W₀, puis en ajoutant B'·A' de la nouvelle tâche. Cette opération a bien un overhead mémoire minimal (2–7 % de VRAM supplémentaire), mais elle peut induire un overhead de latence considérable en pratique (2,5× à 9,5× de ralentissement dû aux appels CUDA fragmentés). En mode non fusionné, aucune soustraction de W n'est nécessaire : on remplace simplement les matrices A et B.",
+      "original_statement": "Le switching de tâche LoRA sans rechargement du modèle de base s'effectue en soustrayant le delta B·A de la tâche courante de W et en ajoutant le delta B'·A' de la nouvelle tâche — une opération à overhead mémoire minimal.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le mécanisme de soustraction/addition est confirmé mot pour mot dans le papier original (section 4.1), mais seulement pour le cas poids-fusionnés ; en mode non fusionné, le switching se fait par simple remplacement des matrices sans toucher W. Surtout, qualifier l'opération d'« overhead mémoire minimal » est trompeur : LoRA-Switch (2405.17741) documente un overhead de latence de 250–950 % en déploiement réel — coût réel que la formulation originale du papier ne mentionne pas et que l'énoncé reproduit aveuglément."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le papier original LoRA (Hu et al., ICLR 2022, section 4.1) énonce mot pour mot : « When we need to switch to another downstream task, we can recover W₀ by subtracting BA and then adding a different B′A′, a quick operation with very little memory overhead. » L'énoncé reproduit fidèlement ce mécanisme ; « overhead mémoire minimal » correspond à « very little memory overhead ». Les deux sources listées hébergent indépendamment le même article (arXiv preprint vs. actes ICLR)."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « Le switching de tâche LoRA sans rechargement du modèle de base s'effectue en soustrayant le delta B·A de la tâche courante de W et en ajoutant le delta B'·A' de la nouvelle tâche — une opération à overhead mémoire minimal. »"
+    },
+    {
+      "id": "claim:15",
+      "section": "fusion-et-zero-latence",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Le claim « LoRA n'ajoute aucune latence d'inférence » est vrai uniquement dans le régime fusionné (merge_and_unload) ; en mode non fusionné (adaptateurs chargés séparément ou serving multi-adaptateurs), LoRA réintroduit un surcoût de calcul — principalement dû aux appels CUDA supplémentaires pour les multiplications matricielles low-rank — mais ce surcoût reste nettement inférieur à celui des adapter layers classiques, lesquels imposent un goulot d'étranglement séquentiel plus coûteux.",
+      "original_statement": "Le claim « LoRA n'ajoute aucune latence d'inférence » est vrai uniquement dans le régime fusionné (merge_and_unload) ; en mode non fusionné (adaptateurs chargés séparément ou serving multi-adaptateurs), LoRA réintroduit un surcoût de calcul comparable à celui des adapter layers.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "La distinction fusionné/non-fusionné est exacte et bien documentée dans les trois sources primaires. En revanche, l'affirmation que le surcoût en mode non-fusionné est « comparable à celui des adapter layers » est infirmée : les adapter layers classiques introduisent un goulot séquentiel structurellement plus lourd, tandis que le surcoût LoRA non-fusionné est essentiellement lié aux appels CUDA pour les multiplications BA parallèles, et reste bien plus faible — ce que la littérature 2024-2025 (LoRA-Switch, Not All LoRA Parameters Are Essential) confirme explicitement en distinguant les deux régimes."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Les trois sources confirment que l'absence de latence d'inférence est conditionnée à la fusion des poids (W+AB), et que le mode non fusionné induit un surcoût réel. Cependant, aucune source primaire ne quantifie ce surcoût comme « comparable à celui des adapter layers » : au contraire, S-LoRA montre que le surcoût peut être minimisé via des noyaux optimisés, et le papier original distingue LoRA des adapters précisément par l'absence de goulet séquentiel — avantage architectural indépendant de la fusion."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Le claim « LoRA n'ajoute aucune latence d'inférence » est vrai uniquement dans le régime fusionné (merge_and_unload) ; en mode non fusionné (adaptateurs chargés séparément ou serving multi-adaptateurs), LoRA réintroduit un surcoût de calcul comparable à celui des adapter layers. »"
+    },
+    {
+      "id": "claim:16",
+      "section": "fusion-et-zero-latence",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "add_weighted_adapter() dans PEFT permet de combiner plusieurs adaptateurs LoRA en un adaptateur composite avec des pondérations personnalisées, en supportant des méthodes de fusion avancées comme TIES (qui résout les conflits de signe et élimine les paramètres redondants) et DARE (qui supprime et redimensionne aléatoirement des paramètres pour réduire les interférences, utilisé en pré-traitement pour d'autres méthodes comme TIES via dare_ties ou dare_linear). DARE ne gère pas les conflits de signe — c'est le rôle de TIES.",
+      "original_statement": "add_weighted_adapter() dans PEFT permet de combiner plusieurs adaptateurs LoRA en un adaptateur composite avec des pondérations personnalisées, en supportant des méthodes de fusion avancées comme TIES et DARE pour gérer les paramètres redondants ou aux signes conflictuels.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "L'énoncé attribue à DARE la gestion des \"paramètres redondants ou aux signes conflictuels\" — or la gestion des signes conflictuels est propre à TIES, pas à DARE. DARE se limite à éliminer des paramètres par suppression aléatoire et redimensionnement, et n'existe pas en tant que combination_type autonome dans l'API (uniquement dare_ties, dare_linear, etc.)."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les deux sources officielles PEFT confirment sans ambiguïté chaque élément du claim : add_weighted_adapter() accepte une liste d'adaptateurs LoRA avec des poids personnalisés et un paramètre combination_type qui inclut \"ties\", \"dare_ties\", \"dare_linear\" et leurs variantes SVD. TIES gère explicitement les paramètres redondants (trim) et les signes conflictuels (elect + majority sign mask) ; DARE gère la redondance par pruning aléatoire + rescaling. Le claim est exact tel quel."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « add_weighted_adapter() dans PEFT permet de combiner plusieurs adaptateurs LoRA en un adaptateur composite avec des pondérations personnalisées, en supportant des méthodes de fusion avancées comme TIES et DARE pour gérer les paramètres redondants ou aux signes conflictuels. »"
+    },
+    {
+      "id": "claim:17",
+      "section": "qlora-quantification",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "QLoRA quantifie les poids gelés du modèle de base en NF4 (4-bit NormalFloat), un type de données dont les 16 niveaux de quantification sont choisis comme les quantiles d'une distribution normale, le rendant **information-théoriquement optimal** (information theoretically optimal) pour des poids gaussiens, et maintient les adaptateurs LoRA en bf16 pour la rétropropagation.",
+      "original_statement": "QLoRA quantifie les poids gelés du modèle de base en NF4 (4-bit NormalFloat), un type de données dont les 16 niveaux de quantification sont choisis comme les quantiles d'une distribution normale, le rendant théoriquement optimal pour des poids gaussiens, et maintient les adaptateurs LoRA en bf16 pour la rétropropagation.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Tout est exact sauf le qualificatif d'optimalité : le papier original emploie systématiquement « information theoretically optimal » (optimalité au sens de la théorie de l'information / codage par quantiles d'entropie égale), que l'énoncé affaiblit en « théoriquement optimal » — une paraphrase imprécise qui efface la portée spécifique de la claim. Les 16 niveaux, leur choix comme quantiles de N(0,1), et la précision bf16 des adaptateurs LoRA sont tous confirmés par les sources primaires."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les deux sources indépendantes confirment les quatre éléments du claim : (1) les poids du modèle de base sont gelés et quantifiés en NF4 4-bit ; (2) NF4 comporte exactement 16 niveaux de quantification dérivés des quantiles de la distribution normale (inverse CDF) et normalisés sur [-1, 1] ; (3) ce choix le rend information-théoriquement optimal pour des poids gaussiens ; (4) les adaptateurs LoRA opèrent en bfloat16 (bf16) lors de la rétropropagation. L'énoncé est rigoureusement exact."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « QLoRA quantifie les poids gelés du modèle de base en NF4 (4-bit NormalFloat), un type de données dont les 16 niveaux de quantification sont choisis comme les quantiles d'une distribution normale, le rendant théoriquement optimal pour des poids gaussiens, et maintient les adaptateurs LoRA en bf16 pour la rétropropagation. »"
+    },
+    {
+      "id": "claim:18",
+      "section": "qlora-quantification",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "La double quantification réduit le surcoût mémoire des constantes de quantification d'environ 0,37 bit par paramètre (précisément 0,373), en re-quantifiant les constantes fp32 — issues de la quantification des poids en blocs de 64 — en flottants 8 bits avec un blocksize de 256 pour cette seconde quantification. Le blocksize 64 caractérise la quantification des poids W, non les constantes elles-mêmes.",
+      "original_statement": "La double quantification (double quantization) réduit le surcoût des constantes d'échelle par blocs d'environ 0,37 bit par paramètre, en re-quantifiant les constantes fp32 (blocksize 64) en flottants 8 bits (blocksize 256).",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Les chiffres clés (0,373 bits/paramètre, blocksize 256 pour la seconde quantification, flottants 8 bits) sont confirmés par le papier QLoRA (Dettmers et al., NeurIPS 2023). Cependant, l'énoncé attribue « blocksize 64 » aux constantes fp32 elles-mêmes, ce qui est inexact : ce blocksize 64 est celui de la quantification des poids W qui produit ces constantes — les constantes n'ont pas de blocksize propre. L'imprécision est structurelle : elle inverse la relation entre les deux niveaux de quantification."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les deux sources indépendantes confirment le chiffre de ~0,37 bit par paramètre (précisément 0,373 = 0,5 − 0,127), les deux tailles de blocs (64 pour la première quantification des poids, 256 pour la seconde quantification des constantes), et la conversion FP32 → FP8. La formulation de l'énoncé associe correctement les deux étapes, même si techniquement le blocksize 64 porte sur la quantification des poids et non sur les constantes elles-mêmes — ce qui ne constitue pas une erreur de fond."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « La double quantification (double quantization) réduit le surcoût des constantes d'échelle par blocs d'environ 0,37 bit par paramètre, en re-quantifiant les constantes fp32 (blocksize 64) en flottants 8 bits (blocksize 256). »"
+    },
+    {
+      "id": "claim:19",
+      "section": "qlora-quantification",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "QLoRA atteint 99,3 % des performances de ChatGPT sur le benchmark Vicuna avec Guanaco-65B entraîné en 24 heures sur un seul GPU de 48 Go, contre plus de 780 Go de VRAM nécessaires pour le fine-tuning complet en 16 bits.",
+      "original_statement": "QLoRA atteint 99,3 % des performances de ChatGPT sur le benchmark Vicuna avec Guanaco-65B entraîné en 24 heures sur un seul GPU de 48 Go, contre plus de 780 Go de VRAM nécessaires pour le fine-tuning complet en 16 bits.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Tous les chiffres clés — 99,3 %, 24 heures, un seul GPU 48 Go, et « plus de 780 Go » pour le fine-tuning 16 bits complet — sont confirmés mot pour mot dans le papier QLoRA (Dettmers et al., NeurIPS 2023) et sa page HuggingFace. Nuance importante pour mon rôle de réfutation : le chiffre 99,3 % repose sur le benchmark Vicuna évalué par GPT-4 comme juge automatique, méthode reconnue sujette aux biais de verbosité et de position ; l'énoncé ne le précise pas, mais il ne sur-vend pas non plus — il attribue correctement le résultat à ce benchmark spécifique."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Tous les chiffres de l'énoncé sont confirmés par le papier original (arXiv 2305.14314) : Guanaco-65B atteint exactement 99,3 % de ChatGPT sur Vicuna, en 24 h sur un seul GPU 48 Go, contre >780 Go de VRAM pour le fine-tuning complet 16 bits. Le chiffre «780 Go» est cité textuellement dans le papier («more than 780 GB of GPU RAM when finetuning it in standard 16-bit mode»). L'énoncé reproduit fidèlement les claims sans exagération."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:20",
+      "section": "qlora-quantification",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "QLoRA avec NF4 préserve les performances du fine-tuning complet 16 bits sur les benchmarks académiques à réponses fermées (ex. MMLU), mais une dégradation mesurable subsiste sur les benchmarks d'instruction-following en génération ouverte (ex. AlpacaEval) — gap qui se réduit avec la taille du modèle sans disparaître entièrement aux échelles étudiées.",
+      "original_statement": "QLoRA préserve les performances du fine-tuning complet en 16 bits malgré la quantification NF4 du modèle de base, sans dégradation mesurable sur les benchmarks d'instruction-following.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Le papier QLoRA lui-même reconnaît que le gap entre QLoRA et le full fine-tuning « se réduit avec la taille du modèle » (ce qui implique qu'il existe), et note que les benchmarks chatbot ne sont pas fiables. Indépendamment, le papier Tulu 2 (Allen AI) mesure que QLoRA sous-performe le full fine-tuning sur AlpacaEval — précisément la catégorie instruction-following visée par l'énoncé — réfutant la clause « sans dégradation mesurable »."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Le papier original affirme préserver \"full 16-bit finetuning task performance\" mais compare principalement QLoRA à LoRA 16 bits (pas au fine-tuning complet 16 bits) aux grandes échelles, et reconnaît ne pas avoir établi cette parité pour les modèles 33B/65B. L'énoncé \"sans dégradation mesurable\" est plus fort que ce que le papier démontre réellement, et les auteurs eux-mêmes notent que les benchmarks chatbot utilisés \"ne sont pas fiables pour évaluer avec précision les niveaux de performance\"."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « QLoRA préserve les performances du fine-tuning complet en 16 bits malgré la quantification NF4 du modèle de base, sans dégradation mesurable sur les benchmarks d'instruction-following. »"
+    },
+    {
+      "id": "claim:21",
+      "section": "variantes-dora-adalora",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "DoRA décompose chaque matrice de poids pré-entraînée W₀ en composante magnitude m ∈ ℝ^{1×k} et composante directionnelle V/‖V‖_c. Pour le fine-tuning, il introduit des matrices LoRA (B, A) ajoutées à la direction non normalisée : W' = m̄ · (W₀ + BA)/‖W₀ + BA‖_c, où m̄ est également entraînable. LoRA est donc appliqué sur la direction avant normalisation (et non sur la direction déjà normalisée V/‖V‖_c). À l'inférence, les poids peuvent être fusionnés, ce qui n'introduit aucune latence supplémentaire.",
+      "original_statement": "DoRA décompose chaque matrice de poids pré-entraînée en composante magnitude m ∈ ℝ^{1×k} et composante directionnelle V/‖V‖_c, applique LoRA sur la seule direction, et n'introduit aucune latence supplémentaire à l'inférence grâce à la fusion des poids.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Les trois points sont confirmés par le papier HTML (arxiv.org/html/2402.09353) : m ∈ ℝ^{1×k} est bien un vecteur-ligne de normes colonnes, LoRA est appliqué au composant directionnel (W₀ + BA avant renormalisation), et le papier énonce explicitement « DoRA can be merged with the pre-trained weight before inference, thereby not introducing any additional latency ». Aucune contradiction trouvée ; l'énoncé est techniquement fidèle."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "La formule réelle est W' = m̄ · (W₀ + BA)/‖W₀ + BA‖_c : LoRA (BA) est ajouté à W₀ et l'ensemble est ensuite normalisé en colonne — il n'est donc pas appliqué à la direction déjà normalisée V/‖V‖_c comme le suggère l'énoncé. La décomposition magnitude/direction et l'absence de latence d'inférence par fusion de poids sont, elles, confirmées par toutes les sources."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « DoRA décompose chaque matrice de poids pré-entraînée en composante magnitude m ∈ ℝ^{1×k} et composante directionnelle V/‖V‖_c, applique LoRA sur la seule direction, et n'introduit aucune latence supplémentaire à l'inférence grâce à la fusion des poids. »"
+    },
+    {
+      "id": "claim:22",
+      "section": "variantes-dora-adalora",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "DoRA présente une corrélation négative (−0,31) entre Δmagnitude et Δdirection — dans la même direction que le fine-tuning complet (−0,62) —, alors que LoRA montre une corrélation positive (0,83) reflétant une augmentation ou diminution proportionnelle des deux composantes. DoRA ne « reproduit » pas le pattern du FT : il s'en rapproche, sans l'atteindre. Le paper ne qualifie pas le comportement de LoRA de « couplage implicite » (terme absent) et n'établit pas de lien causal mécanique entre la corrélation négative et le gain de capacité d'apprentissage — il suggère seulement que le pattern de DoRA est « plus proche de FT », ce qui « signifie » une capacité supérieure.",
+      "original_statement": "DoRA reproduit le pattern magnitude/direction du fine-tuning complet — corrélation négative entre Δmagnitude et Δdirection — là où LoRA exhibe un couplage implicite entre ces deux grandeurs, ce qui expliquerait le gain de capacité d'apprentissage de DoRA.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "L'énoncé sur-interprète le paper sur deux points : (1) il dit « reproduit » alors que le paper dit « closer to » avec une corrélation de −0,31 contre −0,62 pour FT — le pattern n'est pas reproduit, seulement approché ; (2) il introduit le terme « couplage implicite » absent du paper, et présente la corrélation négative comme explication causale du gain de capacité, alors que le paper établit seulement une association. Le Medium article n'est pas une source indépendante : c'est une paraphrase du même arxiv."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le papier primaire (arXiv 2402.09353) confirme explicitement : FT et DoRA montrent une corrélation négative (respectivement -0,62 et -0,31) entre Δmagnitude et Δdirection, tandis que LoRA affiche une corrélation positive (+0,83), qualifiée de « proportional relationship ». L'énoncé parle de « couplage implicite » là où le papier dit « proportional relationship / positive correlation » — nuance terminologique, mais la substance est exacte. Le papier conclut que cette capacité à dissocier magnitude et direction explique la « superior learning capacity » de DoRA sur LoRA."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « DoRA reproduit le pattern magnitude/direction du fine-tuning complet — corrélation négative entre Δmagnitude et Δdirection — là où LoRA exhibe un couplage implicite entre ces deux grandeurs, ce qui expliquerait le gain de capacité d'apprentissage de DoRA. »"
+    },
+    {
+      "id": "claim:23",
+      "section": "variantes-dora-adalora",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "AdaLoRA paramétrise les mises à jour de poids sous forme ΔW = PΛQ (singular value decomposition) et alloue le rang de façon adaptative via un score d'importance par triplet singulier combinant sensibilité (|θ·∇_θℓ|) et incertitude, piloté par un budget scheduler à décroissance cubique.",
+      "original_statement": "AdaLoRA paramétrise les mises à jour de poids sous forme ΔW = PΛQ (singular value decomposition) et alloue le rang de façon adaptative via un score d'importance par triplet singulier combinant sensibilité (|θ·∇_θℓ|) et incertitude, piloté par un budget scheduler à décroissance cubique.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Chaque élément de l'énoncé est confirmé par le texte de l'article (HTML arXiv vérifié) : ΔW = PΛQ (Éq. 3), score d'importance par triplet singulier = produit de la sensibilité lissée Ī (= EMA de |w_ij·∇_{w_ij}L|, notation θ équivalente) et de l'incertitude Ū (= EMA de l'écart |I−Ī|) (Éqs. 10–13), scheduler cubique en Appendice A. Nuance mineure : P et Q ne sont pas orthogonaux par vraie SVD mais par régularisation ; la parenthèse « singular value decomposition » reproduit néanmoins le cadrage terminologique du papier lui-même."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les trois composantes de l'énoncé sont confirmées par le papier original (via ar5iv) et par un article indépendant d'analyse bayésienne : (1) ΔW = PΛQ avec P, Q orthogonaux et Λ diagonale ; (2) score par triplet singulier = Ī(θ)·Ū(θ) où Ī est la sensibilité lissée par EMA (≈ |θ·∇_θℓ|) et Ū l'incertitude (variation locale) ; (3) scheduler à décroissance cubique explicitement nommé « cubic schedule ». La formulation |θ·∇_θℓ| de l'énoncé désigne bien la sensibilité de base avant lissage EMA, ce qui est fidèle à la définition du papier."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:24",
+      "section": "variantes-dora-adalora",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "PiSSA, en initialisant les matrices LoRA sur les composantes singulières principales de W₀, converge en général plus vite que LoRA standard grâce à une courbure initiale plus élevée, mais son avantage en performance finale est rang-dépendant (il peut sous-performer LoRA de jusqu'à 1,67 % à bas rang r ≤ 32) et disparaît largement quand les hyperparamètres — en particulier le taux d'apprentissage et la taille de batch — sont correctement calibrés pour chaque méthode.",
+      "original_statement": "PiSSA, en initialisant les matrices LoRA sur les composantes singulières principales de W₀ (plutôt qu'avec initialisation aléatoire/nulle), converge plus vite et atteint de meilleures performances finales que LoRA standard.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Deux études indépendantes de 2025 montrent que l'avantage de PiSSA sur LoRA est principalement un artefact de configurations hyperparamétriques déséquilibrées (taux d'apprentissage ~10× plus faible requis par PiSSA, batch size plus grand) : une fois ces paramètres correctement ajustés pour chaque méthode, les performances finales convergent à 1–2 % près, et PiSSA sous-performe LoRA à bas rang. L'énoncé «  converge plus vite ET atteint de meilleures performances finales » est trop absolu et ne tient pas sans ces conditions expérimentales spécifiques."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le papier original (NeurIPS 2024 Spotlight) confirme explicitement les trois aspects de l'énoncé : initialisation de A et B sur les composantes singulières principales de W₀ (au lieu de Gaussien/zéro pour LoRA), convergence plus rapide (gradients significativement plus élevés dès les 100 premières étapes), et meilleures performances finales sur 11 modèles et 13 tâches (ex. Gemma-7B : 77,7 % vs 74,53 % sur GSM8K). La documentation PEFT de Hugging Face, rédigée indépendamment par l'équipe HF, confirme les mêmes propriétés et intègre PiSSA comme option d'initialisation officielle. Le repo GitHub des auteurs (MuLabPKU/PiSSA) n'est pas une source indépendante du papier et n'est donc pas retenu."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « PiSSA, en initialisant les matrices LoRA sur les composantes singulières principales de W₀ (plutôt qu'avec initialisation aléatoire/nulle), converge plus vite et atteint de meilleures performances finales que LoRA standard. »"
+    },
+    {
+      "id": "claim:25",
+      "section": "serving-multi-adaptateurs",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "S-LoRA atteint jusqu'à 4× le throughput de vLLM-packed et jusqu'à 30× celui de Hugging Face PEFT lors du serving multi-adaptateurs, en calculant les adaptateurs on-the-fly plutôt qu'en fusionnant les poids.",
+      "original_statement": "S-LoRA atteint jusqu'à 4× le throughput de vLLM-packed et jusqu'à 30× celui de Hugging Face PEFT lors du serving multi-adaptateurs, en calculant les adaptateurs on-the-fly plutôt qu'en fusionnant les poids.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Les deux chiffres (4× et 30×) sont confirmés par le papier et le blog officiel, mais ils ne correspondent pas aux mêmes conditions : le 4× vs vLLM-packed s'observe à faible nombre d'adaptateurs (≈5), tandis que le 30× vs HF PEFT émerge à des comptes plus élevés (≥100 adaptateurs). L'énoncé original juxtapose les deux pics sans préciser cette dépendance au nombre d'adaptateurs, ce qui est légèrement trompeur — mais les chiffres eux-mêmes sont exacts selon Table 3 du papier."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les chiffres 4× vs vLLM-packed et 30× vs HuggingFace PEFT sont confirmés mot pour mot dans le papier (Table 3) et le blog LMSYS ; la description « on-the-fly (x·A·B) plutôt que fusion de poids (W+AB) » est également exacte. Limite : les deux sources proviennent de la même équipe Berkeley/LMSYS (Ying Sheng et al.) — aucune source véritablement tierce n'a pu reproduire ces benchmarks de façon indépendante dans cette session (VentureBeat rate-limité, « Compress then Serve » cite le design sans reproduire les chiffres). L'énoncé tient, mais repose sur l'auto-déclaration des auteurs."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:26",
+      "section": "serving-multi-adaptateurs",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "L'Unified Paging de S-LoRA utilise une taille de page égale à la dimension cachée H (un vecteur de H éléments), valeur commune aux tenseurs du KV cache (forme S×H) et aux poids des adaptateurs LoRA (forme R×H), ce qui permet de les co-gérer dans un unique pool mémoire en réduisant significativement la fragmentation — mais non en l'éliminant entièrement.",
+      "original_statement": "L'Unified Paging de S-LoRA utilise une taille de page égale à la dimension cachée H, valeur commune aux tenseurs du KV cache et aux poids des adaptateurs LoRA, ce qui permet de les co-gérer dans un unique pool mémoire sans fragmentation.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le mécanisme de page (taille H, pool unifié, co-gestion KV cache + poids LoRA) est confirmé mot pour mot par les deux sources. L'énoncé échoue sur un seul point : il affirme « sans fragmentation », alors que le papier et le blog disent systématiquement « significantly reduces fragmentation » — la fragmentation est réduite, pas éliminée."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Les trois points centraux (page size = H, H commun aux deux types de tenseurs, co-gestion dans un pool unique) sont confirmés par les sources. Cependant, l'énoncé dit « sans fragmentation », alors que le papier et toutes les sources indépendantes disent « significantly reduces memory fragmentation » — la fragmentation est réduite, pas éliminée. C'est une sur-affirmation qui rend l'énoncé faux tel quel."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « L'Unified Paging de S-LoRA utilise une taille de page égale à la dimension cachée H, valeur commune aux tenseurs du KV cache et aux poids des adaptateurs LoRA, ce qui permet de les co-gérer dans un unique pool mémoire sans fragmentation. »"
+    },
+    {
+      "id": "claim:27",
+      "section": "serving-multi-adaptateurs",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "LoRA (sans quantification) atteint 90–95 % de la qualité du fine-tuning complet sur la plupart des tâches. QLoRA, qui ajoute une quantification 4-bit, atteint 80–90 % selon les estimations pratiques et peut chuter bien en dessous sur certaines tâches précises (ex. mathématiques : 11,8 % vs 26,0 % en full fine-tuning sur Orca-Math). La qualité de QLoRA est donc fortement dépendante de la tâche et n'est pas une alternative quasi-équivalente pour la grande majorité des cas d'usage.",
+      "original_statement": "QLoRA atteint 90–95 % de la qualité du fine-tuning complet, ce qui en fait une alternative quasi-équivalente pour la grande majorité des cas d'usage.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "L'énoncé attribue à QLoRA le chiffre de 90–95 % qui appartient en réalité à LoRA (sans quantification). Les sources indépendantes concordent : QLoRA se situe plutôt à 80–90 % en moyenne, et peut chuter drastiquement sur des tâches précises (benchmark Orca-Math : QLoRA 11,8 % vs full fine-tuning 26,0 %). La généralisation « grande majorité des cas d'usage » est donc inexacte."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Le chiffre « 90–95 % » n'apparaît pas dans le papier primaire QLoRA, qui revendique plutôt une parité quasi-complète avec le fine-tuning 16 bits sur MMLU ; une source secondaire éditoriale l'attribue à LoRA standard (pas QLoRA), et assigne 80–90 % à QLoRA. Par ailleurs, la littérature académique récente souligne que même la parité apparente sur les benchmarks masque des différences comportementales significatives, rendant le qualificatif « quasi-équivalente pour la grande majorité des cas d'usage » non étayé."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « QLoRA atteint 90–95 % de la qualité du fine-tuning complet, ce qui en fait une alternative quasi-équivalente pour la grande majorité des cas d'usage. »"
+    },
+    {
+      "id": "claim:28",
+      "section": "serving-multi-adaptateurs",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "NVIDIA NIM utilise CUTLASS pour implémenter un batched GEMM qui fusionne le traitement hétérogène de requêtes portant des adaptateurs LoRA distincts en un seul kernel (améliorant ainsi l'utilisation des SMs) ; la méthode SplitK est appliquée séparément pour résoudre le déséquilibre dimensionnel de la première matrice LoRA (grande dimension d'entrée d, petite dimension de sortie r), et non spécifiquement pour le batch hétérogène multi-adaptateurs.",
+      "original_statement": "NVIDIA NIM utilise la méthode SplitK (implémentée via CUTLASS) pour améliorer l'utilisation des streaming multiprocessors lors du traitement en batch hétérogène de requêtes portant des adaptateurs LoRA distincts.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "La source primaire NVIDIA distingue clairement deux techniques : le batched GEMM CUTLASS (pour le traitement hétérogène multi-adaptateurs) et le SplitK (pour corriger la mauvaise utilisation des SMs due aux dimensions déséquilibrées d >> r de la première matrice LoRA). L'énoncé fusionne ces deux motivations en attribuant à SplitK la finalité du batch hétérogène, ce qui est inexact. CUTLASS implémente les deux, mais pour des raisons distinctes."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le blog NVIDIA confirme bien l'usage de SplitK via CUTLASS pour améliorer l'utilisation des SMs, et du batched GEMM pour le traitement hétérogène multi-LoRA. Toutefois, l'énoncé attribue à SplitK le rôle de mécanisme principal du batch hétérogène : or SplitK est une optimisation d'utilisation des SMs appliquée *au sein* du kernel GEMM, tandis que c'est le batched GEMM CUTLASS qui est la brique fondamentale gérant les adaptateurs distincts. La documentation officielle NIM (source indépendante du blog) confirme CUTLASS + batch hétérogène mais ne mentionne pas SplitK, ce qui limite la corroboration indépendante de ce détail précis."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « NVIDIA NIM utilise la méthode SplitK (implémentée via CUTLASS) pour améliorer l'utilisation des streaming multiprocessors lors du traitement en batch hétérogène de requêtes portant des adaptateurs LoRA distincts. »"
+    },
+    {
+      "id": "claim:29",
+      "section": "limites-et-idees-recues",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Les poids adaptés par LoRA contiennent des intruder dimensions (vecteurs singuliers sans similarité cosinus significative avec les vecteurs pré-entraînés, pouvant apparaître à différents rangs mais analysés en priorité parmi les plus élevés) qui corrèlent avec l'oubli du pré-entraînement à ρ = 0,971 (p ≪ 0,001), mais ne corrèlent pas significativement avec la précision aval (ρ = −0,338, p = 0,218 pour RoBERTa) — preuve que performances identiques masquent des structures de poids divergentes.",
+      "original_statement": "Les poids adaptés par LoRA contiennent des intruder dimensions (vecteurs singuliers de rang élevé sans similarité cosinus significative avec les vecteurs pré-entraînés) qui corrèlent avec l'oubli du pré-entraînement à ρ = 0,971 (p ≪ 0,001), mais ne corrèlent pas avec la précision aval — preuve que performances identiques masquent des structures de poids divergentes.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Les chiffres ρ = 0,971 et p ≪ 0,001 sont confirmés exactement dans la source pour LoRA, de même que l'absence de corrélation avec la précision aval. Toutefois, l'énoncé décrit les intruder dimensions comme étant spécifiquement des « vecteurs singuliers de rang élevé », alors que le papier précise qu'elles sont « distributed across both high and low singular values » — seule l'analyse prioritaire porte sur les rangs élevés. Cette inexactitude justifie holds=false, d'autant que la source unique vérifiée (l'arXiv lui-même) ne permet pas de confirmer l'indépendance requise par ≥ 2 sources."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "L'énoncé est fidèle au papier source (arXiv:2410.21228) : les intruder dimensions y sont définies exactement comme des vecteurs singuliers de la matrice fine-tunée dont la similarité cosinus maximale avec tous les vecteurs singuliers pré-entraînés est quasi nulle, apparaissant parmi les directions de rang le plus élevé (valeur singulière la plus haute) ; la corrélation ρ = 0,971 (p ≪ 0,001) avec la perte de pré-entraînement et l'absence de corrélation significative avec la précision aval (ρ = −0,338, p = 0,218 sur RoBERTa) y sont explicitement reportées. Cependant, aucune source indépendante ne réplique ces mesures spécifiques — les papiers citants (OPLoRA, LoSiA, VeFA) s'appuient sur ce résultat sans le reproduire de façon autonome, donc une seule source primaire peut être listée."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « Les poids adaptés par LoRA contiennent des intruder dimensions (vecteurs singuliers de rang élevé sans similarité cosinus significative avec les vecteurs pré-entraînés) qui corrèlent avec l'oubli du pré-entraînement à ρ = 0,971 (p ≪ 0,001), mais ne corrèlent pas avec la précision aval — preuve que performances identiques masquent des structures de poids divergentes. »"
+    },
+    {
+      "id": "claim:30",
+      "section": "limites-et-idees-recues",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "La règle α = 2 × r est une heuristique communautaire, pas une recommandation des auteurs originaux de LoRA, qui justifient simplement de fixer α au premier r testé en le traitant comme un learning rate effectif ; et il n'existe aucune heuristique fiable pour choisir r, le rang optimal étant entièrement tâche- et données-dépendant.",
+      "original_statement": "La règle α = 2 × r est une heuristique communautaire, pas une recommandation des auteurs originaux de LoRA, qui justifient simplement de fixer α au premier r testé en le traitant comme un learning rate effectif ; et il n'existe aucune heuristique fiable pour choisir r, le rang optimal étant entièrement tâche- et données-dépendant.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le papier original (§4.1) dit explicitement : « tuning α is roughly the same as tuning the learning rate… we simply set α to the first r we try and do not tune it » — aucune mention de α=2r. Raschka qualifie α=2r de « good heuristic » communautaire et note lui-même des contre-exemples (r=256, α=128 > α=512). Sur le rang, le papier reconnaît sa dépendance à la tâche et aux données ; Raschka confirme l'absence d'heuristique fiable. L'énoncé est donc correct sur les deux points, avec une légère surestimation mineure : le papier fournit quelques observations empiriques sur r (rang faible souvent suffisant), mais aucune règle de sélection principielle."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le papier original (Hu et al.) ne mentionne jamais α = 2r : les auteurs disent seulement de fixer α au premier r essayé car accorder α revient à accorder le learning rate. Raschka confirme explicitement que α = 2r est une « rule of thumb » communautaire, et qu'il n'existe aucune bonne heuristique pour choisir r, ce dernier étant entièrement dépendant du modèle et du dataset."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:31",
+      "section": "limites-et-idees-recues",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Les chiffres de paramètres (4,2 M → 20,3 M, ratio ≈ 4,8×) et de mémoire (14,18 → 16,62 Go) sont exacts pour l'expérience spécifique rapportée par Raschka (Llama 2 7B, r=8, une tâche précise). En revanche, qualifier Q+V seul de « nettement inférieur » est un sur-énoncé : la littérature montre que l'écart de performance est dépendant de la tâche et du modèle, que certaines configurations réduites (ex. o_proj seul) surpassent parfois l'approche « toutes couches linéaires », et que la recherche Amazon Science recommande des combinaisons spécifiques plutôt qu'une couverture exhaustive. L'énoncé devrait préciser : « dans cette configuration expérimentale précise, étendre LoRA à toutes les couches linéaires apporte des gains notables ; cet avantage n'est pas universel et reste tâche-dépendant. »",
+      "original_statement": "Appliquer LoRA aux seules matrices Q et V est nettement inférieur à l'étendre à toutes les couches linéaires : cela multiplie les paramètres entraînables par environ cinq (4,2 M → 20,3 M) et n'augmente la mémoire que de 14,18 à 16,62 Go, avec des gains de performance sensibles.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Les valeurs numériques (paramètres, mémoire, multiplicateur ≈5) sont vérifiées pour l'unique expérience source (Raschka, Llama 2 7B, r=8). Mais l'affirmation de supériorité « nette » est invalidée : l'étude Amazon Science montre une instabilité de la configuration qkv-only mais recommande o_proj (pas « toutes couches ») pour l'efficacité, et la littérature confirme que le choix optimal de modules-cibles est tâche- et architecture-dépendant — ce que l'énoncé efface en présentant le résultat comme une règle générale."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "La direction du claim est confirmée par trois sources indépendantes : Q+V seulement est bien inférieur à toutes les couches linéaires en performance, et le multiplicateur ×5 de paramètres est cohérent (Raschka : 4,2 M → 20,3 M sur Llama 2 7B ; Databricks : 2,6 M → 13 M sur un modèle 3B). Cependant, les chiffres absolus (4,2 M, 20,3 M, 14,18 Go, 16,62 Go) sont spécifiques à l'expérience Raschka sur Llama 2 7B/Alpaca et ne sont pas reproduits tels quels par une source indépendante — les présenter comme des faits généraux est trompeur, d'où holds=false."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « Appliquer LoRA aux seules matrices Q et V est nettement inférieur à l'étendre à toutes les couches linéaires : cela multiplie les paramètres entraînables par environ cinq (4,2 M → 20,3 M) et n'augmente la mémoire que de 14,18 à 16,62 Go, avec des gains de performance sensibles. »"
+    },
+    {
+      "id": "claim:32",
+      "section": "limites-et-idees-recues",
+      "section_retained": true,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "L'overhead de DoRA sur Llama-3.1-8B atteint +139 % de temps et +4 % de mémoire sans caching ; DoraCaching le ramène à +17 % de temps mais augmente la mémoire de +41 % — rendant la fusion des poids indispensable pour tout déploiement en inférence.",
+      "original_statement": "L'overhead de DoRA sur Llama-3.1-8B atteint +139 % de temps et +4 % de mémoire sans caching ; DoraCaching le ramène à +17 % de temps mais augmente la mémoire de +41 % — rendant la fusion des poids indispensable pour tout déploiement en inférence.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Les quatre chiffres (+139 % temps, +4 % mémoire sans caching ; +17 % temps, +41 % mémoire avec DoraCaching sur Llama-3.1-8B) sont confirmés mot pour mot dans la documentation officielle PEFT. En revanche, la documentation dit « Ideally, if the use case allows it, just merge » et présente explicitement DoraCaching comme alternative viable : qualifier la fusion d'« indispensable pour tout déploiement en inférence » est une sur-interprétation — l'énoncé est donc faux dans cette nuance."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Les quatre chiffres (+139 %/+4 % sans cache, +17 %/+41 % avec DoraCaching sur Llama-3.1-8B) sont confirmés mot pour mot par la documentation officielle PEFT de HuggingFace, qui est l'unique source primaire localisée — aucune source indépendante ne les reproduit. Par ailleurs, le mot « indispensable » surestime légèrement la formulation des docs (« ideally, just merge » / « it is recommended to merge weights for inference ») et du papier DoRA original (arXiv 2402.09353), qui qualifient la fusion de fortement recommandée mais non d'obligation absolue."
+        }
+      ],
+      "audit_note": "Rejeté : 0 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+    },
+    {
+      "id": "claim:33",
+      "section": "ecosysteme",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Hugging Face PEFT (v0.19.1, avril 2025 — et non 2026) regroupe sous une API unifiée les principales variantes de LoRA ayant chacune leur propre classe de configuration : LoRA, AdaLoRA, LoHa, LoKr et X-LoRA. DoRA et rsLoRA sont des options/flags au sein de LoraConfig (use_dora=True, use_rslora=True), pas des méthodes indépendantes. QLoRA n'est pas une méthode PEFT distincte mais une technique combinant quantification (bitsandbytes) et LoRA standard. La bibliothèque inclut aussi d'autres méthodes PEFT comme IA³, le prefix tuning et le prompt tuning.",
+      "original_statement": "Hugging Face PEFT (v0.19.1, avril 2026) regroupe sous une API unifiée les principales variantes de LoRA — LoRA, QLoRA, AdaLoRA, DoRA, rsLoRA, LoHa, LoKr, X-LoRA — ainsi que d'autres méthodes PEFT (IA³, prefix tuning, prompt tuning).",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Trois erreurs factuelles : (1) l'année est 2025 et non 2026 ; (2) DoRA et rsLoRA ne sont pas des méthodes indépendantes de l'API mais des paramètres booléens de LoraConfig ; (3) QLoRA n'a pas de classe de configuration propre dans PEFT — c'est une technique externe (quantification via bitsandbytes + LoRA classique)."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Toutes les variantes citées sont confirmées dans la documentation officielle PEFT v0.19.1 (avril 2026) : LoRA/LoHa/LoKr/AdaLoRA/X-LoRA via le guide task_guides/lora_based_methods ; DoRA (use_dora=True) et rsLoRA (use_rslora=True) via le developer guide LoRA ; QLoRA comme mode d'entraînement (target_modules=\"all-linear\") ; IA³, prefix tuning et prompt tuning comme méthodes PEFT distinctes référencées dans le README. L'énoncé tient tel quel, la date et le numéro de version étant également corrects (release GitHub du 16 avril 2026)."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « Hugging Face PEFT (v0.19.1, avril 2026) regroupe sous une API unifiée les principales variantes de LoRA — LoRA, QLoRA, AdaLoRA, DoRA, rsLoRA, LoHa, LoKr, X-LoRA — ainsi que d'autres méthodes PEFT (IA³, prefix tuning, prompt tuning). »"
+    },
+    {
+      "id": "claim:34",
+      "section": "ecosysteme",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Unsloth annonce un gain de 1,5 à 3,9× en vitesse d'entraînement (jusqu'à 2× selon le README officiel pour les cas généraux, jusqu'à 3,87× sur TinyLlama en T4) et une réduction de VRAM allant de ~14 % à ~74 % selon le modèle et le matériel — non un chiffre fixe de 70 % — par rapport à une implémentation HuggingFace standard (QLoRA/LoRA). Le mécanisme Triton (dérivation manuelle du backpropagation + réécriture en kernels Triton) est exact. La borne haute de \"5×\" et le chiffre uniforme de \"70 %\" ne sont pas étayés par les benchmarks publiés.",
+      "original_statement": "Unsloth annonce un gain de 2 à 5× en vitesse d'entraînement et une réduction de ~70 % de la VRAM par rapport à LoRA standard, grâce à des kernels Triton qui réécrivent manuellement le backpropagation des couches Transformer.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "La borne haute de \"5×\" est absente des benchmarks publiés par Unsloth (HF blog : max 3,87× sur TinyLlama en T4 gratuit ; README : headline \"up to 2×\" pour le cas général). Le \"~70 %\" de VRAM est un plafond marketing — les chiffres mesurés vont de 13,7 % à 73,8 % selon le modèle — et le baseline est QLoRA (déjà quantifié), pas \"LoRA standard\" non quantifié. Le mécanisme Triton/backprop est confirmé verbatim dans le blog HuggingFace."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "La borne haute de 5× n'est atteinte qu'avec le packing activé (régime distinct), pas avec le simple remplacement LoRA → Unsloth. Le chiffre standard annoncé sur le README GitHub est « up to 2× faster » pour l'entraînement LoRA de base ; la réduction VRAM de ~70 % et la technique de réécriture manuelle du backprop en kernels Triton sont confirmées par le blog HuggingFace et le README."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « Unsloth annonce un gain de 2 à 5× en vitesse d'entraînement et une réduction de ~70 % de la VRAM par rapport à LoRA standard, grâce à des kernels Triton qui réécrivent manuellement le backpropagation des couches Transformer. »"
+    },
+    {
+      "id": "claim:35",
+      "section": "ecosysteme",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "merge_and_unload() de PEFT fusionne les adapters LoRA standard dans les poids de base (W' = W₀ + (α/r)BA, ou W' = W₀ + (α/√r)BA avec RSLoRA), éliminant tout overhead d'inférence par rapport aux architectures adapter séquentielles — à condition que la variante soit compatible avec la fusion (ce qui exclut aLoRA et certaines configurations DoRA).",
+      "original_statement": "merge_and_unload() de PEFT fusionne les adapters LoRA dans les poids de base (W' = W₀ + (α/r)BA) avant déploiement, éliminant tout overhead d'inférence par rapport aux architectures adapter séquentielles.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Le nœud de réfutation est double : (1) la formule de scaling (α/r) est inexacte pour RSLoRA qui utilise (α/√r), une variante désormais recommandée par PEFT ; (2) merge_and_unload() est explicitement impossible pour certaines variantes LoRA comme aLoRA (\"merging is not possible due to the selective application of the weights\"), ce que l'énoncé ignore en le présentant comme une propriété universelle de la méthode."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le papier LoRA original (arXiv:2106.09685) confirme la formule W' = W₀ + (α/r)BA et le zéro-overhead à l'inférence grâce à la fusion des poids, en comparaison explicite aux adapter layers séquentielles (type Houlsby) qui induisent 20-30 % de latence supplémentaire. La documentation officielle PEFT confirme que merge_and_unload() fusionne bien les couches adapter dans le modèle de base pour une utilisation standalone. Les deux sources sont indépendantes entre elles."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « merge_and_unload() de PEFT fusionne les adapters LoRA dans les poids de base (W' = W₀ + (α/r)BA) avant déploiement, éliminant tout overhead d'inférence par rapport aux architectures adapter séquentielles. »"
+    },
+    {
+      "id": "claim:36",
+      "section": "ecosysteme",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Le fine-tuning QLoRA entraîne, selon les expériences de Raschka (2023) sur un modèle Llama 2 7B avec un GPU A100, environ 33 % d'économie mémoire (21,33 Go → 14,18 Go) au prix d'une augmentation de 39 % du temps d'entraînement (1,85 h → 2,79 h) par rapport à LoRA en précision native. L'article ne formule pas explicitement que ce compromis « dépend fortement du matériel et de la taille du modèle ».",
+      "original_statement": "Le fine-tuning QLoRA entraîne, selon les expériences de Raschka (2023), environ 33 % d'économie mémoire au prix d'une augmentation de 39 % du temps d'exécution par rapport à LoRA en précision native — ce compromis dépend fortement du matériel et de la taille du modèle.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les chiffres de 33 % d'économie mémoire et 39 % d'augmentation du temps d'entraînement sont confirmés mot pour mot dans l'article Raschka (novembre 2023), sur un Llama 2 7B entraîné sur un A100 avec le dataset Alpaca — baseline LoRA en bfloat16. La mention « dépend fortement du matériel et de la taille du modèle » est une réserve de l'auteur de l'énoncé, non attribuée à Raschka, et elle est légitime car Raschka ne publie qu'une seule configuration et ne généralise pas explicitement. Aucune source contradictoire trouvée ; l'énoncé tient tel quel."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Les chiffres de 33 % (mémoire) et 39 % (temps d'exécution) sont exacts et proviennent bien des expériences de Raschka (2023) sur Llama 2 7B / A100. En revanche, la phrase de l'énoncé selon laquelle « ce compromis dépend fortement du matériel et de la taille du modèle » n'est pas affirmée dans l'article source — Raschka présente un seul contexte matériel/modèle sans généraliser. L'énoncé est donc partiellement inexact par ajout d'une affirmation non sourcée. Une seule source indépendante vérifiée (le papier QLoRA arXiv 2305.14314 ne contient pas ces chiffres spécifiques LoRA vs QLoRA dans son abstract ni dans la version HTML disponible)."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « Le fine-tuning QLoRA entraîne, selon les expériences de Raschka (2023), environ 33 % d'économie mémoire au prix d'une augmentation de 39 % du temps d'exécution par rapport à LoRA en précision native — ce compromis dépend fortement du matériel et de la taille du modèle. »"
+    }
+  ]
+}
