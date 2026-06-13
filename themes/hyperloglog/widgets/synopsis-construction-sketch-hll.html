@@ -1,0 +1,618 @@
+<div class="widget synhll-root" id="synhll-root">
+  <style>
+    .synhll-root{--shll-ink:var(--ink,#15202E);--shll-soft:var(--ink-soft,#43536A);
+      --shll-faint:var(--ink-faint,#7A889B);--shll-card:var(--card,#fff);
+      --shll-line:var(--line,#D7DFE9);--shll-line-soft:var(--line-soft,#E7ECF3);
+      --shll-blue:var(--blue,#23537F);--shll-deep:var(--blue-deep,#142E49);
+      --shll-bright:var(--blue-bright,#2C77B6);--shll-wash:var(--blue-wash,#E7EEF6);
+      --shll-bord:var(--bordeaux,#7C2A38);--shll-bord-br:var(--bordeaux-bright,#9B3443);
+      --shll-bord-wash:var(--bordeaux-wash,#F3E3E6);--shll-gold:var(--gold,#C68A2E);
+      --shll-green:#2F7D5B;--shll-green-wash:#EAF4EE;
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--shll-ink);
+      border:1px solid var(--shll-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--shll-card);max-width:720px}
+    .synhll-root *{box-sizing:border-box}
+    .synhll-k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;
+      color:var(--shll-faint);font-weight:600;margin:0 0 2px}
+    .synhll-title{font-weight:700;font-size:1.05rem;margin:0 0 4px}
+    .synhll-sub{font-size:.84rem;color:var(--shll-soft);margin:0 0 12px;line-height:1.45}
+
+    /* progress bar over the stream */
+    .synhll-prog{display:flex;align-items:center;gap:10px;margin:0 0 12px}
+    .synhll-bar{flex:1 1 auto;height:7px;border-radius:5px;background:var(--shll-line-soft);overflow:hidden}
+    .synhll-bar-fill{height:100%;width:0;background:var(--shll-bright);transition:width .12s linear}
+    .synhll-prog-lab{flex:0 0 auto;font:700 .78rem/1 ui-monospace,monospace;color:var(--shll-blue);min-width:6.6em;text-align:right}
+
+    /* phase rail */
+    .synhll-rail{display:flex;gap:6px;margin:0 0 12px;flex-wrap:wrap}
+    .synhll-ph{flex:1 1 78px;min-width:74px;border:1px solid var(--shll-line);border-radius:8px;
+      padding:7px 6px;background:var(--shll-card);text-align:center;transition:.15s;cursor:pointer}
+    .synhll-ph .synhll-pn{font-size:.6rem;letter-spacing:.04em;text-transform:uppercase;
+      color:var(--shll-faint);font-weight:700}
+    .synhll-ph .synhll-pl{font-size:.78rem;font-weight:700;color:var(--shll-soft);margin-top:2px}
+    .synhll-ph.synhll-active{border-color:var(--shll-bright);background:var(--shll-wash);box-shadow:0 0 0 1px var(--shll-bright)}
+    .synhll-ph.synhll-active .synhll-pl{color:var(--shll-blue)}
+    .synhll-ph.synhll-active .synhll-pn{color:var(--shll-bright)}
+    .synhll-ph.synhll-est.synhll-active{border-color:var(--shll-green);background:var(--shll-green-wash);box-shadow:0 0 0 1px var(--shll-green)}
+    .synhll-ph.synhll-est.synhll-active .synhll-pl{color:var(--shll-green)}
+    .synhll-ph.synhll-est.synhll-active .synhll-pn{color:var(--shll-green)}
+
+    .synhll-grid{display:flex;gap:14px;flex-wrap:wrap}
+    .synhll-col-mac{flex:1 1 330px;min-width:290px}
+    .synhll-col-curve{flex:1 1 280px;min-width:240px}
+
+    /* element + hash machine */
+    .synhll-elem{display:flex;align-items:center;gap:8px;margin:0 0 8px;flex-wrap:wrap}
+    .synhll-elem-lab{font-size:.74rem;color:var(--shll-faint);font-weight:600}
+    .synhll-tok{font:800 .98rem/1 ui-monospace,monospace;color:#fff;background:var(--shll-deep);
+      padding:5px 9px;border-radius:7px}
+    .synhll-rep{font-size:.72rem;font-weight:700;color:var(--shll-gold);border:1px solid var(--shll-gold);
+      border-radius:5px;padding:2px 6px;background:#FBF3E3}
+    .synhll-bits{font:700 13px/1.5 ui-monospace,monospace;letter-spacing:.5px;margin:2px 0 2px;
+      word-break:break-all}
+    .synhll-bits span{padding:0 .5px}
+    .synhll-b-idx{color:#fff;background:var(--shll-bright);border-radius:2px}
+    .synhll-b-lz{color:var(--shll-faint)}
+    .synhll-b-one{color:#fff;background:var(--shll-gold);border-radius:2px;font-weight:800}
+    .synhll-b-tail{color:var(--shll-faint);opacity:.55}
+    .synhll-b-raw{color:var(--shll-soft)}
+    .synhll-route{font-size:.76rem;color:var(--shll-soft);margin:0 0 6px;min-height:1.4em}
+    .synhll-route b{color:var(--shll-blue)}
+    .synhll-route .synhll-rho{color:var(--shll-gold)}
+
+    /* register vector */
+    .synhll-reglab{font-size:.7rem;letter-spacing:.05em;text-transform:uppercase;color:var(--shll-faint);
+      font-weight:700;margin:6px 0 4px}
+    .synhll-regs{display:flex;gap:3px;flex-wrap:wrap}
+    .synhll-cell{position:relative;flex:1 1 34px;min-width:30px;height:42px;border:1px solid var(--shll-line);
+      border-radius:5px;background:var(--shll-card);overflow:hidden;transition:.12s}
+    .synhll-cell .synhll-cj{position:absolute;top:1px;left:0;right:0;text-align:center;font-size:.52rem;
+      color:var(--shll-faint);font-weight:700}
+    .synhll-cell .synhll-cv{position:absolute;bottom:2px;left:0;right:0;text-align:center;
+      font:800 .92rem/1 ui-monospace,monospace;color:var(--shll-blue);z-index:2}
+    .synhll-cell .synhll-cfill{position:absolute;left:0;right:0;bottom:0;background:var(--shll-wash);z-index:1}
+    .synhll-cell.synhll-empty .synhll-cv{color:var(--shll-line)}
+    .synhll-cell.synhll-target{border-color:var(--shll-bright);box-shadow:0 0 0 2px var(--shll-bright)}
+    .synhll-cell.synhll-bump{border-color:var(--shll-green);box-shadow:0 0 0 2px var(--shll-green)}
+    .synhll-cell.synhll-bump .synhll-cfill{background:var(--shll-green-wash)}
+
+    .synhll-svg{width:100%;height:auto;display:block;
+      border:1px solid var(--shll-line-soft);border-radius:9px;background:#FBFCFE}
+    .synhll-svg text{font:10px/1 ui-monospace,monospace}
+    .synhll-caption{font-size:.72rem;color:var(--shll-faint);margin:5px 2px 0;text-align:center}
+    .synhll-leg{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:6px 0 0;font-size:.72rem}
+    .synhll-leg span{display:inline-flex;align-items:center;gap:5px;color:var(--shll-soft)}
+    .synhll-leg i{width:16px;height:0;border-top-width:3px;border-top-style:solid;display:inline-block}
+
+    /* readout */
+    .synhll-read{margin:10px 0 0;padding:10px 12px;border-radius:8px;border:1px solid var(--shll-line);
+      background:var(--shll-wash);font-size:.83rem;line-height:1.5;color:var(--shll-ink);min-height:3.6em}
+    .synhll-read b{font-weight:700}
+    .synhll-read code{font-family:ui-monospace,monospace;font-size:.92em}
+    .synhll-read.synhll-r-rho{background:#FBF3E3;border-color:#EAD9B4}
+    .synhll-read.synhll-r-max{background:var(--shll-green-wash);border-color:#C3E0D0}
+    .synhll-read.synhll-r-est{background:var(--shll-bord-wash);border-color:#E3C3C9}
+
+    /* stream strip */
+    .synhll-strip{margin:10px 0 0;display:flex;gap:2px;flex-wrap:wrap}
+    .synhll-chip{flex:0 0 auto;width:19px;height:19px;border:1px solid var(--shll-line-soft);border-radius:4px;
+      font:600 9.5px/17px ui-monospace,monospace;text-align:center;color:var(--shll-faint);background:var(--shll-card)}
+    .synhll-chip.synhll-done{background:var(--shll-wash);color:var(--shll-blue);border-color:var(--shll-line)}
+    .synhll-chip.synhll-rep{border-style:dashed;color:var(--shll-gold)}
+    .synhll-chip.synhll-cur{background:var(--shll-blue);color:#fff;border-color:var(--shll-blue)}
+    .synhll-striplab{font-size:.7rem;color:var(--shll-faint);margin:8px 0 0;font-weight:600}
+
+    .synhll-banner{margin:10px 0 0;padding:8px 12px;border-radius:8px;font-size:.82rem;font-weight:600;
+      background:var(--shll-green-wash);border:1px solid #C3E0D0;color:var(--shll-green);display:none}
+    .synhll-banner.synhll-show{display:block}
+
+    /* controls */
+    .synhll-btns{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 0}
+    .synhll-btns button{border:1px solid var(--shll-bright);border-radius:7px;background:transparent;
+      color:var(--shll-bright);font:600 13px/1 inherit;padding:8px 13px;cursor:pointer}
+    .synhll-btns button:hover{background:var(--shll-wash)}
+    .synhll-btns button.synhll-primary{background:var(--shll-blue);color:#fff;border-color:var(--shll-blue)}
+    .synhll-btns button.synhll-primary:hover{background:var(--shll-bright)}
+    .synhll-btns button:disabled{opacity:.45;cursor:default}
+    .synhll-btns button:disabled:hover{background:transparent}
+    .synhll-btns button.synhll-primary:disabled{background:var(--shll-blue)}
+
+    .synhll-stats{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}
+    .synhll-stat{flex:1 1 96px;border:1px solid var(--shll-line);border-radius:9px;padding:8px 10px;background:var(--shll-card)}
+    .synhll-stat .synhll-sk{font-size:.6rem;letter-spacing:.04em;text-transform:uppercase;color:var(--shll-faint);font-weight:700}
+    .synhll-stat .synhll-sv{font:800 1.1rem/1.1 ui-monospace,monospace;color:var(--shll-blue);margin:3px 0 0}
+    .synhll-stat.synhll-true .synhll-sv{color:var(--shll-green)}
+    .synhll-stat.synhll-rep .synhll-sv{color:var(--shll-bord)}
+
+    .synhll-note{margin:12px 0 0;font-size:.73rem;color:var(--shll-faint);line-height:1.45}
+    .synhll-note code{font-family:ui-monospace,monospace}
+  </style>
+
+  <p class="synhll-k">Vue d'ensemble · super-widget</p>
+  <p class="synhll-title">Construire un sketch HyperLogLog de bout en bout sur un flux jouet</p>
+  <p class="synhll-sub">Un même cycle se répète pour chaque élément du flux :
+    <b>hacher</b> → <b>router</b> (p bits → registre) → <b>ρ</b> (zéros de tête + 1) → <b>max</b> → <b>estimer</b>,
+    puis on recommence sur l'élément suivant. Avancez phase par phase pour disséquer un élément, ou lisez en
+    continu jusqu'à épuisement du flux et regardez l'estimation rejoindre la vraie cardinalité. Tout est calculé
+    exactement, sans aléa : <code>m = 16</code> registres (<code>p = 4</code>).</p>
+
+  <div class="synhll-prog">
+    <div class="synhll-bar"><div class="synhll-bar-fill" id="synhll-barfill"></div></div>
+    <div class="synhll-prog-lab" id="synhll-proglab">0 / 44</div>
+  </div>
+
+  <div class="synhll-rail" id="synhll-rail" role="group" aria-label="phases du pipeline HyperLogLog">
+    <div class="synhll-ph" data-ph="0" id="synhll-ph-0"><div class="synhll-pn">1 · hacher</div><div class="synhll-pl">h(x)</div></div>
+    <div class="synhll-ph" data-ph="1" id="synhll-ph-1"><div class="synhll-pn">2 · router</div><div class="synhll-pl">p bits → j</div></div>
+    <div class="synhll-ph" data-ph="2" id="synhll-ph-2"><div class="synhll-pn">3 · rang</div><div class="synhll-pl">ρ = lz+1</div></div>
+    <div class="synhll-ph" data-ph="3" id="synhll-ph-3"><div class="synhll-pn">4 · max</div><div class="synhll-pl">M[j]←max</div></div>
+    <div class="synhll-ph synhll-est" data-ph="4" id="synhll-ph-4"><div class="synhll-pn">5 · estimer</div><div class="synhll-pl">E = α·m²·Z⁻¹</div></div>
+  </div>
+
+  <div class="synhll-grid">
+    <div class="synhll-col-mac">
+      <div class="synhll-elem">
+        <span class="synhll-elem-lab">Élément courant</span>
+        <span class="synhll-tok" id="synhll-tok">—</span>
+        <span class="synhll-rep" id="synhll-repbadge" style="display:none">déjà vu — n'ajoute rien</span>
+      </div>
+      <div class="synhll-bits" id="synhll-bits" aria-label="chaîne de bits du haché"></div>
+      <p class="synhll-route" id="synhll-route">Cliquez « Phase suivante » pour hacher le premier élément.</p>
+      <div class="synhll-reglab">Vecteur de registres M[0…15] — chaque case garde le ρ maximal vu</div>
+      <div class="synhll-regs" id="synhll-regs"></div>
+    </div>
+    <div class="synhll-col-curve">
+      <svg class="synhll-svg" id="synhll-curve" viewBox="0 0 360 240" role="img"
+           aria-label="estimation de cardinalité au fil des éléments lus, comparée à la vraie cardinalité"></svg>
+      <p class="synhll-caption">Indicateur de progression : l'estimation se construit, élément après élément.</p>
+      <div class="synhll-leg">
+        <span><i style="border-top-color:var(--shll-green);border-top-style:dashed"></i>vraie cardinalité</span>
+        <span><i style="border-top-color:var(--shll-blue)"></i>estimation rapportée</span>
+        <span><i style="border-top-color:var(--shll-bord-br);opacity:.7"></i>estimateur brut E</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="synhll-read" id="synhll-read"></div>
+  <div class="synhll-banner" id="synhll-banner"></div>
+
+  <p class="synhll-striplab">Le flux (44 événements) — cases pleines = déjà lues · pointillé = répétition d'un élément déjà compté</p>
+  <div class="synhll-strip" id="synhll-strip"></div>
+
+  <div class="synhll-btns">
+    <button type="button" class="synhll-primary" id="synhll-play">▶ Lire jusqu'au bout</button>
+    <button type="button" id="synhll-step">Phase suivante ▸</button>
+    <button type="button" id="synhll-elem">Élément suivant</button>
+    <button type="button" id="synhll-reset">Réinitialiser</button>
+  </div>
+
+  <div class="synhll-stats">
+    <div class="synhll-stat"><div class="synhll-sk">Éléments lus</div><div class="synhll-sv" id="synhll-vread">0</div></div>
+    <div class="synhll-stat synhll-true"><div class="synhll-sk">Distincts vrais</div><div class="synhll-sv" id="synhll-vtrue">0</div></div>
+    <div class="synhll-stat"><div class="synhll-sk">Registres remplis</div><div class="synhll-sv" id="synhll-vfill">0/16</div></div>
+    <div class="synhll-stat"><div class="synhll-sk">Estimateur brut E</div><div class="synhll-sv" id="synhll-vraw">—</div></div>
+    <div class="synhll-stat synhll-rep"><div class="synhll-sk">Estim. rapportée</div><div class="synhll-sv" id="synhll-vrep">—</div></div>
+  </div>
+
+  <p class="synhll-note">Pipeline jouet conforme à HyperLogLog (Flajolet et al., 2007). Hachage déterministe 32 bits
+    (FNV-1a + avalanche), invariant pour un même élément. <b>Routage</b> : les <code>p = 4</code> premiers bits
+    désignent le registre <code>j ∈ [0,15]</code>. <b>Rang</b> : <code>ρ =</code> (nombre de zéros de tête sur les
+    bits restants) <code>+ 1</code>. <b>Mise à jour</b> : <code>M[j] ← max(M[j], ρ)</code> — d'où l'invariance aux
+    répétitions. <b>Estimateur</b> : <code>E = α_m · m² · (Σ_j 2^−M[j])^−1</code> (moyenne harmonique), avec
+    <code>α₁₆ = 0,673</code>. Aux petites cardinalités (<code>E &lt; 2,5·m</code> avec <code>V</code> registres
+    vides), HyperLogLog bascule sur le <i>Linear Counting</i> <code>E* = m·ln(m/V)</code> — c'est l'« estimation
+    rapportée » tracée en bleu. Erreur-type théorique pour ce jouet : <code>1,04/√16 ≈ 26 %</code> ; un déploiement
+    réel emploie <code>m = 16 384</code> registres → <code>≈ 0,81 %</code>. Aucun aléa : trajectoire identique à
+    chaque exécution.</p>
+
+  <script>
+  (function(){
+    var root=document.getElementById("synhll-root");
+    if(!root||root.dataset.synhllInit)return; root.dataset.synhllInit="1";
+    var SVGNS="http://www.w3.org/2000/svg";
+
+    // ---------- hachage déterministe (FNV-1a 32 bits + avalanche murmur3) ----------
+    function hash(str){
+      var x=0x811c9dc5>>>0;
+      for(var i=0;i<str.length;i++){ x^=str.charCodeAt(i); x=Math.imul(x,0x01000193)>>>0; }
+      x^=x>>>16; x=Math.imul(x,0x85ebca6b)>>>0; x^=x>>>13; x=Math.imul(x,0xc2b2ae35)>>>0; x^=x>>>16;
+      return x>>>0;
+    }
+
+    var P=4, M=16, W=32-P, ALPHA=0.673;
+
+    // ---------- flux jouet déterministe (24 distincts, répétitions intercalées) ----------
+    function buildStream(){
+      var distinct=[]; for(var i=1;i<=24;i++) distinct.push("id-"+(i<10?"0"+i:""+i));
+      var s=[], di=0;
+      for(var k=0;k<44;k++){
+        if(k%4===3 && di>2) s.push(distinct[(k*7)%di]);          // répétition d'un distinct déjà émis
+        else if(di<distinct.length) s.push(distinct[di++]);       // nouvel élément
+        else s.push(distinct[(k*5)%distinct.length]);
+      }
+      return s;
+    }
+    var STREAM=buildStream();
+    var N=STREAM.length;
+
+    // pré-calcul : pour chaque position, est-ce une répétition d'un token déjà apparu ?
+    var IS_REP=(function(){ var seen={}, out=[]; for(var k=0;k<N;k++){ var t=STREAM[k]; out.push(!!seen[t]); seen[t]=1; } return out; })();
+
+    // métadonnées d'un élément (déterministe, pur)
+    function meta(tok){
+      var x=hash(tok);
+      var bits=(x>>>0).toString(2); while(bits.length<32) bits="0"+bits;
+      var j=x>>>W;                       // p bits de tête
+      var sub=bits.slice(P);             // bits restants
+      var lz=sub.indexOf("1"); if(lz<0) lz=W;
+      var rho=lz+1;
+      return {tok:tok,x:x,bits:bits,j:j,sub:sub,lz:lz,rho:rho};
+    }
+
+    // ---------- état pédagogique ----------
+    var reg, seen, folded;   // reg[16], set de tokens vus, nb d'éléments repliés
+    var ei, phase;           // élément courant, phase 0..4 (-1 = avant tout)
+    var curMeta;             // meta de l'élément courant
+    var bumped;              // le max a-t-il modifié M[j] pour cet élément ?
+    var trueH, rawH, repH;   // séries de la courbe (index 0 = base)
+    var playing=false, rafId=null, lastT=0;
+
+    function estimator(){
+      var Z=0,V=0; for(var i=0;i<M;i++){ Z+=Math.pow(2,-reg[i]); if(reg[i]===0)V++; }
+      var raw=ALPHA*M*M/Z;
+      var rep=(raw<2.5*M && V>0)? M*Math.log(M/V) : raw;
+      var fill=0; for(var k=0;k<M;k++) if(reg[k]>0) fill++;
+      return {Z:Z,V:V,raw:raw,rep:rep,fill:fill};
+    }
+
+    // ---------- éléments DOM ----------
+    var elTok=document.getElementById("synhll-tok");
+    var elRep=document.getElementById("synhll-repbadge");
+    var elBits=document.getElementById("synhll-bits");
+    var elRoute=document.getElementById("synhll-route");
+    var elRegs=document.getElementById("synhll-regs");
+    var elCurve=document.getElementById("synhll-curve");
+    var elRead=document.getElementById("synhll-read");
+    var elBanner=document.getElementById("synhll-banner");
+    var elStrip=document.getElementById("synhll-strip");
+    var elBar=document.getElementById("synhll-barfill");
+    var elProg=document.getElementById("synhll-proglab");
+    var phEls=[0,1,2,3,4].map(function(i){return document.getElementById("synhll-ph-"+i);});
+    var vRead=document.getElementById("synhll-vread");
+    var vTrue=document.getElementById("synhll-vtrue");
+    var vFill=document.getElementById("synhll-vfill");
+    var vRaw=document.getElementById("synhll-vraw");
+    var vRep=document.getElementById("synhll-vrep");
+    var playBtn=document.getElementById("synhll-play");
+    var stepBtn=document.getElementById("synhll-step");
+    var elemBtn=document.getElementById("synhll-elem");
+    var resetBtn=document.getElementById("synhll-reset");
+
+    function fmt(v,d){ if(!isFinite(v))return "∞"; return v.toFixed(d).replace(".",","); }
+
+    // cellules de registre créées une fois
+    var cells=[];
+    (function buildCells(){
+      for(var j=0;j<M;j++){
+        var c=document.createElement("div"); c.className="synhll-cell";
+        var jl=document.createElement("div"); jl.className="synhll-cj"; jl.textContent=j;
+        var fl=document.createElement("div"); fl.className="synhll-cfill";
+        var v=document.createElement("div"); v.className="synhll-cv"; v.textContent="0";
+        c.appendChild(jl); c.appendChild(fl); c.appendChild(v);
+        elRegs.appendChild(c); cells.push({c:c,fill:fl,v:v});
+      }
+    })();
+
+    // bandeau du flux créé une fois
+    var chips=[];
+    (function buildStrip(){
+      for(var k=0;k<N;k++){
+        var ch=document.createElement("div"); ch.className="synhll-chip"+(IS_REP[k]?" synhll-rep":"");
+        ch.textContent=STREAM[k].slice(3); // "id-07" -> "07"
+        elStrip.appendChild(ch); chips.push(ch);
+      }
+    })();
+
+    function maxReg(){ var m=4; for(var i=0;i<M;i++) if(reg[i]>m)m=reg[i]; return m; }
+    function drawRegs(){
+      var mx=maxReg();
+      for(var j=0;j<M;j++){
+        var c=cells[j]; c.v.textContent=reg[j];
+        c.c.className="synhll-cell"+(reg[j]===0?" synhll-empty":"");
+        c.fill.style.height=(reg[j]/mx*100).toFixed(0)+"%";
+        // surlignages selon la phase de l'élément courant
+        if(curMeta && phase>=1 && j===curMeta.j){
+          if(phase===3 && bumped) c.c.className="synhll-cell synhll-bump";
+          else c.c.className="synhll-cell"+(reg[j]===0?" synhll-empty":"")+" synhll-target";
+        }
+      }
+    }
+
+    // ---------- bits ----------
+    function clearBits(){ elBits.textContent=""; }
+    function drawBits(){
+      elBits.textContent="";
+      if(!curMeta){ return; }
+      var b=curMeta.bits, parts=[];
+      for(var i=0;i<32;i++){
+        var cls;
+        if(phase>=1 && i<P) cls="synhll-b-idx";                 // bits de routage
+        else if(phase>=2 && i>=P){
+          var rel=i-P;
+          if(rel<curMeta.lz) cls="synhll-b-lz";                 // zéros de tête
+          else if(rel===curMeta.lz) cls="synhll-b-one";         // premier 1
+          else cls="synhll-b-tail";                              // reste (ignoré)
+        } else cls="synhll-b-raw";
+        var sp=document.createElement("span"); sp.className=cls; sp.textContent=b[i];
+        elBits.appendChild(sp);
+        if(i===P-1){ var sep=document.createElement("span"); sep.textContent=" "; elBits.appendChild(sep); }
+      }
+    }
+
+    // ---------- panneau de lecture (balisage <b>/<code> littéral, sans innerHTML) ----------
+    function setRead(markup,cls){
+      elRead.className="synhll-read"+(cls?" "+cls:"");
+      elRead.textContent="";
+      var parts=markup.split(/(<\/?(?:b|code)>)/);
+      var stack=[elRead];
+      for(var p=0;p<parts.length;p++){
+        var tok=parts[p]; if(tok==="")continue;
+        if(tok==="<b>"){var b=document.createElement("b");stack[stack.length-1].appendChild(b);stack.push(b);}
+        else if(tok==="<code>"){var c=document.createElement("code");stack[stack.length-1].appendChild(c);stack.push(c);}
+        else if(tok==="</b>"||tok==="</code>"){ if(stack.length>1)stack.pop(); }
+        else stack[stack.length-1].appendChild(document.createTextNode(tok));
+      }
+    }
+    function railHL(){ for(var i=0;i<5;i++) phEls[i].classList.toggle("synhll-active", i===phase); }
+
+    // ---------- textes par phase ----------
+    function sayHash(){
+      setRead("<b>Phase 1 — Hachage.</b> L'élément <code>"+curMeta.tok+"</code> passe dans la fonction de hachage : "+
+        "elle renvoie une chaîne de <b>32 bits</b> qui se comporte comme uniforme et aléatoire, mais reste "+
+        "<b>identique</b> à chaque fois que ce même élément réapparaît. C'est ce déterminisme qui rend le comptage "+
+        "insensible aux doublons.","");
+    }
+    function sayRoute(){
+      setRead("<b>Phase 2 — Routage.</b> Les <code>p = 4</code> premiers bits <code>"+curMeta.bits.slice(0,P)+
+        "</code> se lisent comme l'indice du registre : <code>j = "+curMeta.j+"</code>. Chaque registre résume ainsi "+
+        "un <b>sous-flot</b> du flux (ici "+M+" sous-flots). Seul <code>M["+curMeta.j+"]</code> sera concerné.","");
+    }
+    function sayRho(){
+      var lzstr=curMeta.lz===0?"aucun":(curMeta.lz+"");
+      setRead("<b>Phase 3 — Rang ρ.</b> Sur les bits restants <code>"+curMeta.sub.slice(0,Math.min(12,W))+
+        (W>12?"…":"")+"</code> on compte les <b>zéros de tête</b> ("+lzstr+") avant le premier 1, puis on ajoute 1 : "+
+        "<code>ρ = "+curMeta.lz+" + 1 = "+curMeta.rho+"</code>. Un grand ρ est rare (probabilité <code>2^−ρ</code>) — "+
+        "c'est l'empreinte que laisse la rareté d'un motif binaire.","synhll-r-rho");
+    }
+    function sayMax(){
+      var msg="<b>Phase 4 — Mise à jour (max).</b> Le registre ne garde que le <b>maximum</b> : "+
+        "<code>M["+curMeta.j+"] ← max(M["+curMeta.j+"], "+curMeta.rho+")</code>. ";
+      if(bumped) msg+="Ici ρ bat l'ancienne valeur → <code>M["+curMeta.j+"] = "+reg[curMeta.j]+"</code> (case verte). "+
+        "Le max est <b>idempotent</b> : revoir cet élément ne changerait plus rien.";
+      else msg+="Ici ρ ne dépasse pas la valeur déjà stockée <code>"+reg[curMeta.j]+"</code> → <b>aucun changement</b>. "+
+        "C'est exactement ce qui se passe sur une <b>répétition</b>.";
+      setRead(msg,"synhll-r-max");
+    }
+    function sayEst(){
+      var e=estimator();
+      var corr=(e.raw<2.5*M && e.V>0);
+      var msg="<b>Phase 5 — Estimation.</b> On agrège les "+M+" registres par moyenne harmonique : "+
+        "<code>Z = Σ 2^−M[j] = "+fmt(e.Z,3)+"</code>, puis <code>E = α·m²·Z⁻¹ = 0,673·256/"+fmt(e.Z,3)+
+        " = "+fmt(e.raw,1)+"</code>. ";
+      if(corr) msg+="On est en régime <b>petite cardinalité</b> (<code>E < 2,5·m</code>, "+e.V+
+        " registres vides) : HyperLogLog rapporte plutôt le <b>Linear Counting</b> "+
+        "<code>E* = m·ln(m/V) = "+fmt(e.rep,1)+"</code>. ";
+      msg+="Vraie cardinalité à cet instant : <b>"+seen.size+"</b>. La boucle reprend à l'élément suivant.";
+      setRead(msg,"synhll-r-est");
+    }
+
+    function refreshStats(){
+      var e=estimator();
+      vRead.textContent=folded;
+      vTrue.textContent=seen.size;
+      vFill.textContent=e.fill+"/"+M;
+      vRaw.textContent=folded?fmt(e.raw,1):"—";
+      vRep.textContent=folded?fmt(e.rep,1):"—";
+    }
+
+    function refreshProgress(){
+      elBar.style.width=(folded/N*100).toFixed(1)+"%";
+      elProg.textContent=folded+" / "+N;
+    }
+
+    function drawStrip(){
+      for(var k=0;k<N;k++){
+        var ch=chips[k]; var base="synhll-chip"+(IS_REP[k]?" synhll-rep":"");
+        if(k<folded) base+=" synhll-done";
+        if(k===ei && phase>=0 && folded<=ei) base+=" synhll-cur";   // élément en cours
+        if(k===ei && phase>=0 && folded===ei+1) base+=" synhll-cur synhll-done"; // déjà replié
+        ch.className=base;
+      }
+    }
+
+    function drawElemHeader(){
+      if(!curMeta){ elTok.textContent="—"; elRep.style.display="none"; return; }
+      elTok.textContent=curMeta.tok;
+      elRep.style.display=IS_REP[ei]?"inline-block":"none";
+    }
+
+    function drawRoute(){
+      if(!curMeta){ elRoute.textContent="Cliquez « Phase suivante » pour hacher le premier élément."; return; }
+      elRoute.textContent="";
+      function frag(html){ // mini balisage <b>/<span class=rho>
+        var parts=html.split(/(<\/?(?:b|s)>)/), stack=[document.createDocumentFragment()];
+        for(var p=0;p<parts.length;p++){ var t=parts[p]; if(t==="")continue;
+          if(t==="<b>"){var b=document.createElement("b");stack[stack.length-1].appendChild(b);stack.push(b);}
+          else if(t==="<s>"){var s=document.createElement("span");s.className="synhll-rho";stack[stack.length-1].appendChild(s);stack.push(s);}
+          else if(t==="</b>"||t==="</s>"){ if(stack.length>1)stack.pop(); }
+          else stack[stack.length-1].appendChild(document.createTextNode(t)); }
+        return stack[0];
+      }
+      var txt;
+      if(phase===0) txt="Haché en 32 bits — prêt à router.";
+      else if(phase===1) txt="<b>j = "+curMeta.j+"</b> ← les "+P+" premiers bits → registre ciblé.";
+      else if(phase===2) txt="<b>j = "+curMeta.j+"</b> · <s>ρ = "+curMeta.lz+"+1 = "+curMeta.rho+"</s>.";
+      else txt="<b>j = "+curMeta.j+"</b> · <s>ρ = "+curMeta.rho+"</s> → M["+curMeta.j+"] = "+reg[curMeta.j]+".";
+      elRoute.appendChild(frag(txt));
+    }
+
+    // ---------- courbe (indicateur de progression) ----------
+    function svgEl(tag,attrs){var e=document.createElementNS(SVGNS,tag);for(var k in attrs)e.setAttribute(k,attrs[k]);return e;}
+    function drawCurve(){
+      elCurve.textContent="";
+      var g=svgEl("g",{});
+      var PL=34,PR=12,PT=14,PB=26, Wd=360,Hd=240;
+      var pw=Wd-PL-PR, ph=Hd-PT-PB;
+      var xmax=N;
+      var ymax=4;
+      for(var i=0;i<rawH.length;i++){ ymax=Math.max(ymax,rawH[i],trueH[i],repH[i]); }
+      ymax=Math.ceil(ymax/4)*4;
+      function sx(i){return PL + (i/xmax)*pw;}
+      function sy(v){return PT + (1-Math.min(v,ymax)/ymax)*ph;}
+      // axes
+      g.appendChild(svgEl("line",{x1:PL,y1:PT,x2:PL,y2:Hd-PB,stroke:"#C7D2DF","stroke-width":1}));
+      g.appendChild(svgEl("line",{x1:PL,y1:Hd-PB,x2:Wd-PR,y2:Hd-PB,stroke:"#C7D2DF","stroke-width":1}));
+      var ytop=svgEl("text",{x:PL-5,y:PT+4,"text-anchor":"end",fill:"var(--shll-faint)"});ytop.textContent=ymax;g.appendChild(ytop);
+      var y0=svgEl("text",{x:PL-5,y:Hd-PB,"text-anchor":"end",fill:"var(--shll-faint)"});y0.textContent="0";g.appendChild(y0);
+      var yl=svgEl("text",{x:PL-26,y:PT+ph/2,"text-anchor":"middle",fill:"var(--shll-faint)",transform:"rotate(-90 "+(PL-26)+" "+(PT+ph/2)+")"});yl.textContent="cardinalité";g.appendChild(yl);
+      var xl=svgEl("text",{x:PL+pw/2,y:Hd-5,"text-anchor":"middle",fill:"var(--shll-faint)"});xl.textContent="éléments lus";g.appendChild(xl);
+      function path(arr,stroke,dash,wd,op){
+        var d=""; for(var i=0;i<arr.length;i++) d+=(i?"L":"M")+sx(i).toFixed(1)+" "+sy(arr[i]).toFixed(1)+" ";
+        var a={d:d,fill:"none",stroke:stroke,"stroke-width":wd};
+        if(dash)a["stroke-dasharray"]=dash; if(op!=null)a.opacity=op;
+        g.appendChild(svgEl("path",a));
+      }
+      path(trueH,"var(--shll-green)","4 3",2,0.95);
+      path(rawH,"var(--shll-bord-br)",null,1.6,0.55);
+      path(repH,"var(--shll-blue)",null,2.2,1);
+      var li=repH.length-1;
+      g.appendChild(svgEl("circle",{cx:sx(li),cy:sy(repH[li]),r:3.4,fill:"var(--shll-blue)"}));
+      g.appendChild(svgEl("circle",{cx:sx(li),cy:sy(trueH[li]),r:3,fill:"var(--shll-green)"}));
+      elCurve.appendChild(g);
+    }
+
+    // ---------- commits ----------
+    function pushPoint(){
+      var e=estimator();
+      trueH.push(seen.size); rawH.push(e.raw); repH.push(e.rep);
+    }
+
+    // ---------- moteur pas-à-pas ----------
+    function enterElement(idx){
+      ei=idx; curMeta=meta(STREAM[idx]); bumped=false;
+    }
+    function stepPhase(){
+      if(atEnd()) return;
+      if(phase<0){ enterElement(0); phase=0; }
+      else if(phase<4){
+        phase++;
+        if(phase===3){ // appliquer le max maintenant (phase « 4 · max »)
+          var before=reg[curMeta.j];
+          bumped = curMeta.rho>before;
+          reg[curMeta.j]=Math.max(before, curMeta.rho);
+          seen.add(curMeta.tok);
+          folded=ei+1;
+        }
+        if(phase===4){ pushPoint(); }
+      } else { // phase 4 -> élément suivant
+        if(ei+1>=N){ phase=4; renderAll(); finishBanner(); return; }
+        enterElement(ei+1); phase=0;
+      }
+      // narration
+      if(phase===0) sayHash();
+      else if(phase===1) sayRoute();
+      else if(phase===2) sayRho();
+      else if(phase===3) sayMax();
+      else if(phase===4) sayEst();
+      renderAll();
+      if(phase===4 && folded>=N) finishBanner();
+    }
+
+    function nextElement(){ // pas-à-pas groupé : avance jusqu'à la phase « estimer » de l'élément suivant
+      if(atEnd()) return;
+      var guard=0; do{ stepPhase(); guard++; } while(phase!==4 && !atEnd() && guard<8);
+    }
+
+    function atEnd(){ return folded>=N && phase===4; }
+
+    // ---------- lecture continue ----------
+    function foldFast(){ // replie un élément entier sans détailler les phases
+      enterElement(folded);
+      var before=reg[curMeta.j];
+      bumped=curMeta.rho>before;
+      reg[curMeta.j]=Math.max(before,curMeta.rho);
+      seen.add(curMeta.tok);
+      folded=ei+1; phase=4;
+      pushPoint();
+    }
+    function tick(t){
+      if(!playing)return;
+      if(!lastT)lastT=t;
+      if(t-lastT>=110){
+        lastT=t;
+        if(folded>=N){ stopPlay(); finishBanner(); return; }
+        foldFast();
+        sayEst(); renderAll();
+        if(folded>=N){ stopPlay(); finishBanner(); return; }
+      }
+      rafId=requestAnimationFrame(tick);
+    }
+    function startPlay(){
+      if(playing)return;
+      if(atEnd()) resetAll();
+      playing=true; lastT=0; playBtn.textContent="⏸ Pause";
+      setStepEnabled(false);
+      rafId=requestAnimationFrame(tick);
+    }
+    function stopPlay(){
+      playing=false; playBtn.textContent="▶ Lire jusqu'au bout";
+      if(rafId){cancelAnimationFrame(rafId);rafId=null;}
+      setStepEnabled(true);
+    }
+    function setStepEnabled(on){ stepBtn.disabled=!on; elemBtn.disabled=!on; }
+
+    function finishBanner(){
+      var e=estimator();
+      var err=(e.rep-seen.size)/seen.size*100;
+      elBanner.textContent="✓ Flux épuisé ("+N+" événements, "+seen.size+" distincts vrais). Estimation rapportée "+
+        fmt(e.rep,1)+" — soit "+(err>=0?"+":"")+fmt(err,1)+" %. Les "+(N-seen.size)+" répétitions n'ont rien changé : "+
+        "le max est idempotent.";
+      elBanner.classList.add("synhll-show");
+    }
+
+    // ---------- rendu global ----------
+    function renderAll(){
+      drawElemHeader(); drawBits(); drawRoute(); drawRegs();
+      drawStrip(); drawCurve(); refreshStats(); refreshProgress(); railHL();
+    }
+
+    // ---------- reset ----------
+    function resetAll(){
+      reg=new Array(M); for(var i=0;i<M;i++)reg[i]=0;
+      seen=new Set(); folded=0; ei=-1; phase=-1; curMeta=null; bumped=false;
+      // base de la courbe (avant tout élément) : Z=m, raw=α·m, rep=0
+      trueH=[0]; rawH=[ALPHA*M]; repH=[0];
+      elBanner.classList.remove("synhll-show");
+      setRead("<b>Prêt.</b> Flux jouet de "+N+" événements, "+M+" registres à zéro. Cliquez « Phase suivante » "+
+        "pour dérouler un élément phase par phase (hacher → router → ρ → max → estimer), « Élément suivant » pour "+
+        "le faire d'un coup, ou « Lire jusqu'au bout » pour la lecture continue jusqu'à convergence.","");
+      renderAll();
+    }
+
+    // ---------- contrôles ----------
+    playBtn.addEventListener("click",function(){ if(playing)stopPlay(); else startPlay(); });
+    stepBtn.addEventListener("click",function(){ if(playing)return; if(atEnd())resetAll(); stepPhase(); });
+    elemBtn.addEventListener("click",function(){ if(playing)return; if(atEnd())resetAll(); nextElement(); });
+    resetBtn.addEventListener("click",function(){ stopPlay(); resetAll(); });
+    document.getElementById("synhll-rail").addEventListener("click",function(ev){
+      var t=ev.target.closest(".synhll-ph"); if(!t||playing)return;
+      if(atEnd())resetAll();
+      var target=parseInt(t.getAttribute("data-ph"),10), guard=0;
+      do{ stepPhase(); guard++; }while(phase!==target && !atEnd() && guard<8);
+    });
+
+    // ---------- init ----------
+    resetAll();
+  })();
+  </script>
+</div>

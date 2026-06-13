@@ -1,0 +1,2109 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HyperLogLog : estimer des milliards de distincts en quelques kilo-octets</title>
+<style>
+/* vietnamese */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLySOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLyTOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLySOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLyTOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 700;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLySOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 700;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLyTOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 700;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 800;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLySOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 800;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLyTOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 800;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx3cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxTcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxPcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx_cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx7cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxDcwgknk-4.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx3cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxTcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxPcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx_cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx7cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxDcwgknk-4.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx3cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxTcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxPcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx_cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx7cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxDcwgknk-4.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCt-xNNww_2s0amA9M8onfmTNmnUHowCw.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCt-xNNww_2s0amA9M8on7mTNmnUHowCw.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCt-xNNww_2s0amA9M8onXmTNmnUHowCw.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCt-xNNww_2s0amA9M8onTmTNmnUHowCw.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCt-xNNww_2s0amA9M8onrmTNmnUHo.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCr-xNNww_2s0amA9M0knjsS_ulYHs.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCr-xNNww_2s0amA9M9knjsS_ulYHs.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCr-xNNww_2s0amA9M2knjsS_ulYHs.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCr-xNNww_2s0amA9M3knjsS_ulYHs.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCr-xNNww_2s0amA9M5knjsS_ul.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vKsW3MafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vKsW3FafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vKsW3OafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vKsW3PafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vKsW3BafaPWnII.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vmtm3MafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vmtm3FafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vmtm3OafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vmtm3PafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vmtm3BafaPWnII.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* =====================================================================
+   charte.css — Charte graphique commune (monograph skill)
+   Sources :
+     (1) themes/automatic-prompt-optimization/legacy/apo-base.html  l.11-192
+     (2) themes/automatic-prompt-optimization/legacy/build/assemble.py  EXTRA_CSS
+     (3) themes/automatic-prompt-optimization/legacy/build/widgets/theme-tooltips.html  <style> blocks
+   NE PAS modifier — fichier de référence distillé depuis le legacy APO.
+   ===================================================================== */
+
+/* ===== (1) BASE : tokens + typographie + composants de mise en page ===== */
+
+  :root{
+    --paper:#F4F6FA; --card:#FFFFFF;
+    --ink:#15202E; --ink-soft:#43536A; --ink-faint:#7A889B;
+    --blue:#23537F; --blue-deep:#142E49; --blue-bright:#2C77B6; --blue-wash:#E7EEF6;
+    --bordeaux:#7C2A38; --bordeaux-bright:#9B3443; --bordeaux-wash:#F3E3E6;
+    --line:#D7DFE9; --line-soft:#E7ECF3;
+    --code:#11283F;
+    --maxw:1240px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Spectral",Georgia,serif; font-size:17px; line-height:1.62;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,h4,.lbl,.chip,nav,th,.tag,.fcap-k{font-family:"Archivo",system-ui,sans-serif;}
+  code,kbd,.mono{font-family:"JetBrains Mono",monospace;}
+
+  /* progress bar */
+  #prog{position:fixed;top:0;left:0;height:3px;width:0;background:var(--bordeaux-bright);z-index:60;transition:width .08s linear;}
+
+  /* header */
+  header.top{
+    background:linear-gradient(165deg,var(--blue-deep),#0E2236 70%);
+    color:#EAF1F8; padding:62px 28px 54px;
+    border-bottom:3px solid var(--bordeaux);
+  }
+  .top-in{max-width:var(--maxw);margin:0 auto;}
+  .kicker{font-family:"JetBrains Mono",monospace;font-size:12.5px;letter-spacing:.22em;
+    text-transform:uppercase;color:#9DC2E0;margin:0 0 16px;}
+  header.top h1{font-size:clamp(30px,4.6vw,52px);line-height:1.05;margin:0;font-weight:800;letter-spacing:-.01em;}
+  header.top h1 em{font-style:normal;color:#E7B3BD;}
+  header.top .lede{font-size:18px;max-width:760px;margin:20px 0 0;color:#C7D7E6;line-height:1.55;}
+  .meta{margin-top:26px;display:flex;flex-wrap:wrap;gap:10px;}
+  .meta span{font-family:"JetBrains Mono",monospace;font-size:11.5px;letter-spacing:.04em;
+    border:1px solid rgba(157,194,224,.35);color:#B7CFE4;padding:5px 11px;border-radius:2px;}
+
+  /* layout */
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 28px;display:grid;
+    grid-template-columns:248px minmax(0,1fr);gap:48px;align-items:start;}
+  nav.toc{position:sticky;top:22px;padding:30px 0 60px;font-size:13.5px;max-height:calc(100vh - 30px);overflow:auto;}
+  nav.toc .navhead{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);margin:18px 0 9px;font-weight:700;}
+  nav.toc a{display:block;color:var(--ink-soft);text-decoration:none;padding:4px 12px;border-left:2px solid var(--line);
+    line-height:1.32;margin:1px 0;transition:.15s;}
+  nav.toc a:hover{color:var(--blue-bright);border-left-color:var(--blue-bright);}
+  nav.toc a.active{color:var(--bordeaux);border-left-color:var(--bordeaux);font-weight:600;background:var(--bordeaux-wash);}
+  nav.toc a.sub{padding-left:24px;font-size:12.5px;}
+
+  main{padding:42px 0 100px;min-width:0;}
+  section{margin-bottom:30px;scroll-margin-top:18px;}
+  .part-band{margin:54px 0 10px;padding:14px 0 12px;border-top:2px solid var(--blue-deep);border-bottom:1px solid var(--line);}
+  .part-band .pk{font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.2em;color:var(--bordeaux);text-transform:uppercase;}
+  .part-band h2{font-size:clamp(24px,3.2vw,34px);margin:6px 0 0;font-weight:800;letter-spacing:-.01em;color:var(--blue-deep);}
+  h3{font-size:22px;margin:36px 0 8px;color:var(--blue-deep);font-weight:700;letter-spacing:-.005em;}
+  h4{font-size:16px;margin:22px 0 6px;color:var(--ink);font-weight:700;}
+  p{margin:11px 0;}
+  a.ref{color:var(--blue-bright);text-decoration:none;border-bottom:1px solid var(--blue-wash);font-weight:500;}
+  a.ref:hover{border-bottom-color:var(--blue-bright);}
+  strong{font-weight:600;}
+  .hl{color:var(--bordeaux);font-weight:600;}
+  em.term{font-style:italic;color:var(--ink);}
+  .lead{font-size:18.5px;color:var(--ink-soft);line-height:1.6;}
+
+  /* cards & components */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:7px;padding:22px 24px;margin:16px 0;
+    box-shadow:0 1px 2px rgba(20,46,73,.04);}
+  .opt{border-left:3px solid var(--blue);}
+  .opt .lbl{font-family:"Archivo";font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--blue);font-weight:700;}
+  .opt h4{margin:3px 0 8px;font-size:18px;}
+  .pc{display:grid;grid-template-columns:1fr 1fr;gap:10px 26px;margin-top:12px;}
+  @media(max-width:620px){.pc{grid-template-columns:1fr;}}
+  .pc ul{margin:4px 0;padding:0;list-style:none;font-size:15px;}
+  .pc li{padding:3px 0 3px 22px;position:relative;line-height:1.45;color:var(--ink-soft);}
+  .pros .k,.cons .k{font-family:"Archivo";font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;display:block;margin-bottom:3px;}
+  .pros .k{color:var(--blue);}.cons .k{color:var(--bordeaux);}
+  .pros li::before{content:"+";position:absolute;left:4px;color:var(--blue-bright);font-weight:700;}
+  .cons li::before{content:"–";position:absolute;left:5px;color:var(--bordeaux-bright);font-weight:700;}
+  .links{margin-top:13px;font-family:"JetBrains Mono",monospace;font-size:12.5px;display:flex;gap:16px;flex-wrap:wrap;}
+  .links a{color:var(--blue);text-decoration:none;border-bottom:1px dotted var(--blue);}
+  .links a:hover{color:var(--bordeaux);border-bottom-color:var(--bordeaux);}
+  .links a::before{content:"↗ ";opacity:.6;}
+
+  /* callout */
+  .callout{background:var(--bordeaux-wash);border:1px solid #E3C3C9;border-left:4px solid var(--bordeaux);
+    border-radius:6px;padding:18px 22px;margin:20px 0;}
+  .callout .ct{font-family:"Archivo";font-weight:700;color:var(--bordeaux);font-size:13px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
+  .note{background:var(--blue-wash);border:1px solid #CFE0EF;border-left:4px solid var(--blue);border-radius:6px;padding:18px 22px;margin:20px 0;}
+  .note .ct{font-family:"Archivo";font-weight:700;color:var(--blue);font-size:13px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
+
+  /* figures */
+  figure.fig{margin:24px 0;background:var(--card);border:1px solid var(--line);border-radius:7px;padding:24px 22px 16px;}
+  figure.fig svg{width:100%;height:auto;display:block;}
+  figcaption{margin-top:12px;font-size:13.5px;color:var(--ink-faint);line-height:1.45;border-top:1px solid var(--line-soft);padding-top:10px;}
+  figcaption .fcap-k{color:var(--bordeaux);font-weight:700;font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin-right:8px;}
+
+  /* table */
+  .tbl-w{overflow-x:auto;margin:18px 0;border:1px solid var(--line);border-radius:7px;}
+  table{border-collapse:collapse;width:100%;font-size:14px;background:var(--card);}
+  th{background:var(--blue-deep);color:#E7F0F8;text-align:left;padding:11px 14px;font-size:12px;letter-spacing:.04em;font-weight:600;position:sticky;top:0;}
+  td{padding:11px 14px;border-top:1px solid var(--line-soft);vertical-align:top;line-height:1.45;color:var(--ink-soft);}
+  td:first-child{color:var(--ink);font-weight:600;font-family:"Archivo";font-size:13.5px;}
+  tr:hover td{background:#FAFCFE;}
+  .tag{display:inline-block;font-family:"JetBrains Mono",monospace;font-size:11px;padding:2px 7px;border-radius:3px;background:var(--blue-wash);color:var(--blue);}
+  .tag.b{background:var(--bordeaux-wash);color:var(--bordeaux);}
+
+  code{background:#E9EEF4;color:var(--code);padding:1.5px 6px;border-radius:4px;font-size:14px;}
+  .axis-chips{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 4px;}
+  .axis-chips a{font-family:"Archivo";font-size:12.5px;font-weight:600;text-decoration:none;color:var(--blue);
+    background:var(--card);border:1px solid var(--line);padding:7px 13px;border-radius:30px;transition:.15s;}
+  .axis-chips a:hover{background:var(--blue-deep);color:#fff;border-color:var(--blue-deep);}
+
+  /* decision path (interactive Part II) */
+  .dpath{margin:18px 0;}
+  .fork{background:var(--card);border:1px solid var(--line);border-radius:7px;margin:10px 0;overflow:hidden;}
+  .fork-h{padding:13px 18px;background:#F0F4F9;border-bottom:1px solid var(--line);
+    font-family:"Archivo";font-weight:700;font-size:14px;color:var(--blue-deep);display:flex;gap:10px;align-items:baseline;}
+  .fork-h .n{font-family:"JetBrains Mono";color:var(--bordeaux);font-size:12px;}
+  .branches{display:grid;grid-template-columns:1fr 1fr;}
+  @media(max-width:620px){.branches{grid-template-columns:1fr;}}
+  .br{padding:14px 18px;font-size:14.5px;line-height:1.5;color:var(--ink-faint);border-right:1px solid var(--line-soft);}
+  .br.chosen{color:var(--ink);background:linear-gradient(0deg,var(--bordeaux-wash),#fff);border-left:3px solid var(--bordeaux);}
+  .br .st{font-family:"Archivo";font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:5px;}
+  .br.chosen .st{color:var(--bordeaux);}
+  .br.alt .st{color:var(--ink-faint);}
+  .br.chosen .st::after{content:" ◆ retenu";color:var(--bordeaux);}
+
+  /* collapsible examples */
+  details.ex{margin:18px 0;border:1px solid var(--line);border-radius:6px;background:#FBFCFE;overflow:hidden;}
+  details.ex>summary{cursor:pointer;list-style:none;padding:12px 18px;font-family:"Archivo",sans-serif;
+    font-weight:700;font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--blue-deep);
+    background:#EBF1F7;display:flex;align-items:center;gap:11px;user-select:none;transition:.15s;}
+  details.ex>summary::-webkit-details-marker{display:none;}
+  details.ex>summary::before{content:"▸";color:var(--bordeaux);font-size:13px;line-height:1;
+    transition:transform .2s ease;display:inline-block;}
+  details.ex[open]>summary::before{transform:rotate(90deg);}
+  details.ex>summary:hover{background:#E1EAF3;color:var(--bordeaux);}
+  details.ex>summary .cnt{margin-left:auto;font-family:"JetBrains Mono",monospace;font-size:10px;
+    letter-spacing:.04em;color:var(--ink-faint);font-weight:400;}
+  .exbody{padding:8px 20px 16px;font-size:15px;line-height:1.55;color:var(--ink-soft);}
+  .exbody p{margin:9px 0;}
+  .eg{margin:11px 0;padding:11px 15px;border-left:3px solid var(--blue);background:#fff;
+    border:1px solid var(--line-soft);border-left:3px solid var(--blue);border-radius:0 5px 5px 0;}
+  .eg.b{border-left-color:var(--bordeaux);}
+  .eg .egk{font-family:"Archivo",sans-serif;font-size:11.5px;font-weight:700;letter-spacing:.04em;
+    color:var(--blue-deep);display:block;margin-bottom:4px;}
+  .eg.b .egk{color:var(--bordeaux);}
+  .eg p{margin:5px 0;}
+  .exbody code{font-size:13px;}
+  .arrow{color:var(--bordeaux);font-weight:600;}
+
+  /* worked examples: code / diff / calc / steps */
+  .exbody pre.code{background:#0E2132;color:#D6E3EF;border:1px solid #1C3650;border-radius:6px;
+    padding:12px 14px;margin:11px 0;font-family:"JetBrains Mono",monospace;font-size:11.8px;line-height:1.62;
+    overflow-x:auto;white-space:pre;}
+  .exbody pre.code .h{color:#E7B3BD;}
+  .exbody pre.code .c{color:#7C9DBA;}
+  .exbody pre.code .del{display:block;background:rgba(155,52,67,.32);color:#F2C6CC;}
+  .exbody pre.code .add{display:block;background:rgba(44,119,182,.30);color:#C5DEF3;}
+  .calc{background:#fff;border:1px solid var(--line-soft);border-left:3px solid var(--blue-deep);
+    border-radius:0 5px 5px 0;padding:9px 14px;margin:10px 0;font-family:"JetBrains Mono",monospace;
+    font-size:12px;line-height:1.75;color:var(--ink);overflow-x:auto;white-space:pre-wrap;}
+  .calc .r{color:var(--bordeaux);font-weight:700;}
+  .calc .g{color:#1C6A4C;font-weight:700;}
+  .calc .c{color:var(--ink-faint);}
+  ol.steps{counter-reset:s;margin:11px 0;padding:0;list-style:none;}
+  ol.steps li{position:relative;padding:5px 0 5px 32px;font-size:14.5px;line-height:1.5;margin:3px 0;color:var(--ink-soft);}
+  ol.steps li b{color:var(--ink);}
+  ol.steps li::before{counter-increment:s;content:counter(s);position:absolute;left:0;top:4px;
+    width:21px;height:21px;background:var(--blue-deep);color:#fff;border-radius:50%;
+    font-family:"JetBrains Mono",monospace;font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:600;}
+  .eg pre.code{margin:8px 0;}
+
+  footer{background:var(--blue-deep);color:#A9C2D8;padding:34px 28px;font-size:13px;}
+  footer .fin{max-width:var(--maxw);margin:0 auto;font-family:"JetBrains Mono",monospace;letter-spacing:.03em;}
+
+  @media(max-width:900px){
+    .wrap{grid-template-columns:1fr;gap:0;}
+    nav.toc{position:static;max-height:none;border-bottom:1px solid var(--line);margin-bottom:10px;
+      display:grid;grid-template-columns:1fr 1fr;gap:0 18px;}
+  }
+
+/* ===== (2) ENRICHISSEMENTS : blocs xwrap / xabstract / xtldr / gloss-grid / gterm ===== */
+
+  /* ===== enrichissements (blocs ajoutes) ===== */
+  .xwrap{max-width:var(--maxw);margin:0 auto;padding:0 28px;}
+  .xabstract{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--bordeaux);
+    border-radius:8px;padding:24px 28px;margin:28px 0 0;box-shadow:0 1px 2px rgba(20,46,73,.05);}
+  .xabstract .xk{font-family:"Archivo",system-ui,sans-serif;font-size:11px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--bordeaux);font-weight:700;margin:0 0 9px;}
+  .xabstract .xthese{font-size:19px;line-height:1.5;color:var(--ink);font-weight:600;margin:0 0 12px;
+    font-family:"Spectral",Georgia,serif;}
+  .xabstract ul{margin:8px 0 0;padding:0;list-style:none;}
+  .xabstract li{position:relative;padding:5px 0 5px 22px;font-size:15px;color:var(--ink-soft);line-height:1.5;}
+  .xabstract li::before{content:"\25B8";position:absolute;left:2px;color:var(--blue-bright);font-weight:700;}
+  .xabstract .xpath li::before{content:counter(xp);counter-increment:xp;background:var(--blue-deep);color:#fff;
+    width:19px;height:19px;border-radius:50%;font-family:"JetBrains Mono",monospace;font-size:10px;left:0;top:5px;
+    display:flex;align-items:center;justify-content:center;}
+  .xabstract ul.xpath{counter-reset:xp;}
+  .xabstract .xfoot{font-size:13px;color:var(--ink-faint);margin:14px 0 0;line-height:1.5;}
+  .xtldr{background:var(--blue-wash);border:1px solid #CFE0EF;border-left:4px solid var(--blue);
+    border-radius:6px;padding:14px 20px;margin:16px 0 4px;}
+  .xtldr .xk{font-family:"Archivo",system-ui,sans-serif;font-size:11px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--blue);font-weight:700;margin-bottom:7px;}
+  .xtldr ul{margin:0;padding-left:19px;}
+  .xtldr li{font-size:14px;color:var(--ink-soft);line-height:1.5;margin:4px 0;}
+  .gloss-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin:18px 0;}
+  @media(max-width:760px){.gloss-grid{grid-template-columns:1fr;}}
+  .gterm{background:var(--card);border:1px solid var(--line);border-radius:7px;padding:14px 17px;
+    border-left:3px solid var(--blue);}
+  .gterm .gt-name{font-family:"Archivo",system-ui,sans-serif;font-weight:700;color:var(--blue-deep);
+    font-size:14.5px;display:block;margin-bottom:5px;}
+  .gterm .gt-def{font-size:13.5px;color:var(--ink-soft);line-height:1.5;margin:0;}
+  .gterm .gt-see{font-family:"JetBrains Mono",monospace;font-size:10.5px;color:var(--ink-faint);
+    margin:8px 0 0;}
+
+  .xptr-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin:18px 0;}
+  @media(max-width:760px){.xptr-grid{grid-template-columns:1fr;}}
+  .xptr{background:var(--card);border:1px solid var(--line);border-radius:7px;padding:14px 17px;
+    border-left:3px solid var(--blue-bright);}
+  .xptr .xptr-name{font-family:"Archivo",system-ui,sans-serif;font-weight:700;color:var(--blue);
+    font-size:14.5px;text-decoration:none;}
+  .xptr .xptr-name:hover{text-decoration:underline;}
+  .xptr .xptr-kind{font-family:"JetBrains Mono",monospace;font-size:9.5px;letter-spacing:.08em;
+    text-transform:uppercase;color:#fff;background:var(--blue-bright);border-radius:4px;
+    padding:1px 6px;margin-left:8px;vertical-align:middle;}
+  .xptr .xptr-blurb{font-size:13.5px;color:var(--ink-soft);line-height:1.5;margin:8px 0 0;}
+
+/* ===== (3) DARK MODE + BOUTON THÈME + TOOLTIPS ===== */
+
+  /* Transitions douces sur les surfaces principales lors de la bascule */
+  html.theme-anim body,
+  html.theme-anim .card,
+  html.theme-anim .callout,
+  html.theme-anim .note,
+  html.theme-anim figure.fig,
+  html.theme-anim .tbl-w,
+  html.theme-anim nav.toc a{
+    transition:background-color .25s ease, color .25s ease, border-color .25s ease;
+  }
+
+  html[data-theme="dark"]{
+    /* papier sombre, encre claire */
+    --paper:#0E1620; --card:#16212E;
+    --ink:#E4EBF3; --ink-soft:#AFC0D2; --ink-faint:#7C8DA1;
+    /* bleus : on éclaircit pour rester lisibles sur fond foncé */
+    --blue:#6FA8D8; --blue-deep:#0A1521; --blue-bright:#7FB6E4; --blue-wash:#1B2C3E;
+    /* bordeaux : accent gardé lisible, remonté en clarté */
+    --bordeaux:#C66875; --bordeaux-bright:#D67C88; --bordeaux-wash:#2C1A1F;
+    --line:#2A3848; --line-soft:#212E3C;
+    --code:#0A1521;
+    color-scheme:dark;
+  }
+
+  /* Ajustements ciblés sur surfaces déjà opaques du doc (non pilotées par les variables) */
+  html[data-theme="dark"] body{background:var(--paper);color:var(--ink);}
+  html[data-theme="dark"] header.top{
+    background:linear-gradient(165deg,#0A1521,#060D16 70%);
+    border-bottom-color:var(--bordeaux);
+  }
+  html[data-theme="dark"] th{background:#0A1521;color:#D7E6F4;}
+  html[data-theme="dark"] tr:hover td{background:#1B2735;}
+  html[data-theme="dark"] code{background:#0E1C2A;color:#CFE0F2;}
+  html[data-theme="dark"] .card{box-shadow:0 1px 2px rgba(0,0,0,.45);}
+  html[data-theme="dark"] details.ex{background:#101A25;}
+  html[data-theme="dark"] details.ex>summary{background:#142231;color:#CFE0F2;}
+  html[data-theme="dark"] details.ex>summary:hover{background:#1A2C3E;}
+  html[data-theme="dark"] .eg{background:#101A25;}
+  html[data-theme="dark"] .calc{background:#101A25;}
+  html[data-theme="dark"] .fork-h{background:#142231;}
+  html[data-theme="dark"] footer{background:#0A1521;color:#8CA6BE;}
+  /* la coloration de pre.code reste codée en dur dans le doc (déjà sombre, cohérente) */
+
+  #theme_toggle{
+    position:fixed; top:14px; right:14px; z-index:120;
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:"Archivo",system-ui,sans-serif; font-size:12px; font-weight:700;
+    letter-spacing:.08em; text-transform:uppercase;
+    color:var(--blue); background:var(--card);
+    border:1px solid var(--line); border-radius:30px;
+    padding:8px 14px; cursor:pointer; line-height:1;
+    box-shadow:0 2px 6px rgba(20,46,73,.14);
+    transition:background-color .15s, color .15s, border-color .15s, box-shadow .15s;
+  }
+  #theme_toggle:hover{
+    color:#fff; background:var(--blue-deep); border-color:var(--blue-deep);
+  }
+  #theme_toggle:focus-visible{
+    outline:2px solid var(--bordeaux); outline-offset:2px;
+  }
+  #theme_toggle #theme_toggle_ico{font-size:14px;}
+  html[data-theme="dark"] #theme_toggle{
+    box-shadow:0 2px 8px rgba(0,0,0,.5);
+  }
+  html[data-theme="dark"] #theme_toggle:hover{
+    color:#0A1521; background:var(--blue-bright); border-color:var(--blue-bright);
+  }
+  @media print{ #theme_toggle{display:none;} }
+
+  .theme-gloss{
+    cursor:help; text-decoration:none;
+    border-bottom:1px dotted var(--bordeaux);
+    color:inherit; outline:none;
+  }
+  .theme-gloss:focus-visible{
+    outline:2px solid var(--bordeaux); outline-offset:2px; border-radius:2px;
+  }
+  abbr.theme-gloss{text-decoration:none;}
+
+  #theme_tip{
+    position:absolute; z-index:130; max-width:300px;
+    background:var(--blue-deep); color:#EAF1F8;
+    border:1px solid var(--bordeaux);
+    border-radius:6px; padding:9px 12px;
+    font-family:"Archivo",system-ui,sans-serif; font-size:13px; line-height:1.45;
+    box-shadow:0 6px 20px rgba(10,21,33,.4);
+    opacity:0; transform:translateY(3px); pointer-events:none;
+    transition:opacity .14s ease, transform .14s ease;
+  }
+  #theme_tip[data-show="1"]{ opacity:1; transform:translateY(0); }
+  #theme_tip::after{
+    content:""; position:absolute; left:var(--theme-tip-ax,16px);
+    bottom:-6px; width:10px; height:10px;
+    background:var(--blue-deep);
+    border-right:1px solid var(--bordeaux); border-bottom:1px solid var(--bordeaux);
+    transform:rotate(45deg);
+  }
+  #theme_tip[data-below="1"]::after{
+    bottom:auto; top:-6px;
+    border-right:none; border-bottom:none;
+    border-left:1px solid var(--bordeaux); border-top:1px solid var(--bordeaux);
+  }
+  html[data-theme="dark"] #theme_tip{
+    background:#1B2C3E; color:#E4EBF3;
+  }
+  html[data-theme="dark"] #theme_tip::after{ background:#1B2C3E; }
+  @media print{ #theme_tip{display:none;} }
+
+</style>
+</head>
+<body>
+<div id="prog" style="width:0%"></div>
+<header class="top"><div class="top-in">
+  <p class="kicker">Estimation de cardinalité · monographie</p>
+  <h1>HyperLogLog : estimer des milliards de distincts en quelques kilo-octets</h1>
+  <p class="lede">Comment hacher, router et fusionner quelques milliers de petits registres permet de compter des milliards d'éléments distincts à 1–2 % près — et où cette frugalité cesse de tenir.</p>
+  <div class="meta"><span>Monographie</span></div>
+</div></header>
+<div class="wrap">
+<nav class="toc" id="toc"><a href="#comptage-distincts-idee-fondatrice">Le comptage de distincts et l'idée fondatrice</a>
+<a href="#estimateur-constantes-optimalite">L'estimateur, ses constantes et son optimalité</a>
+<a href="#regimes-degrades-corrections">Régimes dégradés et corrections d'estimation</a>
+<a href="#hyperloglogplusplus">HyperLogLog++ : l'ingénierie de Google</a>
+<a href="#successeurs-space-efficient">La lignée des successeurs space-efficient</a>
+<a href="#pieges-statistiques-idees-recues">Pièges statistiques et idées reçues</a>
+<a href="#milieu-adversarial">HyperLogLog en milieu adversarial</a>
+<a href="#deploiements-industriels">Déploiements industriels</a>
+<a href="#ecosysteme">Écosystème &amp; pour aller plus loin</a></nav>
+<main>
+<div class="xwrap"><div class="xabstract"><div class="xk">Résumé</div><p class="xthese">HyperLogLog estime le nombre d'éléments distincts de jeux de données massifs avec une erreur relative de l'ordre de 1 à 2 % pour seulement quelques kilo-octets de mémoire ; mais cette frugalité repose sur un estimateur biaisé hors de sa plage centrale, rattrapé par des corrections et toute une ingénierie (HLL++, successeurs space-efficient), et reste fragile en milieu adversarial.</p><ul><li>HyperLogLog clôt la lignée Flajolet-Martin (1985) → LogLog (2003) → HLL (2007) : il hache chaque élément, le route vers l'un de m = 2^p registres qui retiennent le maximum du rang ρ (nombre de zéros de tête), puis combine ces registres par harmonic mean plutôt que par moyenne géométrique.</li><li>L'estimateur E = α_m · m² · Z atteint une erreur standard de ≈ 1,04/√m, indépendante de la cardinalité, pour quelques kilo-octets : par exemple 16 384 registres donnent ≈ 0,81 % d'erreur en une dizaine de kilo-octets, et permettent d'estimer des milliards de distincts.</li><li>L'union de deux sketches est exacte et se calcule registre par registre en O(m), sans relire les données ni accéder aux éléments d'origine — d'où l'adoption massive en agrégation distribuée (BigQuery, Spark, Druid, Redis).</li><li>L'estimateur n'est pas sans biais : il faut Linear Counting sous 5m/2 et une correction de saturation au-delà de 2³²/30 ; HLL est near-optimal à ≈ 4 % de sa classe (Chassaing-Gérin), mais c'est PCSA, et non HyperLogLog, qui atteint l'optimum information-théorique absolu (Pettie &amp; Wang, STOC 2021).</li><li>L'ingénierie a prolongé l'algorithme : HyperLogLog++ (Google, 2013) corrige le biais pratique et passe au hachage 64 bits ; HyperLogLogLog (KDD 2022), UltraLogLog et ExaLogLog gagnent 28 à 43 % d'espace tout en préservant le contrat merge et l'insertion O(1).</li><li>L'erreur est probabiliste, non déterministe, et l'algorithme est vulnérable en milieu adversarial : un attaquant en accès oracle peut gonfler l'estimation sans connaître la fonction de hachage, et un attaquant en white-box peut la réduire à une valeur exponentiellement petite, y compris sur la variante utilisée par Redis.</li></ul></div></div>
+<section id="comptage-distincts-idee-fondatrice">
+<h3>Le comptage de distincts et l'idée fondatrice</h3>
+<p>Le count-distinct problem (problème du comptage de distincts) se pose dès qu'on veut dénombrer les éléments uniques d'un multiset (multiensemble) de grande taille — adresses IP distinctes vues par un routeur, requêtes uniques dans un journal web, identifiants d'utilisateurs actifs sur une plateforme — sans avoir à conserver les éléments eux-mêmes. La solution exacte exige soit un espace proportionnel à la cardinalité (un ensemble, un arbre ou une table de hachage), soit un tri préalable suivi d'un décompte linéaire. Ces deux options deviennent inacceptables quand le volume dépasse la mémoire disponible ou que la latence est contrainte : il faut alors un sketch probabiliste qui échange un peu de précision contre un gain massif en espace.</p>
+
+<p>La généalogie algorithmique s'ouvre en 1985. Philippe Flajolet et G. Nigel Martin publient « Probabilistic Counting Algorithms for Data Base Applications » dans le <em>Journal of Computer and System Sciences</em> : leur FM sketch exploite pour la première fois la propriété statistique des valeurs maximales d'une fonction de position de bit appliquée à un flux haché, estimant la cardinalité en espace O(log log n). En 2003, Marianne Durand et Philippe Flajolet présentent le LogLog algorithm dans « Loglog Counting of Large Cardinalities » : en partitionnant le flux en m sous-flots et en combinant les maxima par moyenne géométrique, ils ramènent l'erreur standard à environ 1,3/√m tout en conservant l'empreinte logarithmique. L'étape finale arrive en 2007 lorsque Philippe Flajolet, Éric Fusy, Olivier Gandouet et Frédéric Meunier — chercheurs à l'INRIA — publient « HyperLogLog: the analysis of a near-optimal cardinality estimation algorithm » dans les actes de DMTCS (<em>Discrete Mathematics and Theoretical Computer Science</em>).</p>
+
+<p>Le mécanisme central repose sur une propriété statistique du hachage uniforme. Chaque élément du multiset est passé dans une hash function (fonction de hachage) dont la sortie est une chaîne de bits uniformément distribuée sur {0, 1}<sup>L</sup>. La fonction ρ(x) renvoie la position du premier bit à 1 dans cette chaîne — soit le nombre de leading zeros (zéros initiaux) + 1. Si les bits sont indépendants et équiprobables, P(ρ(x) = k) = 2<sup>−k</sup> : observer un grand ρ est un événement rare qui, sur un flux de n éléments distincts, signale que la cardinalité est de l'ordre de 2<sup>k</sup>. Avec un seul registre, le maximum de ρ observé fournit une estimation grossière de log<sub>2</sub>(n) — mais à variance explosive, inutilisable en pratique.</p>
+
+<p>Pour maîtriser cette variance, HyperLogLog partitionne le flux en m = 2<sup>p</sup> registres (p typiquement entre 4 et 16). Les p premiers bits du haché servent d'index pour sélectionner l'un des m registres ; les bits restants alimentent le calcul de ρ. Chaque registre conserve uniquement le maximum de ρ observé pour son sous-flot. L'état complet de l'algorithme est donc un vecteur M[0…m−1] de petits entiers tenant chacun sur 5 à 6 bits, soit une empreinte mémoire de l'ordre de m × 5 bits. La mise à jour coûte O(1) par élément ; la fusion de deux sketches, exacte et sans perte, coûte O(m).</p>
+
+<p>L'innovation décisive de HyperLogLog par rapport à LogLog est le choix de l'estimateur final. LogLog combine les M[j] par moyenne géométrique, ce qui reste sensible aux valeurs aberrantes hautes : un registre dont ρ a été surestimé par hasard gonfle disproportionnellement l'estimation globale. HyperLogLog lui substitue la harmonic mean (moyenne harmonique) : E = α<sub>m</sub> × m² × (∑<sub>j</sub> 2<sup>−M[j]</sup>)<sup>−1</sup>, où α<sub>m</sub> est une constante de correction de biais dépendant de m. En pénalisant fortement les grands M[j], la harmonic mean réduit la variance sans augmenter la taille de l'état. L'erreur standard résultante est σ = 1,04/√m — soit environ 2,3 % avec 2 048 registres, pour une empreinte mémoire de l'ordre de 1,5 kB suffisante pour estimer des cardinalités supérieures à 10<sup>9</sup>.</p>
+</section>
+<div class="widget synhll-root" id="synhll-root">
+  <style>
+    .synhll-root{--shll-ink:var(--ink,#15202E);--shll-soft:var(--ink-soft,#43536A);
+      --shll-faint:var(--ink-faint,#7A889B);--shll-card:var(--card,#fff);
+      --shll-line:var(--line,#D7DFE9);--shll-line-soft:var(--line-soft,#E7ECF3);
+      --shll-blue:var(--blue,#23537F);--shll-deep:var(--blue-deep,#142E49);
+      --shll-bright:var(--blue-bright,#2C77B6);--shll-wash:var(--blue-wash,#E7EEF6);
+      --shll-bord:var(--bordeaux,#7C2A38);--shll-bord-br:var(--bordeaux-bright,#9B3443);
+      --shll-bord-wash:var(--bordeaux-wash,#F3E3E6);--shll-gold:var(--gold,#C68A2E);
+      --shll-green:#2F7D5B;--shll-green-wash:#EAF4EE;
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--shll-ink);
+      border:1px solid var(--shll-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--shll-card);max-width:720px}
+    .synhll-root *{box-sizing:border-box}
+    .synhll-k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;
+      color:var(--shll-faint);font-weight:600;margin:0 0 2px}
+    .synhll-title{font-weight:700;font-size:1.05rem;margin:0 0 4px}
+    .synhll-sub{font-size:.84rem;color:var(--shll-soft);margin:0 0 12px;line-height:1.45}
+
+    /* progress bar over the stream */
+    .synhll-prog{display:flex;align-items:center;gap:10px;margin:0 0 12px}
+    .synhll-bar{flex:1 1 auto;height:7px;border-radius:5px;background:var(--shll-line-soft);overflow:hidden}
+    .synhll-bar-fill{height:100%;width:0;background:var(--shll-bright);transition:width .12s linear}
+    .synhll-prog-lab{flex:0 0 auto;font:700 .78rem/1 ui-monospace,monospace;color:var(--shll-blue);min-width:6.6em;text-align:right}
+
+    /* phase rail */
+    .synhll-rail{display:flex;gap:6px;margin:0 0 12px;flex-wrap:wrap}
+    .synhll-ph{flex:1 1 78px;min-width:74px;border:1px solid var(--shll-line);border-radius:8px;
+      padding:7px 6px;background:var(--shll-card);text-align:center;transition:.15s;cursor:pointer}
+    .synhll-ph .synhll-pn{font-size:.6rem;letter-spacing:.04em;text-transform:uppercase;
+      color:var(--shll-faint);font-weight:700}
+    .synhll-ph .synhll-pl{font-size:.78rem;font-weight:700;color:var(--shll-soft);margin-top:2px}
+    .synhll-ph.synhll-active{border-color:var(--shll-bright);background:var(--shll-wash);box-shadow:0 0 0 1px var(--shll-bright)}
+    .synhll-ph.synhll-active .synhll-pl{color:var(--shll-blue)}
+    .synhll-ph.synhll-active .synhll-pn{color:var(--shll-bright)}
+    .synhll-ph.synhll-est.synhll-active{border-color:var(--shll-green);background:var(--shll-green-wash);box-shadow:0 0 0 1px var(--shll-green)}
+    .synhll-ph.synhll-est.synhll-active .synhll-pl{color:var(--shll-green)}
+    .synhll-ph.synhll-est.synhll-active .synhll-pn{color:var(--shll-green)}
+
+    .synhll-grid{display:flex;gap:14px;flex-wrap:wrap}
+    .synhll-col-mac{flex:1 1 330px;min-width:290px}
+    .synhll-col-curve{flex:1 1 280px;min-width:240px}
+
+    /* element + hash machine */
+    .synhll-elem{display:flex;align-items:center;gap:8px;margin:0 0 8px;flex-wrap:wrap}
+    .synhll-elem-lab{font-size:.74rem;color:var(--shll-faint);font-weight:600}
+    .synhll-tok{font:800 .98rem/1 ui-monospace,monospace;color:#fff;background:var(--shll-deep);
+      padding:5px 9px;border-radius:7px}
+    .synhll-rep{font-size:.72rem;font-weight:700;color:var(--shll-gold);border:1px solid var(--shll-gold);
+      border-radius:5px;padding:2px 6px;background:#FBF3E3}
+    .synhll-bits{font:700 13px/1.5 ui-monospace,monospace;letter-spacing:.5px;margin:2px 0 2px;
+      word-break:break-all}
+    .synhll-bits span{padding:0 .5px}
+    .synhll-b-idx{color:#fff;background:var(--shll-bright);border-radius:2px}
+    .synhll-b-lz{color:var(--shll-faint)}
+    .synhll-b-one{color:#fff;background:var(--shll-gold);border-radius:2px;font-weight:800}
+    .synhll-b-tail{color:var(--shll-faint);opacity:.55}
+    .synhll-b-raw{color:var(--shll-soft)}
+    .synhll-route{font-size:.76rem;color:var(--shll-soft);margin:0 0 6px;min-height:1.4em}
+    .synhll-route b{color:var(--shll-blue)}
+    .synhll-route .synhll-rho{color:var(--shll-gold)}
+
+    /* register vector */
+    .synhll-reglab{font-size:.7rem;letter-spacing:.05em;text-transform:uppercase;color:var(--shll-faint);
+      font-weight:700;margin:6px 0 4px}
+    .synhll-regs{display:flex;gap:3px;flex-wrap:wrap}
+    .synhll-cell{position:relative;flex:1 1 34px;min-width:30px;height:42px;border:1px solid var(--shll-line);
+      border-radius:5px;background:var(--shll-card);overflow:hidden;transition:.12s}
+    .synhll-cell .synhll-cj{position:absolute;top:1px;left:0;right:0;text-align:center;font-size:.52rem;
+      color:var(--shll-faint);font-weight:700}
+    .synhll-cell .synhll-cv{position:absolute;bottom:2px;left:0;right:0;text-align:center;
+      font:800 .92rem/1 ui-monospace,monospace;color:var(--shll-blue);z-index:2}
+    .synhll-cell .synhll-cfill{position:absolute;left:0;right:0;bottom:0;background:var(--shll-wash);z-index:1}
+    .synhll-cell.synhll-empty .synhll-cv{color:var(--shll-line)}
+    .synhll-cell.synhll-target{border-color:var(--shll-bright);box-shadow:0 0 0 2px var(--shll-bright)}
+    .synhll-cell.synhll-bump{border-color:var(--shll-green);box-shadow:0 0 0 2px var(--shll-green)}
+    .synhll-cell.synhll-bump .synhll-cfill{background:var(--shll-green-wash)}
+
+    .synhll-svg{width:100%;height:auto;display:block;
+      border:1px solid var(--shll-line-soft);border-radius:9px;background:#FBFCFE}
+    .synhll-svg text{font:10px/1 ui-monospace,monospace}
+    .synhll-caption{font-size:.72rem;color:var(--shll-faint);margin:5px 2px 0;text-align:center}
+    .synhll-leg{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin:6px 0 0;font-size:.72rem}
+    .synhll-leg span{display:inline-flex;align-items:center;gap:5px;color:var(--shll-soft)}
+    .synhll-leg i{width:16px;height:0;border-top-width:3px;border-top-style:solid;display:inline-block}
+
+    /* readout */
+    .synhll-read{margin:10px 0 0;padding:10px 12px;border-radius:8px;border:1px solid var(--shll-line);
+      background:var(--shll-wash);font-size:.83rem;line-height:1.5;color:var(--shll-ink);min-height:3.6em}
+    .synhll-read b{font-weight:700}
+    .synhll-read code{font-family:ui-monospace,monospace;font-size:.92em}
+    .synhll-read.synhll-r-rho{background:#FBF3E3;border-color:#EAD9B4}
+    .synhll-read.synhll-r-max{background:var(--shll-green-wash);border-color:#C3E0D0}
+    .synhll-read.synhll-r-est{background:var(--shll-bord-wash);border-color:#E3C3C9}
+
+    /* stream strip */
+    .synhll-strip{margin:10px 0 0;display:flex;gap:2px;flex-wrap:wrap}
+    .synhll-chip{flex:0 0 auto;width:19px;height:19px;border:1px solid var(--shll-line-soft);border-radius:4px;
+      font:600 9.5px/17px ui-monospace,monospace;text-align:center;color:var(--shll-faint);background:var(--shll-card)}
+    .synhll-chip.synhll-done{background:var(--shll-wash);color:var(--shll-blue);border-color:var(--shll-line)}
+    .synhll-chip.synhll-rep{border-style:dashed;color:var(--shll-gold)}
+    .synhll-chip.synhll-cur{background:var(--shll-blue);color:#fff;border-color:var(--shll-blue)}
+    .synhll-striplab{font-size:.7rem;color:var(--shll-faint);margin:8px 0 0;font-weight:600}
+
+    .synhll-banner{margin:10px 0 0;padding:8px 12px;border-radius:8px;font-size:.82rem;font-weight:600;
+      background:var(--shll-green-wash);border:1px solid #C3E0D0;color:var(--shll-green);display:none}
+    .synhll-banner.synhll-show{display:block}
+
+    /* controls */
+    .synhll-btns{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 0}
+    .synhll-btns button{border:1px solid var(--shll-bright);border-radius:7px;background:transparent;
+      color:var(--shll-bright);font:600 13px/1 inherit;padding:8px 13px;cursor:pointer}
+    .synhll-btns button:hover{background:var(--shll-wash)}
+    .synhll-btns button.synhll-primary{background:var(--shll-blue);color:#fff;border-color:var(--shll-blue)}
+    .synhll-btns button.synhll-primary:hover{background:var(--shll-bright)}
+    .synhll-btns button:disabled{opacity:.45;cursor:default}
+    .synhll-btns button:disabled:hover{background:transparent}
+    .synhll-btns button.synhll-primary:disabled{background:var(--shll-blue)}
+
+    .synhll-stats{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}
+    .synhll-stat{flex:1 1 96px;border:1px solid var(--shll-line);border-radius:9px;padding:8px 10px;background:var(--shll-card)}
+    .synhll-stat .synhll-sk{font-size:.6rem;letter-spacing:.04em;text-transform:uppercase;color:var(--shll-faint);font-weight:700}
+    .synhll-stat .synhll-sv{font:800 1.1rem/1.1 ui-monospace,monospace;color:var(--shll-blue);margin:3px 0 0}
+    .synhll-stat.synhll-true .synhll-sv{color:var(--shll-green)}
+    .synhll-stat.synhll-rep .synhll-sv{color:var(--shll-bord)}
+
+    .synhll-note{margin:12px 0 0;font-size:.73rem;color:var(--shll-faint);line-height:1.45}
+    .synhll-note code{font-family:ui-monospace,monospace}
+  </style>
+
+  <p class="synhll-k">Vue d'ensemble · super-widget</p>
+  <p class="synhll-title">Construire un sketch HyperLogLog de bout en bout sur un flux jouet</p>
+  <p class="synhll-sub">Un même cycle se répète pour chaque élément du flux :
+    <b>hacher</b> → <b>router</b> (p bits → registre) → <b>ρ</b> (zéros de tête + 1) → <b>max</b> → <b>estimer</b>,
+    puis on recommence sur l'élément suivant. Avancez phase par phase pour disséquer un élément, ou lisez en
+    continu jusqu'à épuisement du flux et regardez l'estimation rejoindre la vraie cardinalité. Tout est calculé
+    exactement, sans aléa : <code>m = 16</code> registres (<code>p = 4</code>).</p>
+
+  <div class="synhll-prog">
+    <div class="synhll-bar"><div class="synhll-bar-fill" id="synhll-barfill"></div></div>
+    <div class="synhll-prog-lab" id="synhll-proglab">0 / 44</div>
+  </div>
+
+  <div class="synhll-rail" id="synhll-rail" role="group" aria-label="phases du pipeline HyperLogLog">
+    <div class="synhll-ph" data-ph="0" id="synhll-ph-0"><div class="synhll-pn">1 · hacher</div><div class="synhll-pl">h(x)</div></div>
+    <div class="synhll-ph" data-ph="1" id="synhll-ph-1"><div class="synhll-pn">2 · router</div><div class="synhll-pl">p bits → j</div></div>
+    <div class="synhll-ph" data-ph="2" id="synhll-ph-2"><div class="synhll-pn">3 · rang</div><div class="synhll-pl">ρ = lz+1</div></div>
+    <div class="synhll-ph" data-ph="3" id="synhll-ph-3"><div class="synhll-pn">4 · max</div><div class="synhll-pl">M[j]←max</div></div>
+    <div class="synhll-ph synhll-est" data-ph="4" id="synhll-ph-4"><div class="synhll-pn">5 · estimer</div><div class="synhll-pl">E = α·m²·Z⁻¹</div></div>
+  </div>
+
+  <div class="synhll-grid">
+    <div class="synhll-col-mac">
+      <div class="synhll-elem">
+        <span class="synhll-elem-lab">Élément courant</span>
+        <span class="synhll-tok" id="synhll-tok">—</span>
+        <span class="synhll-rep" id="synhll-repbadge" style="display:none">déjà vu — n'ajoute rien</span>
+      </div>
+      <div class="synhll-bits" id="synhll-bits" aria-label="chaîne de bits du haché"></div>
+      <p class="synhll-route" id="synhll-route">Cliquez « Phase suivante » pour hacher le premier élément.</p>
+      <div class="synhll-reglab">Vecteur de registres M[0…15] — chaque case garde le ρ maximal vu</div>
+      <div class="synhll-regs" id="synhll-regs"></div>
+    </div>
+    <div class="synhll-col-curve">
+      <svg class="synhll-svg" id="synhll-curve" viewBox="0 0 360 240" role="img"
+           aria-label="estimation de cardinalité au fil des éléments lus, comparée à la vraie cardinalité"></svg>
+      <p class="synhll-caption">Indicateur de progression : l'estimation se construit, élément après élément.</p>
+      <div class="synhll-leg">
+        <span><i style="border-top-color:var(--shll-green);border-top-style:dashed"></i>vraie cardinalité</span>
+        <span><i style="border-top-color:var(--shll-blue)"></i>estimation rapportée</span>
+        <span><i style="border-top-color:var(--shll-bord-br);opacity:.7"></i>estimateur brut E</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="synhll-read" id="synhll-read"></div>
+  <div class="synhll-banner" id="synhll-banner"></div>
+
+  <p class="synhll-striplab">Le flux (44 événements) — cases pleines = déjà lues · pointillé = répétition d'un élément déjà compté</p>
+  <div class="synhll-strip" id="synhll-strip"></div>
+
+  <div class="synhll-btns">
+    <button type="button" class="synhll-primary" id="synhll-play">▶ Lire jusqu'au bout</button>
+    <button type="button" id="synhll-step">Phase suivante ▸</button>
+    <button type="button" id="synhll-elem">Élément suivant</button>
+    <button type="button" id="synhll-reset">Réinitialiser</button>
+  </div>
+
+  <div class="synhll-stats">
+    <div class="synhll-stat"><div class="synhll-sk">Éléments lus</div><div class="synhll-sv" id="synhll-vread">0</div></div>
+    <div class="synhll-stat synhll-true"><div class="synhll-sk">Distincts vrais</div><div class="synhll-sv" id="synhll-vtrue">0</div></div>
+    <div class="synhll-stat"><div class="synhll-sk">Registres remplis</div><div class="synhll-sv" id="synhll-vfill">0/16</div></div>
+    <div class="synhll-stat"><div class="synhll-sk">Estimateur brut E</div><div class="synhll-sv" id="synhll-vraw">—</div></div>
+    <div class="synhll-stat synhll-rep"><div class="synhll-sk">Estim. rapportée</div><div class="synhll-sv" id="synhll-vrep">—</div></div>
+  </div>
+
+  <p class="synhll-note">Pipeline jouet conforme à HyperLogLog (Flajolet et al., 2007). Hachage déterministe 32 bits
+    (FNV-1a + avalanche), invariant pour un même élément. <b>Routage</b> : les <code>p = 4</code> premiers bits
+    désignent le registre <code>j ∈ [0,15]</code>. <b>Rang</b> : <code>ρ =</code> (nombre de zéros de tête sur les
+    bits restants) <code>+ 1</code>. <b>Mise à jour</b> : <code>M[j] ← max(M[j], ρ)</code> — d'où l'invariance aux
+    répétitions. <b>Estimateur</b> : <code>E = α_m · m² · (Σ_j 2^−M[j])^−1</code> (moyenne harmonique), avec
+    <code>α₁₆ = 0,673</code>. Aux petites cardinalités (<code>E &lt; 2,5·m</code> avec <code>V</code> registres
+    vides), HyperLogLog bascule sur le <i>Linear Counting</i> <code>E* = m·ln(m/V)</code> — c'est l'« estimation
+    rapportée » tracée en bleu. Erreur-type théorique pour ce jouet : <code>1,04/√16 ≈ 26 %</code> ; un déploiement
+    réel emploie <code>m = 16 384</code> registres → <code>≈ 0,81 %</code>. Aucun aléa : trajectoire identique à
+    chaque exécution.</p>
+
+  <script>
+  (function(){
+    var root=document.getElementById("synhll-root");
+    if(!root||root.dataset.synhllInit)return; root.dataset.synhllInit="1";
+    var SVGNS="http://www.w3.org/2000/svg";
+
+    // ---------- hachage déterministe (FNV-1a 32 bits + avalanche murmur3) ----------
+    function hash(str){
+      var x=0x811c9dc5>>>0;
+      for(var i=0;i<str.length;i++){ x^=str.charCodeAt(i); x=Math.imul(x,0x01000193)>>>0; }
+      x^=x>>>16; x=Math.imul(x,0x85ebca6b)>>>0; x^=x>>>13; x=Math.imul(x,0xc2b2ae35)>>>0; x^=x>>>16;
+      return x>>>0;
+    }
+
+    var P=4, M=16, W=32-P, ALPHA=0.673;
+
+    // ---------- flux jouet déterministe (24 distincts, répétitions intercalées) ----------
+    function buildStream(){
+      var distinct=[]; for(var i=1;i<=24;i++) distinct.push("id-"+(i<10?"0"+i:""+i));
+      var s=[], di=0;
+      for(var k=0;k<44;k++){
+        if(k%4===3 && di>2) s.push(distinct[(k*7)%di]);          // répétition d'un distinct déjà émis
+        else if(di<distinct.length) s.push(distinct[di++]);       // nouvel élément
+        else s.push(distinct[(k*5)%distinct.length]);
+      }
+      return s;
+    }
+    var STREAM=buildStream();
+    var N=STREAM.length;
+
+    // pré-calcul : pour chaque position, est-ce une répétition d'un token déjà apparu ?
+    var IS_REP=(function(){ var seen={}, out=[]; for(var k=0;k<N;k++){ var t=STREAM[k]; out.push(!!seen[t]); seen[t]=1; } return out; })();
+
+    // métadonnées d'un élément (déterministe, pur)
+    function meta(tok){
+      var x=hash(tok);
+      var bits=(x>>>0).toString(2); while(bits.length<32) bits="0"+bits;
+      var j=x>>>W;                       // p bits de tête
+      var sub=bits.slice(P);             // bits restants
+      var lz=sub.indexOf("1"); if(lz<0) lz=W;
+      var rho=lz+1;
+      return {tok:tok,x:x,bits:bits,j:j,sub:sub,lz:lz,rho:rho};
+    }
+
+    // ---------- état pédagogique ----------
+    var reg, seen, folded;   // reg[16], set de tokens vus, nb d'éléments repliés
+    var ei, phase;           // élément courant, phase 0..4 (-1 = avant tout)
+    var curMeta;             // meta de l'élément courant
+    var bumped;              // le max a-t-il modifié M[j] pour cet élément ?
+    var trueH, rawH, repH;   // séries de la courbe (index 0 = base)
+    var playing=false, rafId=null, lastT=0;
+
+    function estimator(){
+      var Z=0,V=0; for(var i=0;i<M;i++){ Z+=Math.pow(2,-reg[i]); if(reg[i]===0)V++; }
+      var raw=ALPHA*M*M/Z;
+      var rep=(raw<2.5*M && V>0)? M*Math.log(M/V) : raw;
+      var fill=0; for(var k=0;k<M;k++) if(reg[k]>0) fill++;
+      return {Z:Z,V:V,raw:raw,rep:rep,fill:fill};
+    }
+
+    // ---------- éléments DOM ----------
+    var elTok=document.getElementById("synhll-tok");
+    var elRep=document.getElementById("synhll-repbadge");
+    var elBits=document.getElementById("synhll-bits");
+    var elRoute=document.getElementById("synhll-route");
+    var elRegs=document.getElementById("synhll-regs");
+    var elCurve=document.getElementById("synhll-curve");
+    var elRead=document.getElementById("synhll-read");
+    var elBanner=document.getElementById("synhll-banner");
+    var elStrip=document.getElementById("synhll-strip");
+    var elBar=document.getElementById("synhll-barfill");
+    var elProg=document.getElementById("synhll-proglab");
+    var phEls=[0,1,2,3,4].map(function(i){return document.getElementById("synhll-ph-"+i);});
+    var vRead=document.getElementById("synhll-vread");
+    var vTrue=document.getElementById("synhll-vtrue");
+    var vFill=document.getElementById("synhll-vfill");
+    var vRaw=document.getElementById("synhll-vraw");
+    var vRep=document.getElementById("synhll-vrep");
+    var playBtn=document.getElementById("synhll-play");
+    var stepBtn=document.getElementById("synhll-step");
+    var elemBtn=document.getElementById("synhll-elem");
+    var resetBtn=document.getElementById("synhll-reset");
+
+    function fmt(v,d){ if(!isFinite(v))return "∞"; return v.toFixed(d).replace(".",","); }
+
+    // cellules de registre créées une fois
+    var cells=[];
+    (function buildCells(){
+      for(var j=0;j<M;j++){
+        var c=document.createElement("div"); c.className="synhll-cell";
+        var jl=document.createElement("div"); jl.className="synhll-cj"; jl.textContent=j;
+        var fl=document.createElement("div"); fl.className="synhll-cfill";
+        var v=document.createElement("div"); v.className="synhll-cv"; v.textContent="0";
+        c.appendChild(jl); c.appendChild(fl); c.appendChild(v);
+        elRegs.appendChild(c); cells.push({c:c,fill:fl,v:v});
+      }
+    })();
+
+    // bandeau du flux créé une fois
+    var chips=[];
+    (function buildStrip(){
+      for(var k=0;k<N;k++){
+        var ch=document.createElement("div"); ch.className="synhll-chip"+(IS_REP[k]?" synhll-rep":"");
+        ch.textContent=STREAM[k].slice(3); // "id-07" -> "07"
+        elStrip.appendChild(ch); chips.push(ch);
+      }
+    })();
+
+    function maxReg(){ var m=4; for(var i=0;i<M;i++) if(reg[i]>m)m=reg[i]; return m; }
+    function drawRegs(){
+      var mx=maxReg();
+      for(var j=0;j<M;j++){
+        var c=cells[j]; c.v.textContent=reg[j];
+        c.c.className="synhll-cell"+(reg[j]===0?" synhll-empty":"");
+        c.fill.style.height=(reg[j]/mx*100).toFixed(0)+"%";
+        // surlignages selon la phase de l'élément courant
+        if(curMeta && phase>=1 && j===curMeta.j){
+          if(phase===3 && bumped) c.c.className="synhll-cell synhll-bump";
+          else c.c.className="synhll-cell"+(reg[j]===0?" synhll-empty":"")+" synhll-target";
+        }
+      }
+    }
+
+    // ---------- bits ----------
+    function clearBits(){ elBits.textContent=""; }
+    function drawBits(){
+      elBits.textContent="";
+      if(!curMeta){ return; }
+      var b=curMeta.bits, parts=[];
+      for(var i=0;i<32;i++){
+        var cls;
+        if(phase>=1 && i<P) cls="synhll-b-idx";                 // bits de routage
+        else if(phase>=2 && i>=P){
+          var rel=i-P;
+          if(rel<curMeta.lz) cls="synhll-b-lz";                 // zéros de tête
+          else if(rel===curMeta.lz) cls="synhll-b-one";         // premier 1
+          else cls="synhll-b-tail";                              // reste (ignoré)
+        } else cls="synhll-b-raw";
+        var sp=document.createElement("span"); sp.className=cls; sp.textContent=b[i];
+        elBits.appendChild(sp);
+        if(i===P-1){ var sep=document.createElement("span"); sep.textContent=" "; elBits.appendChild(sep); }
+      }
+    }
+
+    // ---------- panneau de lecture (balisage <b>/<code> littéral, sans innerHTML) ----------
+    function setRead(markup,cls){
+      elRead.className="synhll-read"+(cls?" "+cls:"");
+      elRead.textContent="";
+      var parts=markup.split(/(<\/?(?:b|code)>)/);
+      var stack=[elRead];
+      for(var p=0;p<parts.length;p++){
+        var tok=parts[p]; if(tok==="")continue;
+        if(tok==="<b>"){var b=document.createElement("b");stack[stack.length-1].appendChild(b);stack.push(b);}
+        else if(tok==="<code>"){var c=document.createElement("code");stack[stack.length-1].appendChild(c);stack.push(c);}
+        else if(tok==="</b>"||tok==="</code>"){ if(stack.length>1)stack.pop(); }
+        else stack[stack.length-1].appendChild(document.createTextNode(tok));
+      }
+    }
+    function railHL(){ for(var i=0;i<5;i++) phEls[i].classList.toggle("synhll-active", i===phase); }
+
+    // ---------- textes par phase ----------
+    function sayHash(){
+      setRead("<b>Phase 1 — Hachage.</b> L'élément <code>"+curMeta.tok+"</code> passe dans la fonction de hachage : "+
+        "elle renvoie une chaîne de <b>32 bits</b> qui se comporte comme uniforme et aléatoire, mais reste "+
+        "<b>identique</b> à chaque fois que ce même élément réapparaît. C'est ce déterminisme qui rend le comptage "+
+        "insensible aux doublons.","");
+    }
+    function sayRoute(){
+      setRead("<b>Phase 2 — Routage.</b> Les <code>p = 4</code> premiers bits <code>"+curMeta.bits.slice(0,P)+
+        "</code> se lisent comme l'indice du registre : <code>j = "+curMeta.j+"</code>. Chaque registre résume ainsi "+
+        "un <b>sous-flot</b> du flux (ici "+M+" sous-flots). Seul <code>M["+curMeta.j+"]</code> sera concerné.","");
+    }
+    function sayRho(){
+      var lzstr=curMeta.lz===0?"aucun":(curMeta.lz+"");
+      setRead("<b>Phase 3 — Rang ρ.</b> Sur les bits restants <code>"+curMeta.sub.slice(0,Math.min(12,W))+
+        (W>12?"…":"")+"</code> on compte les <b>zéros de tête</b> ("+lzstr+") avant le premier 1, puis on ajoute 1 : "+
+        "<code>ρ = "+curMeta.lz+" + 1 = "+curMeta.rho+"</code>. Un grand ρ est rare (probabilité <code>2^−ρ</code>) — "+
+        "c'est l'empreinte que laisse la rareté d'un motif binaire.","synhll-r-rho");
+    }
+    function sayMax(){
+      var msg="<b>Phase 4 — Mise à jour (max).</b> Le registre ne garde que le <b>maximum</b> : "+
+        "<code>M["+curMeta.j+"] ← max(M["+curMeta.j+"], "+curMeta.rho+")</code>. ";
+      if(bumped) msg+="Ici ρ bat l'ancienne valeur → <code>M["+curMeta.j+"] = "+reg[curMeta.j]+"</code> (case verte). "+
+        "Le max est <b>idempotent</b> : revoir cet élément ne changerait plus rien.";
+      else msg+="Ici ρ ne dépasse pas la valeur déjà stockée <code>"+reg[curMeta.j]+"</code> → <b>aucun changement</b>. "+
+        "C'est exactement ce qui se passe sur une <b>répétition</b>.";
+      setRead(msg,"synhll-r-max");
+    }
+    function sayEst(){
+      var e=estimator();
+      var corr=(e.raw<2.5*M && e.V>0);
+      var msg="<b>Phase 5 — Estimation.</b> On agrège les "+M+" registres par moyenne harmonique : "+
+        "<code>Z = Σ 2^−M[j] = "+fmt(e.Z,3)+"</code>, puis <code>E = α·m²·Z⁻¹ = 0,673·256/"+fmt(e.Z,3)+
+        " = "+fmt(e.raw,1)+"</code>. ";
+      if(corr) msg+="On est en régime <b>petite cardinalité</b> (<code>E < 2,5·m</code>, "+e.V+
+        " registres vides) : HyperLogLog rapporte plutôt le <b>Linear Counting</b> "+
+        "<code>E* = m·ln(m/V) = "+fmt(e.rep,1)+"</code>. ";
+      msg+="Vraie cardinalité à cet instant : <b>"+seen.size+"</b>. La boucle reprend à l'élément suivant.";
+      setRead(msg,"synhll-r-est");
+    }
+
+    function refreshStats(){
+      var e=estimator();
+      vRead.textContent=folded;
+      vTrue.textContent=seen.size;
+      vFill.textContent=e.fill+"/"+M;
+      vRaw.textContent=folded?fmt(e.raw,1):"—";
+      vRep.textContent=folded?fmt(e.rep,1):"—";
+    }
+
+    function refreshProgress(){
+      elBar.style.width=(folded/N*100).toFixed(1)+"%";
+      elProg.textContent=folded+" / "+N;
+    }
+
+    function drawStrip(){
+      for(var k=0;k<N;k++){
+        var ch=chips[k]; var base="synhll-chip"+(IS_REP[k]?" synhll-rep":"");
+        if(k<folded) base+=" synhll-done";
+        if(k===ei && phase>=0 && folded<=ei) base+=" synhll-cur";   // élément en cours
+        if(k===ei && phase>=0 && folded===ei+1) base+=" synhll-cur synhll-done"; // déjà replié
+        ch.className=base;
+      }
+    }
+
+    function drawElemHeader(){
+      if(!curMeta){ elTok.textContent="—"; elRep.style.display="none"; return; }
+      elTok.textContent=curMeta.tok;
+      elRep.style.display=IS_REP[ei]?"inline-block":"none";
+    }
+
+    function drawRoute(){
+      if(!curMeta){ elRoute.textContent="Cliquez « Phase suivante » pour hacher le premier élément."; return; }
+      elRoute.textContent="";
+      function frag(html){ // mini balisage <b>/<span class=rho>
+        var parts=html.split(/(<\/?(?:b|s)>)/), stack=[document.createDocumentFragment()];
+        for(var p=0;p<parts.length;p++){ var t=parts[p]; if(t==="")continue;
+          if(t==="<b>"){var b=document.createElement("b");stack[stack.length-1].appendChild(b);stack.push(b);}
+          else if(t==="<s>"){var s=document.createElement("span");s.className="synhll-rho";stack[stack.length-1].appendChild(s);stack.push(s);}
+          else if(t==="</b>"||t==="</s>"){ if(stack.length>1)stack.pop(); }
+          else stack[stack.length-1].appendChild(document.createTextNode(t)); }
+        return stack[0];
+      }
+      var txt;
+      if(phase===0) txt="Haché en 32 bits — prêt à router.";
+      else if(phase===1) txt="<b>j = "+curMeta.j+"</b> ← les "+P+" premiers bits → registre ciblé.";
+      else if(phase===2) txt="<b>j = "+curMeta.j+"</b> · <s>ρ = "+curMeta.lz+"+1 = "+curMeta.rho+"</s>.";
+      else txt="<b>j = "+curMeta.j+"</b> · <s>ρ = "+curMeta.rho+"</s> → M["+curMeta.j+"] = "+reg[curMeta.j]+".";
+      elRoute.appendChild(frag(txt));
+    }
+
+    // ---------- courbe (indicateur de progression) ----------
+    function svgEl(tag,attrs){var e=document.createElementNS(SVGNS,tag);for(var k in attrs)e.setAttribute(k,attrs[k]);return e;}
+    function drawCurve(){
+      elCurve.textContent="";
+      var g=svgEl("g",{});
+      var PL=34,PR=12,PT=14,PB=26, Wd=360,Hd=240;
+      var pw=Wd-PL-PR, ph=Hd-PT-PB;
+      var xmax=N;
+      var ymax=4;
+      for(var i=0;i<rawH.length;i++){ ymax=Math.max(ymax,rawH[i],trueH[i],repH[i]); }
+      ymax=Math.ceil(ymax/4)*4;
+      function sx(i){return PL + (i/xmax)*pw;}
+      function sy(v){return PT + (1-Math.min(v,ymax)/ymax)*ph;}
+      // axes
+      g.appendChild(svgEl("line",{x1:PL,y1:PT,x2:PL,y2:Hd-PB,stroke:"#C7D2DF","stroke-width":1}));
+      g.appendChild(svgEl("line",{x1:PL,y1:Hd-PB,x2:Wd-PR,y2:Hd-PB,stroke:"#C7D2DF","stroke-width":1}));
+      var ytop=svgEl("text",{x:PL-5,y:PT+4,"text-anchor":"end",fill:"var(--shll-faint)"});ytop.textContent=ymax;g.appendChild(ytop);
+      var y0=svgEl("text",{x:PL-5,y:Hd-PB,"text-anchor":"end",fill:"var(--shll-faint)"});y0.textContent="0";g.appendChild(y0);
+      var yl=svgEl("text",{x:PL-26,y:PT+ph/2,"text-anchor":"middle",fill:"var(--shll-faint)",transform:"rotate(-90 "+(PL-26)+" "+(PT+ph/2)+")"});yl.textContent="cardinalité";g.appendChild(yl);
+      var xl=svgEl("text",{x:PL+pw/2,y:Hd-5,"text-anchor":"middle",fill:"var(--shll-faint)"});xl.textContent="éléments lus";g.appendChild(xl);
+      function path(arr,stroke,dash,wd,op){
+        var d=""; for(var i=0;i<arr.length;i++) d+=(i?"L":"M")+sx(i).toFixed(1)+" "+sy(arr[i]).toFixed(1)+" ";
+        var a={d:d,fill:"none",stroke:stroke,"stroke-width":wd};
+        if(dash)a["stroke-dasharray"]=dash; if(op!=null)a.opacity=op;
+        g.appendChild(svgEl("path",a));
+      }
+      path(trueH,"var(--shll-green)","4 3",2,0.95);
+      path(rawH,"var(--shll-bord-br)",null,1.6,0.55);
+      path(repH,"var(--shll-blue)",null,2.2,1);
+      var li=repH.length-1;
+      g.appendChild(svgEl("circle",{cx:sx(li),cy:sy(repH[li]),r:3.4,fill:"var(--shll-blue)"}));
+      g.appendChild(svgEl("circle",{cx:sx(li),cy:sy(trueH[li]),r:3,fill:"var(--shll-green)"}));
+      elCurve.appendChild(g);
+    }
+
+    // ---------- commits ----------
+    function pushPoint(){
+      var e=estimator();
+      trueH.push(seen.size); rawH.push(e.raw); repH.push(e.rep);
+    }
+
+    // ---------- moteur pas-à-pas ----------
+    function enterElement(idx){
+      ei=idx; curMeta=meta(STREAM[idx]); bumped=false;
+    }
+    function stepPhase(){
+      if(atEnd()) return;
+      if(phase<0){ enterElement(0); phase=0; }
+      else if(phase<4){
+        phase++;
+        if(phase===3){ // appliquer le max maintenant (phase « 4 · max »)
+          var before=reg[curMeta.j];
+          bumped = curMeta.rho>before;
+          reg[curMeta.j]=Math.max(before, curMeta.rho);
+          seen.add(curMeta.tok);
+          folded=ei+1;
+        }
+        if(phase===4){ pushPoint(); }
+      } else { // phase 4 -> élément suivant
+        if(ei+1>=N){ phase=4; renderAll(); finishBanner(); return; }
+        enterElement(ei+1); phase=0;
+      }
+      // narration
+      if(phase===0) sayHash();
+      else if(phase===1) sayRoute();
+      else if(phase===2) sayRho();
+      else if(phase===3) sayMax();
+      else if(phase===4) sayEst();
+      renderAll();
+      if(phase===4 && folded>=N) finishBanner();
+    }
+
+    function nextElement(){ // pas-à-pas groupé : avance jusqu'à la phase « estimer » de l'élément suivant
+      if(atEnd()) return;
+      var guard=0; do{ stepPhase(); guard++; } while(phase!==4 && !atEnd() && guard<8);
+    }
+
+    function atEnd(){ return folded>=N && phase===4; }
+
+    // ---------- lecture continue ----------
+    function foldFast(){ // replie un élément entier sans détailler les phases
+      enterElement(folded);
+      var before=reg[curMeta.j];
+      bumped=curMeta.rho>before;
+      reg[curMeta.j]=Math.max(before,curMeta.rho);
+      seen.add(curMeta.tok);
+      folded=ei+1; phase=4;
+      pushPoint();
+    }
+    function tick(t){
+      if(!playing)return;
+      if(!lastT)lastT=t;
+      if(t-lastT>=110){
+        lastT=t;
+        if(folded>=N){ stopPlay(); finishBanner(); return; }
+        foldFast();
+        sayEst(); renderAll();
+        if(folded>=N){ stopPlay(); finishBanner(); return; }
+      }
+      rafId=requestAnimationFrame(tick);
+    }
+    function startPlay(){
+      if(playing)return;
+      if(atEnd()) resetAll();
+      playing=true; lastT=0; playBtn.textContent="⏸ Pause";
+      setStepEnabled(false);
+      rafId=requestAnimationFrame(tick);
+    }
+    function stopPlay(){
+      playing=false; playBtn.textContent="▶ Lire jusqu'au bout";
+      if(rafId){cancelAnimationFrame(rafId);rafId=null;}
+      setStepEnabled(true);
+    }
+    function setStepEnabled(on){ stepBtn.disabled=!on; elemBtn.disabled=!on; }
+
+    function finishBanner(){
+      var e=estimator();
+      var err=(e.rep-seen.size)/seen.size*100;
+      elBanner.textContent="✓ Flux épuisé ("+N+" événements, "+seen.size+" distincts vrais). Estimation rapportée "+
+        fmt(e.rep,1)+" — soit "+(err>=0?"+":"")+fmt(err,1)+" %. Les "+(N-seen.size)+" répétitions n'ont rien changé : "+
+        "le max est idempotent.";
+      elBanner.classList.add("synhll-show");
+    }
+
+    // ---------- rendu global ----------
+    function renderAll(){
+      drawElemHeader(); drawBits(); drawRoute(); drawRegs();
+      drawStrip(); drawCurve(); refreshStats(); refreshProgress(); railHL();
+    }
+
+    // ---------- reset ----------
+    function resetAll(){
+      reg=new Array(M); for(var i=0;i<M;i++)reg[i]=0;
+      seen=new Set(); folded=0; ei=-1; phase=-1; curMeta=null; bumped=false;
+      // base de la courbe (avant tout élément) : Z=m, raw=α·m, rep=0
+      trueH=[0]; rawH=[ALPHA*M]; repH=[0];
+      elBanner.classList.remove("synhll-show");
+      setRead("<b>Prêt.</b> Flux jouet de "+N+" événements, "+M+" registres à zéro. Cliquez « Phase suivante » "+
+        "pour dérouler un élément phase par phase (hacher → router → ρ → max → estimer), « Élément suivant » pour "+
+        "le faire d'un coup, ou « Lire jusqu'au bout » pour la lecture continue jusqu'à convergence.","");
+      renderAll();
+    }
+
+    // ---------- contrôles ----------
+    playBtn.addEventListener("click",function(){ if(playing)stopPlay(); else startPlay(); });
+    stepBtn.addEventListener("click",function(){ if(playing)return; if(atEnd())resetAll(); stepPhase(); });
+    elemBtn.addEventListener("click",function(){ if(playing)return; if(atEnd())resetAll(); nextElement(); });
+    resetBtn.addEventListener("click",function(){ stopPlay(); resetAll(); });
+    document.getElementById("synhll-rail").addEventListener("click",function(ev){
+      var t=ev.target.closest(".synhll-ph"); if(!t||playing)return;
+      if(atEnd())resetAll();
+      var target=parseInt(t.getAttribute("data-ph"),10), guard=0;
+      do{ stepPhase(); guard++; }while(phase!==target && !atEnd() && guard<8);
+    });
+
+    // ---------- init ----------
+    resetAll();
+  })();
+  </script>
+</div>
+
+<section id="estimateur-constantes-optimalite">
+<h3>L'estimateur, ses constantes et son optimalité</h3>
+<p>L'estimateur central de HyperLogLog est défini par <strong>E&nbsp;=&nbsp;α<sub>m</sub>&nbsp;·&nbsp;m²&nbsp;·&nbsp;Z</strong>, où Z&nbsp;=&nbsp;(∑<sub>j=1</sub><sup>m</sup>&nbsp;2<sup>−M[j]</sup>)<sup>−1</sup> est l'inverse de la somme des 2<sup>−M[j]</sup> sur l'ensemble des registres. En développant : E&nbsp;=&nbsp;α<sub>m</sub>&nbsp;·&nbsp;m&nbsp;·&nbsp;[m&nbsp;/&nbsp;∑&nbsp;2<sup>−M[j]</sup>], le terme entre crochets est précisément la <strong>moyenne harmonique</strong> des valeurs {2<sup>M[j]</sup>} — les estimées individuelles de cardinalité fournies par chaque sous-flux. C'est ce remplacement de la moyenne géométrique utilisée par LogLog par la moyenne harmonique qui constitue le levier central de l'amélioration : à précision équivalente, HyperLogLog n'utilise que 64&nbsp;% de la mémoire de son prédécesseur.</p>
+
+<p>La constante α<sub>m</sub> est une correction de biais dérivée analytiquement pour compenser la surestimation systématique introduite par la non-linéarité de l'estimateur. Ses valeurs exactes sont : 0,673 pour m&nbsp;=&nbsp;16 ; 0,697 pour m&nbsp;=&nbsp;32 ; 0,709 pour m&nbsp;=&nbsp;64 ; et α<sub>m</sub>&nbsp;=&nbsp;0,7213&nbsp;/&nbsp;(1&nbsp;+&nbsp;1,079/m) pour m&nbsp;≥&nbsp;128. Cette formule asymptotique converge vers ≈&nbsp;0,7213 lorsque m&nbsp;→&nbsp;∞, reflétant la limite de la correction quand les effets de bord aux faibles m disparaissent.</p>
+
+<p>L'analyse asymptotique de l'article original établit une erreur standard relative σ&nbsp;≈&nbsp;1,04&nbsp;/&nbsp;√m, indépendante de la cardinalité n : quelle que soit la taille du jeu de données, l'estimateur E se situe à&nbsp;±3σ de la vraie cardinalité avec une probabilité élevée. La plage valide du paramètre b — nombre de bits servant à indexer les registres, avec m&nbsp;=&nbsp;2<sup>b</sup> — est b&nbsp;∈&nbsp;[4,&nbsp;16] ; en dehors de cet intervalle, les garanties asymptotiques établies dans le papier ne tiennent plus. Pour m&nbsp;=&nbsp;2&nbsp;048 registres (b&nbsp;=&nbsp;11), σ&nbsp;≈&nbsp;2,3&nbsp;% ; pour m&nbsp;=&nbsp;16&nbsp;384 (b&nbsp;=&nbsp;14), σ&nbsp;≈&nbsp;0,8&nbsp;%, pour respectivement environ 1,25&nbsp;Ko et 10&nbsp;Ko de mémoire totale.</p>
+
+<p>Ce résultat se situe à environ 4&nbsp;% au-dessus de la borne établie par Chassaing et Gérin (2006) pour la classe des estimateurs de cardinalité fondés sur des statistiques d'ordre de hachage uniforme&nbsp;: σ<sub>min</sub>&nbsp;=&nbsp;1/√m. L'écart se calcule comme (1,04&nbsp;−&nbsp;1,00)&nbsp;/&nbsp;1,00, d'où le qualificatif <em>near-optimal</em> (quasi-optimal) du titre du papier. Il convient de préciser que la borne de Chassaing-Gérin est l'optimum pour cette classe d'algorithmes particulière — non la borne information-théorique absolue pour toute méthode d'estimation de cardinalité concevable, quel que soit le modèle computationnel.</p>
+
+<p>Les complexités de l'algorithme sont entièrement déterminées par m : insertion en O(1) (calcul d'un hash et mise à jour d'un unique registre) ; calcul de l'estimateur en O(m) (parcours de tous les registres) ; fusion de deux sketches en O(m). La mémoire totale est O(m&nbsp;·&nbsp;log&nbsp;log&nbsp;n) bits : chaque registre stocke ⌈log<sub>2</sub>(log<sub>2</sub>(n))⌉&nbsp;bits — environ 5&nbsp;bits en pratique pour n&nbsp;≤&nbsp;10<sup>18</sup>, soit 5m&nbsp;bits au total.</p>
+
+<p>La <strong>mergeability</strong> (fusionnabilité) est algébriquement exacte et sans perte : l'union de deux sketches construits sur des jeux de données A et B s'obtient par max registre par registre — hll<sub>A∪B</sub>[j]&nbsp;=&nbsp;max(M<sub>A</sub>[j],&nbsp;M<sub>B</sub>[j]) pour tout j&nbsp;∈&nbsp;[1,&nbsp;m] — en O(m) et sans accès aux données originales. Cette opération est strictement équivalente à ce qu'aurait produit un sketch construit directement sur A&nbsp;∪&nbsp;B, rendant l'algorithme naturellement adapté au traitement distribué : des sous-flux traités indépendamment sur des nœuds différents se fusionnent en une seule passe vectorielle.</p>
+</section>
+<section id="regimes-degrades-corrections">
+<h3>Régimes dégradés et corrections d'estimation</h3>
+<p>L'estimateur brut E = α<sub>m</sub> · m² · Z produit une erreur standard proche de 1,04/√m dans sa plage nominale, mais décroche dans deux régimes opposés qui exigent chacun une substitution explicite. Ces deux correctifs sont intégrés directement dans l'algorithme original de Flajolet, Fusy, Gandouet et Meunier (2007) : l'un prend la relève aux petites cardinalités, l'autre bride la dérive imposée par la finitude de l'espace de hachage en 32 bits.</p>
+
+<p>Aux petites cardinalités (E &lt; 2,5m), la moyenne harmonique perd en fiabilité : un nombre significatif de registres reste à zéro, ce qui constitue un signal de premier ordre plus stable. Quand cette condition est satisfaite et que V &gt; 0 registres sont encore vides, l'algorithme substitue l'estimateur de Linear Counting (comptage linéaire) : E* = m × ln(m/V). Cette formule, empruntée aux travaux de Whang <em>et al.</em> (1990), exploite directement la proportion de registres vides. Le seuil 2,5m est hérité du <em>load factor</em> recommandé pour Linear Counting ; il n'est pas dérivé analytiquement des propriétés de l'estimateur harmonique de HyperLogLog. La bascule corrige une surestimation : avant son application, la moyenne harmonique sur un tableau peu rempli gonfle artificiellement l'estimation, car chaque registre à zéro est implicitement interprété comme s'il avait vu exactement un élément distinct.</p>
+
+<p>À l'opposé du spectre, les fonctions de hachage codées sur 32 bits saturent leurs collisions dès n ≈ 2<sup>32</sup>/30 ≈ 143 millions. L'estimateur brut sous-estime alors la cardinalité réelle : plusieurs éléments distincts produisent la même valeur de hachage, et les registres cessent de progresser proportionnellement à la croissance de l'ensemble. La correction prescrite est E* = −2<sup>32</sup> × ln(1 − E/2<sup>32</sup>), une inversion de la loi des collisions dans un espace de hachage fini. Sans ce correctif, l'estimateur converge artificiellement vers 2<sup>32</sup> tandis que la quasi-totalité des valeurs de hachage a déjà été observée, produisant une divergence progressive irréparable au-delà du seuil de saturation.</p>
+
+<p>Un troisième défaut, orthogonal aux deux régimes précédents, a été mis en évidence par Heule, Nunkesser et Hall (Google, 2013) dans le papier HyperLogLog++ : l'algorithme original présente une surestimation systématique mesurable dans la zone de transition entre 2,5m et 5m — c'est-à-dire précisément là où Linear Counting vient de cesser de s'appliquer mais où la moyenne harmonique n'est pas encore pleinement convergée. Ce biais, non documenté dans le papier de 2007, motive l'introduction d'une table de correction empirique interpolant 200 points de référence dans cet intervalle. Le passage aux hash 64-bit dans HyperLogLog++ supprime par construction la limite des 143 M sans recourir à aucun correctif multiplicatif.</p><figure class='fig'><svg viewBox='0 0 800 320' role='img' aria-label='Carte en bandes contiguës des trois régimes des estimateurs de HyperLogLog selon les cardinalités croissantes n. Première bande, petites cardinalités sous le seuil E inférieur à 2,5m : Linear Counting, E étoile égal m fois logarithme népérien de m sur V. Bande centrale nominale : estimateur brut harmonique, erreur standard environ 1,04 sur racine de m. Troisième bande, très grandes cardinalités au-delà de 2 puissance 32 sur 30 soit environ 143 millions : correction de grande plage. La bosse de biais systématique de la transition 2,5m à 5m, mise en évidence par HyperLogLog plus plus, est surlignée en bordeaux.'><rect x='64' y='150' width='186' height='100' fill='var(--ink-faint,#7A889B)' fill-opacity='0.12' stroke='var(--ink-faint,#7A889B)' stroke-opacity='0.55' stroke-width='1'/><rect x='250' y='150' width='306' height='100' fill='var(--blue,#23537F)' fill-opacity='0.10' stroke='var(--blue,#23537F)' stroke-opacity='0.55' stroke-width='1'/><rect x='556' y='150' width='204' height='100' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.10' stroke='var(--bordeaux,#7C2A38)' stroke-opacity='0.55' stroke-width='1'/><line x1='64' y1='258' x2='784' y2='258' stroke='var(--ink,#15202E)' stroke-width='1.5'/><path d='M784 258 L774 253 L774 263 Z' fill='var(--ink,#15202E)'/><text x='770' y='278' text-anchor='end' font-family='sans-serif' font-size='12' fill='var(--ink,#15202E)'>n — cardinalité croissante</text><line x1='250' y1='140' x2='250' y2='258' stroke='var(--ink,#15202E)' stroke-width='1' stroke-dasharray='3 3'/><line x1='556' y1='140' x2='556' y2='258' stroke='var(--ink,#15202E)' stroke-width='1' stroke-dasharray='3 3'/><text x='250' y='293' text-anchor='middle' font-family='sans-serif' font-size='11.5' fill='var(--bordeaux,#7C2A38)'>seuil E = 2,5m</text><text x='556' y='293' text-anchor='middle' font-family='sans-serif' font-size='11.5' fill='var(--bordeaux,#7C2A38)'>seuil E = 2³²/30 ≈ 143 M</text><line x1='312' y1='150' x2='556' y2='150' stroke='var(--blue,#23537F)' stroke-width='1.2' stroke-dasharray='5 3'/><path d='M250 150 Q281 112 312 150 Z' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.30' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.3'/><line x1='281' y1='131' x2='281' y2='106' stroke='var(--bordeaux,#7C2A38)' stroke-width='0.8'/><text x='281' y='98' text-anchor='middle' font-family='sans-serif' font-size='11' fill='var(--bordeaux,#7C2A38)'>bosse de biais systématique</text><text x='281' y='84' text-anchor='middle' font-family='sans-serif' font-size='10' fill='var(--bordeaux,#7C2A38)'>HLL++ · transition 2,5m–5m</text><text x='157' y='176' text-anchor='middle' font-family='sans-serif' font-size='12.5' font-weight='bold' fill='var(--ink,#15202E)'>Petites cardinalités</text><text x='157' y='196' text-anchor='middle' font-family='sans-serif' font-size='11' fill='var(--ink-faint,#7A889B)'>E &lt; 2,5m · V vides</text><text x='157' y='220' text-anchor='middle' font-family='sans-serif' font-size='12' font-weight='bold' fill='var(--blue,#23537F)'>Linear Counting</text><text x='157' y='238' text-anchor='middle' font-family='monospace' font-size='11.5' fill='var(--ink,#15202E)'>E* = m·ln(m/V)</text><text x='403' y='176' text-anchor='middle' font-family='sans-serif' font-size='12.5' font-weight='bold' fill='var(--ink,#15202E)'>Zone nominale</text><text x='403' y='196' text-anchor='middle' font-family='sans-serif' font-size='11' fill='var(--ink-faint,#7A889B)'>estimateur brut harmonique</text><text x='403' y='220' text-anchor='middle' font-family='monospace' font-size='11.5' fill='var(--ink,#15202E)'>E = α<tspan baseline-shift='sub' font-size='8'>m</tspan>·m²·Z</text><text x='403' y='238' text-anchor='middle' font-family='sans-serif' font-size='11' fill='var(--blue,#23537F)'>σ ≈ 1,04/√m</text><text x='658' y='176' text-anchor='middle' font-family='sans-serif' font-size='12' font-weight='bold' fill='var(--ink,#15202E)'>Très grandes cardinalités</text><text x='658' y='196' text-anchor='middle' font-family='sans-serif' font-size='11' fill='var(--ink-faint,#7A889B)'>collisions de hash 32 bits</text><text x='658' y='220' text-anchor='middle' font-family='sans-serif' font-size='12' font-weight='bold' fill='var(--bordeaux,#7C2A38)'>correction grande plage</text><text x='658' y='238' text-anchor='middle' font-family='monospace' font-size='10.5' fill='var(--ink,#15202E)'>E* = −2³²·ln(1−E/2³²)</text></svg><figcaption><span class="fcap-k">Figure 1</span>Une carte unique de l'axe des cardinalités n : Linear Counting sous le seuil 2,5m, estimateur brut harmonique en zone nominale (σ ≈ 1,04/√m), puis correction de grande plage au-delà de ≈ 143 M — avec la bosse de biais 2,5m–5m repérée par HLL++ surlignée en bordeaux.</figcaption></figure>
+</section>
+<section id="hyperloglogplusplus">
+<h3>HyperLogLog++ : l'ingénierie de Google</h3>
+<p>En 2013, Stefan Heule, Marc Nunkesser et Alex Hall publient « HyperLogLog in Practice » dans les actes de l'EDBT (<em>Extending Database Technology</em>). La refonte — couramment désignée HyperLogLog++ ou HLL++ — répond à trois limitations pratiques de l'algorithme original tout en préservant sa mécanique fondamentale : passe linéaire sur le flux, fusion de sketches, commutativité et idempotence. L'impulsion de l'article vient de PowerDrill, le moteur d'analyse interactive interne de Google, dont les contraintes d'usage à l'échelle de production ont mis en évidence des défauts que les évaluations de laboratoire ne détectaient pas.</p>
+
+<p>Le premier apport est le passage aux fonctions de hachage 64 bits. Dans l'algorithme de Flajolet et al., la valeur de hachage est encodée sur 32 bits ; une « large range correction » est appliquée dès que l'estimation brute E dépasse 2<sup>32</sup>/30 ≈ 143 millions, seuil à partir duquel les collisions de hachage biaisent l'estimateur à la baisse et où la formule correctrice perd en fiabilité à mesure que la cardinalité réelle approche 2<sup>32</sup>. En adoptant le hachage 64 bits, HLL++ déplace ce seuil à 2<sup>64</sup>/30 ≈ 6 × 10<sup>17</sup>, hors de toute portée pratique. Le coût mémoire est marginal : seul le nombre de zéros de tête est stocké par registre — et non la valeur de hachage complète — de sorte que la taille totale passe de 5·2<sup>p</sup> à 6·2<sup>p</sup> bits.</p>
+
+<p>Le second apport est la <em>sparse representation</em> (représentation creuse) pour les faibles cardinalités. PowerDrill exécute environ cinq millions d'opérations de comptage distinct par jour ; 99 % d'entre elles retournent moins de 100 valeurs distinctes. Allouer systématiquement un tableau dense de 2<sup>p</sup> registres pour ces micro-sketches serait prohibitif à cette échelle. HLL++ représente donc le sketch, tant que la cardinalité reste faible, comme une liste triée de paires (indice de registre, valeur), compressée par encodage à longueur variable et encodage différentiel. Quand le sketch grossit et dépasse un seuil de densité, la structure bascule automatiquement vers la représentation dense. Ce régime creux exploite un second paramètre de précision p' &gt; p : les bits supplémentaires disponibles grâce au hachage 64 bits permettent de conserver davantage d'information dans la liste creuse avant conversion, tandis que p désigne la précision finale du régime dense (2<sup>p</sup> registres).</p>
+
+<p>Le troisième apport est la correction empirique du biais de transition. L'estimateur HLL et l'estimateur <em>linear counting</em> opèrent dans des plages de cardinalité distinctes ; à leur frontière, ni l'un ni l'autre n'est parfaitement calibré, ce qui génère un biais positif reproductible. Heule et al. le caractérisent expérimentalement : ils évaluent l'estimateur brut en 200 points de cardinalité distribués dans la zone critique, mesurent l'erreur moyenne à chacun, et stockent ces corrections dans une table de correspondance. À chaque estimation, l'algorithme identifie les 6 points les plus proches au sens des <em>k-nearest neighbors</em> (k plus proches voisins, k = 6), calcule la moyenne de leurs corrections et la soustrait de l'estimation brute. La procédure est entièrement déterministe, sans hyperparamètre à ajuster ; les tables correspondantes sont publiées dans l'article et codées en dur dans les implémentations de référence.</p>
+</section>
+<section id="successeurs-space-efficient">
+<h3>La lignée des successeurs space-efficient</h3>
+<p>Après HyperLogLog++ (Google, 2013), la première avancée significative tient à l'estimateur plutôt qu'à la structure. En 2016, Qin, Kim et Tung publient LogLog-Beta (arXiv:1612.02284) : une formule de correction de biais analytique, unique, valable sur toute la plage de cardinalités. Là où HyperLogLog++ exige des tables de lookup empiriques calibrées par simulation, LogLog-Beta se calcule directement à partir des registres, sans données pré-tabulées. Cette simplicité lui vaut d'être adoptée dans plusieurs implémentations open-source de référence, dont celle d'Axiom (<code>axiomhq/hyperloglog</code>), combinée à la représentation sparse et à la compression TailCut.</p>
+
+<p>La décennie 2020 inaugure une lignée structurelle dont la question centrale est la préservation du <em>merge</em> (fusion de sketches) lors de la compression. HyperLogLogLog (KDD 2022, Karppa et al.) ajoute un logarithme de compression : le sketch est réduit à <em>m</em>·log₂log₂log₂<em>m</em> + O(<em>m</em> + log log <em>n</em>) bits, contre O(<em>m</em> log log <em>n</em>) pour HyperLogLog, soit environ 40 % de moins que les implémentations de référence de Google et d'Apache. La fusion reste possible dans le domaine compressé — deux sketches se fusionnent sans décompression —, et les mises à jour s'effectuent en temps constant amorti. La structure constitue un remplacement drop-in d'HyperLogLog : toutes les propriétés d'estimation sont préservées, avec conversion bidirectionnelle vers la représentation non compressée.</p>
+
+<p>Otmar Ertl, auteur d'un estimateur MLE (maximum likelihood estimation, vraisemblance maximale) pour HLL en 2017, publie en 2024 UltraLogLog (VLDB 2024) : les registres sont encodés sur 8 bits selon une distribution choisie pour minimiser l'entropie, ce qui réduit l'espace de 28 % par rapport à HyperLogLog avec l'estimateur MLE (24 % avec un estimateur simplifié). L'encodage 8 bits présente de surcroît un avantage pratique : les registres se compressent mieux que les 6 bits d'HLL classique par les algorithmes de compression génériques. UltraLogLog conserve intégralement la commutativité, l'idempotence, le merge et l'insertion en temps constant garanti — le même contrat opérationnel qu'HLL. En 2025, ExaLogLog (EDBT 2025) étend la lignée à des cardinalités jusqu'à l'échelle exa (10<sup>18</sup> éléments distincts), avec une réduction d'espace de 43 % et un contrat opérationnel identique, augmenté d'une propriété de réductibilité utile en agrégation hiérarchique distribuée. Les deux structures disposent d'une implémentation Java de référence dans la bibliothèque open-source Hash4j (Dynatrace).</p>
+
+<p>En 2026, Bushnell propose DynamicLogLog (arXiv:2603.27405), qui agit directement sur le nombre de bits par <em>bucket</em> (seau) : HyperLogLog alloue 6 bits par bucket ; DLL en utilise 4, grâce à un exposant partagé entre buckets et des comptages relatifs de <em>leading zero</em> (zéros initiaux du hash). La réduction mémoire atteint 33 % ; sur 2 048 buckets (1 024 octets), DLL affiche 1,830 % d'erreur moyenne contre 1,84 % pour HLL fonctionnant avec 1 536 octets. La seconde innovation est l'<em>early-exit mask</em> (masque de rejet anticipé) : à haute cardinalité, plus de 99,9 % des éléments sont écartés avant tout accès aux buckets, offrant une accélération supérieure à 10× par rapport à HLL dans les scénarios limités par la bande passante mémoire. La variante DynamicUltraLogLog fusionne les techniques DLL et UltraLogLog pour atteindre la précision d'ULL avec seulement 75 % de sa mémoire.</p>
+
+<p>Deux variantes explorent des compromis orthogonaux. Sliding HyperLogLog (Chabchoub et Hébrail, IEEE ICDM Workshops, 2010) adapte HLL aux flux de données munis d'une <em>sliding window</em> (fenêtre glissante) : le sketch permet d'estimer à tout instant la cardinalité sur n'importe quelle durée bornée par la taille de la fenêtre, avec la même erreur standard qu'HLL (≈ 1,04/√<em>m</em>), au prix d'une mémoire supplémentaire d'au plus 5<em>m</em> ln(<em>n</em>/<em>m</em>) octets. HLL-TailCut+ (Xiao, Zhou, Chen) choisit à l'inverse de sacrifier délibérément le merge pour réduire l'espace de 20 à 45 % : il stocke le compteur minimal comme base et les autres comme offsets relatifs sur 4 bits ; lorsqu'un offset déborde, il est saturé à sa valeur maximale, rendant l'estimateur dépendant de l'ordre d'insertion. La fusion de deux sketches HLL-TailCut+ peut alors produire un résultat biaisé — différent de ce qu'aurait donné un sketch unique traçant l'union des deux flux.</p>
+
+<p>La question des estimateurs optimaux pour HyperLogLog est formalisée de façon systématique à partir de 2017. Ertl (arXiv:1706.07290, 2017) dérive analytiquement l'estimateur original d'HLL, identifie ses biais résiduels, et propose un estimateur amélioré non biaisé sur toute la plage de cardinalités — sans table empirique — ainsi qu'un estimateur MLE qui étend le calcul aux opérations ensemblistes (union, intersection, différence relative) avec plus de précision que l'approche inclusion-exclusion classique. Pettie et Wang (PODS 2023) systématisent le panorama via la famille τ-GRA (<em>generalized remaining area</em>) : ils établissent que les estimateurs standard d'HLL, de LogLog et de PCSA sont des instances de τ-GRA pour des valeurs entières de τ, et qu'un choix de τ fractionnaire permet de s'approcher davantage de la borne de Cramér-Rao. Ils montrent en parallèle que l'estimateur MLE appliqué à Compressed-PCSA dépasse en précision Compressed-HyperLogLog à budget mémoire identique — résultat qui réhabilite PCSA, longtemps éclipsé par HLL, comme terreau théorique plus fertile pour la compression.</p><figure class='fig'><svg viewBox='0 0 920 560' role='img' aria-label='Frise chronologique ramifiée des estimateurs de cardinalité : tronc fondateur Flajolet-Martin 1985, LogLog 2003, HyperLogLog 2007, HyperLogLog++ 2013, puis une branche space-efficient post-2013 — LogLog-Beta 2016, HyperLogLogLog moins 40 pourcent 2022, UltraLogLog moins 28 pourcent 2024, ExaLogLog moins 43 pourcent 2025, DynamicLogLog moins 33 pourcent 2026 — toute à merge préservé, et une branche dissidente HLL-TailCut+ à merge sacrifié pour moins 20 à 45 pourcent.'><rect x='88' y='250' width='770' height='162' rx='16' fill='var(--blue-wash,#E7EEF6)'/><text x='110' y='276' font-size='13' font-weight='600' fill='var(--blue,#23537F)'>Lignée space-efficient · post-2013 · merge préservé</text><text x='430' y='236' font-size='12' font-style='italic' fill='var(--ink-faint,#7A889B)' text-anchor='middle'>au-delà de 2013 : compresser le sketch</text><line x1='130' y1='128' x2='700' y2='128' stroke='var(--blue,#23537F)' stroke-width='3' stroke-linecap='round'/><circle cx='130' cy='128' r='6' fill='var(--blue,#23537F)'/><circle cx='320' cy='128' r='6' fill='var(--blue,#23537F)'/><circle cx='510' cy='128' r='6' fill='var(--blue,#23537F)'/><circle cx='700' cy='128' r='6' fill='var(--blue,#23537F)'/><text x='130' y='104' font-size='13' font-weight='600' fill='var(--ink,#15202E)' text-anchor='middle'>Flajolet–Martin</text><text x='320' y='104' font-size='13' font-weight='600' fill='var(--ink,#15202E)' text-anchor='middle'>LogLog</text><text x='510' y='104' font-size='13' font-weight='600' fill='var(--ink,#15202E)' text-anchor='middle'>HyperLogLog</text><text x='700' y='104' font-size='13' font-weight='600' fill='var(--ink,#15202E)' text-anchor='middle'>HyperLogLog++</text><text x='130' y='150' font-size='11' fill='var(--ink-faint,#7A889B)' text-anchor='middle'>1985</text><text x='320' y='150' font-size='11' fill='var(--ink-faint,#7A889B)' text-anchor='middle'>2003</text><text x='510' y='150' font-size='11' fill='var(--ink-faint,#7A889B)' text-anchor='middle'>2007</text><text x='700' y='150' font-size='11' fill='var(--ink-faint,#7A889B)' text-anchor='middle'>2013</text><path d='M 700 138 C 680 248 320 248 135 318' fill='none' stroke='var(--blue,#23537F)' stroke-width='2.5'/><polygon points='128,309 142,309 135,320' fill='var(--blue,#23537F)'/><line x1='135' y1='330' x2='815' y2='330' stroke='var(--blue,#23537F)' stroke-width='3' stroke-linecap='round'/><circle cx='135' cy='330' r='6' fill='var(--blue,#23537F)'/><circle cx='305' cy='330' r='6' fill='var(--blue,#23537F)'/><circle cx='475' cy='330' r='6' fill='var(--blue,#23537F)'/><circle cx='645' cy='330' r='6' fill='var(--blue,#23537F)'/><circle cx='815' cy='330' r='6' fill='var(--blue,#23537F)'/><text x='135' y='302' font-size='13' font-weight='600' fill='var(--ink,#15202E)' text-anchor='middle'>LogLog-Beta</text><text x='305' y='302' font-size='13' font-weight='600' fill='var(--ink,#15202E)' text-anchor='middle'>HyperLogLogLog</text><text x='475' y='302' font-size='13' font-weight='600' fill='var(--ink,#15202E)' text-anchor='middle'>UltraLogLog</text><text x='645' y='302' font-size='13' font-weight='600' fill='var(--ink,#15202E)' text-anchor='middle'>ExaLogLog</text><text x='815' y='302' font-size='13' font-weight='600' fill='var(--ink,#15202E)' text-anchor='middle'>DynamicLogLog</text><rect x='95' y='344' width='80' height='24' rx='12' fill='var(--paper,#F4F6FA)' stroke='var(--blue,#23537F)' stroke-width='1.1'/><rect x='265' y='344' width='80' height='24' rx='12' fill='var(--paper,#F4F6FA)' stroke='var(--blue,#23537F)' stroke-width='1.1'/><rect x='435' y='344' width='80' height='24' rx='12' fill='var(--paper,#F4F6FA)' stroke='var(--blue,#23537F)' stroke-width='1.1'/><rect x='605' y='344' width='80' height='24' rx='12' fill='var(--paper,#F4F6FA)' stroke='var(--blue,#23537F)' stroke-width='1.1'/><rect x='775' y='344' width='80' height='24' rx='12' fill='var(--paper,#F4F6FA)' stroke='var(--blue,#23537F)' stroke-width='1.1'/><text x='135' y='361' font-size='12' font-weight='600' fill='var(--blue,#23537F)' text-anchor='middle'>✓ unifié</text><text x='305' y='361' font-size='12' font-weight='600' fill='var(--blue,#23537F)' text-anchor='middle'>✓ −40 %</text><text x='475' y='361' font-size='12' font-weight='600' fill='var(--blue,#23537F)' text-anchor='middle'>✓ −28 %</text><text x='645' y='361' font-size='12' font-weight='600' fill='var(--blue,#23537F)' text-anchor='middle'>✓ −43 %</text><text x='815' y='361' font-size='12' font-weight='600' fill='var(--blue,#23537F)' text-anchor='middle'>✓ −33 %</text><text x='135' y='388' font-size='11' fill='var(--ink-faint,#7A889B)' text-anchor='middle'>2016</text><text x='305' y='388' font-size='11' fill='var(--ink-faint,#7A889B)' text-anchor='middle'>2022</text><text x='475' y='388' font-size='11' fill='var(--ink-faint,#7A889B)' text-anchor='middle'>2024</text><text x='645' y='388' font-size='11' fill='var(--ink-faint,#7A889B)' text-anchor='middle'>2025</text><text x='815' y='388' font-size='11' fill='var(--ink-faint,#7A889B)' text-anchor='middle'>2026</text><path d='M 480 412 C 540 452 620 462 695 474' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='2' stroke-dasharray='5 4'/><circle cx='700' cy='478' r='7' fill='var(--bordeaux,#7C2A38)'/><text x='700' y='482' font-size='10' font-weight='700' fill='var(--paper,#F4F6FA)' text-anchor='middle'>✕</text><text x='700' y='460' font-size='13' font-weight='600' fill='var(--bordeaux,#7C2A38)' text-anchor='middle'>HLL-TailCut+</text><text x='700' y='500' font-size='11' fill='var(--bordeaux,#7C2A38)' text-anchor='middle'>merge sacrifié · −20…45 %</text><circle cx='132' cy='531' r='7' fill='var(--blue,#23537F)'/><text x='132' y='535' font-size='10' font-weight='700' fill='var(--paper,#F4F6FA)' text-anchor='middle'>✓</text><text x='146' y='535' font-size='11.5' fill='var(--ink,#15202E)'>merge préservé (fusion exacte)</text><circle cx='430' cy='531' r='7' fill='var(--bordeaux,#7C2A38)'/><text x='430' y='535' font-size='10' font-weight='700' fill='var(--paper,#F4F6FA)' text-anchor='middle'>✕</text><text x='444' y='535' font-size='11.5' fill='var(--ink,#15202E)'>merge sacrifié (HLL-TailCut+)</text><rect x='695' y='523' width='60' height='17' rx='8' fill='var(--paper,#F4F6FA)' stroke='var(--blue,#23537F)' stroke-width='1.1'/><text x='725' y='535' font-size='10.5' font-weight='600' fill='var(--blue,#23537F)' text-anchor='middle'>−n %</text><text x='763' y='535' font-size='11.5' fill='var(--ink,#15202E)'>gain mémoire vs HLL</text></svg><figcaption><span class="fcap-k">Figure 2</span>Du tronc fondateur (Flajolet–Martin 1985 → HyperLogLog++ 2013) à la lignée space-efficient post-2013, qui compresse le sketch en préservant le merge — HLL-TailCut+ étant la dissidence qui le sacrifie.</figcaption></figure>
+</section>
+<section id="pieges-statistiques-idees-recues">
+<h3>Pièges statistiques et idées reçues</h3>
+<p>Le malentendu le plus répandu sur HyperLogLog naît d'une confusion entre erreur relative et erreur absolue. La garantie théorique est exprimée en termes d'erreur relative : l'écart-type vaut σ ≈ 1,04/√m, où m désigne le nombre de registres. Pour p = 14 (m = 16 384 registres, précision par défaut dans de nombreuses implémentations), σ ≈ 0,81 %. Ce chiffre est constant — indépendant de la cardinalité estimée. L'erreur absolue, elle, croît proportionnellement à n : pour n = 100 000, l'incertitude typique dépasse 800 éléments ; pour n = 10 millions, elle franchit les 80 000 ; pour n = 1 milliard, elle atteint près de 8 millions. L'intuition des praticiens va à rebours : dans la plupart des estimateurs statistiques, accumuler plus de données précise le résultat. HLL inverse ce rapport — non par défaut de conception, mais structurellement : il tient une promesse de stabilité relative, jamais de convergence absolue.</p>
+
+<p>De là découle un second mythe, encore plus répandu dans les présentations techniques : « HLL est précis à ~2 % quelle que soit la cardinalité ». La réalité décrite dans le papier fondateur de Flajolet et al. (2007) est plus nuancée. L'algorithme opère en trois zones distinctes. La zone centrale — seule région où la garantie σ = 1,04/√m s'applique pleinement — requiert la constante de correction α<sub>m</sub> : 0,673 pour m = 16 ; 0,697 pour m = 32 ; 0,709 pour m = 64 ; 0,7213/(1 + 1,079/m) pour m ≥ 128. Une implémentation qui omet ou approxime mal cette constante introduit un biais multiplicatif systématique dans la zone centrale elle-même. Aux petites cardinalités (E &lt; 2,5m), l'estimateur brut surestime et est remplacé par Linear Counting : E* = m · log(m/V), où V désigne le nombre de registres encore à zéro. Aux très grandes cardinalités (E &gt; 2³²/30 avec des hash 32 bits), les collisions de hash faussent l'estimation et une troisième correction s'impose : E* = −2³² · log(1 − E/2³²). Dans les deux régimes extrêmes, c'est un estimateur différent qui produit le résultat — ce que la formule-résumé « σ ≈ 1 % » ne laisse pas deviner.</p>
+
+<p>HyperLogLog++ (Google, 2013) a mis en lumière un troisième écueil, plus subtil : même dans les implémentations qui appliquent les corrections ci-dessus, un biais systématique subsiste à la transition entre Linear Counting et l'estimateur HLL. Pour p = 14, ce biais apparaît entre environ 18 000 et 61 000 éléments distincts — une plage de cardinalité courante dans les analyses web. Le papier original ne le décrit pas. HLL++ y remédie par une table empirique de 200 points de référence et une interpolation par k-nearest-neighbors (k-plus-proches-voisins, k = 6), solution pragmatique là où l'analyse théorique avait échoué. La même publication introduit la sparse representation (représentation creuse) : avant cette version, un sketch HLL allouait immédiatement un tableau dense de m registres, même pour le premier élément. Chez Google PowerDrill, 99 % des quelque 5 millions de calculs de cardinalité quotidiens retournaient moins de 100 valeurs distinctes — ils payaient inutilement la mémoire d'un sketch plein. La sparse representation élimine ce gaspillage en ne stockant que les paires (index, valeur) des registres non nuls.</p>
+
+<p>La croissance de l'erreur absolue avec n crée une incompatibilité structurelle avec l'A/B testing. Un test statistique sur des counts distincts suppose implicitement que l'estimateur converge vers la vraie valeur quand n augmente ; une erreur relative constante produit l'effet inverse. Une étude de simulation a quantifié les conséquences sur des tests A/A — groupes strictement identiques, où tout résultat significatif est un faux positif. À 20 000 utilisateurs (α = 0,05), 5,79 % des tests affichaient p &lt; 0,05, soit une inflation de 16 % du taux nominal. À 1 000 000 d'utilisateurs, ce taux atteignait 43,86 %, représentant une inflation de 777 % du type I error (erreur de type I) nominal. L'auteur conclut sans ambiguïté que les estimations HLL++ avec les réglages de précision par défaut sont « unsuitable for use in A/B testing ». Augmenter fortement p réduit le biais mais double le nombre de registres à chaque bit supplémentaire ; brancher ces estimations directement sur un test d'égalité sans correction demeure une source garantie de résultats invalides.</p>
+
+<p>Les contextes adversariaux révèlent une fragilité d'une nature différente. Reviriego et al. (2020) montrent qu'un attaquant peut construire un ensemble de seulement m éléments — égal au nombre de registres — produisant n'importe quelle estimation-cible arbitrairement grande. Cette inflate attack (attaque par gonflement) a été validée sur deux implémentations commerciales largement déployées, Presto et Redis, avec des applications concrètes : fausser des métriques publicitaires ou déclencher de fausses alertes dans des systèmes de détection. Dans le sens opposé, Paterson et Raynal (2021) démontrent qu'un adversaire contrôlant quels éléments sont enregistrés dans le sketch peut rendre l'estimation exponentiellement petite par rapport à la vraie cardinalité. Le titre du papier l'énonce sans détour : « HyperLogLog: Exponentially Bad in Adversarial Settings ». HLL n'offre aucune garantie dans des environnements non-aléatoires.</p>
+
+<p>Sous toutes ces garanties se cache une hypothèse rarement explicitée dans les guides d'utilisation : les bornes d'erreur de HLL supposent un hash function (fonction de hachage) qui distribue ses sorties de façon uniforme sur l'espace de bits et dont les valeurs sont fortement indépendantes entre elles. L'analyse de Flajolet et al. repose sur un modèle probabiliste dans lequel les sorties de hash sont des tirages indépendants et uniformément répartis — un idéal que peu de fonctions pratiques satisfont rigoureusement. Un hash présentant des biais de distribution ou des corrélations entre sorties brise les hypothèses de variance de l'estimateur : les bornes théoriques deviennent inopérantes, sans aucun signal d'alerte apparent. Le sketch continuera de produire des chiffres plausibles, mais leurs marges d'erreur effectives seront inconnues. Cette dégradation ne se manifeste que statistiquement, sur de larges cohortes — contrairement à une collision de hash isolée, elle échappe aux tests unitaires classiques.</p>
+</section>
+<div class="widget erva-root" id="erva-root">
+  <style>
+    .erva-root{--erva-ink:var(--ink,#15202E);--erva-soft:var(--ink-soft,#43536A);
+      --erva-faint:var(--ink-faint,#7A889B);--erva-card:var(--card,#fff);
+      --erva-line:var(--line,#D7DFE9);--erva-line-soft:var(--line-soft,#E7ECF3);
+      --erva-blue:var(--blue,#23537F);--erva-bright:var(--blue-bright,#2C77B6);
+      --erva-wash:var(--blue-wash,#E7EEF6);--erva-bord:var(--bordeaux,#7C2A38);
+      --erva-bordbr:var(--bordeaux-bright,#9B3443);--erva-ok:#3F8E66;--erva-warm:#C68A2E;
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--erva-ink);
+      border:1px solid var(--erva-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--erva-card);max-width:720px}
+    .erva-root *{box-sizing:border-box}
+    .erva-k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;
+      color:var(--erva-faint);font-weight:600;margin:0 0 2px}
+    .erva-title{font-weight:700;font-size:1.05rem;margin:0 0 4px}
+    .erva-sub{font-size:.86rem;color:var(--erva-soft);margin:0 0 14px}
+    .erva-sub code{background:var(--erva-line);padding:1px 5px;border-radius:4px;font-size:.85em}
+    .erva-ctl{display:flex;flex-wrap:wrap;gap:18px;padding:11px 13px;border:1px solid var(--erva-line);
+      border-radius:9px;margin:0 0 14px}
+    .erva-field{flex:1 1 250px;min-width:220px;display:flex;flex-direction:column;gap:5px}
+    .erva-field label{font-size:.78rem;color:var(--erva-faint);font-weight:600;letter-spacing:.03em;
+      display:flex;justify-content:space-between;gap:10px;align-items:baseline}
+    .erva-field label b{color:var(--erva-ink);font:700 .95rem/1 ui-monospace,monospace}
+    .erva-field input[type=range]{width:100%;accent-color:var(--erva-bright);cursor:pointer;height:22px}
+    .erva-stats{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 14px}
+    .erva-stat{flex:1 1 150px;border:1px solid var(--erva-line);border-radius:9px;padding:10px 12px;
+      background:var(--erva-card)}
+    .erva-stat .erva-sk{font-size:.67rem;letter-spacing:.05em;text-transform:uppercase;
+      color:var(--erva-faint);font-weight:600}
+    .erva-stat .erva-sv{font:800 1.4rem/1.1 ui-monospace,monospace;margin:3px 0 1px}
+    .erva-stat .erva-sn{font-size:.72rem;color:var(--erva-soft)}
+    .erva-stat.erva-rel .erva-sv{color:var(--erva-bright)}
+    .erva-stat.erva-abs .erva-sv{color:var(--erva-bordbr)}
+    .erva-stat.erva-mem .erva-sv{color:var(--erva-warm)}
+    .erva-membar{height:7px;border-radius:4px;background:var(--erva-line-soft);margin:7px 0 0;overflow:hidden}
+    .erva-memfill{height:100%;border-radius:4px;background:var(--erva-warm);transition:width .2s ease}
+    .erva-chartwrap{border:1px solid var(--erva-line);border-radius:9px;padding:8px 8px 4px;margin:0 0 10px}
+    .erva-legend{display:flex;gap:16px;flex-wrap:wrap;font-size:.78rem;color:var(--erva-soft);
+      padding:2px 4px 8px}
+    .erva-legend span{display:inline-flex;align-items:center;gap:6px}
+    .erva-swatch{width:22px;height:0;border-top-width:3px;border-top-style:solid;display:inline-block}
+    .erva-swatch.erva-relsw{border-top-color:var(--erva-bright)}
+    .erva-swatch.erva-abssw{border-top-color:var(--erva-bordbr)}
+    .erva-svg{display:block;width:100%;height:auto}
+    .erva-read{margin:10px 0 0;padding:11px 13px;border-radius:8px;border:1px solid var(--erva-line);
+      background:var(--erva-wash);font-size:.86rem;line-height:1.55;color:var(--erva-ink)}
+    .erva-read b{font-weight:700}
+    .erva-warnpill{display:inline-block;font:600 .72rem/1.3 inherit;color:#8a5a00;
+      background:rgba(198,138,46,.16);border:1px solid rgba(198,138,46,.5);border-radius:6px;
+      padding:2px 7px;margin-left:4px}
+    details.erva-note{margin:12px 0 0;font-size:.85rem;color:var(--erva-soft)}
+    details.erva-note summary{cursor:pointer;font-weight:600;color:var(--erva-blue)}
+    details.erva-note p{margin:8px 0 0}
+    details.erva-note code{background:var(--erva-line);padding:1px 5px;border-radius:4px;font-size:.85em}
+  </style>
+
+  <p class="erva-k">Démonstration interactive</p>
+  <p class="erva-title">Erreur relative constante, erreur absolue qui enfle</p>
+  <p class="erva-sub">HyperLogLog garde une erreur <b>relative</b> fixée par le seul nombre de
+    registres&nbsp;: <code>σ = 1,04/√m</code> avec <code>m = 2<sup>p</sup></code> — elle ne dépend
+    <b>pas</b> de la cardinalité <code>n</code>. Mais l'erreur <b>absolue</b> vaut <code>σ·n</code>&nbsp;:
+    elle grandit avec <code>n</code>. Glissez les curseurs et regardez la courbe relative rester plate
+    pendant que l'absolue grimpe.</p>
+
+  <div class="erva-ctl">
+    <div class="erva-field">
+      <label>Précision <span>p</span> <b>p = <span id="erva-pval">14</span> · m = 2<sup>p</sup> = <span id="erva-mval">16 384</span> registres</b></label>
+      <input type="range" id="erva-p" min="10" max="18" step="1" value="14" aria-label="précision p, m = 2 puissance p registres">
+    </div>
+    <div class="erva-field">
+      <label>Cardinalité <span>n</span> <b id="erva-nval">10 000 000</b></label>
+      <input type="range" id="erva-n" min="200" max="900" step="1" value="700" aria-label="cardinalité n, échelle logarithmique">
+    </div>
+  </div>
+
+  <div class="erva-stats">
+    <div class="erva-stat erva-rel">
+      <div class="erva-sk">Erreur relative σ</div>
+      <div class="erva-sv" id="erva-relv">0,81 %</div>
+      <div class="erva-sn">= 1,04/√m — insensible à n</div>
+    </div>
+    <div class="erva-stat erva-abs">
+      <div class="erva-sk">Erreur absolue σ·n</div>
+      <div class="erva-sv" id="erva-absv">± 81 250</div>
+      <div class="erva-sn">éléments — croît avec n</div>
+    </div>
+    <div class="erva-stat erva-mem">
+      <div class="erva-sk">Mémoire ≈ m × 6 bits</div>
+      <div class="erva-sv" id="erva-memv">12 288 o</div>
+      <div class="erva-sn" id="erva-memn">12,0 Kio · × 2 à chaque +1 de p</div>
+      <div class="erva-membar"><div class="erva-memfill" id="erva-memfill" style="width:50%"></div></div>
+    </div>
+  </div>
+
+  <div class="erva-chartwrap">
+    <div class="erva-legend">
+      <span><i class="erva-swatch erva-relsw"></i> erreur relative (constante en n)</span>
+      <span><i class="erva-swatch erva-abssw"></i> erreur absolue σ·n (∝ n)</span>
+    </div>
+    <svg class="erva-svg" id="erva-svg" viewBox="0 0 602 252" role="img"
+      aria-label="Graphe : l'erreur relative reste horizontale tandis que l'erreur absolue monte avec n"></svg>
+  </div>
+
+  <div class="erva-read" id="erva-read"></div>
+
+  <details class="erva-note">
+    <summary>Pourquoi accumuler des données ne réduit pas l'incertitude absolue</summary>
+    <p>Un compteur <b>exact</b> (table de hachage) voit son erreur tendre vers <b>zéro</b> quand on
+      l'alimente — au prix d'une mémoire en <code>O(n)</code>. HyperLogLog fait l'inverse&nbsp;: il fige
+      la mémoire (<code>≈ m × 6 bits</code>, qui <b>double à chaque +1 de p</b>) et, du coup, fige
+      l'erreur <i>relative</i> à <code>1,04/√m</code>. Mais une erreur relative constante sur une
+      cardinalité croissante signifie une erreur <i>absolue</i> <code>σ·n</code> qui enfle&nbsp;:
+      doubler <code>n</code> double l'incertitude en nombre d'éléments. C'est la contre-intuition de la
+      section&nbsp;: plus de données n'achète pas plus de certitude absolue. Pour gagner un facteur 2 sur
+      l'erreur, il faut quadrupler <code>m</code> (donc <code>+2</code> sur <code>p</code>), pas
+      attendre plus de données.</p>
+    <p>La garantie <code>σ = 1,04/√m</code> ne vaut que dans la <b>plage normale</b> de l'estimateur,
+      soit environ <code>2,5·m ≤ n ≤ 2³²/30</code> (≈ 143 M avec un hachage 32 bits). En dessous, un
+      <i>Linear Counting</i> corrige le biais des petites cardinalités&nbsp;; au-dessus, une correction
+      logarithmique compense la saturation de l'espace de hachage. La bande verte du graphe marque cette
+      plage&nbsp;; hors d'elle, les courbes tracent le modèle nominal, pas la garantie.</p>
+  </details>
+
+  <script>
+  (function(){
+    var root=document.getElementById("erva-root");
+    if(!root||root.dataset.ervaInit)return; root.dataset.ervaInit="1";
+
+    var NS="http://www.w3.org/2000/svg";
+    var LN10=Math.LN10;
+    function log10(x){return Math.log(x)/LN10;}
+
+    var pEl=document.getElementById("erva-p");
+    var nEl=document.getElementById("erva-n");
+    var svg=document.getElementById("erva-svg");
+    var readEl=document.getElementById("erva-read");
+
+    // ----- bornes du graphe -----
+    var LXMIN=2, LXMAX=9;        // axe x : log10(n) de 1e2 à 1e9
+    var RELMAX=4;                // axe gauche : erreur relative en %, linéaire 0..4
+    var ALMIN=-1, ALMAX=8;       // axe droit : log10(erreur absolue), de 1e-1 à 1e8
+    var PL=56, PR=546, PT=22, PB=222;  // rectangle de tracé
+    var NHIGH=Math.pow(2,32)/30;       // borne haute de la plage valide (hash 32 bits)
+
+    function xPix(logn){return PL+(logn-LXMIN)/(LXMAX-LXMIN)*(PR-PL);}
+    function yRel(pct){var c=Math.max(0,Math.min(RELMAX,pct));return PB-c/RELMAX*(PB-PT);}
+    function yAbs(absv){var l=Math.max(ALMIN,Math.min(ALMAX,log10(absv)));
+      return PB-(l-ALMIN)/(ALMAX-ALMIN)*(PB-PT);}
+
+    function el(tag,attrs){var e=document.createElementNS(NS,tag);
+      for(var k in attrs)e.setAttribute(k,attrs[k]);return e;}
+    function txt(x,y,s,attrs){var t=el("text",attrs||{});t.setAttribute("x",x);t.setAttribute("y",y);
+      t.textContent=s;return t;}
+
+    // ----- formatage français -----
+    function groupInt(n){
+      var neg=n<0; n=Math.round(Math.abs(n));
+      var s=String(n), out="", c=0;
+      for(var i=s.length-1;i>=0;i--){out=s[i]+out;if(++c%3===0&&i>0)out=" "+out;}
+      return (neg?"-":"")+out;
+    }
+    function frac(x,d){return x.toFixed(d).replace(".",",");}
+    function compact(v){
+      if(v>=1e6)return frac(v/1e6,1)+" M";
+      if(v>=1e3)return frac(v/1e3,1)+" k";
+      if(v>=10)return groupInt(v);
+      return frac(v,1);
+    }
+    var SUP={"-":"⁻","0":"⁰","1":"¹","2":"²","3":"³","4":"⁴",
+      "5":"⁵","6":"⁶","7":"⁷","8":"⁸","9":"⁹"};
+    function pow10label(k){var s=String(k),o="";for(var i=0;i<s.length;i++)o+=SUP[s[i]];return "10"+o;}
+
+    // ----- squelette statique (axes, grille, repères) -----
+    function buildStatic(){
+      var i, gx, gy;
+      // grille verticale + ticks x (log n)
+      for(i=LXMIN;i<=LXMAX;i++){
+        gx=xPix(i);
+        svg.appendChild(el("line",{x1:gx,y1:PT,x2:gx,y2:PB,stroke:"var(--erva-line-soft)","stroke-width":1}));
+        if(i%2===0){
+          svg.appendChild(txt(gx,PB+15,pow10label(i),
+            {"text-anchor":"middle","font-size":11,fill:"var(--erva-faint)"}));
+        }
+      }
+      // grille horizontale axe gauche (%)
+      for(i=0;i<=RELMAX;i++){
+        gy=yRel(i);
+        svg.appendChild(el("line",{x1:PL,y1:gy,x2:PR,y2:gy,stroke:"var(--erva-line-soft)","stroke-width":1}));
+        svg.appendChild(txt(PL-7,gy+3.5,i+" %",
+          {"text-anchor":"end","font-size":11,fill:"var(--erva-bright)"}));
+      }
+      // ticks axe droit (log abs) : 0,2,4,6,8
+      for(i=ALMIN+1;i<=ALMAX;i+=2){
+        gy=PB-(i-ALMIN)/(ALMAX-ALMIN)*(PB-PT);
+        svg.appendChild(txt(PR+7,gy+3.5,pow10label(i),
+          {"text-anchor":"start","font-size":11,fill:"var(--erva-bordbr)"}));
+      }
+      // cadre
+      svg.appendChild(el("rect",{x:PL,y:PT,width:PR-PL,height:PB-PT,fill:"none",
+        stroke:"var(--erva-line)","stroke-width":1}));
+      // titres d'axes
+      svg.appendChild(txt(PL-44,(PT+PB)/2,"σ relative",
+        {"text-anchor":"middle","font-size":11,fill:"var(--erva-bright)","font-weight":600,
+         transform:"rotate(-90 "+(PL-44)+" "+((PT+PB)/2)+")"}));
+      svg.appendChild(txt(PR+46,(PT+PB)/2,"σ·n absolue",
+        {"text-anchor":"middle","font-size":11,fill:"var(--erva-bordbr)","font-weight":600,
+         transform:"rotate(-90 "+(PR+46)+" "+((PT+PB)/2)+")"}));
+      svg.appendChild(txt((PL+PR)/2,PB+30,"cardinalité n (échelle log)",
+        {"text-anchor":"middle","font-size":11,fill:"var(--erva-faint)"}));
+    }
+
+    var dyn=el("g",{}); // groupe dynamique, recréé à chaque render
+    buildStatic();
+    svg.appendChild(dyn);
+
+    function clearDyn(){while(dyn.firstChild)dyn.removeChild(dyn.firstChild);}
+
+    // construit la phrase de lecture par nœuds DOM (pas d'innerHTML)
+    function appendRead(parts){
+      readEl.textContent="";
+      parts.forEach(function(node){
+        if(typeof node==="string"){readEl.appendChild(document.createTextNode(node));}
+        else if(node.b!==undefined){var b=document.createElement("b");b.textContent=node.b;readEl.appendChild(b);}
+        else if(node.pill!==undefined){var s=document.createElement("span");
+          s.className="erva-warnpill";s.textContent=node.pill;readEl.appendChild(s);}
+      });
+    }
+
+    function render(){
+      var p=parseInt(pEl.value,10);
+      var logn=parseInt(nEl.value,10)/100;
+      var n=Math.pow(10,logn);
+      var m=Math.pow(2,p);
+      var sigma=1.04/Math.sqrt(m);      // erreur relative (fraction)
+      var relPct=sigma*100;
+      var absErr=sigma*n;               // erreur absolue (éléments)
+      var memBytes=m*6/8;               // ≈ m × 6 bits
+
+      // --- cartes ---
+      document.getElementById("erva-pval").textContent=p;
+      document.getElementById("erva-mval").textContent=groupInt(m);
+      document.getElementById("erva-nval").textContent=groupInt(n);
+      document.getElementById("erva-relv").textContent=frac(relPct,2)+" %";
+      document.getElementById("erva-absv").textContent="± "+groupInt(absErr);
+      document.getElementById("erva-memv").textContent=groupInt(memBytes)+" o";
+      document.getElementById("erva-memn").textContent=frac(memBytes/1024,1)+" Kio · × 2 à chaque +1 de p";
+      document.getElementById("erva-memfill").style.width=((p-10)/(18-10)*100)+"%";
+
+      // --- graphe ---
+      clearDyn();
+      // bande "plage valide" : [2,5·m , 2^32/30]
+      var lo=Math.max(LXMIN,Math.min(LXMAX,log10(2.5*m)));
+      var hi=Math.max(LXMIN,Math.min(LXMAX,log10(NHIGH)));
+      if(hi>lo){
+        dyn.appendChild(el("rect",{x:xPix(lo),y:PT,width:xPix(hi)-xPix(lo),height:PB-PT,
+          fill:"rgba(63,142,102,.10)"}));
+        dyn.appendChild(txt(xPix(lo)+4,PT+13,"plage valide",
+          {"font-size":10,fill:"var(--erva-ok)","font-weight":600}));
+      }
+      // courbe ABSOLUE : droite log-log de n=1e2 à n=1e9
+      dyn.appendChild(el("line",{x1:xPix(LXMIN),y1:yAbs(sigma*Math.pow(10,LXMIN)),
+        x2:xPix(LXMAX),y2:yAbs(sigma*Math.pow(10,LXMAX)),
+        stroke:"var(--erva-bordbr)","stroke-width":2.4}));
+      // courbe RELATIVE : horizontale (constante en n)
+      var yr=yRel(relPct);
+      dyn.appendChild(el("line",{x1:xPix(LXMIN),y1:yr,x2:xPix(LXMAX),y2:yr,
+        stroke:"var(--erva-bright)","stroke-width":2.4}));
+      // guide vertical au n courant
+      var xm=xPix(logn);
+      dyn.appendChild(el("line",{x1:xm,y1:PT,x2:xm,y2:PB,stroke:"var(--erva-faint)",
+        "stroke-width":1,"stroke-dasharray":"3 3"}));
+      // points
+      var ya=yAbs(absErr);
+      dyn.appendChild(el("circle",{cx:xm,cy:yr,r:5,fill:"var(--erva-bright)",
+        stroke:"#fff","stroke-width":1.5}));
+      dyn.appendChild(el("circle",{cx:xm,cy:ya,r:5,fill:"var(--erva-bordbr)",
+        stroke:"#fff","stroke-width":1.5}));
+      // étiquettes de valeur près des points (ancrage adapté au bord)
+      var anchor=(xm>(PL+PR)/2)?"end":"start";
+      var dx=(anchor==="end")?-9:9;
+      dyn.appendChild(txt(xm+dx,yr-8,frac(relPct,2)+" %",
+        {"text-anchor":anchor,"font-size":11,"font-weight":700,fill:"var(--erva-bright)"}));
+      dyn.appendChild(txt(xm+dx,ya-8,"± "+compact(absErr),
+        {"text-anchor":anchor,"font-size":11,"font-weight":700,fill:"var(--erva-bordbr)"}));
+
+      // --- lecture ---
+      var nLow=2.5*m;
+      var parts=[
+        "À ",{b:"p = "+p},(" ("+groupInt(m)+" registres, "+groupInt(memBytes)+" o)"),
+        " et ",{b:"n = "+groupInt(n)},
+        " : l'erreur relative est ",{b:frac(relPct,2)+" %"},
+        " et l'erreur absolue ",{b:"± "+groupInt(absErr)+" éléments"},
+        ". Glissez n : la courbe bleue ne bouge pas (σ ne dépend que de m), la rouge grimpe — "+
+        "doubler n double l'incertitude absolue, elle ne se réduit jamais. Pour la diviser par deux, "+
+        "il faut +2 sur p (× 4 registres, × 4 mémoire), pas plus de données."
+      ];
+      if(n<nLow){
+        parts.push({pill:"hors plage : n < 2,5·m, biais des petites cardinalités (Linear Counting prend le relais)"});
+      }else if(n>NHIGH){
+        parts.push({pill:"hors plage : n > 2³²/30, saturation du hachage 32 bits (correction logarithmique)"});
+      }
+      appendRead(parts);
+    }
+
+    pEl.addEventListener("input",render);
+    nEl.addEventListener("input",render);
+    render();
+  })();
+  </script>
+</div>
+
+<section id="milieu-adversarial">
+<h3>HyperLogLog en milieu adversarial</h3>
+<p>HyperLogLog repose sur une hypothèse probabiliste dont la robustesse n'est jamais explicitement annoncée : la fonction de hachage distribue les éléments de façon uniforme et indépendante sur l'espace de bits. Tout le raisonnement statistique — variance, bornes d'erreur, corrections du régime bas et du régime haut — ne tient que sous cette hypothèse. Dès qu'un adversaire peut sélectionner ou filtrer les éléments enregistrés dans le sketch, cette hypothèse s'effondre et les garanties théoriques deviennent caduques.</p>
+
+<p>En 2020, Reviriego et Ting décrivent une <em>inflate attack</em> (attaque par gonflement) dont la sobriété est troublante : opérant en modèle oracle — sans aucune connaissance préalable de la fonction de hachage ni même du nombre de registres de l'implémentation cible —, un attaquant peut construire un ensemble de seulement <em>m</em> éléments, égal au nombre de registres, qui force le sketch à retourner n'importe quelle valeur cible, aussi grande soit-elle. Les paramètres internes sont appris indirectement, par requêtes successives qui observent les variations d'estimation. L'attaque est validée expérimentalement sur deux systèmes commerciaux : Redis (m&nbsp;=&nbsp;16&nbsp;384 registres) et Presto (m&nbsp;=&nbsp;4&nbsp;096 registres). Les vecteurs d'exploitation immédiats sont la fraude publicitaire — gonfler le nombre de visiteurs uniques ou de clics distincts déclarés — et les fausses alertes de sécurité, en forçant un pic artificiel de cardinalité dans un détecteur d'anomalies qui s'appuie sur HLL pour surveiller le trafic réseau.</p>
+
+<p>L'attaque symétrique — la <em>deflate attack</em> (attaque par déflation) — est formalisée par Paterson et Raynal dans un article paru à l'IACR ePrint en 2021 sous le titre programmatique « HyperLogLog: Exponentially Bad in Adversarial Settings ». Dans ce modèle <em>white-box</em> (boîte blanche), l'adversaire connaît la fonction de hachage et contrôle quels éléments sont enregistrés dans le sketch ; il peut réduire l'estimation à une valeur exponentiellement petite par rapport à la vraie cardinalité. Même si <em>n</em> éléments distincts ont été soumis, l'estimation peut être ramenée à O(1). L'attaque est démontrée sur le HLL original de Flajolet et sur la variante Ertl (2017) embarquée dans Redis. La contre-mesure proposée est structurelle : remplacer la fonction de hachage par une <em>keyed pseudorandom function</em> (PRF à clef), rendant le sketch opaque à tout adversaire ignorant la clef secrète.</p>
+
+<p>Les deux attaques ont une portée asymétrique. La inflate attack est accessible à n'importe quel acteur externe via un accès oracle public au sketch — aucun privilège n'est requis, seule la capacité d'y insérer des éléments et d'observer l'estimation. La deflate attack suppose un accès aux internals du hash ou une rétro-ingénierie réussie de l'implémentation. Ensemble, elles établissent qu'un HyperLogLog standard n'offre aucune borne d'erreur garantie dès lors qu'un adversaire peut choisir les entrées de façon adaptative. Cette fragilité le rend risqué dans deux familles de contextes : les métriques publicitaires, où la partie mesurée peut soumettre des données adversariales pour gonfler ses chiffres déclarés ; et les systèmes d'alerte de sécurité, où un attaquant peut ciseler son trafic pour masquer une intrusion ou, à l'inverse, saturer les équipes de réponse sous un déluge de faux positifs.</p>
+</section>
+<section id="deploiements-industriels">
+<h3>Déploiements industriels</h3>
+<p>Les déploiements en production de HyperLogLog couvrent aujourd'hui l'essentiel de la chaîne analytique, des caches distribués aux moteurs de requêtes à l'échelle du data warehouse.</p>
+
+<p><strong>Redis</strong> expose trois commandes natives : PFADD (O(1), ajout d'un élément), PFCOUNT (O(1) pour une clé unique, O(N) pour un ensemble de clés) et PFMERGE (O(N), union en place de plusieurs structures). L'empreinte mémoire est plafonnée à 12 Ko — Redis bascule en interne d'une sparse representation (représentation creuse, exacte pour les faibles cardinalités) à une dense representation (représentation dense) selon le volume observé. L'erreur standard garantie est de 0,81 %, et la plage de comptage monte théoriquement à 2<sup>64</sup> éléments distincts.</p>
+
+<p><strong>Meta/Presto</strong> distingue deux primitives complémentaires : <code>APPROX_DISTINCT</code>, qui retourne la cardinalité estimée avec une erreur observée de ~2,3 % au-dessus de 256 éléments distincts (en dessous, la sparse representation produit une valeur exacte à zéro erreur), et <code>APPROX_SET</code>, qui retourne le sketch brut — erreur réduite à ~1,6 % avec 4 096 registres — pour être archivé ou fusionné. Le dense layout occupe environ 8 Ko. En production chez Meta, le passage de COUNT DISTINCT exact à <code>APPROX_DISTINCT</code> a produit des accélérations de 7× à 1 000× selon la requête ; un cas documenté réduit un calcul de plusieurs jours à 12 heures avec moins de 1 Mo de mémoire.</p>
+
+<p><strong>Google Analytics 4</strong> s'appuie sur la variante HyperLogLog++ (HLL++) pour ses métriques d'audience. Active Users et Total Users utilisent un paramètre de precision 14 (sparse precision 25) ; Sessions emploie une precision 12 (sparse precision 17). Ces valeurs gouvernent le compromis mémoire/précision : une precision élevée agrandit le sketch mais réduit l'erreur d'estimation.</p>
+
+<p>Dans l'écosystème <strong>Apache Spark</strong>, la société Collective a déployé un cluster de 40 nœuds pour analyser des logs d'impression publicitaire représentant plusieurs centaines de gigaoctets quotidiens, avec un historique d'un an projeté à 500 Go. L'adoption d'une implémentation à merging (fusion) mutable de HyperLogLog a produit un gain de vitesse d'environ 10× par rapport aux opérations RDD standard. Spark SQL expose la même logique via <code>approxCountDistinct(col, rsd)</code>, où le paramètre rsd (relative standard deviation, écart-type relatif cible) contrôle la précision : rsd=0,01 garantit un résultat à 1 % du compte exact.</p>
+
+<p><strong>Apache Druid</strong> distingue deux agrégateurs HyperLogLog selon le moment du calcul : <code>cardinality</code>, qui opère sur les colonnes dimensionnelles à la requête (flexible, mais nettement plus lent) ; et <code>hyperUnique</code>, qui pré-calcule le sketch à l'indexation, supprime la dimension brute et améliore la compression des données. La documentation Druid recommande explicitement <code>hyperUnique</code> en production dès que l'analyse par valeur individuelle n'est pas requise.</p>
+
+<p><strong>Google BigQuery</strong> propose quatre fonctions <code>HLL_COUNT</code> — INIT, MERGE, MERGE_PARTIAL, EXTRACT — qui exposent le cycle complet du sketch : initialisation par partition, fusion partielle entre partitions, fusion finale et extraction de la cardinalité estimée. Cette décomposition rend le COUNT DISTINCT distribué viable à l'échelle du data warehouse : chaque shard calcule son sketch indépendamment, et les sketches sont ensuite fusionnés sans redistribuer les données brutes.</p>
+
+<p>La mergeability (fusionnabilité) est la propriété structurelle qui unifie toutes ces implémentations. Deux sketches HyperLogLog peuvent être combinés en O(m) — où m est le nombre de registres — pour produire un sketch équivalent à celui de l'union des jeux de données d'origine, sans rejouer un seul enregistrement source. C'est ce qui permet d'externaliser l'agrégation vers les workers, d'archiver des sketches historiques et de les réhydrater à la demande : un pattern (motif) omniprésent dans l'ensemble des systèmes décrits ici.</p>
+</section>
+<section id="ecosysteme">
+<h3>Écosystème &amp; pour aller plus loin</h3>
+<p>La littérature de HyperLogLog s'articule autour de trois textes que toute implémentation sérieuse cite. Le papier fondateur de Philippe Flajolet, Éric Fusy, Olivier Gandouet et Frédéric Meunier (<em>DMTCS Proceedings</em>, AofA 07, 2007) établit l'estimateur harmonique, la formule d'erreur standard 1,04/√<em>m</em> et le gain mémoire de 36 % sur LogLog à précision équivalente. Stefan Heule, Marc Nunkesser et Alexander Hall (Google) publient HyperLogLog++ à EDBT 2013 : hash (hachage) 64 bits pour couvrir des ensembles jusqu'à 2<sup>64</sup> éléments, représentation sparse (creuse) pour les petites cardinalités, et correction de biais par table empirique pour les extrêmes. En 2017, Otmar Ertl (arXiv:1706.07290) franchit un cran supplémentaire : il dérive un estimateur non biaisé sur toute la plage de cardinalité sans aucune table empirique — contrairement à la correction de HyperLogLog++ — et présente un estimateur par maximum de vraisemblance pour les opérations d'union et d'intersection de sketches (croquis de cardinalité), une avancée intégrée notamment par Apache DataSketches.</p>
+
+<p>L'implémentation la plus scrutée en production est celle de Redis, documentée dans <code>src/hyperloglog.c</code>. Redis fixe le paramètre de précision HLL_P à 14, soit 2<sup>14</sup> = 16 384 registres de 6 bits chacun. La représentation dense occupe exactement 12 288 octets : 16 octets d'en-tête (magic <code>HYLL</code> sur 4 octets, type d'encodage sur 1 octet, 3 octets réservés, cardinalité cachée sur 8 octets) suivis de 12 272 octets de registres. Pour les cardinalités inférieures à environ 2 000–3 000 éléments distincts, Redis maintient une représentation sparse par run-length encoding et bascule automatiquement vers la représentation dense au-delà. La fonction de hash retenue est MurmurHash2 64 bits, modifiée pour être endian-neutre. Les trois commandes exposées — PFADD, PFCOUNT et PFMERGE — ont respectivement des complexités O(1), O(1)/O(N) et O(N).</p>
+
+<p>L'écosystème des bibliothèques couvre les principaux langages. En Python, <strong>datasketch</strong> expose HyperLogLog et HyperLogLog++ via une API uniforme (<code>update</code>, <code>count</code>, <code>merge</code>) ; le paramètre <code>p</code> gouverne la précision — la valeur par défaut <code>p=8</code> est rudimentaire, <code>p=12</code> améliore sensiblement l'erreur au prix d'une mémoire exponentiellement plus grande. <strong>Apache DataSketches</strong> (Java, C++, Python, Rust) expose le paramètre <code>lgK</code> (log₂ des buckets, de 4 à 21) et trois types de stockage : HLL_4 (compact), HLL_6 et HLL_8 (le plus rapide) ; son estimateur HIP (Historical Inverse Probability, estimation par probabilité inverse historique) atteint une RSE (relative standard error, erreur standard relative) de 0,65 % à <code>lgK=14</code>, soit environ 20 % de gain sur l'estimateur harmonique classique. Pour Go, deux bibliothèques coexistent : <strong>clarkduvall/hyperloglog</strong> implémente HyperLogLog et HyperLogLog++, avec un avantage marqué de HLL++ pour N &lt; 80 000 ; <strong>axiomhq/hyperloglog</strong> adopte l'algorithme LogLog-Beta (Qin, Kim &amp; Tung, 2016), combiné à une représentation sparse et une réduction d'empreinte TailCut, avec une précision pilotable de 2<sup>4</sup> à 2<sup>18</sup> registres. Côté Java historique, <strong>addthis/stream-lib</strong> (Clearspring/AddThis) reste la référence de la première génération de sketches de streaming, avec sa classe <code>HyperLogLog.java</code> dans le package <code>com.clearspring.analytics.stream.cardinality</code>.</p>
+</section>
+<details class="ex"><summary>Vérifie ta compréhension<span class="cnt">Partie Estimateur &amp; erreur</span></summary><div class="exbody"><p><b>Question.</b> Un ingénieur dimensionne un HyperLogLog à p = 14 (m = 16 384 registres) et observe une erreur standard relative d'environ 0,81 %. Il en conclut qu'en accumulant plus d'éléments l'estimation se précisera, comme pour une moyenne empirique. Où est l'erreur de raisonnement, et qu'apporte concrètement la moyenne harmonique par rapport à la moyenne géométrique du LogLog ?</p><div class="eg b"><span class="egk">Réponse</span><p>Le raisonnement confond <strong>erreur relative</strong> et <strong>erreur absolue</strong>. La garantie σ ≈ 1,04/√m ne dépend que du nombre de registres, <em>pas</em> de la cardinalité n : elle reste constante quand n croît. L'erreur <em>absolue</em>, elle, vaut σ·n et croît donc proportionnellement à n — à p = 14, ≈ 81 000 éléments d'incertitude pour n = 10 millions, ≈ 8,1 millions pour n = 1 milliard. HLL tient une promesse de stabilité relative, jamais de convergence absolue : c'est l'inverse d'une table de hachage exacte. Accumuler plus de données ne précise donc rien.</p><p>Quant à la <strong>moyenne harmonique</strong> : appliquée aux quantités 2<sup>M[j]</sup>, elle pénalise fortement les registres aberrants hauts (un ρ surestimé par hasard) que la moyenne géométrique du LogLog laissait gonfler l'estimation. À état mémoire identique, elle fait passer l'erreur standard de ≈ 1,30/√m (LogLog) à ≈ 1,04/√m — soit la même précision pour seulement 64 % de la mémoire. La constante α<sub>m</sub> (≈ 0,7213 pour m ≥ 128) corrige ensuite le biais multiplicatif résiduel de la moyenne harmonique brute.</p></div></div></details>
+<details class="ex"><summary>Vérifie ta compréhension<span class="cnt">Partie Régimes &amp; robustesse</span></summary><div class="exbody"><p><b>Question.</b> Pourquoi un HyperLogLog correctement implémenté n'utilise-t-il pas toujours la formule E = α_m · m² · Z, et quelles corrections entrent en jeu aux deux extrémités de la plage de cardinalités ? Par ailleurs, pourquoi le slogan « précis à ~1 % quoi qu'il arrive » est-il trompeur en présence d'un adversaire ?</p><div class="eg b"><span class="egk">Réponse</span><p>L'estimateur brut n'est fiable que dans sa <strong>zone nominale</strong> (environ 2,5m ≤ n ≤ 2³²/30 avec des hash 32 bits). En dehors, il décroche et deux substitutions s'imposent. <strong>Petites cardinalités</strong> (E &lt; 2,5m, V registres vides) : on bascule sur <em>Linear Counting</em>, E* = m·ln(m/V), car de nombreux registres à zéro sont un signal plus stable — le seuil 2,5m est d'ailleurs hérité du facteur de charge de Linear Counting, non dérivé de HLL. <strong>Très grandes cardinalités</strong> (E &gt; 2³²/30 ≈ 143 M) : les collisions de hachage saturent l'espace 32 bits et l'on applique E* = −2³²·ln(1 − E/2³²). HyperLogLog++ a en outre révélé un biais systématique résiduel dans la transition 2,5m–5m, corrigé par une table empirique de 200 points (k-NN, k = 6), et supprime la limite des 143 M en passant au hachage 64 bits.</p><p>Le slogan est trompeur car les bornes sont <strong>probabilistes</strong> et reposent sur l'hypothèse d'un hachage uniforme et indépendant — hypothèse qui s'effondre dès qu'un <strong>adversaire choisit les entrées</strong>. En accès oracle (sans connaître le hash ni m), un attaquant gonfle l'estimation avec seulement m éléments (<em>inflate attack</em>, validée sur Redis et Presto) ; en white-box, il la réduit à une valeur exponentiellement petite (<em>deflate attack</em>, « Exponentially Bad in Adversarial Settings »). La parade structurelle est une fonction de hachage à clef secrète (keyed PRF).</p></div></div></details>
+<section id="biblio"><h3>Bibliographie &amp; repos</h3><div><a href="https://en.wikipedia.org/wiki/HyperLogLog">HyperLogLog — Wikipedia</a></div><div><a href="https://en.wikipedia.org/wiki/Flajolet%E2%80%93Martin_algorithm">Flajolet–Martin algorithm — Wikipedia</a></div><div><a href="https://agkn.wordpress.com/2012/10/25/sketch-of-the-day-hyperloglog-cornerstone-of-a-big-data-infrastructure/">Sketch of the Day: HyperLogLog — Cornerstone of a Big Data Infrastructure (Aggregate Knowledge)</a></div><div><a href="https://algo.inria.fr/flajolet/Publications/FlFuGaMe07.pdf">HyperLogLog: the analysis of a near-optimal cardinality estimation algorithm (Flajolet et al., 2007, INRIA)</a></div><div><a href="https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/40671.pdf">HyperLogLog in Practice: Algorithmic Engineering of a State of The Art Cardinality Estimation Algorithm — Heule, Nunkesser, Hall (Google, 2013)</a></div><div><a href="https://engineering.fb.com/2018/12/13/data-infrastructure/hyperloglog/">HyperLogLog in Presto: A significantly faster way to handle cardinality estimation — Meta Engineering</a></div><div><a href="https://dmtcs.episciences.org/3545">HyperLogLog: the analysis of a near-optimal cardinality estimation algorithm — DMTCS (Flajolet et al., 2007)</a></div><div><a href="https://djhworld.github.io/hyperloglog/merging/">HyperLogLog merging playground — djhworld</a></div><div><a href="https://arxiv.org/abs/2007.08051">Information Theoretic Limits of Cardinality Estimation: Fisher Meets Shannon (Pettie &amp; Wang, arXiv 2020 / STOC 2021)</a></div><div><a href="https://blog.acolyer.org/2016/03/17/hyperloglog-in-practice-algorithmic-engineering-of-a-state-of-the-art-cardinality-estimation-algorithm/">HyperLogLog in Practice — the morning paper (acolyer.org)</a></div><div><a href="https://github.com/eclesh/hyperloglog/blob/master/hyperloglog.go">eclesh/hyperloglog — hyperloglog.go (Go implementation)</a></div><div><a href="https://www.moderndescartes.com/essays/hyperloglog/">HyperLogLog — Modern Descartes (Brian Lee)</a></div><div><a href="https://agkn.wordpress.com/2013/01/24/hyperloglog-googles-take-on-engineering-hll/">HyperLogLog++: Google's Take On Engineering HLL (agkn blog)</a></div><div><a href="https://docs.google.com/document/d/1gyjfMHy43U9OWBXxfaeG-3MjGzejW1dlpyMwEYAAWEI/mobilebasic">Appendix to HyperLogLog in Practice (Google Docs, auteurs originaux)</a></div><div><a href="https://stefanheule.com/papers/edbt13-hyperloglog.pdf">HyperLogLog in Practice: Algorithmic Engineering of a State of the Art Cardinality Estimation Algorithm (Heule et al. 2013)</a></div><div><a href="https://arxiv.org/abs/2205.11327">HyperLogLogLog: Cardinality Estimation With One Log More — arXiv:2205.11327</a></div><div><a href="https://deepai.org/publication/hyperlogloglog-cardinality-estimation-with-one-log-more">HyperLogLogLog: Cardinality Estimation With One Log More — DeepAI publication summary</a></div><div><a href="https://arxiv.org/abs/2308.16862">UltraLogLog: A Practical and More Space-Efficient Alternative to HyperLogLog for Approximate Distinct Counting (Ertl, 2023)</a></div><div><a href="https://arxiv.org/abs/2402.13726">ExaLogLog: Space-Efficient and Practical Approximate Distinct Counting to the Exa-Scale (EDBT 2025)</a></div><div><a href="https://arxiv.org/abs/2106.06525">ExtendedHyperLogLog: Analysis of a new Cardinality Estimator (discusses HLL-TC offset overflow / merge issue)</a></div><div><a href="https://arxiv.org/abs/2208.10578">Simpler and Better Cardinality Estimators for HyperLogLog and PCSA (Pettie &amp; Wang, arXiv 2208.10578 / PODS 2023)</a></div><div><a href="https://blog.analytics-toolkit.com/2020/the-effect-of-using-cardinality-estimates-like-hyperloglog-in-statistical-analyses/">The Effect of Using Cardinality Estimates Like HyperLogLog in Statistical Analyses — Analytics-Toolkit.com</a></div><div><a href="https://arxiv.org/abs/2011.10355">HyperLogLog (HLL) Security: Inflating Cardinality Estimates — Reviriego, Adell, Ting (arXiv:2011.10355)</a></div><div><a href="https://arxiv.org/abs/2002.06463">Security of HyperLogLog (HLL) Cardinality Estimation: Vulnerabilities and Protection — Reviriego, Ting (arXiv:2002.06463)</a></div><div><a href="https://eprint.iacr.org/2021/1139">HyperLogLog: Exponentially Bad in Adversarial Settings — IACR ePrint 2021/1139</a></div><div><a href="https://ieeexplore.ieee.org/document/9797350/">HyperLogLog: Exponentially Bad in Adversarial Settings — IEEE EuroS&amp;P 2022</a></div><div><a href="https://dblp.org/pid/277/0894.html">dblp: Mathilde Raynal — bibliographie vérifiable des auteurs</a></div><div><a href="https://thoughtbot.com/blog/hyperloglogs-in-redis">HyperLogLogs in Redis — Thoughtbot</a></div><div><a href="https://valkey.io/topics/hyperloglogs/">HyperLogLog — Valkey Documentation</a></div><div><a href="https://redis.io/docs/latest/develop/data-types/probabilistic/hyperloglogs/">Redis HyperLogLog documentation (redis.io)</a></div><div><a href="https://github.com/redis/redis/discussions/10443">Redis GitHub Discussion #10443 — How to understand that the standard error of Redis HyperLogLog is 0.81%?</a></div><div><a href="https://prestodb.github.io/docs/current/functions/hyperloglog.html">Presto documentation — HyperLogLog functions</a></div><div><a href="https://cloud.google.com/bigquery/docs/reference/standard-sql/hll_functions">BigQuery HyperLogLog++ functions (HLL_COUNT.INIT, HLL_COUNT.MERGE, etc.)</a></div><div><a href="https://druid.apache.org/docs/latest/querying/hll-old/">Apache Druid — HyperUnique aggregator (legacy HLL, /hll-old/)</a></div><div><a href="https://www.databricks.com/blog/2016/05/19/approximate-algorithms-in-apache-spark-hyperloglog-and-quantiles.html">Databricks blog — Approximate Algorithms in Apache Spark: HyperLogLog and Quantiles</a></div><div><a href="https://www.mungingdata.com/apache-spark/hyperloglog-count-distinct/">MungingData — HyperLogLog count distinct in Apache Spark</a></div><div><a href="https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/hll_functions">BigQuery HyperLogLog++ Functions — HLL_COUNT.MERGE (Google Cloud Docs)</a></div><div><a href="https://druid.apache.org/docs/latest/querying/aggregations">Apache Druid — Aggregations reference (hyperUnique + DataSketches recommendation)</a></div><div><a href="https://cf020031308.github.io/blog/redis-hyperloglog-conversion.html">Redis HyperLogLog Conversion (sparse vs dense analysis)</a></div><div><a href="https://oneuptime.com/blog/post/2026-03-31-redis-hyperloglog-works-internally-probabilistic/view">How Redis HyperLogLog Works Internally (Probabilistic Counting) — OneUptime</a></div><div><a href="https://github.com/redis/redis/blob/unstable/src/hyperloglog.c">redis/redis — src/hyperloglog.c (unstable) : définitions HLL_HDR_SIZE, HLL_DENSE_SIZE, struct hllhdr</a></div><div><a href="https://datasketches.apache.org/docs/HLL/HllSketches.html">HLL Sketches — Apache DataSketches (page principale)</a></div><div><a href="https://datasketches.apache.org/docs/HLL/Hll_vs_CS_Hllpp.html">HllSketch vs Clearspring HLL++ Sketch — Apache DataSketches (page de comparaison)</a></div><div><a href="https://antirez.com/news/75">antirez — Redis new data structure: the HyperLogLog (source primaire, formule 1.04/sqrt(m) et section Future work)</a></div><div><a href="https://arxiv.org/abs/1706.07290">New Cardinality Estimation Methods for HyperLogLog Sketches (Ertl 2017, arXiv:1706.07290)</a></div><div><a href="https://arxiv.org/abs/1306.3284">All-Distances Sketches, Revisited: HIP Estimators for Massive Graphs Analysis (Cohen, arXiv:1306.3284, PODS 2014)</a></div><div><a href="https://arxiv.org/html/2308.16862">UltraLogLog: A Practical and More Space-Efficient Alternative to HyperLogLog (arXiv:2308.16862) — contextualises HIP vs Ertl</a></div><div><a href="https://github.com/joshday/OnlineStats.jl/issues/177">Improved HyperLogLog estimator — Issue #177 · joshday/OnlineStats.jl (GitHub, 2018)</a></div></section>
+<section id="pointers"><h3>Pour aller plus loin</h3><div class="xptr-grid"><div class="xptr"><a class="xptr-name" href="https://algo.inria.fr/flajolet/Publications/FlFuGaMe07.pdf">HyperLogLog: the analysis of a near-optimal cardinality estimation algorithm (Flajolet, Fusy, Gandouet, Meunier — INRIA, 2007)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Article fondateur (INRIA, 2007) : analyse complète de l'estimateur harmonique, preuve de l'erreur standard σ = 1,04/√m et tables de α_m.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://dmtcs.episciences.org/3545">HyperLogLog: the analysis of a near-optimal cardinality estimation algorithm — DMTCS (version HTML officielle)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Version HTML de la publication DMTCS 2007 du papier fondateur (Flajolet, Fusy, Gandouet, Meunier), citée 306 fois, avec bibliographie interactive.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://algo.inria.fr/flajolet/Publications/DuFl03.pdf">Loglog Counting of Large Cardinalities (Durand &amp; Flajolet — ESA 2003)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Génération intermédiaire entre FM et HLL (ESA 2003) : partitionnement en m sous-flots combinés par moyenne géométrique.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://algo.inria.fr/flajolet/Publications/FlMa85.pdf">Probabilistic Counting Algorithms for Data Base Applications (Flajolet &amp; Martin — JCSS 1985)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Article fondateur du FM sketch (JCSS 1985) : première exploitation de la propriété statistique de ρ pour l'estimation de cardinalité en espace sous-linéaire.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2308.16862">UltraLogLog — arXiv:2308.16862 (Ertl, VLDB 2024)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Ertl (VLDB 2024) : encodage 8 bits, estimateur MLE, ~28 % d'économie mémoire vs HLL, propriétés opérationnelles et benchmarks.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2402.13726">ExaLogLog — arXiv:2402.13726 (Ertl, EDBT 2025)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Ertl (EDBT 2025) : −43 % de mémoire vs HLL, propriété de réductibilité, comptages jusqu'à l'échelle exa.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2603.27405">DynamicLogLog — arXiv:2603.27405 (Bushnell, 2026)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Bushnell (2026) : DynamicLogLog (4 bits/bucket, early-exit mask) et DynamicUltraLogLog, plus rapide, plus compact et plus précis que HLL standard.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://dl.acm.org/doi/10.1145/3584372.3588680">Better Cardinality Estimators for HyperLogLog, PCSA, and Beyond — Pettie &amp; Wang (PODS 2023)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Pettie &amp; Wang (PODS 2023) : estimateurs τ-GRA pour HLL et PCSA, τ fractionnaire dépasse le standard HLL, Compressed-PCSA surpasse Compressed-HyperLogLog.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://dl.acm.org/doi/10.1145/2452376.2452456">HyperLogLog in Practice (Heule, Nunkesser, Hall — Google, EDBT 2013)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">HyperLogLog++ (EDBT 2013) : hash 64 bits, représentation sparse pour petites cardinalités, correction de biais empirique.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/1706.07290">New Cardinality Estimation Methods for HyperLogLog Sketches (Ertl, 2017) — arXiv:1706.07290</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Ertl (2017) : estimateur non biaisé sans table empirique et estimateur MLE pour union/intersection de sketches HyperLogLog.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://engineering.fb.com/2018/12/13/data-infrastructure/hyperloglog/">HyperLogLog in Presto — Meta Engineering Blog</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Retour d'expérience de Meta : gain 7×–1000× via APPROX_DISTINCT, détail des représentations sparse et dense dans Presto.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://www.databricks.com/blog/2015/10/13/interactive-audience-analytics-with-apache-spark-and-hyperloglog.html">Interactive Audience Analytics with Apache Spark and HyperLogLog — Databricks Blog 2015</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Déploiement Collective : 500 Go d'historique publicitaire, cluster 40 nœuds, gain ~10× via HyperLogLog mutable avec merging Spark.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://www.databricks.com/blog/2016/05/19/approximate-algorithms-in-apache-spark-hyperloglog-and-quantiles.html">Approximate Algorithms in Apache Spark — HyperLogLog and Quantiles (Databricks, 2016)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">approxCountDistinct(col, rsd) dans Spark SQL via HyperLogLog++ : paramètre rsd pour piloter la précision cible, benchmarks sur 25 millions d'enregistrements.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://developers.google.com/analytics/blog/2022/hll">HyperLogLog++ in Google Analytics 4 — Google Developers Blog</a><span class="xptr-kind">reading</span><p class="xptr-blurb">GA4 utilise HLL++ avec precision 14 pour Active/Total Users et 12 pour Sessions ; article avec exemples SQL BigQuery pour reproduire ces métriques.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://redis.io/docs/latest/develop/data-types/probabilistic/hyperloglogs/">Redis HyperLogLog</a><span class="xptr-kind">tool</span><p class="xptr-blurb">Documentation officielle Redis : PFADD/PFCOUNT/PFMERGE, empreinte maximale 12 Ko, erreur standard 0,81 %, exemples en 10+ langages.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://prestodb.io/docs/current/functions/hyperloglog.html">Presto HyperLogLog Functions</a><span class="xptr-kind">tool</span><p class="xptr-blurb">Référence Presto : approx_set(), cardinality(), merge() et gestion automatique sparse/dense layout pour le COUNT DISTINCT distribué.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://druid.apache.org/docs/latest/querying/hll-old/">Apache Druid — HyperLogLog Aggregators</a><span class="xptr-kind">tool</span><p class="xptr-blurb">Documentation Druid : agrégateur cardinality (calcul à la requête) et hyperUnique (calcul à l'indexation, recommandé en production).</p></div>
+<div class="xptr"><a class="xptr-name" href="https://cloud.google.com/bigquery/docs/reference/standard-sql/hll_functions">Google BigQuery HLL_COUNT Functions</a><span class="xptr-kind">tool</span><p class="xptr-blurb">Quatre fonctions HLL_COUNT (INIT, MERGE, MERGE_PARTIAL, EXTRACT) pour le COUNT DISTINCT distribué à l'échelle du data warehouse BigQuery.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://github.com/dynatrace-oss/hash4j">Hash4j (Dynatrace)</a><span class="xptr-kind">implementation</span><p class="xptr-blurb">Bibliothèque Java Dynatrace : implémentation de référence d'UltraLogLog et ExaLogLog avec support des estimateurs MLE et des opérations de merge.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://github.com/axiomhq/hyperloglog">axiomhq/hyperloglog (Go)</a><span class="xptr-kind">implementation</span><p class="xptr-blurb">Implémentation Go de production fondée sur LogLog-Beta avec représentation sparse et réduction TailCut, précision ajustable de 2⁴ à 2¹⁸ registres.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://github.com/seiflotfy/loglogbeta">seiflotfy/loglogbeta (Go)</a><span class="xptr-kind">implementation</span><p class="xptr-blurb">Implémentation Go minimaliste de LogLog-Beta : une seule formule, sans correction de biais additionnelle, utile pour évaluer la correction analytique en isolation.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://github.com/redis/redis/blob/unstable/src/hyperloglog.c">Redis — hyperloglog.c (source)</a><span class="xptr-kind">implementation</span><p class="xptr-blurb">Implémentation de référence Redis : HLL_P=14, MurmurHash2 64 bits, représentation dense 12 288 octets + sparse par run-length encoding.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://github.com/clarkduvall/hyperloglog">clarkduvall/hyperloglog (Go)</a><span class="xptr-kind">library</span><p class="xptr-blurb">Implémentation Go de HyperLogLog et HyperLogLog++, avec gain marqué de HLL++ pour les petites cardinalités (N &lt; 10 000 éléments).</p></div>
+<div class="xptr"><a class="xptr-name" href="https://github.com/addthis/stream-lib/blob/master/src/main/java/com/clearspring/analytics/stream/cardinality/HyperLogLog.java">addthis/stream-lib — HyperLogLog.java</a><span class="xptr-kind">library</span><p class="xptr-blurb">Référence historique Java (Clearspring/AddThis) pour les sketches de streaming, classe HyperLogLog dans com.clearspring.analytics.stream.cardinality.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://ekzhu.com/datasketch/hyperloglog.html">datasketch (Python)</a><span class="xptr-kind">package</span><p class="xptr-blurb">Bibliothèque Python proposant HyperLogLog et HyperLogLog++ via une API uniforme update/count/merge, paramètre p pour contrôler la précision.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://datasketches.apache.org/docs/HLL/HllSketches.html">Apache DataSketches — HLL Sketches</a><span class="xptr-kind">library</span><p class="xptr-blurb">Bibliothèque Java/C++/Python/Rust exposant lgK (4–21), trois types HLL_4/6/8 et l'estimateur HIP pour ~20 % de gain de précision vs HLL standard.</p></div></div></section>
+<section id="glossaire"><h3>Glossaire</h3><div class="gloss-grid"><div class="gterm"><span class="gt-name">HyperLogLog</span><p class="gt-def">Algorithme probabiliste d'estimation de cardinalité (comptage du nombre d'éléments distincts d'un flot), publié par Flajolet et al. en 2007. Il hache chaque élément, le route vers l'un de m = 2^p registres via le préfixe du haché, ne conserve dans chaque registre que le maximum du rang ρ (nombre de zéros de tête plus un) observé, puis combine les registres par harmonic mean pour estimer la cardinalité avec une erreur standard de ≈ 1,04/√m et une empreinte de quelques kilo-octets seulement.</p><p class="gt-see">→ Cardinality estimation, Harmonic mean, Register</p></div>
+<div class="gterm"><span class="gt-name">Cardinality estimation</span><p class="gt-def">Estimation de cardinalité, ou comptage de distincts : déterminer le nombre d'éléments distincts d'un flot ou d'un multi-ensemble. Le comptage exact exige une mémoire proportionnelle au nombre de valeurs distinctes ; HyperLogLog l'approxime en mémoire quasi constante, au prix d'une erreur relative contrôlée mais non nulle.</p><p class="gt-see">→ HyperLogLog</p></div>
+<div class="gterm"><span class="gt-name">Register</span><p class="gt-def">Registre : chacune des m = 2^p cases d'un sketch HyperLogLog. Le préfixe de p bits du haché route l'élément vers un registre, qui stocke le maximum du rang ρ (position du premier bit à 1, soit le nombre de zéros de tête plus un) vu pour son sous-flot. Six bits par registre suffisent pour un hachage 64 bits.</p><p class="gt-see">→ HyperLogLog, Harmonic mean</p></div>
+<div class="gterm"><span class="gt-name">Harmonic mean</span><p class="gt-def">Moyenne harmonique utilisée par HyperLogLog pour agréger les m quantités 2^M_j, en remplacement de la moyenne géométrique du LogLog. Elle atténue l'influence des registres aberrants et fait passer l'erreur standard de ≈ 1,30/√m (LogLog) à ≈ 1,04/√m à état mémoire égal. La constante de correction α_m (≈ 0,7213 pour m ≥ 128) compense le biais multiplicatif résiduel de la moyenne harmonique brute.</p><p class="gt-see">→ HyperLogLog, Register</p></div>
+<div class="gterm"><span class="gt-name">Linear Counting</span><p class="gt-def">Comptage linéaire (Whang et al., 1990) : estimateur de cardinalité fondé sur la fraction de registres restés vides, E* = m · ln(m/V) avec V le nombre de registres à zéro. HyperLogLog y bascule aux petites cardinalités (estimateur brut inférieur à 5m/2), là où son propre estimateur est biaisé ; le seuil 2,5m est hérité du facteur de charge de Linear Counting, non dérivé de HyperLogLog.</p><p class="gt-see">→ HyperLogLog, HyperLogLog++</p></div>
+<div class="gterm"><span class="gt-name">Mergeability</span><p class="gt-def">Fusionnabilité : propriété permettant de calculer l'union de deux sketches HyperLogLog en prenant, registre par registre, le maximum des deux, en O(m), sans perte et sans accès aux données d'origine. Le résultat est identique à un sketch construit sur le jeu complet, ce qui rend l'algorithme adapté aux agrégations distribuées (BigQuery, Apache Spark, Redis Cluster).</p><p class="gt-see">→ HyperLogLog, Register</p></div>
+<div class="gterm"><span class="gt-name">HyperLogLog++</span><p class="gt-def">Variante d'ingénierie de HyperLogLog (Heule, Nunkesser, Hall — Google, 2013) conservant la même erreur asymptotique ≈ 1,04/√m, mais corrigeant le biais pratique observé dans la zone de transition [2,5m, 5m] via une table empirique de 200 points interpolée par k plus proches voisins (k = 6). Elle passe au hachage 64 bits (éliminant les collisions en régime dense) et introduit une sparse representation économe pour les faibles cardinalités.</p><p class="gt-see">→ HyperLogLog, Linear Counting, Mergeability</p></div></div></section>
+</main>
+</div>
+<!-- ───────────────────────────────────────────────────────────────────
+     COUCHE THÈME — bouton bascule dark-mode + infobulles de glossaire.
+     Extrait du widget theme-tooltips (CSS exclus : voir charte.css).
+     Injecté verbatim dans toutes les éditions à l'emplacement du jeton THEME_LAYER.
+     ─────────────────────────────────────────────────────────────────── -->
+
+<!-- (B) BOUTON BASCULE -->
+<button id="theme_toggle" type="button" aria-pressed="false"
+        title="Basculer le thème clair / sombre">
+  <span id="theme_toggle_ico" aria-hidden="true">☾</span>
+  <span id="theme_toggle_lbl">Sombre</span>
+</button>
+
+<!-- Popover unique réutilisé (créé aussi par JS en secours) -->
+<div id="theme_tip" role="tooltip" aria-hidden="true"></div>
+
+<!-- SCRIPT — (B) bascule + persistance, (C) infobulles accessibles.
+     Tout en IIFE, fonctions préfixées theme_. Aucun alert. -->
+<script>
+(function(){
+  "use strict";
+  var KEY = "theme_pref_v1";
+  var docEl = document.documentElement;
+
+  /* ---- stockage sûr : jamais d'erreur si localStorage indisponible ---- */
+  function theme_read(){
+    try { return window.localStorage.getItem(KEY); } catch(e){ return null; }
+  }
+  function theme_write(v){
+    try { window.localStorage.setItem(KEY, v); } catch(e){ /* silencieux */ }
+  }
+
+  /* ---- (B) application du thème ---- */
+  function theme_apply(mode, persist){
+    var dark = (mode === "dark");
+    if (dark) docEl.setAttribute("data-theme","dark");
+    else docEl.removeAttribute("data-theme");
+    var btn = document.getElementById("theme_toggle");
+    if (btn){
+      btn.setAttribute("aria-pressed", dark ? "true" : "false");
+      var ico = document.getElementById("theme_toggle_ico");
+      var lbl = document.getElementById("theme_toggle_lbl");
+      if (ico) ico.textContent = dark ? "☀" : "☾";
+      if (lbl) lbl.textContent = dark ? "Clair" : "Sombre";
+    }
+    if (persist) theme_write(dark ? "dark" : "light");
+  }
+
+  /* Appliquer la préférence au plus tôt (limite le flash). */
+  theme_apply(theme_read() === "dark" ? "dark" : "light", false);
+
+  function theme_initToggle(){
+    var btn = document.getElementById("theme_toggle");
+    if (!btn) return;
+    btn.addEventListener("click", function(){
+      docEl.classList.add("theme-anim"); /* transitions seulement sur action */
+      var nowDark = docEl.getAttribute("data-theme") === "dark";
+      theme_apply(nowDark ? "light" : "dark", true);
+    });
+  }
+
+  /* ---- (C) infobulles accessibles ---- */
+  var tip = null, current = null, uid = 0;
+
+  function theme_tipEl(){
+    if (tip) return tip;
+    tip = document.getElementById("theme_tip");
+    if (!tip){
+      tip = document.createElement("div");
+      tip.id = "theme_tip";
+      tip.setAttribute("role","tooltip");
+      tip.setAttribute("aria-hidden","true");
+      document.body.appendChild(tip);
+    }
+    return tip;
+  }
+
+  function theme_show(el){
+    var def = el.getAttribute("data-def");
+    if (!def) return;
+    var t = theme_tipEl();
+    t.textContent = def; /* textContent : aucune injection HTML possible */
+    if (!el.id) el.id = "theme_gloss_" + (++uid);
+    t.id = "theme_tip"; /* stable */
+    el.setAttribute("aria-describedby", "theme_tip");
+
+    /* mesure puis positionnement (au-dessus si la place le permet) */
+    t.style.left = "0px"; t.style.top = "0px";
+    t.setAttribute("aria-hidden","false");
+    t.setAttribute("data-show","1");
+
+    var r = el.getBoundingClientRect();
+    var tw = t.offsetWidth, th = t.offsetHeight;
+    var sx = window.pageXOffset, sy = window.pageYOffset;
+    var margin = 8;
+
+    var left = r.left + sx + (r.width/2) - (tw/2);
+    left = Math.max(sx + margin, Math.min(left, sx + document.documentElement.clientWidth - tw - margin));
+
+    var below = (r.top < th + 12); /* pas de place au-dessus → on passe dessous */
+    var top = below ? (r.bottom + sy + 8) : (r.top + sy - th - 8);
+    if (below) t.setAttribute("data-below","1"); else t.removeAttribute("data-below");
+
+    /* recentre la flèche sur le terme */
+    var ax = (r.left + sx + r.width/2) - left;
+    ax = Math.max(8, Math.min(ax, tw - 16));
+    t.style.setProperty("--theme-tip-ax", ax + "px");
+
+    t.style.left = left + "px";
+    t.style.top = top + "px";
+    current = el;
+  }
+
+  function theme_hide(){
+    if (!tip) return;
+    tip.removeAttribute("data-show");
+    tip.setAttribute("aria-hidden","true");
+    if (current){
+      current.removeAttribute("aria-describedby");
+      current = null;
+    }
+  }
+
+  function theme_wire(el){
+    if (el.getAttribute("data-theme-wired")) return;
+    el.setAttribute("data-theme-wired","1");
+    if (!el.hasAttribute("tabindex")) el.setAttribute("tabindex","0");
+    el.addEventListener("mouseenter", function(){ theme_show(el); });
+    el.addEventListener("mouseleave", theme_hide);
+    el.addEventListener("focus", function(){ theme_show(el); });
+    el.addEventListener("blur", theme_hide);
+  }
+
+  function theme_scan(root){
+    var nodes = (root || document).querySelectorAll(".theme-gloss[data-def]");
+    for (var i=0;i<nodes.length;i++) theme_wire(nodes[i]);
+  }
+
+  /* Échap referme ; un défilement masque l'infobulle (position figée sinon) */
+  document.addEventListener("keydown", function(e){
+    if (e.key === "Escape" || e.keyCode === 27) theme_hide();
+  });
+  window.addEventListener("scroll", theme_hide, true);
+
+  /* Termes ajoutés dynamiquement après coup */
+  function theme_observe(){
+    if (typeof MutationObserver === "undefined") return;
+    var mo = new MutationObserver(function(muts){
+      for (var i=0;i<muts.length;i++){
+        var added = muts[i].addedNodes;
+        for (var j=0;j<added.length;j++){
+          var n = added[j];
+          if (n.nodeType === 1){
+            if (n.classList && n.classList.contains("theme-gloss")) theme_wire(n);
+            if (n.querySelectorAll) theme_scan(n);
+          }
+        }
+      }
+    });
+    mo.observe(document.body, {childList:true, subtree:true});
+  }
+
+  /* ---- init ---- */
+  function theme_init(){
+    theme_apply(theme_read() === "dark" ? "dark" : "light", false);
+    theme_initToggle();
+    theme_scan(document);
+    theme_observe();
+  }
+  if (document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", theme_init);
+  } else {
+    theme_init();
+  }
+})();
+</script>
+
+<footer><div class="fin">HyperLogLog : estimer des milliards de distincts en quelques kilo-octets · scriptorium</div></footer>
+<script>
+  const prog=document.getElementById('prog');
+  const onScroll=()=>{const h=document.documentElement;const sc=h.scrollTop;const max=h.scrollHeight-h.clientHeight;
+    prog.style.width=(max>0?(sc/max*100):0)+'%';};
+  document.addEventListener('scroll',onScroll,{passive:true});onScroll();
+  const links=[...document.querySelectorAll('nav.toc a')];
+  const map=new Map(links.map(a=>[a.getAttribute('href').slice(1),a]));
+  const obs=new IntersectionObserver((entries)=>{entries.forEach(e=>{
+    if(e.isIntersecting){links.forEach(l=>l.classList.remove('active'));
+      const a=map.get(e.target.id); if(a)a.classList.add('active');}});
+  },{rootMargin:'-12% 0px -78% 0px',threshold:0});
+  document.querySelectorAll('section[id]').forEach(s=>obs.observe(s));
+</script>
+</body></html>

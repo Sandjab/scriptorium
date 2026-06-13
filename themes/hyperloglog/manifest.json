@@ -1,0 +1,511 @@
+{
+  "edition": "best-of",
+  "slug": "hyperloglog",
+  "meta": {
+    "title": "HyperLogLog : estimer des milliards de distincts en quelques kilo-octets",
+    "kicker": "Estimation de cardinalité · monographie",
+    "h1": "HyperLogLog : estimer des milliards de distincts en quelques kilo-octets",
+    "lede": "Comment hacher, router et fusionner quelques milliers de petits registres permet de compter des milliards d'éléments distincts à 1–2 % près — et où cette frugalité cesse de tenir.",
+    "meta_chips": [
+      "Monographie"
+    ],
+    "footer": "HyperLogLog : estimer des milliards de distincts en quelques kilo-octets · scriptorium"
+  },
+  "elements": [
+    {
+      "type": "abstract"
+    },
+    {
+      "type": "section",
+      "id": "comptage-distincts-idee-fondatrice",
+      "heading": "Le comptage de distincts et l'idée fondatrice",
+      "level": 3,
+      "prose": "<p>Le count-distinct problem (problème du comptage de distincts) se pose dès qu'on veut dénombrer les éléments uniques d'un multiset (multiensemble) de grande taille — adresses IP distinctes vues par un routeur, requêtes uniques dans un journal web, identifiants d'utilisateurs actifs sur une plateforme — sans avoir à conserver les éléments eux-mêmes. La solution exacte exige soit un espace proportionnel à la cardinalité (un ensemble, un arbre ou une table de hachage), soit un tri préalable suivi d'un décompte linéaire. Ces deux options deviennent inacceptables quand le volume dépasse la mémoire disponible ou que la latence est contrainte : il faut alors un sketch probabiliste qui échange un peu de précision contre un gain massif en espace.</p>\n\n<p>La généalogie algorithmique s'ouvre en 1985. Philippe Flajolet et G. Nigel Martin publient « Probabilistic Counting Algorithms for Data Base Applications » dans le <em>Journal of Computer and System Sciences</em> : leur FM sketch exploite pour la première fois la propriété statistique des valeurs maximales d'une fonction de position de bit appliquée à un flux haché, estimant la cardinalité en espace O(log log n). En 2003, Marianne Durand et Philippe Flajolet présentent le LogLog algorithm dans « Loglog Counting of Large Cardinalities » : en partitionnant le flux en m sous-flots et en combinant les maxima par moyenne géométrique, ils ramènent l'erreur standard à environ 1,3/√m tout en conservant l'empreinte logarithmique. L'étape finale arrive en 2007 lorsque Philippe Flajolet, Éric Fusy, Olivier Gandouet et Frédéric Meunier — chercheurs à l'INRIA — publient « HyperLogLog: the analysis of a near-optimal cardinality estimation algorithm » dans les actes de DMTCS (<em>Discrete Mathematics and Theoretical Computer Science</em>).</p>\n\n<p>Le mécanisme central repose sur une propriété statistique du hachage uniforme. Chaque élément du multiset est passé dans une hash function (fonction de hachage) dont la sortie est une chaîne de bits uniformément distribuée sur {0, 1}<sup>L</sup>. La fonction ρ(x) renvoie la position du premier bit à 1 dans cette chaîne — soit le nombre de leading zeros (zéros initiaux) + 1. Si les bits sont indépendants et équiprobables, P(ρ(x) = k) = 2<sup>−k</sup> : observer un grand ρ est un événement rare qui, sur un flux de n éléments distincts, signale que la cardinalité est de l'ordre de 2<sup>k</sup>. Avec un seul registre, le maximum de ρ observé fournit une estimation grossière de log<sub>2</sub>(n) — mais à variance explosive, inutilisable en pratique.</p>\n\n<p>Pour maîtriser cette variance, HyperLogLog partitionne le flux en m = 2<sup>p</sup> registres (p typiquement entre 4 et 16). Les p premiers bits du haché servent d'index pour sélectionner l'un des m registres ; les bits restants alimentent le calcul de ρ. Chaque registre conserve uniquement le maximum de ρ observé pour son sous-flot. L'état complet de l'algorithme est donc un vecteur M[0…m−1] de petits entiers tenant chacun sur 5 à 6 bits, soit une empreinte mémoire de l'ordre de m × 5 bits. La mise à jour coûte O(1) par élément ; la fusion de deux sketches, exacte et sans perte, coûte O(m).</p>\n\n<p>L'innovation décisive de HyperLogLog par rapport à LogLog est le choix de l'estimateur final. LogLog combine les M[j] par moyenne géométrique, ce qui reste sensible aux valeurs aberrantes hautes : un registre dont ρ a été surestimé par hasard gonfle disproportionnellement l'estimation globale. HyperLogLog lui substitue la harmonic mean (moyenne harmonique) : E = α<sub>m</sub> × m² × (∑<sub>j</sub> 2<sup>−M[j]</sup>)<sup>−1</sup>, où α<sub>m</sub> est une constante de correction de biais dépendant de m. En pénalisant fortement les grands M[j], la harmonic mean réduit la variance sans augmenter la taille de l'état. L'erreur standard résultante est σ = 1,04/√m — soit environ 2,3 % avec 2 048 registres, pour une empreinte mémoire de l'ordre de 1,5 kB suffisante pour estimer des cardinalités supérieures à 10<sup>9</sup>.</p>",
+      "claims": [
+        "claim:1",
+        "claim:2",
+        "claim:3"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "synopsis-construction-sketch-hll"
+    },
+    {
+      "type": "section",
+      "id": "estimateur-constantes-optimalite",
+      "heading": "L'estimateur, ses constantes et son optimalité",
+      "level": 3,
+      "prose": "<p>L'estimateur central de HyperLogLog est défini par <strong>E&nbsp;=&nbsp;α<sub>m</sub>&nbsp;·&nbsp;m²&nbsp;·&nbsp;Z</strong>, où Z&nbsp;=&nbsp;(∑<sub>j=1</sub><sup>m</sup>&nbsp;2<sup>−M[j]</sup>)<sup>−1</sup> est l'inverse de la somme des 2<sup>−M[j]</sup> sur l'ensemble des registres. En développant : E&nbsp;=&nbsp;α<sub>m</sub>&nbsp;·&nbsp;m&nbsp;·&nbsp;[m&nbsp;/&nbsp;∑&nbsp;2<sup>−M[j]</sup>], le terme entre crochets est précisément la <strong>moyenne harmonique</strong> des valeurs {2<sup>M[j]</sup>} — les estimées individuelles de cardinalité fournies par chaque sous-flux. C'est ce remplacement de la moyenne géométrique utilisée par LogLog par la moyenne harmonique qui constitue le levier central de l'amélioration : à précision équivalente, HyperLogLog n'utilise que 64&nbsp;% de la mémoire de son prédécesseur.</p>\n\n<p>La constante α<sub>m</sub> est une correction de biais dérivée analytiquement pour compenser la surestimation systématique introduite par la non-linéarité de l'estimateur. Ses valeurs exactes sont : 0,673 pour m&nbsp;=&nbsp;16 ; 0,697 pour m&nbsp;=&nbsp;32 ; 0,709 pour m&nbsp;=&nbsp;64 ; et α<sub>m</sub>&nbsp;=&nbsp;0,7213&nbsp;/&nbsp;(1&nbsp;+&nbsp;1,079/m) pour m&nbsp;≥&nbsp;128. Cette formule asymptotique converge vers ≈&nbsp;0,7213 lorsque m&nbsp;→&nbsp;∞, reflétant la limite de la correction quand les effets de bord aux faibles m disparaissent.</p>\n\n<p>L'analyse asymptotique de l'article original établit une erreur standard relative σ&nbsp;≈&nbsp;1,04&nbsp;/&nbsp;√m, indépendante de la cardinalité n : quelle que soit la taille du jeu de données, l'estimateur E se situe à&nbsp;±3σ de la vraie cardinalité avec une probabilité élevée. La plage valide du paramètre b — nombre de bits servant à indexer les registres, avec m&nbsp;=&nbsp;2<sup>b</sup> — est b&nbsp;∈&nbsp;[4,&nbsp;16] ; en dehors de cet intervalle, les garanties asymptotiques établies dans le papier ne tiennent plus. Pour m&nbsp;=&nbsp;2&nbsp;048 registres (b&nbsp;=&nbsp;11), σ&nbsp;≈&nbsp;2,3&nbsp;% ; pour m&nbsp;=&nbsp;16&nbsp;384 (b&nbsp;=&nbsp;14), σ&nbsp;≈&nbsp;0,8&nbsp;%, pour respectivement environ 1,25&nbsp;Ko et 10&nbsp;Ko de mémoire totale.</p>\n\n<p>Ce résultat se situe à environ 4&nbsp;% au-dessus de la borne établie par Chassaing et Gérin (2006) pour la classe des estimateurs de cardinalité fondés sur des statistiques d'ordre de hachage uniforme&nbsp;: σ<sub>min</sub>&nbsp;=&nbsp;1/√m. L'écart se calcule comme (1,04&nbsp;−&nbsp;1,00)&nbsp;/&nbsp;1,00, d'où le qualificatif <em>near-optimal</em> (quasi-optimal) du titre du papier. Il convient de préciser que la borne de Chassaing-Gérin est l'optimum pour cette classe d'algorithmes particulière — non la borne information-théorique absolue pour toute méthode d'estimation de cardinalité concevable, quel que soit le modèle computationnel.</p>\n\n<p>Les complexités de l'algorithme sont entièrement déterminées par m : insertion en O(1) (calcul d'un hash et mise à jour d'un unique registre) ; calcul de l'estimateur en O(m) (parcours de tous les registres) ; fusion de deux sketches en O(m). La mémoire totale est O(m&nbsp;·&nbsp;log&nbsp;log&nbsp;n) bits : chaque registre stocke ⌈log<sub>2</sub>(log<sub>2</sub>(n))⌉&nbsp;bits — environ 5&nbsp;bits en pratique pour n&nbsp;≤&nbsp;10<sup>18</sup>, soit 5m&nbsp;bits au total.</p>\n\n<p>La <strong>mergeability</strong> (fusionnabilité) est algébriquement exacte et sans perte : l'union de deux sketches construits sur des jeux de données A et B s'obtient par max registre par registre — hll<sub>A∪B</sub>[j]&nbsp;=&nbsp;max(M<sub>A</sub>[j],&nbsp;M<sub>B</sub>[j]) pour tout j&nbsp;∈&nbsp;[1,&nbsp;m] — en O(m) et sans accès aux données originales. Cette opération est strictement équivalente à ce qu'aurait produit un sketch construit directement sur A&nbsp;∪&nbsp;B, rendant l'algorithme naturellement adapté au traitement distribué : des sous-flux traités indépendamment sur des nœuds différents se fusionnent en une seule passe vectorielle.</p>",
+      "claims": [
+        "claim:4",
+        "claim:5",
+        "claim:6"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "regimes-degrades-corrections",
+      "heading": "Régimes dégradés et corrections d'estimation",
+      "level": 3,
+      "prose": "<p>L'estimateur brut E = α<sub>m</sub> · m² · Z produit une erreur standard proche de 1,04/√m dans sa plage nominale, mais décroche dans deux régimes opposés qui exigent chacun une substitution explicite. Ces deux correctifs sont intégrés directement dans l'algorithme original de Flajolet, Fusy, Gandouet et Meunier (2007) : l'un prend la relève aux petites cardinalités, l'autre bride la dérive imposée par la finitude de l'espace de hachage en 32 bits.</p>\n\n<p>Aux petites cardinalités (E &lt; 2,5m), la moyenne harmonique perd en fiabilité : un nombre significatif de registres reste à zéro, ce qui constitue un signal de premier ordre plus stable. Quand cette condition est satisfaite et que V &gt; 0 registres sont encore vides, l'algorithme substitue l'estimateur de Linear Counting (comptage linéaire) : E* = m × ln(m/V). Cette formule, empruntée aux travaux de Whang <em>et al.</em> (1990), exploite directement la proportion de registres vides. Le seuil 2,5m est hérité du <em>load factor</em> recommandé pour Linear Counting ; il n'est pas dérivé analytiquement des propriétés de l'estimateur harmonique de HyperLogLog. La bascule corrige une surestimation : avant son application, la moyenne harmonique sur un tableau peu rempli gonfle artificiellement l'estimation, car chaque registre à zéro est implicitement interprété comme s'il avait vu exactement un élément distinct.</p>\n\n<p>À l'opposé du spectre, les fonctions de hachage codées sur 32 bits saturent leurs collisions dès n ≈ 2<sup>32</sup>/30 ≈ 143 millions. L'estimateur brut sous-estime alors la cardinalité réelle : plusieurs éléments distincts produisent la même valeur de hachage, et les registres cessent de progresser proportionnellement à la croissance de l'ensemble. La correction prescrite est E* = −2<sup>32</sup> × ln(1 − E/2<sup>32</sup>), une inversion de la loi des collisions dans un espace de hachage fini. Sans ce correctif, l'estimateur converge artificiellement vers 2<sup>32</sup> tandis que la quasi-totalité des valeurs de hachage a déjà été observée, produisant une divergence progressive irréparable au-delà du seuil de saturation.</p>\n\n<p>Un troisième défaut, orthogonal aux deux régimes précédents, a été mis en évidence par Heule, Nunkesser et Hall (Google, 2013) dans le papier HyperLogLog++ : l'algorithme original présente une surestimation systématique mesurable dans la zone de transition entre 2,5m et 5m — c'est-à-dire précisément là où Linear Counting vient de cesser de s'appliquer mais où la moyenne harmonique n'est pas encore pleinement convergée. Ce biais, non documenté dans le papier de 2007, motive l'introduction d'une table de correction empirique interpolant 200 points de référence dans cet intervalle. Le passage aux hash 64-bit dans HyperLogLog++ supprime par construction la limite des 143 M sans recourir à aucun correctif multiplicatif.</p><figure class='fig'><svg viewBox='0 0 800 320' role='img' aria-label='Carte en bandes contiguës des trois régimes des estimateurs de HyperLogLog selon les cardinalités croissantes n. Première bande, petites cardinalités sous le seuil E inférieur à 2,5m : Linear Counting, E étoile égal m fois logarithme népérien de m sur V. Bande centrale nominale : estimateur brut harmonique, erreur standard environ 1,04 sur racine de m. Troisième bande, très grandes cardinalités au-delà de 2 puissance 32 sur 30 soit environ 143 millions : correction de grande plage. La bosse de biais systématique de la transition 2,5m à 5m, mise en évidence par HyperLogLog plus plus, est surlignée en bordeaux.'><rect x='64' y='150' width='186' height='100' fill='var(--ink-faint,#7A889B)' fill-opacity='0.12' stroke='var(--ink-faint,#7A889B)' stroke-opacity='0.55' stroke-width='1'/><rect x='250' y='150' width='306' height='100' fill='var(--blue,#23537F)' fill-opacity='0.10' stroke='var(--blue,#23537F)' stroke-opacity='0.55' stroke-width='1'/><rect x='556' y='150' width='204' height='100' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.10' stroke='var(--bordeaux,#7C2A38)' stroke-opacity='0.55' stroke-width='1'/><line x1='64' y1='258' x2='784' y2='258' stroke='var(--ink,#15202E)' stroke-width='1.5'/><path d='M784 258 L774 253 L774 263 Z' fill='var(--ink,#15202E)'/><text x='770' y='278' text-anchor='end' font-family='sans-serif' font-size='12' fill='var(--ink,#15202E)'>n — cardinalité croissante</text><line x1='250' y1='140' x2='250' y2='258' stroke='var(--ink,#15202E)' stroke-width='1' stroke-dasharray='3 3'/><line x1='556' y1='140' x2='556' y2='258' stroke='var(--ink,#15202E)' stroke-width='1' stroke-dasharray='3 3'/><text x='250' y='293' text-anchor='middle' font-family='sans-serif' font-size='11.5' fill='var(--bordeaux,#7C2A38)'>seuil E = 2,5m</text><text x='556' y='293' text-anchor='middle' font-family='sans-serif' font-size='11.5' fill='var(--bordeaux,#7C2A38)'>seuil E = 2³²/30 ≈ 143 M</text><line x1='312' y1='150' x2='556' y2='150' stroke='var(--blue,#23537F)' stroke-width='1.2' stroke-dasharray='5 3'/><path d='M250 150 Q281 112 312 150 Z' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.30' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.3'/><line x1='281' y1='131' x2='281' y2='106' stroke='var(--bordeaux,#7C2A38)' stroke-width='0.8'/><text x='281' y='98' text-anchor='middle' font-family='sans-serif' font-size='11' fill='var(--bordeaux,#7C2A38)'>bosse de biais systématique</text><text x='281' y='84' text-anchor='middle' font-family='sans-serif' font-size='10' fill='var(--bordeaux,#7C2A38)'>HLL++ · transition 2,5m–5m</text><text x='157' y='176' text-anchor='middle' font-family='sans-serif' font-size='12.5' font-weight='bold' fill='var(--ink,#15202E)'>Petites cardinalités</text><text x='157' y='196' text-anchor='middle' font-family='sans-serif' font-size='11' fill='var(--ink-faint,#7A889B)'>E &lt; 2,5m · V vides</text><text x='157' y='220' text-anchor='middle' font-family='sans-serif' font-size='12' font-weight='bold' fill='var(--blue,#23537F)'>Linear Counting</text><text x='157' y='238' text-anchor='middle' font-family='monospace' font-size='11.5' fill='var(--ink,#15202E)'>E* = m·ln(m/V)</text><text x='403' y='176' text-anchor='middle' font-family='sans-serif' font-size='12.5' font-weight='bold' fill='var(--ink,#15202E)'>Zone nominale</text><text x='403' y='196' text-anchor='middle' font-family='sans-serif' font-size='11' fill='var(--ink-faint,#7A889B)'>estimateur brut harmonique</text><text x='403' y='220' text-anchor='middle' font-family='monospace' font-size='11.5' fill='var(--ink,#15202E)'>E = α<tspan baseline-shift='sub' font-size='8'>m</tspan>·m²·Z</text><text x='403' y='238' text-anchor='middle' font-family='sans-serif' font-size='11' fill='var(--blue,#23537F)'>σ ≈ 1,04/√m</text><text x='658' y='176' text-anchor='middle' font-family='sans-serif' font-size='12' font-weight='bold' fill='var(--ink,#15202E)'>Très grandes cardinalités</text><text x='658' y='196' text-anchor='middle' font-family='sans-serif' font-size='11' fill='var(--ink-faint,#7A889B)'>collisions de hash 32 bits</text><text x='658' y='220' text-anchor='middle' font-family='sans-serif' font-size='12' font-weight='bold' fill='var(--bordeaux,#7C2A38)'>correction grande plage</text><text x='658' y='238' text-anchor='middle' font-family='monospace' font-size='10.5' fill='var(--ink,#15202E)'>E* = −2³²·ln(1−E/2³²)</text></svg><figcaption><span class='fcap-k'></span>Une carte unique de l'axe des cardinalités n : Linear Counting sous le seuil 2,5m, estimateur brut harmonique en zone nominale (σ ≈ 1,04/√m), puis correction de grande plage au-delà de ≈ 143 M — avec la bosse de biais 2,5m–5m repérée par HLL++ surlignée en bordeaux.</figcaption></figure>",
+      "claims": [
+        "claim:7",
+        "claim:8",
+        "claim:9",
+        "claim:10"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "hyperloglogplusplus",
+      "heading": "HyperLogLog++ : l'ingénierie de Google",
+      "level": 3,
+      "prose": "<p>En 2013, Stefan Heule, Marc Nunkesser et Alex Hall publient « HyperLogLog in Practice » dans les actes de l'EDBT (<em>Extending Database Technology</em>). La refonte — couramment désignée HyperLogLog++ ou HLL++ — répond à trois limitations pratiques de l'algorithme original tout en préservant sa mécanique fondamentale : passe linéaire sur le flux, fusion de sketches, commutativité et idempotence. L'impulsion de l'article vient de PowerDrill, le moteur d'analyse interactive interne de Google, dont les contraintes d'usage à l'échelle de production ont mis en évidence des défauts que les évaluations de laboratoire ne détectaient pas.</p>\n\n<p>Le premier apport est le passage aux fonctions de hachage 64 bits. Dans l'algorithme de Flajolet et al., la valeur de hachage est encodée sur 32 bits ; une « large range correction » est appliquée dès que l'estimation brute E dépasse 2<sup>32</sup>/30 ≈ 143 millions, seuil à partir duquel les collisions de hachage biaisent l'estimateur à la baisse et où la formule correctrice perd en fiabilité à mesure que la cardinalité réelle approche 2<sup>32</sup>. En adoptant le hachage 64 bits, HLL++ déplace ce seuil à 2<sup>64</sup>/30 ≈ 6 × 10<sup>17</sup>, hors de toute portée pratique. Le coût mémoire est marginal : seul le nombre de zéros de tête est stocké par registre — et non la valeur de hachage complète — de sorte que la taille totale passe de 5·2<sup>p</sup> à 6·2<sup>p</sup> bits.</p>\n\n<p>Le second apport est la <em>sparse representation</em> (représentation creuse) pour les faibles cardinalités. PowerDrill exécute environ cinq millions d'opérations de comptage distinct par jour ; 99 % d'entre elles retournent moins de 100 valeurs distinctes. Allouer systématiquement un tableau dense de 2<sup>p</sup> registres pour ces micro-sketches serait prohibitif à cette échelle. HLL++ représente donc le sketch, tant que la cardinalité reste faible, comme une liste triée de paires (indice de registre, valeur), compressée par encodage à longueur variable et encodage différentiel. Quand le sketch grossit et dépasse un seuil de densité, la structure bascule automatiquement vers la représentation dense. Ce régime creux exploite un second paramètre de précision p' &gt; p : les bits supplémentaires disponibles grâce au hachage 64 bits permettent de conserver davantage d'information dans la liste creuse avant conversion, tandis que p désigne la précision finale du régime dense (2<sup>p</sup> registres).</p>\n\n<p>Le troisième apport est la correction empirique du biais de transition. L'estimateur HLL et l'estimateur <em>linear counting</em> opèrent dans des plages de cardinalité distinctes ; à leur frontière, ni l'un ni l'autre n'est parfaitement calibré, ce qui génère un biais positif reproductible. Heule et al. le caractérisent expérimentalement : ils évaluent l'estimateur brut en 200 points de cardinalité distribués dans la zone critique, mesurent l'erreur moyenne à chacun, et stockent ces corrections dans une table de correspondance. À chaque estimation, l'algorithme identifie les 6 points les plus proches au sens des <em>k-nearest neighbors</em> (k plus proches voisins, k = 6), calcule la moyenne de leurs corrections et la soustrait de l'estimation brute. La procédure est entièrement déterministe, sans hyperparamètre à ajuster ; les tables correspondantes sont publiées dans l'article et codées en dur dans les implémentations de référence.</p>",
+      "claims": [
+        "claim:11",
+        "claim:12",
+        "claim:13"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "successeurs-space-efficient",
+      "heading": "La lignée des successeurs space-efficient",
+      "level": 3,
+      "prose": "<p>Après HyperLogLog++ (Google, 2013), la première avancée significative tient à l'estimateur plutôt qu'à la structure. En 2016, Qin, Kim et Tung publient LogLog-Beta (arXiv:1612.02284) : une formule de correction de biais analytique, unique, valable sur toute la plage de cardinalités. Là où HyperLogLog++ exige des tables de lookup empiriques calibrées par simulation, LogLog-Beta se calcule directement à partir des registres, sans données pré-tabulées. Cette simplicité lui vaut d'être adoptée dans plusieurs implémentations open-source de référence, dont celle d'Axiom (<code>axiomhq/hyperloglog</code>), combinée à la représentation sparse et à la compression TailCut.</p>\n\n<p>La décennie 2020 inaugure une lignée structurelle dont la question centrale est la préservation du <em>merge</em> (fusion de sketches) lors de la compression. HyperLogLogLog (KDD 2022, Karppa et al.) ajoute un logarithme de compression : le sketch est réduit à <em>m</em>·log₂log₂log₂<em>m</em> + O(<em>m</em> + log log <em>n</em>) bits, contre O(<em>m</em> log log <em>n</em>) pour HyperLogLog, soit environ 40 % de moins que les implémentations de référence de Google et d'Apache. La fusion reste possible dans le domaine compressé — deux sketches se fusionnent sans décompression —, et les mises à jour s'effectuent en temps constant amorti. La structure constitue un remplacement drop-in d'HyperLogLog : toutes les propriétés d'estimation sont préservées, avec conversion bidirectionnelle vers la représentation non compressée.</p>\n\n<p>Otmar Ertl, auteur d'un estimateur MLE (maximum likelihood estimation, vraisemblance maximale) pour HLL en 2017, publie en 2024 UltraLogLog (VLDB 2024) : les registres sont encodés sur 8 bits selon une distribution choisie pour minimiser l'entropie, ce qui réduit l'espace de 28 % par rapport à HyperLogLog avec l'estimateur MLE (24 % avec un estimateur simplifié). L'encodage 8 bits présente de surcroît un avantage pratique : les registres se compressent mieux que les 6 bits d'HLL classique par les algorithmes de compression génériques. UltraLogLog conserve intégralement la commutativité, l'idempotence, le merge et l'insertion en temps constant garanti — le même contrat opérationnel qu'HLL. En 2025, ExaLogLog (EDBT 2025) étend la lignée à des cardinalités jusqu'à l'échelle exa (10<sup>18</sup> éléments distincts), avec une réduction d'espace de 43 % et un contrat opérationnel identique, augmenté d'une propriété de réductibilité utile en agrégation hiérarchique distribuée. Les deux structures disposent d'une implémentation Java de référence dans la bibliothèque open-source Hash4j (Dynatrace).</p>\n\n<p>En 2026, Bushnell propose DynamicLogLog (arXiv:2603.27405), qui agit directement sur le nombre de bits par <em>bucket</em> (seau) : HyperLogLog alloue 6 bits par bucket ; DLL en utilise 4, grâce à un exposant partagé entre buckets et des comptages relatifs de <em>leading zero</em> (zéros initiaux du hash). La réduction mémoire atteint 33 % ; sur 2 048 buckets (1 024 octets), DLL affiche 1,830 % d'erreur moyenne contre 1,84 % pour HLL fonctionnant avec 1 536 octets. La seconde innovation est l'<em>early-exit mask</em> (masque de rejet anticipé) : à haute cardinalité, plus de 99,9 % des éléments sont écartés avant tout accès aux buckets, offrant une accélération supérieure à 10× par rapport à HLL dans les scénarios limités par la bande passante mémoire. La variante DynamicUltraLogLog fusionne les techniques DLL et UltraLogLog pour atteindre la précision d'ULL avec seulement 75 % de sa mémoire.</p>\n\n<p>Deux variantes explorent des compromis orthogonaux. Sliding HyperLogLog (Chabchoub et Hébrail, IEEE ICDM Workshops, 2010) adapte HLL aux flux de données munis d'une <em>sliding window</em> (fenêtre glissante) : le sketch permet d'estimer à tout instant la cardinalité sur n'importe quelle durée bornée par la taille de la fenêtre, avec la même erreur standard qu'HLL (≈ 1,04/√<em>m</em>), au prix d'une mémoire supplémentaire d'au plus 5<em>m</em> ln(<em>n</em>/<em>m</em>) octets. HLL-TailCut+ (Xiao, Zhou, Chen) choisit à l'inverse de sacrifier délibérément le merge pour réduire l'espace de 20 à 45 % : il stocke le compteur minimal comme base et les autres comme offsets relatifs sur 4 bits ; lorsqu'un offset déborde, il est saturé à sa valeur maximale, rendant l'estimateur dépendant de l'ordre d'insertion. La fusion de deux sketches HLL-TailCut+ peut alors produire un résultat biaisé — différent de ce qu'aurait donné un sketch unique traçant l'union des deux flux.</p>\n\n<p>La question des estimateurs optimaux pour HyperLogLog est formalisée de façon systématique à partir de 2017. Ertl (arXiv:1706.07290, 2017) dérive analytiquement l'estimateur original d'HLL, identifie ses biais résiduels, et propose un estimateur amélioré non biaisé sur toute la plage de cardinalités — sans table empirique — ainsi qu'un estimateur MLE qui étend le calcul aux opérations ensemblistes (union, intersection, différence relative) avec plus de précision que l'approche inclusion-exclusion classique. Pettie et Wang (PODS 2023) systématisent le panorama via la famille τ-GRA (<em>generalized remaining area</em>) : ils établissent que les estimateurs standard d'HLL, de LogLog et de PCSA sont des instances de τ-GRA pour des valeurs entières de τ, et qu'un choix de τ fractionnaire permet de s'approcher davantage de la borne de Cramér-Rao. Ils montrent en parallèle que l'estimateur MLE appliqué à Compressed-PCSA dépasse en précision Compressed-HyperLogLog à budget mémoire identique — résultat qui réhabilite PCSA, longtemps éclipsé par HLL, comme terreau théorique plus fertile pour la compression.</p><figure class='fig'><svg viewBox='0 0 920 560' role='img' aria-label='Frise chronologique ramifiée des estimateurs de cardinalité : tronc fondateur Flajolet-Martin 1985, LogLog 2003, HyperLogLog 2007, HyperLogLog++ 2013, puis une branche space-efficient post-2013 — LogLog-Beta 2016, HyperLogLogLog moins 40 pourcent 2022, UltraLogLog moins 28 pourcent 2024, ExaLogLog moins 43 pourcent 2025, DynamicLogLog moins 33 pourcent 2026 — toute à merge préservé, et une branche dissidente HLL-TailCut+ à merge sacrifié pour moins 20 à 45 pourcent.'><rect x='88' y='250' width='770' height='162' rx='16' fill='var(--blue-wash,#E7EEF6)'/><text x='110' y='276' font-size='13' font-weight='600' fill='var(--blue,#23537F)'>Lignée space-efficient · post-2013 · merge préservé</text><text x='430' y='236' font-size='12' font-style='italic' fill='var(--ink-faint,#7A889B)' text-anchor='middle'>au-delà de 2013 : compresser le sketch</text><line x1='130' y1='128' x2='700' y2='128' stroke='var(--blue,#23537F)' stroke-width='3' stroke-linecap='round'/><circle cx='130' cy='128' r='6' fill='var(--blue,#23537F)'/><circle cx='320' cy='128' r='6' fill='var(--blue,#23537F)'/><circle cx='510' cy='128' r='6' fill='var(--blue,#23537F)'/><circle cx='700' cy='128' r='6' fill='var(--blue,#23537F)'/><text x='130' y='104' font-size='13' font-weight='600' fill='var(--ink,#15202E)' text-anchor='middle'>Flajolet–Martin</text><text x='320' y='104' font-size='13' font-weight='600' fill='var(--ink,#15202E)' text-anchor='middle'>LogLog</text><text x='510' y='104' font-size='13' font-weight='600' fill='var(--ink,#15202E)' text-anchor='middle'>HyperLogLog</text><text x='700' y='104' font-size='13' font-weight='600' fill='var(--ink,#15202E)' text-anchor='middle'>HyperLogLog++</text><text x='130' y='150' font-size='11' fill='var(--ink-faint,#7A889B)' text-anchor='middle'>1985</text><text x='320' y='150' font-size='11' fill='var(--ink-faint,#7A889B)' text-anchor='middle'>2003</text><text x='510' y='150' font-size='11' fill='var(--ink-faint,#7A889B)' text-anchor='middle'>2007</text><text x='700' y='150' font-size='11' fill='var(--ink-faint,#7A889B)' text-anchor='middle'>2013</text><path d='M 700 138 C 680 248 320 248 135 318' fill='none' stroke='var(--blue,#23537F)' stroke-width='2.5'/><polygon points='128,309 142,309 135,320' fill='var(--blue,#23537F)'/><line x1='135' y1='330' x2='815' y2='330' stroke='var(--blue,#23537F)' stroke-width='3' stroke-linecap='round'/><circle cx='135' cy='330' r='6' fill='var(--blue,#23537F)'/><circle cx='305' cy='330' r='6' fill='var(--blue,#23537F)'/><circle cx='475' cy='330' r='6' fill='var(--blue,#23537F)'/><circle cx='645' cy='330' r='6' fill='var(--blue,#23537F)'/><circle cx='815' cy='330' r='6' fill='var(--blue,#23537F)'/><text x='135' y='302' font-size='13' font-weight='600' fill='var(--ink,#15202E)' text-anchor='middle'>LogLog-Beta</text><text x='305' y='302' font-size='13' font-weight='600' fill='var(--ink,#15202E)' text-anchor='middle'>HyperLogLogLog</text><text x='475' y='302' font-size='13' font-weight='600' fill='var(--ink,#15202E)' text-anchor='middle'>UltraLogLog</text><text x='645' y='302' font-size='13' font-weight='600' fill='var(--ink,#15202E)' text-anchor='middle'>ExaLogLog</text><text x='815' y='302' font-size='13' font-weight='600' fill='var(--ink,#15202E)' text-anchor='middle'>DynamicLogLog</text><rect x='95' y='344' width='80' height='24' rx='12' fill='var(--paper,#F4F6FA)' stroke='var(--blue,#23537F)' stroke-width='1.1'/><rect x='265' y='344' width='80' height='24' rx='12' fill='var(--paper,#F4F6FA)' stroke='var(--blue,#23537F)' stroke-width='1.1'/><rect x='435' y='344' width='80' height='24' rx='12' fill='var(--paper,#F4F6FA)' stroke='var(--blue,#23537F)' stroke-width='1.1'/><rect x='605' y='344' width='80' height='24' rx='12' fill='var(--paper,#F4F6FA)' stroke='var(--blue,#23537F)' stroke-width='1.1'/><rect x='775' y='344' width='80' height='24' rx='12' fill='var(--paper,#F4F6FA)' stroke='var(--blue,#23537F)' stroke-width='1.1'/><text x='135' y='361' font-size='12' font-weight='600' fill='var(--blue,#23537F)' text-anchor='middle'>✓ unifié</text><text x='305' y='361' font-size='12' font-weight='600' fill='var(--blue,#23537F)' text-anchor='middle'>✓ −40 %</text><text x='475' y='361' font-size='12' font-weight='600' fill='var(--blue,#23537F)' text-anchor='middle'>✓ −28 %</text><text x='645' y='361' font-size='12' font-weight='600' fill='var(--blue,#23537F)' text-anchor='middle'>✓ −43 %</text><text x='815' y='361' font-size='12' font-weight='600' fill='var(--blue,#23537F)' text-anchor='middle'>✓ −33 %</text><text x='135' y='388' font-size='11' fill='var(--ink-faint,#7A889B)' text-anchor='middle'>2016</text><text x='305' y='388' font-size='11' fill='var(--ink-faint,#7A889B)' text-anchor='middle'>2022</text><text x='475' y='388' font-size='11' fill='var(--ink-faint,#7A889B)' text-anchor='middle'>2024</text><text x='645' y='388' font-size='11' fill='var(--ink-faint,#7A889B)' text-anchor='middle'>2025</text><text x='815' y='388' font-size='11' fill='var(--ink-faint,#7A889B)' text-anchor='middle'>2026</text><path d='M 480 412 C 540 452 620 462 695 474' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='2' stroke-dasharray='5 4'/><circle cx='700' cy='478' r='7' fill='var(--bordeaux,#7C2A38)'/><text x='700' y='482' font-size='10' font-weight='700' fill='var(--paper,#F4F6FA)' text-anchor='middle'>✕</text><text x='700' y='460' font-size='13' font-weight='600' fill='var(--bordeaux,#7C2A38)' text-anchor='middle'>HLL-TailCut+</text><text x='700' y='500' font-size='11' fill='var(--bordeaux,#7C2A38)' text-anchor='middle'>merge sacrifié · −20…45 %</text><circle cx='132' cy='531' r='7' fill='var(--blue,#23537F)'/><text x='132' y='535' font-size='10' font-weight='700' fill='var(--paper,#F4F6FA)' text-anchor='middle'>✓</text><text x='146' y='535' font-size='11.5' fill='var(--ink,#15202E)'>merge préservé (fusion exacte)</text><circle cx='430' cy='531' r='7' fill='var(--bordeaux,#7C2A38)'/><text x='430' y='535' font-size='10' font-weight='700' fill='var(--paper,#F4F6FA)' text-anchor='middle'>✕</text><text x='444' y='535' font-size='11.5' fill='var(--ink,#15202E)'>merge sacrifié (HLL-TailCut+)</text><rect x='695' y='523' width='60' height='17' rx='8' fill='var(--paper,#F4F6FA)' stroke='var(--blue,#23537F)' stroke-width='1.1'/><text x='725' y='535' font-size='10.5' font-weight='600' fill='var(--blue,#23537F)' text-anchor='middle'>−n %</text><text x='763' y='535' font-size='11.5' fill='var(--ink,#15202E)'>gain mémoire vs HLL</text></svg><figcaption><span class='fcap-k'></span>Du tronc fondateur (Flajolet–Martin 1985 → HyperLogLog++ 2013) à la lignée space-efficient post-2013, qui compresse le sketch en préservant le merge — HLL-TailCut+ étant la dissidence qui le sacrifie.</figcaption></figure>",
+      "claims": [
+        "claim:14",
+        "claim:15",
+        "claim:16"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "pieges-statistiques-idees-recues",
+      "heading": "Pièges statistiques et idées reçues",
+      "level": 3,
+      "prose": "<p>Le malentendu le plus répandu sur HyperLogLog naît d'une confusion entre erreur relative et erreur absolue. La garantie théorique est exprimée en termes d'erreur relative : l'écart-type vaut σ ≈ 1,04/√m, où m désigne le nombre de registres. Pour p = 14 (m = 16 384 registres, précision par défaut dans de nombreuses implémentations), σ ≈ 0,81 %. Ce chiffre est constant — indépendant de la cardinalité estimée. L'erreur absolue, elle, croît proportionnellement à n : pour n = 100 000, l'incertitude typique dépasse 800 éléments ; pour n = 10 millions, elle franchit les 80 000 ; pour n = 1 milliard, elle atteint près de 8 millions. L'intuition des praticiens va à rebours : dans la plupart des estimateurs statistiques, accumuler plus de données précise le résultat. HLL inverse ce rapport — non par défaut de conception, mais structurellement : il tient une promesse de stabilité relative, jamais de convergence absolue.</p>\n\n<p>De là découle un second mythe, encore plus répandu dans les présentations techniques : « HLL est précis à ~2 % quelle que soit la cardinalité ». La réalité décrite dans le papier fondateur de Flajolet et al. (2007) est plus nuancée. L'algorithme opère en trois zones distinctes. La zone centrale — seule région où la garantie σ = 1,04/√m s'applique pleinement — requiert la constante de correction α<sub>m</sub> : 0,673 pour m = 16 ; 0,697 pour m = 32 ; 0,709 pour m = 64 ; 0,7213/(1 + 1,079/m) pour m ≥ 128. Une implémentation qui omet ou approxime mal cette constante introduit un biais multiplicatif systématique dans la zone centrale elle-même. Aux petites cardinalités (E &lt; 2,5m), l'estimateur brut surestime et est remplacé par Linear Counting : E* = m · log(m/V), où V désigne le nombre de registres encore à zéro. Aux très grandes cardinalités (E &gt; 2³²/30 avec des hash 32 bits), les collisions de hash faussent l'estimation et une troisième correction s'impose : E* = −2³² · log(1 − E/2³²). Dans les deux régimes extrêmes, c'est un estimateur différent qui produit le résultat — ce que la formule-résumé « σ ≈ 1 % » ne laisse pas deviner.</p>\n\n<p>HyperLogLog++ (Google, 2013) a mis en lumière un troisième écueil, plus subtil : même dans les implémentations qui appliquent les corrections ci-dessus, un biais systématique subsiste à la transition entre Linear Counting et l'estimateur HLL. Pour p = 14, ce biais apparaît entre environ 18 000 et 61 000 éléments distincts — une plage de cardinalité courante dans les analyses web. Le papier original ne le décrit pas. HLL++ y remédie par une table empirique de 200 points de référence et une interpolation par k-nearest-neighbors (k-plus-proches-voisins, k = 6), solution pragmatique là où l'analyse théorique avait échoué. La même publication introduit la sparse representation (représentation creuse) : avant cette version, un sketch HLL allouait immédiatement un tableau dense de m registres, même pour le premier élément. Chez Google PowerDrill, 99 % des quelque 5 millions de calculs de cardinalité quotidiens retournaient moins de 100 valeurs distinctes — ils payaient inutilement la mémoire d'un sketch plein. La sparse representation élimine ce gaspillage en ne stockant que les paires (index, valeur) des registres non nuls.</p>\n\n<p>La croissance de l'erreur absolue avec n crée une incompatibilité structurelle avec l'A/B testing. Un test statistique sur des counts distincts suppose implicitement que l'estimateur converge vers la vraie valeur quand n augmente ; une erreur relative constante produit l'effet inverse. Une étude de simulation a quantifié les conséquences sur des tests A/A — groupes strictement identiques, où tout résultat significatif est un faux positif. À 20 000 utilisateurs (α = 0,05), 5,79 % des tests affichaient p &lt; 0,05, soit une inflation de 16 % du taux nominal. À 1 000 000 d'utilisateurs, ce taux atteignait 43,86 %, représentant une inflation de 777 % du type I error (erreur de type I) nominal. L'auteur conclut sans ambiguïté que les estimations HLL++ avec les réglages de précision par défaut sont « unsuitable for use in A/B testing ». Augmenter fortement p réduit le biais mais double le nombre de registres à chaque bit supplémentaire ; brancher ces estimations directement sur un test d'égalité sans correction demeure une source garantie de résultats invalides.</p>\n\n<p>Les contextes adversariaux révèlent une fragilité d'une nature différente. Reviriego et al. (2020) montrent qu'un attaquant peut construire un ensemble de seulement m éléments — égal au nombre de registres — produisant n'importe quelle estimation-cible arbitrairement grande. Cette inflate attack (attaque par gonflement) a été validée sur deux implémentations commerciales largement déployées, Presto et Redis, avec des applications concrètes : fausser des métriques publicitaires ou déclencher de fausses alertes dans des systèmes de détection. Dans le sens opposé, Paterson et Raynal (2021) démontrent qu'un adversaire contrôlant quels éléments sont enregistrés dans le sketch peut rendre l'estimation exponentiellement petite par rapport à la vraie cardinalité. Le titre du papier l'énonce sans détour : « HyperLogLog: Exponentially Bad in Adversarial Settings ». HLL n'offre aucune garantie dans des environnements non-aléatoires.</p>\n\n<p>Sous toutes ces garanties se cache une hypothèse rarement explicitée dans les guides d'utilisation : les bornes d'erreur de HLL supposent un hash function (fonction de hachage) qui distribue ses sorties de façon uniforme sur l'espace de bits et dont les valeurs sont fortement indépendantes entre elles. L'analyse de Flajolet et al. repose sur un modèle probabiliste dans lequel les sorties de hash sont des tirages indépendants et uniformément répartis — un idéal que peu de fonctions pratiques satisfont rigoureusement. Un hash présentant des biais de distribution ou des corrélations entre sorties brise les hypothèses de variance de l'estimateur : les bornes théoriques deviennent inopérantes, sans aucun signal d'alerte apparent. Le sketch continuera de produire des chiffres plausibles, mais leurs marges d'erreur effectives seront inconnues. Cette dégradation ne se manifeste que statistiquement, sur de larges cohortes — contrairement à une collision de hash isolée, elle échappe aux tests unitaires classiques.</p>",
+      "claims": [
+        "claim:17",
+        "claim:18"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-erreur-relative-vs-absolue"
+    },
+    {
+      "type": "section",
+      "id": "milieu-adversarial",
+      "heading": "HyperLogLog en milieu adversarial",
+      "level": 3,
+      "prose": "<p>HyperLogLog repose sur une hypothèse probabiliste dont la robustesse n'est jamais explicitement annoncée : la fonction de hachage distribue les éléments de façon uniforme et indépendante sur l'espace de bits. Tout le raisonnement statistique — variance, bornes d'erreur, corrections du régime bas et du régime haut — ne tient que sous cette hypothèse. Dès qu'un adversaire peut sélectionner ou filtrer les éléments enregistrés dans le sketch, cette hypothèse s'effondre et les garanties théoriques deviennent caduques.</p>\n\n<p>En 2020, Reviriego et Ting décrivent une <em>inflate attack</em> (attaque par gonflement) dont la sobriété est troublante : opérant en modèle oracle — sans aucune connaissance préalable de la fonction de hachage ni même du nombre de registres de l'implémentation cible —, un attaquant peut construire un ensemble de seulement <em>m</em> éléments, égal au nombre de registres, qui force le sketch à retourner n'importe quelle valeur cible, aussi grande soit-elle. Les paramètres internes sont appris indirectement, par requêtes successives qui observent les variations d'estimation. L'attaque est validée expérimentalement sur deux systèmes commerciaux : Redis (m&nbsp;=&nbsp;16&nbsp;384 registres) et Presto (m&nbsp;=&nbsp;4&nbsp;096 registres). Les vecteurs d'exploitation immédiats sont la fraude publicitaire — gonfler le nombre de visiteurs uniques ou de clics distincts déclarés — et les fausses alertes de sécurité, en forçant un pic artificiel de cardinalité dans un détecteur d'anomalies qui s'appuie sur HLL pour surveiller le trafic réseau.</p>\n\n<p>L'attaque symétrique — la <em>deflate attack</em> (attaque par déflation) — est formalisée par Paterson et Raynal dans un article paru à l'IACR ePrint en 2021 sous le titre programmatique « HyperLogLog: Exponentially Bad in Adversarial Settings ». Dans ce modèle <em>white-box</em> (boîte blanche), l'adversaire connaît la fonction de hachage et contrôle quels éléments sont enregistrés dans le sketch ; il peut réduire l'estimation à une valeur exponentiellement petite par rapport à la vraie cardinalité. Même si <em>n</em> éléments distincts ont été soumis, l'estimation peut être ramenée à O(1). L'attaque est démontrée sur le HLL original de Flajolet et sur la variante Ertl (2017) embarquée dans Redis. La contre-mesure proposée est structurelle : remplacer la fonction de hachage par une <em>keyed pseudorandom function</em> (PRF à clef), rendant le sketch opaque à tout adversaire ignorant la clef secrète.</p>\n\n<p>Les deux attaques ont une portée asymétrique. La inflate attack est accessible à n'importe quel acteur externe via un accès oracle public au sketch — aucun privilège n'est requis, seule la capacité d'y insérer des éléments et d'observer l'estimation. La deflate attack suppose un accès aux internals du hash ou une rétro-ingénierie réussie de l'implémentation. Ensemble, elles établissent qu'un HyperLogLog standard n'offre aucune borne d'erreur garantie dès lors qu'un adversaire peut choisir les entrées de façon adaptative. Cette fragilité le rend risqué dans deux familles de contextes : les métriques publicitaires, où la partie mesurée peut soumettre des données adversariales pour gonfler ses chiffres déclarés ; et les systèmes d'alerte de sécurité, où un attaquant peut ciseler son trafic pour masquer une intrusion ou, à l'inverse, saturer les équipes de réponse sous un déluge de faux positifs.</p>",
+      "claims": [
+        "claim:20",
+        "claim:21",
+        "claim:22"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "deploiements-industriels",
+      "heading": "Déploiements industriels",
+      "level": 3,
+      "prose": "<p>Les déploiements en production de HyperLogLog couvrent aujourd'hui l'essentiel de la chaîne analytique, des caches distribués aux moteurs de requêtes à l'échelle du data warehouse.</p>\n\n<p><strong>Redis</strong> expose trois commandes natives : PFADD (O(1), ajout d'un élément), PFCOUNT (O(1) pour une clé unique, O(N) pour un ensemble de clés) et PFMERGE (O(N), union en place de plusieurs structures). L'empreinte mémoire est plafonnée à 12 Ko — Redis bascule en interne d'une sparse representation (représentation creuse, exacte pour les faibles cardinalités) à une dense representation (représentation dense) selon le volume observé. L'erreur standard garantie est de 0,81 %, et la plage de comptage monte théoriquement à 2<sup>64</sup> éléments distincts.</p>\n\n<p><strong>Meta/Presto</strong> distingue deux primitives complémentaires : <code>APPROX_DISTINCT</code>, qui retourne la cardinalité estimée avec une erreur observée de ~2,3 % au-dessus de 256 éléments distincts (en dessous, la sparse representation produit une valeur exacte à zéro erreur), et <code>APPROX_SET</code>, qui retourne le sketch brut — erreur réduite à ~1,6 % avec 4 096 registres — pour être archivé ou fusionné. Le dense layout occupe environ 8 Ko. En production chez Meta, le passage de COUNT DISTINCT exact à <code>APPROX_DISTINCT</code> a produit des accélérations de 7× à 1 000× selon la requête ; un cas documenté réduit un calcul de plusieurs jours à 12 heures avec moins de 1 Mo de mémoire.</p>\n\n<p><strong>Google Analytics 4</strong> s'appuie sur la variante HyperLogLog++ (HLL++) pour ses métriques d'audience. Active Users et Total Users utilisent un paramètre de precision 14 (sparse precision 25) ; Sessions emploie une precision 12 (sparse precision 17). Ces valeurs gouvernent le compromis mémoire/précision : une precision élevée agrandit le sketch mais réduit l'erreur d'estimation.</p>\n\n<p>Dans l'écosystème <strong>Apache Spark</strong>, la société Collective a déployé un cluster de 40 nœuds pour analyser des logs d'impression publicitaire représentant plusieurs centaines de gigaoctets quotidiens, avec un historique d'un an projeté à 500 Go. L'adoption d'une implémentation à merging (fusion) mutable de HyperLogLog a produit un gain de vitesse d'environ 10× par rapport aux opérations RDD standard. Spark SQL expose la même logique via <code>approxCountDistinct(col, rsd)</code>, où le paramètre rsd (relative standard deviation, écart-type relatif cible) contrôle la précision : rsd=0,01 garantit un résultat à 1 % du compte exact.</p>\n\n<p><strong>Apache Druid</strong> distingue deux agrégateurs HyperLogLog selon le moment du calcul : <code>cardinality</code>, qui opère sur les colonnes dimensionnelles à la requête (flexible, mais nettement plus lent) ; et <code>hyperUnique</code>, qui pré-calcule le sketch à l'indexation, supprime la dimension brute et améliore la compression des données. La documentation Druid recommande explicitement <code>hyperUnique</code> en production dès que l'analyse par valeur individuelle n'est pas requise.</p>\n\n<p><strong>Google BigQuery</strong> propose quatre fonctions <code>HLL_COUNT</code> — INIT, MERGE, MERGE_PARTIAL, EXTRACT — qui exposent le cycle complet du sketch : initialisation par partition, fusion partielle entre partitions, fusion finale et extraction de la cardinalité estimée. Cette décomposition rend le COUNT DISTINCT distribué viable à l'échelle du data warehouse : chaque shard calcule son sketch indépendamment, et les sketches sont ensuite fusionnés sans redistribuer les données brutes.</p>\n\n<p>La mergeability (fusionnabilité) est la propriété structurelle qui unifie toutes ces implémentations. Deux sketches HyperLogLog peuvent être combinés en O(m) — où m est le nombre de registres — pour produire un sketch équivalent à celui de l'union des jeux de données d'origine, sans rejouer un seul enregistrement source. C'est ce qui permet d'externaliser l'agrégation vers les workers, d'archiver des sketches historiques et de les réhydrater à la demande : un pattern (motif) omniprésent dans l'ensemble des systèmes décrits ici.</p>",
+      "claims": [
+        "claim:23",
+        "claim:24",
+        "claim:25",
+        "claim:26"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "ecosysteme",
+      "heading": "Écosystème & pour aller plus loin",
+      "level": 3,
+      "prose": "<p>La littérature de HyperLogLog s'articule autour de trois textes que toute implémentation sérieuse cite. Le papier fondateur de Philippe Flajolet, Éric Fusy, Olivier Gandouet et Frédéric Meunier (<em>DMTCS Proceedings</em>, AofA 07, 2007) établit l'estimateur harmonique, la formule d'erreur standard 1,04/√<em>m</em> et le gain mémoire de 36 % sur LogLog à précision équivalente. Stefan Heule, Marc Nunkesser et Alexander Hall (Google) publient HyperLogLog++ à EDBT 2013 : hash (hachage) 64 bits pour couvrir des ensembles jusqu'à 2<sup>64</sup> éléments, représentation sparse (creuse) pour les petites cardinalités, et correction de biais par table empirique pour les extrêmes. En 2017, Otmar Ertl (arXiv:1706.07290) franchit un cran supplémentaire : il dérive un estimateur non biaisé sur toute la plage de cardinalité sans aucune table empirique — contrairement à la correction de HyperLogLog++ — et présente un estimateur par maximum de vraisemblance pour les opérations d'union et d'intersection de sketches (croquis de cardinalité), une avancée intégrée notamment par Apache DataSketches.</p>\n\n<p>L'implémentation la plus scrutée en production est celle de Redis, documentée dans <code>src/hyperloglog.c</code>. Redis fixe le paramètre de précision HLL_P à 14, soit 2<sup>14</sup> = 16 384 registres de 6 bits chacun. La représentation dense occupe exactement 12 288 octets : 16 octets d'en-tête (magic <code>HYLL</code> sur 4 octets, type d'encodage sur 1 octet, 3 octets réservés, cardinalité cachée sur 8 octets) suivis de 12 272 octets de registres. Pour les cardinalités inférieures à environ 2 000–3 000 éléments distincts, Redis maintient une représentation sparse par run-length encoding et bascule automatiquement vers la représentation dense au-delà. La fonction de hash retenue est MurmurHash2 64 bits, modifiée pour être endian-neutre. Les trois commandes exposées — PFADD, PFCOUNT et PFMERGE — ont respectivement des complexités O(1), O(1)/O(N) et O(N).</p>\n\n<p>L'écosystème des bibliothèques couvre les principaux langages. En Python, <strong>datasketch</strong> expose HyperLogLog et HyperLogLog++ via une API uniforme (<code>update</code>, <code>count</code>, <code>merge</code>) ; le paramètre <code>p</code> gouverne la précision — la valeur par défaut <code>p=8</code> est rudimentaire, <code>p=12</code> améliore sensiblement l'erreur au prix d'une mémoire exponentiellement plus grande. <strong>Apache DataSketches</strong> (Java, C++, Python, Rust) expose le paramètre <code>lgK</code> (log₂ des buckets, de 4 à 21) et trois types de stockage : HLL_4 (compact), HLL_6 et HLL_8 (le plus rapide) ; son estimateur HIP (Historical Inverse Probability, estimation par probabilité inverse historique) atteint une RSE (relative standard error, erreur standard relative) de 0,65 % à <code>lgK=14</code>, soit environ 20 % de gain sur l'estimateur harmonique classique. Pour Go, deux bibliothèques coexistent : <strong>clarkduvall/hyperloglog</strong> implémente HyperLogLog et HyperLogLog++, avec un avantage marqué de HLL++ pour N &lt; 80 000 ; <strong>axiomhq/hyperloglog</strong> adopte l'algorithme LogLog-Beta (Qin, Kim &amp; Tung, 2016), combiné à une représentation sparse et une réduction d'empreinte TailCut, avec une précision pilotable de 2<sup>4</sup> à 2<sup>18</sup> registres. Côté Java historique, <strong>addthis/stream-lib</strong> (Clearspring/AddThis) reste la référence de la première génération de sketches de streaming, avec sa classe <code>HyperLogLog.java</code> dans le package <code>com.clearspring.analytics.stream.cardinality</code>.</p>",
+      "claims": [
+        "claim:27",
+        "claim:28",
+        "claim:29",
+        "claim:30"
+      ]
+    },
+    {
+      "type": "exercise",
+      "part": "Estimateur & erreur",
+      "question": "Un ingénieur dimensionne un HyperLogLog à p = 14 (m = 16 384 registres) et observe une erreur standard relative d'environ 0,81 %. Il en conclut qu'en accumulant plus d'éléments l'estimation se précisera, comme pour une moyenne empirique. Où est l'erreur de raisonnement, et qu'apporte concrètement la moyenne harmonique par rapport à la moyenne géométrique du LogLog ?",
+      "answer": "<p>Le raisonnement confond <strong>erreur relative</strong> et <strong>erreur absolue</strong>. La garantie σ ≈ 1,04/√m ne dépend que du nombre de registres, <em>pas</em> de la cardinalité n : elle reste constante quand n croît. L'erreur <em>absolue</em>, elle, vaut σ·n et croît donc proportionnellement à n — à p = 14, ≈ 81 000 éléments d'incertitude pour n = 10 millions, ≈ 8,1 millions pour n = 1 milliard. HLL tient une promesse de stabilité relative, jamais de convergence absolue : c'est l'inverse d'une table de hachage exacte. Accumuler plus de données ne précise donc rien.</p><p>Quant à la <strong>moyenne harmonique</strong> : appliquée aux quantités 2<sup>M[j]</sup>, elle pénalise fortement les registres aberrants hauts (un ρ surestimé par hasard) que la moyenne géométrique du LogLog laissait gonfler l'estimation. À état mémoire identique, elle fait passer l'erreur standard de ≈ 1,30/√m (LogLog) à ≈ 1,04/√m — soit la même précision pour seulement 64 % de la mémoire. La constante α<sub>m</sub> (≈ 0,7213 pour m ≥ 128) corrige ensuite le biais multiplicatif résiduel de la moyenne harmonique brute.</p>"
+    },
+    {
+      "type": "exercise",
+      "part": "Régimes & robustesse",
+      "question": "Pourquoi un HyperLogLog correctement implémenté n'utilise-t-il pas toujours la formule E = α_m · m² · Z, et quelles corrections entrent en jeu aux deux extrémités de la plage de cardinalités ? Par ailleurs, pourquoi le slogan « précis à ~1 % quoi qu'il arrive » est-il trompeur en présence d'un adversaire ?",
+      "answer": "<p>L'estimateur brut n'est fiable que dans sa <strong>zone nominale</strong> (environ 2,5m ≤ n ≤ 2³²/30 avec des hash 32 bits). En dehors, il décroche et deux substitutions s'imposent. <strong>Petites cardinalités</strong> (E &lt; 2,5m, V registres vides) : on bascule sur <em>Linear Counting</em>, E* = m·ln(m/V), car de nombreux registres à zéro sont un signal plus stable — le seuil 2,5m est d'ailleurs hérité du facteur de charge de Linear Counting, non dérivé de HLL. <strong>Très grandes cardinalités</strong> (E &gt; 2³²/30 ≈ 143 M) : les collisions de hachage saturent l'espace 32 bits et l'on applique E* = −2³²·ln(1 − E/2³²). HyperLogLog++ a en outre révélé un biais systématique résiduel dans la transition 2,5m–5m, corrigé par une table empirique de 200 points (k-NN, k = 6), et supprime la limite des 143 M en passant au hachage 64 bits.</p><p>Le slogan est trompeur car les bornes sont <strong>probabilistes</strong> et reposent sur l'hypothèse d'un hachage uniforme et indépendant — hypothèse qui s'effondre dès qu'un <strong>adversaire choisit les entrées</strong>. En accès oracle (sans connaître le hash ni m), un attaquant gonfle l'estimation avec seulement m éléments (<em>inflate attack</em>, validée sur Redis et Presto) ; en white-box, il la réduit à une valeur exponentiellement petite (<em>deflate attack</em>, « Exponentially Bad in Adversarial Settings »). La parade structurelle est une fonction de hachage à clef secrète (keyed PRF).</p>"
+    },
+    {
+      "type": "biblio",
+      "entries": [
+        {
+          "label": "HyperLogLog — Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/HyperLogLog"
+        },
+        {
+          "label": "Flajolet–Martin algorithm — Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/Flajolet%E2%80%93Martin_algorithm"
+        },
+        {
+          "label": "Sketch of the Day: HyperLogLog — Cornerstone of a Big Data Infrastructure (Aggregate Knowledge)",
+          "href": "https://agkn.wordpress.com/2012/10/25/sketch-of-the-day-hyperloglog-cornerstone-of-a-big-data-infrastructure/"
+        },
+        {
+          "label": "HyperLogLog: the analysis of a near-optimal cardinality estimation algorithm (Flajolet et al., 2007, INRIA)",
+          "href": "https://algo.inria.fr/flajolet/Publications/FlFuGaMe07.pdf"
+        },
+        {
+          "label": "HyperLogLog in Practice: Algorithmic Engineering of a State of The Art Cardinality Estimation Algorithm — Heule, Nunkesser, Hall (Google, 2013)",
+          "href": "https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/40671.pdf"
+        },
+        {
+          "label": "HyperLogLog in Presto: A significantly faster way to handle cardinality estimation — Meta Engineering",
+          "href": "https://engineering.fb.com/2018/12/13/data-infrastructure/hyperloglog/"
+        },
+        {
+          "label": "HyperLogLog: the analysis of a near-optimal cardinality estimation algorithm — DMTCS (Flajolet et al., 2007)",
+          "href": "https://dmtcs.episciences.org/3545"
+        },
+        {
+          "label": "HyperLogLog merging playground — djhworld",
+          "href": "https://djhworld.github.io/hyperloglog/merging/"
+        },
+        {
+          "label": "Information Theoretic Limits of Cardinality Estimation: Fisher Meets Shannon (Pettie & Wang, arXiv 2020 / STOC 2021)",
+          "href": "https://arxiv.org/abs/2007.08051"
+        },
+        {
+          "label": "HyperLogLog in Practice — the morning paper (acolyer.org)",
+          "href": "https://blog.acolyer.org/2016/03/17/hyperloglog-in-practice-algorithmic-engineering-of-a-state-of-the-art-cardinality-estimation-algorithm/"
+        },
+        {
+          "label": "eclesh/hyperloglog — hyperloglog.go (Go implementation)",
+          "href": "https://github.com/eclesh/hyperloglog/blob/master/hyperloglog.go"
+        },
+        {
+          "label": "HyperLogLog — Modern Descartes (Brian Lee)",
+          "href": "https://www.moderndescartes.com/essays/hyperloglog/"
+        },
+        {
+          "label": "HyperLogLog++: Google's Take On Engineering HLL (agkn blog)",
+          "href": "https://agkn.wordpress.com/2013/01/24/hyperloglog-googles-take-on-engineering-hll/"
+        },
+        {
+          "label": "Appendix to HyperLogLog in Practice (Google Docs, auteurs originaux)",
+          "href": "https://docs.google.com/document/d/1gyjfMHy43U9OWBXxfaeG-3MjGzejW1dlpyMwEYAAWEI/mobilebasic"
+        },
+        {
+          "label": "HyperLogLog in Practice: Algorithmic Engineering of a State of the Art Cardinality Estimation Algorithm (Heule et al. 2013)",
+          "href": "https://stefanheule.com/papers/edbt13-hyperloglog.pdf"
+        },
+        {
+          "label": "HyperLogLogLog: Cardinality Estimation With One Log More — arXiv:2205.11327",
+          "href": "https://arxiv.org/abs/2205.11327"
+        },
+        {
+          "label": "HyperLogLogLog: Cardinality Estimation With One Log More — DeepAI publication summary",
+          "href": "https://deepai.org/publication/hyperlogloglog-cardinality-estimation-with-one-log-more"
+        },
+        {
+          "label": "UltraLogLog: A Practical and More Space-Efficient Alternative to HyperLogLog for Approximate Distinct Counting (Ertl, 2023)",
+          "href": "https://arxiv.org/abs/2308.16862"
+        },
+        {
+          "label": "ExaLogLog: Space-Efficient and Practical Approximate Distinct Counting to the Exa-Scale (EDBT 2025)",
+          "href": "https://arxiv.org/abs/2402.13726"
+        },
+        {
+          "label": "ExtendedHyperLogLog: Analysis of a new Cardinality Estimator (discusses HLL-TC offset overflow / merge issue)",
+          "href": "https://arxiv.org/abs/2106.06525"
+        },
+        {
+          "label": "Simpler and Better Cardinality Estimators for HyperLogLog and PCSA (Pettie & Wang, arXiv 2208.10578 / PODS 2023)",
+          "href": "https://arxiv.org/abs/2208.10578"
+        },
+        {
+          "label": "The Effect of Using Cardinality Estimates Like HyperLogLog in Statistical Analyses — Analytics-Toolkit.com",
+          "href": "https://blog.analytics-toolkit.com/2020/the-effect-of-using-cardinality-estimates-like-hyperloglog-in-statistical-analyses/"
+        },
+        {
+          "label": "HyperLogLog (HLL) Security: Inflating Cardinality Estimates — Reviriego, Adell, Ting (arXiv:2011.10355)",
+          "href": "https://arxiv.org/abs/2011.10355"
+        },
+        {
+          "label": "Security of HyperLogLog (HLL) Cardinality Estimation: Vulnerabilities and Protection — Reviriego, Ting (arXiv:2002.06463)",
+          "href": "https://arxiv.org/abs/2002.06463"
+        },
+        {
+          "label": "HyperLogLog: Exponentially Bad in Adversarial Settings — IACR ePrint 2021/1139",
+          "href": "https://eprint.iacr.org/2021/1139"
+        },
+        {
+          "label": "HyperLogLog: Exponentially Bad in Adversarial Settings — IEEE EuroS&P 2022",
+          "href": "https://ieeexplore.ieee.org/document/9797350/"
+        },
+        {
+          "label": "dblp: Mathilde Raynal — bibliographie vérifiable des auteurs",
+          "href": "https://dblp.org/pid/277/0894.html"
+        },
+        {
+          "label": "HyperLogLogs in Redis — Thoughtbot",
+          "href": "https://thoughtbot.com/blog/hyperloglogs-in-redis"
+        },
+        {
+          "label": "HyperLogLog — Valkey Documentation",
+          "href": "https://valkey.io/topics/hyperloglogs/"
+        },
+        {
+          "label": "Redis HyperLogLog documentation (redis.io)",
+          "href": "https://redis.io/docs/latest/develop/data-types/probabilistic/hyperloglogs/"
+        },
+        {
+          "label": "Redis GitHub Discussion #10443 — How to understand that the standard error of Redis HyperLogLog is 0.81%?",
+          "href": "https://github.com/redis/redis/discussions/10443"
+        },
+        {
+          "label": "Presto documentation — HyperLogLog functions",
+          "href": "https://prestodb.github.io/docs/current/functions/hyperloglog.html"
+        },
+        {
+          "label": "BigQuery HyperLogLog++ functions (HLL_COUNT.INIT, HLL_COUNT.MERGE, etc.)",
+          "href": "https://cloud.google.com/bigquery/docs/reference/standard-sql/hll_functions"
+        },
+        {
+          "label": "Apache Druid — HyperUnique aggregator (legacy HLL, /hll-old/)",
+          "href": "https://druid.apache.org/docs/latest/querying/hll-old/"
+        },
+        {
+          "label": "Databricks blog — Approximate Algorithms in Apache Spark: HyperLogLog and Quantiles",
+          "href": "https://www.databricks.com/blog/2016/05/19/approximate-algorithms-in-apache-spark-hyperloglog-and-quantiles.html"
+        },
+        {
+          "label": "MungingData — HyperLogLog count distinct in Apache Spark",
+          "href": "https://www.mungingdata.com/apache-spark/hyperloglog-count-distinct/"
+        },
+        {
+          "label": "BigQuery HyperLogLog++ Functions — HLL_COUNT.MERGE (Google Cloud Docs)",
+          "href": "https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/hll_functions"
+        },
+        {
+          "label": "Apache Druid — Aggregations reference (hyperUnique + DataSketches recommendation)",
+          "href": "https://druid.apache.org/docs/latest/querying/aggregations"
+        },
+        {
+          "label": "Redis HyperLogLog Conversion (sparse vs dense analysis)",
+          "href": "https://cf020031308.github.io/blog/redis-hyperloglog-conversion.html"
+        },
+        {
+          "label": "How Redis HyperLogLog Works Internally (Probabilistic Counting) — OneUptime",
+          "href": "https://oneuptime.com/blog/post/2026-03-31-redis-hyperloglog-works-internally-probabilistic/view"
+        },
+        {
+          "label": "redis/redis — src/hyperloglog.c (unstable) : définitions HLL_HDR_SIZE, HLL_DENSE_SIZE, struct hllhdr",
+          "href": "https://github.com/redis/redis/blob/unstable/src/hyperloglog.c"
+        },
+        {
+          "label": "HLL Sketches — Apache DataSketches (page principale)",
+          "href": "https://datasketches.apache.org/docs/HLL/HllSketches.html"
+        },
+        {
+          "label": "HllSketch vs Clearspring HLL++ Sketch — Apache DataSketches (page de comparaison)",
+          "href": "https://datasketches.apache.org/docs/HLL/Hll_vs_CS_Hllpp.html"
+        },
+        {
+          "label": "antirez — Redis new data structure: the HyperLogLog (source primaire, formule 1.04/sqrt(m) et section Future work)",
+          "href": "https://antirez.com/news/75"
+        },
+        {
+          "label": "New Cardinality Estimation Methods for HyperLogLog Sketches (Ertl 2017, arXiv:1706.07290)",
+          "href": "https://arxiv.org/abs/1706.07290"
+        },
+        {
+          "label": "All-Distances Sketches, Revisited: HIP Estimators for Massive Graphs Analysis (Cohen, arXiv:1306.3284, PODS 2014)",
+          "href": "https://arxiv.org/abs/1306.3284"
+        },
+        {
+          "label": "UltraLogLog: A Practical and More Space-Efficient Alternative to HyperLogLog (arXiv:2308.16862) — contextualises HIP vs Ertl",
+          "href": "https://arxiv.org/html/2308.16862"
+        },
+        {
+          "label": "Improved HyperLogLog estimator — Issue #177 · joshday/OnlineStats.jl (GitHub, 2018)",
+          "href": "https://github.com/joshday/OnlineStats.jl/issues/177"
+        }
+      ]
+    },
+    {
+      "type": "pointers",
+      "title": "Pour aller plus loin",
+      "items": [
+        {
+          "name": "HyperLogLog: the analysis of a near-optimal cardinality estimation algorithm (Flajolet, Fusy, Gandouet, Meunier — INRIA, 2007)",
+          "url": "https://algo.inria.fr/flajolet/Publications/FlFuGaMe07.pdf",
+          "kind": "reading",
+          "blurb": "Article fondateur (INRIA, 2007) : analyse complète de l'estimateur harmonique, preuve de l'erreur standard σ = 1,04/√m et tables de α_m."
+        },
+        {
+          "name": "HyperLogLog: the analysis of a near-optimal cardinality estimation algorithm — DMTCS (version HTML officielle)",
+          "url": "https://dmtcs.episciences.org/3545",
+          "kind": "reading",
+          "blurb": "Version HTML de la publication DMTCS 2007 du papier fondateur (Flajolet, Fusy, Gandouet, Meunier), citée 306 fois, avec bibliographie interactive."
+        },
+        {
+          "name": "Loglog Counting of Large Cardinalities (Durand & Flajolet — ESA 2003)",
+          "url": "https://algo.inria.fr/flajolet/Publications/DuFl03.pdf",
+          "kind": "reading",
+          "blurb": "Génération intermédiaire entre FM et HLL (ESA 2003) : partitionnement en m sous-flots combinés par moyenne géométrique."
+        },
+        {
+          "name": "Probabilistic Counting Algorithms for Data Base Applications (Flajolet & Martin — JCSS 1985)",
+          "url": "https://algo.inria.fr/flajolet/Publications/FlMa85.pdf",
+          "kind": "reading",
+          "blurb": "Article fondateur du FM sketch (JCSS 1985) : première exploitation de la propriété statistique de ρ pour l'estimation de cardinalité en espace sous-linéaire."
+        },
+        {
+          "name": "UltraLogLog — arXiv:2308.16862 (Ertl, VLDB 2024)",
+          "url": "https://arxiv.org/abs/2308.16862",
+          "kind": "reading",
+          "blurb": "Ertl (VLDB 2024) : encodage 8 bits, estimateur MLE, ~28 % d'économie mémoire vs HLL, propriétés opérationnelles et benchmarks."
+        },
+        {
+          "name": "ExaLogLog — arXiv:2402.13726 (Ertl, EDBT 2025)",
+          "url": "https://arxiv.org/abs/2402.13726",
+          "kind": "reading",
+          "blurb": "Ertl (EDBT 2025) : −43 % de mémoire vs HLL, propriété de réductibilité, comptages jusqu'à l'échelle exa."
+        },
+        {
+          "name": "DynamicLogLog — arXiv:2603.27405 (Bushnell, 2026)",
+          "url": "https://arxiv.org/abs/2603.27405",
+          "kind": "reading",
+          "blurb": "Bushnell (2026) : DynamicLogLog (4 bits/bucket, early-exit mask) et DynamicUltraLogLog, plus rapide, plus compact et plus précis que HLL standard."
+        },
+        {
+          "name": "Better Cardinality Estimators for HyperLogLog, PCSA, and Beyond — Pettie & Wang (PODS 2023)",
+          "url": "https://dl.acm.org/doi/10.1145/3584372.3588680",
+          "kind": "reading",
+          "blurb": "Pettie & Wang (PODS 2023) : estimateurs τ-GRA pour HLL et PCSA, τ fractionnaire dépasse le standard HLL, Compressed-PCSA surpasse Compressed-HyperLogLog."
+        },
+        {
+          "name": "HyperLogLog in Practice (Heule, Nunkesser, Hall — Google, EDBT 2013)",
+          "url": "https://dl.acm.org/doi/10.1145/2452376.2452456",
+          "kind": "reading",
+          "blurb": "HyperLogLog++ (EDBT 2013) : hash 64 bits, représentation sparse pour petites cardinalités, correction de biais empirique."
+        },
+        {
+          "name": "New Cardinality Estimation Methods for HyperLogLog Sketches (Ertl, 2017) — arXiv:1706.07290",
+          "url": "https://arxiv.org/abs/1706.07290",
+          "kind": "reading",
+          "blurb": "Ertl (2017) : estimateur non biaisé sans table empirique et estimateur MLE pour union/intersection de sketches HyperLogLog."
+        },
+        {
+          "name": "HyperLogLog in Presto — Meta Engineering Blog",
+          "url": "https://engineering.fb.com/2018/12/13/data-infrastructure/hyperloglog/",
+          "kind": "reading",
+          "blurb": "Retour d'expérience de Meta : gain 7×–1000× via APPROX_DISTINCT, détail des représentations sparse et dense dans Presto."
+        },
+        {
+          "name": "Interactive Audience Analytics with Apache Spark and HyperLogLog — Databricks Blog 2015",
+          "url": "https://www.databricks.com/blog/2015/10/13/interactive-audience-analytics-with-apache-spark-and-hyperloglog.html",
+          "kind": "reading",
+          "blurb": "Déploiement Collective : 500 Go d'historique publicitaire, cluster 40 nœuds, gain ~10× via HyperLogLog mutable avec merging Spark."
+        },
+        {
+          "name": "Approximate Algorithms in Apache Spark — HyperLogLog and Quantiles (Databricks, 2016)",
+          "url": "https://www.databricks.com/blog/2016/05/19/approximate-algorithms-in-apache-spark-hyperloglog-and-quantiles.html",
+          "kind": "reading",
+          "blurb": "approxCountDistinct(col, rsd) dans Spark SQL via HyperLogLog++ : paramètre rsd pour piloter la précision cible, benchmarks sur 25 millions d'enregistrements."
+        },
+        {
+          "name": "HyperLogLog++ in Google Analytics 4 — Google Developers Blog",
+          "url": "https://developers.google.com/analytics/blog/2022/hll",
+          "kind": "reading",
+          "blurb": "GA4 utilise HLL++ avec precision 14 pour Active/Total Users et 12 pour Sessions ; article avec exemples SQL BigQuery pour reproduire ces métriques."
+        },
+        {
+          "name": "Redis HyperLogLog",
+          "url": "https://redis.io/docs/latest/develop/data-types/probabilistic/hyperloglogs/",
+          "kind": "tool",
+          "blurb": "Documentation officielle Redis : PFADD/PFCOUNT/PFMERGE, empreinte maximale 12 Ko, erreur standard 0,81 %, exemples en 10+ langages."
+        },
+        {
+          "name": "Presto HyperLogLog Functions",
+          "url": "https://prestodb.io/docs/current/functions/hyperloglog.html",
+          "kind": "tool",
+          "blurb": "Référence Presto : approx_set(), cardinality(), merge() et gestion automatique sparse/dense layout pour le COUNT DISTINCT distribué."
+        },
+        {
+          "name": "Apache Druid — HyperLogLog Aggregators",
+          "url": "https://druid.apache.org/docs/latest/querying/hll-old/",
+          "kind": "tool",
+          "blurb": "Documentation Druid : agrégateur cardinality (calcul à la requête) et hyperUnique (calcul à l'indexation, recommandé en production)."
+        },
+        {
+          "name": "Google BigQuery HLL_COUNT Functions",
+          "url": "https://cloud.google.com/bigquery/docs/reference/standard-sql/hll_functions",
+          "kind": "tool",
+          "blurb": "Quatre fonctions HLL_COUNT (INIT, MERGE, MERGE_PARTIAL, EXTRACT) pour le COUNT DISTINCT distribué à l'échelle du data warehouse BigQuery."
+        },
+        {
+          "name": "Hash4j (Dynatrace)",
+          "url": "https://github.com/dynatrace-oss/hash4j",
+          "kind": "implementation",
+          "blurb": "Bibliothèque Java Dynatrace : implémentation de référence d'UltraLogLog et ExaLogLog avec support des estimateurs MLE et des opérations de merge."
+        },
+        {
+          "name": "axiomhq/hyperloglog (Go)",
+          "url": "https://github.com/axiomhq/hyperloglog",
+          "kind": "implementation",
+          "blurb": "Implémentation Go de production fondée sur LogLog-Beta avec représentation sparse et réduction TailCut, précision ajustable de 2⁴ à 2¹⁸ registres."
+        },
+        {
+          "name": "seiflotfy/loglogbeta (Go)",
+          "url": "https://github.com/seiflotfy/loglogbeta",
+          "kind": "implementation",
+          "blurb": "Implémentation Go minimaliste de LogLog-Beta : une seule formule, sans correction de biais additionnelle, utile pour évaluer la correction analytique en isolation."
+        },
+        {
+          "name": "Redis — hyperloglog.c (source)",
+          "url": "https://github.com/redis/redis/blob/unstable/src/hyperloglog.c",
+          "kind": "implementation",
+          "blurb": "Implémentation de référence Redis : HLL_P=14, MurmurHash2 64 bits, représentation dense 12 288 octets + sparse par run-length encoding."
+        },
+        {
+          "name": "clarkduvall/hyperloglog (Go)",
+          "url": "https://github.com/clarkduvall/hyperloglog",
+          "kind": "library",
+          "blurb": "Implémentation Go de HyperLogLog et HyperLogLog++, avec gain marqué de HLL++ pour les petites cardinalités (N < 10 000 éléments)."
+        },
+        {
+          "name": "addthis/stream-lib — HyperLogLog.java",
+          "url": "https://github.com/addthis/stream-lib/blob/master/src/main/java/com/clearspring/analytics/stream/cardinality/HyperLogLog.java",
+          "kind": "library",
+          "blurb": "Référence historique Java (Clearspring/AddThis) pour les sketches de streaming, classe HyperLogLog dans com.clearspring.analytics.stream.cardinality."
+        },
+        {
+          "name": "datasketch (Python)",
+          "url": "https://ekzhu.com/datasketch/hyperloglog.html",
+          "kind": "package",
+          "blurb": "Bibliothèque Python proposant HyperLogLog et HyperLogLog++ via une API uniforme update/count/merge, paramètre p pour contrôler la précision."
+        },
+        {
+          "name": "Apache DataSketches — HLL Sketches",
+          "url": "https://datasketches.apache.org/docs/HLL/HllSketches.html",
+          "kind": "library",
+          "blurb": "Bibliothèque Java/C++/Python/Rust exposant lgK (4–21), trois types HLL_4/6/8 et l'estimateur HIP pour ~20 % de gain de précision vs HLL standard."
+        }
+      ]
+    },
+    {
+      "type": "glossary"
+    }
+  ]
+}
