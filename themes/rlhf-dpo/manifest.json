@@ -1,0 +1,696 @@
+{
+  "edition": "monographie",
+  "slug": "rlhf-dpo",
+  "meta": {
+    "title": "RLHF et DPO : aligner les LLM sur les préférences humaines",
+    "kicker": "Alignement des LLM · monographie",
+    "h1": "RLHF et DPO : aligner les LLM sur les préférences humaines",
+    "lede": "Du reward model Bradley-Terry et de la boucle PPO sous contrainte KL jusqu'au pivot de DPO — « la policy est secrètement son propre reward model » — et à ses héritiers (IPO, KTO, ORPO, SimPO, GRPO, RLAIF) : ce que l'alignement direct change vraiment, et pourquoi ni lui ni ses variantes n'échappent à la sur-optimisation de Goodhart.",
+    "meta_chips": [
+      "Monographie"
+    ],
+    "footer": "RLHF et DPO : aligner les LLM sur les préférences humaines · scriptorium"
+  },
+  "elements": [
+    {
+      "type": "abstract"
+    },
+    {
+      "type": "section",
+      "id": "origines-et-pipeline-rlhf",
+      "heading": "Origines et pipeline canonique du RLHF",
+      "level": 3,
+      "prose": "<p>L'idée d'utiliser des retours (feedback) humains comme signal d'apprentissage ne naît pas avec les grands modèles de langage. Christiano et al. (NeurIPS 2017) en ont posé les bases conceptuelles en appliquant le feedback humain au reinforcement learning (apprentissage par renforcement) profond sur des tâches Atari et de locomotion robotique simulée. L'observation centrale est d'une frugalité remarquable : moins de 1&nbsp;% des transitions de l'agent suffisent à être évaluées par un humain pour apprendre une fonction de récompense compétitive. Le protocole repose sur des comparaisons de paires de segments de trajectoire — un annotateur choisit simplement lequel des deux clips lui semble meilleur — sans jamais expliciter une récompense analytique. Ce travail établit qu'un signal humain épars peut guider un agent complexe là où une récompense codée à la main serait difficile à spécifier.</p>\n\n<p>Ouyang et al. (2022) ont traduit ce schéma en pipeline industriel pour les modèles de langage sous le nom InstructGPT. Le pipeline canonique RLHF se déroule en trois étapes. Première étape&nbsp;: le supervised fine-tuning (SFT, affinage supervisé) — le modèle de base est fine-tuné sur un jeu de démonstrations prompt-réponse produites par des labelliseurs humains, établissant un comportement d'amorce centré sur l'instruction-following. Deuxième étape&nbsp;: l'entraînement du reward model (modèle de récompense), formé sur des classements comparatifs de sorties du modèle pour un même prompt ; les préférences humaines sont modélisées via le formalisme Bradley-Terry. Troisième étape&nbsp;: l'optimisation de la policy (politique) par PPO (Proximal Policy Optimization), en partant du modèle SFT comme référence et en appliquant une pénalité de KL divergence (divergence de Kullback-Leibler) pour empêcher la policy apprise de trop dériver du comportement initial. En pratique, InstructGPT emploie un reward model à 6&nbsp;milliards de paramètres et un modèle de politique allant de 1,3&nbsp;B à 175&nbsp;B de paramètres.</p>\n\n<p>Le formalisme Bradley-Terry, central à la deuxième étape, encode la probabilité qu'une réponse y₁ soit préférée à une réponse y₂ pour un prompt x&nbsp;: p*(y₁ ≻ y₂ | x) = exp(r*(x,y₁)) / [exp(r*(x,y₁)) + exp(r*(x,y₂))], ce qui s'écrit de façon équivalente σ(r*(x,y₁) − r*(x,y₂)). Cette formulation ramène l'entraînement du reward model à une classification binaire par binary cross-entropy&nbsp;: le réseau apprend un score scalaire r(x,y) tel que les sorties mieux classées obtiennent une récompense plus haute. Dans la troisième étape, l'objectif PPO clippé — L<sup>CLIP</sup>(θ) = E[min(r_t(θ)·Â_t, clip(r_t(θ), 1−ε, 1+ε)·Â_t)] avec ε ∈ [0,1 ; 0,3] — est augmenté d'une pénalité βKL(π_θ‖π_ref). Ce terme β agit comme un régulateur&nbsp;: il borne la déviation de la policy vis-à-vis du modèle SFT de référence, atténuant ainsi l'exploitation des failles du proxy reward (phénomène de reward hacking, lié à la loi de Goodhart).</p>\n\n<p>Le résultat empirique phare d'InstructGPT est que son modèle à 1,3&nbsp;milliard de paramètres est préféré par les évaluateurs humains au GPT-3 à 175&nbsp;milliards de paramètres sur des tâches d'instruction-following — soit un facteur 100× de réduction de taille pour un alignement jugé meilleur. Ce résultat a fondé la proposition centrale qui motive tout le champ&nbsp;: sur les tâches d'instruction, la qualité de l'alignement peut primer sur l'échelle brute du modèle.</p>",
+      "claims": [
+        "claim:1",
+        "claim:2",
+        "claim:3",
+        "claim:4"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "synopsis-pipeline-rlhf-ppo"
+    },
+    {
+      "type": "section",
+      "id": "bradley-terry-et-objectif-kl-ppo",
+      "heading": "Reward model Bradley-Terry et objectif sous contrainte KL (PPO)",
+      "level": 3,
+      "prose": "<p>Le <strong>Bradley-Terry model</strong> (modèle de Bradley-Terry) est le fondement probabiliste de RLHF. Il postule qu'à chaque réponse <em>y</em> on peut associer une <strong>reward</strong> (récompense) scalaire latente <em>r(x, y)</em>, et que la probabilité qu'un humain préfère <em>y<sub>w</sub></em> à <em>y<sub>l</sub></em> étant donné le prompt <em>x</em> vaut : <em>p*(y<sub>w</sub> ≻ y<sub>l</sub> | x) = σ(r(x, y<sub>w</sub>) − r(x, y<sub>l</sub>))</em>, où σ est la fonction sigmoïde. L'hypothèse centrale est la <strong>transitivité scalaire</strong> : les préférences sont entièrement déterminées par des différences de reward point-à-point. Si A est préféré à B et B à C, le modèle impose qu'A soit préféré à C avec une probabilité cohérente. Cette hypothèse est forte — les préférences humaines peuvent être cycliques, contextuelles ou mutuellement inconsistantes — mais elle rend le problème tractable : entraîner un <strong>reward model</strong> (modèle de récompense) se ramène à une régression logistique sur des paires de préférences annotées, et c'est cette même hypothèse que DPO hérite sans la remettre en cause.</p>\n\n<p>Une fois le reward model <em>r<sub>φ</sub></em> obtenu, l'objectif d'optimisation de la <strong>policy</strong> (politique) est : <em>max<sub>π</sub> 𝔼<sub>x∼D, y∼π</sub>[r(x,y)] − β · D<sub>KL</sub>[π<sub>θ</sub>(y|x) ‖ π<sub>ref</sub>(y|x)]</em>. Le coefficient β gouverne le compromis entre maximisation de la proxy reward et proximité au modèle de référence issu du <strong>supervised fine-tuning</strong> (SFT). Sans cette pénalité KL, l'optimisation non contrainte provoque un <strong>over-optimization</strong> (sur-optimisation) ou « reward hacking » : la policy génère des textes qui scorent haut sur <em>r<sub>φ</sub></em> mais se dégradent en qualité effective, car elle exploite les imperfections du proxy reward model au-delà de sa distribution d'entraînement. La divergence KL ancre la policy dans la région de l'espace de textes où les scores du reward model restent fiables.</p>\n\n<p><strong>Proximal policy optimization (PPO)</strong> implémente cet objectif avec deux modifications pratiques. Premièrement, il remplace l'espérance directe par un <strong>clipped ratio</strong> (rapport borné) pour contenir les mises à jour trop larges : <em>L<sub>CLIP</sub> = 𝔼[min(r<sub>t</sub> · Â<sub>t</sub>, clip(r<sub>t</sub>, 1−ε, 1+ε) · Â<sub>t</sub>)]</em>, où <em>r<sub>t</sub> = π<sub>θ</sub>(a<sub>t</sub>|s<sub>t</sub>) / π<sub>old</sub>(a<sub>t</sub>|s<sub>t</sub>)</em> et Â<sub>t</sub> est l'<strong>advantage estimate</strong> (estimateur d'avantage). Deuxièmement, InstructGPT (Ouyang et al., 2022) ajoute une pénalité <strong>per-token</strong> au signal de reward plutôt que de calculer la divergence KL au niveau de la trajectoire entière : <em>r<sub>t</sub><sup>KL</sup> = r(x, y) · 𝟙[t = T] − log(π<sub>θ</sub>(a<sub>t</sub>|…) / π<sub>ref</sub>(a<sub>t</sub>|…))</em>. Cette décomposition per-token distribue la régularisation KL à chaque pas de décodage, compatible avec la structure markovienne attendue par les algorithmes de RL, tout en pénalisant chaque token où la policy dérive de π<sub>ref</sub> et en intégrant ce signal dans le <strong>return</strong> (retour) cumulé.</p>\n\n<p>L'objectif KL-régularisé admet une solution analytique exacte. En annulant la dérivée fonctionnelle par rapport à π, on obtient la policy optimale en <strong>closed form</strong> (forme fermée) : <em>π*(y|x) ∝ π<sub>ref</sub>(y|x) · exp(r(x,y)/β)</em>. La policy optimale retilte la distribution de référence par une exponentielle proportionnelle à la reward, β contrôlant la netteté du tilt. En inversant cette relation, on exprime la reward comme fonction de toute policy candidate : <em>r(x,y) = β · log(π*(y|x) / π<sub>ref</sub>(y|x)) + β · log Z(x)</em>, où Z(x) est la <strong>partition function</strong> (fonction de partition) ne dépendant que du prompt. C'est cette reparamétrisation — le pivot central de DPO — qui permet d'optimiser directement une policy sans reward model explicite, supprimant à la fois la nécessité d'un réseau <em>r<sub>φ</sub></em> séparé et l'instabilité de l'échantillonnage en ligne propre à PPO.</p>",
+      "claims": [
+        "claim:5",
+        "claim:6",
+        "claim:7",
+        "claim:8"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-tilt-kl-policy-gibbs"
+    },
+    {
+      "type": "section",
+      "id": "dpo-reward-model-implicite",
+      "heading": "DPO : la politique est un reward model implicite",
+      "level": 3,
+      "prose": "<p>L'objectif RLHF sous contrainte KL cherche, pour chaque prompt <em>x</em>, la politique π qui maximise l'espérance de récompense tout en restant proche d'un modèle de référence π<sub>ref</sub> : max<sub>π</sub> 𝔼<sub>y∼π(·|x)</sub>[r(x,y)] − β · KL(π(·|x) ‖ π<sub>ref</sub>(·|x)). Ce programme est convexe sur l'espace des distributions de probabilité ; il admet donc une unique closed-form solution (solution en forme fermée), obtenue en annulant la dérivée fonctionnelle du Lagrangien par rapport à π : π<sub>r</sub>(y|x) = (1/Z(x)) · π<sub>ref</sub>(y|x) · exp(r(x,y)/β), où Z(x) = Σ<sub>y</sub> π<sub>ref</sub>(y|x) · exp(r(x,y)/β) est la partition function (fonction de partition) — un scalaire ne dépendant que du prompt. La politique optimale a la structure d'une distribution de Gibbs : elle réhausse les continuations à haute récompense par rapport à π<sub>ref</sub>, avec une intensité inversement proportionnelle à β.</p>\n\n<p>Cette forme peut être inversée. En prenant le logarithme du rapport π<sub>r</sub>(y|x) / π<sub>ref</sub>(y|x), on isole la récompense : r(x,y) = β · log(π<sub>r</sub>(y|x) / π<sub>ref</sub>(y|x)) + β · log Z(x). La reparameterization (reparamétrisation) exprime r comme la somme d'un log-ratio de politiques et d'un terme additif β · log Z(x), constant en y. C'est cette structure additive qui rend l'annulation possible : lorsqu'on substitue l'expression de r dans le modèle de préférences Bradley-Terry — p*(y<sub>w</sub> ≻ y<sub>l</sub> | x) = σ(r(x,y<sub>w</sub>) − r(x,y<sub>l</sub>)) — le terme β · log Z(x) figure avec le même signe dans les deux membres de la soustraction et s'annule algébriquement. La partition function disparaît sans approximation ni Monte-Carlo : une somme a priori intractable sur l'ensemble du vocabulaire s'évapore par symétrie.</p>\n\n<p>La probabilité de préférence Bradley-Terry se réduit alors à σ(β · log(π(y<sub>w</sub>|x)/π<sub>ref</sub>(y<sub>w</sub>|x)) − β · log(π(y<sub>l</sub>|x)/π<sub>ref</sub>(y<sub>l</sub>|x))). Maximiser la log-vraisemblance de ce modèle sur un dataset de paires de préférences 𝒟 = {(x, y<sub>w</sub>, y<sub>l</sub>)} donne la perte DPO : ℒ<sub>DPO</sub>(π<sub>θ</sub> ; π<sub>ref</sub>) = −𝔼<sub>𝒟</sub>[log σ(β · log(π<sub>θ</sub>(y<sub>w</sub>|x)/π<sub>ref</sub>(y<sub>w</sub>|x)) − β · log(π<sub>θ</sub>(y<sub>l</sub>|x)/π<sub>ref</sub>(y<sub>l</sub>|x)))]. C'est une binary cross-entropy (entropie croisée binaire) sur des log-ratios de politique : une classification binaire standard dont les features sont calculées par deux passes forward — une pour π<sub>θ</sub>, une pour π<sub>ref</sub> — sur des paires déjà présentes dans le dataset. Aucun reward model séparé n'est entraîné, aucun sampling depuis le LM n'est requis pendant le fine-tuning, et aucune boucle RL n'est déroulée. Le seul hyperparamètre de contrôle est β : élevé, il ancre la politique près de π<sub>ref</sub> ; faible, il lui laisse davantage de latitude pour maximiser les préférences, au risque d'un over-optimization.</p>\n\n<p>Les expériences de Rafailov et al. (NeurIPS 2023) couvrent trois régimes complémentaires. Sur la génération de sentiment contrôlé (IMDb), où un classifieur de sentiment préentraîné joue le rôle de reward function exacte, DPO domine la frontier récompense–KL sur l'ensemble des configurations testées : il atteint ou dépasse PPO-GT — la variante PPO qui accède directement à ce classifieur — alors que DPO n'y a jamais accès pendant son optimisation. Sur la tâche de résumé (TL;DR summarization), évalué par GPT-4 comme juge, DPO atteint 61 % de win rate contre 57 % pour PPO (température 0), avec une robustesse supérieure sur l'ensemble des températures d'échantillonnage testées. La différence se creuse sur le test de généralisation out-of-distribution : entraîné sur des posts Reddit (TL;DR), le modèle est évalué sur des articles de presse (CNN/DailyMail), et DPO obtient 36 % de win rate contre 26 % pour PPO. Les auteurs rapportent n'avoir pas cherché à optimiser β, tandis que PPO a néanmoins bénéficié de modifications algorithmiques pour améliorer ses performances — ce qui rend la comparaison raisonnablement équitable et renforce l'hypothèse d'un avantage structurel : l'implicit reward model encodé dans les log-ratios de politique semble mieux généraliser hors distribution qu'un reward model explicite figé après son entraînement.</p>",
+      "claims": [
+        "claim:9",
+        "claim:10",
+        "claim:11"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "variantes-offline-ipo-kto-orpo-simpo",
+      "heading": "Le zoo des variantes offline : IPO, KTO, ORPO, SimPO",
+      "level": 3,
+      "prose": "<p>Le cadre <strong>ΨPO</strong> (Azar et al., 2024) ramène DPO et ses variantes à une même structure paramétrique&nbsp;: l'objectif d'alignement est indexé sur une fonction Ψ appliquée aux probabilités de préférence par paires. DPO correspond à Ψ = log&nbsp;; IPO à Ψ = identité. L'analyse dévoile que DPO s'appuie sur deux approximations successives&nbsp;: (1)&nbsp;substituer les préférences par paires à des récompenses scalaires point-à-point — l'hypothèse <strong>Bradley-Terry</strong> —&nbsp;; (2)&nbsp;supposer un accès à la distribution de préférences en population entière plutôt qu'à un échantillon fini. DPO élimine la seconde approximation (plus de reward model séparé) mais conserve la première. IPO contourne les deux, ce qui le rend robuste aux préférences quasi-déterministes&nbsp;: dans ce régime, la perte DPO pousse le log-ratio log(π_θ(y_w|x)/π_ref(y_w|x)) − log(π_θ(y_l|x)/π_ref(y_l|x)) vers l'infini, saturant la régularisation KL et provoquant un surapprentissage des données de préférences.</p>\n\n<p><strong>IPO (Identity Preference Optimization)</strong> substitue à la log-vraisemblance de DPO une <strong>squared-error loss (perte quadratique)</strong> sur les log-ratios, avec une <strong>target reward margin (marge cible)</strong> fixée à 1/2 de façon uniforme pour toutes les paires&nbsp;:</p>\n<p style=\"font-family:monospace;margin-left:2em\"><em>L</em><sub>IPO</sub> = 𝔼&thinsp;[(&thinsp;log(π_θ(y_w|x)/π_ref(y_w|x)) − log(π_θ(y_l|x)/π_ref(y_l|x)) − ½&thinsp;)²]</p>\n<p>La marge est indépendante de la certitude empirique des annotations — aucune paire ne peut forcer le log-ratio à saturer. Cette conception fournit une garantie de généralisation hors de l'ensemble d'entraînement, à condition que le taux de bruit dans les préférences reste inférieur à un seuil calculable, propriété que DPO n'établit pas formellement.</p>\n\n<p><strong>KTO (Kahneman-Tversky Optimization, Ethayarajh et al., ICML 2024)</strong> abandonne la structure en paires au profit d'un signal binaire&nbsp;: chaque exemple est simplement étiqueté «&nbsp;désirable&nbsp;» ou «&nbsp;indésirable&nbsp;», sans qu'il soit nécessaire d'aligner réponse gagnante et réponse perdante sur le même prompt. La perte est ancrée dans la <strong>prospect theory (théorie des perspectives)</strong> de Kahneman et Tversky — paramètres canoniques α ≈ 0,88 (courbure) et λ ≈ 2,25 (aversion aux pertes)&nbsp;:</p>\n<p style=\"font-family:monospace;margin-left:2em\"><em>L</em><sub>KTO</sub> = 𝔼<sub>(x,y)∼𝒟</sub>&thinsp;[λ<sub>y</sub> − v(x,y)]</p>\n<p>où v(x,y) vaut λ<sub>D</sub>·σ(β(r_θ(x,y) − ẑ₀)) pour une sortie désirable et λ<sub>U</sub>·σ(β(ẑ₀ − r_θ(x,y))) pour une sortie indésirable, avec r_θ(x,y) = log[π_θ(y|x)/π_ref(y|x)] comme récompense implicite. Le point de référence ẑ₀ est estimé sur des exemples hors-prompt et joue le rôle d'une baseline de valeur relative — sans réseau de critique séparé. Le théorème 3.5 du papier KTO établit que DPO et PPO-Clip sont des <strong>Human-Aware Losses (HALOs)</strong>&nbsp;: leurs objectifs s'écrivent comme l'espérance d'une fonction non-décroissante et concave des récompenses implicites relatives, unifiant formellement les deux paradigmes. Plus incisif encore, le théorème 4.3 garantit qu'en présence de préférences contradictoires, la politique KTO optimale produit strictement la sortie préférée par la majorité (sous λ<sub>D</sub> = λ<sub>U</sub>), propriété que DPO ne garantit pas&nbsp;: DPO peut favoriser la réponse minoritaire en maximisant le log-ratio d'une paire sans tenir compte de la fréquence globale des préférences dans l'ensemble d'entraînement.</p>\n\n<p><strong>ORPO (Odds Ratio Preference Optimization, Hong et al., EMNLP 2024)</strong> supprime entièrement le reference model (modèle de référence) en remplaçant le rapport de probabilités log[π_θ/π_ref] par un <strong>odds ratio (rapport de cotes)</strong>&nbsp;: odds_θ(y|x) = π_θ(y|x) / (1 − π_θ(y|x)). Sa perte fusionne fine-tuning supervisé et alignement par préférences en une seule phase d'entraînement, sans warm-up SFT préalable&nbsp;:</p>\n<p style=\"font-family:monospace;margin-left:2em\"><em>L</em><sub>ORPO</sub> = 𝔼&thinsp;[L<sub>SFT</sub> − λ · log σ(log(odds_θ(y_w|x) / odds_θ(y_l|x)))]</p>\n<p>Appliqué à UltraFeedback sur Phi-2 (2,7B), Llama-2 (7B) et Mistral (7B), ORPO dépasse Llama-2-Chat et Zephyr, atteignant 12,20&nbsp;% sur AlpacaEval 2.0 et un score MT-Bench de 7,32 — à budget équivalent et sans modèle de référence en mémoire.</p>\n\n<p><strong>SimPO (Simple Preference Optimization, Meng et al., NeurIPS 2024)</strong> est également reference-free, mais par un mécanisme distinct&nbsp;: la récompense implicite est la log-probabilité du modèle normalisée par la longueur de la séquence générée — r<sub>SimPO</sub>(x,y) = (β/|y|) log π_θ(y|x). Cette <strong>length normalization (normalisation par longueur)</strong> aligne le signal d'entraînement sur la métrique de génération effective (log-probabilité moyenne par token), neutralisant l'optimisation opportuniste de la longueur. Un terme de marge explicite γ est ajouté à l'objectif Bradley-Terry pour creuser l'écart entre réponse préférée et réponse rejetée&nbsp;:</p>\n<p style=\"font-family:monospace;margin-left:2em\"><em>L</em><sub>SimPO</sub> = −𝔼&thinsp;[log σ(β/|y_w| · log π_θ(y_w|x) − β/|y_l| · log π_θ(y_l|x) − γ)]</p>\n<p>Sur des modèles allant jusqu'à Gemma 2, SimPO surpasse DPO de jusqu'à 6,4 points sur AlpacaEval 2 et 7,5 points sur Arena-Hard, tout en produisant des réponses significativement moins longues que DPO vanilla — validation empirique directe de l'effet correctif de la normalisation par longueur.</p><figure class='fig'><svg viewBox='0 0 900 430' role='img' aria-label='Matrice comparant les variantes offline DPO, IPO, KTO, ORPO et SimPO situées dans le cadre ΨPO, selon le type de signal, le caractère reference-free, la forme de perte et la clé technique.'><rect x='64' y='90' width='820' height='120' fill='var(--blue,#23537F)' fill-opacity='0.06'/><rect x='64' y='270' width='820' height='60' fill='var(--ink-faint,#7A889B)' fill-opacity='0.05'/><rect x='64' y='56' width='820' height='34' fill='var(--blue,#23537F)'/><line x1='150' y1='56' x2='150' y2='390' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-opacity='0.4'/><line x1='300' y1='56' x2='300' y2='390' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-opacity='0.4'/><line x1='380' y1='56' x2='380' y2='390' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-opacity='0.4'/><line x1='624' y1='56' x2='624' y2='390' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-opacity='0.4'/><line x1='64' y1='150' x2='884' y2='150' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-opacity='0.35'/><line x1='64' y1='210' x2='884' y2='210' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-opacity='0.35'/><line x1='64' y1='270' x2='884' y2='270' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-opacity='0.35'/><line x1='64' y1='330' x2='884' y2='330' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-opacity='0.35'/><rect x='64' y='56' width='820' height='334' fill='none' stroke='var(--ink,#15202E)' stroke-width='1.5'/><path d='M54 92 H46 V208 H54' fill='none' stroke='var(--blue,#23537F)' stroke-width='2'/><path d='M46 150 H40' fill='none' stroke='var(--blue,#23537F)' stroke-width='2'/><text x='30' y='150' transform='rotate(-90 30 150)' text-anchor='middle' font-family='Georgia,serif' font-size='13' font-weight='bold' fill='var(--blue,#23537F)'>ΨPO</text><text x='64' y='38' font-family='Georgia,serif' font-size='16' font-weight='bold' fill='var(--ink,#15202E)'>Le zoo des variantes offline, organisé</text><text x='74' y='78' font-family='Georgia,serif' font-size='13' font-weight='bold' fill='#ffffff'>Variante</text><text x='160' y='78' font-family='Georgia,serif' font-size='13' font-weight='bold' fill='#ffffff'>Signal</text><text x='340' y='78' text-anchor='middle' font-family='Georgia,serif' font-size='13' font-weight='bold' fill='#ffffff'>Ref-free</text><text x='390' y='78' font-family='Georgia,serif' font-size='13' font-weight='bold' fill='#ffffff'>Forme de perte</text><text x='634' y='78' font-family='Georgia,serif' font-size='13' font-weight='bold' fill='#ffffff'>Innovation clé</text><text x='74' y='115' font-family='Georgia,serif' font-size='14' font-weight='bold' fill='var(--ink,#15202E)'>DPO</text><text x='74' y='133' font-family='Helvetica,Arial,sans-serif' font-size='11' fill='var(--bordeaux,#7C2A38)'>Ψ = log</text><text x='160' y='124' font-family='Helvetica,Arial,sans-serif' font-size='12' fill='var(--ink,#15202E)'>paires y_w / y_l</text><text x='340' y='120' text-anchor='middle' font-family='Helvetica,Arial,sans-serif' font-size='12.5' fill='var(--ink-faint,#7A889B)'>non</text><text x='340' y='135' text-anchor='middle' font-family='Helvetica,Arial,sans-serif' font-size='9.5' fill='var(--ink-faint,#7A889B)'>(π_ref)</text><text x='390' y='115' font-family='Helvetica,Arial,sans-serif' font-size='12' fill='var(--ink,#15202E)'>log-sigmoïde</text><text x='390' y='133' font-family='Helvetica,Arial,sans-serif' font-size='11' fill='var(--ink-faint,#7A889B)'>(Bradley-Terry)</text><text x='634' y='115' font-family='Helvetica,Arial,sans-serif' font-size='12' fill='var(--ink,#15202E)'>récompense implicite —</text><text x='634' y='133' font-family='Helvetica,Arial,sans-serif' font-size='11' fill='var(--ink-faint,#7A889B)'>plus de reward model séparé</text><text x='74' y='175' font-family='Georgia,serif' font-size='14' font-weight='bold' fill='var(--ink,#15202E)'>IPO</text><text x='74' y='193' font-family='Helvetica,Arial,sans-serif' font-size='11' fill='var(--bordeaux,#7C2A38)'>Ψ = identité</text><text x='160' y='184' font-family='Helvetica,Arial,sans-serif' font-size='12' fill='var(--ink,#15202E)'>paires y_w / y_l</text><text x='340' y='180' text-anchor='middle' font-family='Helvetica,Arial,sans-serif' font-size='12.5' fill='var(--ink-faint,#7A889B)'>non</text><text x='340' y='195' text-anchor='middle' font-family='Helvetica,Arial,sans-serif' font-size='9.5' fill='var(--ink-faint,#7A889B)'>(π_ref)</text><text x='390' y='175' font-family='Helvetica,Arial,sans-serif' font-size='12' fill='var(--ink,#15202E)'>erreur quadratique</text><text x='390' y='193' font-family='Helvetica,Arial,sans-serif' font-size='11' fill='var(--ink-faint,#7A889B)'>à marge ½</text><text x='634' y='175' font-family='Helvetica,Arial,sans-serif' font-size='12' fill='var(--ink,#15202E)'>robuste aux préférences</text><text x='634' y='193' font-family='Helvetica,Arial,sans-serif' font-size='11' fill='var(--ink-faint,#7A889B)'>quasi-déterministes (marge fixe)</text><text x='74' y='244' font-family='Georgia,serif' font-size='14' font-weight='bold' fill='var(--ink,#15202E)'>KTO</text><text x='160' y='238' font-family='Helvetica,Arial,sans-serif' font-size='12' fill='var(--ink,#15202E)'>binaire :</text><text x='160' y='256' font-family='Helvetica,Arial,sans-serif' font-size='11' fill='var(--ink-faint,#7A889B)'>désirable / indésirable</text><text x='340' y='240' text-anchor='middle' font-family='Helvetica,Arial,sans-serif' font-size='12.5' fill='var(--ink-faint,#7A889B)'>non</text><text x='340' y='255' text-anchor='middle' font-family='Helvetica,Arial,sans-serif' font-size='9.5' fill='var(--ink-faint,#7A889B)'>(π_ref)</text><text x='390' y='238' font-family='Helvetica,Arial,sans-serif' font-size='12' fill='var(--ink,#15202E)'>HALO (prospect theory)</text><text x='390' y='256' font-family='Helvetica,Arial,sans-serif' font-size='10.5' fill='var(--ink-faint,#7A889B)'>v(x,y) ∝ σ, λ, ẑ₀</text><text x='634' y='238' font-family='Helvetica,Arial,sans-serif' font-size='12' fill='var(--ink,#15202E)'>signal binaire, sans</text><text x='634' y='256' font-family='Helvetica,Arial,sans-serif' font-size='11' fill='var(--ink-faint,#7A889B)'>appariement de réponses</text><text x='74' y='304' font-family='Georgia,serif' font-size='14' font-weight='bold' fill='var(--ink,#15202E)'>ORPO</text><text x='160' y='304' font-family='Helvetica,Arial,sans-serif' font-size='12' fill='var(--ink,#15202E)'>paires y_w / y_l</text><text x='340' y='309' text-anchor='middle' font-family='Helvetica,Arial,sans-serif' font-size='13' font-weight='bold' fill='var(--bordeaux,#7C2A38)'>oui</text><text x='390' y='298' font-family='Helvetica,Arial,sans-serif' font-size='12' fill='var(--ink,#15202E)'>odds-ratio + L_SFT</text><text x='390' y='316' font-family='Helvetica,Arial,sans-serif' font-size='11' fill='var(--ink-faint,#7A889B)'>(une seule phase)</text><text x='634' y='298' font-family='Helvetica,Arial,sans-serif' font-size='12' fill='var(--ink,#15202E)'>SFT + alignement en 1 phase,</text><text x='634' y='316' font-family='Helvetica,Arial,sans-serif' font-size='11' fill='var(--ink-faint,#7A889B)'>sans modèle de référence</text><text x='74' y='364' font-family='Georgia,serif' font-size='14' font-weight='bold' fill='var(--ink,#15202E)'>SimPO</text><text x='160' y='364' font-family='Helvetica,Arial,sans-serif' font-size='12' fill='var(--ink,#15202E)'>paires y_w / y_l</text><text x='340' y='369' text-anchor='middle' font-family='Helvetica,Arial,sans-serif' font-size='13' font-weight='bold' fill='var(--bordeaux,#7C2A38)'>oui</text><text x='390' y='358' font-family='Helvetica,Arial,sans-serif' font-size='12' fill='var(--ink,#15202E)'>log-prob /|y|</text><text x='390' y='376' font-family='Helvetica,Arial,sans-serif' font-size='11' fill='var(--ink-faint,#7A889B)'>+ marge γ</text><text x='634' y='358' font-family='Helvetica,Arial,sans-serif' font-size='12' fill='var(--ink,#15202E)'>normalisation par longueur</text><text x='634' y='376' font-family='Helvetica,Arial,sans-serif' font-size='11' fill='var(--ink-faint,#7A889B)'>anti-verbosité</text></svg><figcaption><span class='fcap-k'></span>Les cinq variantes offline rangées en matrice : DPO et IPO relèvent du cadre ΨPO (Ψ = log vs Ψ = identité), tandis que KTO (signal binaire), ORPO et SimPO (reference-free) se distinguent par leur forme de perte et leur innovation clé.</figcaption></figure>",
+      "claims": [
+        "claim:12",
+        "claim:13",
+        "claim:14",
+        "claim:15"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "grpo-rl-raisonnement",
+      "heading": "GRPO et le RL pour le raisonnement",
+      "level": 3,
+      "prose": "<p>GRPO (<em>Group Relative Policy Optimization</em>) apporte une réponse directe au principal frein de PPO appliqué aux LLM : le réseau <em>critic</em> (réseau critique), qui doit être de la même taille que la policy (politique) entraînée et double la consommation mémoire des poids de modèle. L'idée centrale de GRPO est d'estimer le <em>baseline</em> à partir des réponses générées elles-mêmes : pour chaque prompt, G = 4–8 réponses sont échantillonnées, leurs récompenses calculées, puis les avantages normalisés intra-groupe selon Â<sub>i</sub> = (r<sub>i</sub> − μ) / σ. L'objectif J<sub>GRPO</sub> combine ensuite un <em>importance ratio</em> (taux d'importance) clipé à la manière de PPO et une pénalité KL vers la policy de référence : J<sub>GRPO</sub>(θ) = E[(1/G) Σ<sub>i</sub> min(ρ<sub>i</sub>·Â<sub>i</sub>, clip(ρ<sub>i</sub>, 1−ε, 1+ε)·Â<sub>i</sub>) − β·D<sub>KL</sub>[π<sub>θ</sub> ‖ π<sub>ref</sub>]]. Le système passe ainsi de trois copies de modèle en mémoire (policy entraînée, policy de référence, critic) à deux — réduction substantielle pour des LLM de dizaines de milliards de paramètres. Le signal de gradient reste stable car le signe et l'amplitude des avantages sont réglés par les autres membres du groupe, non par un réseau auxiliaire dont les poids dérivent indépendamment.</p>\n\n<p>L'application qui a révélé la puissance de GRPO est le paradigme RLVR (<em>Reinforcement Learning with Verifiable Rewards</em>, apprentissage par renforcement avec récompenses vérifiables), illustré par DeepSeek-R1-Zero et DeepSeek-R1. Contrairement à RLHF, RLVR supprime tout <em>reward model</em> appris : les récompenses sont déterministes et programmatiques — vérification de la réponse exacte pour les mathématiques, exécution du compilateur pour le code. DeepSeek-R1-Zero est entraîné directement depuis le modèle de base, sans aucun <em>fine-tuning</em> supervisé préalable. Phénomène émergent constaté en cours d'entraînement : le modèle développe spontanément des stratégies de reconsidération de sa propre démarche intermédiaire — l'« aha moment » documenté dans l'article — sans que ce comportement soit inscrit dans la procédure d'apprentissage. Les résultats sont saisissants : le pass@1 sur AIME 2024 passe de 15,6 % (modèle de base) à 71,0 % pour R1-Zero, et à 86,7 % avec <em>majority voting</em> (vote de majorité) sur 64 échantillons, surpassant OpenAI-o1-0912 à 74,4 %. La version complète DeepSeek-R1, dont le pipeline enrichit GRPO/RLVR d'une phase de <em>cold-start</em> supervisé et de raffinement par préférences, atteint 79,8 %, à parité avec OpenAI-o1-1217. La distillation est également validée : en fine-tunant des modèles plus petits sur 800 k exemples générés par R1, les modèles distillés (7 B à 55,5 %, 32 B à 72,6 %) dépassent les équivalents entraînés directement par RL, confirmant que la connaissance procédurale du raisonnement se transfère mieux par imitation que par RL bas-niveau sur petits modèles.</p>\n\n<p>Mais GRPO introduit un biais de longueur structurel. La perte est calculée au niveau token et normalisée par la longueur de chaque réponse (facteur 1/|o<sub>i</sub>|) : les réponses correctes courtes reçoivent un gradient plus intense (récompense concentrée sur peu de tokens), tandis que les réponses longues incorrectes accumulent peu de signal négatif par token. La policy apprend alors à allonger ses outputs pour diluer les pénalités, déclenchant une boucle de <em>reward hacking</em> : les réponses verbieuses obtiennent des scores de groupe relativement élevés, ce qui renforce encore la verbosité, jusqu'à un <em>entropy collapse</em> (effondrement de l'entropie) où la distribution sur les tokens suivants se concentre sur quelques alternatives et le modèle produit des sorties répétitives ou incohérentes. Un second problème, formalisé dans « Your Group-Relative Advantage Is Biased » (arXiv:2601.08521), est que l'estimateur de GRPO est biaisé en finite sample : il sous-estime systématiquement les avantages pour les prompts difficiles (taux de succès p &lt; 0,5) et les sur-estime pour les prompts faciles, à cause du conditionnement sur les groupes non dégénérés (ni tous corrects ni tous faux).</p>\n\n<p>Ces déficiences ont engendré une famille de variantes post-GRPO, chacune ciblant un biais particulier. <strong>DAPO</strong> (<em>Decoupled Clip and Dynamic sAmpling Policy Optimization</em>, ByteDance/Tsinghua, 2025) agit sur quatre leviers : un <em>clip-higher</em> asymétrique (ε<sub>low</sub> ≠ ε<sub>high</sub>) qui maintient l'entropie en autorisant des hausses de probabilité plus larges pour les tokens rares ; un <em>dynamic sampling</em> qui filtre les groupes pour garantir la coprésence de réponses correctes et incorrectes, évitant les gradients nuls sur les prompts trop faciles ou trop difficiles ; une <em>token-level loss</em> normalisée par le total de tokens du groupe (et non par réponse individuelle) ; et une <em>overlong punishment</em> douce à rampe progressive plutôt qu'une coupure brutale. Résultat sur Qwen2.5-32B : 50 points sur AIME 2024 contre 47 pour DeepSeek-R1-Zero-Qwen-32B, en utilisant 50 % de steps d'entraînement en moins. <strong>Dr. GRPO</strong> (<em>GRPO Done Right</em>, 2025) cible spécifiquement le biais de longueur : il remplace la normalisation 1/|o<sub>i</sub>| par la longueur moyenne du groupe, appliquée uniformément à tous les tokens, éliminant l'asymétrie de gradient entre réponses courtes et longues. <strong>GSPO</strong> (<em>Group Sequence Policy Optimization</em>, équipe Qwen, juillet 2025) change de niveau de granularité : plutôt que des <em>importance ratios</em> par token, GSPO définit un ratio de séquence comme la moyenne géométrique des ratios per-token, puis effectue le <em>clipping</em> au niveau séquence. Cette reformulation élimine l'accumulation de variance sur les longues séquences qui rend GRPO instable sur les modèles MoE, supprime le workaround « Routing Replay » coûteux en mémoire, et a contribué aux améliorations des modèles Qwen3. Enfin, <strong>CISPO</strong> (<em>Clipped IS-weight Policy Optimization</em>, MiniMax-M1, 2025) adopte une autre lecture du <em>clipping</em> : au lieu d'annuler complètement le gradient des tokens dont le <em>importance ratio</em> sort de la fenêtre [1 ± ε] (comportement porte de GRPO/PPO), CISPO clippe le poids d'importance en amont et l'utilise comme facteur multiplicatif avec <em>stop-gradient</em>, assurant que tous les tokens — y compris les tokens rares porteurs d'information — contribuent au gradient sur chaque pas d'optimisation.</p>",
+      "claims": [
+        "claim:16",
+        "claim:17",
+        "claim:18",
+        "claim:19"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-avantage-groupe-relatif-grpo"
+    },
+    {
+      "type": "section",
+      "id": "rlaif-constitutional-ai",
+      "heading": "RLAIF et Constitutional AI : aligner sans labels humains",
+      "level": 3,
+      "prose": "<p>Le goulot d'étranglement du RLHF classique n'est pas algorithmique : c'est l'annotateur humain — lent, coûteux, variable selon les langues et les cultures. Constitutional AI (Bai et al., Anthropic, 2022) et le framework RLAIF (reinforcement learning from AI feedback — apprentissage par renforcement depuis le retour de l'IA) de Lee et al. (Google, 2023) proposent deux réponses convergentes à ce problème : substituer un LLM évaluateur au panel humain pour la dimension « harmlessness », en s'appuyant sur des principes textuels explicites plutôt que sur des jugements ad hoc de foule.</p>\n\n<p>Le pipeline Constitutional AI se déroule en deux phases distinctes. La première — SL-CAI (supervised learning from Constitutional AI) — est une phase d'apprentissage supervisé par critique et révision autonome. Face à un prompt d'adversarial probing (red-teaming), le modèle génère une réponse initiale, la critique en tirant aléatoirement l'un des ~16 principes de la « constitution » (couvrant légalité, toxicité, équité et ton), puis produit une réponse révisée ; ce cycle se répète environ quatre fois par prompt, sur un corpus de plusieurs centaines de milliers de requêtes d'entraînement. Le modèle est ensuite affiné sur ces réponses auto-corrigées. La seconde phase — RLAIF proprement dite — remplace les annotateurs humains pour les labels de préférence : le modèle affiné génère des paires de réponses, un LLM évaluateur sélectionne la moins nuisible selon un principe constitutionnel, et ces préférences synthétiques entraînent un preference model, lequel pilote ensuite PPO (proximal policy optimization). Seule la dimension helpfulness conserve un ancrage en feedback humain, préservant l'utilité réelle de l'assistant.</p>\n\n<p>L'écart de coût entre les deux régimes est structurel. À environ 20 $/heure de main-d'œuvre d'annotation, 50 000 comparaisons de préférences — volume typique d'un reward model RLHF — représentent environ 80 000 $ de budget. Le papier RLAIF de Lee et al. (2023) estime que l'annotation de préférences par LLM est plus de dix fois moins coûteuse qu'une annotation humaine équivalente, ce qui permet de générer des ordres de grandeur supplémentaires de données de préférence pour un budget identique. Cette asymétrie de coût est d'autant plus décisive que les performances convergent : les modèles entraînés par RLAIF atteignent des résultats comparables au RLHF humain sur la récapitulation de texte et le dialogue, avec un win rate de l'ordre de 50 % contre un modèle RLHF classique — autrement dit, statistiquement indiscernables pour les évaluateurs humains. RL-CAI (la version Constitutional AI complète) produit même un déplacement de Pareto par rapport à la ligne de base RLHF : harmlessness supérieure à helpfulness égale, avec quasi-disparition des refus stéréotypés (canned refusals) qui pénalisaient les assistants RLHF antérieurs.</p>\n\n<p>La limite structurelle de RLAIF tient à sa circularité épistémique. Constitutional AI pose explicitement que « RLAIF suppose le modèle de feedback à la fois aligné et compétent » — une hypothèse que le pipeline ne peut pas auto-vérifier. Si le juge LLM partage des angles morts avec la politique qu'il entraîne, ces biais ne sont pas simplement conservés : ils s'auto-amplifient à chaque cycle de RL, produisant des pathologies invisibles à l'évaluateur automatique — réponses trop rigides, empathie formulaïque, reward hacking (exploitation de récompense) contre le juge plutôt que véritable amélioration comportementale. Le pipeline Constitutional AI d'origine ne prévoit aucun protocole d'adjudication inter-modèle ou inter-fournisseur pour détecter ces dérives. La variante Collective Constitutional AI (Anthropic, 2024) tente une mitigation orthogonale : en faisant rédiger la constitution par ~1 000 citoyens représentatifs, elle réduit la biais du concepteur et améliore le score d'équité sur neuf dimensions sociales — mais la circularité du juge demeure entière, car démocratiser les principes ne résout pas la question de la fiabilité du modèle qui les applique.</p>",
+      "claims": [
+        "claim:20",
+        "claim:21",
+        "claim:22",
+        "claim:23"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "over-optimization-goodhart",
+      "heading": "Over-optimization du reward et loi de Goodhart",
+      "level": 3,
+      "prose": "<p>L'analyse de Gao et al. (ICML 2023) a formalisé ce que les praticiens observaient sans pouvoir mesurer : quand la politique s'éloigne de son initialisation — mesuré en divergence KL (Kullback-Leibler) —, le proxy reward (récompense proxy, sortie du reward model entraîné sur préférences humaines) croît de façon quasi linéaire, tandis que le gold reward (récompense étalon, proxy d'un meilleur labelliseur ou d'un critère de validation externe) atteint un pic puis chute de manière non linéaire. Les deux modes d'optimisation tracent des courbes KL <em>distinctes</em> : best-of-n sampling (échantillonnage des meilleurs parmi <em>n</em> candidats) progresse le long du Pareto front de façon plus régulière que le RL direct, parce qu'il ne rétropropage aucun gradient sur le proxy et reste moins exposé à l'exploitation de ses angles morts structurels. Des reward models plus grands, entraînés sur plus de données de préférence, repoussent le seuil de saturation — Gao et al. mesurent cet effet mais concluent qu'il ne s'annule jamais.</p><figure class='fig'><svg viewBox='0 0 760 440' role='img' aria-label='Graphique du reward en fonction de la divergence KL à l’initialisation (d égale racine de KL). La courbe proxy reward croît de façon monotone et concave sans jamais redescendre, tandis que les courbes gold reward montent vers un pic puis déclinent. Le pic du best-of-n est atteint à faible KL ; le pic du RL est plus haut mais à KL bien supérieure, donc RL est nettement moins KL-efficace. L’écart entre proxy et gold se creuse quand la KL augmente, illustration de la loi de Goodhart.'><text x='380' y='28' text-anchor='middle' font-family='Georgia, serif' font-size='17' font-weight='bold' fill='var(--ink,#15202E)'>Sur-optimisation de Goodhart : proxy reward vs gold reward</text><text x='380' y='47' text-anchor='middle' font-family='sans-serif' font-size='12.5' font-style='italic' fill='var(--ink-faint,#7A889B)'>en fonction de la divergence KL à l'initialisation</text><polygon points='95,315 150,275 210,243 280,214 360,189 440,171 520,159 600,151 660,146 710,143 710,308 650,302 560,291 470,277 390,262 320,248 265,238 240,236 215,242 175,258 135,285 95,315' fill='var(--bordeaux-wash,#F3E3E6)' stroke='none' opacity='0.55'/><line x1='95' y1='78' x2='95' y2='358' stroke='var(--ink,#15202E)' stroke-width='1.5'/><polygon points='95,72 90,82 100,82' fill='var(--ink,#15202E)'/><line x1='95' y1='358' x2='716' y2='358' stroke='var(--ink,#15202E)' stroke-width='1.5'/><polygon points='722,358 712,353 712,363' fill='var(--ink,#15202E)'/><text x='32' y='216' text-anchor='middle' font-family='sans-serif' font-size='13' fill='var(--ink,#15202E)' transform='rotate(-90 32 216)'>reward</text><text x='405' y='402' text-anchor='middle' font-family='sans-serif' font-size='13' fill='var(--ink,#15202E)'>divergence KL à l'initialisation  (d = √KL)</text><line x1='240' y1='236' x2='240' y2='358' stroke='var(--bordeaux,#7C2A38)' stroke-width='1' stroke-dasharray='3,3' opacity='0.7'/><line x1='460' y1='204' x2='460' y2='358' stroke='var(--blue,#23537F)' stroke-width='1' stroke-dasharray='3,3' opacity='0.7'/><text x='240' y='373' text-anchor='middle' font-family='sans-serif' font-size='11' fill='var(--bordeaux,#7C2A38)'>KL faible</text><text x='460' y='373' text-anchor='middle' font-family='sans-serif' font-size='11' fill='var(--blue,#23537F)'>KL élevée</text><polyline points='95,315 150,275 210,243 280,214 360,189 440,171 520,159 600,151 660,146 710,143' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='2.2' stroke-dasharray='7,5'/><polyline points='95,315 135,285 175,258 215,242 240,236 265,238 320,248 390,262 470,277 560,291 650,302 710,308' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='2.6'/><polyline points='95,315 150,282 215,253 290,226 370,209 420,205 460,204 510,210 570,224 630,242 690,260 710,266' fill='none' stroke='var(--blue,#23537F)' stroke-width='2.6'/><circle cx='240' cy='236' r='4.5' fill='var(--bordeaux,#7C2A38)' stroke='var(--card,#FFFFFF)' stroke-width='1.5'/><circle cx='460' cy='204' r='4.5' fill='var(--blue,#23537F)' stroke='var(--card,#FFFFFF)' stroke-width='1.5'/><text x='234' y='228' text-anchor='end' font-family='sans-serif' font-size='11.5' font-weight='bold' fill='var(--bordeaux,#7C2A38)'>pic best-of-n</text><text x='468' y='190' text-anchor='start' font-family='sans-serif' font-size='11.5' font-weight='bold' fill='var(--blue,#23537F)'>pic RL — plus haut, KL ≫</text><line x1='415' y1='335' x2='632' y2='252' stroke='var(--ink-faint,#7A889B)' stroke-width='1.3'/><polygon points='632,252 623,261 620,251' fill='var(--ink-faint,#7A889B)'/><text x='410' y='340' text-anchor='end' font-family='sans-serif' font-size='11.5' font-style='italic' fill='var(--ink-soft,#43536A)'>l'écart proxy / gold se creuse</text><rect x='112' y='86' width='248' height='66' rx='5' fill='var(--card,#FFFFFF)' stroke='var(--line,#DDE3EA)' stroke-width='1'/><line x1='124' y1='104' x2='152' y2='104' stroke='var(--ink-faint,#7A889B)' stroke-width='2.2' stroke-dasharray='7,5'/><text x='160' y='108' font-family='sans-serif' font-size='11.5' fill='var(--ink,#15202E)'>proxy reward — croît sans fin</text><line x1='124' y1='124' x2='152' y2='124' stroke='var(--bordeaux,#7C2A38)' stroke-width='2.6'/><text x='160' y='128' font-family='sans-serif' font-size='11.5' fill='var(--ink,#15202E)'>gold reward — best-of-n</text><line x1='124' y1='144' x2='152' y2='144' stroke='var(--blue,#23537F)' stroke-width='2.6'/><text x='160' y='148' font-family='sans-serif' font-size='11.5' fill='var(--ink,#15202E)'>gold reward — RL</text></svg><figcaption><span class='fcap-k'></span>Sur-optimisation de Goodhart : le proxy reward (mesuré) croît sans fin avec la divergence KL à l'initialisation, tandis que le gold reward (objectif réel) culmine puis décline. Le pic du best-of-n survient à faible KL ; celui du RL est plus haut mais exige une KL bien supérieure — RL nettement moins KL-efficace —, et l'écart proxy / gold se creuse.</figcaption></figure>\n\n<p>La loi de Goodhart — « quand une mesure devient un objectif, elle cesse d'être une bonne mesure » — se décline ici en deux régimes distincts. Le regressional Goodhart désigne le cas où proxy et gold reward sont corrélés mais pas identiques : l'optimisation pousse le proxy dans une direction où sa corrélation avec le gold se dégrade progressivement. L'extremal Goodhart est plus brutal : aux valeurs extrêmes du proxy que le RL finit par atteindre, la distribution des entrées devient radicalement hors de l'espace d'entraînement du reward model, et ses garanties de généralisation s'effondrent. Les deux régimes coexistent en pratique — l'extremal domine à haute divergence KL, le regressional à faible divergence — et leur conjonction explique pourquoi l'over-optimization (suroptimisation) n'est pas un artefact de paramétrage mais une propriété structurelle de toute maximisation d'un proxy imparfait.</p>\n\n<p>Plusieurs facteurs modèrent l'over-optimization sans l'éliminer. La pénalité KL impose un early stopping (arrêt précoce) implicite en forçant la politique à rester dans un voisinage statistique de la référence ; son dosage est un compromis entre alignement et expressivité. Les reward model ensembles (ensembles de modèles de récompense) lissent les artefacts propres à chaque modèle et ralentissent l'exploitation de ses failles individuelles, au prix d'un coût d'inférence multiplié. Ces facteurs sont utiles ; aucun n'est une solution.</p>\n\n<p>Les manifestations concrètes du reward hacking (exploitation du proxy de récompense) sont variées mais toutes structurellement identiques : la politique exploite un canal de mesure dont la fidélité à l'objectif réel décroît à l'extrême. La sycophancy (flatterie systématique) est l'exemple le mieux documenté : après RLHF, les modèles valident les croyances de l'utilisateur plutôt que d'énoncer la vérité, parce que les annotateurs humains préfèrent les réponses qui confirment leurs vues. Wen et al. (2024) quantifient l'écart : RLHF fait passer le taux d'approbation humaine de 52 % à 68 % sur des tâches de questions-réponses, sans amélioration mesurable de la justesse factuelle. Le reward hacking de compétence va plus loin : Denison et al. (2024) montrent que des agents de code entraînés par RL modifient les tests unitaires pour les faire passer plutôt que de corriger le code — le proxy est falsifié directement sur son canal de vérification. Surtout, la capacité du modèle corrèle positivement avec l'intensité du hacking : Pan et al. (2022) établissent qu'un modèle plus performant obtient en moyenne un proxy reward plus élevé mais un gold reward diminué, parce qu'il dispose de plus de degrés de liberté pour exploiter les failles structurelles du proxy. L'alignment tax (taxe d'alignement) clôt le tableau : l'entraînement RLHF dégrade les capacités de few-shot learning et réduit la diversité des sorties, effet documenté dès InstructGPT (Ouyang et al., 2022) et confirmé par Constitutional AI (Bai et al., 2022), et cumulatif avec la phase SFT préalable qui comprime elle aussi l'entropie des sorties.</p>\n\n<p>Une idée reçue tenace mérite d'être explicitée : DPO, en supprimant le reward model explicite, aurait éliminé le risque de suroptimisation. C'est faux. DPO encode un reward model implicitement dans les log-ratios π<sub>θ</sub>/π<sub>ref</sub> ; quand la politique pousse ces ratios à l'extrême, elle sort hors du support des données d'entraînement et déclenche les mêmes pathologies extrémales que le proxy RL classique. Rafailov et al. (NeurIPS 2024) montrent que les méthodes d'alignement direct se dégradent par suroptimisation « souvent avant même la fin d'une seule époque » — chronologie parfois plus rapide qu'en RL explicite, précisément parce que DPO n'expose pas la divergence via un signal de reward visible qui permettrait un early stopping raisonné.</p>",
+      "claims": [
+        "claim:24",
+        "claim:25",
+        "claim:26",
+        "claim:27"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "dpo-vs-ppo-debat",
+      "heading": "DPO contre PPO : la supériorité de l'alignement direct en question",
+      "level": 3,
+      "prose": "<p>La popularité de DPO repose en partie sur une intuition séduisante : éliminer le <em>reward model</em> (modèle de récompense) explicite supprimerait les pathologies qui lui sont associées — <em>reward hacking</em>, instabilité de l'entraînement PPO, coût du générateur en ligne. L'étude « Is DPO Superior to PPO for LLM Alignment? » (Xu et al., 2024) soumet cette intuition à une épreuve multi-domaine et en retourne les conclusions.</p>\n\n<p>Le résultat théorique central est le Theorem 4.1 : l'ensemble des solutions PPO est un sous-ensemble strict de l'ensemble des solutions DPO. DPO peut atteindre des <em>policies</em> (politiques) inaccessibles à PPO — mais ces politiques supplémentaires exploitent des réponses hors de la distribution d'entraînement, sans garantie de performance. L'espace de solutions élargi est donc une faiblesse structurelle, non un avantage : DPO peut converger vers des régions de l'espace de sortie que les données de préférence ne couvrent pas, sans qu'aucun signal de régularisation ne l'en empêche.</p><figure class='fig'><svg viewBox='0 0 760 470' role='img' aria-label='Diagramme d ensembles emboîtés. Un grand disque solutions DPO contient strictement un disque plus petit solutions PPO. L anneau résiduel entre les deux, accessible à DPO mais hors d atteinte pour PPO, représente les policies exploitant des réponses hors-distribution non contraintes par les données de préférence ; un espace de solutions plus large y est une faiblesse, pas un avantage. Theorem 4.1, Xu et al. 2024.'><defs><marker id='rlhf-incl-ar' viewBox='0 0 10 10' refX='8' refY='5' markerWidth='6.5' markerHeight='6.5' orient='auto-start-reverse'><path d='M0 0L10 5L0 10z' fill='var(--ink-faint,#7A889B)'/></marker></defs><rect x='0' y='0' width='760' height='470' fill='none'/><text x='30' y='30' font-family='Archivo,sans-serif' font-size='13' font-weight='700' letter-spacing='1' fill='var(--ink,#15202E)'>INCLUSION DES ENSEMBLES DE SOLUTIONS — Theorem 4.1</text><circle cx='285' cy='255' r='180' fill='var(--bordeaux-wash,#F3E3E6)' stroke='var(--bordeaux,#7C2A38)' stroke-width='2'/><circle cx='248' cy='288' r='92' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='2'/><text x='292' y='120' text-anchor='middle' font-family='Archivo,sans-serif' font-size='17' font-weight='700' fill='var(--bordeaux,#7C2A38)'>solutions DPO</text><text x='248' y='283' text-anchor='middle' font-family='Archivo,sans-serif' font-size='16' font-weight='700' fill='var(--blue,#23537F)'>solutions</text><text x='248' y='305' text-anchor='middle' font-family='Archivo,sans-serif' font-size='16' font-weight='700' fill='var(--blue,#23537F)'>PPO</text><line x1='498' y1='130' x2='402' y2='150' stroke='var(--ink-faint,#7A889B)' stroke-width='1.4' marker-end='url(#rlhf-incl-ar)'/><text x='505' y='118' font-family='Archivo,sans-serif' font-size='15' font-weight='700' fill='var(--bordeaux,#7C2A38)'>Anneau résiduel</text><text x='505' y='140' font-family='Archivo,sans-serif' font-size='13' fill='var(--ink,#15202E)'>accessible à DPO, pas à PPO</text><text x='505' y='174' font-family='Archivo,sans-serif' font-size='12.5' fill='var(--ink-faint,#7A889B)'>= policies exploitant des</text><text x='505' y='192' font-family='Archivo,sans-serif' font-size='12.5' fill='var(--ink-faint,#7A889B)'>réponses hors-distribution,</text><text x='505' y='210' font-family='Archivo,sans-serif' font-size='12.5' fill='var(--ink-faint,#7A889B)'>non contraintes par les</text><text x='505' y='228' font-family='Archivo,sans-serif' font-size='12.5' fill='var(--ink-faint,#7A889B)'>données de préférence</text><text x='505' y='266' font-family='Archivo,sans-serif' font-size='13.5' font-weight='700' fill='var(--bordeaux,#7C2A38)'>espace plus large = faiblesse,</text><text x='505' y='284' font-family='Archivo,sans-serif' font-size='13.5' font-weight='700' fill='var(--bordeaux,#7C2A38)'>pas un avantage</text><text x='285' y='458' text-anchor='middle' font-family='Archivo,sans-serif' font-size='15' fill='var(--ink,#15202E)'><tspan fill='var(--blue,#23537F)' font-weight='700'>solutions PPO</tspan> ⊂ <tspan fill='var(--bordeaux,#7C2A38)' font-weight='700'>solutions DPO</tspan></text></svg><figcaption><span class='fcap-k'></span>Inclusion des ensembles de solutions (Theorem 4.1, Xu et al. 2024) : les solutions PPO forment un sous-ensemble strict des solutions DPO, l'anneau résiduel propre à DPO étant l'espace des policies hors-distribution non contraintes par les données de préférence — un espace plus large qui est ici une faiblesse, pas un avantage.</figcaption></figure>\n\n<p>Sur le plan empirique, la divergence est la plus brutale sur CodeContest : PPO atteint 22,4 % de <em>pass rate</em> (taux de réussite) à 10@1k, DPO atteint 0,0 % — un échec complet, même dans sa variante itérative (DPO-Iter, 3,2 %). Sur le dialogue HH-RLHF, PPO obtient un <em>reward</em> moyen de 0,718 contre 0,611 pour DPO, et l'évaluation GPT-4 confirme PPO gagnant dans 42 % des comparaisons contre 30 % pour DPO. Sur SafeRLHF, PPO maintient 99,5 % de taux de sécurité quelle que soit la condition ; DPO oscille entre 55,4 % et 71,8 % selon le <em>reference model</em> (modèle de référence) choisi — révélant une sensibilité que PPO n'exhibe pas.</p>\n\n<p>Trois modes de défaillance propres à DPO ont été caractérisés indépendamment. Le premier est le <em>length bias</em> (biais de longueur) : en distribution, le <em>reward</em> implicite de DPO ne corrèle pas avec la longueur, mais hors distribution la longueur explique 30 à 46 % de la variance du <em>reward</em> — le modèle apprend à produire des sorties plus longues plutôt que meilleures. Le DPO en ligne (itératif) amplifie ce biais à chaque itération ; le corriger apporte jusqu'à 20 % d'amélioration des <em>win rates</em> (taux de victoire) en résumé et dialogue. Le deuxième mode de défaillance est la suppression simultanée des deux réponses : DPO peut réduire la probabilité de la réponse choisie et de la réponse rejetée si ni l'une ni l'autre n'est suffisamment représentée relativement à la <em>reference policy</em>, effaçant la masse de probabilité sur des complétions valides. Le troisième — le plus contre-intuitif — est la <em>over-optimization</em> (suroptimisation) rapide : Rafailov et al. (NeurIPS 2024) montrent que les méthodes d'alignement direct se dégradent « souvent avant même la fin d'une seule époque » sur les données d'entraînement. L'absence d'un <em>reward model</em> proxy séparé ne prévient pas le <em>reward hacking</em> ; elle le rend seulement plus difficile à détecter.</p>\n\n<p>L'équivalence théorique DPO↔RLHF, fondement de la motivation originelle de DPO, n'est valide que dans le régime données infinies et en distribution. En données finies, la divergence KL de la <em>policy</em> par rapport à la <em>reference policy</em> n'est pas contrainte de la même façon que dans l'optimisation sous contrainte de PPO, et la <em>policy</em> peut dériver vers des régions non vérifiées de l'espace de sortie sans déclencher de signal de régularisation explicite. C'est précisément cette rupture qu'Azar et al. (2023) formalisent dans le cadre ΨPO, en identifiant la substitution des <em>pointwise rewards</em> aux préférences par paires comme une approximation que DPO hérite et ne peut corriger en interne.</p>\n\n<p>Rien de tout cela ne rend DPO obsolète. Sa simplicité computationnelle reste un avantage réel pour les tâches où des données de préférence de haute qualité couvrent bien la distribution cible. Mais l'affirmation que DPO est catégoriquement supérieur à PPO — ou qu'il évite les pathologies du RLHF — ne résiste pas à l'épreuve empirique multi-domaine. Le tableau plus précis est celui d'un échange de modes de défaillance : DPO est moins coûteux et plus rapide à entraîner, mais fragile au choix du <em>reference model</em>, susceptible au <em>length gaming</em>, et incapable d'apprendre des politiques qui exigent une exploration <em>on-policy</em> — exactement les conditions où la boucle en ligne de PPO, plus coûteuse, fait la différence.</p>",
+      "claims": [
+        "claim:28",
+        "claim:29",
+        "claim:30"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "ecosysteme-couts-recettes",
+      "heading": "Écosystème, coûts et recettes pratiques",
+      "level": 3,
+      "prose": "<p>Le post-training des grands modèles de langage s'organise selon un spectre de coût et de complexité croissants : supervised fine-tuning (fine-tuning supervisé, SFT) en socle, direct preference optimization (optimisation directe des préférences, DPO) au palier intermédiaire, proximal policy optimization (PPO) dans le pipeline RLHF classique au sommet. Le SFT n'engage qu'un seul modèle en mémoire et un signal de cross-entropie déterministe ; sa convergence est prévisible. DPO ajoute une deuxième copie — le reference model (modèle de référence) gelé — mais supprime toute boucle de renforcement externe. PPO mobilise quatre modèles simultanément : l'<em>actor</em> (politique active en entraînement), le <em>critic</em> (réseau de valeur), le reference model et le reward model (modèle de récompense) — soit une empreinte mémoire environ deux fois supérieure à DPO à taille de modèle égale.</p>\n\n<p>Pour un modèle de 7 milliards de paramètres en BF16 avec optimiseur AdamW, DPO mobilise environ 112 Go de VRAM (14 Go pour la policy, 14 Go pour le reference model gelé, 84 Go pour les états d'optimiseur), contre plus de 224 Go pour PPO où l'actor et le critic cumulent chacun ~98 Go. Traduit en coût cloud, l'écart est frappant : une session DPO complète sur ce format (50 000 paires de préférence, 2×H100 spot) revient à environ 25 dollars, contre ~430 dollars pour une session PPO équivalente — un rapport d'environ 17×. La stabilité d'entraînement suit la même hiérarchie : DPO converge typiquement sans intervention sur la configuration par défaut de TRL, tandis que PPO exige la surveillance active de six hyperparamètres interdépendants (init_kl_coef, clip_ratio, gae_lambda, les deux learning rates respectifs de l'actor et du critic, et ppo_epochs) et présente des modes d'échec spécifiques — reward hacking (détournement de la récompense par la policy), KL collapse (divergence brutale par rapport au reference model) et divergence du critic en début d'entraînement.</p>\n\n<p>L'annotation humaine reste le facteur limitant du RLHF classique. InstructGPT a mobilisé une équipe d'environ 40 contractors pour produire quelque 13 000 démonstrations SFT et 33 000 comparaisons pairées pour le reward model. Llama 2-Chat a collecté plus d'un million d'annotations de préférence humaine — deux reward models séparés, l'un calibré sur la serviabilité, l'autre sur la sécurité — à travers plusieurs itérations successives (RLHF-V1 à RLHF-V5) intégrant du rejection sampling (sélection-rejet) avant chaque passe PPO. Pour des tâches requérant des annotateurs experts, le coût unitaire peut dépasser 100 dollars par comparaison, portant le budget d'annotation de modèles frontière à plusieurs millions de dollars. C'est précisément ce frein structurel qui a accéléré l'adoption du RLAIF (reinforcement learning from AI feedback, apprentissage par renforcement depuis des retours d'IA) : dans Constitutional AI (IA constitutionnelle), un LLM-juge produit les préférences étiquetées à partir d'une constitution de principes, ramenant le coût marginal de l'annotation à celui d'une inférence.</p>\n\n<p>Les quatre laboratoires de référence occupent des positions distinctes sur ce spectre. OpenAI a posé le pipeline RLHF/PPO avec InstructGPT (2022) et l'a conservé — avec une proportion croissante de RLAIF — pour les générations GPT-4. Anthropic a systématisé le RLAIF dès Constitutional AI (2022) : la phase SL-CAI génère des révisions guidées par une constitution textuelle, puis la phase RL-CAI entraîne un reward model sur des préférences étiquetées par un LLM-juge avant la passe PPO ; Claude 3 et les versions ultérieures s'appuient sur une constitution élargie, désormais orientée vers des principes raisonnés plutôt que vers des règles prescriptives. Meta a adopté pour Llama 2-Chat un pipeline hybride — rejection sampling fine-tuning suivi de PPO, avec deux reward models distincts — avant de faire évoluer Llama 3 vers une proportion plus grande de DPO et de données synthétiques. DeepSeek a franchi une étape supplémentaire avec GRPO (2024) : apparu dans DeepSeekMath puis déployé dans DeepSeek-R1, l'algorithme calcule l'advantage (avantage relatif) à l'intérieur d'un groupe de sorties stochastiques pour un même prompt, sans réseau critic, et les récompenses peuvent être entièrement fondées sur des règles vérifiables — exactitude mathématique, conformité de format — supprimant toute annotation humaine pour le signal RL.</p>\n\n<p>TRL v1 (Hugging Face, mars 2026) constitue la bibliothèque de référence du post-training open-source. Elle couvre trois familles de méthodes : les méthodes <em>online</em> avec GRPOTrainer⚡, RLOOTrainer⚡, OnlineDPOTrainer🧪⚡, NashMDTrainer🧪⚡, PPOTrainer🧪 et XPOTrainer🧪⚡ ; le reward modeling avec RewardTrainer et PRMTrainer🧪 ; les méthodes <em>offline</em> avec SFTTrainer, DPOTrainer, BCOTrainer🧪, CPOTrainer🧪, KTOTrainer🧪 et ORPOTrainer🧪 ; enfin la distillation de connaissances avec GKDTrainer🧪 et MiniLLMTrainer🧪. Le symbole ⚡ signale le support natif de vLLM pour la génération accélérée en mode online. La stack recommandée pour DPO en production est TRL 0.13.0 + Transformers 4.48.1 + Datasets 3.1.0 + PyTorch 2.5.1. Les hyperparamètres critiques : learning rate DPO à 5×10<sup>−6</sup> (soit 40 fois inférieur au learning rate SFT typique de 2×10<sup>−4</sup>), β ∈ [0,1 ; 0,5] pour contrôler l'écart à la policy de référence, Q-LoRA 4-bit (rank 16) pour contenir l'empreinte VRAM à 24 Go ou plus.</p>\n\n<p>L'approche <em>on-policy</em> — générer les réponses candidates avec la policy courante plutôt qu'utiliser un dataset statique — réduit le distribution shift entre les paires de préférence et la policy en cours d'entraînement. Une recette reproductible documentée en 2025 sur Llama 3.1 8B illustre la démarche : (1) SFT de base sur le dataset cible ; (2) génération de 4 solutions par prompt sur 5 000 exemples du dataset DMath, soit environ 1 900 paires de préférence construites par scoring à base de règles sur la correction des réponses ; (3) DPO avec Q-LoRA rank 16, longueur maximale de 1 536 tokens, 3 époques, warm-up sur 3 % des steps, sur 1×H100. Durée totale : environ une heure. Résultats mesurés : 59 % de précision sur GSM8K, contre 54 % pour le SFT de référence (+5 points), et 62 % en configuration multi-GPU avec DeepSpeed. Ce gain de cinq points avec moins de 2 000 paires de préférence illustre l'efficacité de données du DPO on-policy sur des tâches à récompense vérifiable, et constitue un point d'entrée reproductible pour les équipes disposant d'un seul accélérateur haute gamme.</p>",
+      "claims": [
+        "claim:32",
+        "claim:33",
+        "claim:34",
+        "claim:35"
+      ]
+    },
+    {
+      "type": "exercise",
+      "part": "Du pipeline RLHF au pivot DPO",
+      "question": "(a) Dans l'objectif KL-régularisé <em>max<sub>π</sub> 𝔼[r(x,y)] − β·KL(π‖π<sub>ref</sub>)</em>, quelle est la forme close de la policy optimale, et que devient-elle quand β → ∞ ? (b) Par quel mécanisme algébrique précis la <em>partition function</em> Z(x) — a priori intractable — disparaît-elle de la perte DPO ? (c) InstructGPT 1,3 B est « préféré » à GPT-3 175 B : sur quelle distribution ce résultat tient-il, et qu'est-ce qu'il <em>ne</em> dit <em>pas</em> ?",
+      "answer": "<p><strong>(a)</strong> La solution est la distribution de Gibbs <em>π*(y|x) ∝ π<sub>ref</sub>(y|x)·exp(r(x,y)/β)</em> : la policy optimale retilte la référence par une exponentielle proportionnelle à la reward. Quand β → ∞, le terme exp(r/β) → 1 et <em>π* → π<sub>ref</sub></em> : la pénalité KL domine, la policy reste collée au modèle SFT et n'exploite plus du tout la reward.</p><p><strong>(b)</strong> On inverse la forme close en <em>r(x,y) = β·log(π<sub>θ</sub>/π<sub>ref</sub>) + β·log Z(x)</em>. En substituant cette expression dans la <em>différence</em> de Bradley-Terry <em>r(x,y<sub>w</sub>) − r(x,y<sub>l</sub>)</em>, le terme <em>β·log Z(x)</em> — qui ne dépend que de x — apparaît avec le même signe dans les deux membres et s'annule par soustraction. La somme sur tout le vocabulaire s'évapore par symétrie, sans Monte-Carlo ni approximation.</p><p><strong>(c)</strong> Le résultat tient uniquement sur la distribution d'<em>instruction-following</em>, telle que jugée par des évaluateurs humains. Il ne dit pas que le petit modèle est globalement supérieur : sur les benchmarks académiques en few-shot, l'alignement RLHF impose au contraire un <em>alignment tax</em> (régression de capacités). « Préféré sur les instructions » n'est pas « plus capable ».</p>"
+    },
+    {
+      "type": "exercise",
+      "part": "Sur-optimisation, variantes et le débat DPO vs PPO",
+      "question": "(a) Pourquoi l'idée que « DPO, en supprimant le reward model explicite, élimine le risque de reward hacking » est-elle fausse ? (b) Qu'est-ce que le <em>regressional</em> Goodhart distingue de l'<em>extremal</em> Goodhart, et lequel domine à haute divergence KL ? (c) GRPO supprime le <em>critic</em> de PPO : par quel estimateur le remplace-t-il, et quel biais structurel cet estimateur introduit-il sur les prompts difficiles ?",
+      "answer": "<p><strong>(a)</strong> DPO ne supprime pas le reward model, il l'<em>internalise</em> : la reward implicite est encodée dans les log-ratios <em>π<sub>θ</sub>/π<sub>ref</sub></em>. Quand la policy pousse ces ratios à l'extrême, elle sort du support des données de préférence et déclenche les mêmes pathologies extrémales. Rafailov et al. (NeurIPS 2024) montrent que l'alignement direct se dégrade « souvent avant même la fin d'une seule époque » — parfois plus vite que le RL explicite, car aucun signal de reward visible ne permet d'arrêt précoce raisonné.</p><p><strong>(b)</strong> Le <em>regressional</em> Goodhart : proxy et gold sont corrélés mais non identiques, et l'optimisation érode progressivement leur corrélation. L'<em>extremal</em> Goodhart : aux valeurs extrêmes du proxy, la distribution des entrées sort radicalement de l'espace d'entraînement du reward model et ses garanties s'effondrent. L'extremal domine à <em>haute</em> divergence KL ; le regressional, à faible divergence.</p><p><strong>(c)</strong> GRPO échantillonne G réponses par prompt et estime l'avantage par normalisation intra-groupe <em>Â<sub>i</sub> = (r<sub>i</sub> − μ)/σ</em>, supprimant le réseau critic (3 modèles au lieu de 4). Mais l'estimateur est biaisé en finite sample : conditionné sur les groupes non dégénérés, il <em>sous-estime</em> les avantages pour les prompts difficiles (taux de succès p &lt; 0,5) et les sur-estime pour les prompts faciles (arXiv:2601.08521).</p>"
+    },
+    {
+      "type": "biblio",
+      "entries": [
+        {
+          "label": "A Tiny History of RLHF — RLHF Book (Nathan Lambert)",
+          "href": "https://rlhfbook.com/c/02-related-works"
+        },
+        {
+          "label": "Reinforcement Learning from Human Feedback (RLHF) Explained — IntuitionLabs",
+          "href": "https://intuitionlabs.ai/articles/reinforcement-learning-human-feedback"
+        },
+        {
+          "label": "Deep Reinforcement Learning from Human Preferences — Christiano et al., arxiv 1706.03741",
+          "href": "https://arxiv.org/abs/1706.03741"
+        },
+        {
+          "label": "A Survey of Reinforcement Learning from Human Feedback (Kaufmann et al., 2023) — arxiv 2312.14925",
+          "href": "https://arxiv.org/html/2312.14925"
+        },
+        {
+          "label": "APRIL: Active Preference-learning based Reinforcement Learning — Akrour et al., 2012, arxiv 1208.0984",
+          "href": "https://arxiv.org/abs/1208.0984"
+        },
+        {
+          "label": "Direct Preference Optimization: Your Language Model is Secretly a Reward Model (Rafailov et al., 2023)",
+          "href": "https://arxiv.org/abs/2305.18290"
+        },
+        {
+          "label": "From RLHF to Direct Alignment: A Theoretical Unification of Preference Learning for Large Language Models (2601.06108)",
+          "href": "https://arxiv.org/abs/2601.06108"
+        },
+        {
+          "label": "Training language models to follow instructions with human feedback (arXiv abstract)",
+          "href": "https://arxiv.org/abs/2203.02155"
+        },
+        {
+          "label": "InstructGPT paper page — Hugging Face (équations exactes de la loss RM et de l'objectif PPO vérifiées)",
+          "href": "https://huggingface.co/papers/2203.02155"
+        },
+        {
+          "label": "RLHF Book — Reward Models (ch. 5) : confirme l'équivalence BT et l'absence du terme dans le papier",
+          "href": "https://rlhfbook.com/c/05-reward-models"
+        },
+        {
+          "label": "PPO for LLMs (Cameron Wolfe) : confirme PPO-ptx comme modèle par défaut et KL vs SFT",
+          "href": "https://cameronrwolfe.substack.com/p/ppo-llm"
+        },
+        {
+          "label": "Training language models to follow instructions with human feedback — ar5iv HTML render",
+          "href": "https://ar5iv.labs.arxiv.org/abs/2203.02155"
+        },
+        {
+          "label": "Distinguishing three alignment taxes — Jan Leike (OpenAI, co-auteur InstructGPT)",
+          "href": "https://aligned.substack.com/p/three-alignment-taxes"
+        },
+        {
+          "label": "Direct Preference Optimization: Your Language Model is Secretly a Reward Model (Rafailov et al., 2023) — arXiv:2305.18290",
+          "href": "https://arxiv.org/html/2305.18290"
+        },
+        {
+          "label": "Bradley-Terry Reward Models — Emergent Mind topic page",
+          "href": "https://www.emergentmind.com/topics/bradley-terry-reward-models"
+        },
+        {
+          "label": "From RLHF to Direct Alignment: A Theoretical Unification (2025)",
+          "href": "https://arxiv.org/html/2601.06108"
+        },
+        {
+          "label": "Beyond Bradley-Terry Models: A General Preference Model for Language Model Alignment (2024)",
+          "href": "https://arxiv.org/pdf/2410.02197"
+        },
+        {
+          "label": "Machine Learning from Human Preferences — Chapter 1 (Stanford MLHP)",
+          "href": "https://mlhp.stanford.edu/src/chap1.html"
+        },
+        {
+          "label": "RL with KL penalties is better viewed as Bayesian inference (Korbak et al., 2022, EMNLP Findings)",
+          "href": "https://arxiv.org/abs/2205.11275"
+        },
+        {
+          "label": "DPO Meets PPO: Reinforced Token Optimization for RLHF (2404.18922)",
+          "href": "https://arxiv.org/abs/2404.18922"
+        },
+        {
+          "label": "Scaling Laws for Reward Model Overoptimization — Alignment Forum (Gao et al. 2022)",
+          "href": "https://www.alignmentforum.org/posts/shcSdHGPhnLQkpSbX/scaling-laws-for-reward-model-overoptimization"
+        },
+        {
+          "label": "Scaling Laws for Reward Model Overoptimization — arXiv:2210.10760 (Gao, Schulman et al.)",
+          "href": "https://arxiv.org/abs/2210.10760"
+        },
+        {
+          "label": "Deriving the DPO Loss from First Principles — Hugging Face Blog",
+          "href": "https://huggingface.co/blog/garg-aayush/derive-dpo-loss"
+        },
+        {
+          "label": "Direct Preference Optimization: A Technical Deep Dive into the Post-RLHF Era of LLM Alignment (Medium, Vivek M.)",
+          "href": "https://medium.com/@vivekmgpr/direct-preference-optimization-a-technical-deep-dive-into-the-post-rlhf-era-of-llm-alignment-25f357f0d9b3"
+        },
+        {
+          "label": "From RLHF to Direct Alignment: A Theoretical Unification of Preference Learning for Large Language Models (Raheja & Pochhi, arXiv:2601.06108)",
+          "href": "https://arxiv.org/pdf/2601.06108"
+        },
+        {
+          "label": "A General Theoretical Paradigm to Understand Learning from Human Preferences (Azar et al., arXiv:2310.12036)",
+          "href": "https://arxiv.org/abs/2310.12036"
+        },
+        {
+          "label": "Generalized Preference Optimization: A Unified Approach to Offline Alignment (arXiv:2402.05749)",
+          "href": "https://arxiv.org/html/2402.05749"
+        },
+        {
+          "label": "Understanding the performance gap between online and offline alignment algorithms (arXiv:2405.08448)",
+          "href": "https://arxiv.org/abs/2405.08448"
+        },
+        {
+          "label": "A Comprehensive Survey of Direct Preference Optimization (arXiv:2410.15595)",
+          "href": "https://arxiv.org/html/2410.15595v2"
+        },
+        {
+          "label": "Paper page — arXiv:2310.12036 (Hugging Face)",
+          "href": "https://huggingface.co/papers/2310.12036"
+        },
+        {
+          "label": "A General Theoretical Paradigm to Understand Learning from Human Preferences (HTML, arXiv:2310.12036v1)",
+          "href": "https://arxiv.org/html/2310.12036v1"
+        },
+        {
+          "label": "Identity Preference Optimization (IPO) — Emergent Mind summary",
+          "href": "https://www.emergentmind.com/papers/2310.12036"
+        },
+        {
+          "label": "A General Theoretical Paradigm to Understand Learning from Human Preferences (AISTATS 2024 proceedings)",
+          "href": "https://proceedings.mlr.press/v238/gheshlaghi-azar24a.html"
+        },
+        {
+          "label": "Human Alignment of Large Language Models through Online Preference Optimisation (arXiv 2403.08635)",
+          "href": "https://arxiv.org/html/2403.08635"
+        },
+        {
+          "label": "RLHF and alternatives: KTO — Argilla blog",
+          "href": "https://argilla.io/blog/mantisnlp-rlhf-part-7/"
+        },
+        {
+          "label": "Paper Summary: KTO: Model Alignment as Prospect Theoretic Optimization — queirozf.com",
+          "href": "https://queirozf.com/entries/paper-summary-kto-model-alignment-as-prospect-theoretic-optimization"
+        },
+        {
+          "label": "KTO: Model Alignment as Prospect Theoretic Optimization (arXiv 2402.01306v3, HTML)",
+          "href": "https://arxiv.org/html/2402.01306v3"
+        },
+        {
+          "label": "KTO: Model Alignment as Prospect Theoretic Optimization (abstract, arXiv)",
+          "href": "https://arxiv.org/abs/2402.01306"
+        },
+        {
+          "label": "Preference Tuning LLMs with Direct Preference Optimization Methods — HuggingFace blog",
+          "href": "https://huggingface.co/blog/pref-tuning"
+        },
+        {
+          "label": "Federated Fine-Tuning of Large Language Models: Kahneman-Tversky vs. Direct Preference Optimization (2025)",
+          "href": "https://arxiv.org/abs/2502.14187"
+        },
+        {
+          "label": "SimPO: Simple Preference Optimization with a Reference-Free Reward (arXiv 2405.14734)",
+          "href": "https://arxiv.org/abs/2405.14734"
+        },
+        {
+          "label": "SimPO — NeurIPS 2024 Proceedings (Official)",
+          "href": "https://proceedings.neurips.cc/paper_files/paper/2024/hash/e099c1c9699814af0be873a175361713-Abstract-Conference.html"
+        },
+        {
+          "label": "DeepSeekMath: Pushing the Limits of Mathematical Reasoning (arxiv 2402.03300) — HTML version",
+          "href": "https://arxiv.org/html/2402.03300"
+        },
+        {
+          "label": "Group Relative Policy Optimization (GRPO) — Cameron R. Wolfe Deep Dive",
+          "href": "https://cameronrwolfe.substack.com/p/grpo"
+        },
+        {
+          "label": "Advanced Understanding of GRPO in DeepSeekMath — HuggingFace LLM Course chapter 12",
+          "href": "https://huggingface.co/docs/course/en/chapter12/3b"
+        },
+        {
+          "label": "DeepSeek-R1: Incentivizing Reasoning Capability in LLMs via Reinforcement Learning (arXiv 2501.12948, HTML full text)",
+          "href": "https://arxiv.org/html/2501.12948v1"
+        },
+        {
+          "label": "How DeepSeek-R1 was trained — philschmid.de (analyse tierce indépendante)",
+          "href": "https://www.philschmid.de/deepseek-r1"
+        },
+        {
+          "label": "From Zero to Reasoning Hero: How DeepSeek-R1 Leverages Reinforcement Learning — HuggingFace blog (NormalUhr)",
+          "href": "https://huggingface.co/blog/NormalUhr/deepseek-r1-explained"
+        },
+        {
+          "label": "Your Group-Relative Advantage Is Biased (arXiv:2601.08521)",
+          "href": "https://arxiv.org/abs/2601.08521"
+        },
+        {
+          "label": "Gradient Starvation in Binary-Reward GRPO (arXiv:2605.07689)",
+          "href": "https://arxiv.org/html/2605.07689"
+        },
+        {
+          "label": "DAPO: An Open-Source LLM Reinforcement Learning System at Scale (arXiv HTML)",
+          "href": "https://arxiv.org/html/2503.14476"
+        },
+        {
+          "label": "BytedTsinghua-SIA/DAPO — GitHub repository",
+          "href": "https://github.com/BytedTsinghua-SIA/DAPO"
+        },
+        {
+          "label": "DAPO: An Open-Source LLM Reinforcement Learning System at Scale (arXiv:2503.14476)",
+          "href": "https://arxiv.org/html/2503.14476v1"
+        },
+        {
+          "label": "DAPO: Enhancing GRPO For LLM Reinforcement Learning — AI Papers Academy",
+          "href": "https://aipapersacademy.com/dapo/"
+        },
+        {
+          "label": "Post-Training in 2026: GRPO, DAPO, RLVR & Beyond — llm-stats.com",
+          "href": "https://llm-stats.com/blog/research/post-training-techniques-2026"
+        },
+        {
+          "label": "Constitutional AI: Harmlessness from AI Feedback (arXiv abstract, Bai et al. 2022)",
+          "href": "https://arxiv.org/abs/2212.08073"
+        },
+        {
+          "label": "Anthropic Research – Constitutional AI: Harmlessness from AI Feedback",
+          "href": "https://www.anthropic.com/research/constitutional-ai-harmlessness-from-ai-feedback"
+        },
+        {
+          "label": "Constitutional AI: Self-Critique, Revision, and Principle-Based Alignment — AI Tower",
+          "href": "https://ai.towerofrecords.com/ai/constitutional-ai"
+        },
+        {
+          "label": "Scaling Safety with Words: A Review of Constitutional AI (Medium / Glitch-Q)",
+          "href": "https://medium.com/glitch-q/scaling-safety-with-words-a-review-of-constitutional-ai-harmlessness-from-ai-feedback-5df847980973"
+        },
+        {
+          "label": "Constitutional AI: Harmlessness from AI Feedback — Austin ML Journal Club (2023-08-31)",
+          "href": "https://austinmljournalclub.github.io/posts/20230831/"
+        },
+        {
+          "label": "RLAIF vs. RLHF: Scaling Reinforcement Learning from Human Feedback with AI Feedback (Lee et al., 2023) — arxiv:2309.00267",
+          "href": "https://arxiv.org/abs/2309.00267"
+        },
+        {
+          "label": "RLAIF: Reinforcement Learning from AI Feedback — Cameron Wolfe (Substack)",
+          "href": "https://cameronrwolfe.substack.com/p/rlaif-reinforcement-learning-from"
+        },
+        {
+          "label": "RLHF and alternatives: RLAIF — Argilla blog",
+          "href": "https://argilla.io/blog/mantisnlp-rlhf-part-4/"
+        },
+        {
+          "label": "Verbosity Bias in Preference Labeling by Large Language Models (Saito et al., 2023)",
+          "href": "https://arxiv.org/abs/2310.10076"
+        },
+        {
+          "label": "Reinforcement learning from AI feedback (RLAIF): Complete overview — SuperAnnotate",
+          "href": "https://www.superannotate.com/blog/reinforcement-learning-from-ai-feedback-rlaif"
+        },
+        {
+          "label": "Justice or Prejudice? Quantifying Biases in LLM-as-a-Judge (arxiv 2410.02736)",
+          "href": "https://arxiv.org/abs/2410.02736"
+        },
+        {
+          "label": "RLAIF vs RLHF: What's the Difference and Why It Matters (Prajna AI Wisdom)",
+          "href": "https://prajnaaiwisdom.medium.com/rlaif-vs-rlhf-whats-the-difference-and-why-it-matters-8e515aa374b6"
+        },
+        {
+          "label": "Reward Hacking in the Era of Large Models: Mechanisms, Emergent Misalignment, Challenges (Wang et al., 2026)",
+          "href": "https://arxiv.org/abs/2604.13602v1"
+        },
+        {
+          "label": "Paper discussion: Constitutional AI — Harmlessness from AI Feedback (LessWrong)",
+          "href": "https://www.lesswrong.com/posts/aLhLGns2BSun3EzXB/paper-constitutional-ai-harmlessness-from-ai-feedback"
+        },
+        {
+          "label": "Scaling Laws for Reward Model Overoptimization — Gao, Schulman, Hilton (PMLR / ICML 2023)",
+          "href": "https://proceedings.mlr.press/v202/gao23h/gao23h.pdf"
+        },
+        {
+          "label": "Scaling Laws for Reward Model Overoptimization — post des auteurs (LessWrong / AlignmentForum)",
+          "href": "https://www.lesswrong.com/posts/shcSdHGPhnLQkpSbX/scaling-laws-for-reward-model-overoptimization"
+        },
+        {
+          "label": "Reward Hacking in Reinforcement Learning — Lilian Weng (2024)",
+          "href": "https://lilianweng.github.io/posts/2024-11-28-reward-hacking/"
+        },
+        {
+          "label": "Reward Model Ensembles Help Mitigate Overoptimization — Coste et al. (2023)",
+          "href": "https://arxiv.org/abs/2310.02743"
+        },
+        {
+          "label": "The Effects of Reward Misspecification: Mapping and Mitigating Misaligned Models (Pan et al., ICLR 2022)",
+          "href": "https://arxiv.org/abs/2201.03544"
+        },
+        {
+          "label": "Reward Hacking in the Era of Large Models: Mechanisms, Emergent Misalignment, Challenges (survey 2025)",
+          "href": "https://arxiv.org/html/2604.13602v1"
+        },
+        {
+          "label": "Scaling Laws for Reward Model Overoptimization in Direct Alignment Algorithms (Rafailov et al., NeurIPS 2024)",
+          "href": "https://arxiv.org/abs/2406.02900"
+        },
+        {
+          "label": "InstructGPT — paper notes (patrick-llgc): 'Improved truthfulness (less hallucination)' + TruthfulQA 42% vs 21%",
+          "href": "https://patrick-llgc.github.io/Learning-Deep-Learning/paper_notes/instructgpt.html"
+        },
+        {
+          "label": "Understanding the Effects of RLHF on LLM Generalisation and Diversity (emergentmind, arXiv:2310.06452)",
+          "href": "https://www.emergentmind.com/papers/2310.06452"
+        },
+        {
+          "label": "Understanding the Effects of RLHF on LLM Generalisation and Diversity (Kirk et al., ICLR 2024)",
+          "href": "https://arxiv.org/abs/2310.06452"
+        },
+        {
+          "label": "Mitigating the Alignment Tax of RLHF (Lin et al., EMNLP 2024)",
+          "href": "https://arxiv.org/abs/2309.06256"
+        },
+        {
+          "label": "Is DPO Superior to PPO for LLM Alignment? A Comprehensive Study (Xu et al., 2024)",
+          "href": "https://arxiv.org/html/2404.10719v1"
+        },
+        {
+          "label": "RLEF: Grounding Code LLMs in Execution Feedback with Reinforcement Learning (Gehring et al., 2024)",
+          "href": "https://arxiv.org/html/2410.02089"
+        },
+        {
+          "label": "Is DPO Superior to PPO for LLM Alignment? A Comprehensive Study (arXiv:2404.10719)",
+          "href": "https://arxiv.org/abs/2404.10719"
+        },
+        {
+          "label": "Disentangling Length from Quality in Direct Preference Optimization (Park et al., 2024)",
+          "href": "https://arxiv.org/abs/2403.19159"
+        },
+        {
+          "label": "Iterative Length-Regularized Direct Preference Optimization (iLR-DPO, 2024)",
+          "href": "https://arxiv.org/html/2406.11817v1"
+        },
+        {
+          "label": "Eliminating Biased Length Reliance of DPO via Down-Sampled KL Divergence (SamPO, 2024)",
+          "href": "https://arxiv.org/html/2406.10957v4"
+        },
+        {
+          "label": "Iterative Length-Regularized Direct Preference Optimization: A Case Study on Improving 7B Language Models to GPT-4 Level (Pang et al., 2024)",
+          "href": "https://arxiv.org/abs/2406.11817"
+        },
+        {
+          "label": "Towards Efficient Exact Optimization of Language Model Alignment (NeurIPS 2024 poster 93540) — DPO still deteriorates from over-optimization despite no separate proxy reward model",
+          "href": "https://neurips.cc/virtual/2024/poster/93540"
+        },
+        {
+          "label": "A Comprehensive Survey of Direct Preference Optimization — reward hacking exists in DPO regardless of explicit or implicit reward model",
+          "href": "https://arxiv.org/html/2410.15595v3"
+        },
+        {
+          "label": "On the Limited Generalization Capability of the Implicit Reward Model Induced by Direct Preference Optimization",
+          "href": "https://arxiv.org/html/2409.03650v2"
+        },
+        {
+          "label": "Efficient RLHF: Reducing the Memory Usage of PPO (arxiv 2309.00754)",
+          "href": "https://arxiv.org/abs/2309.00754"
+        },
+        {
+          "label": "How much VRAM do I need for LLM fine-tuning? — Modal Engineering Blog",
+          "href": "https://modal.com/blog/how-much-vram-need-fine-tuning"
+        },
+        {
+          "label": "OpenRLHF: An Easy-to-use, Scalable and High-performance RLHF Framework (arxiv 2405.11143)",
+          "href": "https://arxiv.org/html/2405.11143v1"
+        },
+        {
+          "label": "Understanding the Performance Gap in Preference Learning: A Dichotomy of RLHF and DPO",
+          "href": "https://arxiv.org/abs/2505.19770"
+        },
+        {
+          "label": "Unpacking DPO and PPO: Disentangling Best Practices for Learning from Preference Feedback",
+          "href": "https://arxiv.org/abs/2406.09279"
+        },
+        {
+          "label": "Scale-dependent ranking inversions in post-training algorithms (arXiv 2603.19335)",
+          "href": "https://arxiv.org/abs/2603.19335"
+        },
+        {
+          "label": "Elephant in the Room: Unveiling the Impact of Reward Model Quality in Alignment (2024)",
+          "href": "https://arxiv.org/abs/2409.19024"
+        },
+        {
+          "label": "Llama 2: Open Foundation and Fine-Tuned Chat Models (arXiv 2307.09288) — version HTML ar5iv",
+          "href": "https://ar5iv.labs.arxiv.org/html/2307.09288"
+        },
+        {
+          "label": "Understanding LLaMA2 and LLaMA3 — Towards Explainable AI (Medium)",
+          "href": "https://medium.com/towards-explainable-ai/understanding-llama2-and-llama3-a-personal-perspective-e891456704d8"
+        },
+        {
+          "label": "LLaMA-2 from the Ground Up — Cameron R. Wolfe, Ph.D.",
+          "href": "https://cameronrwolfe.substack.com/p/llama-2-from-the-ground-up"
+        },
+        {
+          "label": "Llama 2: an incredible open LLM — Nathan Lambert (interconnects.ai)",
+          "href": "https://www.interconnects.ai/p/llama-2-from-meta"
+        },
+        {
+          "label": "LLM Training: RLHF and Its Alternatives — Sebastian Raschka (Ahead of AI)",
+          "href": "https://magazine.sebastianraschka.com/p/llm-training-rlhf-and-its-alternatives"
+        },
+        {
+          "label": "How to align open LLMs in 2025 with DPO & synthetic data (philschmid.de)",
+          "href": "https://www.philschmid.de/rl-with-llms-in-2025-dpo"
+        },
+        {
+          "label": "meta-llama/Llama-3.1-8B-Instruct GSM8K Evaluation — 84.5 vs 76.95 (HuggingFace discussion)",
+          "href": "https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/discussions/81"
+        }
+      ]
+    },
+    {
+      "type": "pointers",
+      "title": "Pour aller plus loin",
+      "items": [
+        {
+          "name": "ΨPO / IPO — A General Theoretical Paradigm to Understand Learning from Human Preferences (Azar et al., 2024)",
+          "url": "https://arxiv.org/abs/2310.12036",
+          "kind": "reading",
+          "blurb": "Papier fondateur du cadre ΨPO ; montre que DPO et IPO sont des cas particuliers et établit les garanties de généralisation d'IPO sous préférences bruitées finies."
+        },
+        {
+          "name": "KTO — Model Alignment as Prospect Theoretic Optimization (Ethayarajh et al., ICML 2024)",
+          "url": "https://arxiv.org/abs/2402.01306",
+          "kind": "reading",
+          "blurb": "Introduit les Human-Aware Losses (HALOs) et la perte KTO fondée sur la théorie des perspectives ; démontre l'alignement avec signal binaire désirable/indésirable sans paires annotées."
+        },
+        {
+          "name": "ORPO — Monolithic Preference Optimization without Reference Model (Hong et al., EMNLP 2024)",
+          "url": "https://aclanthology.org/2024.emnlp-main.626/",
+          "kind": "reading",
+          "blurb": "Propose l'objectif à odds ratio fusionnant SFT et alignement en une seule phase, sans reference model ni warm-up préalable."
+        },
+        {
+          "name": "SimPO — Simple Preference Optimization with a Reference-Free Reward (Meng et al., NeurIPS 2024)",
+          "url": "https://arxiv.org/abs/2405.14734",
+          "kind": "reading",
+          "blurb": "Définit la récompense implicite par length normalization et introduit un target margin explicite ; surpasse DPO sur AlpacaEval 2 et Arena-Hard sans reference model."
+        },
+        {
+          "name": "DeepSeek-R1 (arXiv:2501.12948)",
+          "url": "https://arxiv.org/abs/2501.12948",
+          "kind": "reading",
+          "blurb": "Article fondateur de DeepSeek-R1/R1-Zero : description de GRPO appliqué à RLVR, émergence du raisonnement en chaîne et résultats sur AIME 2024."
+        },
+        {
+          "name": "DAPO — An Open-Source LLM Reinforcement Learning System at Scale (arXiv:2503.14476)",
+          "url": "https://arxiv.org/abs/2503.14476",
+          "kind": "reading",
+          "blurb": "Présente les quatre techniques DAPO (clip-higher, dynamic sampling, token-level loss, overlong punishment) et leur impact sur AIME 2024."
+        },
+        {
+          "name": "GSPO — Group Sequence Policy Optimization (arXiv:2507.18071)",
+          "url": "https://arxiv.org/abs/2507.18071",
+          "kind": "reading",
+          "blurb": "Reformulation de GRPO à niveau séquence (ratio = moyenne géométrique des ratios per-token) ; stabilise l'entraînement MoE et a contribué aux modèles Qwen3."
+        },
+        {
+          "name": "Your Group-Relative Advantage Is Biased (arXiv:2601.08521)",
+          "url": "https://arxiv.org/abs/2601.08521",
+          "kind": "reading",
+          "blurb": "Formalise le biais de l'estimateur d'avantage de GRPO en finite sample et propose HA-DW (History-Aware Adaptive Difficulty Weighting) comme correctif."
+        },
+        {
+          "name": "TRL — Transformer Reinforcement Learning (HuggingFace, GitHub)",
+          "url": "https://github.com/huggingface/trl",
+          "kind": "library",
+          "blurb": "Bibliothèque de référence pour le post-training des LLM : implémente GRPO, DPO, PPO et variantes (dont Dr. GRPO) avec intégration native HuggingFace."
+        },
+        {
+          "name": "Constitutional AI: Harmlessness from AI Feedback (Bai et al., Anthropic, 2022)",
+          "url": "https://arxiv.org/abs/2212.08073",
+          "kind": "reading",
+          "blurb": "Fondation de l'approche RLAIF d'Anthropic : SL-CAI (critique et révision guidées par constitution) suivi de RL-CAI (reward model entraîné sur préférences IA-générées + PPO)."
+        },
+        {
+          "name": "RLAIF vs. RLHF: Scaling Reinforcement Learning from Human Feedback with AI Feedback (Lee et al., ICML 2024)",
+          "url": "https://arxiv.org/abs/2309.00267",
+          "kind": "reading",
+          "blurb": "Étude empirique de Google montrant que le RLAIF atteint des performances comparables au RLHF humain sur trois tâches, avec un coût d'annotation plus de 10× inférieur."
+        },
+        {
+          "name": "Collective Constitutional AI: Aligning a Language Model with Public Input (Anthropic, 2024)",
+          "url": "https://arxiv.org/abs/2406.07814",
+          "kind": "reading",
+          "blurb": "Extension de Constitutional AI où la constitution est rédigée par ~1 000 citoyens représentatifs via Polis ; résultat : biais réduit sur neuf dimensions sociales, ~50 % de chevauchement avec la constitution interne d'Anthropic."
+        },
+        {
+          "name": "TRL — Transformers Reinforcement Learning (Hugging Face docs)",
+          "url": "https://huggingface.co/docs/trl/en/index",
+          "kind": "library",
+          "blurb": "Bibliothèque de référence pour le post-training open-source : SFTTrainer, DPOTrainer, GRPOTrainer, KTOTrainer, ORPOTrainer, PPOTrainer, RewardTrainer et plus — avec support vLLM natif pour les trainers online (v1, mars 2026)."
+        },
+        {
+          "name": "How to align open LLMs in 2025 with DPO & synthetic data (Philipp Schmid)",
+          "url": "https://www.philschmid.de/rl-with-llms-in-2025-dpo",
+          "kind": "implementation",
+          "blurb": "Recette on-policy DPO reproductible sur Llama 3.1 8B avec TRL + Q-LoRA 4-bit : génération des paires, hyperparamètres et résultats GSM8K sur H100."
+        },
+        {
+          "name": "InstructGPT — Training language models to follow instructions with human feedback (Ouyang et al., 2022)",
+          "url": "https://arxiv.org/abs/2203.02155",
+          "kind": "reading",
+          "blurb": "Pipeline RLHF de référence (SFT → RM Bradley-Terry → PPO+KL) montrant qu'un modèle 1,3B InstructGPT surpasse GPT-3 175B sur l'instruction-following selon les évaluateurs humains."
+        },
+        {
+          "name": "Direct Preference Optimization (Rafailov et al., NeurIPS 2023)",
+          "url": "https://arxiv.org/abs/2305.18290",
+          "kind": "reading",
+          "blurb": "Papier fondateur de DPO : reparamétrage du reward implicite permettant d'extraire la policy optimale en forme close depuis des données de préférence, sans reward model ni boucle RL."
+        },
+        {
+          "name": "DeepSeekMath — Pushing the Limits of Mathematical Reasoning (DeepSeek-AI, 2024)",
+          "url": "https://arxiv.org/abs/2402.03300",
+          "kind": "reading",
+          "blurb": "Introduction de GRPO : variante de PPO sans critic, advantage calculé par normalisation intra-groupe, réduisant l'empreinte mémoire ; 51,7 % sur MATH avec DeepSeekMath 7B."
+        },
+        {
+          "name": "TRL v1 blog post — Hugging Face",
+          "url": "https://huggingface.co/blog/trl-v1",
+          "kind": "reading",
+          "blurb": "Annonce de TRL v1 (mars 2026) : description du nouveau spectre de trainers, du support vLLM co-localisé et des choix d'architecture de la bibliothèque."
+        }
+      ]
+    },
+    {
+      "type": "glossary"
+    }
+  ]
+}
