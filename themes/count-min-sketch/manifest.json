@@ -1,0 +1,474 @@
+{
+  "edition": "monographie",
+  "slug": "count-min-sketch",
+  "meta": {
+    "title": "Count-Min Sketch : estimer des fréquences en flux à mémoire bornée",
+    "kicker": "Esquisse de comptage en flux · monographie",
+    "h1": "Count-Min Sketch : estimer des fréquences en flux à mémoire bornée",
+    "lede": "Un tableau de compteurs alimenté par hachage et interrogé par le minimum sur d lignes : comment le Count-Min Sketch approxime les fréquences d'un flux en mémoire sous-linéaire avec une garantie d'erreur unilatérale a_i + εN — précise sur les heavy hitters, trompeuse sur les items rares — et tout l'écosystème de variantes et de déploiements qu'elle a engendré.",
+    "meta_chips": [
+      "Monographie"
+    ],
+    "footer": "Count-Min Sketch : estimer des fréquences en flux à mémoire bornée · scriptorium"
+  },
+  "elements": [
+    {
+      "type": "abstract"
+    },
+    {
+      "type": "section",
+      "id": "genese-probleme-flux",
+      "heading": "Genèse et problème du comptage en flux",
+      "level": 3,
+      "prose": "<p>Les années 1990 voient exploser le volume des flux (data streams) auxquels les systèmes informatiques sont confrontés : journaux de trafic réseau, séquences de requêtes web, transactions financières à haute fréquence. Dans chacun de ces contextes, la même question s'impose — combien de fois tel élément est-il apparu dans le flux jusqu'ici ? — et la même contrainte rend les approches naïves impraticables : l'univers <em>U</em> des valeurs possibles peut être astronomique (2<sup>32</sup> adresses IPv4, espace de toutes les URL indexées), tandis que la mémoire disponible ne permet pas de maintenir un compteur exact par élément. Un algorithme exact exigerait Θ(<em>|U|</em>) cellules mémoire ; le défi est d'approcher la fréquence d'un élément quelconque avec une garantie probabiliste en espace strictement sub-linéaire par rapport à <em>|U|</em> — et constant par rapport à la longueur du flux.</p>\n\n<p>Le premier cadre théorique rigoureux est posé en 1996 par Noga Alon, Yossi Matias et Mario Szegedy. Leur AMS sketch démontre que les frequency moments (moments de fréquence) d'un stream, notamment F<sub>2</sub> = Σ<sub>i</sub> f<sub>i</sub>², peuvent être approximés avec une précision relative ε et probabilité de succès 1−δ en utilisant O(1/ε² · log(1/δ)) compteurs. Ce résultat, couronné du prix Gödel en 2005, fonde la théorie des algorithmes de flux et des structures de résumé probabiliste. Il laisse cependant une lacune pratique : pour des point queries (requêtes ponctuelles de fréquence) sur des éléments individuels, les constructions AMS-style conservent cette dépendance quadratique en 1/ε — prohibitive pour des équipements réseau opérant à la vitesse de la ligne ou pour des systèmes embarqués à mémoire contrainte.</p>\n\n<p>C'est dans ce contexte que Graham Cormode et S. Muthu Muthukrishnan publient, en juin 2003, le rapport technique DIMACS 2003-20, acte de naissance formel du Count-Min Sketch (CMS). Ce travail est présenté à LATIN 2004, la conférence Latino-américaine d'informatique théorique, puis publié sous le titre « An improved data stream summary: The count-min sketch and its applications » dans le <em>Journal of Algorithms</em>, 55(1) : 58–75 (2005). L'apport central est de ramener à O(1/ε · log(1/δ)) l'espace total nécessaire pour des point queries sur un stream — un facteur 1/ε de moins que les structures précédentes, obtenu via une garantie d'erreur additive ε·<em>N</em> (où <em>N</em> est la somme de toutes les fréquences, la norme L₁ du flux) plutôt que relative. En 2014, dix ans exactement après la présentation originale, le comité de la conférence LATIN décerne au papier le prix Imre Simon Test-of-Time, qui honore chaque édition le travail paru à LATIN ayant exercé l'impact durable le plus significatif sur l'informatique théorique.</p>",
+      "claims": [
+        "claim:1",
+        "claim:2",
+        "claim:3"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "structure-operations",
+      "heading": "Structure de données et opérations : Update, Point Query",
+      "level": 3,
+      "prose": "<p>Le Count-Min Sketch repose sur un tableau à deux dimensions de <em>w</em> colonnes (largeur) et <em>d</em> lignes (profondeur), dont chaque cellule est un entier initialisé à zéro. Chaque ligne <em>i</em> est associée à une fonction de hachage <em>h</em><sub>i</sub> tirée d'une famille pairwise independent (indépendante deux à deux) : pour deux clés quelconques du domaine, la probabilité de collision est au plus 1/<em>w</em>, et les <em>d</em> lignes se comportent de façon mutuellement indépendante. Les deux paramètres de dimensionnement découlent directement des garanties probabilistes visées : <em>w</em> = ⌈<em>e</em>/ε⌉ — où <em>e</em> désigne la base du logarithme naturel (≈ 2,718) — fixe la résolution horizontale pour contenir l'erreur additionnelle dans un multiple de ε · <em>N</em>, et <em>d</em> = ⌈ln(1/δ)⌉ fixe la profondeur pour ramener la probabilité d'échec global à δ. L'inégalité de Markov, appliquée à la variable d'erreur par ligne, justifie le choix de <em>w</em> ; une borne exponentielle sur les <em>d</em> lignes indépendantes justifie le choix de <em>d</em>.</p>\n\n<p>L'opération update (mise à jour) est élémentaire : à l'arrivée d'un événement d'identifiant <em>j</em> et de multiplicité <em>c</em> (typiquement <em>c</em> = 1), on calcule, pour chaque ligne <em>i</em> ∈ {1, …, <em>d</em>}, l'indice <em>k</em> = <em>h</em><sub>i</sub>(<em>j</em>) et on ajoute <em>c</em> à <code>count[i, k]</code>. Les <em>d</em> cellules touchées occupent des positions différentes dans chaque ligne, de sorte que les écritures sont statistiquement indépendantes les unes des autres. Le coût total est O(<em>d</em>) en temps et O(1) en espace supplémentaire.</p>\n\n<p>L'opération point query (requête de fréquence ponctuelle) retourne l'estimation â<sub>j</sub> = min<sub>i=1</sub><sup>d</sup> count[i, h<sub>i</sub>(j)]. Ce minimum sélectionne, parmi les <em>d</em> lignes, la cellule la moins polluée par des collisions, en exploitant la décorrélation statistique des erreurs de hachage d'une ligne à l'autre. La structure offre une garantie unilatérale : dans un flux à multiplicités non négatives, le sketch ne sous-estime jamais la vraie fréquence <em>a</em><sub>j</sub>, car une cellule <code>count[i, h<sub>i</sub>(j)]</code> ne peut qu'accumuler des contributions d'éléments distincts de <em>j</em> partageant le même hachage — le bruit est strictement positif. Formellement, avec probabilité au moins 1 − δ, l'estimation satisfait <em>a</em><sub>j</sub> ≤ â<sub>j</sub> ≤ <em>a</em><sub>j</sub> + ε · <em>N</em>, où <em>N</em> est la masse totale du flux. Le coût de la requête est également O(<em>d</em>).</p>\n\n<p>L'empreinte mémoire totale est O(<em>w</em> · <em>d</em>) cellules. Un exemple chiffré illustre la compacité atteinte en pratique : avec <em>w</em> = 2 000 et <em>d</em> = 10, les 20 000 compteurs encodés sur 16 bits n'occupent que 40 Ko, tout en garantissant une erreur additive d'au plus 0,1 % de <em>N</em> avec probabilité 99,9 %. Enfin, le Count-Min Sketch est un linear sketch (sketch linéaire) : deux instances de mêmes dimensions construites avec les mêmes fonctions de hachage se fusionnent en additionnant leurs tableaux cellule par cellule, sans perte de garanties. Cette mergeabilité rend la structure naturellement adaptée aux architectures distribuées où des sous-flux sont traités en parallèle avant agrégation centrale.</p>",
+      "claims": [
+        "claim:4",
+        "claim:5",
+        "claim:6",
+        "claim:7"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-cms-bac-a-sable"
+    },
+    {
+      "type": "section",
+      "id": "garanties-preuve",
+      "heading": "Garanties d'erreur et esquisse de preuve",
+      "level": 3,
+      "prose": "<p>Le <em>point query</em> (requête ponctuelle) révèle la propriété structurelle la plus remarquable du Count-Min Sketch : l'estimateur â<sub>i</sub> = min<sub>j</sub> count[j, h<sub>j</sub>(i)] constitue toujours un majorant exact de la vraie fréquence a<sub>i</sub>. Ce <em>one-sided error</em> (erreur unilatérale) est immédiat par construction — chaque cellule count[j, h<sub>j</sub>(i)] accumule a<sub>i</sub> augmenté de collisions positives provenant d'autres items, et le minimum sur d lignes ne peut descendre sous a<sub>i</sub>. La structure ne sous-estime jamais : les fausses économies sont impossibles, seul un excès est concevable.</p>\n\n<p>La borne haute probabiliste — avec probabilité ≥ 1−δ, â<sub>i</sub> ≤ a<sub>i</sub> + ε·N où N = ‖a‖₁ est la masse totale du flux — se démontre en trois étapes. Pour une ligne j fixée, on introduit les <em>indicator variables</em> (variables indicatrices) X<sub>j,k</sub> = <strong>1</strong>[h<sub>j</sub>(i) = h<sub>j</sub>(k)] pour tout item k ≠ i. L'erreur de collision sur cette ligne s'écrit I<sub>j</sub> = Σ<sub>k≠i</sub> a<sub>k</sub> X<sub>j,k</sub>. Par <em>pairwise independence</em> (indépendance deux à deux) de h<sub>j</sub>, la probabilité de collision entre deux items quelconques vaut exactement 1/w, ce qui donne :</p>\n\n<p style=\"text-align:center; font-family: monospace; padding: 0.5em 0\">𝔼[I<sub>j</sub>] ≤ (1/w) · ‖a‖₁ ≤ (ε/e) · ‖a‖₁</p>\n\n<p>puisque w = ⌈e/ε⌉ impose 1/w ≤ ε/e. L'inégalité de Markov appliquée à cette espérance fournit alors Pr[I<sub>j</sub> > ε·N] ≤ 𝔼[I<sub>j</sub>]/(ε·N) ≤ 1/e : chaque ligne dépasse le seuil ε·N avec probabilité strictement inférieure à 1/e. Les d lignes étant équipées de fonctions de hachage indépendantes, leurs erreurs sont indépendantes et l'estimateur excède a<sub>i</sub> + ε·N seulement si <em>toutes</em> les lignes échouent simultanément, événement de probabilité au plus (1/e)<sup>d</sup>. Le choix d = ⌈ln(1/δ)⌉ garantit (1/e)<sup>d</sup> ≤ e<sup>−ln(1/δ)</sup> = δ, concluant la preuve.</p>\n\n<p>La complexité spatiale est O(w·d) = O((e/ε)·ln(1/δ)) mots mémoire, soit un facteur 1/ε au lieu de 1/ε² pour les esquisses AMS antérieures à garanties comparables. Il est crucial de noter que cette garantie est fondamentalement probabiliste et qu'elle porte sur un item i <em>fixé au moment de la requête</em> — elle ne s'applique pas simultanément à tous les items du flux. Étendre la borne à m items distincts en même temps exige un union bound qui alourdit d d'un facteur log m. Par ailleurs, la borne additive ε·N est proportionnelle à la masse totale du flux : pertinente pour les distributions asymétriques où les heavy hitters concentrent l'essentiel de la masse, elle peut s'avérer vacue pour les items rares dans un flux quasi-uniforme, où ε·N dépasse alors largement a<sub>i</sub>.</p>",
+      "claims": [
+        "claim:8",
+        "claim:9",
+        "claim:10",
+        "claim:11"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "requetes-etendues",
+      "heading": "Requêtes étendues : inner product, range queries, heavy hitters",
+      "level": 3,
+      "prose": "<p>Le CMS offre, au-delà de la requête ponctuelle, trois extensions que le papier original traite explicitement. La première est l'<em>inner product query</em> (requête de produit interne) : étant donné deux vecteurs de fréquences <em>a</em> et <em>b</em> encodés dans deux esquisses partageant les mêmes fonctions de hachage, on définit â·b = min<sub>j</sub> &sum;<sub>k</sub> CMS<sub>a</sub>[j, k] · CMS<sub>b</sub>[j, k]. La garantie présente la même structure asymétrique que la requête ponctuelle : <em>a·b ≤ â·b</em> toujours — pas de sous-estimation possible — et <em>â·b ≤ a·b + ε·‖a‖₁·‖b‖₁</em> avec probabilité ≥ 1−δ. L'erreur additive est proportionnelle au produit des masses totales des deux flux : les collisions gonflent l'estimation, mais de façon bornée. La contrainte de partage des fonctions de hachage est une condition pratique non-négligeable ; deux esquisses construites avec des seeds distincts ne se multiplient pas directement.</p>\n\n<p>La deuxième extension concerne les <em>range queries</em> (requêtes de plage). En mode naïf, estimer la fréquence cumulée sur une plage [l, r] en sommant les estimations ponctuelles de chaque élément accumule une erreur de ε·N par terme, soit une erreur totale croissant linéairement avec la longueur de la plage. La <em>dyadic decomposition</em> (décomposition en plages dyadiques) élimine ce défaut : tout intervalle entier [l, r] ⊆ [0, n] se décompose en au plus 2 log n plages dyadiques, c'est-à-dire des intervalles de la forme [k·2<sup>i</sup>, (k+1)·2<sup>i</sup> − 1]. L'algorithme maintient log n esquisses à des échelles différentes — une par niveau dyadique — de sorte que la somme des erreurs sur les au plus 2 log n plages constitutives reste bornée par une constante fois ε·N, quelle que soit la longueur de la plage requêtée. La contrepartie est un facteur log n supplémentaire en espace et en temps de construction.</p><figure class='fig'><svg viewBox='0 0 680 425' role='img' aria-label='Arbre dyadique sur le domaine [0,16] a quatre niveaux ; une esquisse Count-Min par niveau ; intervalle requete [3,12] recouvert exactement par quatre plages dyadiques canoniques a differentes echelles, bornant erreur totale a un petit multiple de epsilon N.'><text x='294' y='22' text-anchor='middle' font-size='13' font-weight='700' fill='var(--ink,#15202E)'>Décomposition dyadique d'un intervalle [l, r]</text><text x='294' y='40' text-anchor='middle' font-size='11' fill='var(--ink-faint,#7A889B)'>n = 16, log n = 4 niveaux ; requête [l, r] = [3, 12]</text><text x='615' y='30' text-anchor='middle' font-size='10' font-weight='600' fill='var(--ink,#15202E)'>une CMS par niveau</text><text x='294' y='57' text-anchor='middle' font-size='11' font-weight='600' fill='var(--blue,#23537F)'>intervalle requêté [3, 12]</text><rect x='154' y='62' width='280' height='262' rx='3' fill='var(--blue,#23537F)' fill-opacity='0.10'/><line x1='154' y1='62' x2='154' y2='324' stroke='var(--blue,#23537F)' stroke-width='1' stroke-dasharray='3 3'/><line x1='434' y1='62' x2='434' y2='324' stroke='var(--blue,#23537F)' stroke-width='1' stroke-dasharray='3 3'/><line x1='518' y1='159' x2='585' y2='159' stroke='var(--bordeaux,#7C2A38)' stroke-width='1' stroke-dasharray='2 2'/><line x1='518' y1='299' x2='585' y2='299' stroke='var(--bordeaux,#7C2A38)' stroke-width='1' stroke-dasharray='2 2'/><text x='10' y='86' font-size='10' font-weight='600' fill='var(--ink,#15202E)'>i = 3</text><text x='10' y='98' font-size='9' fill='var(--ink-faint,#7A889B)'>|B| = 8</text><text x='10' y='156' font-size='10' font-weight='600' fill='var(--ink,#15202E)'>i = 2</text><text x='10' y='168' font-size='9' fill='var(--ink-faint,#7A889B)'>|B| = 4</text><text x='10' y='226' font-size='10' font-weight='600' fill='var(--ink,#15202E)'>i = 1</text><text x='10' y='238' font-size='9' fill='var(--ink-faint,#7A889B)'>|B| = 2</text><text x='10' y='296' font-size='10' font-weight='600' fill='var(--ink,#15202E)'>i = 0</text><text x='10' y='308' font-size='9' fill='var(--ink-faint,#7A889B)'>|B| = 1</text><rect x='70' y='70' width='224' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='294' y='70' width='224' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='182' y='93' text-anchor='middle' font-size='9' fill='var(--ink-faint,#7A889B)'>[0,7]</text><text x='406' y='93' text-anchor='middle' font-size='9' fill='var(--ink-faint,#7A889B)'>[8,15]</text><rect x='70' y='140' width='112' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='182' y='140' width='112' height='38' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.20' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.6'/><rect x='294' y='140' width='112' height='38' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.20' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.6'/><rect x='406' y='140' width='112' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='126' y='163' text-anchor='middle' font-size='9' fill='var(--ink-faint,#7A889B)'>[0,3]</text><text x='238' y='163' text-anchor='middle' font-size='10' font-weight='700' fill='var(--bordeaux,#7C2A38)'>[4,7]</text><text x='350' y='163' text-anchor='middle' font-size='10' font-weight='700' fill='var(--bordeaux,#7C2A38)'>[8,11]</text><text x='462' y='163' text-anchor='middle' font-size='9' fill='var(--ink-faint,#7A889B)'>[12,15]</text><rect x='70' y='210' width='56' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='126' y='210' width='56' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='182' y='210' width='56' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='238' y='210' width='56' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='294' y='210' width='56' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='350' y='210' width='56' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='406' y='210' width='56' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='462' y='210' width='56' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='70' y='280' width='28' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='98' y='280' width='28' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='126' y='280' width='28' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='154' y='280' width='28' height='38' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.20' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.6'/><rect x='182' y='280' width='28' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='210' y='280' width='28' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='238' y='280' width='28' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='266' y='280' width='28' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='294' y='280' width='28' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='322' y='280' width='28' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='350' y='280' width='28' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='378' y='280' width='28' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='406' y='280' width='28' height='38' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.20' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.6'/><rect x='434' y='280' width='28' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='462' y='280' width='28' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='490' y='280' width='28' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='168' y='303' text-anchor='middle' font-size='9' font-weight='700' fill='var(--bordeaux,#7C2A38)'>[3]</text><text x='420' y='303' text-anchor='middle' font-size='9' font-weight='700' fill='var(--bordeaux,#7C2A38)'>[12]</text><rect x='585' y='70' width='60' height='24' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><line x1='597' y1='70' x2='597' y2='94' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6'/><line x1='609' y1='70' x2='609' y2='94' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6'/><line x1='621' y1='70' x2='621' y2='94' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6'/><line x1='633' y1='70' x2='633' y2='94' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6'/><line x1='585' y1='82' x2='645' y2='82' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6'/><text x='615' y='106' text-anchor='middle' font-size='9' fill='var(--ink-faint,#7A889B)'>CMS₃</text><rect x='597' y='140' width='12' height='12' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.5'/><rect x='621' y='152' width='12' height='12' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.5'/><rect x='585' y='140' width='60' height='24' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.4'/><line x1='597' y1='140' x2='597' y2='164' stroke='var(--bordeaux,#7C2A38)' stroke-width='0.6'/><line x1='609' y1='140' x2='609' y2='164' stroke='var(--bordeaux,#7C2A38)' stroke-width='0.6'/><line x1='621' y1='140' x2='621' y2='164' stroke='var(--bordeaux,#7C2A38)' stroke-width='0.6'/><line x1='633' y1='140' x2='633' y2='164' stroke='var(--bordeaux,#7C2A38)' stroke-width='0.6'/><line x1='585' y1='152' x2='645' y2='152' stroke='var(--bordeaux,#7C2A38)' stroke-width='0.6'/><text x='615' y='176' text-anchor='middle' font-size='9' font-weight='700' fill='var(--bordeaux,#7C2A38)'>CMS₂</text><rect x='585' y='210' width='60' height='24' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><line x1='597' y1='210' x2='597' y2='234' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6'/><line x1='609' y1='210' x2='609' y2='234' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6'/><line x1='621' y1='210' x2='621' y2='234' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6'/><line x1='633' y1='210' x2='633' y2='234' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6'/><line x1='585' y1='222' x2='645' y2='222' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6'/><text x='615' y='246' text-anchor='middle' font-size='9' fill='var(--ink-faint,#7A889B)'>CMS₁</text><rect x='597' y='280' width='12' height='12' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.5'/><rect x='621' y='292' width='12' height='12' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.5'/><rect x='585' y='280' width='60' height='24' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.4'/><line x1='597' y1='280' x2='597' y2='304' stroke='var(--bordeaux,#7C2A38)' stroke-width='0.6'/><line x1='609' y1='280' x2='609' y2='304' stroke='var(--bordeaux,#7C2A38)' stroke-width='0.6'/><line x1='621' y1='280' x2='621' y2='304' stroke='var(--bordeaux,#7C2A38)' stroke-width='0.6'/><line x1='633' y1='280' x2='633' y2='304' stroke='var(--bordeaux,#7C2A38)' stroke-width='0.6'/><line x1='585' y1='292' x2='645' y2='292' stroke='var(--bordeaux,#7C2A38)' stroke-width='0.6'/><text x='615' y='316' text-anchor='middle' font-size='9' font-weight='700' fill='var(--bordeaux,#7C2A38)'>CMS₀</text><line x1='70' y1='328' x2='518' y2='328' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><line x1='70' y1='328' x2='70' y2='333' stroke='var(--ink-faint,#7A889B)'/><line x1='182' y1='328' x2='182' y2='333' stroke='var(--ink-faint,#7A889B)'/><line x1='294' y1='328' x2='294' y2='333' stroke='var(--ink-faint,#7A889B)'/><line x1='406' y1='328' x2='406' y2='333' stroke='var(--ink-faint,#7A889B)'/><line x1='518' y1='328' x2='518' y2='333' stroke='var(--ink-faint,#7A889B)'/><text x='70' y='343' text-anchor='middle' font-size='9' fill='var(--ink-faint,#7A889B)'>0</text><text x='294' y='343' text-anchor='middle' font-size='9' fill='var(--ink-faint,#7A889B)'>8</text><text x='518' y='343' text-anchor='middle' font-size='9' fill='var(--ink-faint,#7A889B)'>16</text><text x='154' y='343' text-anchor='middle' font-size='9' font-weight='700' fill='var(--blue,#23537F)'>l=3</text><text x='434' y='343' text-anchor='middle' font-size='9' font-weight='700' fill='var(--blue,#23537F)'>r=12</text><text x='294' y='362' text-anchor='middle' font-size='11' font-weight='600' fill='var(--bordeaux,#7C2A38)'>Recouvrement exact : 4 plages canoniques (≤ 2 log n = 8) à 4 échelles</text><text x='294' y='380' text-anchor='middle' font-size='11' fill='var(--ink,#15202E)'>erreur ≤ 4·εN = O(εN), au lieu de (r−l+1)·εN = 10·εN en sommation naïve</text><rect x='60' y='400' width='14' height='10' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.20' stroke='var(--bordeaux,#7C2A38)'/><text x='78' y='409' font-size='9' fill='var(--ink,#15202E)'>plage canonique</text><rect x='200' y='400' width='14' height='10' fill='var(--blue,#23537F)' fill-opacity='0.10' stroke='var(--blue,#23537F)' stroke-dasharray='2 2'/><text x='218' y='409' font-size='9' fill='var(--ink,#15202E)'>intervalle [l, r]</text><rect x='325' y='400' width='14' height='10' fill='none' stroke='var(--ink-faint,#7A889B)'/><text x='343' y='409' font-size='9' fill='var(--ink,#15202E)'>plage inutilisée</text><rect x='455' y='400' width='14' height='10' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.5'/><text x='473' y='409' font-size='9' fill='var(--ink,#15202E)'>compteur CMS lu</text></svg><figcaption><span class='fcap-k'></span>Décomposition dyadique d'un intervalle [l, r] sur [0, n] : au lieu de sommer (r−l+1) estimations ponctuelles (erreur croissant avec la longueur), l'intervalle est recouvert exactement par ≤ 2 log n plages dyadiques canoniques — ici 4 blocs à différentes échelles, lus chacun dans la CMS de son niveau — d'où une erreur totale en O(ε·N) indépendante de la longueur de la plage.</figcaption></figure>\n\n<p>La troisième extension est la détection de <em>heavy hitters</em> (éléments dominants du flux), définis comme les items dont la fréquence dépasse un seuil φ·‖a‖₁. L'algorithme exploite le primitif de range query de façon récursive : il parte du domaine entier [0, n], puis dichotomise chaque plage dont l'estimation dépasse le seuil, jusqu'à isoler des singletons. Ce binary search dans l'espace des fréquences tire parti des log n esquisses dyadiques déjà en place. Le Théorème 6 du papier original établit que cet algorithme, en espace O((1/ε) log(1/δ) · log n), retourne tout item de fréquence ≥ (φ+ε)·‖a‖₁ et n'en retourne aucun de fréquence &lt; φ·‖a‖₁, avec probabilité ≥ 1−δ — une garantie bilatérale (complétude et précision) sur la liste des éléments dominants.</p>\n\n<p>Ces trois extensions reposent sur une propriété structurelle fondamentale du CMS : sa <em>linearity</em> (linéarité). L'esquisse d'un flux A∪B est égale à la somme cellule par cellule des esquisses de A et de B. Cette propriété de <em>mergeable sketch</em> rend le CMS directement adapté au calcul distribué : plusieurs nœuds calculent leur esquisse locale sur des sous-flux disjoints, puis les fusionnent en O(w·d) additions, sans centraliser les données brutes. C'est aussi cette linéarité qui fonde l'inner product query : puisque la contribution de chaque item se distribue additivevement dans les cellules, les collisions s'y déposent aussi additivement, et le produit de deux esquisses surestime le produit de deux flux exactement comme le minimum corrige l'estimation ponctuelle.</p>",
+      "claims": [
+        "claim:12",
+        "claim:14",
+        "claim:15"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "variantes",
+      "heading": "Variantes : Conservative Update, Count Sketch et descendants",
+      "level": 3,
+      "prose": "<p>La première et la plus répandue des modifications est le <strong>Conservative Update</strong> : lors de l'arrivée d'un élément <em>i</em> avec un incrément <em>c</em>, on ne met à jour une cellule C[j,&nbsp;h<sub>j</sub>(i)] que si sa valeur courante est inférieure à l'estimation courante de la fréquence augmentée de <em>c</em>. Toute cellule qui dépasse déjà ce minimum ne contribue qu'au bruit ; la laisser inchangée réduit l'over-counting (sur-comptage) sans introduire de sous-estimation, puisque l'estimateur min reste valide. Le prix est structural : Conservative Update n'est plus un sketch linéaire. Dans le CMS standard, les mises à jour sont commutatives — traiter les éléments dans n'importe quel ordre produit le même tableau de compteurs, et fusionner deux sketches de sous-flux disjoints revient à les additionner cellule à cellule. Avec Conservative Update, chaque incrément est conditionnel à l'état courant du sketch ; l'ordre d'ingestion modifie les incréments appliqués, rendant la structure non commutative. Le sketch reste néanmoins mergeable (fusionnable) au sens large — deux instances issues de sous-flux disjoints peuvent être combinées — mais pas par simple addition.</p>\n\n<p>Le comportement théorique du Conservative Count-Min est resté longtemps non compris. Fusy et Kucherov (CIAC 2023, arXiv&nbsp;2203.15496) ont démontré l'existence d'une transition de phase nette sous distribution uniforme : l'erreur relative suit deux régimes qualitativement distincts selon le load factor (facteur de charge), défini comme le rapport entre le nombre de clés distinctes et la taille totale du tableau de compteurs. En dessous du seuil critique, l'erreur relative est <em>o</em>(1) — elle tend vers zéro lorsque la structure grandit. Au-dessus, elle est Θ(1) — bornée inférieurement par une constante, sans avantage sur CMS vanilla. Ce seuil coïncide exactement avec le seuil de peelability (pelabilité) des hypergraphes <em>k</em>-uniformes aléatoires sous-jacents aux fonctions de hachage : un hypergraphe est pelable si l'on peut retirer itérativement des sommets de degré&nbsp;1 jusqu'à le vider, et cette propriété constitue la condition nécessaire et suffisante pour obtenir une erreur <em>o</em>(1). La transition de phase ne s'étend pas aux distributions Zipfian, ce qui tempère la portée des garanties théoriques pour les flux réseau réels. Un travail compagnon (SPIRE 2023, arXiv&nbsp;2302.05245) explore expérimentalement l'affectation d'un nombre variable de hash functions par élément — les éléments rares reçoivent moins de lignes de hachage — réduisant l'empreinte mémoire sans dégrader l'erreur.</p>\n\n<p>L'estimateur min du CMS standard est biaisé vers le haut par construction. Deux estimateurs débiaisés corrigent ce défaut. L'estimateur <strong>hCount*</strong> tire aléatoirement, ligne par ligne, une entrée dans le tableau puis soustrait une estimation du biais obtenue par bootstrapping, produisant un estimateur sans biais pour les requêtes de fréquence. L'estimateur <strong>MLE</strong> (<em>maximum likelihood estimation</em>) formule la reconstruction comme un problème d'inférence : étant donnés les <em>d</em> compteurs observés pour une clé requêtée, il identifie la fréquence qui maximise la vraisemblance du sketch sous un modèle de hachage aléatoire indépendant. Son calcul se réduit à une procédure de bootstrapping efficace, généralisable à n'importe quel estimateur de base, et est rapporté comme égalant ou surpassant l'estimateur min sur les distributions Zipfian comme uniformes.</p>\n\n<p>Le <strong>Count Sketch</strong>, introduit par Charikar, Chen et Farach-Colton en 2002, repose sur un mécanisme fondamentalement différent : des signed averages (moyennes signées) plutôt que des minimums. Une seconde famille de fonctions de hachage g<sub>j</sub>&nbsp;: U → {−1,+1} assigne aléatoirement un signe à chaque clé ; chaque cellule accumule une somme de fréquences signées, et l'estimateur est la médiane des <em>d</em> valeurs signées pour la clé requêtée. L'estimateur est non biaisé — il ne surestime ni ne sous-estime systématiquement. Sur le plan des garanties formelles, Count Sketch borne l'erreur en norme L<sub>2</sub> du vecteur de fréquences ; CMS offre une borne en norme L<sub>1</sub>. Ce changement de norme entraîne un coût mémoire différent : à erreur ε fixée, Count Sketch requiert O(1/ε²) colonnes contre O(1/ε) pour CMS. Sur les distributions fortement asymétriques de type Zipfian, la borne L<sub>1</sub> de CMS est suffisante à moindre coût mémoire ; sur les distributions plus uniformes, où aucun élément ne domine, la borne L<sub>2</sub> de Count Sketch capture plus fidèlement la structure des erreurs et offre des garanties à haute probabilité plus serrées dans ce régime.</p>\n\n<p>Une constellation de variantes couvre des compromis ou des contextes applicatifs particuliers. <strong>Count-Min-Log</strong> (Pitel et Fouquier, 2015, arXiv&nbsp;1502.04885) remplace les compteurs linéaires par des compteurs approximatifs logarithmiques de type Morris : l'incrément n'est appliqué qu'avec une probabilité proportionnelle à 2<sup>−compteur</sup>, si bien que la valeur stockée approxime le logarithme de la fréquence. Cela réduit l'erreur relative moyenne à empreinte mémoire constante, au prix d'une légère variance supplémentaire sur les éléments rares. <strong>Count-Less</strong> (Kim et al., 2021, arXiv&nbsp;2111.02759), conçu pour le data plane des commutateurs réseau haute vitesse, combine un Split Counter — fractionnement d'un grand compteur en plusieurs sous-compteurs de taille réduite, limitant l'impact des heavy hitters (éléments fréquents dominants) sur leurs voisins de bucket — avec un Minimum Update inspiré du Conservative Update, garantissant de ne pas ralentir le traitement des paquets. <strong>Lsquare</strong> (Lee et al., IMC 2005) reformule le sketch comme un système linéaire A·x = b résolu par moindres carrés, améliorant la précision de reconstruction à mémoire identique. <strong>CR-Precis</strong> (Ganguly et Majumder, ESCAPE 2007) est une structure déterministe — non randomisée — qui fournit des bornes certaines (non probabilistes) au coût d'un espace O(ε⁻²) contre O(ε⁻¹) pour CMS. <strong>Eternal Sunshine</strong> (Dimitropoulos et al., 2008) résout le problème opérationnel de la saturation des compteurs sur les flux réseau longue durée via un mécanisme de sliding window (fenêtre glissante) et de marquage, évitant les débordements sans réinitialiser la structure.</p>\n\n<p>Les approches <strong>learning-augmented</strong> (augmentées par apprentissage) constituent la direction la plus récente et la plus active. Du, Wang et Mitzenmacher (ICML 2021) proposent le Learned Count-Min (LCM) et le Learned Augmented Sketch (LAS) : un réseau de neurones entraîné à prédire les heavy hitters avant l'ingestion du flux stocke leurs fréquences exactes dans une table dédiée, réservant le sketch aux éléments ordinaires où l'erreur résiduelle est plus acceptable. Aamand et al. (NeurIPS 2023) formalisent et approfondissent ce cadre : ils établissent des bornes serrées sur l'erreur de CMS et Count Sketch augmentés de prédictions ML pour les distributions Zipfian, proposent une variante parcimonieuse (<em>parsimonious</em>) qui économise la mémoire quand les prédictions fiables sont peu nombreuses, et démontrent une version à garanties worst-case robuste aux prédictions erronées.</p>\n\n<p>Deux extensions répondent à des contraintes réglementaires et d'équité croissantes. <strong>DPSW-Sketch</strong> (Wang, Wang et Chen, KDD 2024, arXiv&nbsp;2406.07953) adapte CMS aux sliding windows sous differential privacy : il satisfait la ρ-zero-Concentrated Differential Privacy (zCDP, convertible en (ε,&nbsp;δ)-DP) et opère en espace et temps sous-linéaires par rapport à la taille de la fenêtre w, couvrant aussi bien l'estimation de fréquence de tout élément que l'identification des heavy hitters — deux limites des travaux antérieurs différentiellement privés (Chan et al. 2012, Upadhyay 2019, Blocki et al. 2023), qui se restreignaient aux heavy hitters ou nécessitaient un espace linéaire en w. <strong>Fair-Count-Min</strong> (Shahbazi, Sintos et Asudeh, 2025, arXiv&nbsp;2505.18919) adresse un problème d'équité structurelle : l'erreur additive de CMS standard pénalise disproportionnellement les éléments de basse fréquence, créant un écart systématique entre groupes représentés différemment dans le flux. La solution combine un partitionnement de colonnes par groupe et un hachage semi-uniforme aware par groupe, éliminant les collisions inter-groupes et garantissant des facteurs d'approximation attendus égaux pour tous les groupes.</p><figure class='fig'><svg viewBox='0 0 920 648' role='img' aria-label='Taxonomie des variantes du Count-Min Sketch en huit familles autour d un socle CMS de borne L1, espace O(1/epsilon) et fusion par addition : precision a l ecriture (Conservative Update, Count-Min-Log, Count-Min-Tree), estimateurs debiaises (hCount*, MLE, Count-Mean-Min), alternative par norme L2 (Count Sketch en O(1/epsilon carre)), data-plane reseau (Count-Less, Eternal Sunshine), deterministe (CR-Precis en O(1/epsilon carre)), moindres carres (Lsquare), learning-augmented (LCM/LAS et Aamand et al.), confidentialite et equite (DPSW-Sketch, Fair-Count-Min). Axes discriminants annotes : norme L1 contre L2, espace O(1/epsilon) contre O(1/epsilon carre), fusionnable par addition ou non.'><text x='460' y='26' text-anchor='middle' font-size='15' font-weight='700' fill='var(--ink,#15202E)'>Taxonomie des variantes du Count-Min Sketch</text><text x='460' y='44' text-anchor='middle' font-size='10.5' fill='var(--ink-faint,#7A889B)'>Huit familles par axe de compromis ; en bordeaux, les écarts au socle CMS</text><rect x='18' y='276' width='184' height='68' rx='6' fill='var(--blue,#23537F)' fill-opacity='0.10' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='110' y='298' text-anchor='middle' font-size='12' font-weight='700' fill='var(--blue,#23537F)'>Count-Min Sketch</text><text x='110' y='315' text-anchor='middle' font-size='9.5' fill='var(--ink,#15202E)'>socle : borne L1 · O(1/ε)</text><text x='110' y='331' text-anchor='middle' font-size='9.5' fill='var(--ink,#15202E)'>linéaire (fusionnable +)</text><line x1='202' y1='310' x2='216' y2='310' stroke='var(--blue,#23537F)' stroke-width='1.5'/><line x1='216' y1='97' x2='216' y2='524' stroke='var(--ink-faint,#7A889B)' stroke-width='1.2'/><line x1='216' y1='97' x2='230' y2='97' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='230' y='72' width='670' height='50' rx='5' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><circle cx='248' cy='97' r='11' fill='var(--blue,#23537F)'/><text x='248' y='100.5' text-anchor='middle' font-size='11' font-weight='700' fill='var(--paper,#ffffff)'>1</text><text x='270' y='93' font-size='11.5' font-weight='700' fill='var(--ink,#15202E)'>Précision à l'écriture</text><text x='270' y='108' font-size='9' fill='var(--ink-faint,#7A889B)'>réduit le sur-comptage à l'écriture</text><rect x='506' y='88' width='96' height='18' rx='9' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.12' stroke='var(--bordeaux,#7C2A38)' stroke-width='1'/><text x='554' y='100.5' text-anchor='middle' font-size='8.5' font-weight='700' fill='var(--bordeaux,#7C2A38)'>non additif</text><line x1='612' y1='81' x2='612' y2='113' stroke='var(--ink-faint,#7A889B)' stroke-width='0.5'/><text x='624' y='100' font-size='8.5' fill='var(--ink,#15202E)'>Conservative Update · Count-Min-Log · Count-Min-Tree</text><line x1='216' y1='158' x2='230' y2='158' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='230' y='133' width='670' height='50' rx='5' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><circle cx='248' cy='158' r='11' fill='var(--blue,#23537F)'/><text x='248' y='161.5' text-anchor='middle' font-size='11' font-weight='700' fill='var(--paper,#ffffff)'>2</text><text x='270' y='154' font-size='11.5' font-weight='700' fill='var(--ink,#15202E)'>Estimateurs débiaisés</text><text x='270' y='169' font-size='9' fill='var(--ink-faint,#7A889B)'>corrigent le biais positif du min (à la requête)</text><line x1='612' y1='142' x2='612' y2='174' stroke='var(--ink-faint,#7A889B)' stroke-width='0.5'/><text x='624' y='161' font-size='8.5' fill='var(--ink,#15202E)'>hCount* · MLE · Count-Mean-Min</text><line x1='216' y1='219' x2='230' y2='219' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='230' y='194' width='670' height='50' rx='5' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><circle cx='248' cy='219' r='11' fill='var(--blue,#23537F)'/><text x='248' y='222.5' text-anchor='middle' font-size='11' font-weight='700' fill='var(--paper,#ffffff)'>3</text><text x='270' y='215' font-size='11.5' font-weight='700' fill='var(--ink,#15202E)'>Alternative par norme</text><text x='270' y='230' font-size='9' fill='var(--ink-faint,#7A889B)'>borne L2 au lieu de L1</text><rect x='506' y='210' width='96' height='18' rx='9' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.12' stroke='var(--bordeaux,#7C2A38)' stroke-width='1'/><text x='554' y='222.5' text-anchor='middle' font-size='8.5' font-weight='700' fill='var(--bordeaux,#7C2A38)'>L2 · O(1/ε²)</text><line x1='612' y1='203' x2='612' y2='235' stroke='var(--ink-faint,#7A889B)' stroke-width='0.5'/><text x='624' y='222' font-size='8.5' fill='var(--ink,#15202E)'>Count Sketch (Charikar et al., 2002)</text><line x1='216' y1='280' x2='230' y2='280' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='230' y='255' width='670' height='50' rx='5' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><circle cx='248' cy='280' r='11' fill='var(--blue,#23537F)'/><text x='248' y='283.5' text-anchor='middle' font-size='11' font-weight='700' fill='var(--paper,#ffffff)'>4</text><text x='270' y='276' font-size='11.5' font-weight='700' fill='var(--ink,#15202E)'>Data-plane réseau</text><text x='270' y='291' font-size='9' fill='var(--ink-faint,#7A889B)'>débit « ligne », anti-saturation des compteurs</text><line x1='612' y1='264' x2='612' y2='296' stroke='var(--ink-faint,#7A889B)' stroke-width='0.5'/><text x='624' y='283' font-size='8.5' fill='var(--ink,#15202E)'>Count-Less · Eternal Sunshine</text><line x1='216' y1='341' x2='230' y2='341' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='230' y='316' width='670' height='50' rx='5' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><circle cx='248' cy='341' r='11' fill='var(--blue,#23537F)'/><text x='248' y='344.5' text-anchor='middle' font-size='11' font-weight='700' fill='var(--paper,#ffffff)'>5</text><text x='270' y='337' font-size='11.5' font-weight='700' fill='var(--ink,#15202E)'>Déterministe</text><text x='270' y='352' font-size='9' fill='var(--ink-faint,#7A889B)'>bornes certaines (non randomisé)</text><rect x='506' y='332' width='96' height='18' rx='9' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.12' stroke='var(--bordeaux,#7C2A38)' stroke-width='1'/><text x='554' y='344.5' text-anchor='middle' font-size='8.5' font-weight='700' fill='var(--bordeaux,#7C2A38)'>O(1/ε²)</text><line x1='612' y1='325' x2='612' y2='357' stroke='var(--ink-faint,#7A889B)' stroke-width='0.5'/><text x='624' y='344' font-size='8.5' fill='var(--ink,#15202E)'>CR-Precis (Ganguly–Majumder, 2007)</text><line x1='216' y1='402' x2='230' y2='402' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='230' y='377' width='670' height='50' rx='5' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><circle cx='248' cy='402' r='11' fill='var(--blue,#23537F)'/><text x='248' y='405.5' text-anchor='middle' font-size='11' font-weight='700' fill='var(--paper,#ffffff)'>6</text><text x='270' y='398' font-size='11.5' font-weight='700' fill='var(--ink,#15202E)'>Moindres carrés</text><text x='270' y='413' font-size='9' fill='var(--ink-faint,#7A889B)'>reconstruction A·x = b par moindres carrés</text><line x1='612' y1='386' x2='612' y2='418' stroke='var(--ink-faint,#7A889B)' stroke-width='0.5'/><text x='624' y='405' font-size='8.5' fill='var(--ink,#15202E)'>Lsquare (Lee et al., 2005)</text><line x1='216' y1='463' x2='230' y2='463' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='230' y='438' width='670' height='50' rx='5' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><circle cx='248' cy='463' r='11' fill='var(--blue,#23537F)'/><text x='248' y='466.5' text-anchor='middle' font-size='11' font-weight='700' fill='var(--paper,#ffffff)'>7</text><text x='270' y='459' font-size='11.5' font-weight='700' fill='var(--ink,#15202E)'>Learning-augmented</text><text x='270' y='474' font-size='9' fill='var(--ink-faint,#7A889B)'>prédiction ML des heavy hitters</text><line x1='612' y1='447' x2='612' y2='479' stroke='var(--ink-faint,#7A889B)' stroke-width='0.5'/><text x='624' y='457' font-size='8.5' fill='var(--ink,#15202E)'>LCM / LAS — Du et al. (ICML 2021)</text><text x='624' y='471' font-size='8.5' fill='var(--ink,#15202E)'>Aamand et al. (NeurIPS 2023)</text><line x1='216' y1='524' x2='230' y2='524' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='230' y='499' width='670' height='50' rx='5' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><circle cx='248' cy='524' r='11' fill='var(--blue,#23537F)'/><text x='248' y='527.5' text-anchor='middle' font-size='11' font-weight='700' fill='var(--paper,#ffffff)'>8</text><text x='270' y='520' font-size='11.5' font-weight='700' fill='var(--ink,#15202E)'>Confidentialité / équité</text><text x='270' y='535' font-size='9' fill='var(--ink-faint,#7A889B)'>vie privée (DP) et équité inter-groupes</text><line x1='612' y1='508' x2='612' y2='540' stroke='var(--ink-faint,#7A889B)' stroke-width='0.5'/><text x='624' y='518' font-size='8.5' fill='var(--ink,#15202E)'>DPSW-Sketch (KDD 2024)</text><text x='624' y='532' font-size='8.5' fill='var(--ink,#15202E)'>Fair-Count-Min (2025)</text><rect x='18' y='560' width='884' height='78' rx='6' fill='var(--ink-faint,#7A889B)' fill-opacity='0.06' stroke='var(--ink-faint,#7A889B)' stroke-width='0.8'/><text x='32' y='581' font-size='10.5' font-weight='700' fill='var(--ink,#15202E)'>Axes discriminants</text><text x='32' y='600' font-size='9.5' font-weight='600' fill='var(--ink,#15202E)'>Norme de la borne</text><rect x='32' y='607' width='11' height='11' rx='2' fill='var(--blue,#23537F)' fill-opacity='0.55'/><text x='48' y='616' font-size='8.5' fill='var(--ink,#15202E)'>L1 — CMS et dérivés</text><rect x='32' y='622' width='11' height='11' rx='2' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.55'/><text x='48' y='631' font-size='8.5' fill='var(--ink,#15202E)'>L2 — Count Sketch</text><text x='330' y='600' font-size='9.5' font-weight='600' fill='var(--ink,#15202E)'>Espace mémoire</text><rect x='330' y='607' width='11' height='11' rx='2' fill='var(--blue,#23537F)' fill-opacity='0.55'/><text x='346' y='616' font-size='8.5' fill='var(--ink,#15202E)'>O(1/ε) — CMS et dérivés</text><rect x='330' y='622' width='11' height='11' rx='2' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.55'/><text x='346' y='631' font-size='8.5' fill='var(--ink,#15202E)'>O(1/ε²) — Count Sketch, CR-Precis</text><text x='628' y='600' font-size='9.5' font-weight='600' fill='var(--ink,#15202E)'>Fusion par addition</text><rect x='628' y='607' width='11' height='11' rx='2' fill='var(--blue,#23537F)' fill-opacity='0.55'/><text x='644' y='616' font-size='8.5' fill='var(--ink,#15202E)'>oui — CMS, Count Sketch</text><rect x='628' y='622' width='11' height='11' rx='2' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.55'/><text x='644' y='631' font-size='8.5' fill='var(--ink,#15202E)'>non — Conservative Update</text></svg><figcaption><span class='fcap-k'></span>Les variantes du Count-Min Sketch regroupées en huit familles autour du socle CMS (borne L1, espace O(1/ε), sketch linéaire fusionnable par addition) ; chaque famille porte son axe de compromis, la couleur bordeaux signalant un écart au socle — borne L2, espace O(1/ε²) ou perte de la fusion par simple addition.</figcaption></figure>",
+      "claims": [
+        "claim:16",
+        "claim:17",
+        "claim:18",
+        "claim:19"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "applications-deploiements",
+      "heading": "Applications et déploiements",
+      "level": 3,
+      "prose": "<p>Le Count-Min Sketch (CMS) est né pour répondre à un problème omniprésent dans les systèmes en flux : estimer la fréquence d'éléments d'un flot de données en temps réel, avec une mémoire bornée et une garantie probabiliste. Son asymétrie fondamentale — il peut sur-estimer mais jamais sous-estimer — en fait un outil naturel pour la détection de <em>heavy hitters</em> (éléments fréquents qui dominent le flot), où une surestimation est tolérable mais une sous-estimation serait catastrophique. Un vecteur de fréquences exact serait linéaire en la taille du domaine ; le CMS le compresse en un tableau d × w dont l'erreur ε·N est contrôlable par le paramétrage (w = ⌈e/ε⌉, d = ⌈ln(1/δ)⌉).</p>\n\n<p>En base de données, l'estimation de la taille de jointures est un enjeu critique pour l'optimiseur de requêtes. Une preuve de concept proposée par Tomas Vondra (EnterpriseDB) intègre le CMS dans <code>pg_statistic</code> de PostgreSQL : en stockant un sketch par colonne (depth = 8, width = 128), l'optimiseur peut borner la taille d'une jointure t1 ⋈ t2 par le produit scalaire de leurs sketches. L'erreur relative mesurée est de ~1,5–1,6 %, avec la garantie formelle size(t1, t2) ≤ dot_product(s1, s2) ≤ ε × size(t1) × size(t2).</p>\n\n<p>Dans les systèmes de <em>natural language processing</em> (traitement automatique des langues), les distributions de fréquences de mots suivent une loi de Zipf : quelques tokens dominent le corpus tandis qu'une longue traîne reste minoritaire. Le Count-Min Tree Sketch (Pitel et al., 2016) adapte cette réalité en remplaçant les compteurs linéaires par des compteurs pyramidaux, réduisant l'erreur relative sur les items peu fréquents à mémoire constante — point faible du CMS classique sur des distributions fortement asymétriques.</p>\n\n<p>L'analyse de trafic réseau constitue l'un des cas d'usage les plus documentés : maintenir l'histogramme de flux d'un routeur sur des millions de paquets par seconde est impossible avec des structures exactes. Cormode, dans sa définition encyclopédique, recense également les réseaux de capteurs, les algorithmes matriciels et les <em>privacy-preserving computations</em> (calculs préservant la vie privée) parmi les domaines naturels du CMS.</p>\n\n<p>Hokusai (Yahoo! Research / Google, UAI 2012) étend le CMS à la dimension temporelle. Il maintient une série chronologique de sketches, agrège les sketches anciens pour maîtriser l'espace, et répond à des requêtes de la forme (temps, item) en temps constant. Cette capacité à interroger « quelle était la fréquence de cet item à l'instant t ? » ouvre des usages en détection d'anomalies, en suivi de tendances et en audit de flux continus.</p>\n\n<p>Sur le plan matériel, CoMeT (CMU-SAFARI, HPCA 2024) déploie le CMS directement dans le contrôleur mémoire pour mitiger RowHammer, une attaque par accès répétés sur les lignes DRAM. Un sketch de quelques milliers de compteurs suffit à surveiller les 128 000 lignes d'une banque DRAM et à déclencher un rafraîchissement ciblé dès que le seuil de 125 activations est atteint — avec un surcoût moyen de 4,01 % sur 61 workloads et une surface silicium 74,2× inférieure à l'état de l'art.</p>\n\n<p>Côté intégration industrielle, Apache DataSketches (ex-Yahoo) est la bibliothèque de référence en production : elle fournit des adaptateurs pour Apache Hive, Apache Pig, PostgreSQL (version C++) et Google BigQuery. Yahoo déclare que le sketching a ramené les durées de traitement de ses plateformes internes de plusieurs jours ou heures à quelques minutes ou secondes. Redis intègre nativement le CMS via les commandes <code>CMS.INITBYPROB</code>, <code>CMS.INCRBY</code>, <code>CMS.QUERY</code> et <code>CMS.MERGE</code> ; un sketch depth = 10, width = 2 000 avec compteurs 16 bits occupe 40 Ko et garantit une erreur relative de 0,1 % sur le total des incréments. Apache Spark expose CountMinSketch dans <code>org.apache.spark.util.sketch</code> depuis Spark 4.1.x via <code>CountMinSketch.create(eps, confidence, seed)</code>.</p>",
+      "claims": [
+        "claim:20",
+        "claim:21",
+        "claim:22",
+        "claim:23"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "limites-pieges",
+      "heading": "Limites, pièges et idées reçues",
+      "level": 3,
+      "prose": "<p>La garantie fondamentale du Count-Min Sketch est strictement probabiliste : pour tout item <em>i</em>, l'estimé â<sub>i</sub> satisfait â<sub>i</sub> ≥ a<sub>i</sub> en toutes circonstances — le one-sided error (erreur unilatérale) est une propriété structurelle, les collisions de hash functions (fonctions de hachage) ne pouvant qu'incrémenter des compteurs étrangers, jamais les décrémenter — mais la borne supérieure â<sub>i</sub> ≤ a<sub>i</sub> + ε·‖<em>a</em>‖₁ ne tient qu'avec probabilité au moins (1 − δ). Il n'existe aucune borne dans le pire cas absolu ; la correction est entièrement probabiliste. Le terme additif ε·N, proportionnel à ‖<em>a</em>‖₁ (somme totale des fréquences du flux), rend cette garantie vacue pour les items rares dès que la distribution n'est pas suffisamment asymétrique : un item observé 10 fois dans un flux de 10⁶ événements tolère théoriquement une surestimation d'un facteur 100 000, ce qui rend l'estimé sans valeur pratique dans ce cas.</p>\n\n<p>Une idée reçue persistante porte sur l'effet respectif du width (largeur) <em>w</em> et du depth (profondeur) <em>d</em> de la table. Puisque w = ⌈e/ε⌉, doubler <em>w</em> divise ε par deux — gain strictement linéaire sur l'erreur additive. En revanche, puisque d = ⌈ln(1/δ)⌉, ajouter une seule ligne supplémentaire réduit la probabilité d'échec δ exponentiellement. L'intuition « plus de lignes, meilleure précision » confond deux effets de nature radicalement différente : c'est le width qui gouverne la précision (ε), le depth qui gouverne la fiabilité (δ). En pratique, la structure est typiquement beaucoup plus large que profonde, car l'ajout de hash functions devient coûteux en temps de calcul malgré son efficacité sur δ.</p>\n\n<p>Le min estimator (estimateur du minimum) est biaisé par construction et ne se comporte de façon optimale que sur des distributions fortement asymétriques de type Zipf. Dès que la distribution s'aplatit, le Count Sketch — qui signe chaque incrément ±1 aléatoirement et exploite un median-of-means pour annuler le biais — produit une erreur inférieure, car il borne la norme L2 plutôt que L1. Par ailleurs, si les hash functions sont connues ou apprenables par un adversaire, celui-ci peut construire des entrées forçant des collisions systématiques dans chaque ligne, rendant l'overestimation (surestimation) arbitrairement grande : les garanties supposent des hash functions tirées uniformément au hasard et gardées secrètes — une hypothèse souvent ignorée en déploiement.</p>\n\n<p>Un défaut d'équité a été formalisé en 2025 (arXiv 2505.18919) : l'erreur additive uniforme ε·N crée un impact relatif disparate entre groupes de fréquence. Pour un item dont la fréquence réelle est a<sub>i</sub> = 10, une erreur additive de 1 000 représente une inflation d'un facteur 100 ; pour un item à a<sub>i</sub> = 10⁶, la même erreur est négligeable (0,1 %). Le variant Fair-Count-Min, fondé sur un partitionnement de colonnes avec hachage semi-uniforme par groupe, substitue des garanties multiplicatives (relatives) aux garanties additives pour égaliser ce traitement. Sur le plan opérationnel, la structure ne répond qu'aux point queries (requêtes ponctuelles) : déterminer quels items sont des heavy hitters (items dominants) — ceux dépassant un seuil de fréquence — requiert soit une liste de candidats fournie à l'avance, soit une structure auxiliaire distincte ; l'énumération native n'est pas supportée.</p>\n\n<p>Les décréments brisent la garantie one-sided : soustraire de tous les <em>d</em> compteurs d'un item produit des sous-estimations, car certains compteurs sont déjà gonflés par des items tiers. Le conservative update (mise à jour conservatrice) — qui, à l'insertion, affecte chaque compteur au maximum de sa valeur courante et du minimum des autres lignes augmenté de l'incrément — réduit la sur-incrémentation à l'écriture, mais ne résout pas la suppression propre. Contrairement à une affirmation parfois répandue, les sketches à conservative update restent fusionnables (<em>mergeable</em>), quoique non par simple addition pointwise, ce qui préserve leur usage dans des architectures distribuées moyennant une opération de fusion adaptée. Enfin, les range queries (requêtes d'intervalle) et les inner-product queries (requêtes de produit scalaire) ne sont pas natives : elles nécessitent respectivement une décomposition dyadique ou un sketch AMS/Tug-of-War, chacun portant ses propres bornes d'erreur indépendantes ; attribuer ces capacités à la structure de base constitue une sur-attribution courante.</p>",
+      "claims": [
+        "claim:24",
+        "claim:25",
+        "claim:26",
+        "claim:27"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-largeur-profondeur"
+    },
+    {
+      "type": "section",
+      "id": "ecosysteme",
+      "heading": "Écosystème et pour aller plus loin",
+      "level": 3,
+      "prose": "<p>La source canonique reste le papier fondateur de Graham Cormode et S. Muthu Muthukrishnan — « An improved data stream summary : The Count-Min Sketch and its applications », <em>Journal of Algorithms</em> 55(1), 58–75 (2005), présenté à LATIN 2004 et complété par le papier satellite SDM 2005 « Summarizing and mining skewed data streams ». Les deux textes sont référencés sur le site de Cormode (<a href=\"https://sites.google.com/site/countminsketch/\">sites.google.com/site/countminsketch</a>), qui centralise également les extensions et les variantes (Conservative Update, hCount*, MLE). Le sketch y a reçu l'Imre Simon Test-of-Time Award en 2014. Apache DataSketches cite les mêmes travaux — auxquels s'ajoute Charikar–Chen–Farach-Colton — dans sa liste de références sur les <em>heavy hitters</em> (éléments les plus fréquents).</p>\n\n<p><strong>Redis</strong> intègre le Count-Min Sketch via son module <strong>RedisBloom</strong> (disponible depuis la v2.0.0) avec six commandes dédiées : <code>CMS.INITBYDIM</code>, <code>CMS.INITBYPROB</code>, <code>CMS.INCRBY</code>, <code>CMS.QUERY</code>, <code>CMS.MERGE</code> et <code>CMS.INFO</code>, toutes en O(1) ou O(n items). La commande <code>CMS.INITBYPROB</code> prend directement l'erreur ε et la probabilité δ et en dérive les dimensions via <em>width</em> = ⌈2/ε⌉ et <em>depth</em> = ⌈−log(δ)/log(2)⌉ ; par exemple, <code>CMS.INITBYPROB key 0.001 0.002</code> alloue un tableau de 2 000 colonnes × 9 lignes. <code>CMS.MERGE</code> permet de fusionner plusieurs sketches sans retourner aux données brutes, ce qui en fait un composant naturel des architectures de comptage distribuées.</p>\n\n<p><strong>Apache Spark</strong> expose <code>org.apache.spark.util.sketch.CountMinSketch</code> avec deux <em>factory methods</em> (méthodes d'instanciation) : <code>create(double eps, double confidence, int seed)</code> et <code>create(int depth, int width, int seed)</code>. La garantie documentée est conforme au papier original : l'estimé est compris entre la fréquence réelle et la fréquence réelle + ε × N, avec probabilité ≥ confidence. La classe supporte <code>mergeInPlace</code> et la sérialisation en <code>byte[]</code>, facilitant l'agrégation dans des pipelines de traitement de flux. <strong>Apache DataSketches</strong> propose de son côté une implémentation indépendante, documentée avec les références scientifiques de référence dans l'écosystème Apache.</p>\n\n<p>Côté JVM, la bibliothèque <strong>stream-lib</strong> (Clearspring Analytics / AddThis), accessible via la coordonnée Maven <code>com.clearspring.analytics:stream:2.9.8</code>, est l'implémentation Java historique de référence ; les intégrations Spark et Akka en sont issues. Pour Python, <strong>pyprobables</strong> expose trois classes — <code>CountMinSketch</code>, <code>CountMeanSketch</code> et <code>CountMeanMinSketch</code> — avec une API directe (<code>cms.add('item')</code>, <code>cms.add('item', 25)</code>) et une compatibilité binaire avec l'implémentation C <em>barrust/count-min-sketch</em>. Le paquet <strong>count_min_sketch</strong> (Andrew Nystrom, Apache 2.0, <code>pip install count_min_sketch</code>) offre une alternative en Python pur sans dépendances, mais dont la dernière version (3.0.4) remonte à septembre 2016.</p>",
+      "claims": [
+        "claim:28",
+        "claim:29",
+        "claim:30"
+      ]
+    },
+    {
+      "type": "exercise",
+      "part": "Structure, paramétrage et garantie d'erreur",
+      "question": "(a) Le Count-Min Sketch se dimensionne par <em>w</em> = ⌈e/ε⌉ (largeur) et <em>d</em> = ⌈ln(1/δ)⌉ (profondeur). Lequel gouverne la <em>précision</em> (borne d'erreur ε) et lequel la <em>fiabilité</em> (δ) ? Que gagne-t-on exactement en ajoutant une ligne ? (b) La <em>point query</em> renvoie le minimum des <em>d</em> cellules lues : pourquoi ne sous-estime-t-elle jamais la vraie fréquence dans le modèle <em>cash register</em>, et dans quel modèle cette propriété tombe-t-elle ? (c) La borne â<sub>i</sub> ≤ a<sub>i</sub> + ε·N à confiance 1−δ vaut-elle <em>simultanément</em> pour les <em>n</em> items du flux avec les mêmes paramètres ? Sinon, que faut-il corriger ?",
+      "answer": "<p><strong>(a)</strong> C'est la <em>largeur w</em> qui gouverne la précision (ε = e/w, gain <em>linéaire</em> : doubler w divise ε par deux), et la <em>profondeur d</em> qui gouverne la fiabilité (δ = e<sup>−d</sup>). Ajouter une seule ligne ne réduit donc pas l'erreur ε : elle fait décroître la probabilité d'échec δ de façon <em>exponentielle</em>. L'intuition « plus de lignes = plus précis » confond deux grandeurs distinctes.</p><p><strong>(b)</strong> Dans le modèle cash register (mises à jour non négatives), chaque cellule count[i, h<sub>i</sub>(j)] accumule la vraie fréquence a<sub>j</sub> <em>plus</em> des collisions elles-mêmes positives ; le minimum sur les d lignes ne peut donc descendre sous a<sub>j</sub>. La garantie tient plus largement tant que les fréquences cumulées restent ≥ 0 (donc aussi en turnstile <em>strict</em>) ; elle échoue uniquement dans le turnstile <em>général</em>, où une fréquence peut elle-même passer sous zéro.</p><p><strong>(c)</strong> Non : la garantie est établie <em>par requête</em>, pour un item i fixé avant la requête. Pour qu'elle vaille simultanément sur les n items distincts, il faut un <em>union bound</em> : remplacer δ par δ/n, ce qui alourdit la profondeur à d = ⌈ln(n/δ)⌉ (w et d ne sont alors plus les mêmes).</p>"
+    },
+    {
+      "type": "exercise",
+      "part": "Variantes, limites et écosystème",
+      "question": "(a) Le <em>Conservative Update</em> améliore nettement la précision en pratique : à quel prix structurel, et quelle conséquence sur la fusion d'esquisses en calcul distribué ? (b) Count Sketch face au CMS : quelle <em>norme</em> chacun borne-t-il, quel coût en colonnes pour une erreur ε, et dans quel régime de distribution préférer l'un ou l'autre ? (c) Le « biais d'équité » formalisé en 2025 : pourquoi l'erreur additive uniforme ε·N pénalise-t-elle relativement bien plus les items rares que les items fréquents ?",
+      "answer": "<p><strong>(a)</strong> Le Conservative Update n'incrémente que les cellules égales au minimum courant, réduisant le sur-comptage à l'écriture — mais il rend les mises à jour <em>conditionnelles à l'état courant</em>, donc non commutatives : la structure n'est plus un <em>sketch linéaire</em>. Elle reste <em>fusionnable</em> au sens large, mais plus par simple addition cellule à cellule, ce qui complique l'agrégation distribuée (MapReduce, routeurs).</p><p><strong>(b)</strong> Le CMS borne l'erreur en norme <em>L1</em> avec O(1/ε) colonnes ; Count Sketch (signes ±1, estimateur médian) borne en norme <em>L2</em> au coût de O(1/ε²) colonnes. Sur les distributions fortement asymétriques (Zipf, heavy hitters dominants), la borne L1 du CMS suffit à moindre mémoire ; sur les distributions quasi-uniformes, la borne L2 de Count Sketch capture plus finement la structure des erreurs. Les deux garanties sont dites <em>incomparables</em>.</p><p><strong>(c)</strong> Parce que l'erreur est <em>additive</em> et uniforme (la même valeur absolue ε·N pour tous). Pour un item de fréquence réelle 10, une erreur de 1 000 gonfle l'estimé d'un facteur 100 ; pour un item à 10⁶, la même erreur absolue n'est qu'une inflation de 0,1 %. L'impact <em>relatif</em> est donc radicalement disparate, d'où Fair-Count-Min qui substitue des garanties multiplicatives aux garanties additives.</p>"
+    },
+    {
+      "type": "biblio",
+      "entries": [
+        {
+          "label": "Count-Min Sketch — site officiel (Cormode)",
+          "href": "https://sites.google.com/site/countminsketch/"
+        },
+        {
+          "label": "An improved data stream summary: the count-min sketch and its applications — Journal of Algorithms Vol 55, No 1 (ACL/Elsevier DOI)",
+          "href": "https://dl.acm.org/doi/10.1016/j.jalgor.2003.12.001"
+        },
+        {
+          "label": "Count-Min Sketch — florian.github.io (cite JA 55, 1, 2005, 58–75)",
+          "href": "https://florian.github.io/count-min-sketch/"
+        },
+        {
+          "label": "CormodeMuthukrishnan04CMJalg — DIMACS publication page (Journal of Algorithms 55(1):58–75, 2005)",
+          "href": "https://www.dimacs.rutgers.edu/~graham/pubs/html/CormodeMuthukrishnan04CMJalg.html"
+        },
+        {
+          "label": "Imre Simon Award for Count-Min Sketch — Graham Cormode's blog",
+          "href": "https://gcormode.wordpress.com/2014/04/04/imre-simon-award-for-count-min-sketch/"
+        },
+        {
+          "label": "Imre Simon Test of Time Award — LATIN official page",
+          "href": "https://latintcs.org/imreprize.html"
+        },
+        {
+          "label": "Count–min sketch - Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/Count%E2%80%93min_sketch"
+        },
+        {
+          "label": "Count sketch - Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/Count_sketch"
+        },
+        {
+          "label": "Count-Min Sketch FAQ (official site)",
+          "href": "https://sites.google.com/site/countminsketch/home/faq"
+        },
+        {
+          "label": "Sketch Techniques for Approximate Query Processing — Graham Cormode (DIMACS)",
+          "href": "http://dimacs.rutgers.edu/~graham/pubs/papers/sk.pdf"
+        },
+        {
+          "label": "Count-Min Sketch: Estimating Event Frequencies in Massive Data Streams (ogustavo.com.br)",
+          "href": "https://www.ogustavo.com.br/posts/count-min-sketch-algorithm/"
+        },
+        {
+          "label": "Count-Min Sketching, Configuration & Point-Queries (crahen.github.io)",
+          "href": "https://crahen.github.io/algorithm/stream/count-min-sketch-point-query.html"
+        },
+        {
+          "label": "Understanding Count-Min Sketch: A Probabilistic Data Structure (The Byte Beat)",
+          "href": "https://thebytebeat.substack.com/p/understanding-count-min-sketch-a"
+        },
+        {
+          "label": "An Improved Data Stream Summary: The Count-Min Sketch and its Applications (Cormode & Muthukrishnan, 2005) — DIMACS full paper",
+          "href": "https://dimacs.rutgers.edu/~graham/pubs/papers/cm-full.pdf"
+        },
+        {
+          "label": "Streaming I: Frequency Estimation via Count-Min — Dartmouth CS lecture notes (Chakrabarti)",
+          "href": "https://www.cs.dartmouth.edu/~deepc/LecNotes/Rand/lec16.pdf"
+        },
+        {
+          "label": "Algorithms for Massive Data — Lecture Notes (arXiv:2301.00754)",
+          "href": "https://arxiv.org/pdf/2301.00754"
+        },
+        {
+          "label": "Count-Min Sketch (Encyclopedia entry) — Graham Cormode, AT&T Labs",
+          "href": "http://dimacs.rutgers.edu/~graham/pubs/papers/cmencyc.pdf"
+        },
+        {
+          "label": "CS168: The Modern Algorithmic Toolbox, Lecture 2 — Tim Roughgarden & Gregory Valiant, Stanford University",
+          "href": "https://web.stanford.edu/class/cs168/l/l2.pdf"
+        },
+        {
+          "label": "Buffered Count-Min Sketch on SSD: Theory and Experiments (ar5iv / arXiv:1804.10673)",
+          "href": "https://ar5iv.labs.arxiv.org/html/1804.10673"
+        },
+        {
+          "label": "Count-Min Sketch: A Probabilistic Histogram — blog.demofox.org",
+          "href": "https://blog.demofox.org/2015/02/22/count-min-sketch-a-probabilistic-histogram/"
+        },
+        {
+          "label": "Frequency estimation with Count-Min sketch — waitingforcode.com",
+          "href": "https://www.waitingforcode.com/big-data-algorithms/frequency-estimation--count-min-sketch/read"
+        },
+        {
+          "label": "Lecture 7: Heavy Hitters, Misra-Gires Algorithms, and CountMin (MIT 6.5320 / Ali Vakilian, 2025)",
+          "href": "https://www.mit.edu/~vakilian/courses/lecs/lec_7_6104.pdf"
+        },
+        {
+          "label": "Sketches: Trading Precision for Scalability (tristanweb.com)",
+          "href": "https://tristanweb.com/blog/mergeable-operations-sketches/"
+        },
+        {
+          "label": "CountSketches, Feature Hashing and the Median of Three (Pagh, 2021) — arXiv:2102.02193",
+          "href": "https://arxiv.org/abs/2102.02193"
+        },
+        {
+          "label": "Count-Min: Optimal Estimation and Tight Error Bounds using Empirical Error Distributions (Ting 2018) — arXiv 1811.04150",
+          "href": "https://arxiv.org/abs/1811.04150"
+        },
+        {
+          "label": "Phase transition in count approximation by Count-Min sketch with conservative updates (arXiv:2203.15496)",
+          "href": "https://arxiv.org/abs/2203.15496"
+        },
+        {
+          "label": "Phase Transition in Count Approximation by Count-Min Sketch with Conservative Updates — Springer / CIAC 2023",
+          "href": "https://link.springer.com/chapter/10.1007/978-3-031-30448-4_17"
+        },
+        {
+          "label": "Count-Min Sketch with Conservative Updates: Worst-Case Analysis — arXiv 2405.12034 (cite Fusy & Kucherov en Related Work)",
+          "href": "https://arxiv.org/html/2405.12034v1"
+        },
+        {
+          "label": "DPSW-Sketch: A Differentially Private Sketch Framework for Frequency Estimation over Sliding Windows (arXiv HTML)",
+          "href": "https://arxiv.org/html/2406.07953v1"
+        },
+        {
+          "label": "Differentially Private L2-Heavy Hitters in the Sliding Window Model (arXiv, Blocki et al., ICLR 2023)",
+          "href": "https://arxiv.org/abs/2302.11081"
+        },
+        {
+          "label": "Sublinear Space Private Algorithms Under the Sliding Window Model (Upadhyay, ICML 2019 – Rutgers)",
+          "href": "https://www.researchwithrutgers.org/en/publications/sublinear-space-private-algorithms-under-the-sliding-window-model-2/"
+        },
+        {
+          "label": "CoMeT: Count-Min-Sketch-based Row Tracking to Mitigate RowHammer at Low Cost (arXiv:2402.18769)",
+          "href": "https://arxiv.org/abs/2402.18769"
+        },
+        {
+          "label": "CoMeT: Count-Min-Sketch-based Row Tracking to Mitigate RowHammer at Low Cost — IEEE Xplore HPCA 2024",
+          "href": "https://ieeexplore.ieee.org/document/10476483/"
+        },
+        {
+          "label": "CoMeT — arXiv HTML (texte complet, affiliation ETH Zürich confirmée, Table 2, résultats)",
+          "href": "https://arxiv.org/html/2402.18769v1"
+        },
+        {
+          "label": "CMU-SAFARI/CoMeT — dépôt GitHub (contact email safari.ethz.ch)",
+          "href": "https://github.com/CMU-SAFARI/CoMeT"
+        },
+        {
+          "label": "Hokusai - Sketching Streams in Real Time (arXiv:1210.4891, UAI 2012)",
+          "href": "https://arxiv.org/abs/1210.4891"
+        },
+        {
+          "label": "dgryski/hokusai — implémentation indépendante, README décrit la time-series de CMS agrégés",
+          "href": "https://github.com/dgryski/hokusai"
+        },
+        {
+          "label": "Time-adaptive sketches (Ada-CMS) — The Morning Paper (blog.acolyer.org, compare Hokusai)",
+          "href": "https://blog.acolyer.org/2016/07/21/time-adaptive-sketches-ada-sketches-for-summarizing-data-streams/"
+        },
+        {
+          "label": "Apache DataSketches — official homepage (claim verified verbatim)",
+          "href": "https://datasketches.apache.org/"
+        },
+        {
+          "label": "Yahoo Engineering blog — Lee Rhodes, original source (wording: \"days to hours or minutes\")",
+          "href": "https://yahooeng.tumblr.com/post/135390948446/data-sketches"
+        },
+        {
+          "label": "InfoQ — Yahoo Open-Sources DataSketches (no independent benchmark cited)",
+          "href": "https://www.infoq.com/news/2016/01/Yahoo-open-sources-data-sketches/"
+        },
+        {
+          "label": "Redis Count-Min Sketch documentation (redis.io)",
+          "href": "https://redis.io/docs/latest/develop/data-types/probabilistic/count-min-sketch/"
+        },
+        {
+          "label": "Count-Min Sketch: The Art and Science of Estimating Stuff (Redis blog)",
+          "href": "https://redis.io/blog/count-min-sketch-the-art-and-science-of-estimating-stuff/"
+        },
+        {
+          "label": "Approximate Heavy Hitters and the Count-Min Sketch — Stanford CS168 lecture notes (Tim Roughgarden)",
+          "href": "https://theory.stanford.edu/~tim/s15/l/l2.pdf"
+        },
+        {
+          "label": "Fair-Count-Min: Frequency Estimation under Equal Group-wise Approximation Factor (arXiv:2505.18919)",
+          "href": "https://arxiv.org/abs/2505.18919"
+        },
+        {
+          "label": "Fair-Count-Min — HTML full text (arXiv:2505.18919)",
+          "href": "https://arxiv.org/html/2505.18919"
+        },
+        {
+          "label": "Count-Min-Log Sketch for improved Average Relative Error on low frequency events (Guillaume Pitel, 2014)",
+          "href": "https://blog.guillaume-pitel.fr/2014/11/count-min-log-sketch-for-on-low-frequency/"
+        },
+        {
+          "label": "Count-Min Sketch Data Structure — GM-RKB (cite le papier Cormode & Muthukrishnan)",
+          "href": "http://www.gabormelli.com/RKB/Count-Min_Sketch_Data_Structure"
+        },
+        {
+          "label": "CMS.MERGE command reference – Redis official docs",
+          "href": "https://redis.io/docs/latest/commands/cms.merge/"
+        },
+        {
+          "label": "RedisBloom 2.0 release notes – Redis official docs",
+          "href": "https://redis.io/docs/latest/operate/oss_and_stack/stack-with-enterprise/release-notes/redisbloom/redisbloom-2.0-release-notes/"
+        },
+        {
+          "label": "Count-Min Sketch Support — Apache KVRocks Discussion #2496",
+          "href": "https://github.com/apache/kvrocks/discussions/2496"
+        },
+        {
+          "label": "CountMinSketch (Spark 4.1.2 JavaDoc — latest) — org.apache.spark.util.sketch",
+          "href": "https://spark.apache.org/docs/latest/api/java/org/apache/spark/util/sketch/CountMinSketch.html"
+        },
+        {
+          "label": "apache/spark — CountMinSketch.java source (GitHub master)",
+          "href": "https://github.com/apache/spark/blob/master/common/sketch/src/main/java/org/apache/spark/util/sketch/CountMinSketch.java"
+        }
+      ]
+    },
+    {
+      "type": "pointers",
+      "title": "Pour aller plus loin",
+      "items": [
+        {
+          "name": "Fusy & Kucherov — Phase transition in Conservative Count-Min (CIAC 2023)",
+          "url": "https://arxiv.org/abs/2203.15496",
+          "kind": "reading",
+          "blurb": "Preuve formelle de la transition de phase du Conservative Count-Min liée à la pelabilité des hypergraphes k-uniformes, avec deux régimes d'erreur selon le load factor sous distribution uniforme."
+        },
+        {
+          "name": "Aamand et al. — Improved Frequency Estimation Algorithms with and without Predictions (NeurIPS 2023)",
+          "url": "https://arxiv.org/abs/2312.07535",
+          "kind": "reading",
+          "blurb": "Bornes serrées sur l'erreur des sketches augmentés de prédictions ML pour les distributions Zipfian, avec variante parcimonieuse et garanties worst-case pour Count-Min et Count-Sketch."
+        },
+        {
+          "name": "DPSW-Sketch — Differential Privacy for Sliding Windows (KDD 2024)",
+          "url": "https://arxiv.org/abs/2406.07953",
+          "kind": "reading",
+          "blurb": "Extension de CMS aux fenêtres glissantes sous ρ-zCDP, avec espace et temps sous-linéaires en la taille de la fenêtre pour l'estimation de fréquence et la détection de heavy hitters."
+        },
+        {
+          "name": "Fair-Count-Min (arXiv 2025)",
+          "url": "https://arxiv.org/abs/2505.18919",
+          "kind": "reading",
+          "blurb": "Variante équitable de CMS utilisant un partitionnement de colonnes et un hachage semi-uniforme par groupe pour garantir des facteurs d'approximation attendus identiques entre groupes."
+        },
+        {
+          "name": "seiflotfy/count-min-log — implémentation Go de Count-Min-Log",
+          "url": "https://github.com/seiflotfy/count-min-log",
+          "kind": "implementation",
+          "blurb": "Implémentation Go du sketch Count-Min-Log (compteurs logarithmiques de Morris), basée sur l'article de Pitel & Fouquier (2015)."
+        },
+        {
+          "name": "seiflotfy/cmts — Count-Min Tree Sketch (Go)",
+          "url": "https://github.com/seiflotfy/cmts",
+          "kind": "implementation",
+          "blurb": "Implémentation Go du Count-Min Tree Sketch, extension pyramidale de Count-Min-Log exploitant la distribution Zipfian des données textuelles."
+        },
+        {
+          "name": "Apache DataSketches",
+          "url": "https://datasketches.apache.org/",
+          "kind": "library",
+          "blurb": "Bibliothèque de référence (ex-Yahoo) pour le sketching en production, avec adaptateurs Hive, Pig, PostgreSQL et BigQuery."
+        },
+        {
+          "name": "Redis — Count-Min Sketch",
+          "url": "https://redis.io/docs/latest/develop/data-types/probabilistic/count-min-sketch/",
+          "kind": "tool",
+          "blurb": "Implémentation native du CMS dans Redis via six commandes CMS.* (INITBYPROB, INITBYDIM, INCRBY, QUERY, INFO, MERGE), disponible depuis RedisBloom v2.0.0."
+        },
+        {
+          "name": "Apache Spark — CountMinSketch",
+          "url": "https://spark.apache.org/docs/latest/api/java/org/apache/spark/util/sketch/CountMinSketch.html",
+          "kind": "package",
+          "blurb": "API CountMinSketch dans org.apache.spark.util.sketch (Spark 4.1.x), classe abstraite avec factory methods, garanties d'erreur et sérialisation intégrée."
+        },
+        {
+          "name": "Hokusai (Matusevych et al., UAI 2012)",
+          "url": "https://arxiv.org/abs/1210.4891",
+          "kind": "reading",
+          "blurb": "Extension temporelle du CMS : séries chronologiques de sketches agrégés, requêtes (temps, item) en O(1)."
+        },
+        {
+          "name": "CoMeT — Count-Min Sketch pour RowHammer (HPCA 2024)",
+          "url": "https://arxiv.org/abs/2402.18769",
+          "kind": "reading",
+          "blurb": "Application matérielle du CMS dans le contrôleur DRAM pour mitiger RowHammer avec un surcoût silicium minimal."
+        },
+        {
+          "name": "Count-Min Tree Sketch (Pitel et al., 2016)",
+          "url": "https://arxiv.org/abs/1604.05492",
+          "kind": "reading",
+          "blurb": "Variante du CMS à compteurs pyramidaux, optimisée pour les distributions Zipfiennes typiques du NLP."
+        },
+        {
+          "name": "Apache DataSketches — Frequent Items References",
+          "url": "https://datasketches.apache.org/docs/Frequency/FrequentItemsReferences.html",
+          "kind": "library",
+          "blurb": "Page de références scientifiques d'Apache DataSketches pour les structures de comptage fréquent, incluant le Count-Min Sketch."
+        },
+        {
+          "name": "stream-lib — CountMinSketch (Clearspring / AddThis)",
+          "url": "https://github.com/addthis/stream-lib/blob/master/src/main/java/com/clearspring/analytics/stream/frequency/CountMinSketch.java",
+          "kind": "implementation",
+          "blurb": "Implémentation Java de référence (Maven : com.clearspring.analytics:stream), source historique des intégrations Spark et Akka, archivée en 2020."
+        },
+        {
+          "name": "pyprobables",
+          "url": "https://pyprobables.readthedocs.io/en/latest/quickstart.html",
+          "kind": "package",
+          "blurb": "Bibliothèque Python proposant CountMinSketch, CountMeanSketch et CountMeanMinSketch, compatible binaire avec l'implémentation C barrust/count-min-sketch."
+        },
+        {
+          "name": "count_min_sketch (PyPI)",
+          "url": "https://pypi.org/project/count_min_sketch/",
+          "kind": "package",
+          "blurb": "Implémentation Python pure sans dépendances (Apache 2.0), version 3.0.4 ; à considérer pour sa simplicité d'installation sur des projets légers."
+        },
+        {
+          "name": "Cormode & Muthukrishnan 2005 — J. Algorithms (PDF DIMACS)",
+          "url": "https://dimacs.rutgers.edu/~graham/pubs/papers/cm-full.pdf",
+          "kind": "reading",
+          "blurb": "Papier fondateur du Count-Min Sketch (J. Algorithms 55(1), 2005) : preuves de garantie, variantes et applications aux heavy hitters, quantiles et produits internes."
+        },
+        {
+          "name": "Site officiel Count-Min Sketch (G. Cormode)",
+          "url": "https://sites.google.com/site/countminsketch/",
+          "kind": "reading",
+          "blurb": "Page personnelle de Graham Cormode centralisant papiers, extensions, implémentations et applications du Count-Min Sketch, lauréat du prix Imre Simon Test-of-Time 2014."
+        }
+      ]
+    },
+    {
+      "type": "glossary"
+    }
+  ]
+}

@@ -1,0 +1,1957 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Count-Min Sketch : estimer des fréquences en flux à mémoire bornée</title>
+<style>
+/* vietnamese */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLySOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLyTOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLySOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLyTOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 700;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLySOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 700;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLyTOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 700;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 800;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLySOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 800;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLyTOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 800;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx3cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxTcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxPcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx_cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx7cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxDcwgknk-4.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx3cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxTcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxPcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx_cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx7cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxDcwgknk-4.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx3cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxTcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxPcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx_cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx7cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxDcwgknk-4.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCt-xNNww_2s0amA9M8onfmTNmnUHowCw.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCt-xNNww_2s0amA9M8on7mTNmnUHowCw.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCt-xNNww_2s0amA9M8onXmTNmnUHowCw.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCt-xNNww_2s0amA9M8onTmTNmnUHowCw.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCt-xNNww_2s0amA9M8onrmTNmnUHo.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCr-xNNww_2s0amA9M0knjsS_ulYHs.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCr-xNNww_2s0amA9M9knjsS_ulYHs.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCr-xNNww_2s0amA9M2knjsS_ulYHs.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCr-xNNww_2s0amA9M3knjsS_ulYHs.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCr-xNNww_2s0amA9M5knjsS_ul.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vKsW3MafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vKsW3FafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vKsW3OafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vKsW3PafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vKsW3BafaPWnII.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vmtm3MafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vmtm3FafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vmtm3OafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vmtm3PafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vmtm3BafaPWnII.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* =====================================================================
+   charte.css — Charte graphique commune (monograph skill)
+   Sources :
+     (1) themes/automatic-prompt-optimization/legacy/apo-base.html  l.11-192
+     (2) themes/automatic-prompt-optimization/legacy/build/assemble.py  EXTRA_CSS
+     (3) themes/automatic-prompt-optimization/legacy/build/widgets/theme-tooltips.html  <style> blocks
+   NE PAS modifier — fichier de référence distillé depuis le legacy APO.
+   ===================================================================== */
+
+/* ===== (1) BASE : tokens + typographie + composants de mise en page ===== */
+
+  :root{
+    --paper:#F4F6FA; --card:#FFFFFF;
+    --ink:#15202E; --ink-soft:#43536A; --ink-faint:#7A889B;
+    --blue:#23537F; --blue-deep:#142E49; --blue-bright:#2C77B6; --blue-wash:#E7EEF6;
+    --bordeaux:#7C2A38; --bordeaux-bright:#9B3443; --bordeaux-wash:#F3E3E6;
+    --line:#D7DFE9; --line-soft:#E7ECF3;
+    --code:#11283F;
+    --maxw:1240px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Spectral",Georgia,serif; font-size:17px; line-height:1.62;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,h4,.lbl,.chip,nav,th,.tag,.fcap-k{font-family:"Archivo",system-ui,sans-serif;}
+  code,kbd,.mono{font-family:"JetBrains Mono",monospace;}
+
+  /* progress bar */
+  #prog{position:fixed;top:0;left:0;height:3px;width:0;background:var(--bordeaux-bright);z-index:60;transition:width .08s linear;}
+
+  /* header */
+  header.top{
+    background:linear-gradient(165deg,var(--blue-deep),#0E2236 70%);
+    color:#EAF1F8; padding:62px 28px 54px;
+    border-bottom:3px solid var(--bordeaux);
+  }
+  .top-in{max-width:var(--maxw);margin:0 auto;}
+  .kicker{font-family:"JetBrains Mono",monospace;font-size:12.5px;letter-spacing:.22em;
+    text-transform:uppercase;color:#9DC2E0;margin:0 0 16px;}
+  header.top h1{font-size:clamp(30px,4.6vw,52px);line-height:1.05;margin:0;font-weight:800;letter-spacing:-.01em;}
+  header.top h1 em{font-style:normal;color:#E7B3BD;}
+  header.top .lede{font-size:18px;max-width:760px;margin:20px 0 0;color:#C7D7E6;line-height:1.55;}
+  .meta{margin-top:26px;display:flex;flex-wrap:wrap;gap:10px;}
+  .meta span{font-family:"JetBrains Mono",monospace;font-size:11.5px;letter-spacing:.04em;
+    border:1px solid rgba(157,194,224,.35);color:#B7CFE4;padding:5px 11px;border-radius:2px;}
+
+  /* layout */
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 28px;display:grid;
+    grid-template-columns:248px minmax(0,1fr);gap:48px;align-items:start;}
+  nav.toc{position:sticky;top:22px;padding:30px 0 60px;font-size:13.5px;max-height:calc(100vh - 30px);overflow:auto;}
+  nav.toc .navhead{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);margin:18px 0 9px;font-weight:700;}
+  nav.toc a{display:block;color:var(--ink-soft);text-decoration:none;padding:4px 12px;border-left:2px solid var(--line);
+    line-height:1.32;margin:1px 0;transition:.15s;}
+  nav.toc a:hover{color:var(--blue-bright);border-left-color:var(--blue-bright);}
+  nav.toc a.active{color:var(--bordeaux);border-left-color:var(--bordeaux);font-weight:600;background:var(--bordeaux-wash);}
+  nav.toc a.sub{padding-left:24px;font-size:12.5px;}
+
+  main{padding:42px 0 100px;min-width:0;}
+  section{margin-bottom:30px;scroll-margin-top:18px;}
+  .part-band{margin:54px 0 10px;padding:14px 0 12px;border-top:2px solid var(--blue-deep);border-bottom:1px solid var(--line);}
+  .part-band .pk{font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.2em;color:var(--bordeaux);text-transform:uppercase;}
+  .part-band h2{font-size:clamp(24px,3.2vw,34px);margin:6px 0 0;font-weight:800;letter-spacing:-.01em;color:var(--blue-deep);}
+  h3{font-size:22px;margin:36px 0 8px;color:var(--blue-deep);font-weight:700;letter-spacing:-.005em;}
+  h4{font-size:16px;margin:22px 0 6px;color:var(--ink);font-weight:700;}
+  p{margin:11px 0;}
+  a.ref{color:var(--blue-bright);text-decoration:none;border-bottom:1px solid var(--blue-wash);font-weight:500;}
+  a.ref:hover{border-bottom-color:var(--blue-bright);}
+  strong{font-weight:600;}
+  .hl{color:var(--bordeaux);font-weight:600;}
+  em.term{font-style:italic;color:var(--ink);}
+  .lead{font-size:18.5px;color:var(--ink-soft);line-height:1.6;}
+
+  /* cards & components */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:7px;padding:22px 24px;margin:16px 0;
+    box-shadow:0 1px 2px rgba(20,46,73,.04);}
+  .opt{border-left:3px solid var(--blue);}
+  .opt .lbl{font-family:"Archivo";font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--blue);font-weight:700;}
+  .opt h4{margin:3px 0 8px;font-size:18px;}
+  .pc{display:grid;grid-template-columns:1fr 1fr;gap:10px 26px;margin-top:12px;}
+  @media(max-width:620px){.pc{grid-template-columns:1fr;}}
+  .pc ul{margin:4px 0;padding:0;list-style:none;font-size:15px;}
+  .pc li{padding:3px 0 3px 22px;position:relative;line-height:1.45;color:var(--ink-soft);}
+  .pros .k,.cons .k{font-family:"Archivo";font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;display:block;margin-bottom:3px;}
+  .pros .k{color:var(--blue);}.cons .k{color:var(--bordeaux);}
+  .pros li::before{content:"+";position:absolute;left:4px;color:var(--blue-bright);font-weight:700;}
+  .cons li::before{content:"–";position:absolute;left:5px;color:var(--bordeaux-bright);font-weight:700;}
+  .links{margin-top:13px;font-family:"JetBrains Mono",monospace;font-size:12.5px;display:flex;gap:16px;flex-wrap:wrap;}
+  .links a{color:var(--blue);text-decoration:none;border-bottom:1px dotted var(--blue);}
+  .links a:hover{color:var(--bordeaux);border-bottom-color:var(--bordeaux);}
+  .links a::before{content:"↗ ";opacity:.6;}
+
+  /* callout */
+  .callout{background:var(--bordeaux-wash);border:1px solid #E3C3C9;border-left:4px solid var(--bordeaux);
+    border-radius:6px;padding:18px 22px;margin:20px 0;}
+  .callout .ct{font-family:"Archivo";font-weight:700;color:var(--bordeaux);font-size:13px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
+  .note{background:var(--blue-wash);border:1px solid #CFE0EF;border-left:4px solid var(--blue);border-radius:6px;padding:18px 22px;margin:20px 0;}
+  .note .ct{font-family:"Archivo";font-weight:700;color:var(--blue);font-size:13px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
+
+  /* figures */
+  figure.fig{margin:24px 0;background:var(--card);border:1px solid var(--line);border-radius:7px;padding:24px 22px 16px;}
+  figure.fig svg{width:100%;height:auto;display:block;}
+  figcaption{margin-top:12px;font-size:13.5px;color:var(--ink-faint);line-height:1.45;border-top:1px solid var(--line-soft);padding-top:10px;}
+  figcaption .fcap-k{color:var(--bordeaux);font-weight:700;font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin-right:8px;}
+
+  /* table */
+  .tbl-w{overflow-x:auto;margin:18px 0;border:1px solid var(--line);border-radius:7px;}
+  table{border-collapse:collapse;width:100%;font-size:14px;background:var(--card);}
+  th{background:var(--blue-deep);color:#E7F0F8;text-align:left;padding:11px 14px;font-size:12px;letter-spacing:.04em;font-weight:600;position:sticky;top:0;}
+  td{padding:11px 14px;border-top:1px solid var(--line-soft);vertical-align:top;line-height:1.45;color:var(--ink-soft);}
+  td:first-child{color:var(--ink);font-weight:600;font-family:"Archivo";font-size:13.5px;}
+  tr:hover td{background:#FAFCFE;}
+  .tag{display:inline-block;font-family:"JetBrains Mono",monospace;font-size:11px;padding:2px 7px;border-radius:3px;background:var(--blue-wash);color:var(--blue);}
+  .tag.b{background:var(--bordeaux-wash);color:var(--bordeaux);}
+
+  code{background:#E9EEF4;color:var(--code);padding:1.5px 6px;border-radius:4px;font-size:14px;}
+  .axis-chips{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 4px;}
+  .axis-chips a{font-family:"Archivo";font-size:12.5px;font-weight:600;text-decoration:none;color:var(--blue);
+    background:var(--card);border:1px solid var(--line);padding:7px 13px;border-radius:30px;transition:.15s;}
+  .axis-chips a:hover{background:var(--blue-deep);color:#fff;border-color:var(--blue-deep);}
+
+  /* decision path (interactive Part II) */
+  .dpath{margin:18px 0;}
+  .fork{background:var(--card);border:1px solid var(--line);border-radius:7px;margin:10px 0;overflow:hidden;}
+  .fork-h{padding:13px 18px;background:#F0F4F9;border-bottom:1px solid var(--line);
+    font-family:"Archivo";font-weight:700;font-size:14px;color:var(--blue-deep);display:flex;gap:10px;align-items:baseline;}
+  .fork-h .n{font-family:"JetBrains Mono";color:var(--bordeaux);font-size:12px;}
+  .branches{display:grid;grid-template-columns:1fr 1fr;}
+  @media(max-width:620px){.branches{grid-template-columns:1fr;}}
+  .br{padding:14px 18px;font-size:14.5px;line-height:1.5;color:var(--ink-faint);border-right:1px solid var(--line-soft);}
+  .br.chosen{color:var(--ink);background:linear-gradient(0deg,var(--bordeaux-wash),#fff);border-left:3px solid var(--bordeaux);}
+  .br .st{font-family:"Archivo";font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:5px;}
+  .br.chosen .st{color:var(--bordeaux);}
+  .br.alt .st{color:var(--ink-faint);}
+  .br.chosen .st::after{content:" ◆ retenu";color:var(--bordeaux);}
+
+  /* collapsible examples */
+  details.ex{margin:18px 0;border:1px solid var(--line);border-radius:6px;background:#FBFCFE;overflow:hidden;}
+  details.ex>summary{cursor:pointer;list-style:none;padding:12px 18px;font-family:"Archivo",sans-serif;
+    font-weight:700;font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--blue-deep);
+    background:#EBF1F7;display:flex;align-items:center;gap:11px;user-select:none;transition:.15s;}
+  details.ex>summary::-webkit-details-marker{display:none;}
+  details.ex>summary::before{content:"▸";color:var(--bordeaux);font-size:13px;line-height:1;
+    transition:transform .2s ease;display:inline-block;}
+  details.ex[open]>summary::before{transform:rotate(90deg);}
+  details.ex>summary:hover{background:#E1EAF3;color:var(--bordeaux);}
+  details.ex>summary .cnt{margin-left:auto;font-family:"JetBrains Mono",monospace;font-size:10px;
+    letter-spacing:.04em;color:var(--ink-faint);font-weight:400;}
+  .exbody{padding:8px 20px 16px;font-size:15px;line-height:1.55;color:var(--ink-soft);}
+  .exbody p{margin:9px 0;}
+  .eg{margin:11px 0;padding:11px 15px;border-left:3px solid var(--blue);background:#fff;
+    border:1px solid var(--line-soft);border-left:3px solid var(--blue);border-radius:0 5px 5px 0;}
+  .eg.b{border-left-color:var(--bordeaux);}
+  .eg .egk{font-family:"Archivo",sans-serif;font-size:11.5px;font-weight:700;letter-spacing:.04em;
+    color:var(--blue-deep);display:block;margin-bottom:4px;}
+  .eg.b .egk{color:var(--bordeaux);}
+  .eg p{margin:5px 0;}
+  .exbody code{font-size:13px;}
+  .arrow{color:var(--bordeaux);font-weight:600;}
+
+  /* worked examples: code / diff / calc / steps */
+  .exbody pre.code{background:#0E2132;color:#D6E3EF;border:1px solid #1C3650;border-radius:6px;
+    padding:12px 14px;margin:11px 0;font-family:"JetBrains Mono",monospace;font-size:11.8px;line-height:1.62;
+    overflow-x:auto;white-space:pre;}
+  .exbody pre.code .h{color:#E7B3BD;}
+  .exbody pre.code .c{color:#7C9DBA;}
+  .exbody pre.code .del{display:block;background:rgba(155,52,67,.32);color:#F2C6CC;}
+  .exbody pre.code .add{display:block;background:rgba(44,119,182,.30);color:#C5DEF3;}
+  .calc{background:#fff;border:1px solid var(--line-soft);border-left:3px solid var(--blue-deep);
+    border-radius:0 5px 5px 0;padding:9px 14px;margin:10px 0;font-family:"JetBrains Mono",monospace;
+    font-size:12px;line-height:1.75;color:var(--ink);overflow-x:auto;white-space:pre-wrap;}
+  .calc .r{color:var(--bordeaux);font-weight:700;}
+  .calc .g{color:#1C6A4C;font-weight:700;}
+  .calc .c{color:var(--ink-faint);}
+  ol.steps{counter-reset:s;margin:11px 0;padding:0;list-style:none;}
+  ol.steps li{position:relative;padding:5px 0 5px 32px;font-size:14.5px;line-height:1.5;margin:3px 0;color:var(--ink-soft);}
+  ol.steps li b{color:var(--ink);}
+  ol.steps li::before{counter-increment:s;content:counter(s);position:absolute;left:0;top:4px;
+    width:21px;height:21px;background:var(--blue-deep);color:#fff;border-radius:50%;
+    font-family:"JetBrains Mono",monospace;font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:600;}
+  .eg pre.code{margin:8px 0;}
+
+  footer{background:var(--blue-deep);color:#A9C2D8;padding:34px 28px;font-size:13px;}
+  footer .fin{max-width:var(--maxw);margin:0 auto;font-family:"JetBrains Mono",monospace;letter-spacing:.03em;}
+
+  @media(max-width:900px){
+    .wrap{grid-template-columns:1fr;gap:0;}
+    nav.toc{position:static;max-height:none;border-bottom:1px solid var(--line);margin-bottom:10px;
+      display:grid;grid-template-columns:1fr 1fr;gap:0 18px;}
+  }
+
+/* ===== (2) ENRICHISSEMENTS : blocs xwrap / xabstract / xtldr / gloss-grid / gterm ===== */
+
+  /* ===== enrichissements (blocs ajoutes) ===== */
+  .xwrap{max-width:var(--maxw);margin:0 auto;padding:0 28px;}
+  .xabstract{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--bordeaux);
+    border-radius:8px;padding:24px 28px;margin:28px 0 0;box-shadow:0 1px 2px rgba(20,46,73,.05);}
+  .xabstract .xk{font-family:"Archivo",system-ui,sans-serif;font-size:11px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--bordeaux);font-weight:700;margin:0 0 9px;}
+  .xabstract .xthese{font-size:19px;line-height:1.5;color:var(--ink);font-weight:600;margin:0 0 12px;
+    font-family:"Spectral",Georgia,serif;}
+  .xabstract ul{margin:8px 0 0;padding:0;list-style:none;}
+  .xabstract li{position:relative;padding:5px 0 5px 22px;font-size:15px;color:var(--ink-soft);line-height:1.5;}
+  .xabstract li::before{content:"\25B8";position:absolute;left:2px;color:var(--blue-bright);font-weight:700;}
+  .xabstract .xpath li::before{content:counter(xp);counter-increment:xp;background:var(--blue-deep);color:#fff;
+    width:19px;height:19px;border-radius:50%;font-family:"JetBrains Mono",monospace;font-size:10px;left:0;top:5px;
+    display:flex;align-items:center;justify-content:center;}
+  .xabstract ul.xpath{counter-reset:xp;}
+  .xabstract .xfoot{font-size:13px;color:var(--ink-faint);margin:14px 0 0;line-height:1.5;}
+  .xtldr{background:var(--blue-wash);border:1px solid #CFE0EF;border-left:4px solid var(--blue);
+    border-radius:6px;padding:14px 20px;margin:16px 0 4px;}
+  .xtldr .xk{font-family:"Archivo",system-ui,sans-serif;font-size:11px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--blue);font-weight:700;margin-bottom:7px;}
+  .xtldr ul{margin:0;padding-left:19px;}
+  .xtldr li{font-size:14px;color:var(--ink-soft);line-height:1.5;margin:4px 0;}
+  .gloss-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin:18px 0;}
+  @media(max-width:760px){.gloss-grid{grid-template-columns:1fr;}}
+  .gterm{background:var(--card);border:1px solid var(--line);border-radius:7px;padding:14px 17px;
+    border-left:3px solid var(--blue);}
+  .gterm .gt-name{font-family:"Archivo",system-ui,sans-serif;font-weight:700;color:var(--blue-deep);
+    font-size:14.5px;display:block;margin-bottom:5px;}
+  .gterm .gt-def{font-size:13.5px;color:var(--ink-soft);line-height:1.5;margin:0;}
+  .gterm .gt-see{font-family:"JetBrains Mono",monospace;font-size:10.5px;color:var(--ink-faint);
+    margin:8px 0 0;}
+
+  .xptr-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin:18px 0;}
+  @media(max-width:760px){.xptr-grid{grid-template-columns:1fr;}}
+  .xptr{background:var(--card);border:1px solid var(--line);border-radius:7px;padding:14px 17px;
+    border-left:3px solid var(--blue-bright);}
+  .xptr .xptr-name{font-family:"Archivo",system-ui,sans-serif;font-weight:700;color:var(--blue);
+    font-size:14.5px;text-decoration:none;}
+  .xptr .xptr-name:hover{text-decoration:underline;}
+  .xptr .xptr-kind{font-family:"JetBrains Mono",monospace;font-size:9.5px;letter-spacing:.08em;
+    text-transform:uppercase;color:#fff;background:var(--blue-bright);border-radius:4px;
+    padding:1px 6px;margin-left:8px;vertical-align:middle;}
+  .xptr .xptr-blurb{font-size:13.5px;color:var(--ink-soft);line-height:1.5;margin:8px 0 0;}
+
+/* ===== (3) DARK MODE + BOUTON THÈME + TOOLTIPS ===== */
+
+  /* Transitions douces sur les surfaces principales lors de la bascule */
+  html.theme-anim body,
+  html.theme-anim .card,
+  html.theme-anim .callout,
+  html.theme-anim .note,
+  html.theme-anim figure.fig,
+  html.theme-anim .tbl-w,
+  html.theme-anim nav.toc a{
+    transition:background-color .25s ease, color .25s ease, border-color .25s ease;
+  }
+
+  html[data-theme="dark"]{
+    /* papier sombre, encre claire */
+    --paper:#0E1620; --card:#16212E;
+    --ink:#E4EBF3; --ink-soft:#AFC0D2; --ink-faint:#7C8DA1;
+    /* bleus : on éclaircit pour rester lisibles sur fond foncé */
+    --blue:#6FA8D8; --blue-deep:#0A1521; --blue-bright:#7FB6E4; --blue-wash:#1B2C3E;
+    /* bordeaux : accent gardé lisible, remonté en clarté */
+    --bordeaux:#C66875; --bordeaux-bright:#D67C88; --bordeaux-wash:#2C1A1F;
+    --line:#2A3848; --line-soft:#212E3C;
+    --code:#0A1521;
+    color-scheme:dark;
+  }
+
+  /* Ajustements ciblés sur surfaces déjà opaques du doc (non pilotées par les variables) */
+  html[data-theme="dark"] body{background:var(--paper);color:var(--ink);}
+  html[data-theme="dark"] header.top{
+    background:linear-gradient(165deg,#0A1521,#060D16 70%);
+    border-bottom-color:var(--bordeaux);
+  }
+  html[data-theme="dark"] th{background:#0A1521;color:#D7E6F4;}
+  html[data-theme="dark"] tr:hover td{background:#1B2735;}
+  html[data-theme="dark"] code{background:#0E1C2A;color:#CFE0F2;}
+  html[data-theme="dark"] .card{box-shadow:0 1px 2px rgba(0,0,0,.45);}
+  html[data-theme="dark"] details.ex{background:#101A25;}
+  html[data-theme="dark"] details.ex>summary{background:#142231;color:#CFE0F2;}
+  html[data-theme="dark"] details.ex>summary:hover{background:#1A2C3E;}
+  html[data-theme="dark"] .eg{background:#101A25;}
+  html[data-theme="dark"] .calc{background:#101A25;}
+  html[data-theme="dark"] .fork-h{background:#142231;}
+  html[data-theme="dark"] footer{background:#0A1521;color:#8CA6BE;}
+  /* la coloration de pre.code reste codée en dur dans le doc (déjà sombre, cohérente) */
+
+  #theme_toggle{
+    position:fixed; top:14px; right:14px; z-index:120;
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:"Archivo",system-ui,sans-serif; font-size:12px; font-weight:700;
+    letter-spacing:.08em; text-transform:uppercase;
+    color:var(--blue); background:var(--card);
+    border:1px solid var(--line); border-radius:30px;
+    padding:8px 14px; cursor:pointer; line-height:1;
+    box-shadow:0 2px 6px rgba(20,46,73,.14);
+    transition:background-color .15s, color .15s, border-color .15s, box-shadow .15s;
+  }
+  #theme_toggle:hover{
+    color:#fff; background:var(--blue-deep); border-color:var(--blue-deep);
+  }
+  #theme_toggle:focus-visible{
+    outline:2px solid var(--bordeaux); outline-offset:2px;
+  }
+  #theme_toggle #theme_toggle_ico{font-size:14px;}
+  html[data-theme="dark"] #theme_toggle{
+    box-shadow:0 2px 8px rgba(0,0,0,.5);
+  }
+  html[data-theme="dark"] #theme_toggle:hover{
+    color:#0A1521; background:var(--blue-bright); border-color:var(--blue-bright);
+  }
+  @media print{ #theme_toggle{display:none;} }
+
+  .theme-gloss{
+    cursor:help; text-decoration:none;
+    border-bottom:1px dotted var(--bordeaux);
+    color:inherit; outline:none;
+  }
+  .theme-gloss:focus-visible{
+    outline:2px solid var(--bordeaux); outline-offset:2px; border-radius:2px;
+  }
+  abbr.theme-gloss{text-decoration:none;}
+
+  #theme_tip{
+    position:absolute; z-index:130; max-width:300px;
+    background:var(--blue-deep); color:#EAF1F8;
+    border:1px solid var(--bordeaux);
+    border-radius:6px; padding:9px 12px;
+    font-family:"Archivo",system-ui,sans-serif; font-size:13px; line-height:1.45;
+    box-shadow:0 6px 20px rgba(10,21,33,.4);
+    opacity:0; transform:translateY(3px); pointer-events:none;
+    transition:opacity .14s ease, transform .14s ease;
+  }
+  #theme_tip[data-show="1"]{ opacity:1; transform:translateY(0); }
+  #theme_tip::after{
+    content:""; position:absolute; left:var(--theme-tip-ax,16px);
+    bottom:-6px; width:10px; height:10px;
+    background:var(--blue-deep);
+    border-right:1px solid var(--bordeaux); border-bottom:1px solid var(--bordeaux);
+    transform:rotate(45deg);
+  }
+  #theme_tip[data-below="1"]::after{
+    bottom:auto; top:-6px;
+    border-right:none; border-bottom:none;
+    border-left:1px solid var(--bordeaux); border-top:1px solid var(--bordeaux);
+  }
+  html[data-theme="dark"] #theme_tip{
+    background:#1B2C3E; color:#E4EBF3;
+  }
+  html[data-theme="dark"] #theme_tip::after{ background:#1B2C3E; }
+  @media print{ #theme_tip{display:none;} }
+
+</style>
+</head>
+<body>
+<div id="prog" style="width:0%"></div>
+<header class="top"><div class="top-in">
+  <p class="kicker">Esquisse de comptage en flux · monographie</p>
+  <h1>Count-Min Sketch : estimer des fréquences en flux à mémoire bornée</h1>
+  <p class="lede">Un tableau de compteurs alimenté par hachage et interrogé par le minimum sur d lignes : comment le Count-Min Sketch approxime les fréquences d'un flux en mémoire sous-linéaire avec une garantie d'erreur unilatérale a_i + εN — précise sur les heavy hitters, trompeuse sur les items rares — et tout l'écosystème de variantes et de déploiements qu'elle a engendré.</p>
+  <div class="meta"><span>Monographie</span></div>
+</div></header>
+<div class="wrap">
+<nav class="toc" id="toc"><a href="#genese-probleme-flux">Genèse et problème du comptage en flux</a>
+<a href="#structure-operations">Structure de données et opérations : Update, Point Query</a>
+<a href="#garanties-preuve">Garanties d'erreur et esquisse de preuve</a>
+<a href="#requetes-etendues">Requêtes étendues : inner product, range queries, heavy hitters</a>
+<a href="#variantes">Variantes : Conservative Update, Count Sketch et descendants</a>
+<a href="#applications-deploiements">Applications et déploiements</a>
+<a href="#limites-pieges">Limites, pièges et idées reçues</a>
+<a href="#ecosysteme">Écosystème et pour aller plus loin</a></nav>
+<main>
+<div class="xwrap"><div class="xabstract"><div class="xk">Résumé</div><p class="xthese">Le Count-Min Sketch estime les fréquences d'un flux en mémoire sous-linéaire — un tableau de compteurs alimenté par hachage, interrogé par le minimum sur d lignes — avec une garantie d'erreur unilatérale a_i + epsilon*N à confiance 1-delta ; mais cette garantie est additive (norme L1), probabiliste et établie par requête, ce qui rend l'esquisse précise sur les heavy hitters et trompeuse sur les items rares, d'où tout un écosystème de variantes (Conservative Update, Count Sketch) et de déploiements (RedisBloom, Spark, Hokusai, RowHammer).</p><ul><li>Le problème : compter exactement les fréquences d'un flux exige une mémoire proportionnelle au nombre d'éléments distincts, impraticable à grande échelle. Le Count-Min Sketch (Cormode et Muthukrishnan, DIMACS 2003 / Journal of Algorithms 2005, prix Imre Simon Test-of-Time 2014) y répond par une esquisse de taille bornée.</li><li>La structure : un tableau de d lignes x w colonnes de compteurs et d fonctions de hachage indépendantes. L'update incrémente une cellule par ligne en O(d) ; la point query renvoie le minimum des d cellules lues, également en O(d) — coût indépendant de la taille du flux et du nombre d'éléments distincts.</li><li>Le paramétrage sépare deux grandeurs distinctes : la largeur w = ceil(e/epsilon) gouverne la précision (epsilon = e/w), la profondeur d = ceil(ln(1/delta)) gouverne la confiance (delta = e^(-d)). Augmenter d réduit exponentiellement la probabilité d'échec, pas la borne d'erreur.</li><li>Au-delà de la point query : l'inner product query s'opère directement sur deux esquisses partageant les mêmes hachages (borne epsilon*norme1(a)*norme1(b)), les range queries via dyadic decomposition (décomposition dyadique) ; seule l'énumération des heavy hitters réclame une structure auxiliaire.</li><li>La garantie d'erreur est unilatérale (one-sided) : a_chapeau_i &gt;= a_i dans le modèle cash register, et a_chapeau_i &lt;= a_i + epsilon*N avec probabilité au moins 1-delta. La preuve combine une espérance d'erreur par ligne &lt;= (epsilon/e)*N, l'inégalité de Markov (Pr &gt; epsilon*N inférieur à 1/e) et la composition sur d lignes indépendantes ((1/e)^d &lt;= delta).</li><li>Trois nuances souvent gommées : la borne est additive en norme L1 (le gain d'espace 1/epsilon sur les AMS sketches se paie par une garantie incomparable, plus faible que la L2 du Count Sketch) ; elle vaut par requête, pas simultanément (couvrir n items via union bound impose d = ceil(ln(n/delta))) ; et la non-sous-estimation échoue dans le turnstile général.</li><li>Le biais d'équité : l'erreur additive uniforme epsilon*N inflige une inflation relative bien supérieure aux items rares qu'aux items fréquents (formalisé en 2025, arXiv 2505.18919). L'esquisse est donc fiable sur les distributions Zipfiennes à heavy hitters dominants, mais trompeuse sur les flux quasi-uniformes à grand N.</li><li>L'écosystème : variantes (Conservative Update, Count Sketch et descendants, estimateur MLE de Ting 2018) et déploiements (RedisBloom — 6 commandes CMS depuis la 2.0, Spark CountMinSketch, Hokusai pour la dimension temporelle, CoMeT contre RowHammer à HPCA 2024). Attention : les conventions de dimensionnement divergent d'une implémentation à l'autre (Redis pose w = 2/epsilon, Spark inverse les rôles de depth et width).</li></ul></div></div>
+<section id="genese-probleme-flux">
+<h3>Genèse et problème du comptage en flux</h3>
+<p>Les années 1990 voient exploser le volume des flux (data streams) auxquels les systèmes informatiques sont confrontés : journaux de trafic réseau, séquences de requêtes web, transactions financières à haute fréquence. Dans chacun de ces contextes, la même question s'impose — combien de fois tel élément est-il apparu dans le flux jusqu'ici ? — et la même contrainte rend les approches naïves impraticables : l'univers <em>U</em> des valeurs possibles peut être astronomique (2<sup>32</sup> adresses IPv4, espace de toutes les URL indexées), tandis que la mémoire disponible ne permet pas de maintenir un compteur exact par élément. Un algorithme exact exigerait Θ(<em>|U|</em>) cellules mémoire ; le défi est d'approcher la fréquence d'un élément quelconque avec une garantie probabiliste en espace strictement sub-linéaire par rapport à <em>|U|</em> — et constant par rapport à la longueur du flux.</p>
+
+<p>Le premier cadre théorique rigoureux est posé en 1996 par Noga Alon, Yossi Matias et Mario Szegedy. Leur AMS sketch démontre que les frequency moments (moments de fréquence) d'un stream, notamment F<sub>2</sub> = Σ<sub>i</sub> f<sub>i</sub>², peuvent être approximés avec une précision relative ε et probabilité de succès 1−δ en utilisant O(1/ε² · log(1/δ)) compteurs. Ce résultat, couronné du prix Gödel en 2005, fonde la théorie des algorithmes de flux et des structures de résumé probabiliste. Il laisse cependant une lacune pratique : pour des point queries (requêtes ponctuelles de fréquence) sur des éléments individuels, les constructions AMS-style conservent cette dépendance quadratique en 1/ε — prohibitive pour des équipements réseau opérant à la vitesse de la ligne ou pour des systèmes embarqués à mémoire contrainte.</p>
+
+<p>C'est dans ce contexte que Graham Cormode et S. Muthu Muthukrishnan publient, en juin 2003, le rapport technique DIMACS 2003-20, acte de naissance formel du Count-Min Sketch (CMS). Ce travail est présenté à LATIN 2004, la conférence Latino-américaine d'informatique théorique, puis publié sous le titre « An improved data stream summary: The count-min sketch and its applications » dans le <em>Journal of Algorithms</em>, 55(1) : 58–75 (2005). L'apport central est de ramener à O(1/ε · log(1/δ)) l'espace total nécessaire pour des point queries sur un stream — un facteur 1/ε de moins que les structures précédentes, obtenu via une garantie d'erreur additive ε·<em>N</em> (où <em>N</em> est la somme de toutes les fréquences, la norme L₁ du flux) plutôt que relative. En 2014, dix ans exactement après la présentation originale, le comité de la conférence LATIN décerne au papier le prix Imre Simon Test-of-Time, qui honore chaque édition le travail paru à LATIN ayant exercé l'impact durable le plus significatif sur l'informatique théorique.</p>
+</section>
+<section id="structure-operations">
+<h3>Structure de données et opérations : Update, Point Query</h3>
+<p>Le Count-Min Sketch repose sur un tableau à deux dimensions de <em>w</em> colonnes (largeur) et <em>d</em> lignes (profondeur), dont chaque cellule est un entier initialisé à zéro. Chaque ligne <em>i</em> est associée à une fonction de hachage <em>h</em><sub>i</sub> tirée d'une famille pairwise independent (indépendante deux à deux) : pour deux clés quelconques du domaine, la probabilité de collision est au plus 1/<em>w</em>, et les <em>d</em> lignes se comportent de façon mutuellement indépendante. Les deux paramètres de dimensionnement découlent directement des garanties probabilistes visées : <em>w</em> = ⌈<em>e</em>/ε⌉ — où <em>e</em> désigne la base du logarithme naturel (≈ 2,718) — fixe la résolution horizontale pour contenir l'erreur additionnelle dans un multiple de ε · <em>N</em>, et <em>d</em> = ⌈ln(1/δ)⌉ fixe la profondeur pour ramener la probabilité d'échec global à δ. L'inégalité de Markov, appliquée à la variable d'erreur par ligne, justifie le choix de <em>w</em> ; une borne exponentielle sur les <em>d</em> lignes indépendantes justifie le choix de <em>d</em>.</p>
+
+<p>L'opération update (mise à jour) est élémentaire : à l'arrivée d'un événement d'identifiant <em>j</em> et de multiplicité <em>c</em> (typiquement <em>c</em> = 1), on calcule, pour chaque ligne <em>i</em> ∈ {1, …, <em>d</em>}, l'indice <em>k</em> = <em>h</em><sub>i</sub>(<em>j</em>) et on ajoute <em>c</em> à <code>count[i, k]</code>. Les <em>d</em> cellules touchées occupent des positions différentes dans chaque ligne, de sorte que les écritures sont statistiquement indépendantes les unes des autres. Le coût total est O(<em>d</em>) en temps et O(1) en espace supplémentaire.</p>
+
+<p>L'opération point query (requête de fréquence ponctuelle) retourne l'estimation â<sub>j</sub> = min<sub>i=1</sub><sup>d</sup> count[i, h<sub>i</sub>(j)]. Ce minimum sélectionne, parmi les <em>d</em> lignes, la cellule la moins polluée par des collisions, en exploitant la décorrélation statistique des erreurs de hachage d'une ligne à l'autre. La structure offre une garantie unilatérale : dans un flux à multiplicités non négatives, le sketch ne sous-estime jamais la vraie fréquence <em>a</em><sub>j</sub>, car une cellule <code>count[i, h<sub>i</sub>(j)]</code> ne peut qu'accumuler des contributions d'éléments distincts de <em>j</em> partageant le même hachage — le bruit est strictement positif. Formellement, avec probabilité au moins 1 − δ, l'estimation satisfait <em>a</em><sub>j</sub> ≤ â<sub>j</sub> ≤ <em>a</em><sub>j</sub> + ε · <em>N</em>, où <em>N</em> est la masse totale du flux. Le coût de la requête est également O(<em>d</em>).</p>
+
+<p>L'empreinte mémoire totale est O(<em>w</em> · <em>d</em>) cellules. Un exemple chiffré illustre la compacité atteinte en pratique : avec <em>w</em> = 2 000 et <em>d</em> = 10, les 20 000 compteurs encodés sur 16 bits n'occupent que 40 Ko, tout en garantissant une erreur additive d'au plus 0,1 % de <em>N</em> avec probabilité 99,9 %. Enfin, le Count-Min Sketch est un linear sketch (sketch linéaire) : deux instances de mêmes dimensions construites avec les mêmes fonctions de hachage se fusionnent en additionnant leurs tableaux cellule par cellule, sans perte de garanties. Cette mergeabilité rend la structure naturellement adaptée aux architectures distribuées où des sous-flux sont traités en parallèle avant agrégation centrale.</p>
+</section>
+<div class="widget cbs-root" id="cbs-root">
+  <style>
+    .cbs-root{--cbs-ink:var(--ink,#15202E);--cbs-soft:var(--ink-soft,#43536A);
+      --cbs-faint:var(--ink-faint,#7A889B);--cbs-card:var(--card,#fff);
+      --cbs-line:var(--line,#D7DFE9);--cbs-blue:var(--blue,#23537F);
+      --cbs-bright:var(--blue-bright,#2C77B6);--cbs-hot:var(--bordeaux-bright,#9B3443);
+      --cbs-ok:#3F8E66;--cbs-warm:#E0A33A;
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--cbs-ink);
+      border:1px solid var(--cbs-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--cbs-card);max-width:760px}
+    .cbs-root *{box-sizing:border-box}
+    .cbs-k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;
+      color:var(--cbs-faint);font-weight:600;margin:0 0 2px}
+    .cbs-title{font-weight:700;font-size:1.05rem;margin:0 0 4px}
+    .cbs-sub{font-size:.86rem;color:var(--cbs-soft);margin:0 0 14px}
+    .cbs-sub code{background:var(--cbs-line);padding:1px 5px;border-radius:4px;font-size:.85em}
+    .cbs-ctl{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-end;
+      padding:10px 12px;border:1px solid var(--cbs-line);border-radius:8px;margin:0 0 14px}
+    .cbs-field{display:flex;flex-direction:column;gap:4px;flex:1 1 180px;min-width:160px}
+    .cbs-field label{font-size:.74rem;color:var(--cbs-faint);font-weight:600;
+      letter-spacing:.04em;display:flex;justify-content:space-between;gap:8px}
+    .cbs-field label b{color:var(--cbs-ink);font-variant-numeric:tabular-nums}
+    .cbs-field input[type=range]{width:100%;accent-color:var(--cbs-bright);cursor:pointer}
+    .cbs-grp{margin:0 0 12px}
+    .cbs-grplab{font-size:.74rem;color:var(--cbs-faint);font-weight:600;letter-spacing:.04em;
+      margin:0 0 5px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .cbs-grplab code{background:var(--cbs-line);padding:1px 5px;border-radius:4px;font-size:.9em}
+    .cbs-grplab .cbs-pill{font:600 .72rem ui-monospace,monospace;color:var(--cbs-blue);
+      border:1px solid var(--cbs-line);border-radius:999px;padding:1px 7px}
+    .cbs-btns{display:flex;flex-wrap:wrap;gap:6px}
+    .cbs-ib{min-width:38px;padding:7px 10px;border:1px solid var(--cbs-line);border-radius:8px;
+      background:var(--cbs-card);color:var(--cbs-ink);font:700 14px ui-monospace,monospace;
+      cursor:pointer;text-align:center}
+    .cbs-ib:hover{border-color:var(--cbs-bright);background:rgba(44,119,182,.06)}
+    .cbs-ib.cbs-add{border-color:var(--cbs-blue)}
+    .cbs-ib.cbs-q{border-color:var(--cbs-warm)}
+    .cbs-ib.cbs-on{background:var(--cbs-warm);color:#fff;border-color:var(--cbs-warm)}
+    .cbs-ib .cbs-ibn{display:block;font:600 9px ui-monospace,monospace;color:var(--cbs-faint);
+      margin-top:1px}
+    .cbs-ib.cbs-on .cbs-ibn{color:rgba(255,255,255,.85)}
+    .cbs-btn{padding:7px 12px;border:1px solid var(--cbs-line);border-radius:8px;
+      background:transparent;color:var(--cbs-blue);font:600 13px/1 inherit;cursor:pointer;
+      white-space:nowrap}
+    .cbs-btn:hover{filter:brightness(1.06)}
+    .cbs-fb{min-height:1.4em;font-size:.82rem;color:var(--cbs-soft);margin:6px 0 0}
+    .cbs-fb b{color:var(--cbs-ink)}
+    .cbs-fb code{font:600 .92em ui-monospace,monospace;background:var(--cbs-line);
+      padding:1px 5px;border-radius:4px}
+    .cbs-gridwrap{overflow-x:auto;margin:2px 0 14px;padding:2px}
+    .cbs-grid{display:inline-block;min-width:100%}
+    .cbs-grow{display:flex;gap:4px;align-items:center;margin-bottom:4px}
+    .cbs-rlab{flex:0 0 auto;width:62px;font:600 11px ui-monospace,monospace;color:var(--cbs-blue);
+      text-align:right;padding-right:4px}
+    .cbs-clab{font:600 9px ui-monospace,monospace;color:var(--cbs-faint);text-align:center;
+      width:34px;flex:0 0 auto}
+    .cbs-cell{width:34px;height:34px;flex:0 0 auto;border:1px solid var(--cbs-line);border-radius:7px;
+      display:flex;align-items:center;justify-content:center;
+      font:700 13px ui-monospace,monospace;color:var(--cbs-faint);background:var(--cbs-card);
+      transition:transform .18s,box-shadow .18s,outline-color .12s;position:relative}
+    .cbs-cell.cbs-set{color:var(--cbs-ink)}
+    .cbs-cell.cbs-just{transform:scale(1.16);box-shadow:0 0 0 3px rgba(44,119,182,.30);z-index:2}
+    .cbs-cell.cbs-collide{box-shadow:inset 0 0 0 2px var(--cbs-hot)}
+    .cbs-cell.cbs-probe{outline:3px solid var(--cbs-warm);outline-offset:1px;z-index:1}
+    .cbs-cell.cbs-poll{outline-color:var(--cbs-hot)}
+    .cbs-cell.cbs-min{outline-color:var(--cbs-ok);box-shadow:0 0 0 3px rgba(63,142,102,.32);z-index:3}
+    .cbs-out{padding:12px 13px;border-radius:8px;border:1px solid var(--cbs-line);
+      background:var(--cbs-card);margin:0 0 12px}
+    .cbs-out.cbs-exact{border-color:var(--cbs-ok);background:rgba(63,142,102,.06)}
+    .cbs-out.cbs-over{border-color:var(--cbs-warm);background:rgba(224,163,58,.07)}
+    .cbs-oh{font-size:.92rem;margin:0 0 8px}
+    .cbs-oh b{font-weight:700}
+    .cbs-tbl{width:100%;border-collapse:collapse;font-size:.82rem;margin:0 0 8px}
+    .cbs-tbl th,.cbs-tbl td{text-align:left;padding:4px 8px;border-bottom:1px solid var(--cbs-line);
+      font-variant-numeric:tabular-nums}
+    .cbs-tbl th{color:var(--cbs-faint);font-weight:600;font-size:.74rem;letter-spacing:.03em;
+      text-transform:uppercase}
+    .cbs-tbl td.cbs-mono{font-family:ui-monospace,monospace}
+    .cbs-tbl tr.cbs-rmin td{background:rgba(63,142,102,.10)}
+    .cbs-tbl .cbs-pure{color:var(--cbs-ok);font-weight:600}
+    .cbs-tbl .cbs-noisy{color:var(--cbs-hot);font-weight:600}
+    .cbs-verdict{font-size:.86rem;line-height:1.5;margin:0}
+    .cbs-verdict b{font-weight:700}
+    .cbs-est{color:var(--cbs-blue)}
+    .cbs-good{color:var(--cbs-ok)}
+    .cbs-warn{color:#b07c12}
+    .cbs-meta{display:flex;gap:8px 18px;flex-wrap:wrap;align-items:center;font-size:.8rem;
+      color:var(--cbs-soft);padding-top:10px;border-top:1px solid var(--cbs-line)}
+    .cbs-meta b{color:var(--cbs-ink);font-variant-numeric:tabular-nums}
+    details.cbs-note{margin:12px 0 0;font-size:.85rem;color:var(--cbs-soft)}
+    details.cbs-note summary{cursor:pointer;font-weight:600;color:var(--cbs-blue)}
+    details.cbs-note p{margin:8px 0 0}
+    details.cbs-note code{background:var(--cbs-line);padding:1px 5px;border-radius:4px;font-size:.85em}
+  </style>
+
+  <p class="cbs-k">Bac à sable interactif</p>
+  <p class="cbs-title">Count-Min Sketch : update, point query, et l'estimateur min</p>
+  <p class="cbs-sub">Une table de <code>d</code> lignes × <code>w</code> colonnes, compteurs à zéro.
+    <b>Ajouter</b> un item l'envoie, via une fonction de hachage <i>par ligne</i>, vers <b>une cellule
+    de chaque ligne</b> qu'on incrémente (<code>d</code> écritures, coût O(d)). <b>Interroger</b> un item
+    relit ses <code>d</code> cellules et retient le <b>minimum</b> comme estimation <code>â<sub>j</sub></code>.
+    Aucune cellule ne peut sous-compter&nbsp;: on a donc toujours <code>â<sub>j</sub> ≥ a<sub>j</sub></code>.
+    Les collisions ne font que <b>surestimer</b>, et le min choisit la cellule la moins bruitée.</p>
+
+  <div class="cbs-ctl">
+    <div class="cbs-field">
+      <label>Profondeur <b>d = <span id="cbs-dval">4</span> lignes</b></label>
+      <input type="range" id="cbs-d" min="2" max="6" step="1" value="4">
+    </div>
+    <div class="cbs-field">
+      <label>Largeur <b>w = <span id="cbs-wval">8</span> colonnes</b></label>
+      <input type="range" id="cbs-w" min="4" max="12" step="1" value="8">
+    </div>
+  </div>
+
+  <div class="cbs-grp">
+    <div class="cbs-grplab">
+      <span>Ajouter un item — <code>update</code> (+1)</span>
+      <span class="cbs-pill" id="cbs-odpill">O(d) = 4 écritures</span>
+    </div>
+    <div class="cbs-btns" id="cbs-addbtns"></div>
+    <div class="cbs-fb" id="cbs-updfb"></div>
+  </div>
+
+  <div class="cbs-gridwrap">
+    <div class="cbs-grid" id="cbs-grid" role="img" aria-label="Table du Count-Min Sketch, d lignes par w colonnes"></div>
+  </div>
+
+  <div class="cbs-grp">
+    <div class="cbs-grplab"><span>Requête ponctuelle — <code>point query</code></span></div>
+    <div class="cbs-btns" id="cbs-qbtns"></div>
+  </div>
+
+  <div class="cbs-out" id="cbs-out"></div>
+
+  <div class="cbs-meta">
+    <span>N = ‖a‖₁ = <b id="cbs-N">0</b></span>
+    <span>items distincts : <b id="cbs-distinct">0</b></span>
+    <span>ε = e/w = <b id="cbs-eps">0</b></span>
+    <span>borne ε·N = <b id="cbs-bound">0</b></span>
+    <span>δ = e<sup>−d</sup> = <b id="cbs-delta">0</b> (confiance <b id="cbs-conf">0</b>)</span>
+    <button class="cbs-btn" id="cbs-reset" type="button" style="margin-left:auto">Tout remettre à zéro</button>
+  </div>
+
+  <details class="cbs-note">
+    <summary>Pourquoi le min, jamais de sous-estimation, et la borne ε·N</summary>
+    <p>Chaque ligne possède sa propre fonction de hachage. Un <code>update(j)</code> incrémente
+      <b>une cellule par ligne</b>&nbsp;: <code>d</code> écritures, indépendamment de la taille du flux —
+      d'où le coût <b>O(d)</b>. Une cellule de la ligne <code>r</code> accumule la vraie fréquence
+      <code>a<sub>j</sub></code> <i>plus</i> celles de tous les items qui s'y hachent aussi (collisions).
+      Comme on n'ajoute que des contributions <b>positives</b> (modèle cash-register), chaque cellule
+      vérifie <code>C[r] ≥ a<sub>j</sub></code>&nbsp;: il n'y a <b>jamais de sous-estimation</b>. La ligne la
+      moins polluée donne la meilleure cellule, donc on retient
+      <code>â<sub>j</sub> = min<sub>r</sub> C[r] ≥ a<sub>j</sub></code>. L'erreur est <b>unilatérale</b>
+      (surestimation seulement) et bornée par <code>ε·N</code> avec <code>ε = e/w</code>, avec une
+      probabilité d'au moins <code>1 − δ</code> où <code>δ = e<sup>−d</sup></code>.
+      Élargir <code>w</code> resserre la borne (précision)&nbsp;; ajouter des lignes <code>d</code> ne peut que
+      <b>baisser</b> le min et réduit la probabilité d'échec (confiance) — jamais l'inverse.</p>
+  </details>
+
+  <script>
+  (function(){
+    var root=document.getElementById("cbs-root");
+    if(!root||root.dataset.cbsInit)return; root.dataset.cbsInit="1";
+
+    var ITEMS=["a","b","c","d","e","f"];
+    // Famille de hachage 2-universelle : h_r(x) = ((A[r]*cle + B[r]) mod P) mod W.
+    // cle = code du caractere (<=122) -> A*cle reste sous 2^53, calcul entier exact en JS.
+    var P=2147483647;
+    var AA=[481358048,1804616865,1076442398,1986334289,1640531527,1013904223];
+    var BB=[270811060,1309430056,1363185592,12800359,305419896,1442695041];
+    // Pre-remplissage verifie : a d=4,w=8 -> 5 items exacts + "f" strictement surestime.
+    var PREFILL={a:9,b:1,c:1,d:1,e:2,f:1};
+    var PREFILL_QUERY="f";
+
+    var dSlider=document.getElementById("cbs-d");
+    var wSlider=document.getElementById("cbs-w");
+    var grid=document.getElementById("cbs-grid");
+    var out=document.getElementById("cbs-out");
+    var updfb=document.getElementById("cbs-updfb");
+    var addBox=document.getElementById("cbs-addbtns");
+    var qBox=document.getElementById("cbs-qbtns");
+
+    var D=parseInt(dSlider.value,10);
+    var W=parseInt(wSlider.value,10);
+    var counts=[];                 // counts[r][c]
+    var truth=Object.create(null); // a_j reel par item
+    var lastQuery=null;
+
+    function key(label){ return label.charCodeAt(0); }
+    function H(label,r){ return ((AA[r]*key(label)+BB[r])%P)%W; }
+    function clearKids(n){ while(n.firstChild)n.removeChild(n.firstChild); }
+    function elem(tag,cls,txt){var e=document.createElement(tag);if(cls)e.className=cls;
+      if(txt!=null)e.textContent=txt;return e;}
+    function sub(n){var s="₀₁₂₃₄₅₆₇₈₉";
+      return String(n).split("").map(function(d){return s[+d];}).join("");}
+
+    // construit du texte riche par noeuds DOM (jamais d'innerHTML).
+    // parts : string | {b|code|sub|sup:(string|array)} avec cls optionnel.
+    function build(parent,parts){
+      parts.forEach(function(p){
+        if(p==null)return;
+        if(typeof p==="string"){parent.appendChild(document.createTextNode(p));return;}
+        var tag="span",val=("t" in p)?p.t:null;
+        if("b" in p){tag="b";val=p.b;}
+        else if("code" in p){tag="code";val=p.code;}
+        else if("sub" in p){tag="sub";val=p.sub;}
+        else if("sup" in p){tag="sup";val=p.sup;}
+        var e=document.createElement(tag);
+        if(p.cls)e.className=p.cls;
+        if(Array.isArray(val))build(e,val);
+        else e.appendChild(document.createTextNode(String(val)));
+        parent.appendChild(e);
+      });
+    }
+    function setRich(node,parts){node.textContent="";build(node,parts);}
+
+    function zero(){counts=[];for(var r=0;r<D;r++)counts.push(new Array(W).fill(0));}
+    function rebuildCounts(){
+      zero();
+      ITEMS.forEach(function(L){var f=truth[L]||0;if(!f)return;
+        for(var r=0;r<D;r++)counts[r][H(L,r)]+=f;});
+    }
+    function totalN(){var s=0;ITEMS.forEach(function(L){s+=truth[L]||0;});return s;}
+    function distinct(){var n=0;ITEMS.forEach(function(L){if(truth[L])n++;});return n;}
+
+    function buildGrid(){
+      clearKids(grid);
+      var head=elem("div","cbs-grow");
+      head.appendChild(elem("div","cbs-rlab",""));
+      for(var c=0;c<W;c++)head.appendChild(elem("div","cbs-clab",String(c)));
+      grid.appendChild(head);
+      for(var r=0;r<D;r++){
+        var row=elem("div","cbs-grow");
+        row.appendChild(elem("div","cbs-rlab","h"+sub(r+1)+" →"));
+        for(var c2=0;c2<W;c2++){
+          var cell=elem("div","cbs-cell","0"); cell.id="cbs-cell-"+r+"-"+c2;
+          row.appendChild(cell);
+        }
+        grid.appendChild(row);
+      }
+    }
+    function maxCount(){var m=0;for(var r=0;r<D;r++)for(var c=0;c<W;c++)if(counts[r][c]>m)m=counts[r][c];return m;}
+    function paintCounts(){
+      var m=maxCount();
+      for(var r=0;r<D;r++)for(var c=0;c<W;c++){
+        var cell=document.getElementById("cbs-cell-"+r+"-"+c); if(!cell)continue;
+        var v=counts[r][c]; cell.textContent=String(v);
+        if(v>0){
+          cell.classList.add("cbs-set");
+          var a=0.12+0.62*(m?v/m:0);
+          cell.style.background="rgba(44,119,182,"+a.toFixed(3)+")";
+          cell.style.color=a>0.45?"#fff":"var(--cbs-ink)";
+          cell.style.borderColor="var(--cbs-bright)";
+        }else{
+          cell.classList.remove("cbs-set");
+          cell.style.background="";cell.style.color="";cell.style.borderColor="";
+        }
+      }
+    }
+    function clearHi(){
+      for(var r=0;r<D;r++)for(var c=0;c<W;c++){
+        var cell=document.getElementById("cbs-cell-"+r+"-"+c);
+        if(cell)cell.classList.remove("cbs-just","cbs-collide","cbs-probe","cbs-poll","cbs-min");
+      }
+    }
+
+    function renderButtons(){
+      clearKids(addBox); clearKids(qBox);
+      ITEMS.forEach(function(L){
+        var ab=elem("button","cbs-ib cbs-add"); ab.type="button";
+        ab.appendChild(document.createTextNode(L));
+        ab.appendChild(elem("span","cbs-ibn","a="+(truth[L]||0)));
+        ab.addEventListener("click",function(){addItem(L);});
+        addBox.appendChild(ab);
+        var qb=elem("button","cbs-ib cbs-q"+(lastQuery===L?" cbs-on":"")); qb.type="button";
+        qb.appendChild(document.createTextNode(L));
+        qb.appendChild(elem("span","cbs-ibn","?"));
+        qb.addEventListener("click",function(){query(L);});
+        qBox.appendChild(qb);
+      });
+    }
+
+    function updateMeta(){
+      var N=totalN(), eps=Math.E/W, delta=Math.exp(-D);
+      document.getElementById("cbs-N").textContent=String(N);
+      document.getElementById("cbs-distinct").textContent=String(distinct());
+      document.getElementById("cbs-eps").textContent=eps.toFixed(3);
+      document.getElementById("cbs-bound").textContent=(eps*N).toFixed(1);
+      document.getElementById("cbs-delta").textContent=delta.toFixed(4);
+      document.getElementById("cbs-conf").textContent=(100*(1-delta)).toFixed(2)+" %";
+      document.getElementById("cbs-odpill").textContent="O(d) = "+D+" écriture"+(D>1?"s":"");
+      document.getElementById("cbs-dval").textContent=String(D);
+      document.getElementById("cbs-wval").textContent=String(W);
+    }
+
+    function addItem(L){
+      truth[L]=(truth[L]||0)+1;
+      var cols=[];
+      for(var r=0;r<D;r++){
+        var c=H(L,r), wasSet=counts[r][c]>0;
+        counts[r][c]+=1; cols.push({r:r,c:c,shared:wasSet});
+      }
+      paintCounts(); clearHi(); lastQuery=null;
+      cols.forEach(function(x){
+        var cell=document.getElementById("cbs-cell-"+x.r+"-"+x.c);
+        if(cell){cell.classList.add("cbs-just"); if(x.shared)cell.classList.add("cbs-collide");}
+      });
+      setTimeout(function(){
+        cols.forEach(function(x){
+          var cell=document.getElementById("cbs-cell-"+x.r+"-"+x.c);
+          if(cell)cell.classList.remove("cbs-just","cbs-collide");
+        });
+      },650);
+      var list=cols.map(function(x){return "h"+sub(x.r+1)+"="+x.c;}).join(", ");
+      var nShared=cols.filter(function(x){return x.shared;}).length;
+      var parts=[{b:["update(« "+L+" »)"]},
+        " → +1 sur "+D+" cellule"+(D>1?"s":"")+" (une par ligne), colonnes ",
+        {code:list}, ". "];
+      if(nShared){
+        parts.push({b:[String(nShared)]});
+        parts.push(" cellule"+(nShared>1?"s tombent":" tombe")+
+          " sur une case déjà occupée (collision, cerclée bordeaux).");
+      }else parts.push("Toutes ces cases étaient vides.");
+      setRich(updfb,parts);
+      renderButtons(); updateMeta();
+    }
+
+    function query(L){
+      lastQuery=L; clearHi();
+      var aj=truth[L]||0, rows=[], minVal=Infinity, minRow=-1;
+      for(var r=0;r<D;r++){
+        var c=H(L,r), val=counts[r][c], others=[];
+        ITEMS.forEach(function(O){if(O!==L&&(truth[O]||0)>0&&H(O,r)===c)others.push(O);});
+        rows.push({r:r,c:c,val:val,others:others,noise:val-aj});
+        if(val<minVal){minVal=val;minRow=r;}
+      }
+      var est=minVal, over=est-aj;
+      var vals=rows.map(function(x){return x.val;});
+      var maxv=Math.max.apply(null,vals);
+
+      rows.forEach(function(x){
+        var cell=document.getElementById("cbs-cell-"+x.r+"-"+x.c); if(!cell)return;
+        cell.classList.add("cbs-probe"); if(x.noise>0)cell.classList.add("cbs-poll");
+      });
+      var minCell=document.getElementById("cbs-cell-"+minRow+"-"+rows[minRow].c);
+      if(minCell){minCell.classList.remove("cbs-poll");minCell.classList.add("cbs-min");}
+
+      out.className="cbs-out "+(over===0?"cbs-exact":"cbs-over");
+      clearKids(out);
+
+      var h=elem("p","cbs-oh");
+      setRich(h,[{b:["point query(« "+L+" »)"]}," — vraie fréquence a",
+        {sub:L}," = ",{b:[String(aj)]},aj===0?" (item jamais ajouté)":""]);
+      out.appendChild(h);
+
+      var tbl=elem("table","cbs-tbl");
+      var thead=document.createElement("thead"), htr=document.createElement("tr");
+      var thRow=elem("th"); setRich(thRow,["ligne"]); htr.appendChild(thRow);
+      var thCol=elem("th"); setRich(thCol,["colonne ",{code:["h",{sub:"r"}]}]); htr.appendChild(thCol);
+      var thVal=elem("th"); setRich(thVal,["valeur cellule"]); htr.appendChild(thVal);
+      var thSt=elem("th"); setRich(thSt,["état"]); htr.appendChild(thSt);
+      thead.appendChild(htr); tbl.appendChild(thead);
+      var tb=document.createElement("tbody");
+      rows.forEach(function(x){
+        var tr=document.createElement("tr"); if(x.r===minRow)tr.className="cbs-rmin";
+        var tdR=elem("td","cbs-mono"); setRich(tdR,["h",{sub:String(x.r+1)}]); tr.appendChild(tdR);
+        tr.appendChild(elem("td","cbs-mono",String(x.c)));
+        tr.appendChild(elem("td","cbs-mono",String(x.val)));
+        var tdS=elem("td");
+        var stateParts;
+        if(x.noise<=0){
+          stateParts=[{cls:"cbs-pure",b:["exacte (a",{sub:L},")"]}];
+        }else{
+          var who=x.others.length?(" avec "+x.others.map(function(o){return "« "+o+" »";}).join(", ")):"";
+          stateParts=[{cls:"cbs-noisy",b:["+"+x.noise+" (collision"+who+")"]}];
+        }
+        if(x.r===minRow)stateParts.push(" ← min retenu");
+        setRich(tdS,stateParts); tr.appendChild(tdS);
+        tb.appendChild(tr);
+      });
+      tbl.appendChild(tb); out.appendChild(tbl);
+
+      var N=totalN(), eps=Math.E/W, bound=eps*N;
+      var v=elem("p","cbs-verdict");
+      var vp=[
+        "Estimation ",
+        {cls:"cbs-est",b:["â",{sub:L}," = min des "+D+" cellules = "+est]},
+        ". On a ",
+        {cls:"cbs-good",b:["â",{sub:L}," ≥ a",{sub:L}]},
+        " ("+est+" ≥ "+aj+") : ",{b:["aucune sous-estimation"]},", jamais. "
+      ];
+      if(over===0){
+        vp.push("Ici une ligne était ");vp.push({cls:"cbs-good",b:["non polluée"]});
+        vp.push(" : le min y lit la vraie valeur, estimation ");vp.push({b:["exacte"]});vp.push(".");
+      }else{
+        vp.push("Toutes les cellules lues sont polluées : surestimation ");
+        vp.push({cls:"cbs-warn",b:["+"+over]});
+        vp.push(". Le min retient néanmoins la ");vp.push({b:["cellule la moins bruitée"]});
+        vp.push(" ("+est+" vs "+maxv+" sur la pire ligne).");
+      }
+      vp.push(" Borne additive : erreur ≤ ");
+      vp.push({b:["ε·N = "+bound.toFixed(1)]});
+      vp.push(" (ε = e/w = "+eps.toFixed(3)+") avec probabilité ≥ 1−δ. Erreur observée = "+over);
+      if(over<=bound){vp.push(" ");vp.push({cls:"cbs-good",b:["≤ borne ✓"]});vp.push(".");}
+      else{vp.push(" ");vp.push({cls:"cbs-warn",b:["> borne (échec de prob. δ)"]});vp.push(".");}
+      setRich(v,vp); out.appendChild(v);
+
+      renderButtons();
+    }
+
+    function resize(){
+      D=parseInt(dSlider.value,10); W=parseInt(wSlider.value,10);
+      rebuildCounts(); buildGrid(); paintCounts(); updateMeta();
+      out.className="cbs-out"; clearKids(out);
+      var p=elem("p","cbs-oh");
+      setRich(p,["Grille redimensionnée → ",{b:["d="+D+", w="+W]},
+        ". Les mêmes items ont été re-hachés. Interrogez un item pour revoir le min et la borne ε·N = "+
+        (Math.E/W*totalN()).toFixed(1)+"."]);
+      out.appendChild(p);
+      lastQuery=null; renderButtons();
+    }
+
+    function reset(){
+      truth=Object.create(null); zero(); buildGrid(); paintCounts(); updateMeta();
+      out.className="cbs-out"; clearKids(out);
+      var p=elem("p","cbs-oh");
+      setRich(p,["Table remise à zéro. Ajoutez des items, puis interrogez-en un."]);
+      out.appendChild(p);
+      setRich(updfb,["Cliquez un item : ses d cellules (une par ligne) s'illuminent et passent à +1."]);
+      lastQuery=null; renderButtons();
+    }
+
+    dSlider.addEventListener("input",resize);
+    wSlider.addEventListener("input",resize);
+    document.getElementById("cbs-reset").addEventListener("click",reset);
+
+    // amorcage
+    zero(); buildGrid();
+    ITEMS.forEach(function(L){var f=PREFILL[L]||0;if(!f)return;
+      truth[L]=f; for(var r=0;r<D;r++)counts[r][H(L,r)]+=f;});
+    paintCounts(); updateMeta(); renderButtons();
+    query(PREFILL_QUERY);
+    setRich(updfb,["Exemple pré-rempli (a=9, b=c=d=1, e=2, f=1). « f » est interrogé ci-dessous : ",
+      "ses cellules sont toutes polluées, le min retient la moins bruitée → surestimation. ",
+      "Essayez « a » (exact)."]);
+  })();
+  </script>
+</div>
+
+<section id="garanties-preuve">
+<h3>Garanties d'erreur et esquisse de preuve</h3>
+<p>Le <em>point query</em> (requête ponctuelle) révèle la propriété structurelle la plus remarquable du Count-Min Sketch : l'estimateur â<sub>i</sub> = min<sub>j</sub> count[j, h<sub>j</sub>(i)] constitue toujours un majorant exact de la vraie fréquence a<sub>i</sub>. Ce <em>one-sided error</em> (erreur unilatérale) est immédiat par construction — chaque cellule count[j, h<sub>j</sub>(i)] accumule a<sub>i</sub> augmenté de collisions positives provenant d'autres items, et le minimum sur d lignes ne peut descendre sous a<sub>i</sub>. La structure ne sous-estime jamais : les fausses économies sont impossibles, seul un excès est concevable.</p>
+
+<p>La borne haute probabiliste — avec probabilité ≥ 1−δ, â<sub>i</sub> ≤ a<sub>i</sub> + ε·N où N = ‖a‖₁ est la masse totale du flux — se démontre en trois étapes. Pour une ligne j fixée, on introduit les <em>indicator variables</em> (variables indicatrices) X<sub>j,k</sub> = <strong>1</strong>[h<sub>j</sub>(i) = h<sub>j</sub>(k)] pour tout item k ≠ i. L'erreur de collision sur cette ligne s'écrit I<sub>j</sub> = Σ<sub>k≠i</sub> a<sub>k</sub> X<sub>j,k</sub>. Par <em>pairwise independence</em> (indépendance deux à deux) de h<sub>j</sub>, la probabilité de collision entre deux items quelconques vaut exactement 1/w, ce qui donne :</p>
+
+<p style="text-align:center; font-family: monospace; padding: 0.5em 0">𝔼[I<sub>j</sub>] ≤ (1/w) · ‖a‖₁ ≤ (ε/e) · ‖a‖₁</p>
+
+<p>puisque w = ⌈e/ε⌉ impose 1/w ≤ ε/e. L'inégalité de Markov appliquée à cette espérance fournit alors Pr[I<sub>j</sub> > ε·N] ≤ 𝔼[I<sub>j</sub>]/(ε·N) ≤ 1/e : chaque ligne dépasse le seuil ε·N avec probabilité strictement inférieure à 1/e. Les d lignes étant équipées de fonctions de hachage indépendantes, leurs erreurs sont indépendantes et l'estimateur excède a<sub>i</sub> + ε·N seulement si <em>toutes</em> les lignes échouent simultanément, événement de probabilité au plus (1/e)<sup>d</sup>. Le choix d = ⌈ln(1/δ)⌉ garantit (1/e)<sup>d</sup> ≤ e<sup>−ln(1/δ)</sup> = δ, concluant la preuve.</p>
+
+<p>La complexité spatiale est O(w·d) = O((e/ε)·ln(1/δ)) mots mémoire, soit un facteur 1/ε au lieu de 1/ε² pour les esquisses AMS antérieures à garanties comparables. Il est crucial de noter que cette garantie est fondamentalement probabiliste et qu'elle porte sur un item i <em>fixé au moment de la requête</em> — elle ne s'applique pas simultanément à tous les items du flux. Étendre la borne à m items distincts en même temps exige un union bound qui alourdit d d'un facteur log m. Par ailleurs, la borne additive ε·N est proportionnelle à la masse totale du flux : pertinente pour les distributions asymétriques où les heavy hitters concentrent l'essentiel de la masse, elle peut s'avérer vacue pour les items rares dans un flux quasi-uniforme, où ε·N dépasse alors largement a<sub>i</sub>.</p>
+</section>
+<section id="requetes-etendues">
+<h3>Requêtes étendues : inner product, range queries, heavy hitters</h3>
+<p>Le CMS offre, au-delà de la requête ponctuelle, trois extensions que le papier original traite explicitement. La première est l'<em>inner product query</em> (requête de produit interne) : étant donné deux vecteurs de fréquences <em>a</em> et <em>b</em> encodés dans deux esquisses partageant les mêmes fonctions de hachage, on définit â·b = min<sub>j</sub> &sum;<sub>k</sub> CMS<sub>a</sub>[j, k] · CMS<sub>b</sub>[j, k]. La garantie présente la même structure asymétrique que la requête ponctuelle : <em>a·b ≤ â·b</em> toujours — pas de sous-estimation possible — et <em>â·b ≤ a·b + ε·‖a‖₁·‖b‖₁</em> avec probabilité ≥ 1−δ. L'erreur additive est proportionnelle au produit des masses totales des deux flux : les collisions gonflent l'estimation, mais de façon bornée. La contrainte de partage des fonctions de hachage est une condition pratique non-négligeable ; deux esquisses construites avec des seeds distincts ne se multiplient pas directement.</p>
+
+<p>La deuxième extension concerne les <em>range queries</em> (requêtes de plage). En mode naïf, estimer la fréquence cumulée sur une plage [l, r] en sommant les estimations ponctuelles de chaque élément accumule une erreur de ε·N par terme, soit une erreur totale croissant linéairement avec la longueur de la plage. La <em>dyadic decomposition</em> (décomposition en plages dyadiques) élimine ce défaut : tout intervalle entier [l, r] ⊆ [0, n] se décompose en au plus 2 log n plages dyadiques, c'est-à-dire des intervalles de la forme [k·2<sup>i</sup>, (k+1)·2<sup>i</sup> − 1]. L'algorithme maintient log n esquisses à des échelles différentes — une par niveau dyadique — de sorte que la somme des erreurs sur les au plus 2 log n plages constitutives reste bornée par une constante fois ε·N, quelle que soit la longueur de la plage requêtée. La contrepartie est un facteur log n supplémentaire en espace et en temps de construction.</p><figure class='fig'><svg viewBox='0 0 680 425' role='img' aria-label='Arbre dyadique sur le domaine [0,16] a quatre niveaux ; une esquisse Count-Min par niveau ; intervalle requete [3,12] recouvert exactement par quatre plages dyadiques canoniques a differentes echelles, bornant erreur totale a un petit multiple de epsilon N.'><text x='294' y='22' text-anchor='middle' font-size='13' font-weight='700' fill='var(--ink,#15202E)'>Décomposition dyadique d'un intervalle [l, r]</text><text x='294' y='40' text-anchor='middle' font-size='11' fill='var(--ink-faint,#7A889B)'>n = 16, log n = 4 niveaux ; requête [l, r] = [3, 12]</text><text x='615' y='30' text-anchor='middle' font-size='10' font-weight='600' fill='var(--ink,#15202E)'>une CMS par niveau</text><text x='294' y='57' text-anchor='middle' font-size='11' font-weight='600' fill='var(--blue,#23537F)'>intervalle requêté [3, 12]</text><rect x='154' y='62' width='280' height='262' rx='3' fill='var(--blue,#23537F)' fill-opacity='0.10'/><line x1='154' y1='62' x2='154' y2='324' stroke='var(--blue,#23537F)' stroke-width='1' stroke-dasharray='3 3'/><line x1='434' y1='62' x2='434' y2='324' stroke='var(--blue,#23537F)' stroke-width='1' stroke-dasharray='3 3'/><line x1='518' y1='159' x2='585' y2='159' stroke='var(--bordeaux,#7C2A38)' stroke-width='1' stroke-dasharray='2 2'/><line x1='518' y1='299' x2='585' y2='299' stroke='var(--bordeaux,#7C2A38)' stroke-width='1' stroke-dasharray='2 2'/><text x='10' y='86' font-size='10' font-weight='600' fill='var(--ink,#15202E)'>i = 3</text><text x='10' y='98' font-size='9' fill='var(--ink-faint,#7A889B)'>|B| = 8</text><text x='10' y='156' font-size='10' font-weight='600' fill='var(--ink,#15202E)'>i = 2</text><text x='10' y='168' font-size='9' fill='var(--ink-faint,#7A889B)'>|B| = 4</text><text x='10' y='226' font-size='10' font-weight='600' fill='var(--ink,#15202E)'>i = 1</text><text x='10' y='238' font-size='9' fill='var(--ink-faint,#7A889B)'>|B| = 2</text><text x='10' y='296' font-size='10' font-weight='600' fill='var(--ink,#15202E)'>i = 0</text><text x='10' y='308' font-size='9' fill='var(--ink-faint,#7A889B)'>|B| = 1</text><rect x='70' y='70' width='224' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='294' y='70' width='224' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='182' y='93' text-anchor='middle' font-size='9' fill='var(--ink-faint,#7A889B)'>[0,7]</text><text x='406' y='93' text-anchor='middle' font-size='9' fill='var(--ink-faint,#7A889B)'>[8,15]</text><rect x='70' y='140' width='112' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='182' y='140' width='112' height='38' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.20' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.6'/><rect x='294' y='140' width='112' height='38' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.20' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.6'/><rect x='406' y='140' width='112' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='126' y='163' text-anchor='middle' font-size='9' fill='var(--ink-faint,#7A889B)'>[0,3]</text><text x='238' y='163' text-anchor='middle' font-size='10' font-weight='700' fill='var(--bordeaux,#7C2A38)'>[4,7]</text><text x='350' y='163' text-anchor='middle' font-size='10' font-weight='700' fill='var(--bordeaux,#7C2A38)'>[8,11]</text><text x='462' y='163' text-anchor='middle' font-size='9' fill='var(--ink-faint,#7A889B)'>[12,15]</text><rect x='70' y='210' width='56' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='126' y='210' width='56' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='182' y='210' width='56' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='238' y='210' width='56' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='294' y='210' width='56' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='350' y='210' width='56' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='406' y='210' width='56' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='462' y='210' width='56' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='70' y='280' width='28' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='98' y='280' width='28' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='126' y='280' width='28' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='154' y='280' width='28' height='38' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.20' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.6'/><rect x='182' y='280' width='28' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='210' y='280' width='28' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='238' y='280' width='28' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='266' y='280' width='28' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='294' y='280' width='28' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='322' y='280' width='28' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='350' y='280' width='28' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='378' y='280' width='28' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='406' y='280' width='28' height='38' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.20' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.6'/><rect x='434' y='280' width='28' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='462' y='280' width='28' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='490' y='280' width='28' height='38' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='168' y='303' text-anchor='middle' font-size='9' font-weight='700' fill='var(--bordeaux,#7C2A38)'>[3]</text><text x='420' y='303' text-anchor='middle' font-size='9' font-weight='700' fill='var(--bordeaux,#7C2A38)'>[12]</text><rect x='585' y='70' width='60' height='24' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><line x1='597' y1='70' x2='597' y2='94' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6'/><line x1='609' y1='70' x2='609' y2='94' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6'/><line x1='621' y1='70' x2='621' y2='94' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6'/><line x1='633' y1='70' x2='633' y2='94' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6'/><line x1='585' y1='82' x2='645' y2='82' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6'/><text x='615' y='106' text-anchor='middle' font-size='9' fill='var(--ink-faint,#7A889B)'>CMS₃</text><rect x='597' y='140' width='12' height='12' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.5'/><rect x='621' y='152' width='12' height='12' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.5'/><rect x='585' y='140' width='60' height='24' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.4'/><line x1='597' y1='140' x2='597' y2='164' stroke='var(--bordeaux,#7C2A38)' stroke-width='0.6'/><line x1='609' y1='140' x2='609' y2='164' stroke='var(--bordeaux,#7C2A38)' stroke-width='0.6'/><line x1='621' y1='140' x2='621' y2='164' stroke='var(--bordeaux,#7C2A38)' stroke-width='0.6'/><line x1='633' y1='140' x2='633' y2='164' stroke='var(--bordeaux,#7C2A38)' stroke-width='0.6'/><line x1='585' y1='152' x2='645' y2='152' stroke='var(--bordeaux,#7C2A38)' stroke-width='0.6'/><text x='615' y='176' text-anchor='middle' font-size='9' font-weight='700' fill='var(--bordeaux,#7C2A38)'>CMS₂</text><rect x='585' y='210' width='60' height='24' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><line x1='597' y1='210' x2='597' y2='234' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6'/><line x1='609' y1='210' x2='609' y2='234' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6'/><line x1='621' y1='210' x2='621' y2='234' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6'/><line x1='633' y1='210' x2='633' y2='234' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6'/><line x1='585' y1='222' x2='645' y2='222' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6'/><text x='615' y='246' text-anchor='middle' font-size='9' fill='var(--ink-faint,#7A889B)'>CMS₁</text><rect x='597' y='280' width='12' height='12' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.5'/><rect x='621' y='292' width='12' height='12' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.5'/><rect x='585' y='280' width='60' height='24' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.4'/><line x1='597' y1='280' x2='597' y2='304' stroke='var(--bordeaux,#7C2A38)' stroke-width='0.6'/><line x1='609' y1='280' x2='609' y2='304' stroke='var(--bordeaux,#7C2A38)' stroke-width='0.6'/><line x1='621' y1='280' x2='621' y2='304' stroke='var(--bordeaux,#7C2A38)' stroke-width='0.6'/><line x1='633' y1='280' x2='633' y2='304' stroke='var(--bordeaux,#7C2A38)' stroke-width='0.6'/><line x1='585' y1='292' x2='645' y2='292' stroke='var(--bordeaux,#7C2A38)' stroke-width='0.6'/><text x='615' y='316' text-anchor='middle' font-size='9' font-weight='700' fill='var(--bordeaux,#7C2A38)'>CMS₀</text><line x1='70' y1='328' x2='518' y2='328' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><line x1='70' y1='328' x2='70' y2='333' stroke='var(--ink-faint,#7A889B)'/><line x1='182' y1='328' x2='182' y2='333' stroke='var(--ink-faint,#7A889B)'/><line x1='294' y1='328' x2='294' y2='333' stroke='var(--ink-faint,#7A889B)'/><line x1='406' y1='328' x2='406' y2='333' stroke='var(--ink-faint,#7A889B)'/><line x1='518' y1='328' x2='518' y2='333' stroke='var(--ink-faint,#7A889B)'/><text x='70' y='343' text-anchor='middle' font-size='9' fill='var(--ink-faint,#7A889B)'>0</text><text x='294' y='343' text-anchor='middle' font-size='9' fill='var(--ink-faint,#7A889B)'>8</text><text x='518' y='343' text-anchor='middle' font-size='9' fill='var(--ink-faint,#7A889B)'>16</text><text x='154' y='343' text-anchor='middle' font-size='9' font-weight='700' fill='var(--blue,#23537F)'>l=3</text><text x='434' y='343' text-anchor='middle' font-size='9' font-weight='700' fill='var(--blue,#23537F)'>r=12</text><text x='294' y='362' text-anchor='middle' font-size='11' font-weight='600' fill='var(--bordeaux,#7C2A38)'>Recouvrement exact : 4 plages canoniques (≤ 2 log n = 8) à 4 échelles</text><text x='294' y='380' text-anchor='middle' font-size='11' fill='var(--ink,#15202E)'>erreur ≤ 4·εN = O(εN), au lieu de (r−l+1)·εN = 10·εN en sommation naïve</text><rect x='60' y='400' width='14' height='10' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.20' stroke='var(--bordeaux,#7C2A38)'/><text x='78' y='409' font-size='9' fill='var(--ink,#15202E)'>plage canonique</text><rect x='200' y='400' width='14' height='10' fill='var(--blue,#23537F)' fill-opacity='0.10' stroke='var(--blue,#23537F)' stroke-dasharray='2 2'/><text x='218' y='409' font-size='9' fill='var(--ink,#15202E)'>intervalle [l, r]</text><rect x='325' y='400' width='14' height='10' fill='none' stroke='var(--ink-faint,#7A889B)'/><text x='343' y='409' font-size='9' fill='var(--ink,#15202E)'>plage inutilisée</text><rect x='455' y='400' width='14' height='10' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.5'/><text x='473' y='409' font-size='9' fill='var(--ink,#15202E)'>compteur CMS lu</text></svg><figcaption><span class="fcap-k">Figure 1</span>Décomposition dyadique d'un intervalle [l, r] sur [0, n] : au lieu de sommer (r−l+1) estimations ponctuelles (erreur croissant avec la longueur), l'intervalle est recouvert exactement par ≤ 2 log n plages dyadiques canoniques — ici 4 blocs à différentes échelles, lus chacun dans la CMS de son niveau — d'où une erreur totale en O(ε·N) indépendante de la longueur de la plage.</figcaption></figure>
+
+<p>La troisième extension est la détection de <em>heavy hitters</em> (éléments dominants du flux), définis comme les items dont la fréquence dépasse un seuil φ·‖a‖₁. L'algorithme exploite le primitif de range query de façon récursive : il parte du domaine entier [0, n], puis dichotomise chaque plage dont l'estimation dépasse le seuil, jusqu'à isoler des singletons. Ce binary search dans l'espace des fréquences tire parti des log n esquisses dyadiques déjà en place. Le Théorème 6 du papier original établit que cet algorithme, en espace O((1/ε) log(1/δ) · log n), retourne tout item de fréquence ≥ (φ+ε)·‖a‖₁ et n'en retourne aucun de fréquence &lt; φ·‖a‖₁, avec probabilité ≥ 1−δ — une garantie bilatérale (complétude et précision) sur la liste des éléments dominants.</p>
+
+<p>Ces trois extensions reposent sur une propriété structurelle fondamentale du CMS : sa <em>linearity</em> (linéarité). L'esquisse d'un flux A∪B est égale à la somme cellule par cellule des esquisses de A et de B. Cette propriété de <em>mergeable sketch</em> rend le CMS directement adapté au calcul distribué : plusieurs nœuds calculent leur esquisse locale sur des sous-flux disjoints, puis les fusionnent en O(w·d) additions, sans centraliser les données brutes. C'est aussi cette linéarité qui fonde l'inner product query : puisque la contribution de chaque item se distribue additivevement dans les cellules, les collisions s'y déposent aussi additivement, et le produit de deux esquisses surestime le produit de deux flux exactement comme le minimum corrige l'estimation ponctuelle.</p>
+</section>
+<section id="variantes">
+<h3>Variantes : Conservative Update, Count Sketch et descendants</h3>
+<p>La première et la plus répandue des modifications est le <strong>Conservative Update</strong> : lors de l'arrivée d'un élément <em>i</em> avec un incrément <em>c</em>, on ne met à jour une cellule C[j,&nbsp;h<sub>j</sub>(i)] que si sa valeur courante est inférieure à l'estimation courante de la fréquence augmentée de <em>c</em>. Toute cellule qui dépasse déjà ce minimum ne contribue qu'au bruit ; la laisser inchangée réduit l'over-counting (sur-comptage) sans introduire de sous-estimation, puisque l'estimateur min reste valide. Le prix est structural : Conservative Update n'est plus un sketch linéaire. Dans le CMS standard, les mises à jour sont commutatives — traiter les éléments dans n'importe quel ordre produit le même tableau de compteurs, et fusionner deux sketches de sous-flux disjoints revient à les additionner cellule à cellule. Avec Conservative Update, chaque incrément est conditionnel à l'état courant du sketch ; l'ordre d'ingestion modifie les incréments appliqués, rendant la structure non commutative. Le sketch reste néanmoins mergeable (fusionnable) au sens large — deux instances issues de sous-flux disjoints peuvent être combinées — mais pas par simple addition.</p>
+
+<p>Le comportement théorique du Conservative Count-Min est resté longtemps non compris. Fusy et Kucherov (CIAC 2023, arXiv&nbsp;2203.15496) ont démontré l'existence d'une transition de phase nette sous distribution uniforme : l'erreur relative suit deux régimes qualitativement distincts selon le load factor (facteur de charge), défini comme le rapport entre le nombre de clés distinctes et la taille totale du tableau de compteurs. En dessous du seuil critique, l'erreur relative est <em>o</em>(1) — elle tend vers zéro lorsque la structure grandit. Au-dessus, elle est Θ(1) — bornée inférieurement par une constante, sans avantage sur CMS vanilla. Ce seuil coïncide exactement avec le seuil de peelability (pelabilité) des hypergraphes <em>k</em>-uniformes aléatoires sous-jacents aux fonctions de hachage : un hypergraphe est pelable si l'on peut retirer itérativement des sommets de degré&nbsp;1 jusqu'à le vider, et cette propriété constitue la condition nécessaire et suffisante pour obtenir une erreur <em>o</em>(1). La transition de phase ne s'étend pas aux distributions Zipfian, ce qui tempère la portée des garanties théoriques pour les flux réseau réels. Un travail compagnon (SPIRE 2023, arXiv&nbsp;2302.05245) explore expérimentalement l'affectation d'un nombre variable de hash functions par élément — les éléments rares reçoivent moins de lignes de hachage — réduisant l'empreinte mémoire sans dégrader l'erreur.</p>
+
+<p>L'estimateur min du CMS standard est biaisé vers le haut par construction. Deux estimateurs débiaisés corrigent ce défaut. L'estimateur <strong>hCount*</strong> tire aléatoirement, ligne par ligne, une entrée dans le tableau puis soustrait une estimation du biais obtenue par bootstrapping, produisant un estimateur sans biais pour les requêtes de fréquence. L'estimateur <strong>MLE</strong> (<em>maximum likelihood estimation</em>) formule la reconstruction comme un problème d'inférence : étant donnés les <em>d</em> compteurs observés pour une clé requêtée, il identifie la fréquence qui maximise la vraisemblance du sketch sous un modèle de hachage aléatoire indépendant. Son calcul se réduit à une procédure de bootstrapping efficace, généralisable à n'importe quel estimateur de base, et est rapporté comme égalant ou surpassant l'estimateur min sur les distributions Zipfian comme uniformes.</p>
+
+<p>Le <strong>Count Sketch</strong>, introduit par Charikar, Chen et Farach-Colton en 2002, repose sur un mécanisme fondamentalement différent : des signed averages (moyennes signées) plutôt que des minimums. Une seconde famille de fonctions de hachage g<sub>j</sub>&nbsp;: U → {−1,+1} assigne aléatoirement un signe à chaque clé ; chaque cellule accumule une somme de fréquences signées, et l'estimateur est la médiane des <em>d</em> valeurs signées pour la clé requêtée. L'estimateur est non biaisé — il ne surestime ni ne sous-estime systématiquement. Sur le plan des garanties formelles, Count Sketch borne l'erreur en norme L<sub>2</sub> du vecteur de fréquences ; CMS offre une borne en norme L<sub>1</sub>. Ce changement de norme entraîne un coût mémoire différent : à erreur ε fixée, Count Sketch requiert O(1/ε²) colonnes contre O(1/ε) pour CMS. Sur les distributions fortement asymétriques de type Zipfian, la borne L<sub>1</sub> de CMS est suffisante à moindre coût mémoire ; sur les distributions plus uniformes, où aucun élément ne domine, la borne L<sub>2</sub> de Count Sketch capture plus fidèlement la structure des erreurs et offre des garanties à haute probabilité plus serrées dans ce régime.</p>
+
+<p>Une constellation de variantes couvre des compromis ou des contextes applicatifs particuliers. <strong>Count-Min-Log</strong> (Pitel et Fouquier, 2015, arXiv&nbsp;1502.04885) remplace les compteurs linéaires par des compteurs approximatifs logarithmiques de type Morris : l'incrément n'est appliqué qu'avec une probabilité proportionnelle à 2<sup>−compteur</sup>, si bien que la valeur stockée approxime le logarithme de la fréquence. Cela réduit l'erreur relative moyenne à empreinte mémoire constante, au prix d'une légère variance supplémentaire sur les éléments rares. <strong>Count-Less</strong> (Kim et al., 2021, arXiv&nbsp;2111.02759), conçu pour le data plane des commutateurs réseau haute vitesse, combine un Split Counter — fractionnement d'un grand compteur en plusieurs sous-compteurs de taille réduite, limitant l'impact des heavy hitters (éléments fréquents dominants) sur leurs voisins de bucket — avec un Minimum Update inspiré du Conservative Update, garantissant de ne pas ralentir le traitement des paquets. <strong>Lsquare</strong> (Lee et al., IMC 2005) reformule le sketch comme un système linéaire A·x = b résolu par moindres carrés, améliorant la précision de reconstruction à mémoire identique. <strong>CR-Precis</strong> (Ganguly et Majumder, ESCAPE 2007) est une structure déterministe — non randomisée — qui fournit des bornes certaines (non probabilistes) au coût d'un espace O(ε⁻²) contre O(ε⁻¹) pour CMS. <strong>Eternal Sunshine</strong> (Dimitropoulos et al., 2008) résout le problème opérationnel de la saturation des compteurs sur les flux réseau longue durée via un mécanisme de sliding window (fenêtre glissante) et de marquage, évitant les débordements sans réinitialiser la structure.</p>
+
+<p>Les approches <strong>learning-augmented</strong> (augmentées par apprentissage) constituent la direction la plus récente et la plus active. Du, Wang et Mitzenmacher (ICML 2021) proposent le Learned Count-Min (LCM) et le Learned Augmented Sketch (LAS) : un réseau de neurones entraîné à prédire les heavy hitters avant l'ingestion du flux stocke leurs fréquences exactes dans une table dédiée, réservant le sketch aux éléments ordinaires où l'erreur résiduelle est plus acceptable. Aamand et al. (NeurIPS 2023) formalisent et approfondissent ce cadre : ils établissent des bornes serrées sur l'erreur de CMS et Count Sketch augmentés de prédictions ML pour les distributions Zipfian, proposent une variante parcimonieuse (<em>parsimonious</em>) qui économise la mémoire quand les prédictions fiables sont peu nombreuses, et démontrent une version à garanties worst-case robuste aux prédictions erronées.</p>
+
+<p>Deux extensions répondent à des contraintes réglementaires et d'équité croissantes. <strong>DPSW-Sketch</strong> (Wang, Wang et Chen, KDD 2024, arXiv&nbsp;2406.07953) adapte CMS aux sliding windows sous differential privacy : il satisfait la ρ-zero-Concentrated Differential Privacy (zCDP, convertible en (ε,&nbsp;δ)-DP) et opère en espace et temps sous-linéaires par rapport à la taille de la fenêtre w, couvrant aussi bien l'estimation de fréquence de tout élément que l'identification des heavy hitters — deux limites des travaux antérieurs différentiellement privés (Chan et al. 2012, Upadhyay 2019, Blocki et al. 2023), qui se restreignaient aux heavy hitters ou nécessitaient un espace linéaire en w. <strong>Fair-Count-Min</strong> (Shahbazi, Sintos et Asudeh, 2025, arXiv&nbsp;2505.18919) adresse un problème d'équité structurelle : l'erreur additive de CMS standard pénalise disproportionnellement les éléments de basse fréquence, créant un écart systématique entre groupes représentés différemment dans le flux. La solution combine un partitionnement de colonnes par groupe et un hachage semi-uniforme aware par groupe, éliminant les collisions inter-groupes et garantissant des facteurs d'approximation attendus égaux pour tous les groupes.</p><figure class='fig'><svg viewBox='0 0 920 648' role='img' aria-label='Taxonomie des variantes du Count-Min Sketch en huit familles autour d un socle CMS de borne L1, espace O(1/epsilon) et fusion par addition : precision a l ecriture (Conservative Update, Count-Min-Log, Count-Min-Tree), estimateurs debiaises (hCount*, MLE, Count-Mean-Min), alternative par norme L2 (Count Sketch en O(1/epsilon carre)), data-plane reseau (Count-Less, Eternal Sunshine), deterministe (CR-Precis en O(1/epsilon carre)), moindres carres (Lsquare), learning-augmented (LCM/LAS et Aamand et al.), confidentialite et equite (DPSW-Sketch, Fair-Count-Min). Axes discriminants annotes : norme L1 contre L2, espace O(1/epsilon) contre O(1/epsilon carre), fusionnable par addition ou non.'><text x='460' y='26' text-anchor='middle' font-size='15' font-weight='700' fill='var(--ink,#15202E)'>Taxonomie des variantes du Count-Min Sketch</text><text x='460' y='44' text-anchor='middle' font-size='10.5' fill='var(--ink-faint,#7A889B)'>Huit familles par axe de compromis ; en bordeaux, les écarts au socle CMS</text><rect x='18' y='276' width='184' height='68' rx='6' fill='var(--blue,#23537F)' fill-opacity='0.10' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='110' y='298' text-anchor='middle' font-size='12' font-weight='700' fill='var(--blue,#23537F)'>Count-Min Sketch</text><text x='110' y='315' text-anchor='middle' font-size='9.5' fill='var(--ink,#15202E)'>socle : borne L1 · O(1/ε)</text><text x='110' y='331' text-anchor='middle' font-size='9.5' fill='var(--ink,#15202E)'>linéaire (fusionnable +)</text><line x1='202' y1='310' x2='216' y2='310' stroke='var(--blue,#23537F)' stroke-width='1.5'/><line x1='216' y1='97' x2='216' y2='524' stroke='var(--ink-faint,#7A889B)' stroke-width='1.2'/><line x1='216' y1='97' x2='230' y2='97' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='230' y='72' width='670' height='50' rx='5' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><circle cx='248' cy='97' r='11' fill='var(--blue,#23537F)'/><text x='248' y='100.5' text-anchor='middle' font-size='11' font-weight='700' fill='var(--paper,#ffffff)'>1</text><text x='270' y='93' font-size='11.5' font-weight='700' fill='var(--ink,#15202E)'>Précision à l'écriture</text><text x='270' y='108' font-size='9' fill='var(--ink-faint,#7A889B)'>réduit le sur-comptage à l'écriture</text><rect x='506' y='88' width='96' height='18' rx='9' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.12' stroke='var(--bordeaux,#7C2A38)' stroke-width='1'/><text x='554' y='100.5' text-anchor='middle' font-size='8.5' font-weight='700' fill='var(--bordeaux,#7C2A38)'>non additif</text><line x1='612' y1='81' x2='612' y2='113' stroke='var(--ink-faint,#7A889B)' stroke-width='0.5'/><text x='624' y='100' font-size='8.5' fill='var(--ink,#15202E)'>Conservative Update · Count-Min-Log · Count-Min-Tree</text><line x1='216' y1='158' x2='230' y2='158' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='230' y='133' width='670' height='50' rx='5' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><circle cx='248' cy='158' r='11' fill='var(--blue,#23537F)'/><text x='248' y='161.5' text-anchor='middle' font-size='11' font-weight='700' fill='var(--paper,#ffffff)'>2</text><text x='270' y='154' font-size='11.5' font-weight='700' fill='var(--ink,#15202E)'>Estimateurs débiaisés</text><text x='270' y='169' font-size='9' fill='var(--ink-faint,#7A889B)'>corrigent le biais positif du min (à la requête)</text><line x1='612' y1='142' x2='612' y2='174' stroke='var(--ink-faint,#7A889B)' stroke-width='0.5'/><text x='624' y='161' font-size='8.5' fill='var(--ink,#15202E)'>hCount* · MLE · Count-Mean-Min</text><line x1='216' y1='219' x2='230' y2='219' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='230' y='194' width='670' height='50' rx='5' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><circle cx='248' cy='219' r='11' fill='var(--blue,#23537F)'/><text x='248' y='222.5' text-anchor='middle' font-size='11' font-weight='700' fill='var(--paper,#ffffff)'>3</text><text x='270' y='215' font-size='11.5' font-weight='700' fill='var(--ink,#15202E)'>Alternative par norme</text><text x='270' y='230' font-size='9' fill='var(--ink-faint,#7A889B)'>borne L2 au lieu de L1</text><rect x='506' y='210' width='96' height='18' rx='9' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.12' stroke='var(--bordeaux,#7C2A38)' stroke-width='1'/><text x='554' y='222.5' text-anchor='middle' font-size='8.5' font-weight='700' fill='var(--bordeaux,#7C2A38)'>L2 · O(1/ε²)</text><line x1='612' y1='203' x2='612' y2='235' stroke='var(--ink-faint,#7A889B)' stroke-width='0.5'/><text x='624' y='222' font-size='8.5' fill='var(--ink,#15202E)'>Count Sketch (Charikar et al., 2002)</text><line x1='216' y1='280' x2='230' y2='280' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='230' y='255' width='670' height='50' rx='5' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><circle cx='248' cy='280' r='11' fill='var(--blue,#23537F)'/><text x='248' y='283.5' text-anchor='middle' font-size='11' font-weight='700' fill='var(--paper,#ffffff)'>4</text><text x='270' y='276' font-size='11.5' font-weight='700' fill='var(--ink,#15202E)'>Data-plane réseau</text><text x='270' y='291' font-size='9' fill='var(--ink-faint,#7A889B)'>débit « ligne », anti-saturation des compteurs</text><line x1='612' y1='264' x2='612' y2='296' stroke='var(--ink-faint,#7A889B)' stroke-width='0.5'/><text x='624' y='283' font-size='8.5' fill='var(--ink,#15202E)'>Count-Less · Eternal Sunshine</text><line x1='216' y1='341' x2='230' y2='341' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='230' y='316' width='670' height='50' rx='5' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><circle cx='248' cy='341' r='11' fill='var(--blue,#23537F)'/><text x='248' y='344.5' text-anchor='middle' font-size='11' font-weight='700' fill='var(--paper,#ffffff)'>5</text><text x='270' y='337' font-size='11.5' font-weight='700' fill='var(--ink,#15202E)'>Déterministe</text><text x='270' y='352' font-size='9' fill='var(--ink-faint,#7A889B)'>bornes certaines (non randomisé)</text><rect x='506' y='332' width='96' height='18' rx='9' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.12' stroke='var(--bordeaux,#7C2A38)' stroke-width='1'/><text x='554' y='344.5' text-anchor='middle' font-size='8.5' font-weight='700' fill='var(--bordeaux,#7C2A38)'>O(1/ε²)</text><line x1='612' y1='325' x2='612' y2='357' stroke='var(--ink-faint,#7A889B)' stroke-width='0.5'/><text x='624' y='344' font-size='8.5' fill='var(--ink,#15202E)'>CR-Precis (Ganguly–Majumder, 2007)</text><line x1='216' y1='402' x2='230' y2='402' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='230' y='377' width='670' height='50' rx='5' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><circle cx='248' cy='402' r='11' fill='var(--blue,#23537F)'/><text x='248' y='405.5' text-anchor='middle' font-size='11' font-weight='700' fill='var(--paper,#ffffff)'>6</text><text x='270' y='398' font-size='11.5' font-weight='700' fill='var(--ink,#15202E)'>Moindres carrés</text><text x='270' y='413' font-size='9' fill='var(--ink-faint,#7A889B)'>reconstruction A·x = b par moindres carrés</text><line x1='612' y1='386' x2='612' y2='418' stroke='var(--ink-faint,#7A889B)' stroke-width='0.5'/><text x='624' y='405' font-size='8.5' fill='var(--ink,#15202E)'>Lsquare (Lee et al., 2005)</text><line x1='216' y1='463' x2='230' y2='463' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='230' y='438' width='670' height='50' rx='5' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><circle cx='248' cy='463' r='11' fill='var(--blue,#23537F)'/><text x='248' y='466.5' text-anchor='middle' font-size='11' font-weight='700' fill='var(--paper,#ffffff)'>7</text><text x='270' y='459' font-size='11.5' font-weight='700' fill='var(--ink,#15202E)'>Learning-augmented</text><text x='270' y='474' font-size='9' fill='var(--ink-faint,#7A889B)'>prédiction ML des heavy hitters</text><line x1='612' y1='447' x2='612' y2='479' stroke='var(--ink-faint,#7A889B)' stroke-width='0.5'/><text x='624' y='457' font-size='8.5' fill='var(--ink,#15202E)'>LCM / LAS — Du et al. (ICML 2021)</text><text x='624' y='471' font-size='8.5' fill='var(--ink,#15202E)'>Aamand et al. (NeurIPS 2023)</text><line x1='216' y1='524' x2='230' y2='524' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='230' y='499' width='670' height='50' rx='5' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><circle cx='248' cy='524' r='11' fill='var(--blue,#23537F)'/><text x='248' y='527.5' text-anchor='middle' font-size='11' font-weight='700' fill='var(--paper,#ffffff)'>8</text><text x='270' y='520' font-size='11.5' font-weight='700' fill='var(--ink,#15202E)'>Confidentialité / équité</text><text x='270' y='535' font-size='9' fill='var(--ink-faint,#7A889B)'>vie privée (DP) et équité inter-groupes</text><line x1='612' y1='508' x2='612' y2='540' stroke='var(--ink-faint,#7A889B)' stroke-width='0.5'/><text x='624' y='518' font-size='8.5' fill='var(--ink,#15202E)'>DPSW-Sketch (KDD 2024)</text><text x='624' y='532' font-size='8.5' fill='var(--ink,#15202E)'>Fair-Count-Min (2025)</text><rect x='18' y='560' width='884' height='78' rx='6' fill='var(--ink-faint,#7A889B)' fill-opacity='0.06' stroke='var(--ink-faint,#7A889B)' stroke-width='0.8'/><text x='32' y='581' font-size='10.5' font-weight='700' fill='var(--ink,#15202E)'>Axes discriminants</text><text x='32' y='600' font-size='9.5' font-weight='600' fill='var(--ink,#15202E)'>Norme de la borne</text><rect x='32' y='607' width='11' height='11' rx='2' fill='var(--blue,#23537F)' fill-opacity='0.55'/><text x='48' y='616' font-size='8.5' fill='var(--ink,#15202E)'>L1 — CMS et dérivés</text><rect x='32' y='622' width='11' height='11' rx='2' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.55'/><text x='48' y='631' font-size='8.5' fill='var(--ink,#15202E)'>L2 — Count Sketch</text><text x='330' y='600' font-size='9.5' font-weight='600' fill='var(--ink,#15202E)'>Espace mémoire</text><rect x='330' y='607' width='11' height='11' rx='2' fill='var(--blue,#23537F)' fill-opacity='0.55'/><text x='346' y='616' font-size='8.5' fill='var(--ink,#15202E)'>O(1/ε) — CMS et dérivés</text><rect x='330' y='622' width='11' height='11' rx='2' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.55'/><text x='346' y='631' font-size='8.5' fill='var(--ink,#15202E)'>O(1/ε²) — Count Sketch, CR-Precis</text><text x='628' y='600' font-size='9.5' font-weight='600' fill='var(--ink,#15202E)'>Fusion par addition</text><rect x='628' y='607' width='11' height='11' rx='2' fill='var(--blue,#23537F)' fill-opacity='0.55'/><text x='644' y='616' font-size='8.5' fill='var(--ink,#15202E)'>oui — CMS, Count Sketch</text><rect x='628' y='622' width='11' height='11' rx='2' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.55'/><text x='644' y='631' font-size='8.5' fill='var(--ink,#15202E)'>non — Conservative Update</text></svg><figcaption><span class="fcap-k">Figure 2</span>Les variantes du Count-Min Sketch regroupées en huit familles autour du socle CMS (borne L1, espace O(1/ε), sketch linéaire fusionnable par addition) ; chaque famille porte son axe de compromis, la couleur bordeaux signalant un écart au socle — borne L2, espace O(1/ε²) ou perte de la fusion par simple addition.</figcaption></figure>
+</section>
+<section id="applications-deploiements">
+<h3>Applications et déploiements</h3>
+<p>Le Count-Min Sketch (CMS) est né pour répondre à un problème omniprésent dans les systèmes en flux : estimer la fréquence d'éléments d'un flot de données en temps réel, avec une mémoire bornée et une garantie probabiliste. Son asymétrie fondamentale — il peut sur-estimer mais jamais sous-estimer — en fait un outil naturel pour la détection de <em>heavy hitters</em> (éléments fréquents qui dominent le flot), où une surestimation est tolérable mais une sous-estimation serait catastrophique. Un vecteur de fréquences exact serait linéaire en la taille du domaine ; le CMS le compresse en un tableau d × w dont l'erreur ε·N est contrôlable par le paramétrage (w = ⌈e/ε⌉, d = ⌈ln(1/δ)⌉).</p>
+
+<p>En base de données, l'estimation de la taille de jointures est un enjeu critique pour l'optimiseur de requêtes. Une preuve de concept proposée par Tomas Vondra (EnterpriseDB) intègre le CMS dans <code>pg_statistic</code> de PostgreSQL : en stockant un sketch par colonne (depth = 8, width = 128), l'optimiseur peut borner la taille d'une jointure t1 ⋈ t2 par le produit scalaire de leurs sketches. L'erreur relative mesurée est de ~1,5–1,6 %, avec la garantie formelle size(t1, t2) ≤ dot_product(s1, s2) ≤ ε × size(t1) × size(t2).</p>
+
+<p>Dans les systèmes de <em>natural language processing</em> (traitement automatique des langues), les distributions de fréquences de mots suivent une loi de Zipf : quelques tokens dominent le corpus tandis qu'une longue traîne reste minoritaire. Le Count-Min Tree Sketch (Pitel et al., 2016) adapte cette réalité en remplaçant les compteurs linéaires par des compteurs pyramidaux, réduisant l'erreur relative sur les items peu fréquents à mémoire constante — point faible du CMS classique sur des distributions fortement asymétriques.</p>
+
+<p>L'analyse de trafic réseau constitue l'un des cas d'usage les plus documentés : maintenir l'histogramme de flux d'un routeur sur des millions de paquets par seconde est impossible avec des structures exactes. Cormode, dans sa définition encyclopédique, recense également les réseaux de capteurs, les algorithmes matriciels et les <em>privacy-preserving computations</em> (calculs préservant la vie privée) parmi les domaines naturels du CMS.</p>
+
+<p>Hokusai (Yahoo! Research / Google, UAI 2012) étend le CMS à la dimension temporelle. Il maintient une série chronologique de sketches, agrège les sketches anciens pour maîtriser l'espace, et répond à des requêtes de la forme (temps, item) en temps constant. Cette capacité à interroger « quelle était la fréquence de cet item à l'instant t ? » ouvre des usages en détection d'anomalies, en suivi de tendances et en audit de flux continus.</p>
+
+<p>Sur le plan matériel, CoMeT (CMU-SAFARI, HPCA 2024) déploie le CMS directement dans le contrôleur mémoire pour mitiger RowHammer, une attaque par accès répétés sur les lignes DRAM. Un sketch de quelques milliers de compteurs suffit à surveiller les 128 000 lignes d'une banque DRAM et à déclencher un rafraîchissement ciblé dès que le seuil de 125 activations est atteint — avec un surcoût moyen de 4,01 % sur 61 workloads et une surface silicium 74,2× inférieure à l'état de l'art.</p>
+
+<p>Côté intégration industrielle, Apache DataSketches (ex-Yahoo) est la bibliothèque de référence en production : elle fournit des adaptateurs pour Apache Hive, Apache Pig, PostgreSQL (version C++) et Google BigQuery. Yahoo déclare que le sketching a ramené les durées de traitement de ses plateformes internes de plusieurs jours ou heures à quelques minutes ou secondes. Redis intègre nativement le CMS via les commandes <code>CMS.INITBYPROB</code>, <code>CMS.INCRBY</code>, <code>CMS.QUERY</code> et <code>CMS.MERGE</code> ; un sketch depth = 10, width = 2 000 avec compteurs 16 bits occupe 40 Ko et garantit une erreur relative de 0,1 % sur le total des incréments. Apache Spark expose CountMinSketch dans <code>org.apache.spark.util.sketch</code> depuis Spark 4.1.x via <code>CountMinSketch.create(eps, confidence, seed)</code>.</p>
+</section>
+<section id="limites-pieges">
+<h3>Limites, pièges et idées reçues</h3>
+<p>La garantie fondamentale du Count-Min Sketch est strictement probabiliste : pour tout item <em>i</em>, l'estimé â<sub>i</sub> satisfait â<sub>i</sub> ≥ a<sub>i</sub> en toutes circonstances — le one-sided error (erreur unilatérale) est une propriété structurelle, les collisions de hash functions (fonctions de hachage) ne pouvant qu'incrémenter des compteurs étrangers, jamais les décrémenter — mais la borne supérieure â<sub>i</sub> ≤ a<sub>i</sub> + ε·‖<em>a</em>‖₁ ne tient qu'avec probabilité au moins (1 − δ). Il n'existe aucune borne dans le pire cas absolu ; la correction est entièrement probabiliste. Le terme additif ε·N, proportionnel à ‖<em>a</em>‖₁ (somme totale des fréquences du flux), rend cette garantie vacue pour les items rares dès que la distribution n'est pas suffisamment asymétrique : un item observé 10 fois dans un flux de 10⁶ événements tolère théoriquement une surestimation d'un facteur 100 000, ce qui rend l'estimé sans valeur pratique dans ce cas.</p>
+
+<p>Une idée reçue persistante porte sur l'effet respectif du width (largeur) <em>w</em> et du depth (profondeur) <em>d</em> de la table. Puisque w = ⌈e/ε⌉, doubler <em>w</em> divise ε par deux — gain strictement linéaire sur l'erreur additive. En revanche, puisque d = ⌈ln(1/δ)⌉, ajouter une seule ligne supplémentaire réduit la probabilité d'échec δ exponentiellement. L'intuition « plus de lignes, meilleure précision » confond deux effets de nature radicalement différente : c'est le width qui gouverne la précision (ε), le depth qui gouverne la fiabilité (δ). En pratique, la structure est typiquement beaucoup plus large que profonde, car l'ajout de hash functions devient coûteux en temps de calcul malgré son efficacité sur δ.</p>
+
+<p>Le min estimator (estimateur du minimum) est biaisé par construction et ne se comporte de façon optimale que sur des distributions fortement asymétriques de type Zipf. Dès que la distribution s'aplatit, le Count Sketch — qui signe chaque incrément ±1 aléatoirement et exploite un median-of-means pour annuler le biais — produit une erreur inférieure, car il borne la norme L2 plutôt que L1. Par ailleurs, si les hash functions sont connues ou apprenables par un adversaire, celui-ci peut construire des entrées forçant des collisions systématiques dans chaque ligne, rendant l'overestimation (surestimation) arbitrairement grande : les garanties supposent des hash functions tirées uniformément au hasard et gardées secrètes — une hypothèse souvent ignorée en déploiement.</p>
+
+<p>Un défaut d'équité a été formalisé en 2025 (arXiv 2505.18919) : l'erreur additive uniforme ε·N crée un impact relatif disparate entre groupes de fréquence. Pour un item dont la fréquence réelle est a<sub>i</sub> = 10, une erreur additive de 1 000 représente une inflation d'un facteur 100 ; pour un item à a<sub>i</sub> = 10⁶, la même erreur est négligeable (0,1 %). Le variant Fair-Count-Min, fondé sur un partitionnement de colonnes avec hachage semi-uniforme par groupe, substitue des garanties multiplicatives (relatives) aux garanties additives pour égaliser ce traitement. Sur le plan opérationnel, la structure ne répond qu'aux point queries (requêtes ponctuelles) : déterminer quels items sont des heavy hitters (items dominants) — ceux dépassant un seuil de fréquence — requiert soit une liste de candidats fournie à l'avance, soit une structure auxiliaire distincte ; l'énumération native n'est pas supportée.</p>
+
+<p>Les décréments brisent la garantie one-sided : soustraire de tous les <em>d</em> compteurs d'un item produit des sous-estimations, car certains compteurs sont déjà gonflés par des items tiers. Le conservative update (mise à jour conservatrice) — qui, à l'insertion, affecte chaque compteur au maximum de sa valeur courante et du minimum des autres lignes augmenté de l'incrément — réduit la sur-incrémentation à l'écriture, mais ne résout pas la suppression propre. Contrairement à une affirmation parfois répandue, les sketches à conservative update restent fusionnables (<em>mergeable</em>), quoique non par simple addition pointwise, ce qui préserve leur usage dans des architectures distribuées moyennant une opération de fusion adaptée. Enfin, les range queries (requêtes d'intervalle) et les inner-product queries (requêtes de produit scalaire) ne sont pas natives : elles nécessitent respectivement une décomposition dyadique ou un sketch AMS/Tug-of-War, chacun portant ses propres bornes d'erreur indépendantes ; attribuer ces capacités à la structure de base constitue une sur-attribution courante.</p>
+</section>
+<div class="widget wdp-root" id="wdp-root">
+  <style>
+    .wdp-root{--wdp-ink:var(--ink,#15202E);--wdp-soft:var(--ink-soft,#43536A);
+      --wdp-faint:var(--ink-faint,#7A889B);--wdp-card:var(--card,#fff);
+      --wdp-line:var(--line,#D7DFE9);--wdp-line-soft:var(--line-soft,#E7ECF3);
+      --wdp-blue:var(--blue,#23537F);--wdp-blue-br:var(--blue-bright,#2C77B6);
+      --wdp-blue-wash:var(--blue-wash,#E7EEF6);--wdp-bord:var(--bordeaux,#7C2A38);
+      --wdp-bord-br:var(--bordeaux-bright,#9B3443);--wdp-bord-wash:var(--bordeaux-wash,#F4E9EB);
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--wdp-ink);
+      border:1px solid var(--wdp-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--wdp-card);max-width:680px}
+    .wdp-root *{box-sizing:border-box}
+    .wdp-k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;
+      color:var(--wdp-faint);font-weight:600;margin:0 0 2px}
+    .wdp-title{font-weight:700;font-size:1.05rem;margin:0 0 12px}
+    .wdp-ctl{margin:0 0 6px}
+    .wdp-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .wdp-row+.wdp-row{margin-top:11px}
+    .wdp-lab{flex:0 0 132px;font-weight:600;font-size:.84rem;color:var(--wdp-soft)}
+    .wdp-lab small{display:block;font-weight:500;font-size:.7rem;color:var(--wdp-faint)}
+    .wdp-slider{flex:1 1 150px;min-width:120px;height:22px}
+    .wdp-slider.wdp-w{accent-color:var(--wdp-blue-br)}
+    .wdp-slider.wdp-d{accent-color:var(--wdp-bord-br)}
+    .wdp-val{flex:0 0 auto;font:800 1.05rem/1 ui-monospace,monospace;
+      min-width:3.3em;text-align:right}
+    .wdp-val.wdp-w{color:var(--wdp-blue)}
+    .wdp-val.wdp-d{color:var(--wdp-bord)}
+    .wdp-step{display:inline-flex;border:1px solid var(--wdp-line);border-radius:8px;overflow:hidden}
+    .wdp-step button{border:0;background:var(--wdp-card);color:var(--wdp-soft);
+      font:700 12.5px/1 ui-monospace,monospace;padding:7px 9px;cursor:pointer}
+    .wdp-step button+button{border-left:1px solid var(--wdp-line)}
+    .wdp-step button:hover{background:var(--wdp-line-soft)}
+    .wdp-num{width:7em;border:1px solid var(--wdp-line);border-radius:8px;
+      padding:6px 8px;font:600 .85rem/1 ui-monospace,monospace;color:var(--wdp-ink)}
+    .wdp-quick{display:inline-flex;gap:6px;flex-wrap:wrap}
+    .wdp-quick button{border:1px solid var(--wdp-line);border-radius:7px;background:transparent;
+      color:var(--wdp-soft);font:600 12px/1 inherit;padding:6px 8px;cursor:pointer}
+    .wdp-quick button:hover{background:var(--wdp-line-soft)}
+    .wdp-presets{display:flex;gap:7px;flex-wrap:wrap;margin:13px 0 2px}
+    .wdp-presets button{border:1px solid var(--wdp-blue-br);border-radius:7px;background:transparent;
+      color:var(--wdp-blue-br);font:600 12.5px/1 inherit;padding:7px 11px;cursor:pointer}
+    .wdp-presets button:hover{background:var(--wdp-blue-wash)}
+    .wdp-stats{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:16px 0 0}
+    .wdp-stat{border:1px solid var(--wdp-line);border-radius:9px;padding:9px 11px;background:var(--wdp-card)}
+    .wdp-stat .wdp-sk{font-size:.66rem;letter-spacing:.05em;text-transform:uppercase;
+      color:var(--wdp-faint);font-weight:600}
+    .wdp-stat .wdp-sv{font:800 1.3rem/1.05 ui-monospace,monospace;margin:3px 0 1px}
+    .wdp-stat .wdp-sn{font-size:.71rem;color:var(--wdp-soft);line-height:1.35}
+    .wdp-stat.wdp-eps{border-left:3px solid var(--wdp-blue-br)}
+    .wdp-stat.wdp-eps .wdp-sv{color:var(--wdp-blue)}
+    .wdp-stat.wdp-rel{border-left:3px solid var(--wdp-bord-br)}
+    .wdp-stat.wdp-rel .wdp-sv{color:var(--wdp-bord)}
+    .wdp-stat .wdp-sv.wdp-neutral{color:var(--wdp-ink)}
+    .wdp-charts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0 0}
+    .wdp-chart{border:1px solid var(--wdp-line);border-radius:9px;padding:9px 9px 6px;background:var(--wdp-card)}
+    .wdp-chart h4{margin:0 0 1px;font-size:.78rem;font-weight:700}
+    .wdp-chart.wdp-cw h4{color:var(--wdp-blue)}
+    .wdp-chart.wdp-cd h4{color:var(--wdp-bord)}
+    .wdp-chart p{margin:0 0 4px;font-size:.68rem;color:var(--wdp-faint);line-height:1.3}
+    .wdp-chart svg{width:100%;height:auto;display:block}
+    .wdp-read{margin:14px 0 0;padding:11px 13px;border-radius:8px;border:1px solid var(--wdp-line);
+      background:var(--wdp-blue-wash);font-size:.86rem;line-height:1.5;color:var(--wdp-ink)}
+    .wdp-read b{font-weight:700}
+    .wdp-myth{margin:10px 0 0;padding:10px 13px;border-radius:8px;
+      border:1px solid var(--wdp-bord-br);background:var(--wdp-bord-wash);
+      font-size:.8rem;line-height:1.45;color:var(--wdp-ink)}
+    .wdp-myth b{color:var(--wdp-bord)}
+    .wdp-note{margin:10px 0 0;font-size:.72rem;color:var(--wdp-faint);line-height:1.45}
+    @media(max-width:520px){.wdp-stats,.wdp-charts{grid-template-columns:1fr}
+      .wdp-lab{flex-basis:100%}}
+  </style>
+
+  <p class="wdp-k">Démonstration interactive</p>
+  <p class="wdp-title">Largeur w → précision (ε) ; profondeur d → fiabilité (δ) : deux réglages indépendants</p>
+
+  <div class="wdp-ctl">
+    <div class="wdp-row">
+      <span class="wdp-lab">Largeur w<small>colonnes → précision</small></span>
+      <input class="wdp-slider wdp-w" id="wdp-wsl" type="range" min="0" max="1000" value="0"
+             aria-label="largeur w (colonnes)">
+      <span class="wdp-val wdp-w" id="wdp-wval">512</span>
+      <span class="wdp-step" role="group" aria-label="largeur">
+        <button type="button" id="wdp-whalf" title="diviser la largeur par deux">÷2 w</button>
+        <button type="button" id="wdp-wdbl" title="doubler la largeur">×2 w</button>
+      </span>
+    </div>
+    <div class="wdp-row">
+      <span class="wdp-lab">Profondeur d<small>lignes → fiabilité</small></span>
+      <input class="wdp-slider wdp-d" id="wdp-dsl" type="range" min="1" max="16" step="1" value="4"
+             aria-label="profondeur d (lignes)">
+      <span class="wdp-val wdp-d" id="wdp-dval">4</span>
+      <span class="wdp-step" role="group" aria-label="profondeur">
+        <button type="button" id="wdp-ddec" title="retirer une ligne">−1 d</button>
+        <button type="button" id="wdp-dinc" title="ajouter une ligne">+1 d</button>
+      </span>
+    </div>
+    <div class="wdp-row">
+      <span class="wdp-lab">Taille du flux N<small>pour l'erreur ε·N</small></span>
+      <input class="wdp-num" id="wdp-n" type="number" min="1" step="1" value="1000000"
+             aria-label="taille du flux N">
+      <span class="wdp-quick" role="group" aria-label="raccourcis N">
+        <button type="button" data-n="1000000">10⁶</button>
+        <button type="button" data-n="100000000">10⁸</button>
+        <button type="button" data-n="1000000000">10⁹</button>
+      </span>
+    </div>
+  </div>
+
+  <div class="wdp-presets" role="group" aria-label="préréglages">
+    <button type="button" data-w="2000" data-d="10">Redis · w=2000, d=10</button>
+    <button type="button" data-w="272" data-d="5">Théorie · ε=δ=1&nbsp;%</button>
+  </div>
+
+  <div class="wdp-stats">
+    <div class="wdp-stat wdp-eps">
+      <div class="wdp-sk">Précision · ε = e / w</div>
+      <div class="wdp-sv" id="wdp-eps">—</div>
+      <div class="wdp-sn">borne d'erreur relative — pilotée par <b>w seul</b></div>
+    </div>
+    <div class="wdp-stat wdp-rel">
+      <div class="wdp-sk">Fiabilité · 1 − δ, δ = e<sup>−d</sup></div>
+      <div class="wdp-sv" id="wdp-rel">—</div>
+      <div class="wdp-sn">δ = <span id="wdp-deltapct">—</span> — pilotée par <b>d seul</b></div>
+    </div>
+    <div class="wdp-stat">
+      <div class="wdp-sk">Mémoire · w × d</div>
+      <div class="wdp-sv wdp-neutral" id="wdp-mem">—</div>
+      <div class="wdp-sn" id="wdp-memsub">compteurs 16 bits</div>
+    </div>
+    <div class="wdp-stat">
+      <div class="wdp-sk">Erreur additive · ε·N</div>
+      <div class="wdp-sv wdp-neutral" id="wdp-add">—</div>
+      <div class="wdp-sn" id="wdp-addsub">surestimation max garantie</div>
+    </div>
+  </div>
+
+  <div class="wdp-charts">
+    <div class="wdp-chart wdp-cw">
+      <h4>ε contre w</h4>
+      <p>Doubler w divise ε par 2 : précision linéaire, payée en mémoire ×2.</p>
+      <svg id="wdp-svgw" viewBox="0 0 240 138" aria-hidden="true"></svg>
+    </div>
+    <div class="wdp-chart wdp-cd">
+      <h4>δ contre d</h4>
+      <p>+1 ligne divise δ par e (≈2,72) : fiabilité exponentielle, quasi gratuite.</p>
+      <svg id="wdp-svgd" viewBox="0 0 240 138" aria-hidden="true"></svg>
+    </div>
+  </div>
+
+  <div class="wdp-read" id="wdp-read"></div>
+
+  <p class="wdp-myth"><b>Idée reçue :</b> « plus de lignes (d) = plus de précision. »
+    Faux. Empiler des lignes ne fait que rendre la borne d'erreur ε plus
+    <b>sûre</b> (δ chute), jamais plus <b>fine</b>. La finesse (ε) ne vient que de la largeur w.</p>
+
+  <p class="wdp-note">Formules de dimensionnement du Count-Min Sketch : w = ⌈e/ε⌉ et
+    d = ⌈ln(1/δ)⌉, soit ε = e/w et δ = e<sup>−d</sup> (e ≈ 2,718). La garantie
+    â ≤ a + ε·N tient alors avec probabilité ≥ 1 − δ. L'erreur est unilatérale : le sketch
+    ne sous-estime jamais.</p>
+
+  <script>
+  (function(){
+    var root=document.getElementById("wdp-root");
+    if(!root||root.dataset.wdpInit)return; root.dataset.wdpInit="1";
+    var SVGNS="http://www.w3.org/2000/svg";
+    var E=Math.E;
+    var WMIN=64, WMAX=8192, DMAX=16;
+
+    var wsl=document.getElementById("wdp-wsl"),  wval=document.getElementById("wdp-wval");
+    var dsl=document.getElementById("wdp-dsl"),  dval=document.getElementById("wdp-dval");
+    var nIn=document.getElementById("wdp-n");
+    var epsEl=document.getElementById("wdp-eps");
+    var relEl=document.getElementById("wdp-rel"), deltaPctEl=document.getElementById("wdp-deltapct");
+    var memEl=document.getElementById("wdp-mem"), memSub=document.getElementById("wdp-memsub");
+    var addEl=document.getElementById("wdp-add"), addSub=document.getElementById("wdp-addsub");
+    var svgW=document.getElementById("wdp-svgw"), svgD=document.getElementById("wdp-svgd");
+    var readEl=document.getElementById("wdp-read");
+
+    var w=512, d=4, N=1000000, last="init", prev=null;
+
+    // largeur <-> position de curseur (échelle log : un doublement = un pas constant)
+    var lnMin=Math.log(WMIN), lnMax=Math.log(WMAX);
+    function wToSlider(x){ return Math.round((Math.log(x)-lnMin)/(lnMax-lnMin)*1000); }
+    function sliderToW(v){
+      var x=Math.round(Math.exp(lnMin+(v/1000)*(lnMax-lnMin)));
+      return Math.max(WMIN, Math.min(WMAX, x));
+    }
+    function clampW(x){ return Math.max(WMIN, Math.min(WMAX, Math.round(x))); }
+
+    // formatage français
+    function fr(s){ return (""+s).replace(".",","); }
+    function grp(n){
+      var s=Math.round(n).toString(), out="", c=0;
+      for(var i=s.length-1;i>=0;i--){ out=s.charAt(i)+out; if(++c%3===0 && i>0) out=" "+out; }
+      return out;
+    }
+    function pctStr(frac){
+      var p=frac*100, dec = p>=10?1 : p>=1?2 : p>=0.1?3 : 4;
+      return fr(p.toFixed(dec))+" %";
+    }
+    function confStr(conf){
+      var p=conf*100, dec = p>=99.999?5 : p>=99.99?4 : p>=99.9?3 : 2;
+      return fr(p.toFixed(dec))+" %";
+    }
+    function bytesStr(b){
+      if(b>=1048576) return fr((b/1048576).toFixed(2))+" Mo";
+      if(b>=1024)   return fr((b/1024).toFixed(1))+" Ko";
+      return grp(b)+" o";
+    }
+    function factor(a,b){
+      if(b<a) return "÷ "+fr((a/b).toFixed(2));
+      if(b>a) return "× "+fr((b/a).toFixed(2));
+      return "inchangé";
+    }
+
+    function mk(tag,attrs){
+      var el=document.createElementNS(SVGNS,tag);
+      for(var k in attrs) el.setAttribute(k, attrs[k]);
+      return el;
+    }
+    function add(el,parent){ parent.appendChild(el); return el; }
+
+    function drawEps(eps){
+      svgW.textContent="";
+      var x0=34,x1=232,yT=10,yB=112,pw=x1-x0,ph=yB-yT;
+      var yMax=E/WMIN;
+      function X(x){ return x0+(Math.log(x)-lnMin)/(lnMax-lnMin)*pw; }
+      function Y(y){ return yB-(y/yMax)*ph; }
+      add(mk("line",{x1:x0,y1:yB,x2:x1,y2:yB,stroke:"var(--wdp-line)","stroke-width":1}),svgW);
+      add(mk("line",{x1:x0,y1:yT,x2:x0,y2:yB,stroke:"var(--wdp-line)","stroke-width":1}),svgW);
+      for(var p=WMIN;p<=WMAX;p*=2){
+        var gx=X(p);
+        add(mk("line",{x1:gx,y1:yT,x2:gx,y2:yB,stroke:"var(--wdp-line-soft)","stroke-width":1}),svgW);
+        var t=mk("text",{x:gx,y:yB+12,"text-anchor":"middle","font-size":7.5,fill:"var(--wdp-faint)"});
+        t.textContent=p; add(t,svgW);
+      }
+      var dstr="";
+      for(var i=0;i<=80;i++){ var xx=Math.exp(lnMin+(lnMax-lnMin)*i/80);
+        dstr+=(i?"L":"M")+X(xx).toFixed(1)+" "+Y(E/xx).toFixed(1)+" "; }
+      add(mk("path",{d:dstr,fill:"none",stroke:"var(--wdp-blue-br)","stroke-width":2}),svgW);
+      var cx=X(w), cy=Y(eps);
+      add(mk("line",{x1:cx,y1:cy,x2:cx,y2:yB,stroke:"var(--wdp-blue-br)","stroke-width":1,"stroke-dasharray":"2 2"}),svgW);
+      add(mk("line",{x1:x0,y1:cy,x2:cx,y2:cy,stroke:"var(--wdp-blue-br)","stroke-width":1,"stroke-dasharray":"2 2"}),svgW);
+      if(w*2<=WMAX){ add(mk("circle",{cx:X(w*2),cy:Y(eps/2),r:3,fill:"none",stroke:"var(--wdp-blue-br)","stroke-width":1.3}),svgW); }
+      add(mk("circle",{cx:cx,cy:cy,r:3.6,fill:"var(--wdp-blue-br)"}),svgW);
+    }
+
+    function drawDelta(delta){
+      svgD.textContent="";
+      var x0=28,x1=232,yT=10,yB=112,pw=x1-x0,ph=yB-yT;
+      function X(x){ return x0+x/DMAX*pw; }
+      function Y(y){ return yB-y*ph; }
+      add(mk("line",{x1:x0,y1:yB,x2:x1,y2:yB,stroke:"var(--wdp-line)","stroke-width":1}),svgD);
+      add(mk("line",{x1:x0,y1:yT,x2:x0,y2:yB,stroke:"var(--wdp-line)","stroke-width":1}),svgD);
+      for(var k=0;k<=DMAX;k+=4){
+        var gx=X(k);
+        add(mk("line",{x1:gx,y1:yT,x2:gx,y2:yB,stroke:"var(--wdp-line-soft)","stroke-width":1}),svgD);
+        var t=mk("text",{x:gx,y:yB+12,"text-anchor":"middle","font-size":7.5,fill:"var(--wdp-faint)"});
+        t.textContent=k; add(t,svgD);
+      }
+      var dstr="";
+      for(var i=0;i<=80;i++){ var xx=DMAX*i/80; dstr+=(i?"L":"M")+X(xx).toFixed(1)+" "+Y(Math.exp(-xx)).toFixed(1)+" "; }
+      add(mk("path",{d:dstr,fill:"none",stroke:"var(--wdp-bord-br)","stroke-width":2}),svgD);
+      var cx=X(d), cy=Y(delta);
+      add(mk("line",{x1:cx,y1:cy,x2:cx,y2:yB,stroke:"var(--wdp-bord-br)","stroke-width":1,"stroke-dasharray":"2 2"}),svgD);
+      add(mk("line",{x1:x0,y1:cy,x2:cx,y2:cy,stroke:"var(--wdp-bord-br)","stroke-width":1,"stroke-dasharray":"2 2"}),svgD);
+      if(d+1<=DMAX){ add(mk("circle",{cx:X(d+1),cy:Y(delta/E),r:3,fill:"none",stroke:"var(--wdp-bord-br)","stroke-width":1.3}),svgD); }
+      add(mk("circle",{cx:cx,cy:cy,r:3.6,fill:"var(--wdp-bord-br)"}),svgD);
+    }
+
+    function setRead(parts){
+      readEl.textContent="";
+      parts.forEach(function(p){
+        if(typeof p==="string") readEl.appendChild(document.createTextNode(p));
+        else{ var b=document.createElement("b"); b.textContent=p.b; readEl.appendChild(b); }
+      });
+    }
+
+    function render(){
+      var eps=E/w, delta=Math.exp(-d), conf=1-delta;
+      var cells=w*d, bytesV=cells*2, addErr=eps*N;
+
+      wval.textContent=grp(w);
+      dval.textContent=d;
+      epsEl.textContent=pctStr(eps);
+      relEl.textContent=confStr(conf);
+      deltaPctEl.textContent=pctStr(delta);
+      memEl.textContent=grp(cells)+" cellules";
+      memSub.textContent=bytesStr(bytesV)+" · w×d, compteurs 16 bits";
+      addEl.textContent="≈ "+grp(addErr);
+      addSub.textContent="â − a au pire, avec proba ≥ "+confStr(conf);
+
+      drawEps(eps); drawDelta(delta);
+
+      if(last==="init" || !prev){
+        setRead([{b:"Découplage largeur / profondeur. "},
+          "Déplace la largeur w : seule ε (la précision) bouge. Déplace la profondeur d : seule δ (la fiabilité) bouge. ",
+          "La mémoire w·d, elle, réagit aux deux — mais à des prix très différents."]);
+      } else if(last==="w"){
+        setRead([{b:"Largeur w : "+grp(prev.w)+" → "+grp(w)+(w===2*prev.w?" (doublée)":(prev.w===2*w?" (moitié)":""))+". "},
+          "Précision ε "+factor(prev.eps,eps)+" ("+pctStr(prev.eps)+" → "+pctStr(eps)+"). ",
+          "Fiabilité δ ", {b:"inchangée"}, " ("+confStr(conf)+"). ",
+          "Coût : mémoire "+factor(prev.cells,cells)+" — la finesse se paie en mémoire proportionnelle (O(1/ε))."]);
+      } else if(last==="d"){
+        var one=Math.abs(d-prev.d)===1;
+        setRead([{b:"Profondeur d : "+prev.d+" → "+d+(one?(d>prev.d?" (+1 ligne)":" (−1 ligne)"):"")+". "},
+          "Fiabilité δ "+factor(prev.delta,delta)+(one?" — exactement le facteur e ≈ 2,72 par ligne":"")+
+            " ("+confStr(1-prev.delta)+" → "+confStr(conf)+"). ",
+          "Précision ε ", {b:"inchangée"}, " ("+pctStr(eps)+"). ",
+          "Coût : mémoire "+factor(prev.cells,cells)+" seulement — une ligne n'ajoute que w cellules (O(ln 1/δ))."]);
+      } else if(last==="N"){
+        setRead([{b:"N = "+grp(N)+" éléments. "},
+          "Erreur additive garantie ε·N ≈ "+grp(addErr)+" (avec proba ≥ 1−δ = "+confStr(conf)+"). ",
+          "Pour la rétrécir, agis sur w (qui pilote ε) ; agir sur d ne ferait que sécuriser cette même borne."]);
+      } else if(last==="preset"){
+        setRead([{b:"Préréglage : w = "+grp(w)+", d = "+d+". "},
+          "ε ≈ "+pctStr(eps)+", fiabilité "+confStr(conf)+", mémoire "+grp(cells)+" cellules ("+bytesStr(bytesV)+"). ",
+          "Modifie maintenant un seul curseur pour voir lequel des deux bouge."]);
+      }
+      prev={w:w,d:d,eps:eps,delta:delta,cells:cells};
+    }
+
+    // largeur
+    wsl.addEventListener("input",function(){ w=sliderToW(parseInt(wsl.value,10)); last="w"; render(); });
+    document.getElementById("wdp-wdbl").addEventListener("click",function(){
+      w=clampW(w*2); wsl.value=wToSlider(w); last="w"; render(); });
+    document.getElementById("wdp-whalf").addEventListener("click",function(){
+      w=clampW(w/2); wsl.value=wToSlider(w); last="w"; render(); });
+    // profondeur
+    dsl.addEventListener("input",function(){ d=parseInt(dsl.value,10); last="d"; render(); });
+    document.getElementById("wdp-dinc").addEventListener("click",function(){
+      d=Math.min(DMAX,d+1); dsl.value=d; last="d"; render(); });
+    document.getElementById("wdp-ddec").addEventListener("click",function(){
+      d=Math.max(1,d-1); dsl.value=d; last="d"; render(); });
+    // taille du flux
+    nIn.addEventListener("input",function(){
+      var v=parseInt(nIn.value,10); N=(isFinite(v)&&v>=1)?v:1; last="N"; render(); });
+    root.querySelector(".wdp-quick").addEventListener("click",function(e){
+      var b=e.target.closest("button"); if(!b)return;
+      N=parseInt(b.getAttribute("data-n"),10); nIn.value=N; last="N"; render(); });
+    // préréglages
+    root.querySelector(".wdp-presets").addEventListener("click",function(e){
+      var b=e.target.closest("button"); if(!b)return;
+      w=clampW(parseInt(b.getAttribute("data-w"),10));
+      d=Math.max(1,Math.min(DMAX,parseInt(b.getAttribute("data-d"),10)));
+      wsl.value=wToSlider(w); dsl.value=d; last="preset"; render(); });
+
+    // état initial
+    wsl.value=wToSlider(w); dsl.value=d; nIn.value=N;
+    render();
+  })();
+  </script>
+</div>
+
+<section id="ecosysteme">
+<h3>Écosystème et pour aller plus loin</h3>
+<p>La source canonique reste le papier fondateur de Graham Cormode et S. Muthu Muthukrishnan — « An improved data stream summary : The Count-Min Sketch and its applications », <em>Journal of Algorithms</em> 55(1), 58–75 (2005), présenté à LATIN 2004 et complété par le papier satellite SDM 2005 « Summarizing and mining skewed data streams ». Les deux textes sont référencés sur le site de Cormode (<a href="https://sites.google.com/site/countminsketch/">sites.google.com/site/countminsketch</a>), qui centralise également les extensions et les variantes (Conservative Update, hCount*, MLE). Le sketch y a reçu l'Imre Simon Test-of-Time Award en 2014. Apache DataSketches cite les mêmes travaux — auxquels s'ajoute Charikar–Chen–Farach-Colton — dans sa liste de références sur les <em>heavy hitters</em> (éléments les plus fréquents).</p>
+
+<p><strong>Redis</strong> intègre le Count-Min Sketch via son module <strong>RedisBloom</strong> (disponible depuis la v2.0.0) avec six commandes dédiées : <code>CMS.INITBYDIM</code>, <code>CMS.INITBYPROB</code>, <code>CMS.INCRBY</code>, <code>CMS.QUERY</code>, <code>CMS.MERGE</code> et <code>CMS.INFO</code>, toutes en O(1) ou O(n items). La commande <code>CMS.INITBYPROB</code> prend directement l'erreur ε et la probabilité δ et en dérive les dimensions via <em>width</em> = ⌈2/ε⌉ et <em>depth</em> = ⌈−log(δ)/log(2)⌉ ; par exemple, <code>CMS.INITBYPROB key 0.001 0.002</code> alloue un tableau de 2 000 colonnes × 9 lignes. <code>CMS.MERGE</code> permet de fusionner plusieurs sketches sans retourner aux données brutes, ce qui en fait un composant naturel des architectures de comptage distribuées.</p>
+
+<p><strong>Apache Spark</strong> expose <code>org.apache.spark.util.sketch.CountMinSketch</code> avec deux <em>factory methods</em> (méthodes d'instanciation) : <code>create(double eps, double confidence, int seed)</code> et <code>create(int depth, int width, int seed)</code>. La garantie documentée est conforme au papier original : l'estimé est compris entre la fréquence réelle et la fréquence réelle + ε × N, avec probabilité ≥ confidence. La classe supporte <code>mergeInPlace</code> et la sérialisation en <code>byte[]</code>, facilitant l'agrégation dans des pipelines de traitement de flux. <strong>Apache DataSketches</strong> propose de son côté une implémentation indépendante, documentée avec les références scientifiques de référence dans l'écosystème Apache.</p>
+
+<p>Côté JVM, la bibliothèque <strong>stream-lib</strong> (Clearspring Analytics / AddThis), accessible via la coordonnée Maven <code>com.clearspring.analytics:stream:2.9.8</code>, est l'implémentation Java historique de référence ; les intégrations Spark et Akka en sont issues. Pour Python, <strong>pyprobables</strong> expose trois classes — <code>CountMinSketch</code>, <code>CountMeanSketch</code> et <code>CountMeanMinSketch</code> — avec une API directe (<code>cms.add('item')</code>, <code>cms.add('item', 25)</code>) et une compatibilité binaire avec l'implémentation C <em>barrust/count-min-sketch</em>. Le paquet <strong>count_min_sketch</strong> (Andrew Nystrom, Apache 2.0, <code>pip install count_min_sketch</code>) offre une alternative en Python pur sans dépendances, mais dont la dernière version (3.0.4) remonte à septembre 2016.</p>
+</section>
+<details class="ex"><summary>Vérifie ta compréhension<span class="cnt">Partie Structure, paramétrage et garantie d'erreur</span></summary><div class="exbody"><p><b>Question.</b> (a) Le Count-Min Sketch se dimensionne par <em>w</em> = ⌈e/ε⌉ (largeur) et <em>d</em> = ⌈ln(1/δ)⌉ (profondeur). Lequel gouverne la <em>précision</em> (borne d'erreur ε) et lequel la <em>fiabilité</em> (δ) ? Que gagne-t-on exactement en ajoutant une ligne ? (b) La <em>point query</em> renvoie le minimum des <em>d</em> cellules lues : pourquoi ne sous-estime-t-elle jamais la vraie fréquence dans le modèle <em>cash register</em>, et dans quel modèle cette propriété tombe-t-elle ? (c) La borne â<sub>i</sub> ≤ a<sub>i</sub> + ε·N à confiance 1−δ vaut-elle <em>simultanément</em> pour les <em>n</em> items du flux avec les mêmes paramètres ? Sinon, que faut-il corriger ?</p><div class="eg b"><span class="egk">Réponse</span><p><strong>(a)</strong> C'est la <em>largeur w</em> qui gouverne la précision (ε = e/w, gain <em>linéaire</em> : doubler w divise ε par deux), et la <em>profondeur d</em> qui gouverne la fiabilité (δ = e<sup>−d</sup>). Ajouter une seule ligne ne réduit donc pas l'erreur ε : elle fait décroître la probabilité d'échec δ de façon <em>exponentielle</em>. L'intuition « plus de lignes = plus précis » confond deux grandeurs distinctes.</p><p><strong>(b)</strong> Dans le modèle cash register (mises à jour non négatives), chaque cellule count[i, h<sub>i</sub>(j)] accumule la vraie fréquence a<sub>j</sub> <em>plus</em> des collisions elles-mêmes positives ; le minimum sur les d lignes ne peut donc descendre sous a<sub>j</sub>. La garantie tient plus largement tant que les fréquences cumulées restent ≥ 0 (donc aussi en turnstile <em>strict</em>) ; elle échoue uniquement dans le turnstile <em>général</em>, où une fréquence peut elle-même passer sous zéro.</p><p><strong>(c)</strong> Non : la garantie est établie <em>par requête</em>, pour un item i fixé avant la requête. Pour qu'elle vaille simultanément sur les n items distincts, il faut un <em>union bound</em> : remplacer δ par δ/n, ce qui alourdit la profondeur à d = ⌈ln(n/δ)⌉ (w et d ne sont alors plus les mêmes).</p></div></div></details>
+<details class="ex"><summary>Vérifie ta compréhension<span class="cnt">Partie Variantes, limites et écosystème</span></summary><div class="exbody"><p><b>Question.</b> (a) Le <em>Conservative Update</em> améliore nettement la précision en pratique : à quel prix structurel, et quelle conséquence sur la fusion d'esquisses en calcul distribué ? (b) Count Sketch face au CMS : quelle <em>norme</em> chacun borne-t-il, quel coût en colonnes pour une erreur ε, et dans quel régime de distribution préférer l'un ou l'autre ? (c) Le « biais d'équité » formalisé en 2025 : pourquoi l'erreur additive uniforme ε·N pénalise-t-elle relativement bien plus les items rares que les items fréquents ?</p><div class="eg b"><span class="egk">Réponse</span><p><strong>(a)</strong> Le Conservative Update n'incrémente que les cellules égales au minimum courant, réduisant le sur-comptage à l'écriture — mais il rend les mises à jour <em>conditionnelles à l'état courant</em>, donc non commutatives : la structure n'est plus un <em>sketch linéaire</em>. Elle reste <em>fusionnable</em> au sens large, mais plus par simple addition cellule à cellule, ce qui complique l'agrégation distribuée (MapReduce, routeurs).</p><p><strong>(b)</strong> Le CMS borne l'erreur en norme <em>L1</em> avec O(1/ε) colonnes ; Count Sketch (signes ±1, estimateur médian) borne en norme <em>L2</em> au coût de O(1/ε²) colonnes. Sur les distributions fortement asymétriques (Zipf, heavy hitters dominants), la borne L1 du CMS suffit à moindre mémoire ; sur les distributions quasi-uniformes, la borne L2 de Count Sketch capture plus finement la structure des erreurs. Les deux garanties sont dites <em>incomparables</em>.</p><p><strong>(c)</strong> Parce que l'erreur est <em>additive</em> et uniforme (la même valeur absolue ε·N pour tous). Pour un item de fréquence réelle 10, une erreur de 1 000 gonfle l'estimé d'un facteur 100 ; pour un item à 10⁶, la même erreur absolue n'est qu'une inflation de 0,1 %. L'impact <em>relatif</em> est donc radicalement disparate, d'où Fair-Count-Min qui substitue des garanties multiplicatives aux garanties additives.</p></div></div></details>
+<section id="biblio"><h3>Bibliographie &amp; repos</h3><div><a href="https://sites.google.com/site/countminsketch/">Count-Min Sketch — site officiel (Cormode)</a></div><div><a href="https://dl.acm.org/doi/10.1016/j.jalgor.2003.12.001">An improved data stream summary: the count-min sketch and its applications — Journal of Algorithms Vol 55, No 1 (ACL/Elsevier DOI)</a></div><div><a href="https://florian.github.io/count-min-sketch/">Count-Min Sketch — florian.github.io (cite JA 55, 1, 2005, 58–75)</a></div><div><a href="https://www.dimacs.rutgers.edu/~graham/pubs/html/CormodeMuthukrishnan04CMJalg.html">CormodeMuthukrishnan04CMJalg — DIMACS publication page (Journal of Algorithms 55(1):58–75, 2005)</a></div><div><a href="https://gcormode.wordpress.com/2014/04/04/imre-simon-award-for-count-min-sketch/">Imre Simon Award for Count-Min Sketch — Graham Cormode's blog</a></div><div><a href="https://latintcs.org/imreprize.html">Imre Simon Test of Time Award — LATIN official page</a></div><div><a href="https://en.wikipedia.org/wiki/Count%E2%80%93min_sketch">Count–min sketch - Wikipedia</a></div><div><a href="https://en.wikipedia.org/wiki/Count_sketch">Count sketch - Wikipedia</a></div><div><a href="https://sites.google.com/site/countminsketch/home/faq">Count-Min Sketch FAQ (official site)</a></div><div><a href="http://dimacs.rutgers.edu/~graham/pubs/papers/sk.pdf">Sketch Techniques for Approximate Query Processing — Graham Cormode (DIMACS)</a></div><div><a href="https://www.ogustavo.com.br/posts/count-min-sketch-algorithm/">Count-Min Sketch: Estimating Event Frequencies in Massive Data Streams (ogustavo.com.br)</a></div><div><a href="https://crahen.github.io/algorithm/stream/count-min-sketch-point-query.html">Count-Min Sketching, Configuration &amp; Point-Queries (crahen.github.io)</a></div><div><a href="https://thebytebeat.substack.com/p/understanding-count-min-sketch-a">Understanding Count-Min Sketch: A Probabilistic Data Structure (The Byte Beat)</a></div><div><a href="https://dimacs.rutgers.edu/~graham/pubs/papers/cm-full.pdf">An Improved Data Stream Summary: The Count-Min Sketch and its Applications (Cormode &amp; Muthukrishnan, 2005) — DIMACS full paper</a></div><div><a href="https://www.cs.dartmouth.edu/~deepc/LecNotes/Rand/lec16.pdf">Streaming I: Frequency Estimation via Count-Min — Dartmouth CS lecture notes (Chakrabarti)</a></div><div><a href="https://arxiv.org/pdf/2301.00754">Algorithms for Massive Data — Lecture Notes (arXiv:2301.00754)</a></div><div><a href="http://dimacs.rutgers.edu/~graham/pubs/papers/cmencyc.pdf">Count-Min Sketch (Encyclopedia entry) — Graham Cormode, AT&amp;T Labs</a></div><div><a href="https://web.stanford.edu/class/cs168/l/l2.pdf">CS168: The Modern Algorithmic Toolbox, Lecture 2 — Tim Roughgarden &amp; Gregory Valiant, Stanford University</a></div><div><a href="https://ar5iv.labs.arxiv.org/html/1804.10673">Buffered Count-Min Sketch on SSD: Theory and Experiments (ar5iv / arXiv:1804.10673)</a></div><div><a href="https://blog.demofox.org/2015/02/22/count-min-sketch-a-probabilistic-histogram/">Count-Min Sketch: A Probabilistic Histogram — blog.demofox.org</a></div><div><a href="https://www.waitingforcode.com/big-data-algorithms/frequency-estimation--count-min-sketch/read">Frequency estimation with Count-Min sketch — waitingforcode.com</a></div><div><a href="https://www.mit.edu/~vakilian/courses/lecs/lec_7_6104.pdf">Lecture 7: Heavy Hitters, Misra-Gires Algorithms, and CountMin (MIT 6.5320 / Ali Vakilian, 2025)</a></div><div><a href="https://tristanweb.com/blog/mergeable-operations-sketches/">Sketches: Trading Precision for Scalability (tristanweb.com)</a></div><div><a href="https://arxiv.org/abs/2102.02193">CountSketches, Feature Hashing and the Median of Three (Pagh, 2021) — arXiv:2102.02193</a></div><div><a href="https://arxiv.org/abs/1811.04150">Count-Min: Optimal Estimation and Tight Error Bounds using Empirical Error Distributions (Ting 2018) — arXiv 1811.04150</a></div><div><a href="https://arxiv.org/abs/2203.15496">Phase transition in count approximation by Count-Min sketch with conservative updates (arXiv:2203.15496)</a></div><div><a href="https://link.springer.com/chapter/10.1007/978-3-031-30448-4_17">Phase Transition in Count Approximation by Count-Min Sketch with Conservative Updates — Springer / CIAC 2023</a></div><div><a href="https://arxiv.org/html/2405.12034v1">Count-Min Sketch with Conservative Updates: Worst-Case Analysis — arXiv 2405.12034 (cite Fusy &amp; Kucherov en Related Work)</a></div><div><a href="https://arxiv.org/html/2406.07953v1">DPSW-Sketch: A Differentially Private Sketch Framework for Frequency Estimation over Sliding Windows (arXiv HTML)</a></div><div><a href="https://arxiv.org/abs/2302.11081">Differentially Private L2-Heavy Hitters in the Sliding Window Model (arXiv, Blocki et al., ICLR 2023)</a></div><div><a href="https://www.researchwithrutgers.org/en/publications/sublinear-space-private-algorithms-under-the-sliding-window-model-2/">Sublinear Space Private Algorithms Under the Sliding Window Model (Upadhyay, ICML 2019 – Rutgers)</a></div><div><a href="https://arxiv.org/abs/2402.18769">CoMeT: Count-Min-Sketch-based Row Tracking to Mitigate RowHammer at Low Cost (arXiv:2402.18769)</a></div><div><a href="https://ieeexplore.ieee.org/document/10476483/">CoMeT: Count-Min-Sketch-based Row Tracking to Mitigate RowHammer at Low Cost — IEEE Xplore HPCA 2024</a></div><div><a href="https://arxiv.org/html/2402.18769v1">CoMeT — arXiv HTML (texte complet, affiliation ETH Zürich confirmée, Table 2, résultats)</a></div><div><a href="https://github.com/CMU-SAFARI/CoMeT">CMU-SAFARI/CoMeT — dépôt GitHub (contact email safari.ethz.ch)</a></div><div><a href="https://arxiv.org/abs/1210.4891">Hokusai - Sketching Streams in Real Time (arXiv:1210.4891, UAI 2012)</a></div><div><a href="https://github.com/dgryski/hokusai">dgryski/hokusai — implémentation indépendante, README décrit la time-series de CMS agrégés</a></div><div><a href="https://blog.acolyer.org/2016/07/21/time-adaptive-sketches-ada-sketches-for-summarizing-data-streams/">Time-adaptive sketches (Ada-CMS) — The Morning Paper (blog.acolyer.org, compare Hokusai)</a></div><div><a href="https://datasketches.apache.org/">Apache DataSketches — official homepage (claim verified verbatim)</a></div><div><a href="https://yahooeng.tumblr.com/post/135390948446/data-sketches">Yahoo Engineering blog — Lee Rhodes, original source (wording: "days to hours or minutes")</a></div><div><a href="https://www.infoq.com/news/2016/01/Yahoo-open-sources-data-sketches/">InfoQ — Yahoo Open-Sources DataSketches (no independent benchmark cited)</a></div><div><a href="https://redis.io/docs/latest/develop/data-types/probabilistic/count-min-sketch/">Redis Count-Min Sketch documentation (redis.io)</a></div><div><a href="https://redis.io/blog/count-min-sketch-the-art-and-science-of-estimating-stuff/">Count-Min Sketch: The Art and Science of Estimating Stuff (Redis blog)</a></div><div><a href="https://theory.stanford.edu/~tim/s15/l/l2.pdf">Approximate Heavy Hitters and the Count-Min Sketch — Stanford CS168 lecture notes (Tim Roughgarden)</a></div><div><a href="https://arxiv.org/abs/2505.18919">Fair-Count-Min: Frequency Estimation under Equal Group-wise Approximation Factor (arXiv:2505.18919)</a></div><div><a href="https://arxiv.org/html/2505.18919">Fair-Count-Min — HTML full text (arXiv:2505.18919)</a></div><div><a href="https://blog.guillaume-pitel.fr/2014/11/count-min-log-sketch-for-on-low-frequency/">Count-Min-Log Sketch for improved Average Relative Error on low frequency events (Guillaume Pitel, 2014)</a></div><div><a href="http://www.gabormelli.com/RKB/Count-Min_Sketch_Data_Structure">Count-Min Sketch Data Structure — GM-RKB (cite le papier Cormode &amp; Muthukrishnan)</a></div><div><a href="https://redis.io/docs/latest/commands/cms.merge/">CMS.MERGE command reference – Redis official docs</a></div><div><a href="https://redis.io/docs/latest/operate/oss_and_stack/stack-with-enterprise/release-notes/redisbloom/redisbloom-2.0-release-notes/">RedisBloom 2.0 release notes – Redis official docs</a></div><div><a href="https://github.com/apache/kvrocks/discussions/2496">Count-Min Sketch Support — Apache KVRocks Discussion #2496</a></div><div><a href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/util/sketch/CountMinSketch.html">CountMinSketch (Spark 4.1.2 JavaDoc — latest) — org.apache.spark.util.sketch</a></div><div><a href="https://github.com/apache/spark/blob/master/common/sketch/src/main/java/org/apache/spark/util/sketch/CountMinSketch.java">apache/spark — CountMinSketch.java source (GitHub master)</a></div></section>
+<section id="pointers"><h3>Pour aller plus loin</h3><div class="xptr-grid"><div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2203.15496">Fusy &amp; Kucherov — Phase transition in Conservative Count-Min (CIAC 2023)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Preuve formelle de la transition de phase du Conservative Count-Min liée à la pelabilité des hypergraphes k-uniformes, avec deux régimes d'erreur selon le load factor sous distribution uniforme.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2312.07535">Aamand et al. — Improved Frequency Estimation Algorithms with and without Predictions (NeurIPS 2023)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Bornes serrées sur l'erreur des sketches augmentés de prédictions ML pour les distributions Zipfian, avec variante parcimonieuse et garanties worst-case pour Count-Min et Count-Sketch.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2406.07953">DPSW-Sketch — Differential Privacy for Sliding Windows (KDD 2024)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Extension de CMS aux fenêtres glissantes sous ρ-zCDP, avec espace et temps sous-linéaires en la taille de la fenêtre pour l'estimation de fréquence et la détection de heavy hitters.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2505.18919">Fair-Count-Min (arXiv 2025)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Variante équitable de CMS utilisant un partitionnement de colonnes et un hachage semi-uniforme par groupe pour garantir des facteurs d'approximation attendus identiques entre groupes.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://github.com/seiflotfy/count-min-log">seiflotfy/count-min-log — implémentation Go de Count-Min-Log</a><span class="xptr-kind">implementation</span><p class="xptr-blurb">Implémentation Go du sketch Count-Min-Log (compteurs logarithmiques de Morris), basée sur l'article de Pitel &amp; Fouquier (2015).</p></div>
+<div class="xptr"><a class="xptr-name" href="https://github.com/seiflotfy/cmts">seiflotfy/cmts — Count-Min Tree Sketch (Go)</a><span class="xptr-kind">implementation</span><p class="xptr-blurb">Implémentation Go du Count-Min Tree Sketch, extension pyramidale de Count-Min-Log exploitant la distribution Zipfian des données textuelles.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://datasketches.apache.org/">Apache DataSketches</a><span class="xptr-kind">library</span><p class="xptr-blurb">Bibliothèque de référence (ex-Yahoo) pour le sketching en production, avec adaptateurs Hive, Pig, PostgreSQL et BigQuery.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://redis.io/docs/latest/develop/data-types/probabilistic/count-min-sketch/">Redis — Count-Min Sketch</a><span class="xptr-kind">tool</span><p class="xptr-blurb">Implémentation native du CMS dans Redis via six commandes CMS.* (INITBYPROB, INITBYDIM, INCRBY, QUERY, INFO, MERGE), disponible depuis RedisBloom v2.0.0.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://spark.apache.org/docs/latest/api/java/org/apache/spark/util/sketch/CountMinSketch.html">Apache Spark — CountMinSketch</a><span class="xptr-kind">package</span><p class="xptr-blurb">API CountMinSketch dans org.apache.spark.util.sketch (Spark 4.1.x), classe abstraite avec factory methods, garanties d'erreur et sérialisation intégrée.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/1210.4891">Hokusai (Matusevych et al., UAI 2012)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Extension temporelle du CMS : séries chronologiques de sketches agrégés, requêtes (temps, item) en O(1).</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2402.18769">CoMeT — Count-Min Sketch pour RowHammer (HPCA 2024)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Application matérielle du CMS dans le contrôleur DRAM pour mitiger RowHammer avec un surcoût silicium minimal.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/1604.05492">Count-Min Tree Sketch (Pitel et al., 2016)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Variante du CMS à compteurs pyramidaux, optimisée pour les distributions Zipfiennes typiques du NLP.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://datasketches.apache.org/docs/Frequency/FrequentItemsReferences.html">Apache DataSketches — Frequent Items References</a><span class="xptr-kind">library</span><p class="xptr-blurb">Page de références scientifiques d'Apache DataSketches pour les structures de comptage fréquent, incluant le Count-Min Sketch.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://github.com/addthis/stream-lib/blob/master/src/main/java/com/clearspring/analytics/stream/frequency/CountMinSketch.java">stream-lib — CountMinSketch (Clearspring / AddThis)</a><span class="xptr-kind">implementation</span><p class="xptr-blurb">Implémentation Java de référence (Maven : com.clearspring.analytics:stream), source historique des intégrations Spark et Akka, archivée en 2020.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://pyprobables.readthedocs.io/en/latest/quickstart.html">pyprobables</a><span class="xptr-kind">package</span><p class="xptr-blurb">Bibliothèque Python proposant CountMinSketch, CountMeanSketch et CountMeanMinSketch, compatible binaire avec l'implémentation C barrust/count-min-sketch.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://pypi.org/project/count_min_sketch/">count_min_sketch (PyPI)</a><span class="xptr-kind">package</span><p class="xptr-blurb">Implémentation Python pure sans dépendances (Apache 2.0), version 3.0.4 ; à considérer pour sa simplicité d'installation sur des projets légers.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://dimacs.rutgers.edu/~graham/pubs/papers/cm-full.pdf">Cormode &amp; Muthukrishnan 2005 — J. Algorithms (PDF DIMACS)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Papier fondateur du Count-Min Sketch (J. Algorithms 55(1), 2005) : preuves de garantie, variantes et applications aux heavy hitters, quantiles et produits internes.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://sites.google.com/site/countminsketch/">Site officiel Count-Min Sketch (G. Cormode)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Page personnelle de Graham Cormode centralisant papiers, extensions, implémentations et applications du Count-Min Sketch, lauréat du prix Imre Simon Test-of-Time 2014.</p></div></div></section>
+<section id="glossaire"><h3>Glossaire</h3><div class="gloss-grid"><div class="gterm"><span class="gt-name">Count-Min Sketch</span><p class="gt-def">Esquisse de comptage (sketch probabiliste) introduite par Graham Cormode et S. Muthu Muthukrishnan (rapport DIMACS 2003-20, LATIN 2004, Journal of Algorithms 55(1):58-75, 2005) pour estimer les fréquences des éléments d'un flux en mémoire sous-linéaire. C'est un tableau de d lignes x w colonnes de compteurs, alimenté par d fonctions de hachage 2-universelles : l'update incrémente une cellule par ligne en O(d), la point query renvoie le minimum des d cellules lues. Avec w = ceil(e/epsilon) et d = ceil(ln(1/delta)), l'estimation tombe dans [a_j, a_j + epsilon*N] avec probabilité au moins 1-delta. Le papier a reçu le prix Imre Simon Test-of-Time à LATIN 2014.</p><p class="gt-see">→ Point query, Count Sketch, Conservative Update</p></div>
+<div class="gterm"><span class="gt-name">Point query</span><p class="gt-def">Requête ponctuelle : estimation de la fréquence d'un seul élément i. Le Count-Min Sketch la calcule par min_j count[j, h_j(i)] (minimum sur les d lignes) en temps O(d), indépendant de la taille du flux et du nombre d'éléments distincts. Dans le modèle cash register, elle ne sous-estime jamais (a_chapeau_i &gt;= a_i) et surestime d'au plus epsilon*N avec probabilité au moins 1-delta : l'erreur est strictement unilatérale (one-sided error).</p><p class="gt-see">→ Count-Min Sketch, Cash register / turnstile model, Heavy hitters</p></div>
+<div class="gterm"><span class="gt-name">Heavy hitters</span><p class="gt-def">Éléments lourds : items dont la fréquence dépasse une fraction phi du volume total N du flux. Le Count-Min Sketch ne les énumère pas de lui-même (il ne sait pas restituer ses clés) : leur détection requiert une structure auxiliaire (liste ou tas de candidats), un second passage sur le flux, ou une décomposition dyadique pour parcourir le domaine. Sur les distributions Zipfiennes, où une poignée d'items concentre l'essentiel du volume, c'est le cas d'usage où la borne d'erreur additive epsilon*N reste relativement faible.</p><p class="gt-see">→ Point query, Dyadic decomposition</p></div>
+<div class="gterm"><span class="gt-name">Conservative Update</span><p class="gt-def">Mise à jour conservative : variante où, à chaque insertion, on n'incrémente que les cellules de l'item égales à son minimum courant (au lieu des d cellules), ce qui réduit la surestimation. Elle améliore nettement la précision en pratique mais brise la linéarité du Count-Min Sketch, donc la fusion additive (merge) d'esquisses. Fusy et Kucherov (CIAC 2023, arXiv 2203.15496) ont montré que son erreur relative sous distribution uniforme subit une transition de phase au seuil de pelabilité (peelability) des hypergraphes k-uniformes sous-jacents.</p><p class="gt-see">→ Count-Min Sketch</p></div>
+<div class="gterm"><span class="gt-name">Count Sketch</span><p class="gt-def">Esquisse de comptage de Charikar, Chen et Farach-Colton (2002), antérieure et apparentée au Count-Min Sketch. Un second jeu de fonctions de hachage signées g_j : U -&gt; {-1, +1} signe les contributions, et l'estimateur final est la médiane (non la moyenne) des comptes signés à travers les d lignes. Sa borne d'erreur est en norme L2 au coût d'un espace O(1/epsilon^2), là où le Count-Min Sketch borne en norme L1 pour O(1/epsilon) : les deux garanties sont qualifiées d'incomparables dans la littérature.</p><p class="gt-see">→ Count-Min Sketch</p></div>
+<div class="gterm"><span class="gt-name">Cash register / turnstile model</span><p class="gt-def">Modèles de flux. Le cash register n'autorise que des insertions (mises à jour non négatives) ; le turnstile autorise insertions et suppressions (mises à jour négatives), strict si les fréquences cumulées restent &gt;= 0 à tout instant, général sinon. La non-sous-estimation du Count-Min Sketch (a_chapeau_j &gt;= a_j) tient tant que les fréquences cumulées restent non négatives — donc en cash register et en turnstile strict — et n'échoue que dans le turnstile général, où une fréquence peut elle-même passer sous zéro.</p><p class="gt-see">→ Point query, Count-Min Sketch</p></div>
+<div class="gterm"><span class="gt-name">Dyadic decomposition</span><p class="gt-def">Décomposition dyadique : technique répondant aux range queries (requêtes par plage). Tout intervalle [l, r] sur un domaine de taille U se décompose en O(log U) plages dyadiques (intervalles alignés sur des puissances de deux), chacune servie par une esquisse maintenue à l'échelle correspondante. Le papier original en fait une fundamental query du Count-Min Sketch, avec une borne d'erreur propre de l'ordre de epsilon*norme1(a)*log U.</p><p class="gt-see">→ Heavy hitters, Count-Min Sketch</p></div></div></section>
+</main>
+</div>
+<!-- ───────────────────────────────────────────────────────────────────
+     COUCHE THÈME — bouton bascule dark-mode + infobulles de glossaire.
+     Extrait du widget theme-tooltips (CSS exclus : voir charte.css).
+     Injecté verbatim dans toutes les éditions à l'emplacement du jeton THEME_LAYER.
+     ─────────────────────────────────────────────────────────────────── -->
+
+<!-- (B) BOUTON BASCULE -->
+<button id="theme_toggle" type="button" aria-pressed="false"
+        title="Basculer le thème clair / sombre">
+  <span id="theme_toggle_ico" aria-hidden="true">☾</span>
+  <span id="theme_toggle_lbl">Sombre</span>
+</button>
+
+<!-- Popover unique réutilisé (créé aussi par JS en secours) -->
+<div id="theme_tip" role="tooltip" aria-hidden="true"></div>
+
+<!-- SCRIPT — (B) bascule + persistance, (C) infobulles accessibles.
+     Tout en IIFE, fonctions préfixées theme_. Aucun alert. -->
+<script>
+(function(){
+  "use strict";
+  var KEY = "theme_pref_v1";
+  var docEl = document.documentElement;
+
+  /* ---- stockage sûr : jamais d'erreur si localStorage indisponible ---- */
+  function theme_read(){
+    try { return window.localStorage.getItem(KEY); } catch(e){ return null; }
+  }
+  function theme_write(v){
+    try { window.localStorage.setItem(KEY, v); } catch(e){ /* silencieux */ }
+  }
+
+  /* ---- (B) application du thème ---- */
+  function theme_apply(mode, persist){
+    var dark = (mode === "dark");
+    if (dark) docEl.setAttribute("data-theme","dark");
+    else docEl.removeAttribute("data-theme");
+    var btn = document.getElementById("theme_toggle");
+    if (btn){
+      btn.setAttribute("aria-pressed", dark ? "true" : "false");
+      var ico = document.getElementById("theme_toggle_ico");
+      var lbl = document.getElementById("theme_toggle_lbl");
+      if (ico) ico.textContent = dark ? "☀" : "☾";
+      if (lbl) lbl.textContent = dark ? "Clair" : "Sombre";
+    }
+    if (persist) theme_write(dark ? "dark" : "light");
+  }
+
+  /* Appliquer la préférence au plus tôt (limite le flash). */
+  theme_apply(theme_read() === "dark" ? "dark" : "light", false);
+
+  function theme_initToggle(){
+    var btn = document.getElementById("theme_toggle");
+    if (!btn) return;
+    btn.addEventListener("click", function(){
+      docEl.classList.add("theme-anim"); /* transitions seulement sur action */
+      var nowDark = docEl.getAttribute("data-theme") === "dark";
+      theme_apply(nowDark ? "light" : "dark", true);
+    });
+  }
+
+  /* ---- (C) infobulles accessibles ---- */
+  var tip = null, current = null, uid = 0;
+
+  function theme_tipEl(){
+    if (tip) return tip;
+    tip = document.getElementById("theme_tip");
+    if (!tip){
+      tip = document.createElement("div");
+      tip.id = "theme_tip";
+      tip.setAttribute("role","tooltip");
+      tip.setAttribute("aria-hidden","true");
+      document.body.appendChild(tip);
+    }
+    return tip;
+  }
+
+  function theme_show(el){
+    var def = el.getAttribute("data-def");
+    if (!def) return;
+    var t = theme_tipEl();
+    t.textContent = def; /* textContent : aucune injection HTML possible */
+    if (!el.id) el.id = "theme_gloss_" + (++uid);
+    t.id = "theme_tip"; /* stable */
+    el.setAttribute("aria-describedby", "theme_tip");
+
+    /* mesure puis positionnement (au-dessus si la place le permet) */
+    t.style.left = "0px"; t.style.top = "0px";
+    t.setAttribute("aria-hidden","false");
+    t.setAttribute("data-show","1");
+
+    var r = el.getBoundingClientRect();
+    var tw = t.offsetWidth, th = t.offsetHeight;
+    var sx = window.pageXOffset, sy = window.pageYOffset;
+    var margin = 8;
+
+    var left = r.left + sx + (r.width/2) - (tw/2);
+    left = Math.max(sx + margin, Math.min(left, sx + document.documentElement.clientWidth - tw - margin));
+
+    var below = (r.top < th + 12); /* pas de place au-dessus → on passe dessous */
+    var top = below ? (r.bottom + sy + 8) : (r.top + sy - th - 8);
+    if (below) t.setAttribute("data-below","1"); else t.removeAttribute("data-below");
+
+    /* recentre la flèche sur le terme */
+    var ax = (r.left + sx + r.width/2) - left;
+    ax = Math.max(8, Math.min(ax, tw - 16));
+    t.style.setProperty("--theme-tip-ax", ax + "px");
+
+    t.style.left = left + "px";
+    t.style.top = top + "px";
+    current = el;
+  }
+
+  function theme_hide(){
+    if (!tip) return;
+    tip.removeAttribute("data-show");
+    tip.setAttribute("aria-hidden","true");
+    if (current){
+      current.removeAttribute("aria-describedby");
+      current = null;
+    }
+  }
+
+  function theme_wire(el){
+    if (el.getAttribute("data-theme-wired")) return;
+    el.setAttribute("data-theme-wired","1");
+    if (!el.hasAttribute("tabindex")) el.setAttribute("tabindex","0");
+    el.addEventListener("mouseenter", function(){ theme_show(el); });
+    el.addEventListener("mouseleave", theme_hide);
+    el.addEventListener("focus", function(){ theme_show(el); });
+    el.addEventListener("blur", theme_hide);
+  }
+
+  function theme_scan(root){
+    var nodes = (root || document).querySelectorAll(".theme-gloss[data-def]");
+    for (var i=0;i<nodes.length;i++) theme_wire(nodes[i]);
+  }
+
+  /* Échap referme ; un défilement masque l'infobulle (position figée sinon) */
+  document.addEventListener("keydown", function(e){
+    if (e.key === "Escape" || e.keyCode === 27) theme_hide();
+  });
+  window.addEventListener("scroll", theme_hide, true);
+
+  /* Termes ajoutés dynamiquement après coup */
+  function theme_observe(){
+    if (typeof MutationObserver === "undefined") return;
+    var mo = new MutationObserver(function(muts){
+      for (var i=0;i<muts.length;i++){
+        var added = muts[i].addedNodes;
+        for (var j=0;j<added.length;j++){
+          var n = added[j];
+          if (n.nodeType === 1){
+            if (n.classList && n.classList.contains("theme-gloss")) theme_wire(n);
+            if (n.querySelectorAll) theme_scan(n);
+          }
+        }
+      }
+    });
+    mo.observe(document.body, {childList:true, subtree:true});
+  }
+
+  /* ---- init ---- */
+  function theme_init(){
+    theme_apply(theme_read() === "dark" ? "dark" : "light", false);
+    theme_initToggle();
+    theme_scan(document);
+    theme_observe();
+  }
+  if (document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", theme_init);
+  } else {
+    theme_init();
+  }
+})();
+</script>
+
+<footer><div class="fin">Count-Min Sketch : estimer des fréquences en flux à mémoire bornée · scriptorium</div></footer>
+<script>
+  const prog=document.getElementById('prog');
+  const onScroll=()=>{const h=document.documentElement;const sc=h.scrollTop;const max=h.scrollHeight-h.clientHeight;
+    prog.style.width=(max>0?(sc/max*100):0)+'%';};
+  document.addEventListener('scroll',onScroll,{passive:true});onScroll();
+  const links=[...document.querySelectorAll('nav.toc a')];
+  const map=new Map(links.map(a=>[a.getAttribute('href').slice(1),a]));
+  const obs=new IntersectionObserver((entries)=>{entries.forEach(e=>{
+    if(e.isIntersecting){links.forEach(l=>l.classList.remove('active'));
+      const a=map.get(e.target.id); if(a)a.classList.add('active');}});
+  },{rootMargin:'-12% 0px -78% 0px',threshold:0});
+  document.querySelectorAll('section[id]').forEach(s=>obs.observe(s));
+</script>
+</body></html>
