@@ -1,0 +1,37 @@
+[
+  {
+    "term": "TabPFN (Tabular Prior-data Fitted Network)",
+    "definition": "Réseau ajusté sur données du prior, pour le tabulaire : un transformer pré-entraîné une seule fois sur des jeux de données synthétiques, qui prédit sur une table nouvelle en un seul forward pass — tout le jeu d'entraînement passé en contexte — sans aucune mise à jour de gradient (rétropropagation), sans réentraînement ni hyperparameter tuning (réglage des hyperparamètres). TabPFN v1 (Hollmann, Müller, Eggensperger, Hutter ; ICLR 2023) est limité à 1 000 échantillons, 100 features et 10 classes ; TabPFN v2 (Hollmann et al., Nature 637, 8045, p. 319-326, 2025) repousse ces limites à 10 000 échantillons et 500 features, en conservant la limite de 10 classes. Sur ce périmètre restreint, v2 prédit en moyenne en ~2,8 s et surpasse des baselines classiques (XGBoost, CatBoost, LightGBM, random forest) tunées 4 heures ; cet avantage ne tient ni en haute dimension (d ≥ 2 000) ni sur les grands jeux de données.",
+    "see_also": "Prior-data Fitted Network (PFN), In-context learning (ICL), Structural causal model (SCM) prior"
+  },
+  {
+    "term": "Prior-data Fitted Network (PFN)",
+    "definition": "Réseau ajusté sur données du prior : paradigme (Müller et al., 2022) qui amortit l'inférence bayésienne. Le modèle est pré-entraîné sur des jeux de données synthétiques tirés d'un prior sur des tâches supervisées — Gaussian Process ou réseau de neurones bayésien dans le papier fondateur, structural causal models dans TabPFN — en minimisant la negative log-likelihood (NLL) sur un pseudo-test synthétique. À convergence, le modèle approxime directement la posterior predictive distribution p(y_test | D_train, x_test) pour tout jeu de données compatible avec le prior, sans jamais résoudre explicitement un posterior : l'inférence bayésienne est « compilée » dans les poids pendant le pré-entraînement, puis amortie sur chaque tâche nouvelle au moment de l'inférence.",
+    "see_also": "TabPFN (Tabular Prior-data Fitted Network), Posterior predictive distribution, Structural causal model (SCM) prior"
+  },
+  {
+    "term": "Posterior predictive distribution",
+    "definition": "Distribution prédictive postérieure : la quantité bayésienne p(y_test | D_train, x_test) qu'un PFN apprend à approximer, obtenue en marginalisant la prédiction sur le posterior des hypothèses compatibles avec les données d'entraînement. L'objectif de TabPFN est un estimateur non biaisé de la cross-entropie conditionnelle H_cond(p) + KL_cond(p ‖ q_θ) ; le minimiser équivaut à minimiser la KL divergence conditionnelle (l'entropie étant constante en θ). Point crucial : cette approximation est définie par rapport au prior synthétique (SCM simulé), non par rapport aux distributions réelles. TabPFN n'est donc pas une approximation « fidèle » de la vraie posterior predictive bayésienne pour les données tabulaires réelles en général — il viole la propriété de martingale requise pour une inférence cohérente, produit des estimateurs inconsistants dont le biais ne s'annule pas quand n→∞, et il n'existe ni borne PAC ni théorème de convergence.",
+    "see_also": "Prior-data Fitted Network (PFN), Structural causal model (SCM) prior"
+  },
+  {
+    "term": "In-context learning (ICL)",
+    "definition": "Apprentissage en contexte : à l'inférence, le jeu d'entraînement est fourni comme contexte et le modèle conditionne sa prédiction dessus, sans aucune mise à jour de poids. Dans TabPFN v2, ce sont les randomized feature tokens R = WP (P tiré aléatoirement une fois par dataset, W appris) qui remplacent des embeddings appris spécifiques au dataset par des perturbations aléatoires, permettant de traiter des jeux de données hétérogènes — features entièrement inédits, comme un nouveau jeu biomédical — sans réentraînement. Le ré-échantillonnage de P par dataset introduit une stochasticité qui motive l'ensembling (agrégation de plusieurs passes sur des permutations de features et de labels) pour stabiliser les prédictions.",
+    "see_also": "TabPFN (Tabular Prior-data Fitted Network), TabICL (Tabular In-Context Learning)"
+  },
+  {
+    "term": "Structural causal model (SCM) prior",
+    "definition": "Prior de modèles causaux structurels : le processus génératif synthétique de TabPFN, où chaque variable Z_k est définie par Z_k = f_k(Z_parents(k), ε_k), f_k étant tiré aléatoirement parmi des réseaux de neurones (MLP) et des arbres de décision (un MLP génère une relation non linéaire, un arbre peu profond une relation à seuils). TabPFN v2 a été pré-entraîné sur environ 130 millions de jeux de données ainsi générés. La préférence du prior pour les structures simples couvre efficacement une large part des petits jeux de données tabulaires, mais ne suffit pas à couvrir l'ensemble des distributions réelles — données à grande dimension, grands jeux de données, confondeurs latents ou structures causales denses — où le prior peut être mal spécifié.",
+    "see_also": "Prior-data Fitted Network (PFN), Posterior predictive distribution, TabPFN (Tabular Prior-data Fitted Network)"
+  },
+  {
+    "term": "Row-wise / column-wise attention",
+    "definition": "Attention ligne / colonne (et non « attention bidirectionnelle » au sens standard) : la représentation interne de TabPFN v2 est un tenseur (N+1) × (d+1) × k traité par deux attentions alternées en passes séparées — l'attention row-wise (inter-features au sein d'un même échantillon) et l'attention column-wise (inter-échantillons pour une feature donnée). nanoTabPFN les réimplémente explicitement sous les noms « Feature Attention » et « Datapoint Attention », sans positional encoding. Sa complexité O(Nd(N+d)) reste inférieure à celle d'une attention pleine sur la séquence aplatie (O(N²d²)). Le modèle est invariant aux permutations de lignes, mais PAS aux permutations de colonnes par défaut : une matrice positionnelle apprise W est appliquée aux groupes de features, rendant les performances sensibles à l'ordre des colonnes (jusqu'à 8 points de pourcentage d'écart) ; l'invariance colonne exige W = 0, un réglage non-défaut.",
+    "see_also": "TabPFN (Tabular Prior-data Fitted Network), TabICL (Tabular In-Context Learning)"
+  },
+  {
+    "term": "TabICL (Tabular In-Context Learning)",
+    "definition": "Apprentissage tabulaire en contexte (Qu et al., ICML 2025) : variante conçue pour le passage à l'échelle de TabPFN v2. Une column-then-row attention collapse d'abord la dimension colonne pour produire des embeddings de ligne de dimension fixe, réduisant l'empreinte mémoire. Pré-entraîné sur des jeux de données synthétiques jusqu'à 60 000 échantillons, TabICL supporte l'inférence sur 500 000 échantillons et surpasse TabPFN v2 et CatBoost sur les 53 datasets du benchmark TALENT comptant plus de 10 000 échantillons, tout en étant jusqu'à 10× plus rapide. Il reste néanmoins lent à l'inférence single-record face à un gradient-boosted tree (LightGBM, XGBoost), ce qui le positionne plutôt pour le prototypage rapide que comme remplacement en production.",
+    "see_also": "TabPFN (Tabular Prior-data Fitted Network), In-context learning (ICL), Row-wise / column-wise attention"
+  }
+]
