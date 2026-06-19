@@ -1,0 +1,37 @@
+[
+  {
+    "term": "Information extraction (IE)",
+    "definition": "Extraction d'information : transformer du texte non structuré en enregistrements typés machine-exploitables. Ses tâches canoniques les plus citées sont la NER (named entity recognition — reconnaissance d'entités nommées : localisation de spans et typage), la RE (relation extraction — extraction de relations : classification entre entités ou extraction conjointe de triplets entité-relation-entité) et l'EE (event extraction — extraction d'événements : détection de triggers typés et d'arguments à rôles), beaucoup de travaux y ajoutant l'ABSA. Depuis ~2023 le paradigme bascule du discriminatif vers le génératif, sans supériorité générative généralisée : les LLM gagnent sur l'EE, mais les modèles discriminatifs fine-tunés restent compétitifs voire supérieurs sur la NER en domaine spécialisé.",
+    "see_also": "Function calling, Source grounding, Constrained decoding"
+  },
+  {
+    "term": "Function calling",
+    "definition": "Appel de fonction (aussi tool calling — appel d'outil) : l'extraction vue comme production d'arguments JSON fondés sur un schéma fourni par l'appelant. Introduit en juin 2023, le mécanisme originel repose sur un comportement appris à l'entraînement (schéma injecté dans le message système, sortie « best-effort » sans garantie de conformité) ; le mode strict (strict: true, août 2024) l'aligne sur le constrained decoding. Ses schémas étant nettement plus simples que les tâches d'extraction difficiles, il constitue un proxy peu fiable de la capacité d'extraction structurée générale.",
+    "see_also": "Structured outputs, Constrained decoding, Information extraction (IE)"
+  },
+  {
+    "term": "Structured outputs",
+    "definition": "Sorties structurées : mode (OpenAI, gpt-4o-2024-08-06, août 2024) qui ajoute un constrained decoding par grammaire hors-contexte (masquage dynamique des tokens invalides) garantissant la conformité syntaxique au schéma JSON fourni (response_format json_schema, strict: true), là où gpt-4-0613 reste sous 40 % de conformité. La garantie est forte mais non absolue en production (refus de sécurité, schémas profondément imbriqués, forte concurrence) et purement syntaxique : un champ obligatoire pousse le modèle à fabriquer une valeur confiante plutôt qu'à exprimer l'incertitude. Le champ refusal vise à rendre les refus de sécurité programmatiquement détectables.",
+    "see_also": "Function calling, Constrained decoding, Alignment tax"
+  },
+  {
+    "term": "Constrained decoding",
+    "definition": "Décodage contraint : restreindre à chaque étape de génération l'ensemble des tokens admissibles (masquage par grammaire, FSM ou DFA) pour garantir la SYNTAXE — pas le sens. XGrammar partitionne le vocabulaire en tokens context-independent (validés hors ligne) et context-dependent (vérifiés à l'exécution), avec un surcoût sous 40 µs par token sur JSON Schema ; SynCode prouve son DFA mask store sound (aucun token valide filtré) inconditionnellement et complete sous conditions. Garantir la syntaxe peut toutefois dégrader le raisonnement : un JSON conforme au schéma peut halluciner la totalité de ses valeurs.",
+    "see_also": "Structured outputs, Alignment tax, Source grounding"
+  },
+  {
+    "term": "Source grounding",
+    "definition": "Ancrage aux empans sources (aussi span grounding) : relier chaque valeur extraite à l'empan exact — le char interval (intervalle de caractères) — du texte d'origine, ce qui permet une vérification déterministe et le filtrage des spans hallucinés. Dans LangExtract, le resolver positionne char_interval = None lorsqu'il ne localise pas la chaîne extraite dans la source, détectant un sous-ensemble d'extractions non-ancrées (dont les artefacts few-shot) sans aucun appel LLM supplémentaire. C'est un filtre utile contre un cas précis, non un indicateur complet des hallucinations : correspondances floues (FUZZY) et hallucinations sémantiques ancrables passent inaperçues.",
+    "see_also": "LangExtract, Information extraction (IE), Constrained decoding"
+  },
+  {
+    "term": "LangExtract",
+    "definition": "Bibliothèque open-source de Google pour l'extraction structurée fondée sur Gemini : elle exploite le controlled generation de l'API (response_schema) pour des sorties JSON syntaxiquement conformes, découpe les longs documents (chunking) et applique des passes multiples (extraction_passes) pour améliorer le recall, et ancre chaque entité à un objet CharInterval(start_pos, end_pos) — end_pos exclusif — ou None si non localisable. lx.visualize() produit un affichage HTML interactif où chaque empan source est surligné et inspectable.",
+    "see_also": "Source grounding, Constrained decoding"
+  },
+  {
+    "term": "Alignment tax",
+    "definition": "Taxe d'alignement : terme issu de la littérature RLHF (dégradation des capacités causée par l'alignement de sécurité à l'entraînement), réutilisé de façon non canonique pour le coût sémantique du constrained decoding à l'inférence. Contraindre le format peut dégrader le raisonnement en court-circuitant le chain-of-thought : GPT-3.5-Turbo perd 26,74 points sur GSM8K sous JSON-mode (avec 0,13 % d'erreurs de parsing seulement), le mode JSON plaçant la clé « answer » avant « reason ». L'effet est strictement dépendant de la tâche : bénéfique pour la classification à réponse finie (+18,7 pts sur DDXPlus), nuisible pour le raisonnement multi-étapes.",
+    "see_also": "Constrained decoding, Structured outputs"
+  }
+]
