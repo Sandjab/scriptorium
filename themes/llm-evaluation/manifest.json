@@ -1,0 +1,471 @@
+{
+ "edition": "monographie",
+ "slug": "llm-evaluation",
+ "meta": {
+  "title": "Évaluation des LLM et LLM-as-a-Judge",
+  "kicker": "LLM-as-a-Judge · monographie",
+  "h1": "Évaluation des LLM et LLM-as-a-Judge",
+  "lede": "Déléguer l'évaluation des sorties d'un modèle à un LLM-juge atteint le niveau d'accord inter-humain dans des conditions restreintes — mais reste traversé de biais systématiques (position, verbosité, auto-préférence) qui interdisent de réduire sa validation à un seul taux d'accord.",
+  "meta_chips": [
+   "Monographie"
+  ],
+  "footer": "Évaluation des LLM et LLM-as-a-Judge · scriptorium"
+ },
+ "elements": [
+  {
+   "type": "abstract"
+  },
+  {
+   "type": "section",
+   "id": "fondations-paradigme",
+   "heading": "Le paradigme LLM-as-a-Judge : origine et promesse",
+   "level": 3,
+   "prose": "<p>Évaluer un grand modèle de langage sur des tâches ouvertes — résumer, expliquer, argumenter — bute sur une difficulté fondamentale : les métriques automatiques comme BLEU ou ROUGE mesurent une proximité lexicale qui ne capture pas la qualité perçue par un humain, tandis que les annotations humaines restent coûteuses, lentes et difficiles à reproduire à grande échelle. C'est pour combler cet écart que Zheng et al. formalisent, dans un papier soumis en juin 2023 et présenté à NeurIPS 2023, le paradigme désormais connu sous le nom de <em>LLM-as-a-Judge</em> : confier l'évaluation des sorties de modèles à un LLM fort — en l'occurrence GPT-4 — en lieu et place d'annotateurs humains. Le principe est direct : le juge reçoit une question, une ou plusieurs réponses candidates, et produit un verdict selon un rubric fourni dans le prompt, sans intervention humaine dans la boucle d'évaluation.</p>\n\n<p>Le papier introduit deux artefacts compagnons qui ancrent empiriquement la proposition. MT-Bench est un banc d'essai de 80 questions multi-tour réparties en 8 catégories — écriture (<em>writing</em>), jeu de rôle (<em>roleplay</em>), extraction, raisonnement, mathématiques, code, STEM et sciences humaines/sociales — conçues pour discriminer les modèles sur des tâches exigeant une continuité conversationnelle. Chatbot Arena est une plateforme crowdsourcée lancée en 2023 par LMSYS où des utilisateurs comparent deux modèles anonymes côte à côte et votent pour le meilleur avant que les noms soient révélés. Les deux corpus sont publiés en open source : 3 000 votes d'experts et 30 000 conversations avec préférences humaines sont rendus publics, fournissant à la communauté une base d'étalonnage reproductible.</p>\n\n<p>Le résultat fondateur que retient la littérature est le suivant : GPT-4 utilisé comme juge pairwise atteint 85 % d'accord avec les évaluateurs humains (configuration sans tie), alors que l'accord entre annotateurs humains eux-mêmes n'est que de 81 %. Cette convergence est souvent résumée par la formule « GPT-4 atteint le niveau d'accord inter-humain », mais la formule mérite une lecture précise : ce taux de ~80–85 % ne représente pas une cible à dépasser, il constitue le <em>plancher de bruit</em> inhérent au désaccord humain sur des tâches subjectives. Dépasser ce seuil n'est pas seulement difficile — c'est conceptuellement mal défini, car aucun évaluateur (humain ou artificiel) ne peut être « plus correct » que le consensus humain lorsque les préférences sont elles-mêmes dispersées.</p>\n\n<p>Zheng et al. distinguent dès leur papier fondateur trois modes d'interrogation du juge. Le mode <em>pointwise</em> (notation absolue) soumet une réponse unique contre un rubric et produit un score numérique ou une étiquette qualitative — méthode rapide, sans modèle de référence, adaptée au monitoring continu. Le mode <em>pairwise</em> (comparaison par paires) présente deux réponses et demande au juge laquelle est préférable — plus facile cognitivement pour le juge, mais coûteux en appels : comparer cinq variantes exige dix comparaisons. Le mode <em>listwise</em> classe simultanément plusieurs réponses en un seul appel. Le papier introduit également la parade <em>swap-and-tie</em> pour le <em>position bias</em> (biais de position) : chaque comparaison pairwise est exécutée deux fois avec l'ordre des réponses inversé ; la victoire n'est déclarée que si la même réponse gagne dans les deux ordres, l'incohérence étant déclarée égalité. Cette précaution est directement motivée par l'observation que les LLM tendent à favoriser la réponse placée en première position, indépendamment de sa qualité.</p>",
+   "claims": [
+    "claim:1",
+    "claim:2",
+    "claim:3",
+    "claim:4"
+   ]
+  },
+  {
+   "type": "widget",
+   "ref": "probe-swap-and-tie"
+  },
+  {
+   "type": "section",
+   "id": "modes-jugement",
+   "heading": "Modes de jugement : pointwise, pairwise, listwise",
+   "level": 3,
+   "prose": "<p>Trois paradigmes structurent l'évaluation automatisée des sorties de modèles de langage. Dans l'approche <strong>pointwise</strong> (score absolu), le juge reçoit un seul candidat et un rubric, puis attribue une note sur une échelle (souvent de 1 à 5 ou de 1 à 10) sans aucun élément de comparaison explicite. Ce mode est économique en appels d'API et adapté au monitoring continu : on peut scorer chaque réponse indépendamment, sans avoir à constituer des paires. Dans l'approche <strong>pairwise</strong> (comparaison par paires), deux candidats sont présentés simultanément au juge, qui désigne le meilleur ou déclare une égalité ; c'est le format canonique pour produire les données de préférence qui alimentent le RLHF. Enfin, l'approche <strong>listwise</strong> (classement simultané) soumet n&gt;2 candidats en un seul appel et demande un classement ordinal complet : elle maximise l'information extraite par passage mais son coût en contexte croît quadratiquement avec le nombre de candidats, ce qui la rend peu pratique au-delà d'une poignée d'options.</p>\n\n<p>La supériorité relative du pairwise sur le pointwise pour l'alignement humain est souvent avancée au motif que comparer deux réponses serait cognitivement plus naturel, à l'image du judgment humain fondé sur la préférence directe. L'accord inter-humain sur les comparaisons par paires est effectivement élevé — GPT-4 utilisé comme juge sur MT-Bench atteint plus de 80 % d'accord avec les préférences humaines, au même niveau que l'accord inter-annotateurs. Cependant, la stabilité intrinsèque de ces verdicts est remise en question par des travaux récents : aucun des juges SOTA testés dans le Judge Reliability Harness (2026) n'est uniformément fiable sur les benchmarks de sécurité, persuasion, mauvais usage et agentique, et de simples changements de formatage, paraphrases ou variations de verbosité suffisent à renverser les verdicts. La supériorité proclamée d'un format est donc conditionnelle : elle tient sur des données « propres » mais s'effondre face aux biais systémiques introduits par des attributs parasites — longueur, mise en forme, position.</p>\n\n<p>G-Eval (Liu et al., 2023) illustre comment affiner la qualité du scoring pointwise. Le principe combine trois mécanismes : un prompt de <strong>chain-of-thought</strong> (raisonnement en chaîne) qui génère d'abord des étapes d'évaluation explicites, un <strong>form-filling paradigm</strong> (paradigme de remplissage de formulaire) où le juge attribue un score par critère, et — point technique clé — un <strong>probability weighting</strong> (pondération par les probabilités des tokens de score) : au lieu de prendre la valeur entière émise par le modèle, G-Eval calcule l'espérance du score en pondérant chaque valeur possible par sa probabilité token, soit score = Σ p(s<sub>i</sub>) × s<sub>i</sub>. Ce mécanisme produit des scores continus à fine granularité, réduisant les ex-æquo artificiels. Sur la tâche de résumé (SummEval), G-Eval-4 atteint une corrélation de Spearman de 0,514 en moyenne, surpassant nettement ROUGE-1 (0,192) et BERTScore (0,225). Ce gain vient principalement du raisonnement structuré et du weighting probabiliste. G-Eval identifie néanmoins un biais propre aux évaluateurs LLM : le modèle juge assigne systématiquement des scores plus élevés aux textes générés par un LLM similaire à lui-même qu'aux textes rédigés par des humains, même lorsque les annotateurs humains préfèrent ces derniers — mécanisme sous-jacent relié à la familiarité textuelle (perplexité basse) plutôt qu'à une reconnaissance explicite.</p>",
+   "claims": [
+    "claim:5",
+    "claim:7",
+    "claim:8"
+   ]
+  },
+  {
+   "type": "widget",
+   "ref": "probe-g-eval-esperance-score"
+  },
+  {
+   "type": "section",
+   "id": "benchmarks-plateformes",
+   "heading": "Bancs d'essai et plateformes : MT-Bench, Chatbot Arena, AlpacaEval",
+   "level": 3,
+   "prose": "<p>MT-Bench (Zheng et al., NeurIPS 2023) pose les bases de l'évaluation multi-tours automatisée : 80 questions réparties en 8 catégories (écriture, roleplay, extraction, raisonnement, mathématiques, programmation, STEM, sciences sociales), chacune structurée en deux tours pour tester la cohérence conversationnelle et pas seulement la réponse isolée. GPT-4 joue le rôle de juge, attribuant un score de 1 à 10 ; les auteurs publient 3 000 votes d'experts et 30 000 conversations avec préférences humaines pour valider ce choix. L'accord GPT-4 ↔ humain atteint 85 % en setup S2 (c'est-à-dire en excluant les votes « ex aequo »), pour un accord inter-humain mesuré à 81 % ; en incluant les ties (setup S1), cet accord tombe à 70 %. Le papier lui-même documente par ailleurs des biais importants — position bias, verbosity bias et self-preference bias — mesurés de façon systématique pour la première fois sur un benchmark structuré, qui limitent la portée du juge automatique.</p>\n\n<p>Chatbot Arena (lancé en 2023 par LMSYS) adopte une philosophie radicalement différente : des utilisateurs réels soumettent leurs propres questions, choisissent entre deux modèles anonymes en combat (blind battle) et votent pour la réponse préférée. Rapidement, l'équipe remplace le système Elo en ligne — conçu pour des joueurs évoluant au fil du temps — par le modèle Bradley-Terry (BT), estimé par maximum de vraisemblance (MLE) sur l'ensemble des données historiques. La justification est statistiquement motivée : les poids d'un LLM sont figés, donc l'hypothèse de stationnarité du BT est plus appropriée que le suivi dynamique d'Elo ; de plus, le MLE batch donne des intervalles de confiance plus étroits et plus fiables que les mises à jour en ligne. Dans la méthodologie académique de référence (Chiang et al., ICML 2024), ces intervalles sont obtenus par erreurs standard robustes de type sandwich sur les scores BT-MLE, ce qui permet de quantifier l'incertitude en fonction du nombre de battles et d'afficher des barres d'erreur plus larges pour les modèles peu évalués. L'accord entre votants crowd-source et experts atteint 72,8 % à 83,1 % selon la paire de modèles considérée (données du papier Chiang et al., ICML 2024), ce qui valide la représentativité du crowd.</p>\n\n<p>AlpacaEval 2.0 ferme le triangle en proposant un cadre entièrement automatisé et reproductible : 805 instructions issues de sources diverses, GPT-4-Preview-1106 comme juge ET comme baseline de référence. Le benchmark publie deux métriques : le raw win rate (WR) — la part des 805 instructions pour lesquelles le juge préfère le modèle évalué à la baseline — et le length-controlled win rate (LC WR). La nécessité du LC WR s'impose dès lors que l'on mesure le verbosity bias : en faisant varier la verbosité de la baseline GPT-4, le raw WR oscille de 22,9 % à 64,3 %, un swing de 41,4 points de pourcentage rendant la métrique brute non-exploitable. Le LC WR repose sur un generalized linear model (GLM) à régression logistique qui modélise simultanément l'identité du modèle, la différence de longueur (normalisée par tanh) et la difficulté de l'instruction ; en fixant le terme longueur à zéro, on obtient un win rate contrefactuel libéré du biais. Après correction, le même swing tombe à 9,7 points de pourcentage, et la corrélation Spearman avec Chatbot Arena passe de 0,94 à 0,98 — parmi les meilleurs accords observés pour les benchmarks automatiques comparables.</p>\n\n<p>Ces trois plateformes illustrent un compromis fondamental : MT-Bench maximise la reproductibilité et la granularité catégorielle ; Chatbot Arena maximise l'écologie (vraies questions d'utilisateurs) au prix d'un processus moins contrôlé et d'un risque d'accès asymétrique aux battles ; AlpacaEval maximise l'automatisation et le coût, mais reste exposé à des attaques par modèles nuls.</p>",
+   "claims": [
+    "claim:9",
+    "claim:10",
+    "claim:11",
+    "claim:12"
+   ]
+  },
+  {
+   "type": "widget",
+   "ref": "probe-length-controlled-win-rate"
+  },
+  {
+   "type": "section",
+   "id": "biais-verbosite-style",
+   "heading": "Biais de verbosité, de style et de présentation",
+   "level": 3,
+   "prose": "<p>Parmi les biais qui affectent les juges LLM, le biais de verbosité (verbosity bias) et le biais de style (style bias) constituent la menace la plus systématique — et la plus longtemps sous-estimée. Ces deux phénomènes partagent une racine commune : le juge récompense des signaux de surface (longueur, mise en forme, ton « autoritaire ») indépendamment de la substance informative.</p>\n\n<p>Le cas le plus documenté quantitativement est celui d'AlpacaEval. En faisant varier l'instruction de verbosité du modèle de référence GPT-4 entre « sois très concis » et « développe longuement », le raw win rate du même modèle oscille de 22,9 % à 64,3 % — soit un swing de 41,4 points de pourcentage sur un artifact purement formel, sans modifier d'un iota la qualité substantielle de la réponse (arXiv:2404.04475). Ce résultat démontre qu'un opérateur malveillant peut doubler le classement apparent d'un modèle en ajustant uniquement la verbosité, sans aucune amélioration réelle.</p>\n\n<p>SOS-Bench (Style Outweighs Substance Benchmark), le plus large méta-benchmark standardisé et reproductible à ce jour — 152 380 points de données couvrant 19 évaluations existantes en world knowledge, instruction following et safety — confirme la même hiérarchie à l'échelle du classement des modèles (arXiv:2409.15268, ICLR 2025). Les préférences des juges LLM ne corrèlent pas avec les mesures concrètes de sécurité, de connaissance du monde ou de suivi d'instructions. Une expérience distincte du même article (Table 3, sur Arena-Hard-Auto avec GPT-4o-mini comme juge) illustre de façon frappante ce biais implicite : une réponse correcte au ton sarcastique perd 96 % de sa valeur perçue ; une reformulation concise de la bonne réponse en perd 63 % ; une réponse factuellement fausse mais bien présentée ne perd que 13 %. Les auteurs avertissent toutefois explicitement que ces chiffres, propres à un juge spécifique, ne constituent pas une preuve généralisable à tous les benchmarks à jury LLM.</p>\n\n<p>Plusieurs parades ont été proposées pour neutraliser ces biais. La plus rigoureuse sur le plan statistique est le length-controlled win rate (LC WR), introduit par AlpacaEval 2.0 : un generalized linear model (GLM) modélise conjointement l'identité du modèle, la différence de longueur (normalisée par une transformation tanh) et la difficulté de l'instruction ; en fixant le terme longueur à zéro on obtient un win rate contrefactuel « toutes choses égales en longueur ». Après cette correction, le swing résiduel tombe à 9,7 points de pourcentage (41,9 %–51,6 %) et la corrélation Spearman avec Chatbot Arena remonte de 0,94 à 0,98 — la plus élevée parmi les benchmarks comparés (arXiv:2404.04475). D'autres leviers agissent en amont : formuler le rubric de façon à pénaliser explicitement la verbosité inutile, imposer des verdicts binaires pass/fail (qui réduisent mécaniquement la surface d'influence de la longueur sur un score continu), et fine-tuner le juge sur des données débiaisées de sorte que la longueur et le style ne co-varient plus avec la qualité.</p>",
+   "claims": [
+    "claim:15",
+    "claim:16"
+   ]
+  },
+  {
+   "type": "section",
+   "id": "biais-auto-preference",
+   "heading": "Biais d'auto-préférence : la perplexité comme cause racine",
+   "level": 3,
+   "prose": "<p>Le self-preference bias (biais d'auto-préférence) désigne la tendance d'un LLM à sur-évaluer ses propres sorties lorsqu'il joue le rôle de juge. L'analyse quantitative de Wataoka et al. introduit une métrique d'<em>equal opportunity</em> définie comme P(Y′=1|S=1,Y=1) − P(Y′=1|S=0,Y=1), où Y est la préférence humaine, Y′ la préférence du modèle-juge, et S l'indicateur d'auto-paternité. GPT-4 y atteint un score de biais de <strong>0,520</strong> — soit 52 points de pourcentage d'écart — : il valide ses propres réponses à hauteur de 87,76 % dans les cas où les humains les jugent meilleures, mais seulement à 47,61 % quand les humains préfèrent l'autre candidat. Le biais de <em>demographic parity</em> est encore plus marqué (0,749 pour GPT-4, contre 0,191 pour GPT-3.5-Turbo et 0,382 pour Vicuna-13b). La relation entre capacité du modèle et intensité du biais n'est toutefois ni systématique ni monotone : une part de l'auto-préférence des modèles les plus puissants est légitime (leurs réponses sont objectivement meilleures), et le biais réellement nuisible — préférer ses propres sorties erronées — ne croît pas mécaniquement avec la capacité.</p>\n\n<p>Le mécanisme sous-jacent n'est pas la reconnaissance d'auteur au sens littéral. Wataoka et al. montrent que les LLM attribuent des scores systématiquement plus élevés aux textes à faible perplexité sous leur propre distribution, <em>quel que soit le générateur réel</em> : soumettre à GPT-4 un texte produit par un autre modèle mais stylistiquement proche de son espace d'entraînement déclenche la même sur-évaluation qu'un texte auto-généré. La cause racine est donc la <strong>familiarité textuelle</strong> — mesurée par la perplexité — et non la self-identification. Ce résultat est distinct mais complémentaire des travaux de Panickssery et al. (NeurIPS 2024), qui établissent eux un lien causal <em>suggéré (non pleinement établi)</em> entre la capacité de self-recognition (distinguer ses propres sorties d'autres modèles ou d'humains) et l'intensité du biais d'auto-préférence : en fine-tunant GPT-3.5 et Llama 2 pour amplifier ou réduire la self-recognition sur 500 exemples, les auteurs observent que le biais varie de façon correspondante, y compris sur d'autres jeux de résumé.</p>\n\n<p>Ces deux mécanismes — perplexité-familiarité et self-recognition — ne sont pas mutuellement exclusifs : le premier opère au niveau de la vraisemblance de surface, le second au niveau de la représentation interne du style propre au modèle. Ensemble, ils invalident l'auto-évaluation comme proxy fiable de la qualité : un LLM qui se juge lui-même n'est pas en train d'exercer un jugement neutre sur le contenu, mais de récompenser la familiarité de sa propre distribution. Cela compromet directement les pipelines où le modèle évalue ses propres sorties, notamment le reward modeling dans le RLHF (Reinforcement Learning from Human Feedback, apprentissage par renforcement depuis un retour humain), le Constitutional AI (auto-critique par le modèle) et le self-refinement (raffinement itératif auto-guidé).</p>\n\n<p>Les parades pratiques reconnues sont au nombre de deux. La première consiste à constituer un <strong>ensemble multi-modèles</strong> : en soumettant la même paire de réponses à plusieurs juges et en agrégeant par vote majoritaire ou moyenne pondérée, le biais d'auto-préférence de chaque modèle est dilué par les jugements des autres. Wataoka et al. proposent en outre un <strong>downsampling pondéré</strong> : lorsqu'un modèle exhibe une faible perplexité sur un échantillon, on diminue le poids de son évaluation pour cet échantillon proportionnellement à l'avantage de perplexité mesuré. La seconde parade, plus directe, est de choisir un <strong>juge d'une famille différente</strong> de celle du générateur (cross-family judging) : les recherches systématiques sur plusieurs stratégies de débiaisage confirment que la diversité de famille est l'un des leviers les plus efficaces pour contenir le self-preference bias sans recourir à du fine-tuning spécialisé.</p>",
+   "claims": [
+    "claim:17",
+    "claim:18",
+    "claim:19",
+    "claim:20"
+   ]
+  },
+  {
+   "type": "widget",
+   "ref": "probe-equal-opportunity-self-preference"
+  },
+  {
+   "type": "section",
+   "id": "taxonomie-biais",
+   "heading": "Taxonomie des biais et frameworks de mesure",
+   "level": 3,
+   "prose": "<p>La littérature sur LLM-as-judge a longtemps catalogué les biais de manière ad hoc — position bias, verbosity bias, self-enhancement bias parmi les plus anciennement identifiés — avant que plusieurs équipes ne proposent des taxonomies structurées. On distingue couramment les biais liés à la <em>présentation</em> de la réponse (mise en forme : position, verbosité), au <em>contenu</em> du texte évalué (sentiment, signaux lexicaux), au <em>contexte social ou identitaire</em> encodé dans la réponse, et au <em>raisonnement</em> du juge lui-même (sur-confiance, self-enhancement). Ces regroupements offrent un cadre analytique : ils classent les origines des biais sans les quantifier.</p>\n\n<p>Pour combler ce vide, des frameworks de mesure ont été proposés avec des instruments dédiés. CALM (« Justice or Prejudice? Quantifying Biases in LLM-as-a-Judge », arxiv:2410.02736) inventorie douze types de biais et les quantifie via le <em>Robustness Rate</em> (RR). Sur des modèles comme GPT-4o et Claude-3.5, le <em>chain-of-thought bias</em> ressort comme l'un des biais persistants, sans pour autant être systématiquement le plus prononcé : GPT-4o atteint un RR global de 0,977 mais chute à 0,700 sur la dimension CoT, tandis que le CoT bias de Claude-3.5 descend jusqu'à RR = 0,610 (son position bias restant nettement plus haut, à 0,832). Le seuil parfois avancé d'un RR &lt; 0,75 « pour tous les modèles » ne tient pas : GPT-4o reste au-dessus de ce seuil sur cette dimension.</p>\n\n<p>Parmi les biais les moins intuitifs figure l'<em>authority bias</em> (biais d'autorité) : un juge LLM accorde une crédibilité accrue à des réponses qui invoquent des citations ou des noms d'autorité, même fabriqués. Choi et al. (arxiv:2601.04790) montrent expérimentalement que des citations fictives déplacent les verdicts de manière mesurable. L'amplification spécifique de ce biais par citations fabriquées dans les frameworks multi-agents de consensus n'a toutefois pas été démontrée directement : la sensibilité des juges individuels aux citations fabriquées et l'amplification de certains biais par les frameworks multi-agents proviennent d'études distinctes, avec des mécanismes différents.</p>\n\n<p>Face à cette diversité de biais, l'inventaire des parades transversales converge vers quelques approches complémentaires. La première est le <em>multi-agent judging</em> (jugement multi-agents) ou PoLL (panel of LLMs) : des panels de modèles issus de familles distinctes visent à réduire l'intra-model bias, mais le <em>multi-agent debate</em> (débat multi-agents) peut au contraire <em>amplifier</em> les biais dès le premier tour de délibération (position bias consistency : 0,82 → 0,71 chez DeepSeek-V3), là où le <em>meta-judging</em> reste dans ±1–2 % du single-judge. La deuxième parade est la <em>rule augmentation</em> (enrichissement par rubric) : l'ajout de critères explicites et pondérés vise à contenir les biais de contenu. La troisième est la conversion <em>scoring → ranking</em> : passer d'un score Likert absolu à un classement relatif supprime le biais d'échelle non calibrée, au prix d'une perte d'information sur l'amplitude des différences de qualité. Il n'existe pas de parade unique : les biais de présentation appellent des correctifs différents des biais cognitifs, et les gains varient selon le modèle-juge et la nature du dataset d'évaluation.</p>",
+   "claims": [
+    "claim:21",
+    "claim:23",
+    "claim:24"
+   ]
+  },
+  {
+   "type": "section",
+   "id": "fiabilite-statistique",
+   "heading": "Fiabilité statistique : accord juge↔humain et garanties",
+   "level": 3,
+   "prose": "<p>Mesurer la confiance dans un juge automatique commence par quantifier dans quelle mesure ses décisions reproduisent celles d'annotateurs humains de référence. L'outillage classique de la psychométrie s'y applique directement. Le pourcentage brut d'accord (raw agreement) est le plus immédiat mais ignore la part due au hasard ; Cohen's kappa (κ) corrige cette part pour deux annotateurs sur des données nominales ; Fleiss' kappa généralise à <em>k</em> annotateurs ; Scott's pi repose sur une hypothèse de distribution marginale légèrement différente. Pour des données ordinales ou mixtes — comme les notes sur une échelle 1-5 — Krippendorff's alpha (α) est préféré : il est défini pour tout nombre d'annotateurs, tolère les données manquantes et s'adapte à la nature de l'échelle via une fonction de distance. Spearman's ρ et Kendall's τ mesurent quant à eux la concordance de rang entre deux séries ordonnées ; τ est de fait la métrique de corrélation de rang la plus employée dans la littérature d'évaluation des LLM. En pratique, un κ ou α &lt; 0,4 indique un accord médiocre, 0,4–0,6 un accord modéré, 0,6–0,8 un accord substantiel, &gt; 0,8 un excellent accord.</p>\n\n<p>La corrélation entre jugements automatiques et jugements humains est fortement dépendante du modèle, du benchmark, de la métrique et de la tâche, et varie très largement d'une étude à l'autre — d'environ 0,27 à environ 0,93. Aucune méta-analyse publiée ne consolide de plages « typiques » par famille de tâche : sur certains benchmarks (SummEval, FRANK), la factualité automatique obtient même des corrélations inférieures à la cohérence, contredisant l'ordre supposé. La dépendance au domaine reste donc réelle — et un seuil unique d'acceptation d'un juge difficilement justifiable — mais sans plages numériques établies pour la quantifier. G-Eval (GPT-4 en backbone, chain-of-thought plus form-filling) atteint une Spearman correlation moyenne de 0,514 avec les jugements humains sur la tâche de summarization (SummEval), calculée comme moyenne sur quatre dimensions, dépassant tous les évaluateurs antérieurs testés — tout en signalant un biais systématique en faveur des textes produits par des LLM. Les métriques automatiques classiques, BLEU et ROUGE, exhibent une corrélation faible avec les jugements humains dès lors que la tâche exige de la diversité ou de la créativité, ce qui légitime le recours à des juges neuronaux pour ces domaines.</p>\n\n<p>Avant de déployer un juge automatique, une calibration empirique sur un échantillon annoté par des experts est indispensable. La pratique courante recommande de 50 à 100 exemples couvrant au moins trois annotateurs humains pour estimer la winning rate ω du juge et décider de son acceptation. Ce protocole est formalisé par l'<strong>alternative annotator test</strong> (alt-test) de Calderon et al. (ACL 2025, arXiv:2501.10970) : il applique <em>m</em> tests t appariés (un par annotateur, avec un hyperparamètre ε de coût-bénéfice), corrige par la procédure de Benjamini-Yekutieli pour contrôler le taux de fausses découvertes (FDR) en présence d'hypothèses dépendantes, puis calcule la winning rate ω comme la proportion d'annotateurs battus. Si ω ≥ 0,5 — seuil lui-même présenté comme un hyperparamètre ajustable selon les enjeux — le remplacement de l'annotateur humain par le LLM est statistiquement justifié ; ω est donc calculé sur les annotateurs, non sur les exemples. Appliqué à six LLM sur quatre techniques de prompting, le test montre que les modèles closed-source (notamment GPT-4o) atteignent ce seuil sur plusieurs tâches de langage et vision-langage, tandis que les modèles open-source examinés restent en dessous. À Chatbot Arena, la concordance crowd-to-expert varie de 72 % à 83 %, et l'accord expert-to-expert de 79,4 % à 89,8 % ; l'écart de 5 à 10 points est attribué aux erreurs commises par les utilisateurs non experts qui négligent certaines erreurs factuelles.</p>",
+   "claims": [
+    "claim:25",
+    "claim:26",
+    "claim:27",
+    "claim:12"
+   ]
+  },
+  {
+   "type": "section",
+   "id": "limites-pieges",
+   "heading": "Limites, pièges et idées reçues",
+   "level": 3,
+   "prose": "<p>L'accord agrégé en pourcentage entre un juge LLM et des évaluateurs humains est la métrique la plus souvent citée pour légitimer un protocole d'évaluation. Or cette métrique est structurellement trompeuse. Une étude portant sur 13 juges LLM évalués sur 9 modèles dans des conditions où l'accord inter-humain est élevé montre que des juges affichant un fort taux d'accord en pourcentage peuvent néanmoins diverger jusqu'à 5 points des scores attribués par les humains sur des questions de scoring absolu. Cette divergence touche les <em>valeurs</em> numériques absolues, mais n'invalide pas l'ordre relatif : les rangs des modèles sont au contraire largement préservés (corrélation de Spearman ρ jusqu'à 0,99, même pour des juges de moindre qualité). Autrement dit, deux juges peuvent <em>classer</em> les modèles dans le même ordre tout en produisant des <em>valeurs</em> numériques incompatibles, ce qui appelle une prudence particulière sur l'interprétation des scores absolus plutôt que sur leur classement.</p>\n\n<p>Le Judge Reliability Harness (2026) systématise ce diagnostic. En soumettant quatre juges SOTA à des perturbations contrôlées — paraphrases sémantiquement équivalentes, reformatages textuels, variations de verbosité, inversion des labels ground truth — les auteurs constatent qu'aucun des quatre juges n'est uniformément fiable sur les quatre benchmarks étudiés (sécurité, persuasion, mésusage, comportement agentique). Des modifications superficielles de la mise en forme suffisent à renverser des verdicts, ce qui révèle que l'accord agrégé sur des instances non perturbées est un proxy fragile de la fiabilité réelle.</p>\n\n<p>Le gaming des benchmarks automatiques illustre la même fragilité par une voie radicalement différente. Une attaque par modèle nul (null model attack), présentée comme oral à l'ICLR 2025, montre qu'un modèle produisant une réponse constante — identique quelle que soit l'instruction — atteint 86,5 % de length-controlled win rate (LC WR) sur AlpacaEval 2.0. Le résultat, délibérément proof-of-concept, démontre que les juges LLM automatiques sont vulnérables à la confusion syntaxique du template d'évaluation : la correction de verbosité n'est qu'un facteur secondaire qui amplifie le score, la réponse courte bénéficiant de la normalisation de longueur, mais elle n'est pas la surface d'attaque principale. Cette attaque ne prouve pas que les benchmarks sont inutiles, mais qu'un score élevé est une condition nécessaire, non suffisante, de la qualité.</p>\n\n<p>The Leaderboard Illusion (2025) documente un vecteur de gaming institutionnel : Meta a testé en privé au moins 27 variants de Llama-4 dans les mois précédant le lancement public, ne divulguant que le meilleur score. Des expériences d'entraînement avec 70 % de données Arena dans le mix — la proportion maximale testée — génèrent jusqu'à 112 % de gain relatif sur la distribution Arena (et 81,7 % avec seulement 30 % de données Arena). Parallèlement, Google et OpenAI ont reçu respectivement environ 19,2 % et 20,4 % de l'ensemble des données Arena, contre 29,7 % pour l'ensemble des 83 modèles open-weight. Ces asymétries d'accès structurent le classement de façon systématique en faveur des acteurs disposant de ressources de test privé, sans que les utilisateurs du leaderboard en aient conscience.</p>\n\n<p>La contamination des données de test constitue un autre vecteur de distorsion. La contamination <em>sémantique</em> — instances paraphrasées ou traduites présentes dans les données de pré-entraînement — échappe aux détections par chevauchement de n-grammes, et sa quantification précise reste inaccessible pour les modèles fermés faute d'accès aux données d'entraînement.</p>",
+   "claims": [
+    "claim:29",
+    "claim:30",
+    "claim:31",
+    "claim:32"
+   ]
+  },
+  {
+   "type": "exercise",
+   "part": "1",
+   "question": "Sur MT-Bench, GPT-4 utilisé comme juge pairwise atteint 85 % d'accord avec les humains, soit plus que l'accord inter-humain (81 % au premier tour). Peut-on en conclure que GPT-4 est un meilleur évaluateur que les humains, et que franchir ce seuil suffit à déployer un juge en production ?",
+   "answer": "<p>Non, sur les deux points. D'abord, ce taux de ~80–85 % d'accord sur des tâches subjectives n'est pas une cible de performance que l'on « dépasse » : il reflète le désaccord humain intrinsèque sur des préférences dispersées. Aucun évaluateur ne peut être « plus correct » que le consensus humain quand ce consensus est lui-même flou — d'ailleurs le chiffre dépend du protocole (en incluant les égalités, setup S1, l'accord GPT-4↔humain tombe à ~70 %, et l'accord inter-humain à 63 %, ce qui ruine l'idée d'un « plancher universel » à 80 %).</p><p>Ensuite, l'accord agrégé est une condition <em>nécessaire mais non suffisante</em>. Un juge à fort accord global peut diverger de plusieurs points sur les scores absolus et voir ses verdicts renversés par une simple paraphrase ou un reformatage — aucun des quatre juges SOTA du Judge Reliability Harness n'est uniformément fiable. Le déploiement exige en plus : calibration sur un jeu annoté par des experts (alt-test, ω ≥ 0,5 sur ≥ 3 annotateurs avec correction Benjamini-Yekutieli), correction des biais systématiques (position, verbosité, auto-préférence), et tests adversariaux hors distribution.</p>"
+  },
+  {
+   "type": "exercise",
+   "part": "2",
+   "question": "Le length-controlled win rate (LC WR) d'AlpacaEval 2.0 a été introduit précisément pour neutraliser le biais de verbosité. Pourquoi cette parade ne suffit-elle pas à rendre le benchmark inattaquable, et le style bias est-il vraiment le pire des biais de présentation ?",
+   "answer": "<p>Le LC WR réduit fortement le biais de longueur — le swing de verbosité passe de 41,4 pp (raw WR oscillant de 22,9 % à 64,3 %) à ~9,7 pp résiduels (41,9 %–51,6 %) — et porte la corrélation Spearman avec Chatbot Arena de 0,94 à 0,98. Mais il ne l'élimine pas, et surtout il ouvre une nouvelle surface d'attaque : un <em>modèle nul</em> renvoyant une réponse constante avec injection adversariale atteint 86,5 % de LC WR (supérieur à son raw WR de 76,9 %), car le correcteur de longueur récompense la brièveté inconditionnelle. La leçon : un score élevé est nécessaire mais non suffisant pour conclure à la qualité.</p><p>Quant à la hiérarchie des biais de présentation : le <em>style bias</em> (préférence pour le markdown à contenu identique) et la complétude pèsent lourdement sur les juges — SOS-Bench montre à l'échelle du classement qu'ils prédisent mieux le score d'un juge que la sécurité, la connaissance factuelle ou le suivi d'instructions — tandis que le <em>position bias</em> est plus aisément neutralisable par swap-and-tie. La question « quel est le pire biais » n'a pas de réponse universelle chiffrée : l'ampleur mesurée dépend du juge, du protocole et de la métrique.</p>"
+  },
+  {
+   "type": "biblio",
+   "entries": [
+    {
+     "label": "Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena — arXiv abstract (NeurIPS 2023 Datasets and Benchmarks)",
+     "href": "https://arxiv.org/abs/2306.05685"
+    },
+    {
+     "label": "Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena — full HTML paper (arXiv)",
+     "href": "https://arxiv.org/html/2306.05685"
+    },
+    {
+     "label": "NeurIPS 2023 Datasets and Benchmarks proceedings page",
+     "href": "https://papers.nips.cc/paper_files/paper/2023/hash/91f18a1287b398d378ef22505bf41832-Abstract-Datasets_and_Benchmarks.html"
+    },
+    {
+     "label": "MT-Bench paper summary — Emergent Mind",
+     "href": "https://www.emergentmind.com/papers/2306.05685"
+    },
+    {
+     "label": "Evaluating the Effectiveness of LLM-Evaluators (Eugene Yan, independent commentary)",
+     "href": "https://eugeneyan.com/writing/llm-evaluators/"
+    },
+    {
+     "label": "Judging the Judges: Evaluating Alignment and Vulnerabilities in LLMs-as-Judges (arXiv 2411.15594v6)",
+     "href": "https://arxiv.org/html/2411.15594v6"
+    },
+    {
+     "label": "LLM-as-a-Judge Guide — Comet",
+     "href": "https://www.comet.com/site/blog/llm-as-a-judge/"
+    },
+    {
+     "label": "From Generation to Judgment: Opportunities and Challenges of LLM-as-a-judge (2024) — HTML full text, Section 4.2.1",
+     "href": "https://arxiv.org/html/2411.16594"
+    },
+    {
+     "label": "G-Eval: NLG Evaluation using GPT-4 with Better Human Alignment (arXiv 2303.16634)",
+     "href": "https://arxiv.org/abs/2303.16634"
+    },
+    {
+     "label": "G-Eval — ar5iv HTML render (2303.16634)",
+     "href": "https://ar5iv.labs.arxiv.org/html/2303.16634"
+    },
+    {
+     "label": "G-Eval: NLG Evaluation using GPT-4 with Better Human Alignment – ACL Anthology (EMNLP 2023)",
+     "href": "https://aclanthology.org/2023.emnlp-main.153/"
+    },
+    {
+     "label": "Self-Preference Bias in LLM-as-a-Judge (arXiv 2410.21819)",
+     "href": "https://arxiv.org/abs/2410.21819"
+    },
+    {
+     "label": "Judge Reliability Harness: Stress Testing the Reliability of LLM Judges (arXiv:2603.05399)",
+     "href": "https://arxiv.org/abs/2603.05399"
+    },
+    {
+     "label": "Diagnosing the Reliability of LLM-as-a-Judge via Item Response Theory (arXiv:2602.00521)",
+     "href": "https://arxiv.org/html/2602.00521v2"
+    },
+    {
+     "label": "Chatbot Arena: New Models & Elo System Update — LMSYS Blog (2023-12-07)",
+     "href": "https://www.lmsys.org/blog/2023-12-07-leaderboard/"
+    },
+    {
+     "label": "Chatbot Arena and the Elo rating system - Part 2 — Yi Zhu (Boson AI, 2024)",
+     "href": "https://bryanyzhu.github.io/posts/2024-08-16-elo-part2/"
+    },
+    {
+     "label": "Chiang et al. 2024 (arXiv 2403.04132) — méthodologie définitive BT-MLE avec sandwich standard errors",
+     "href": "https://arxiv.org/html/2403.04132"
+    },
+    {
+     "label": "Length-Controlled AlpacaEval: A Simple Way to Debias Automatic Evaluators (arXiv 2404.04475)",
+     "href": "https://arxiv.org/abs/2404.04475"
+    },
+    {
+     "label": "Length-Controlled AlpacaEval HTML full text (v1)",
+     "href": "https://arxiv.org/html/2404.04475v1"
+    },
+    {
+     "label": "Arena-Hard & BenchBuilder: Crowdsourced Benchmarks (arXiv 2406.11939)",
+     "href": "https://arxiv.org/html/2406.11939v2"
+    },
+    {
+     "label": "WildBench: Benchmarking LLMs with Challenging Tasks from Real Users in the Wild (arXiv 2406.04770)",
+     "href": "https://arxiv.org/abs/2406.04770"
+    },
+    {
+     "label": "tatsu-lab/alpaca_eval — README (dépôt officiel GitHub)",
+     "href": "https://github.com/tatsu-lab/alpaca_eval/blob/main/README.md"
+    },
+    {
+     "label": "Chatbot Arena: An Open Platform for Evaluating LLMs by Human Preference (Chiang et al., 2024) — arXiv:2403.04132",
+     "href": "https://arxiv.org/abs/2403.04132"
+    },
+    {
+     "label": "Chatbot Arena — ICML 2024 Proceedings (PMLR v235)",
+     "href": "https://proceedings.mlr.press/v235/chiang24b.html"
+    },
+    {
+     "label": "Understanding the recent criticism of the Chatbot Arena (Simon Willison, 2025)",
+     "href": "https://simonwillison.net/2025/Apr/30/criticism-of-the-chatbot-arena/"
+    },
+    {
+     "label": "Style Outweighs Substance: Failure Modes of LLM Judges in Alignment Benchmarking (arXiv:2409.15268v2, ICLR 2025)",
+     "href": "https://arxiv.org/abs/2409.15268"
+    },
+    {
+     "label": "Style over Substance: Failure Modes of LLM Judges in Alignment Benchmarking (arXiv:2409.15268, HTML v1)",
+     "href": "https://arxiv.org/html/2409.15268v1"
+    },
+    {
+     "label": "AlpacaEval Leaderboard officiel (tatsu-lab)",
+     "href": "https://tatsu-lab.github.io/alpaca_eval/"
+    },
+    {
+     "label": "Self-Preference Bias in LLM-as-a-Judge (Wataoka, Takahashi, Ri — arXiv 2410.21819, HTML version)",
+     "href": "https://arxiv.org/html/2410.21819v2"
+    },
+    {
+     "label": "Full HTML version of arXiv:2410.21819",
+     "href": "https://arxiv.org/html/2410.21819"
+    },
+    {
+     "label": "LLM Evaluators Recognize and Favor Their Own Generations (Panickssery et al., NeurIPS 2024)",
+     "href": "https://arxiv.org/abs/2404.13076"
+    },
+    {
+     "label": "LLM Evaluators Recognize and Favor Their Own Generations (NeurIPS 2024)",
+     "href": "https://proceedings.neurips.cc/paper_files/paper/2024/hash/7f1f0218e45f5414c79c0679633e47bc-Abstract-Conference.html"
+    },
+    {
+     "label": "LLM Evaluators Recognize and Favor Their Own Generations — AlignmentForum (résumé détaillé avec résultats out-of-domain et bidirectionnel)",
+     "href": "https://www.alignmentforum.org/posts/CeCKzsKABGKt9aabb/llm-evaluators-recognize-and-favor-their-own-generations"
+    },
+    {
+     "label": "Breaking the Mirror: Activation-Based Mitigation of Self-Preference in LLM Evaluators (arXiv 2509.03647)",
+     "href": "https://arxiv.org/abs/2509.03647"
+    },
+    {
+     "label": "Do LLM Evaluators Prefer Themselves for a Reason? (Chen et al., 2025)",
+     "href": "https://arxiv.org/abs/2504.03846"
+    },
+    {
+     "label": "Quantifying and Mitigating Self-Preference Bias of LLM Judges (2026)",
+     "href": "https://arxiv.org/html/2604.22891v2"
+    },
+    {
+     "label": "Justice or Prejudice? Quantifying Biases in LLM-as-a-Judge (arXiv:2410.02736)",
+     "href": "https://arxiv.org/abs/2410.02736"
+    },
+    {
+     "label": "CALM project page — llm-judge-bias.github.io",
+     "href": "https://llm-judge-bias.github.io/"
+    },
+    {
+     "label": "CALM HTML paper — arxiv.org/html/2410.02736",
+     "href": "https://arxiv.org/html/2410.02736"
+    },
+    {
+     "label": "Judging with Many Minds: Do More Perspectives Mean Less Prejudice? On Bias Amplifications and Resistance in Multi-Agent Based LLM-as-Judge (arXiv 2505.19477)",
+     "href": "https://arxiv.org/abs/2505.19477"
+    },
+    {
+     "label": "Measuring and Mitigating Identity Bias in Multi-Agent Debate via Anonymization (arXiv 2510.07517)",
+     "href": "https://arxiv.org/abs/2510.07517"
+    },
+    {
+     "label": "Belief in Authority: Impact of Authority in Multi-Agent Evaluation Framework (arxiv 2601.04790)",
+     "href": "https://arxiv.org/abs/2601.04790"
+    },
+    {
+     "label": "UniEval — EMNLP 2022 (méthode antérieure, score 0,474 selon G-Eval)",
+     "href": "https://aclanthology.org/2022.emnlp-main.131/"
+    },
+    {
+     "label": "The Alternative Annotator Test for LLM-as-a-Judge — Moonlight Literature Review",
+     "href": "https://www.themoonlight.io/en/review/the-alternative-annotator-test-for-llm-as-a-judge-how-to-statistically-justify-replacing-human-annotators-with-llms"
+    },
+    {
+     "label": "nitaytech/AltTest — GitHub repository (official code and documentation)",
+     "href": "https://github.com/nitaytech/AltTest"
+    },
+    {
+     "label": "The Alternative Annotator Test for LLM-as-a-Judge (ACL Anthology, ACL 2025)",
+     "href": "https://aclanthology.org/2025.acl-long.782/"
+    },
+    {
+     "label": "arXiv:2501.10970 — The Alternative Annotator Test for LLM-as-a-Judge",
+     "href": "https://arxiv.org/abs/2501.10970"
+    },
+    {
+     "label": "Judging the Judges: Evaluating Alignment and Vulnerabilities in LLMs-as-Judges (Thakur et al., 2024 / GEM2 2025)",
+     "href": "https://arxiv.org/abs/2406.12624"
+    },
+    {
+     "label": "Validating LLM-as-a-Judge Systems under Rating Indeterminacy (CMU ML Blog, 2025)",
+     "href": "https://blog.ml.cmu.edu/2025/12/09/validating-llm-as-a-judge-systems-under-rating-indeterminacy/"
+    },
+    {
+     "label": "Grading Scale Impact on LLM-as-a-Judge: Human-LLM Alignment Is Highest on 0-5 Grading Scale (2025)",
+     "href": "https://arxiv.org/html/2601.03444v1"
+    },
+    {
+     "label": "Cheating Automatic LLM Benchmarks (arXiv 2410.07137, ICLR 2025 oral)",
+     "href": "https://arxiv.org/abs/2410.07137"
+    },
+    {
+     "label": "Cheating Automatic LLM Benchmarks — ICLR 2025 Proceedings (official conference page)",
+     "href": "https://proceedings.iclr.cc/paper_files/paper/2025/hash/9adc8ada9183f4b9a007a02773fd8114-Abstract-Conference.html"
+    },
+    {
+     "label": "The Leaderboard Illusion (arXiv:2504.20879)",
+     "href": "https://arxiv.org/abs/2504.20879"
+    },
+    {
+     "label": "Study accuses LM Arena of helping top AI labs game its benchmark (TechCrunch)",
+     "href": "https://techcrunch.com/2025/04/30/study-accuses-lm-arena-of-helping-top-ai-labs-game-its-benchmark/"
+    },
+    {
+     "label": "The Leaderboard Illusion — HTML full text (arXiv)",
+     "href": "https://arxiv.org/html/2504.20879"
+    }
+   ]
+  },
+  {
+   "type": "pointers",
+   "title": "Pour aller plus loin",
+   "items": [
+    {
+     "name": "Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena (Zheng et al., NeurIPS 2023)",
+     "url": "https://arxiv.org/abs/2306.05685",
+     "kind": "reading",
+     "blurb": "Papier fondateur qui formalise le paradigme LLM-as-a-Judge, introduit MT-Bench (80 questions multi-tour) et publie les corpus open source (3 K votes experts, 30 K conversations)."
+    },
+    {
+     "name": "Chatbot Arena: An Open Platform for Evaluating LLMs by Human Preference (Chiang et al., ICML 2024)",
+     "url": "https://arxiv.org/abs/2403.04132",
+     "kind": "reading",
+     "blurb": "Description statistique complète de Chatbot Arena : transition Elo → Bradley-Terry MLE (erreurs standard de type sandwich), accord crowd↔expert."
+    },
+    {
+     "name": "A Survey on LLM-as-a-Judge (Gu et al., 2024)",
+     "url": "https://arxiv.org/html/2411.15594v6",
+     "kind": "reading",
+     "blurb": "Tour d'horizon complet des méthodes (pointwise, pairwise, listwise), des biais documentés et des métriques d'accord juge/humain."
+    },
+    {
+     "name": "G-Eval: NLG Evaluation using GPT-4 with Better Human Alignment (arXiv:2303.16634)",
+     "url": "https://arxiv.org/abs/2303.16634",
+     "kind": "reading",
+     "blurb": "Article fondateur de G-Eval : chain-of-thought + form-filling + probability weighting pour l'évaluation NLG avec GPT-4."
+    },
+    {
+     "name": "From Generation to Judgment: Opportunities and Challenges of LLM-as-a-Judge (arXiv:2411.16594)",
+     "url": "https://arxiv.org/abs/2411.16594",
+     "kind": "reading",
+     "blurb": "Survey des paradigmes pointwise/pairwise/listwise, taxonomie des biais (position, longueur, présentation, preference leakage) et parades."
+    },
+    {
+     "name": "Length-Controlled AlpacaEval (arXiv:2404.04475)",
+     "url": "https://arxiv.org/abs/2404.04475",
+     "kind": "reading",
+     "blurb": "Papier de référence introduisant le LC WR via GLM contrefactuel ; mesure le swing de verbosité 22,9 %–64,3 % et montre la corrélation Spearman 0,94→0,98 avec Chatbot Arena."
+    },
+    {
+     "name": "SOS-Bench — Style Outweighs Substance (arXiv:2409.15268)",
+     "url": "https://arxiv.org/abs/2409.15268",
+     "kind": "reading",
+     "blurb": "Méta-benchmark 152 380 points (19 évaluations) montrant que les préférences des juges LLM ne corrèlent pas avec safety, world knowledge ou instruction following, mais avec le style et la complétude."
+    },
+    {
+     "name": "Justice or Prejudice? Quantifying Biases in LLM-as-a-Judge — CALM (arXiv:2410.02736)",
+     "url": "https://arxiv.org/abs/2410.02736",
+     "kind": "reading",
+     "blurb": "Framework CALM (12 types de biais, Robustness Rate) et résultats empiriques comparatifs sur plusieurs modèles-juges frontier."
+    },
+    {
+     "name": "Belief in Authority: Impact of Authority in Multi-Agent Evaluation Framework (arXiv:2601.04790)",
+     "url": "https://arxiv.org/pdf/2601.04790",
+     "kind": "reading",
+     "blurb": "Étude expérimentale de l'authority bias avec citations fictives dans les frameworks multi-agents ; montre que le consensus peut amplifier plutôt que filtrer ce biais."
+    },
+    {
+     "name": "Judging with Many Minds: Bias Amplification in Multi-Agent LLM-as-Judge (arXiv:2505.19477)",
+     "url": "https://arxiv.org/pdf/2505.19477",
+     "kind": "reading",
+     "blurb": "Résultats empiriques sur l'effet du débat multi-agents : amplification des biais dès le premier round, contrairement au meta-judging qui préserve la robustesse."
+    },
+    {
+     "name": "FastChat / MT-Bench (dépôt officiel LMSYS)",
+     "url": "https://github.com/lm-sys/FastChat",
+     "kind": "implementation",
+     "blurb": "Code source de l'évaluation MT-Bench et de Chatbot Arena, incluant les scripts d'appel au juge GPT-4 et les données open source publiées par Zheng et al."
+    },
+    {
+     "name": "DeepEval — G-Eval metric",
+     "url": "https://deepeval.com/docs/metrics-llm-evals",
+     "kind": "library",
+     "blurb": "Implémentation open-source de G-Eval (et d'autres métriques LLM-as-judge) dans le framework d'évaluation DeepEval."
+    },
+    {
+     "name": "Chatbot Arena (Arena AI / LMArena)",
+     "url": "https://arena.ai/",
+     "kind": "tool",
+     "blurb": "Plateforme open de battles en aveugle crowdsourcées ; classement public via le modèle Bradley-Terry avec intervalles de confiance (anciennement lmarena.ai, rebaptisée arena.ai)."
+    },
+    {
+     "name": "AlpacaEval Leaderboard",
+     "url": "https://tatsu-lab.github.io/alpaca_eval/",
+     "kind": "tool",
+     "blurb": "Classement officiel AlpacaEval 2.0 : raw WR et LC WR pour ~100 modèles, code open-source, instructions de soumission."
+    },
+    {
+     "name": "LMSYS Elo System Update — transition vers Bradley-Terry (blog, déc. 2023)",
+     "url": "https://www.lmsys.org/blog/2023-12-07-leaderboard/",
+     "kind": "reading",
+     "blurb": "Explication technique de la transition du système Elo en ligne vers le modèle Bradley-Terry estimé par MLE batch avec (erreurs standard de type sandwich), avec notebook reproductible."
+    }
+   ]
+  },
+  {
+   "type": "glossary"
+  }
+ ]
+}

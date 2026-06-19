@@ -1,0 +1,2524 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Évaluation des LLM et LLM-as-a-Judge</title>
+<style>
+/* vietnamese */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLySOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLyTOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLySOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLyTOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 700;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLySOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 700;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLyTOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 700;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 800;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLySOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 800;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLyTOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 800;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx3cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxTcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxPcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx_cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx7cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxDcwgknk-4.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx3cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxTcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxPcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx_cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx7cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxDcwgknk-4.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx3cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxTcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxPcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx_cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx7cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxDcwgknk-4.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCt-xNNww_2s0amA9M8onfmTNmnUHowCw.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCt-xNNww_2s0amA9M8on7mTNmnUHowCw.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCt-xNNww_2s0amA9M8onXmTNmnUHowCw.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCt-xNNww_2s0amA9M8onTmTNmnUHowCw.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCt-xNNww_2s0amA9M8onrmTNmnUHo.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCr-xNNww_2s0amA9M0knjsS_ulYHs.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCr-xNNww_2s0amA9M9knjsS_ulYHs.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCr-xNNww_2s0amA9M2knjsS_ulYHs.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCr-xNNww_2s0amA9M3knjsS_ulYHs.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCr-xNNww_2s0amA9M5knjsS_ul.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vKsW3MafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vKsW3FafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vKsW3OafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vKsW3PafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vKsW3BafaPWnII.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vmtm3MafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vmtm3FafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vmtm3OafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vmtm3PafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vmtm3BafaPWnII.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* =====================================================================
+   charte.css — Charte graphique commune (monograph skill)
+   Sources :
+     (1) themes/automatic-prompt-optimization/legacy/apo-base.html  l.11-192
+     (2) themes/automatic-prompt-optimization/legacy/build/assemble.py  EXTRA_CSS
+     (3) themes/automatic-prompt-optimization/legacy/build/widgets/theme-tooltips.html  <style> blocks
+   NE PAS modifier — fichier de référence distillé depuis le legacy APO.
+   ===================================================================== */
+
+/* ===== (1) BASE : tokens + typographie + composants de mise en page ===== */
+
+  :root{
+    --paper:#F4F6FA; --card:#FFFFFF;
+    --ink:#15202E; --ink-soft:#43536A; --ink-faint:#7A889B;
+    --blue:#23537F; --blue-deep:#142E49; --blue-bright:#2C77B6; --blue-wash:#E7EEF6;
+    --bordeaux:#7C2A38; --bordeaux-bright:#9B3443; --bordeaux-wash:#F3E3E6;
+    --line:#D7DFE9; --line-soft:#E7ECF3;
+    --code:#11283F;
+    --maxw:1240px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Spectral",Georgia,serif; font-size:17px; line-height:1.62;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,h4,.lbl,.chip,nav,th,.tag,.fcap-k{font-family:"Archivo",system-ui,sans-serif;}
+  code,kbd,.mono{font-family:"JetBrains Mono",monospace;}
+
+  /* progress bar */
+  #prog{position:fixed;top:0;left:0;height:3px;width:0;background:var(--bordeaux-bright);z-index:60;transition:width .08s linear;}
+
+  /* header */
+  header.top{
+    background:linear-gradient(165deg,var(--blue-deep),#0E2236 70%);
+    color:#EAF1F8; padding:62px 28px 54px;
+    border-bottom:3px solid var(--bordeaux);
+  }
+  .top-in{max-width:var(--maxw);margin:0 auto;}
+  .kicker{font-family:"JetBrains Mono",monospace;font-size:12.5px;letter-spacing:.22em;
+    text-transform:uppercase;color:#9DC2E0;margin:0 0 16px;}
+  header.top h1{font-size:clamp(30px,4.6vw,52px);line-height:1.05;margin:0;font-weight:800;letter-spacing:-.01em;}
+  header.top h1 em{font-style:normal;color:#E7B3BD;}
+  header.top .lede{font-size:18px;max-width:760px;margin:20px 0 0;color:#C7D7E6;line-height:1.55;}
+  .meta{margin-top:26px;display:flex;flex-wrap:wrap;gap:10px;}
+  .meta span{font-family:"JetBrains Mono",monospace;font-size:11.5px;letter-spacing:.04em;
+    border:1px solid rgba(157,194,224,.35);color:#B7CFE4;padding:5px 11px;border-radius:2px;}
+
+  /* layout */
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 28px;display:grid;
+    grid-template-columns:248px minmax(0,1fr);gap:48px;align-items:start;}
+  nav.toc{position:sticky;top:22px;padding:30px 0 60px;font-size:13.5px;max-height:calc(100vh - 30px);overflow:auto;}
+  nav.toc .navhead{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);margin:18px 0 9px;font-weight:700;}
+  nav.toc a{display:block;color:var(--ink-soft);text-decoration:none;padding:4px 12px;border-left:2px solid var(--line);
+    line-height:1.32;margin:1px 0;transition:.15s;}
+  nav.toc a:hover{color:var(--blue-bright);border-left-color:var(--blue-bright);}
+  nav.toc a.active{color:var(--bordeaux);border-left-color:var(--bordeaux);font-weight:600;background:var(--bordeaux-wash);}
+  nav.toc a.sub{padding-left:24px;font-size:12.5px;}
+
+  main{padding:42px 0 100px;min-width:0;}
+  section{margin-bottom:30px;scroll-margin-top:18px;}
+  .part-band{margin:54px 0 10px;padding:14px 0 12px;border-top:2px solid var(--blue-deep);border-bottom:1px solid var(--line);}
+  .part-band .pk{font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.2em;color:var(--bordeaux);text-transform:uppercase;}
+  .part-band h2{font-size:clamp(24px,3.2vw,34px);margin:6px 0 0;font-weight:800;letter-spacing:-.01em;color:var(--blue-deep);}
+  h3{font-size:22px;margin:36px 0 8px;color:var(--blue-deep);font-weight:700;letter-spacing:-.005em;}
+  h4{font-size:16px;margin:22px 0 6px;color:var(--ink);font-weight:700;}
+  p{margin:11px 0;}
+  a.ref{color:var(--blue-bright);text-decoration:none;border-bottom:1px solid var(--blue-wash);font-weight:500;}
+  a.ref:hover{border-bottom-color:var(--blue-bright);}
+  strong{font-weight:600;}
+  .hl{color:var(--bordeaux);font-weight:600;}
+  em.term{font-style:italic;color:var(--ink);}
+  .lead{font-size:18.5px;color:var(--ink-soft);line-height:1.6;}
+
+  /* cards & components */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:7px;padding:22px 24px;margin:16px 0;
+    box-shadow:0 1px 2px rgba(20,46,73,.04);}
+  .opt{border-left:3px solid var(--blue);}
+  .opt .lbl{font-family:"Archivo";font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--blue);font-weight:700;}
+  .opt h4{margin:3px 0 8px;font-size:18px;}
+  .pc{display:grid;grid-template-columns:1fr 1fr;gap:10px 26px;margin-top:12px;}
+  @media(max-width:620px){.pc{grid-template-columns:1fr;}}
+  .pc ul{margin:4px 0;padding:0;list-style:none;font-size:15px;}
+  .pc li{padding:3px 0 3px 22px;position:relative;line-height:1.45;color:var(--ink-soft);}
+  .pros .k,.cons .k{font-family:"Archivo";font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;display:block;margin-bottom:3px;}
+  .pros .k{color:var(--blue);}.cons .k{color:var(--bordeaux);}
+  .pros li::before{content:"+";position:absolute;left:4px;color:var(--blue-bright);font-weight:700;}
+  .cons li::before{content:"–";position:absolute;left:5px;color:var(--bordeaux-bright);font-weight:700;}
+  .links{margin-top:13px;font-family:"JetBrains Mono",monospace;font-size:12.5px;display:flex;gap:16px;flex-wrap:wrap;}
+  .links a{color:var(--blue);text-decoration:none;border-bottom:1px dotted var(--blue);}
+  .links a:hover{color:var(--bordeaux);border-bottom-color:var(--bordeaux);}
+  .links a::before{content:"↗ ";opacity:.6;}
+
+  /* callout */
+  .callout{background:var(--bordeaux-wash);border:1px solid #E3C3C9;border-left:4px solid var(--bordeaux);
+    border-radius:6px;padding:18px 22px;margin:20px 0;}
+  .callout .ct{font-family:"Archivo";font-weight:700;color:var(--bordeaux);font-size:13px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
+  .note{background:var(--blue-wash);border:1px solid #CFE0EF;border-left:4px solid var(--blue);border-radius:6px;padding:18px 22px;margin:20px 0;}
+  .note .ct{font-family:"Archivo";font-weight:700;color:var(--blue);font-size:13px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
+
+  /* figures */
+  figure.fig{margin:24px 0;background:var(--card);border:1px solid var(--line);border-radius:7px;padding:24px 22px 16px;}
+  figure.fig svg{width:100%;height:auto;display:block;}
+  figcaption{margin-top:12px;font-size:13.5px;color:var(--ink-faint);line-height:1.45;border-top:1px solid var(--line-soft);padding-top:10px;}
+  figcaption .fcap-k{color:var(--bordeaux);font-weight:700;font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin-right:8px;}
+
+  /* table */
+  .tbl-w{overflow-x:auto;margin:18px 0;border:1px solid var(--line);border-radius:7px;}
+  table{border-collapse:collapse;width:100%;font-size:14px;background:var(--card);}
+  th{background:var(--blue-deep);color:#E7F0F8;text-align:left;padding:11px 14px;font-size:12px;letter-spacing:.04em;font-weight:600;position:sticky;top:0;}
+  td{padding:11px 14px;border-top:1px solid var(--line-soft);vertical-align:top;line-height:1.45;color:var(--ink-soft);}
+  td:first-child{color:var(--ink);font-weight:600;font-family:"Archivo";font-size:13.5px;}
+  tr:hover td{background:#FAFCFE;}
+  .tag{display:inline-block;font-family:"JetBrains Mono",monospace;font-size:11px;padding:2px 7px;border-radius:3px;background:var(--blue-wash);color:var(--blue);}
+  .tag.b{background:var(--bordeaux-wash);color:var(--bordeaux);}
+
+  code{background:#E9EEF4;color:var(--code);padding:1.5px 6px;border-radius:4px;font-size:14px;}
+  .axis-chips{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 4px;}
+  .axis-chips a{font-family:"Archivo";font-size:12.5px;font-weight:600;text-decoration:none;color:var(--blue);
+    background:var(--card);border:1px solid var(--line);padding:7px 13px;border-radius:30px;transition:.15s;}
+  .axis-chips a:hover{background:var(--blue-deep);color:#fff;border-color:var(--blue-deep);}
+
+  /* decision path (interactive Part II) */
+  .dpath{margin:18px 0;}
+  .fork{background:var(--card);border:1px solid var(--line);border-radius:7px;margin:10px 0;overflow:hidden;}
+  .fork-h{padding:13px 18px;background:#F0F4F9;border-bottom:1px solid var(--line);
+    font-family:"Archivo";font-weight:700;font-size:14px;color:var(--blue-deep);display:flex;gap:10px;align-items:baseline;}
+  .fork-h .n{font-family:"JetBrains Mono";color:var(--bordeaux);font-size:12px;}
+  .branches{display:grid;grid-template-columns:1fr 1fr;}
+  @media(max-width:620px){.branches{grid-template-columns:1fr;}}
+  .br{padding:14px 18px;font-size:14.5px;line-height:1.5;color:var(--ink-faint);border-right:1px solid var(--line-soft);}
+  .br.chosen{color:var(--ink);background:linear-gradient(0deg,var(--bordeaux-wash),#fff);border-left:3px solid var(--bordeaux);}
+  .br .st{font-family:"Archivo";font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:5px;}
+  .br.chosen .st{color:var(--bordeaux);}
+  .br.alt .st{color:var(--ink-faint);}
+  .br.chosen .st::after{content:" ◆ retenu";color:var(--bordeaux);}
+
+  /* collapsible examples */
+  details.ex{margin:18px 0;border:1px solid var(--line);border-radius:6px;background:#FBFCFE;overflow:hidden;}
+  details.ex>summary{cursor:pointer;list-style:none;padding:12px 18px;font-family:"Archivo",sans-serif;
+    font-weight:700;font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--blue-deep);
+    background:#EBF1F7;display:flex;align-items:center;gap:11px;user-select:none;transition:.15s;}
+  details.ex>summary::-webkit-details-marker{display:none;}
+  details.ex>summary::before{content:"▸";color:var(--bordeaux);font-size:13px;line-height:1;
+    transition:transform .2s ease;display:inline-block;}
+  details.ex[open]>summary::before{transform:rotate(90deg);}
+  details.ex>summary:hover{background:#E1EAF3;color:var(--bordeaux);}
+  details.ex>summary .cnt{margin-left:auto;font-family:"JetBrains Mono",monospace;font-size:10px;
+    letter-spacing:.04em;color:var(--ink-faint);font-weight:400;}
+  .exbody{padding:8px 20px 16px;font-size:15px;line-height:1.55;color:var(--ink-soft);}
+  .exbody p{margin:9px 0;}
+  .eg{margin:11px 0;padding:11px 15px;border-left:3px solid var(--blue);background:#fff;
+    border:1px solid var(--line-soft);border-left:3px solid var(--blue);border-radius:0 5px 5px 0;}
+  .eg.b{border-left-color:var(--bordeaux);}
+  .eg .egk{font-family:"Archivo",sans-serif;font-size:11.5px;font-weight:700;letter-spacing:.04em;
+    color:var(--blue-deep);display:block;margin-bottom:4px;}
+  .eg.b .egk{color:var(--bordeaux);}
+  .eg p{margin:5px 0;}
+  .exbody code{font-size:13px;}
+  .arrow{color:var(--bordeaux);font-weight:600;}
+
+  /* worked examples: code / diff / calc / steps */
+  .exbody pre.code{background:#0E2132;color:#D6E3EF;border:1px solid #1C3650;border-radius:6px;
+    padding:12px 14px;margin:11px 0;font-family:"JetBrains Mono",monospace;font-size:11.8px;line-height:1.62;
+    overflow-x:auto;white-space:pre;}
+  .exbody pre.code .h{color:#E7B3BD;}
+  .exbody pre.code .c{color:#7C9DBA;}
+  .exbody pre.code .del{display:block;background:rgba(155,52,67,.32);color:#F2C6CC;}
+  .exbody pre.code .add{display:block;background:rgba(44,119,182,.30);color:#C5DEF3;}
+  .calc{background:#fff;border:1px solid var(--line-soft);border-left:3px solid var(--blue-deep);
+    border-radius:0 5px 5px 0;padding:9px 14px;margin:10px 0;font-family:"JetBrains Mono",monospace;
+    font-size:12px;line-height:1.75;color:var(--ink);overflow-x:auto;white-space:pre-wrap;}
+  .calc .r{color:var(--bordeaux);font-weight:700;}
+  .calc .g{color:#1C6A4C;font-weight:700;}
+  .calc .c{color:var(--ink-faint);}
+  ol.steps{counter-reset:s;margin:11px 0;padding:0;list-style:none;}
+  ol.steps li{position:relative;padding:5px 0 5px 32px;font-size:14.5px;line-height:1.5;margin:3px 0;color:var(--ink-soft);}
+  ol.steps li b{color:var(--ink);}
+  ol.steps li::before{counter-increment:s;content:counter(s);position:absolute;left:0;top:4px;
+    width:21px;height:21px;background:var(--blue-deep);color:#fff;border-radius:50%;
+    font-family:"JetBrains Mono",monospace;font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:600;}
+  .eg pre.code{margin:8px 0;}
+
+  footer{background:var(--blue-deep);color:#A9C2D8;padding:34px 28px;font-size:13px;}
+  footer .fin{max-width:var(--maxw);margin:0 auto;font-family:"JetBrains Mono",monospace;letter-spacing:.03em;}
+
+  @media(max-width:900px){
+    .wrap{grid-template-columns:1fr;gap:0;}
+    nav.toc{position:static;max-height:none;border-bottom:1px solid var(--line);margin-bottom:10px;
+      display:grid;grid-template-columns:1fr 1fr;gap:0 18px;}
+  }
+
+/* ===== (2) ENRICHISSEMENTS : blocs xwrap / xabstract / xtldr / gloss-grid / gterm ===== */
+
+  /* ===== enrichissements (blocs ajoutes) ===== */
+  .xwrap{max-width:var(--maxw);margin:0 auto;padding:0 28px;}
+  .xabstract{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--bordeaux);
+    border-radius:8px;padding:24px 28px;margin:28px 0 0;box-shadow:0 1px 2px rgba(20,46,73,.05);}
+  .xabstract .xk{font-family:"Archivo",system-ui,sans-serif;font-size:11px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--bordeaux);font-weight:700;margin:0 0 9px;}
+  .xabstract .xthese{font-size:19px;line-height:1.5;color:var(--ink);font-weight:600;margin:0 0 12px;
+    font-family:"Spectral",Georgia,serif;}
+  .xabstract ul{margin:8px 0 0;padding:0;list-style:none;}
+  .xabstract li{position:relative;padding:5px 0 5px 22px;font-size:15px;color:var(--ink-soft);line-height:1.5;}
+  .xabstract li::before{content:"\25B8";position:absolute;left:2px;color:var(--blue-bright);font-weight:700;}
+  .xabstract .xpath li::before{content:counter(xp);counter-increment:xp;background:var(--blue-deep);color:#fff;
+    width:19px;height:19px;border-radius:50%;font-family:"JetBrains Mono",monospace;font-size:10px;left:0;top:5px;
+    display:flex;align-items:center;justify-content:center;}
+  .xabstract ul.xpath{counter-reset:xp;}
+  .xabstract .xfoot{font-size:13px;color:var(--ink-faint);margin:14px 0 0;line-height:1.5;}
+  .xtldr{background:var(--blue-wash);border:1px solid #CFE0EF;border-left:4px solid var(--blue);
+    border-radius:6px;padding:14px 20px;margin:16px 0 4px;}
+  .xtldr .xk{font-family:"Archivo",system-ui,sans-serif;font-size:11px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--blue);font-weight:700;margin-bottom:7px;}
+  .xtldr ul{margin:0;padding-left:19px;}
+  .xtldr li{font-size:14px;color:var(--ink-soft);line-height:1.5;margin:4px 0;}
+  .gloss-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin:18px 0;}
+  @media(max-width:760px){.gloss-grid{grid-template-columns:1fr;}}
+  .gterm{background:var(--card);border:1px solid var(--line);border-radius:7px;padding:14px 17px;
+    border-left:3px solid var(--blue);}
+  .gterm .gt-name{font-family:"Archivo",system-ui,sans-serif;font-weight:700;color:var(--blue-deep);
+    font-size:14.5px;display:block;margin-bottom:5px;}
+  .gterm .gt-def{font-size:13.5px;color:var(--ink-soft);line-height:1.5;margin:0;}
+  .gterm .gt-see{font-family:"JetBrains Mono",monospace;font-size:10.5px;color:var(--ink-faint);
+    margin:8px 0 0;}
+
+  .xptr-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin:18px 0;}
+  @media(max-width:760px){.xptr-grid{grid-template-columns:1fr;}}
+  .xptr{background:var(--card);border:1px solid var(--line);border-radius:7px;padding:14px 17px;
+    border-left:3px solid var(--blue-bright);}
+  .xptr .xptr-name{font-family:"Archivo",system-ui,sans-serif;font-weight:700;color:var(--blue);
+    font-size:14.5px;text-decoration:none;}
+  .xptr .xptr-name:hover{text-decoration:underline;}
+  .xptr .xptr-kind{font-family:"JetBrains Mono",monospace;font-size:9.5px;letter-spacing:.08em;
+    text-transform:uppercase;color:#fff;background:var(--blue-bright);border-radius:4px;
+    padding:1px 6px;margin-left:8px;vertical-align:middle;}
+  .xptr .xptr-blurb{font-size:13.5px;color:var(--ink-soft);line-height:1.5;margin:8px 0 0;}
+
+/* ===== (3) DARK MODE + BOUTON THÈME + TOOLTIPS ===== */
+
+  /* Transitions douces sur les surfaces principales lors de la bascule */
+  html.theme-anim body,
+  html.theme-anim .card,
+  html.theme-anim .callout,
+  html.theme-anim .note,
+  html.theme-anim figure.fig,
+  html.theme-anim .tbl-w,
+  html.theme-anim nav.toc a{
+    transition:background-color .25s ease, color .25s ease, border-color .25s ease;
+  }
+
+  html[data-theme="dark"]{
+    /* papier sombre, encre claire */
+    --paper:#0E1620; --card:#16212E;
+    --ink:#E4EBF3; --ink-soft:#AFC0D2; --ink-faint:#7C8DA1;
+    /* bleus : on éclaircit pour rester lisibles sur fond foncé */
+    --blue:#6FA8D8; --blue-deep:#0A1521; --blue-bright:#7FB6E4; --blue-wash:#1B2C3E;
+    /* bordeaux : accent gardé lisible, remonté en clarté */
+    --bordeaux:#C66875; --bordeaux-bright:#D67C88; --bordeaux-wash:#2C1A1F;
+    --line:#2A3848; --line-soft:#212E3C;
+    --code:#0A1521;
+    color-scheme:dark;
+  }
+
+  /* Ajustements ciblés sur surfaces déjà opaques du doc (non pilotées par les variables) */
+  html[data-theme="dark"] body{background:var(--paper);color:var(--ink);}
+  html[data-theme="dark"] header.top{
+    background:linear-gradient(165deg,#0A1521,#060D16 70%);
+    border-bottom-color:var(--bordeaux);
+  }
+  html[data-theme="dark"] th{background:#0A1521;color:#D7E6F4;}
+  html[data-theme="dark"] tr:hover td{background:#1B2735;}
+  html[data-theme="dark"] code{background:#0E1C2A;color:#CFE0F2;}
+  html[data-theme="dark"] .card{box-shadow:0 1px 2px rgba(0,0,0,.45);}
+  html[data-theme="dark"] details.ex{background:#101A25;}
+  html[data-theme="dark"] details.ex>summary{background:#142231;color:#CFE0F2;}
+  html[data-theme="dark"] details.ex>summary:hover{background:#1A2C3E;}
+  html[data-theme="dark"] .eg{background:#101A25;}
+  html[data-theme="dark"] .calc{background:#101A25;}
+  html[data-theme="dark"] .fork-h{background:#142231;}
+  html[data-theme="dark"] footer{background:#0A1521;color:#8CA6BE;}
+  /* la coloration de pre.code reste codée en dur dans le doc (déjà sombre, cohérente) */
+
+  #theme_toggle{
+    position:fixed; top:14px; right:14px; z-index:120;
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:"Archivo",system-ui,sans-serif; font-size:12px; font-weight:700;
+    letter-spacing:.08em; text-transform:uppercase;
+    color:var(--blue); background:var(--card);
+    border:1px solid var(--line); border-radius:30px;
+    padding:8px 14px; cursor:pointer; line-height:1;
+    box-shadow:0 2px 6px rgba(20,46,73,.14);
+    transition:background-color .15s, color .15s, border-color .15s, box-shadow .15s;
+  }
+  #theme_toggle:hover{
+    color:#fff; background:var(--blue-deep); border-color:var(--blue-deep);
+  }
+  #theme_toggle:focus-visible{
+    outline:2px solid var(--bordeaux); outline-offset:2px;
+  }
+  #theme_toggle #theme_toggle_ico{font-size:14px;}
+  html[data-theme="dark"] #theme_toggle{
+    box-shadow:0 2px 8px rgba(0,0,0,.5);
+  }
+  html[data-theme="dark"] #theme_toggle:hover{
+    color:#0A1521; background:var(--blue-bright); border-color:var(--blue-bright);
+  }
+  @media print{ #theme_toggle{display:none;} }
+
+  .theme-gloss{
+    cursor:help; text-decoration:none;
+    border-bottom:1px dotted var(--bordeaux);
+    color:inherit; outline:none;
+  }
+  .theme-gloss:focus-visible{
+    outline:2px solid var(--bordeaux); outline-offset:2px; border-radius:2px;
+  }
+  abbr.theme-gloss{text-decoration:none;}
+
+  #theme_tip{
+    position:absolute; z-index:130; max-width:300px;
+    background:var(--blue-deep); color:#EAF1F8;
+    border:1px solid var(--bordeaux);
+    border-radius:6px; padding:9px 12px;
+    font-family:"Archivo",system-ui,sans-serif; font-size:13px; line-height:1.45;
+    box-shadow:0 6px 20px rgba(10,21,33,.4);
+    opacity:0; transform:translateY(3px); pointer-events:none;
+    transition:opacity .14s ease, transform .14s ease;
+  }
+  #theme_tip[data-show="1"]{ opacity:1; transform:translateY(0); }
+  #theme_tip::after{
+    content:""; position:absolute; left:var(--theme-tip-ax,16px);
+    bottom:-6px; width:10px; height:10px;
+    background:var(--blue-deep);
+    border-right:1px solid var(--bordeaux); border-bottom:1px solid var(--bordeaux);
+    transform:rotate(45deg);
+  }
+  #theme_tip[data-below="1"]::after{
+    bottom:auto; top:-6px;
+    border-right:none; border-bottom:none;
+    border-left:1px solid var(--bordeaux); border-top:1px solid var(--bordeaux);
+  }
+  html[data-theme="dark"] #theme_tip{
+    background:#1B2C3E; color:#E4EBF3;
+  }
+  html[data-theme="dark"] #theme_tip::after{ background:#1B2C3E; }
+  @media print{ #theme_tip{display:none;} }
+
+</style>
+</head>
+<body>
+<div id="prog" style="width:0%"></div>
+<header class="top"><div class="top-in">
+  <p class="kicker">LLM-as-a-Judge · monographie</p>
+  <h1>Évaluation des LLM et LLM-as-a-Judge</h1>
+  <p class="lede">Déléguer l'évaluation des sorties d'un modèle à un LLM-juge atteint le niveau d'accord inter-humain dans des conditions restreintes — mais reste traversé de biais systématiques (position, verbosité, auto-préférence) qui interdisent de réduire sa validation à un seul taux d'accord.</p>
+  <div class="meta"><span>Monographie</span></div>
+</div></header>
+<div class="wrap">
+<nav class="toc" id="toc"><a href="#fondations-paradigme">Le paradigme LLM-as-a-Judge : origine et promesse</a>
+<a href="#modes-jugement">Modes de jugement : pointwise, pairwise, listwise</a>
+<a href="#benchmarks-plateformes">Bancs d'essai et plateformes : MT-Bench, Chatbot Arena, AlpacaEval</a>
+<a href="#biais-verbosite-style">Biais de verbosité, de style et de présentation</a>
+<a href="#biais-auto-preference">Biais d'auto-préférence : la perplexité comme cause racine</a>
+<a href="#taxonomie-biais">Taxonomie des biais et frameworks de mesure</a>
+<a href="#fiabilite-statistique">Fiabilité statistique : accord juge↔humain et garanties</a>
+<a href="#limites-pieges">Limites, pièges et idées reçues</a></nav>
+<main>
+<div class="xwrap"><div class="xabstract"><div class="xk">Résumé</div><p class="xthese">Le LLM-as-a-Judge (LLM-juge) offre un proxy d'annotation scalable qui atteint le niveau d'accord inter-humain dans des conditions restreintes, mais reste traversé de biais systématiques (position, verbosité, self-preference) qui interdisent de réduire sa validation à un seul taux d'accord.</p><ul><li>Le paradigme LLM-as-a-Judge délègue l'évaluation des sorties d'un modèle à un grand modèle de langage. Sur MT-Bench (Zheng et al., NeurIPS 2023 ; 80 questions multi-tour, 8 catégories), GPT-4 juge atteint 85 % d'accord avec les humains en mode pairwise hors égalités — au niveau de l'accord inter-humain (81 %).</li><li>Le mode pairwise (comparaison par paires) s'aligne mieux sur le jugement humain que le pointwise (notation absolue) ; la parade swap-and-tie neutralise le position bias en n'accordant la victoire que si la même réponse gagne dans les deux ordres.</li><li>Les bancs d'essai de référence — MT-Bench, Chatbot Arena (Bradley-Terry estimé par MLE batch, erreurs standard sandwich), AlpacaEval — automatisent ce signal ; G-Eval (GPT-4 + chain-of-thought) atteint une corrélation de Spearman de 0,514 sur le résumé, contre 0,192 pour ROUGE-1.</li><li>Atteindre ~80 % d'accord est nécessaire mais non suffisant : il faut une calibration experte, une correction des biais (position, verbosity, self-preference), des tests adversariaux et une vérification hors distribution. Aucun des juges SOTA testés dans le Judge Reliability Harness n'est uniformément fiable.</li><li>Les biais sont massifs et mesurés : le verbosity bias fait osciller le win rate AlpacaEval de plus de 40 points à qualité égale ; le style bias (préférence markdown) dépasse d'un ordre de grandeur le position bias ; le self-preference bias de GPT-4 atteint 0,749 en parité démographique.</li><li>Le self-preference bias a une cause racine documentée — la familiarité textuelle (faible perplexity) — combinée à la self-recognition, corrélée linéairement à l'intensité du biais. Le multi-agent debate amplifie les biais (sycophantie inter-agents) plutôt que de les filtrer.</li><li>La fiabilité statistique exige des garanties formelles : l'alt-test (Calderon et al., ACL 2025 ; ≥ 3 annotateurs, winning rate ω ≥ 0,5, correction Benjamini-Yekutieli) justifie le remplacement d'humains. Les leaderboards restent attaquables (modèle nul à 86,5 % de LC WR ; variants privés et sur-représentation de données Arena).</li></ul></div></div>
+<section id="fondations-paradigme">
+<h3>Le paradigme LLM-as-a-Judge : origine et promesse</h3>
+<p>Évaluer un grand modèle de langage sur des tâches ouvertes — résumer, expliquer, argumenter — bute sur une difficulté fondamentale : les métriques automatiques comme BLEU ou ROUGE mesurent une proximité lexicale qui ne capture pas la qualité perçue par un humain, tandis que les annotations humaines restent coûteuses, lentes et difficiles à reproduire à grande échelle. C'est pour combler cet écart que Zheng et al. formalisent, dans un papier soumis en juin 2023 et présenté à NeurIPS 2023, le paradigme désormais connu sous le nom de <em>LLM-as-a-Judge</em> : confier l'évaluation des sorties de modèles à un LLM fort — en l'occurrence GPT-4 — en lieu et place d'annotateurs humains. Le principe est direct : le juge reçoit une question, une ou plusieurs réponses candidates, et produit un verdict selon un rubric fourni dans le prompt, sans intervention humaine dans la boucle d'évaluation.</p>
+
+<p>Le papier introduit deux artefacts compagnons qui ancrent empiriquement la proposition. MT-Bench est un banc d'essai de 80 questions multi-tour réparties en 8 catégories — écriture (<em>writing</em>), jeu de rôle (<em>roleplay</em>), extraction, raisonnement, mathématiques, code, STEM et sciences humaines/sociales — conçues pour discriminer les modèles sur des tâches exigeant une continuité conversationnelle. Chatbot Arena est une plateforme crowdsourcée lancée en 2023 par LMSYS où des utilisateurs comparent deux modèles anonymes côte à côte et votent pour le meilleur avant que les noms soient révélés. Les deux corpus sont publiés en open source : 3 000 votes d'experts et 30 000 conversations avec préférences humaines sont rendus publics, fournissant à la communauté une base d'étalonnage reproductible.</p>
+
+<p>Le résultat fondateur que retient la littérature est le suivant : GPT-4 utilisé comme juge pairwise atteint 85 % d'accord avec les évaluateurs humains (configuration sans tie), alors que l'accord entre annotateurs humains eux-mêmes n'est que de 81 %. Cette convergence est souvent résumée par la formule « GPT-4 atteint le niveau d'accord inter-humain », mais la formule mérite une lecture précise : ce taux de ~80–85 % ne représente pas une cible à dépasser, il constitue le <em>plancher de bruit</em> inhérent au désaccord humain sur des tâches subjectives. Dépasser ce seuil n'est pas seulement difficile — c'est conceptuellement mal défini, car aucun évaluateur (humain ou artificiel) ne peut être « plus correct » que le consensus humain lorsque les préférences sont elles-mêmes dispersées.</p>
+
+<p>Zheng et al. distinguent dès leur papier fondateur trois modes d'interrogation du juge. Le mode <em>pointwise</em> (notation absolue) soumet une réponse unique contre un rubric et produit un score numérique ou une étiquette qualitative — méthode rapide, sans modèle de référence, adaptée au monitoring continu. Le mode <em>pairwise</em> (comparaison par paires) présente deux réponses et demande au juge laquelle est préférable — plus facile cognitivement pour le juge, mais coûteux en appels : comparer cinq variantes exige dix comparaisons. Le mode <em>listwise</em> classe simultanément plusieurs réponses en un seul appel. Le papier introduit également la parade <em>swap-and-tie</em> pour le <em>position bias</em> (biais de position) : chaque comparaison pairwise est exécutée deux fois avec l'ordre des réponses inversé ; la victoire n'est déclarée que si la même réponse gagne dans les deux ordres, l'incohérence étant déclarée égalité. Cette précaution est directement motivée par l'observation que les LLM tendent à favoriser la réponse placée en première position, indépendamment de sa qualité.</p>
+</section>
+<div class="widget snt-root" id="snt-root">
+  <style>
+    .snt-root{--snt-ink:var(--ink,#15202E);--snt-soft:var(--ink-soft,#43536A);
+      --snt-faint:var(--ink-faint,#7A889B);--snt-card:var(--card,#fff);
+      --snt-line:var(--line,#D7DFE9);--snt-blue:var(--blue,#23537F);
+      --snt-bright:var(--blue-bright,#2C77B6);--snt-wash:var(--blue-wash,#E7EEF6);
+      --snt-bord:var(--bordeaux,#7C2A38);--snt-bordb:var(--bordeaux-bright,#9B3443);
+      --snt-a:#2C77B6;--snt-b:#7C2A38;--snt-tie:#6B7280;
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--snt-ink);
+      border:1px solid var(--snt-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--snt-card);max-width:760px}
+    .snt-root *{box-sizing:border-box}
+    .snt-kick{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;
+      color:var(--snt-faint);font-weight:600;margin:0 0 2px}
+    .snt-title{font-weight:700;font-size:1.05rem;margin:0 0 4px}
+    .snt-sub{font-size:.9rem;color:var(--snt-soft);margin:0 0 14px}
+    .snt-sub code{font:600 .82em/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+      background:rgba(0,0,0,.05);padding:1px 5px;border-radius:4px;color:var(--snt-blue)}
+    .snt-ctl{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:flex-start;margin:0 0 14px;
+      padding:12px 14px;border:1px solid var(--snt-line);border-radius:10px;
+      background:rgba(0,0,0,.012)}
+    .snt-knob{display:flex;flex-direction:column;gap:5px;min-width:200px;flex:1 1 220px}
+    .snt-lab{font-size:.74rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+      color:var(--snt-faint);display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+    .snt-lab b{font:700 .82rem/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+      color:var(--snt-blue);text-transform:none;letter-spacing:0}
+    .snt-seg{display:flex;border:1px solid var(--snt-line);border-radius:8px;overflow:hidden}
+    .snt-seg button{flex:1;padding:7px 4px;border:0;background:var(--snt-card);cursor:pointer;
+      font:600 12.5px/1.15 inherit;color:var(--snt-soft);border-left:1px solid var(--snt-line)}
+    .snt-seg button:first-child{border-left:0}
+    .snt-seg button:hover{background:var(--snt-wash)}
+    .snt-seg button.snt-on{background:var(--snt-blue);color:#fff}
+    .snt-range{width:100%;accent-color:var(--snt-bright);cursor:pointer;margin:2px 0 0}
+    .snt-hint{font-size:.7rem;color:var(--snt-faint);margin:0}
+    .snt-toggle{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;
+      padding:2px 0}
+    .snt-switch{position:relative;width:42px;height:24px;border-radius:13px;flex:0 0 auto;
+      background:var(--snt-line);transition:background .15s ease}
+    .snt-switch::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;
+      border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:left .15s ease}
+    .snt-toggle.snt-checked .snt-switch{background:var(--snt-bord)}
+    .snt-toggle.snt-checked .snt-switch::after{left:21px}
+    .snt-toggle .snt-tlab{font-size:.84rem;font-weight:600;color:var(--snt-ink)}
+    .snt-runs{display:grid;grid-template-columns:1fr;gap:12px;margin:0 0 4px}
+    @media(min-width:560px){.snt-runs{grid-template-columns:1fr 1fr}}
+    .snt-run{border:1px solid var(--snt-line);border-radius:10px;padding:11px 12px 12px;
+      background:var(--snt-card);min-width:0}
+    .snt-run h4{margin:0 0 8px;font-size:.74rem;text-transform:uppercase;letter-spacing:.05em;
+      color:var(--snt-blue);font-weight:700;display:flex;align-items:center;gap:6px}
+    .snt-slots{display:flex;flex-direction:column;gap:6px;margin:0 0 9px}
+    .snt-slot{display:grid;grid-template-columns:auto 1fr auto;gap:9px;align-items:center;
+      padding:7px 9px;border:1px solid var(--snt-line);border-radius:8px;background:rgba(0,0,0,.014);
+      transition:border-color .15s ease,background .15s ease}
+    .snt-slot.snt-picked{border-width:2px;padding:6px 8px}
+    .snt-slot.snt-picked.snt-pa{border-color:var(--snt-a);background:rgba(44,119,182,.06)}
+    .snt-slot.snt-picked.snt-pb{border-color:var(--snt-b);background:rgba(124,42,56,.06)}
+    .snt-pos{font:700 .64rem/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--snt-faint);
+      text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
+    .snt-tag{display:inline-flex;align-items:center;gap:6px;font-size:.82rem;color:var(--snt-ink)}
+    .snt-badge{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;
+      border-radius:5px;font:700 .72rem/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:#fff;
+      flex:0 0 auto}
+    .snt-badge.snt-ba{background:var(--snt-a)}
+    .snt-badge.snt-bb{background:var(--snt-b)}
+    .snt-mark{font:700 .68rem/1 ui-monospace,SFMono-Regular,Menlo,monospace;text-transform:uppercase;
+      letter-spacing:.03em;padding:2px 6px;border-radius:5px;white-space:nowrap;opacity:0;
+      transition:opacity .15s ease}
+    .snt-mark.snt-show{opacity:1}
+    .snt-mark.snt-wa{background:rgba(44,119,182,.14);color:var(--snt-a)}
+    .snt-mark.snt-wb{background:rgba(124,42,56,.14);color:var(--snt-b)}
+    .snt-verdict{margin-top:2px;padding:8px 10px;border-radius:8px;font-size:.82rem;
+      display:flex;align-items:center;gap:8px;border:1px dashed var(--snt-line)}
+    .snt-verdict .snt-vk{font:700 .64rem/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+      text-transform:uppercase;letter-spacing:.05em;color:var(--snt-faint)}
+    .snt-verdict b{font-weight:700}
+    .snt-verdict.snt-va{border-color:var(--snt-a);background:rgba(44,119,182,.05)}
+    .snt-verdict.snt-va b{color:var(--snt-a)}
+    .snt-verdict.snt-vb{border-color:var(--snt-b);background:rgba(124,42,56,.05)}
+    .snt-verdict.snt-vb b{color:var(--snt-b)}
+    .snt-agg{margin-top:13px;border:1px solid var(--snt-line);border-radius:10px;
+      padding:12px 14px 13px;background:var(--snt-card)}
+    .snt-agg h4{margin:0 0 9px;font-size:.74rem;text-transform:uppercase;letter-spacing:.05em;
+      color:var(--snt-ink);font-weight:700}
+    .snt-flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 11px}
+    .snt-cell{font:700 .78rem/1 ui-monospace,SFMono-Regular,Menlo,monospace;padding:6px 9px;
+      border-radius:7px;border:1px solid var(--snt-line);background:rgba(0,0,0,.02);white-space:nowrap}
+    .snt-cell.snt-ca{color:var(--snt-a);border-color:var(--snt-a);background:rgba(44,119,182,.06)}
+    .snt-cell.snt-cb{color:var(--snt-b);border-color:var(--snt-b);background:rgba(124,42,56,.06)}
+    .snt-op{font:700 1rem/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--snt-faint)}
+    .snt-arrow{font-size:1rem;color:var(--snt-faint)}
+    .snt-final{display:inline-flex;align-items:center;gap:9px;padding:9px 14px;border-radius:9px;
+      font-weight:700;font-size:1rem;border:2px solid}
+    .snt-final.snt-fa{border-color:var(--snt-a);background:rgba(44,119,182,.08);color:var(--snt-a)}
+    .snt-final.snt-fb{border-color:var(--snt-b);background:rgba(124,42,56,.08);color:var(--snt-b)}
+    .snt-final.snt-ft{border-color:var(--snt-tie);background:rgba(107,114,128,.08);color:var(--snt-tie)}
+    .snt-final .snt-fk{font:700 .64rem/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+      text-transform:uppercase;letter-spacing:.06em;opacity:.7}
+    .snt-note{margin:13px 0 0;padding:11px 13px;border:1px solid var(--snt-line);border-radius:8px;
+      background:var(--snt-card);font-size:.86rem;color:var(--snt-soft)}
+    .snt-note b{color:var(--snt-ink)}
+    .snt-note.snt-good{border-color:var(--snt-a);background:rgba(44,119,182,.05)}
+    .snt-note.snt-good b{color:var(--snt-a)}
+    .snt-note.snt-warn{border-color:var(--snt-bordb);background:rgba(155,52,67,.05)}
+    .snt-note.snt-warn b{color:var(--snt-bord)}
+    .snt-note .snt-m{font:700 .82em/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--snt-blue)}
+    .snt-acts{display:flex;gap:8px;margin:6px 0 0}
+    .snt-btn{padding:7px 11px;border:1px solid var(--snt-blue);border-radius:8px;background:transparent;
+      color:var(--snt-blue);font:600 12.5px/1 inherit;cursor:pointer;white-space:nowrap}
+    .snt-btn:hover{background:var(--snt-wash)}
+    .snt-legend{font-size:.74rem;color:var(--snt-faint);margin:11px 0 0}
+    .snt-legend code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  </style>
+
+  <p class="snt-kick">Démonstration interactive · LLM-as-judge pairwise</p>
+  <p class="snt-title">Swap-and-tie : neutraliser le biais de position par double passage</p>
+  <p class="snt-sub">Le juge compare deux réponses <b>A</b> et <b>B</b>. On lance la comparaison
+    <b>deux fois</b> en inversant l'ordre — run 1 = <code>(A, B)</code>, run 2 = <code>(B, A)</code> —
+    puis on agrège : victoire déclarée <b>seulement si la même réponse gagne dans les deux ordres</b>,
+    sinon égalité. Choisis ce que le juge préfère <em>au fond</em>, ajoute un biais de position, et
+    regarde la règle absorber l'incohérence.</p>
+
+  <div class="snt-ctl">
+    <div class="snt-knob">
+      <span class="snt-lab">préférence réelle du juge</span>
+      <div class="snt-seg" id="snt-pref" role="group" aria-label="préférence intrinsèque du juge">
+        <button type="button" data-pref="A" class="snt-on">A meilleure</button>
+        <button type="button" data-pref="tie">vraiment ex æquo</button>
+        <button type="button" data-pref="B">B meilleure</button>
+      </div>
+      <span class="snt-hint">le mérite intrinsèque, indépendant de l'ordre d'affichage</span>
+    </div>
+    <div class="snt-knob">
+      <span class="snt-lab">biais de position <b id="snt-bval">0,60</b></span>
+      <input class="snt-range" id="snt-bias" type="range" min="0" max="100" step="5" value="60"
+             aria-label="force du biais de position">
+      <label class="snt-toggle snt-checked" id="snt-postog">
+        <span class="snt-switch" aria-hidden="true"></span>
+        <span class="snt-tlab">le juge favorise la 1<sup>re</sup> position</span>
+        <input type="checkbox" id="snt-poschk" checked style="position:absolute;opacity:0;width:0;height:0">
+      </label>
+      <span class="snt-hint">pousse le verdict de chaque run vers la réponse présentée en premier</span>
+    </div>
+  </div>
+
+  <div class="snt-runs">
+    <div class="snt-run">
+      <h4>Run 1 · ordre (A, B)</h4>
+      <div class="snt-slots">
+        <div class="snt-slot" id="snt-r1s1"><span class="snt-pos">1<sup>re</sup> position</span>
+          <span class="snt-tag"><span class="snt-badge snt-ba">A</span>Réponse A</span>
+          <span class="snt-mark" id="snt-r1m1"></span></div>
+        <div class="snt-slot" id="snt-r1s2"><span class="snt-pos">2<sup>e</sup> position</span>
+          <span class="snt-tag"><span class="snt-badge snt-bb">B</span>Réponse B</span>
+          <span class="snt-mark" id="snt-r1m2"></span></div>
+      </div>
+      <div class="snt-verdict" id="snt-r1v"><span class="snt-vk">verdict run 1</span>
+        <span id="snt-r1vt"></span></div>
+    </div>
+    <div class="snt-run">
+      <h4>Run 2 · ordre (B, A)</h4>
+      <div class="snt-slots">
+        <div class="snt-slot" id="snt-r2s1"><span class="snt-pos">1<sup>re</sup> position</span>
+          <span class="snt-tag"><span class="snt-badge snt-bb">B</span>Réponse B</span>
+          <span class="snt-mark" id="snt-r2m1"></span></div>
+        <div class="snt-slot" id="snt-r2s2"><span class="snt-pos">2<sup>e</sup> position</span>
+          <span class="snt-tag"><span class="snt-badge snt-ba">A</span>Réponse A</span>
+          <span class="snt-mark" id="snt-r2m2"></span></div>
+      </div>
+      <div class="snt-verdict" id="snt-r2v"><span class="snt-vk">verdict run 2</span>
+        <span id="snt-r2vt"></span></div>
+    </div>
+  </div>
+
+  <div class="snt-agg">
+    <h4>Règle d'agrégation swap-and-tie</h4>
+    <div class="snt-flow" id="snt-flow"></div>
+    <div class="snt-note" id="snt-note"></div>
+    <div class="snt-acts">
+      <button class="snt-btn" id="snt-reset" type="button">Réinitialiser</button>
+    </div>
+  </div>
+
+  <p class="snt-legend">Modèle-jouet déterministe : un juge à biais de position de force <code>p</code>
+    fait basculer son verdict vers la 1<sup>re</sup> position d'autant plus fort que <code>p</code>
+    est grand ; ici l'issue est rendue <em>catégorique</em> (le biais l'emporte dès qu'il dépasse le
+    mérite) pour isoler le mécanisme. Parade introduite par Zheng et al. (NeurIPS 2023) : le biais de
+    position d'un bon juge reste faible, mais inclure les égalités fait
+    chuter l'accord juge↔humain de 85 % à ~70 % — c'est le prix de l'honnêteté.</p>
+
+  <script>
+  (function(){
+    var root=document.getElementById("snt-root");
+    if(!root||root.dataset.sntInit)return; root.dataset.sntInit="1";
+    function el(id){return document.getElementById(id);}
+    function clear(n){while(n.firstChild)n.removeChild(n.firstChild);}
+
+    var state={pref:"A", bias:60, posOn:true, biasStr:"0,60"};
+    // mérite intrinsèque, en faveur de A : +1 si A meilleure, -1 si B, 0 si ex æquo
+    function meritForA(){ return state.pref==="A" ? 1 : (state.pref==="B" ? -1 : 0); }
+
+    // Verdict d'un run pour un ordre donné. firstIsA : A est-elle en 1re position ?
+    // Renvoie "A" ou "B" (un run isolé ne produit jamais d'ex æquo).
+    function verdict(firstIsA){
+      var m=meritForA();                          // signal de mérite, vers A (+) / B (-)
+      var posPush=0;
+      if(state.posOn){
+        // le biais favorise la réponse en 1re position
+        posPush=(firstIsA?1:-1)*(state.bias/100);
+      }
+      var scoreA=m+posPush;                        // score net en faveur de A
+      if(scoreA>0)return "A";
+      if(scoreA<0)return "B";
+      // égalité parfaite mérite vs biais : le juge tranche par sa tendance de position
+      if(state.posOn)return firstIsA?"A":"B";
+      return "A";                                  // départage déterministe si tout est nul
+    }
+
+    function setSlot(slotId,markId,winner,who){
+      var slot=el(slotId), mark=el(markId), won=(winner===who);
+      slot.className="snt-slot"+(won?(" snt-picked snt-p"+who.toLowerCase()):"");
+      mark.className="snt-mark"+(won?(" snt-show snt-w"+who.toLowerCase()):"");
+      mark.textContent=won?"choisie":"";
+    }
+
+    function setVerdict(vId,vtId,winner){
+      var v=el(vId), vt=el(vtId);
+      v.className="snt-verdict snt-v"+winner.toLowerCase();
+      clear(vt);
+      vt.appendChild(document.createTextNode("→ "));
+      var strong=document.createElement("b"); strong.textContent="Réponse "+winner;
+      vt.appendChild(strong);
+      vt.appendChild(document.createTextNode(" l'emporte"));
+    }
+
+    function flowCell(label,who){
+      var c=document.createElement("span");
+      c.className="snt-cell"+(who?(" snt-c"+who.toLowerCase()):"");
+      c.textContent=label; return c;
+    }
+    function op(sym){var s=document.createElement("span"); s.className="snt-op"; s.textContent=sym; return s;}
+    function arrow(){var s=document.createElement("span"); s.className="snt-arrow"; s.textContent="→"; return s;}
+
+    function renderFlow(w1,w2,final){
+      var f=el("snt-flow"); clear(f);
+      f.appendChild(flowCell("run 1 = "+w1, w1));
+      f.appendChild(op(w1===w2?"=":"≠"));
+      f.appendChild(flowCell("run 2 = "+w2, w2));
+      f.appendChild(arrow());
+      var fin=document.createElement("span");
+      var fk=document.createElement("span"); fk.className="snt-fk"; fk.textContent="issue";
+      if(final==="tie"){ fin.className="snt-final snt-ft"; fin.appendChild(fk);
+        fin.appendChild(document.createTextNode(" ÉGALITÉ (tie)")); }
+      else { fin.className="snt-final snt-f"+final.toLowerCase(); fin.appendChild(fk);
+        fin.appendChild(document.createTextNode(" Victoire "+final)); }
+      f.appendChild(fin);
+    }
+
+    function setNote(kind,parts){
+      var n=el("snt-note"); n.className="snt-note"+(kind?(" snt-"+kind):""); clear(n);
+      parts.forEach(function(p){
+        if(typeof p==="string")n.appendChild(document.createTextNode(p));
+        else if(p.b){var b=document.createElement("b"); b.textContent=p.b; n.appendChild(b);}
+        else if(p.m){var s=document.createElement("span"); s.className="snt-m"; s.textContent=p.m; n.appendChild(s);}
+      });
+    }
+
+    function explain(w1,w2,final){
+      var prefTxt=state.pref==="A"?"A est réellement meilleure":
+                  state.pref==="B"?"B est réellement meilleure":"A et B sont réellement ex æquo";
+      if(!state.posOn){
+        setNote("good",["Juge ", {b:"non biaisé"}, " : il choisit sur le seul mérite, ",
+          "donc le même verdict (", {m:w1}, ") dans les deux ordres. Swap-and-tie ",
+          {b:"confirme"}, " la victoire de "+final+" — la double passe n'a rien coûté. ",
+          "Active le biais de position pour voir la règle travailler."]);
+        return;
+      }
+      if(final==="tie"){
+        setNote("warn",["Le biais a ", {b:"renversé"}, " le verdict d'un ordre à l'autre : ",
+          {m:"run 1 = "+w1}, ", ", {m:"run 2 = "+w2}, ". Aucune réponse ne gagne ",
+          {b:"dans les deux sens"}, " → la règle déclare ", {b:"égalité"}, ". ",
+          "Le juge a simplement suivi la 1ʳᵉ position ("+prefTxt+", mais l'ordre a tranché) : ",
+          "swap-and-tie ", {b:"absorbe"}, " ce biais au lieu de le laisser fabriquer un faux gagnant."]);
+        return;
+      }
+      // victoire malgré le biais : le mérite a survécu aux deux ordres
+      setNote("good",["Le mérite ", {b:"survit aux deux ordres"}, " : même avec le biais, ",
+        {b:final+" gagne"}, " en 1ʳᵉ ", {b:"et"}, " en 2ᵉ position ("+prefTxt+"). ",
+        "Le biais (", {m:state.biasStr}, ") n'a pas suffi à renverser l'avantage réel → ",
+        "swap-and-tie ", {b:"confirme"}, " la victoire. Monte le biais ou choisis « ex æquo » ",
+        "pour le faire basculer en égalité."]);
+    }
+
+    function render(){
+      var bstr=(state.bias/100).toFixed(2).replace(".",",");
+      state.biasStr=bstr;
+      el("snt-bval").textContent=bstr;
+      var v1=verdict(true);    // run 1 : (A,B) → A en 1re position
+      var v2=verdict(false);   // run 2 : (B,A) → A en 2e position
+      // run 1 slots : s1=A(1re), s2=B(2e)
+      setSlot("snt-r1s1","snt-r1m1",v1,"A");
+      setSlot("snt-r1s2","snt-r1m2",v1,"B");
+      setVerdict("snt-r1v","snt-r1vt",v1);
+      // run 2 slots : s1=B(1re), s2=A(2e)
+      setSlot("snt-r2s1","snt-r2m1",v2,"B");
+      setSlot("snt-r2s2","snt-r2m2",v2,"A");
+      setVerdict("snt-r2v","snt-r2vt",v2);
+      var final=(v1===v2)?v1:"tie";
+      renderFlow(v1,v2,final);
+      explain(v1,v2,final);
+    }
+
+    // contrôles
+    var prefBtns=el("snt-pref").querySelectorAll("button");
+    prefBtns.forEach(function(btn){
+      btn.addEventListener("click",function(){
+        state.pref=btn.getAttribute("data-pref");
+        prefBtns.forEach(function(b){b.classList.toggle("snt-on",b===btn);});
+        render();
+      });
+    });
+    el("snt-bias").addEventListener("input",function(e){ state.bias=+e.target.value; render(); });
+    var tog=el("snt-postog"), chk=el("snt-poschk");
+    function setTog(on){ state.posOn=on; chk.checked=on; tog.classList.toggle("snt-checked",on);
+      el("snt-bias").disabled=!on; el("snt-bias").style.opacity=on?"1":".4"; render(); }
+    tog.addEventListener("click",function(e){ if(e.target===chk)return; e.preventDefault(); setTog(!state.posOn); });
+    chk.addEventListener("change",function(){ setTog(chk.checked); });
+    el("snt-reset").addEventListener("click",function(){
+      state.pref="A"; state.bias=60;
+      prefBtns.forEach(function(b){b.classList.toggle("snt-on",b.getAttribute("data-pref")==="A");});
+      el("snt-bias").value="60";
+      setTog(true);
+    });
+
+    render();
+  })();
+  </script>
+</div>
+
+<section id="modes-jugement">
+<h3>Modes de jugement : pointwise, pairwise, listwise</h3>
+<p>Trois paradigmes structurent l'évaluation automatisée des sorties de modèles de langage. Dans l'approche <strong>pointwise</strong> (score absolu), le juge reçoit un seul candidat et un rubric, puis attribue une note sur une échelle (souvent de 1 à 5 ou de 1 à 10) sans aucun élément de comparaison explicite. Ce mode est économique en appels d'API et adapté au monitoring continu : on peut scorer chaque réponse indépendamment, sans avoir à constituer des paires. Dans l'approche <strong>pairwise</strong> (comparaison par paires), deux candidats sont présentés simultanément au juge, qui désigne le meilleur ou déclare une égalité ; c'est le format canonique pour produire les données de préférence qui alimentent le RLHF. Enfin, l'approche <strong>listwise</strong> (classement simultané) soumet n&gt;2 candidats en un seul appel et demande un classement ordinal complet : elle maximise l'information extraite par passage mais son coût en contexte croît quadratiquement avec le nombre de candidats, ce qui la rend peu pratique au-delà d'une poignée d'options.</p>
+
+<p>La supériorité relative du pairwise sur le pointwise pour l'alignement humain est souvent avancée au motif que comparer deux réponses serait cognitivement plus naturel, à l'image du judgment humain fondé sur la préférence directe. L'accord inter-humain sur les comparaisons par paires est effectivement élevé — GPT-4 utilisé comme juge sur MT-Bench atteint plus de 80 % d'accord avec les préférences humaines, au même niveau que l'accord inter-annotateurs. Cependant, la stabilité intrinsèque de ces verdicts est remise en question par des travaux récents : aucun des juges SOTA testés dans le Judge Reliability Harness (2026) n'est uniformément fiable sur les benchmarks de sécurité, persuasion, mauvais usage et agentique, et de simples changements de formatage, paraphrases ou variations de verbosité suffisent à renverser les verdicts. La supériorité proclamée d'un format est donc conditionnelle : elle tient sur des données « propres » mais s'effondre face aux biais systémiques introduits par des attributs parasites — longueur, mise en forme, position.</p>
+
+<p>G-Eval (Liu et al., 2023) illustre comment affiner la qualité du scoring pointwise. Le principe combine trois mécanismes : un prompt de <strong>chain-of-thought</strong> (raisonnement en chaîne) qui génère d'abord des étapes d'évaluation explicites, un <strong>form-filling paradigm</strong> (paradigme de remplissage de formulaire) où le juge attribue un score par critère, et — point technique clé — un <strong>probability weighting</strong> (pondération par les probabilités des tokens de score) : au lieu de prendre la valeur entière émise par le modèle, G-Eval calcule l'espérance du score en pondérant chaque valeur possible par sa probabilité token, soit score = Σ p(s<sub>i</sub>) × s<sub>i</sub>. Ce mécanisme produit des scores continus à fine granularité, réduisant les ex-æquo artificiels. Sur la tâche de résumé (SummEval), G-Eval-4 atteint une corrélation de Spearman de 0,514 en moyenne, surpassant nettement ROUGE-1 (0,192) et BERTScore (0,225). Ce gain vient principalement du raisonnement structuré et du weighting probabiliste. G-Eval identifie néanmoins un biais propre aux évaluateurs LLM : le modèle juge assigne systématiquement des scores plus élevés aux textes générés par un LLM similaire à lui-même qu'aux textes rédigés par des humains, même lorsque les annotateurs humains préfèrent ces derniers — mécanisme sous-jacent relié à la familiarité textuelle (perplexité basse) plutôt qu'à une reconnaissance explicite.</p>
+</section>
+<div class="widget geval-root" id="geval-root">
+  <style>
+    .geval-root{--geval-ink:var(--ink,#15202E);--geval-soft:var(--ink-soft,#43536A);
+      --geval-faint:var(--ink-faint,#7A889B);--geval-card:var(--card,#fff);
+      --geval-line:var(--line,#D7DFE9);--geval-line-soft:var(--line-soft,#E7ECF3);
+      --geval-blue:var(--blue,#23537F);--geval-bright:var(--blue-bright,#2C77B6);
+      --geval-wash:var(--blue-wash,#E7EEF6);--geval-bord:var(--bordeaux,#7C2A38);
+      --geval-bord-br:var(--bordeaux-bright,#9B3443);--geval-bord-wash:var(--bordeaux-wash,#F3E3E6);
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--geval-ink);
+      border:1px solid var(--geval-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--geval-card);max-width:720px}
+    .geval-root *{box-sizing:border-box}
+    .geval-k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;
+      color:var(--geval-faint);font-weight:600;margin:0 0 2px}
+    .geval-title{font-weight:700;font-size:1.05rem;margin:0 0 4px}
+    .geval-sub{font-size:.9rem;color:var(--geval-soft);margin:0 0 14px}
+    .geval-sub code{font:600 .85em ui-monospace,SFMono-Regular,Menlo,monospace;
+      background:rgba(0,0,0,.045);border-radius:4px;padding:1px 4px}
+
+    .geval-presets{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px}
+    .geval-presets button{border:1px solid var(--geval-bright);border-radius:7px;
+      background:transparent;color:var(--geval-bright);font:600 12.5px/1 inherit;
+      padding:6px 10px;cursor:pointer}
+    .geval-presets button:hover{background:var(--geval-wash)}
+
+    .geval-bars{margin:6px 0 4px}
+    .geval-bar{display:grid;grid-template-columns:54px 1fr 60px;align-items:center;
+      gap:10px;margin:0 0 8px}
+    .geval-name{font:700 .92rem/1 ui-monospace,monospace;color:var(--geval-soft);text-align:center}
+    .geval-bar.geval-arg .geval-name{color:var(--geval-bord-br)}
+    .geval-track{position:relative;height:24px;background:var(--geval-line-soft);
+      border-radius:5px;overflow:hidden;cursor:ns-resize}
+    .geval-track:focus-visible{outline:2px solid var(--geval-bright);outline-offset:2px}
+    .geval-fill{position:absolute;left:0;top:0;bottom:0;border-radius:5px;
+      background:var(--geval-bright);transition:width .12s ease}
+    .geval-bar.geval-arg .geval-fill{background:var(--geval-bord-br)}
+    .geval-prob{font:700 .82rem/1 ui-monospace,monospace;color:var(--geval-ink);text-align:right}
+    .geval-bar.geval-arg .geval-prob{color:var(--geval-bord-br)}
+    .geval-hint{font-size:.72rem;color:var(--geval-faint);margin:0 0 14px;line-height:1.45}
+    .geval-hint code{font:.92em ui-monospace,monospace}
+
+    .geval-axis{position:relative;height:74px;margin:72px 4px 6px;
+      border-top:2px solid var(--geval-line)}
+    .geval-tick{position:absolute;top:-2px;width:1px;height:8px;background:var(--geval-line);
+      transform:translateX(-.5px)}
+    .geval-ticklab{position:absolute;top:9px;font:600 .72rem/1 ui-monospace,monospace;
+      color:var(--geval-faint);transform:translateX(-50%)}
+    .geval-marker{position:absolute;top:-30px;transform:translateX(-50%);
+      transition:left .22s ease}
+    .geval-marker .geval-pin{width:2px;height:24px;margin:0 auto;border-radius:1px}
+    .geval-marker .geval-tag{font:700 .74rem/1 ui-monospace,monospace;white-space:nowrap;
+      padding:2px 6px;border-radius:5px;text-align:center}
+    .geval-marker.geval-mE{top:-58px}
+    .geval-marker.geval-mE .geval-pin{height:52px}
+    .geval-marker.geval-mE .geval-tag{color:#fff;background:var(--geval-bright)}
+    .geval-marker.geval-mE .geval-pin{background:var(--geval-bright)}
+    .geval-marker.geval-mArg .geval-tag{color:#fff;background:var(--geval-bord-br)}
+    .geval-marker.geval-mArg .geval-pin{background:var(--geval-bord-br)}
+
+    .geval-stats{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 0}
+    .geval-stat{flex:1 1 150px;border:1px solid var(--geval-line);border-radius:9px;
+      padding:10px 12px;background:var(--geval-card)}
+    .geval-stat .geval-sk{font-size:.66rem;letter-spacing:.05em;text-transform:uppercase;
+      color:var(--geval-faint);font-weight:600}
+    .geval-stat .geval-sv{font:800 1.5rem/1.1 ui-monospace,monospace;margin:3px 0 1px}
+    .geval-stat .geval-sn{font-size:.72rem;color:var(--geval-soft);line-height:1.35}
+    .geval-stat.geval-arg{border-color:var(--geval-bord-br);background:var(--geval-bord-wash)}
+    .geval-stat.geval-arg .geval-sv{color:var(--geval-bord-br)}
+    .geval-stat.geval-exp{border-color:var(--geval-blue);background:var(--geval-wash)}
+    .geval-stat.geval-exp .geval-sv{color:var(--geval-blue)}
+
+    .geval-sum{font:600 .84rem/1.55 ui-monospace,monospace;color:var(--geval-soft);
+      background:var(--geval-line-soft);border-radius:8px;padding:9px 11px;margin:12px 0 0;
+      overflow-x:auto;white-space:nowrap}
+    .geval-sum b{color:var(--geval-blue)}
+    .geval-sum .geval-arg-term{color:var(--geval-bord-br)}
+
+    .geval-read{margin:12px 0 0;padding:11px 13px;border-radius:8px;border:1px solid var(--geval-line);
+      background:var(--geval-wash);font-size:.86rem;line-height:1.5;color:var(--geval-ink)}
+    .geval-read.geval-tie{border-color:var(--geval-bord-br);background:var(--geval-bord-wash)}
+    .geval-read b{font-weight:700}
+    .geval-read.geval-tie b{color:var(--geval-bord-br)}
+    .geval-note{margin:10px 0 0;font-size:.74rem;color:var(--geval-faint);line-height:1.45}
+    .geval-note code{font:.92em ui-monospace,monospace}
+  </style>
+
+  <p class="geval-k">Démonstration interactive</p>
+  <p class="geval-title">G-Eval : pondérer le score par les log-probabilités</p>
+  <p class="geval-sub">Un juge LLM doit noter une réponse sur l'échelle entière
+    <code>{1,2,3,4,5}</code>. Au lieu de ne lire que le token le plus probable (le score
+    <b>argmax</b>), G-Eval lit la distribution de probabilité du modèle sur ces cinq tokens et
+    calcule l'<b>espérance</b> <code>E[s] = Σ p(sᵢ)·sᵢ</code>. Tire les barres pour redistribuer la
+    masse de probabilité : concentre-la et <code>E[s]</code> colle à l'entier ; étale-la entre deux
+    valeurs et <code>E[s]</code> glisse dans l'entre-deux — un score continu, à fine granularité.</p>
+
+  <div class="geval-presets">
+    <button type="button" data-preset="confident">Verdict net (tout sur 4)</button>
+    <button type="button" data-preset="tie34">Hésitation 3↔4</button>
+    <button type="button" data-preset="spread">Étalé 2–3–4</button>
+    <button type="button" data-preset="bimodal">Bimodal 2 &amp; 5</button>
+  </div>
+
+  <div class="geval-bars" id="geval-bars"></div>
+  <p class="geval-hint">Glisse une barre (ou clique dessus, puis flèches <code>↑/↓</code>) pour
+    changer <code>p(sᵢ)</code>. Les probabilités sont renormalisées pour sommer à 1, comme un softmax
+    sur les logits des tokens de score.</p>
+
+  <div class="geval-axis" id="geval-axis">
+    <div class="geval-marker geval-mArg" id="geval-mark-arg">
+      <div class="geval-tag" id="geval-tag-arg">argmax</div>
+      <div class="geval-pin"></div>
+    </div>
+    <div class="geval-marker geval-mE" id="geval-mark-exp">
+      <div class="geval-tag" id="geval-tag-exp">E[s]</div>
+      <div class="geval-pin"></div>
+    </div>
+  </div>
+
+  <div class="geval-stats">
+    <div class="geval-stat geval-arg">
+      <div class="geval-sk">Score argmax (juge naïf)</div>
+      <div class="geval-sv" id="geval-argv">—</div>
+      <div class="geval-sn">Le token de score le plus probable. Toujours un entier.</div>
+    </div>
+    <div class="geval-stat geval-exp">
+      <div class="geval-sk">E[s] = Σ p(sᵢ)·sᵢ (G-Eval)</div>
+      <div class="geval-sv" id="geval-expv">—</div>
+      <div class="geval-sn">Espérance pondérée. Continue, à fine granularité.</div>
+    </div>
+  </div>
+
+  <div class="geval-sum" id="geval-sum"></div>
+
+  <div class="geval-read" id="geval-read"></div>
+
+  <p class="geval-note">Modèle-jouet : les cinq valeurs que tu fixes sont les probabilités du juge
+    sur les tokens de score <code>1..5</code> ; elles sont renormalisées pour sommer à 1. L'argmax
+    et <code>E[s] = Σ p(sᵢ)·sᵢ</code> sont calculés en direct sur ces nombres — rien n'est pré-écrit.
+    G-Eval (Liu et al., EMNLP 2023) applique exactement cette pondération aux log-probabilités des
+    tokens émis par GPT-4, ce qui supprime les ex-æquo artificiels du scoring entier et porte la
+    corrélation de Spearman avec les humains à 0,514 sur SummEval (résumé).</p>
+
+  <script>
+  (function(){
+    var root=document.getElementById("geval-root");
+    if(!root||root.dataset.gevalInit)return; root.dataset.gevalInit="1";
+    function el(id){return document.getElementById(id);}
+    function clear(n){ while(n.firstChild) n.removeChild(n.firstChild); }
+    // ajoute des nœuds à `parent` depuis un gabarit : chaîne = texte brut ;
+    // {b:"x"} = <b>x</b> ; {code:"x"} = <code>x</code>. Aucun HTML interprété.
+    function fill(parent, parts){
+      clear(parent);
+      parts.forEach(function(p){
+        if(typeof p==="string"){ parent.appendChild(document.createTextNode(p)); return; }
+        var tag = p.b!==undefined?"b":p.code!==undefined?"code":null;
+        if(!tag) return;
+        var e=document.createElement(tag);
+        e.textContent = p.b!==undefined?p.b:p.code;
+        parent.appendChild(e);
+      });
+    }
+
+    var SCORES=[1,2,3,4,5];
+    var N=SCORES.length;
+    // masses non normalisées ; on normalise à l'affichage et au calcul
+    var w=[0.05,0.10,0.45,0.35,0.05];
+    var focus=-1; // barre ayant le focus clavier
+
+    var PRESETS={
+      confident:[0.01,0.02,0.03,0.92,0.02],
+      tie34:[0.01,0.02,0.475,0.475,0.02],
+      spread:[0.05,0.30,0.32,0.30,0.03],
+      bimodal:[0.02,0.46,0.02,0.02,0.48]
+    };
+
+    function norm(){
+      var s=0,i; for(i=0;i<N;i++) s+=w[i];
+      if(s<=0){ for(i=0;i<N;i++) w[i]=1; s=N; }
+      var p=new Array(N); for(i=0;i<N;i++) p[i]=w[i]/s; return p;
+    }
+    function compute(){
+      var p=norm();
+      var exp=0,pmax=-1,arg=0,i;
+      for(i=0;i<N;i++){
+        exp+=p[i]*SCORES[i];
+        if(p[i]>pmax){ pmax=p[i]; arg=i; }
+      }
+      return {p:p,exp:exp,arg:arg,pmax:pmax};
+    }
+
+    // construction des barres une seule fois
+    var barsBox=el("geval-bars");
+    var rows=[],fills=[],probs=[];
+    (function build(){
+      clear(barsBox);
+      for(var i=0;i<N;i++){
+        var row=document.createElement("div"); row.className="geval-bar";
+        var name=document.createElement("div"); name.className="geval-name";
+        name.textContent="s = "+SCORES[i];
+        var track=document.createElement("div"); track.className="geval-track";
+        track.tabIndex=0; track.setAttribute("role","slider");
+        track.setAttribute("aria-label","probabilité du score "+SCORES[i]);
+        track.setAttribute("aria-valuemin","0"); track.setAttribute("aria-valuemax","100");
+        track.dataset.i=String(i);
+        var f=document.createElement("div"); f.className="geval-fill";
+        track.appendChild(f);
+        var prob=document.createElement("div"); prob.className="geval-prob";
+        row.appendChild(name); row.appendChild(track); row.appendChild(prob);
+        barsBox.appendChild(row);
+        rows.push(row); fills.push(f); probs.push(prob);
+      }
+    })();
+
+    // axe : ticks 1..5
+    (function buildAxis(){
+      var axis=el("geval-axis");
+      for(var i=0;i<N;i++){
+        var x=xOf(SCORES[i]);
+        var t=document.createElement("div"); t.className="geval-tick"; t.style.left=x+"%";
+        var l=document.createElement("div"); l.className="geval-ticklab"; l.style.left=x+"%";
+        l.textContent=String(SCORES[i]);
+        axis.appendChild(t); axis.appendChild(l);
+      }
+    })();
+
+    // position en % le long de l'axe pour un score s dans [1,5]
+    function xOf(s){ return (s-1)/(N-1)*100; }
+
+    function setProbFromY(i, track, clientY){
+      var rect=track.getBoundingClientRect();
+      var frac=1-(clientY-rect.top)/rect.height; // haut = 1, bas = 0
+      frac=Math.max(0,Math.min(1,frac));
+      // on travaille en masse non normalisée : la valeur tirée devient la nouvelle masse
+      w[i]=Math.max(0.0001,frac);
+      render();
+    }
+
+    function render(){
+      var r=compute();
+      for(var i=0;i<N;i++){
+        var isArg=i===r.arg;
+        rows[i].classList.toggle("geval-arg",isArg);
+        fills[i].style.width=(r.p[i]*100).toFixed(2)+"%";
+        probs[i].textContent=(r.p[i]*100).toFixed(1)+"%";
+        rows[i].querySelector(".geval-track").setAttribute("aria-valuenow",
+          (r.p[i]*100).toFixed(0));
+      }
+
+      // marqueurs sur l'axe
+      el("geval-mark-arg").style.left=xOf(SCORES[r.arg])+"%";
+      el("geval-tag-arg").textContent="argmax = "+SCORES[r.arg];
+      el("geval-mark-exp").style.left=xOf(r.exp)+"%";
+      el("geval-tag-exp").textContent="E[s] = "+r.exp.toFixed(2);
+
+      // stats
+      el("geval-argv").textContent=String(SCORES[r.arg]);
+      el("geval-expv").textContent=r.exp.toFixed(2);
+
+      // somme développée Σ p(sᵢ)·sᵢ
+      var parts=["E[s] = "];
+      for(var k=0;k<N;k++){
+        if(k>0) parts.push(" + ");
+        var term=document.createElement("span");
+        var txt=r.p[k].toFixed(2)+"·"+SCORES[k];
+        if(k===r.arg){ parts.push({argTerm:txt}); }
+        else parts.push(txt);
+      }
+      // rendu sûr de la somme avec mise en évidence du terme argmax
+      var sum=el("geval-sum"); clear(sum);
+      parts.forEach(function(p){
+        if(typeof p==="string"){ sum.appendChild(document.createTextNode(p)); return; }
+        var sp=document.createElement("span"); sp.className="geval-arg-term";
+        sp.textContent=p.argTerm; sum.appendChild(sp);
+      });
+      var eqb=document.createElement("b"); eqb.textContent=" = "+r.exp.toFixed(2);
+      sum.appendChild(eqb);
+
+      // lecture interprétée
+      var read=el("geval-read");
+      var gap=Math.abs(r.exp-SCORES[r.arg]);
+      // deux valeurs proches en tête ?
+      var sorted=r.p.map(function(v,ix){return {v:v,ix:ix};})
+                    .sort(function(a,b){return b.v-a.v;});
+      var nearTie = sorted[0].v-sorted[1].v < 0.15 &&
+                    Math.abs(SCORES[sorted[0].ix]-SCORES[sorted[1].ix])===1;
+      if(nearTie){
+        read.className="geval-read geval-tie";
+        var lo=Math.min(SCORES[sorted[0].ix],SCORES[sorted[1].ix]);
+        var hi=Math.max(SCORES[sorted[0].ix],SCORES[sorted[1].ix]);
+        fill(read,[
+          {b:"Quasi ex-æquo "+lo+" ↔ "+hi+"."}," Le juge naïf doit trancher pour un seul entier ("+
+          "argmax = ",{b:String(SCORES[r.arg])},") et écrase l'hésitation. G-Eval, lui, lit la masse "+
+          "répartie sur les deux tokens et renvoie ",{b:"E[s] = "+r.exp.toFixed(2)},
+          ", qui se positionne entre "+lo+" et "+hi+". Deux réponses également hésitantes recevront "+
+          "des E[s] distincts — les ex-æquo artificiels du scoring entier disparaissent."
+        ]);
+      } else if(gap<0.06){
+        read.className="geval-read";
+        fill(read,[
+          {b:"Masse concentrée."}," La quasi-totalité de la probabilité est sur ",
+          {b:"s = "+SCORES[r.arg]},". L'espérance ",{b:"E[s] = "+r.exp.toFixed(2)},
+          " colle à l'entier argmax : quand le juge est sûr de lui, pondération et argmax "+
+          "coïncident. Étale la masse vers une valeur voisine pour voir E[s] décrocher."
+        ]);
+      } else {
+        read.className="geval-read";
+        fill(read,[
+          "La masse déborde de l'argmax (",{b:"s = "+SCORES[r.arg]},
+          ") vers les valeurs voisines. L'espérance ",{b:"E[s] = "+r.exp.toFixed(2)},
+          " s'écarte de l'entier de ",{b:gap.toFixed(2)}," : G-Eval encode cette nuance que le "+
+          "score entier perdrait. Plus la distribution est étalée, plus E[s] s'éloigne du sommet."
+        ]);
+      }
+    }
+
+    // ---- interactions souris / tactile sur les pistes ----
+    var dragging=null;
+    function trackOf(i){ return rows[i].querySelector(".geval-track"); }
+    rows.forEach(function(row,i){
+      var track=trackOf(i);
+      track.addEventListener("pointerdown",function(e){
+        dragging=i; focus=i; track.focus();
+        track.setPointerCapture && track.setPointerCapture(e.pointerId);
+        setProbFromY(i,track,e.clientY); e.preventDefault();
+      });
+      track.addEventListener("pointermove",function(e){
+        if(dragging===i){ setProbFromY(i,track,e.clientY); }
+      });
+      track.addEventListener("pointerup",function(){ dragging=null; });
+      track.addEventListener("pointercancel",function(){ dragging=null; });
+      track.addEventListener("keydown",function(e){
+        var p=norm(); var cur=p[i]; var step=0.04;
+        if(e.key==="ArrowUp"||e.key==="ArrowRight"){ w[i]=Math.max(0.0001,cur+step); render(); e.preventDefault(); }
+        else if(e.key==="ArrowDown"||e.key==="ArrowLeft"){ w[i]=Math.max(0.0001,cur-step); render(); e.preventDefault(); }
+      });
+    });
+
+    // ---- presets ----
+    root.querySelectorAll(".geval-presets button[data-preset]").forEach(function(b){
+      b.addEventListener("click",function(){
+        var arr=PRESETS[b.getAttribute("data-preset")];
+        if(!arr) return;
+        for(var i=0;i<N;i++) w[i]=arr[i];
+        render();
+      });
+    });
+
+    render();
+  })();
+  </script>
+</div>
+
+<section id="benchmarks-plateformes">
+<h3>Bancs d'essai et plateformes : MT-Bench, Chatbot Arena, AlpacaEval</h3>
+<p>MT-Bench (Zheng et al., NeurIPS 2023) pose les bases de l'évaluation multi-tours automatisée : 80 questions réparties en 8 catégories (écriture, roleplay, extraction, raisonnement, mathématiques, programmation, STEM, sciences sociales), chacune structurée en deux tours pour tester la cohérence conversationnelle et pas seulement la réponse isolée. GPT-4 joue le rôle de juge, attribuant un score de 1 à 10 ; les auteurs publient 3 000 votes d'experts et 30 000 conversations avec préférences humaines pour valider ce choix. L'accord GPT-4 ↔ humain atteint 85 % en setup S2 (c'est-à-dire en excluant les votes « ex aequo »), pour un accord inter-humain mesuré à 81 % ; en incluant les ties (setup S1), cet accord tombe à 70 %. Le papier lui-même documente par ailleurs des biais importants — position bias, verbosity bias et self-preference bias — mesurés de façon systématique pour la première fois sur un benchmark structuré, qui limitent la portée du juge automatique.</p>
+
+<p>Chatbot Arena (lancé en 2023 par LMSYS) adopte une philosophie radicalement différente : des utilisateurs réels soumettent leurs propres questions, choisissent entre deux modèles anonymes en combat (blind battle) et votent pour la réponse préférée. Rapidement, l'équipe remplace le système Elo en ligne — conçu pour des joueurs évoluant au fil du temps — par le modèle Bradley-Terry (BT), estimé par maximum de vraisemblance (MLE) sur l'ensemble des données historiques. La justification est statistiquement motivée : les poids d'un LLM sont figés, donc l'hypothèse de stationnarité du BT est plus appropriée que le suivi dynamique d'Elo ; de plus, le MLE batch donne des intervalles de confiance plus étroits et plus fiables que les mises à jour en ligne. Dans la méthodologie académique de référence (Chiang et al., ICML 2024), ces intervalles sont obtenus par erreurs standard robustes de type sandwich sur les scores BT-MLE, ce qui permet de quantifier l'incertitude en fonction du nombre de battles et d'afficher des barres d'erreur plus larges pour les modèles peu évalués. L'accord entre votants crowd-source et experts atteint 72,8 % à 83,1 % selon la paire de modèles considérée (données du papier Chiang et al., ICML 2024), ce qui valide la représentativité du crowd.</p>
+
+<p>AlpacaEval 2.0 ferme le triangle en proposant un cadre entièrement automatisé et reproductible : 805 instructions issues de sources diverses, GPT-4-Preview-1106 comme juge ET comme baseline de référence. Le benchmark publie deux métriques : le raw win rate (WR) — la part des 805 instructions pour lesquelles le juge préfère le modèle évalué à la baseline — et le length-controlled win rate (LC WR). La nécessité du LC WR s'impose dès lors que l'on mesure le verbosity bias : en faisant varier la verbosité de la baseline GPT-4, le raw WR oscille de 22,9 % à 64,3 %, un swing de 41,4 points de pourcentage rendant la métrique brute non-exploitable. Le LC WR repose sur un generalized linear model (GLM) à régression logistique qui modélise simultanément l'identité du modèle, la différence de longueur (normalisée par tanh) et la difficulté de l'instruction ; en fixant le terme longueur à zéro, on obtient un win rate contrefactuel libéré du biais. Après correction, le même swing tombe à 9,7 points de pourcentage, et la corrélation Spearman avec Chatbot Arena passe de 0,94 à 0,98 — parmi les meilleurs accords observés pour les benchmarks automatiques comparables.</p>
+
+<p>Ces trois plateformes illustrent un compromis fondamental : MT-Bench maximise la reproductibilité et la granularité catégorielle ; Chatbot Arena maximise l'écologie (vraies questions d'utilisateurs) au prix d'un processus moins contrôlé et d'un risque d'accès asymétrique aux battles ; AlpacaEval maximise l'automatisation et le coût, mais reste exposé à des attaques par modèles nuls.</p>
+</section>
+<div class="widget lcwr-root" id="lcwr-root">
+  <style>
+    .lcwr-root{--lcwr-ink:var(--ink,#15202E);--lcwr-soft:var(--ink-soft,#43536A);
+      --lcwr-faint:var(--ink-faint,#7A889B);--lcwr-card:var(--card,#fff);
+      --lcwr-line:var(--line,#D7DFE9);--lcwr-line-soft:var(--line-soft,#E7ECF3);
+      --lcwr-blue:var(--blue,#23537F);--lcwr-bright:var(--blue-bright,#2C77B6);
+      --lcwr-wash:var(--blue-wash,#E7EEF6);--lcwr-bord:var(--bordeaux,#7C2A38);
+      --lcwr-bord-br:var(--bordeaux-bright,#9B3443);--lcwr-bord-wash:var(--bordeaux-wash,#F3E3E6);
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--lcwr-ink);
+      border:1px solid var(--lcwr-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--lcwr-card);max-width:720px}
+    .lcwr-root *{box-sizing:border-box}
+    .lcwr-k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;
+      color:var(--lcwr-faint);font-weight:600;margin:0 0 2px}
+    .lcwr-title{font-weight:700;font-size:1.05rem;margin:0 0 4px}
+    .lcwr-sub{font-size:.9rem;color:var(--lcwr-soft);margin:0 0 12px}
+    .lcwr-sub code{font:600 .85em ui-monospace,SFMono-Regular,Menlo,monospace;
+      background:rgba(0,0,0,.045);border-radius:4px;padding:1px 4px}
+    .lcwr-eq{font:600 .8rem/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;
+      color:var(--lcwr-blue);background:var(--lcwr-wash);border-radius:8px;
+      padding:9px 11px;margin:0 0 14px;overflow-x:auto;white-space:nowrap}
+    .lcwr-eq b{color:var(--lcwr-bord-br)}
+    .lcwr-eq s{text-decoration:line-through;text-decoration-color:var(--lcwr-bord-br);
+      text-decoration-thickness:2px;color:var(--lcwr-faint);opacity:.85}
+
+    .lcwr-ctl{margin:0 0 14px}
+    .lcwr-row{display:flex;align-items:center;gap:11px;flex-wrap:wrap}
+    .lcwr-row+.lcwr-row{margin-top:10px}
+    .lcwr-lab{flex:0 0 auto;font-weight:600;font-size:.84rem;color:var(--lcwr-soft);
+      min-width:10.4em}
+    .lcwr-slider{flex:1 1 200px;min-width:150px;accent-color:var(--lcwr-bright);height:22px}
+    .lcwr-val{flex:0 0 auto;font:700 .92rem/1 ui-monospace,monospace;color:var(--lcwr-blue);
+      min-width:8.4em;text-align:right}
+    .lcwr-ends{display:flex;justify-content:space-between;font-size:.7rem;
+      color:var(--lcwr-faint);margin:3px 0 0 10.6em}
+    .lcwr-neww{display:flex;gap:6px;flex-wrap:wrap;margin-top:13px}
+    .lcwr-neww button{border:1px solid var(--lcwr-bright);border-radius:7px;
+      background:transparent;color:var(--lcwr-bright);font:600 12px/1.25 inherit;
+      padding:6px 9px;cursor:pointer}
+    .lcwr-neww button:hover{background:var(--lcwr-wash)}
+
+    .lcwr-gauges{display:flex;gap:12px;flex-wrap:wrap;margin:6px 0 4px}
+    .lcwr-gauge{flex:1 1 240px;border:1px solid var(--lcwr-line);border-radius:10px;
+      padding:12px 13px 13px;background:var(--lcwr-card)}
+    .lcwr-gauge.lcwr-raw{border-color:var(--lcwr-bord-br);background:var(--lcwr-bord-wash)}
+    .lcwr-gauge.lcwr-lc{border-color:var(--lcwr-blue);background:var(--lcwr-wash)}
+    .lcwr-gk{font-size:.66rem;letter-spacing:.05em;text-transform:uppercase;
+      font-weight:700;margin:0 0 1px}
+    .lcwr-raw .lcwr-gk{color:var(--lcwr-bord-br)}
+    .lcwr-lc .lcwr-gk{color:var(--lcwr-blue)}
+    .lcwr-gsub{font-size:.72rem;color:var(--lcwr-soft);margin:0 0 9px;line-height:1.35}
+    .lcwr-gv{font:800 1.9rem/1 ui-monospace,monospace;margin:0 0 8px}
+    .lcwr-raw .lcwr-gv{color:var(--lcwr-bord-br)}
+    .lcwr-lc .lcwr-gv{color:var(--lcwr-blue)}
+    .lcwr-track{position:relative;height:13px;border-radius:7px;background:#fff;
+      border:1px solid var(--lcwr-line);overflow:hidden}
+    .lcwr-fill{position:absolute;left:0;top:0;bottom:0;border-radius:7px 0 0 7px;
+      transition:width .12s linear}
+    .lcwr-raw .lcwr-fill{background:var(--lcwr-bord-br)}
+    .lcwr-lc .lcwr-fill{background:var(--lcwr-bright)}
+    .lcwr-mid{position:absolute;top:-2px;bottom:-2px;left:50%;width:1px;background:var(--lcwr-faint)}
+    .lcwr-band{position:absolute;top:0;bottom:0;background:rgba(0,0,0,.05)}
+    .lcwr-bandlab{font:600 .66rem/1 ui-monospace,monospace;color:var(--lcwr-soft);
+      margin:6px 0 0;text-align:center}
+
+    .lcwr-chartwrap{margin:14px 0 2px}
+    .lcwr-svg{display:block;width:100%;height:auto}
+    .lcwr-grid{stroke:var(--lcwr-line-soft);stroke-width:1}
+    .lcwr-zero{stroke:var(--lcwr-line);stroke-width:1.2;stroke-dasharray:4 3}
+    .lcwr-axt{fill:var(--lcwr-faint);font:11px ui-monospace,monospace}
+    .lcwr-axtitle{fill:var(--lcwr-soft);font:600 11px system-ui,sans-serif}
+    .lcwr-rawline{stroke:var(--lcwr-bord-br);stroke-width:2.6;fill:none}
+    .lcwr-lcline{stroke:var(--lcwr-bright);stroke-width:2.6;fill:none}
+    .lcwr-fifty{stroke:var(--lcwr-faint);stroke-width:1;stroke-dasharray:2 3}
+    .lcwr-fiftylab{fill:var(--lcwr-faint);font:600 10px ui-monospace,monospace}
+    .lcwr-probe{stroke:var(--lcwr-faint);stroke-width:1;stroke-dasharray:1 3}
+    .lcwr-dotraw{fill:var(--lcwr-bord-br);stroke:var(--lcwr-card);stroke-width:1.5}
+    .lcwr-dotlc{fill:var(--lcwr-bright);stroke:var(--lcwr-card);stroke-width:1.5}
+
+    .lcwr-legend{display:flex;gap:14px;flex-wrap:wrap;margin:2px 0 0;
+      font-size:.74rem;color:var(--lcwr-soft)}
+    .lcwr-legend span{display:inline-flex;align-items:center;gap:6px}
+    .lcwr-sw{width:18px;height:0;border-top-width:3px;border-top-style:solid;display:inline-block}
+    .lcwr-sw.lcwr-swraw{border-top-color:var(--lcwr-bord-br)}
+    .lcwr-sw.lcwr-swlc{border-top-color:var(--lcwr-bright)}
+
+    .lcwr-read{margin:13px 0 0;padding:11px 13px;border-radius:8px;border:1px solid var(--lcwr-line);
+      background:var(--lcwr-wash);font-size:.85rem;line-height:1.5;color:var(--lcwr-ink)}
+    .lcwr-read b{font-weight:700}
+    .lcwr-read .lcwr-hr{color:var(--lcwr-bord-br)}
+    .lcwr-read .lcwr-hb{color:var(--lcwr-blue)}
+    .lcwr-note{margin:10px 0 0;font-size:.73rem;color:var(--lcwr-faint);line-height:1.45}
+    .lcwr-note code{font:.92em ui-monospace,monospace}
+  </style>
+
+  <p class="lcwr-k">Démonstration interactive</p>
+  <p class="lcwr-title">Length-controlled win rate : retirer l'effet longueur du GLM</p>
+  <p class="lcwr-sub">AlpacaEval 2.0 ajuste une régression logistique (un <code>GLM</code>) qui prédit
+    P(le modèle bat la baseline) à partir de trois termes : <b>identité du modèle</b>, <b>Δlongueur</b>
+    (passée dans un <code>tanh</code>), et <b>difficulté de l'instruction</b>. Le <b>raw WR</b> évalue
+    le GLM complet ; le <b>LC&nbsp;WR</b> évalue le <b>même GLM avec le terme longueur mis à zéro</b> —
+    le contrefactuel « à longueur égale ». Tire le levier de verbosité de la baseline et regarde la
+    jauge brute s'affoler tandis que la corrigée tient.</p>
+
+  <p class="lcwr-eq">logit = θ<sub>modèle</sub> + <b>γ·tanh(Δlen/σ)</b> + φ<sub>difficulté</sub>
+    &nbsp;&nbsp;→&nbsp;&nbsp; LC : logit = θ<sub>modèle</sub> + <s>γ·tanh(Δlen/σ)</s> + φ<sub>difficulté</sub></p>
+
+  <div class="lcwr-ctl">
+    <div class="lcwr-row">
+      <span class="lcwr-lab">Verbosité de la baseline</span>
+      <input class="lcwr-slider" id="lcwr-v" type="range" min="0" max="100" step="1" value="50"
+             aria-label="verbosité de la réponse de référence, de concise à développée">
+      <span class="lcwr-val" id="lcwr-vv">Δlen = +0,00σ</span>
+    </div>
+    <div class="lcwr-ends"><span>concise (baseline courte)</span><span>développée (baseline longue)</span></div>
+    <div class="lcwr-row">
+      <span class="lcwr-lab">γ — poids du terme longueur</span>
+      <input class="lcwr-slider" id="lcwr-g" type="range" min="0" max="2.2" step="0.05" value="1.55"
+             aria-label="coefficient gamma du terme de longueur dans le GLM">
+      <span class="lcwr-val" id="lcwr-gv">γ = 1,55</span>
+    </div>
+    <div class="lcwr-neww">
+      <button type="button" data-v="0">Baseline concise (raw → 64,3 %)</button>
+      <button type="button" data-v="100">Baseline développée (raw → 22,9 %)</button>
+      <button type="button" data-v="50">Longueurs égales (Δlen = 0)</button>
+      <button type="button" data-g="0">γ = 0 (LC = raw : longueur ignorée)</button>
+    </div>
+  </div>
+
+  <div class="lcwr-gauges">
+    <div class="lcwr-gauge lcwr-raw">
+      <p class="lcwr-gk">Raw win rate — GLM complet</p>
+      <p class="lcwr-gsub">terme longueur actif : la verbosité de la baseline le déplace</p>
+      <p class="lcwr-gv" id="lcwr-rawv">—</p>
+      <div class="lcwr-track">
+        <span class="lcwr-band" id="lcwr-rawband"></span>
+        <span class="lcwr-fill" id="lcwr-rawfill"></span>
+        <span class="lcwr-mid"></span>
+      </div>
+      <p class="lcwr-bandlab" id="lcwr-rawbandlab">amplitude observée</p>
+    </div>
+    <div class="lcwr-gauge lcwr-lc">
+      <p class="lcwr-gk">LC win rate — terme longueur = 0</p>
+      <p class="lcwr-gsub">contrefactuel « à longueur égale » : quasi insensible au levier</p>
+      <p class="lcwr-gv" id="lcwr-lcv">—</p>
+      <div class="lcwr-track">
+        <span class="lcwr-band" id="lcwr-lcband"></span>
+        <span class="lcwr-fill" id="lcwr-lcfill"></span>
+        <span class="lcwr-mid"></span>
+      </div>
+      <p class="lcwr-bandlab" id="lcwr-lcbandlab">amplitude observée</p>
+    </div>
+  </div>
+
+  <div class="lcwr-chartwrap">
+    <svg class="lcwr-svg" id="lcwr-svg" viewBox="0 0 680 300"
+         role="img" aria-label="Win rate brut et corrigé en fonction de la verbosité de la baseline"></svg>
+    <div class="lcwr-legend">
+      <span><i class="lcwr-sw lcwr-swraw"></i>raw WR (terme longueur actif)</span>
+      <span><i class="lcwr-sw lcwr-swlc"></i>LC WR (terme longueur à zéro)</span>
+    </div>
+  </div>
+
+  <div class="lcwr-read" id="lcwr-read"></div>
+
+  <p class="lcwr-note">Modèle déterministe et illustratif. Le GLM est calibré pour reproduire le cas
+    documenté d'AlpacaEval 2.0 (Dubois et al., 2404.04475) : varier la seule verbosité de la baseline
+    GPT-4 fait osciller le <code>raw WR</code> de <code>22,9 %</code> à <code>64,3 %</code>
+    (swing de 41,4 pp) ; le <code>LC WR</code> ramène cette plage à <code>41,9 %–51,6 %</code>, un
+    résidu de ~9,7 pp seulement — il <b>réduit</b> fortement le biais de verbosité sans l'éliminer.
+    Le levier ne touche <b>que</b> Δlen (la longueur) : à qualité substantielle constante, seul le
+    raw WR bouge. Le <code>tanh</code> sature l'effet aux longueurs extrêmes ; mettre <code>γ = 0</code>
+    désactive la correction et le LC WR retombe exactement sur le raw WR.</p>
+
+  <script>
+  (function(){
+    var root=document.getElementById("lcwr-root");
+    if(!root||root.dataset.lcwrInit) return; root.dataset.lcwrInit="1";
+    var NS="http://www.w3.org/2000/svg";
+    function el(id){return document.getElementById(id);}
+    function mk(tag,attrs){var e=document.createElementNS(NS,tag);for(var k in attrs)e.setAttribute(k,attrs[k]);return e;}
+    function fmt(x,d){return x.toFixed(d).replace(".",",");}
+    function clear(n){while(n.firstChild)n.removeChild(n.firstChild);}
+    // gabarit texte sûr : "str" = texte brut ; {b,c} = <b class="c">b</b>. Aucun HTML interprété.
+    function fill(parent,parts){
+      clear(parent);
+      parts.forEach(function(p){
+        if(typeof p==="string"){parent.appendChild(document.createTextNode(p));return;}
+        var e=document.createElement("b");e.textContent=p.b;
+        if(p.c)e.className=p.c; parent.appendChild(e);
+      });
+    }
+    function sig(z){return 1/(1+Math.exp(-z));}
+
+    // ---- état ----
+    var V=50;      // verbosité baseline 0..100  (50 = longueurs égales)
+    var gamma=1.55; // poids du terme longueur
+
+    // ---- GLM (composante illustrative, instruction moyenne) ----
+    // Régression logistique calibrée DÉTERMINISTIQUEMENT pour reproduire le cas
+    // documenté d'AlpacaEval 2.0 (varier la seule verbosité de la baseline GPT-4) :
+    //   raw WR : 64,3 % (V=0) → 22,9 % (V=100), swing 41,4 pp ;
+    //   LC  WR : 51,6 % (V=0) → 41,9 % (V=100), résidu 9,7 pp.
+    // THETA_RAW/THETA_LC = centres logit des deux plages ; DLEN_MAX résout
+    // gamma_def·tanh(DLEN_MAX)=demi-amplitude brute ; RES = coeff résiduel du LC.
+    var GAMMA_DEF=1.55;       // poids par défaut du terme longueur
+    var SIG=1.0;              // Δlen déjà exprimé en unités de σ
+    var THETA_RAW=-0.31279;   // sig⁻¹ du centre géométrique de [22,9 ; 64,3] %
+    var THETA_LC=-0.13136;    // sig⁻¹ du centre géométrique de [41,9 ; 51,6] %
+    var DLEN_MAX=0.66460;     // Δlen extrême (en σ) aux bouts du slider
+    var RES=0.33620;          // coefficient résiduel : ce que le LC ne retire PAS
+
+    // Δlen croît quand la baseline est COURTE (modèle comparativement plus long) :
+    // V=0 → +DLEN_MAX ; V=50 → 0 ; V=100 → −DLEN_MAX.
+    function dlen(v){return (50-v)/50*DLEN_MAX;}
+
+    // raw : GLM complet, terme longueur de poids gamma (slider).
+    function rawWR(v){return sig(THETA_RAW + gamma*Math.tanh(dlen(v)/SIG));}
+    // LC : le débiaisage s'active proportionnellement à gamma (frac = gamma/gamma_def,
+    //      borné à 1). À gamma = gamma_def il retire l'essentiel de l'effet longueur et
+    //      ne laisse que le résidu RES (swing 9,7 pp). À gamma = 0 le terme longueur est
+    //      inerte des deux côtés : lcWR == rawWR (preuve par l'absurde du bouton).
+    function lcFrac(){return Math.min(gamma/GAMMA_DEF,1);}
+    function lcWR(v){
+      var f=lcFrac();
+      var th=THETA_RAW + (THETA_LC-THETA_RAW)*f;
+      return sig(th + RES*f*Math.tanh(dlen(v)/SIG));
+    }
+
+    // amplitude observée sur tout le balayage de V, à gamma courant
+    function sweepRange(fn){
+      var lo=1,hi=0,i,w;
+      for(i=0;i<=100;i++){w=fn(i);if(w<lo)lo=w;if(w>hi)hi=w;}
+      return {lo:lo,hi:hi,sw:(hi-lo)*100};
+    }
+
+    // ---- géométrie du graphe (WR vs verbosité) ----
+    var W=680,H=300,padL=48,padR=16,padT=14,padB=42;
+    var plotW=W-padL-padR, plotH=H-padT-padB;
+    function X(v){return padL+(v/100)*plotW;}
+    function Y(w){return padT+plotH-w*plotH;}       // w ∈ [0,1]
+
+    var svg=el("lcwr-svg");
+    // grille horizontale tous les 20 %
+    [0,0.2,0.4,0.6,0.8,1].forEach(function(w){
+      var y=Y(w);
+      svg.appendChild(mk("line",{x1:padL,y1:y,x2:padL+plotW,y2:y,"class":"lcwr-grid"}));
+      var t=mk("text",{x:padL-7,y:y+3.5,"class":"lcwr-axt","text-anchor":"end"});
+      t.textContent=Math.round(w*100)+"%"; svg.appendChild(t);
+    });
+    // ligne 50 %
+    var fy=Y(0.5);
+    svg.appendChild(mk("line",{x1:padL,y1:fy,x2:padL+plotW,y2:fy,"class":"lcwr-fifty"}));
+    var ftl=mk("text",{x:padL+plotW-2,y:fy-4,"class":"lcwr-fiftylab","text-anchor":"end"});
+    ftl.textContent="50 % (parité)"; svg.appendChild(ftl);
+    // graduations verbosité
+    [["0","concise"],["50",""],["100","développée"]].forEach(function(p){
+      var v=parseInt(p[0],10),x=X(v);
+      svg.appendChild(mk("line",{x1:x,y1:padT,x2:x,y2:padT+plotH,"class":"lcwr-grid"}));
+      var t=mk("text",{x:x,y:padT+plotH+15,"class":"lcwr-axt","text-anchor":"middle"});
+      t.textContent=p[0]; svg.appendChild(t);
+      if(p[1]){var t2=mk("text",{x:x,y:padT+plotH+27,"class":"lcwr-axt","text-anchor":"middle"});
+        t2.textContent=p[1]; svg.appendChild(t2);}
+    });
+    var xt=mk("text",{x:padL+plotW/2,y:H-4,"class":"lcwr-axtitle","text-anchor":"middle"});
+    xt.textContent="verbosité de la baseline  →  (ne change PAS la qualité substantielle)"; svg.appendChild(xt);
+    var ytcy=padT+plotH/2;
+    var yt=mk("text",{x:13,y:ytcy,"class":"lcwr-axtitle","text-anchor":"middle",
+      transform:"rotate(-90 13 "+ytcy+")"});
+    yt.textContent="win rate"; svg.appendChild(yt);
+
+    var lcPath=mk("path",{"class":"lcwr-lcline"}); svg.appendChild(lcPath);
+    var rawPath=mk("path",{"class":"lcwr-rawline"}); svg.appendChild(rawPath);
+    var probe=mk("line",{"class":"lcwr-probe"}); svg.appendChild(probe);
+    var dotLc=mk("circle",{"class":"lcwr-dotlc",r:5}); svg.appendChild(dotLc);
+    var dotRaw=mk("circle",{"class":"lcwr-dotraw",r:5}); svg.appendChild(dotRaw);
+
+    function pathD(fn){
+      var d="",first=true,v;
+      for(v=0;v<=100;v+=1){
+        var x=X(v).toFixed(1),y=Y(fn(v)).toFixed(1);
+        d+=(first?"M":"L")+x+" "+y; first=false;
+      }
+      return d;
+    }
+
+    function setFill(fillEl,bandEl,bandLabEl,range,w){
+      fillEl.style.width=(w*100).toFixed(1)+"%";
+      // bande = amplitude observée sur tout le balayage
+      bandEl.style.left=(range.lo*100).toFixed(1)+"%";
+      bandEl.style.width=((range.hi-range.lo)*100).toFixed(1)+"%";
+      bandLabEl.textContent="amplitude balayée "+fmt(range.lo*100,1)+"–"+fmt(range.hi*100,1)+
+        " %  (swing "+fmt(range.sw,1)+" pp)";
+    }
+
+    function render(){
+      var raw=rawWR(V), lc=lcWR(V), d=dlen(V);
+      var rawRange=sweepRange(rawWR), lcRange=sweepRange(lcWR);
+
+      // courbes
+      rawPath.setAttribute("d",pathD(rawWR));
+      lcPath.setAttribute("d",pathD(lcWR));
+      var px=X(V);
+      probe.setAttribute("x1",px);probe.setAttribute("y1",padT);
+      probe.setAttribute("x2",px);probe.setAttribute("y2",padT+plotH);
+      dotRaw.setAttribute("cx",px);dotRaw.setAttribute("cy",Y(raw));
+      dotLc.setAttribute("cx",px);dotLc.setAttribute("cy",Y(lc));
+
+      // jauges
+      el("lcwr-rawv").textContent=fmt(raw*100,1)+" %";
+      el("lcwr-lcv").textContent=fmt(lc*100,1)+" %";
+      setFill(el("lcwr-rawfill"),el("lcwr-rawband"),el("lcwr-rawbandlab"),rawRange,raw);
+      setFill(el("lcwr-lcfill"),el("lcwr-lcband"),el("lcwr-lcbandlab"),lcRange,lc);
+
+      // lecture
+      var parts=[];
+      var lever = V<8 ? "tout à gauche (baseline très concise)" :
+                  V>92 ? "tout à droite (baseline très développée)" :
+                  Math.abs(V-50)<6 ? "au centre (longueurs égales)" : "intermédiaire";
+      if(gamma<0.03){
+        parts=[
+          "Avec ",{b:"γ = 0",c:"lcwr-hb"}," le terme longueur est inerte : ",
+          {b:"LC WR = raw WR",c:"lcwr-hb"}," exactement, et tu vois la jauge corrigée trembler "+
+          "autant que la brute. C'est la preuve par l'absurde — c'est bien ce coefficient, et lui "+
+          "seul, qui débiaise. Remets-le à 1,55 pour réactiver la correction."
+        ];
+      } else {
+        parts=[
+          "Levier ",{b:lever},". À longueur Δlen = ",{b:(d>=0?"+":"")+fmt(d,2)+"σ"},
+          ", le ",{b:"raw WR = "+fmt(raw*100,1)+" %",c:"lcwr-hr"}," (terme longueur actif) ",
+          "mais le ",{b:"LC WR = "+fmt(lc*100,1)+" %",c:"lcwr-hb"},
+          " (terme longueur figé à zéro). Sur tout le balayage, la brute couvre ",
+          {b:fmt(rawRange.sw,1)+" pp",c:"lcwr-hr"}," quand la corrigée n'en bouge que de ",
+          {b:fmt(lcRange.sw,1)+" pp",c:"lcwr-hb"},
+          ". La qualité substantielle n'a pas changé d'un iota — seule la longueur a varié."
+        ];
+        if(V<8){
+          parts.push(" Ici la baseline est si courte que le raw WR grimpe à ",
+            {b:fmt(raw*100,1)+" %",c:"lcwr-hr"}," (faux gagnant), alors que le LC WR plafonne à ",
+            {b:fmt(lc*100,1)+" %",c:"lcwr-hb"}," : un artefact de longueur pur, que le débiaisage efface.");
+        } else if(V>92){
+          parts.push(" Ici la baseline noie le jury sous le texte et fait chuter le raw WR à ",
+            {b:fmt(raw*100,1)+" %",c:"lcwr-hr"}," — pénalité de longueur, pas de qualité. "+
+            "Le LC WR refuse de suivre.");
+        }
+      }
+      fill(el("lcwr-read"),parts);
+    }
+
+    // ---- contrôles ----
+    function setV(v){V=v;el("lcwr-v").value=String(v);
+      el("lcwr-vv").textContent="Δlen = "+(dlen(v)>=0?"+":"")+fmt(dlen(v),2)+"σ";}
+    function setG(g){gamma=g;el("lcwr-g").value=String(g);el("lcwr-gv").textContent="γ = "+fmt(g,2);}
+
+    el("lcwr-v").addEventListener("input",function(){setV(parseInt(this.value,10));render();});
+    el("lcwr-g").addEventListener("input",function(){setG(parseFloat(this.value));render();});
+    root.querySelectorAll(".lcwr-neww button").forEach(function(btn){
+      btn.addEventListener("click",function(){
+        if(btn.hasAttribute("data-v"))setV(parseInt(btn.getAttribute("data-v"),10));
+        if(btn.hasAttribute("data-g"))setG(parseFloat(btn.getAttribute("data-g")));
+        render();
+      });
+    });
+
+    // init
+    setV(50); setG(1.55); render();
+  })();
+  </script>
+</div>
+
+<section id="biais-verbosite-style">
+<h3>Biais de verbosité, de style et de présentation</h3>
+<p>Parmi les biais qui affectent les juges LLM, le biais de verbosité (verbosity bias) et le biais de style (style bias) constituent la menace la plus systématique — et la plus longtemps sous-estimée. Ces deux phénomènes partagent une racine commune : le juge récompense des signaux de surface (longueur, mise en forme, ton « autoritaire ») indépendamment de la substance informative.</p>
+
+<p>Le cas le plus documenté quantitativement est celui d'AlpacaEval. En faisant varier l'instruction de verbosité du modèle de référence GPT-4 entre « sois très concis » et « développe longuement », le raw win rate du même modèle oscille de 22,9 % à 64,3 % — soit un swing de 41,4 points de pourcentage sur un artifact purement formel, sans modifier d'un iota la qualité substantielle de la réponse (arXiv:2404.04475). Ce résultat démontre qu'un opérateur malveillant peut doubler le classement apparent d'un modèle en ajustant uniquement la verbosité, sans aucune amélioration réelle.</p>
+
+<p>SOS-Bench (Style Outweighs Substance Benchmark), le plus large méta-benchmark standardisé et reproductible à ce jour — 152 380 points de données couvrant 19 évaluations existantes en world knowledge, instruction following et safety — confirme la même hiérarchie à l'échelle du classement des modèles (arXiv:2409.15268, ICLR 2025). Les préférences des juges LLM ne corrèlent pas avec les mesures concrètes de sécurité, de connaissance du monde ou de suivi d'instructions. Une expérience distincte du même article (Table 3, sur Arena-Hard-Auto avec GPT-4o-mini comme juge) illustre de façon frappante ce biais implicite : une réponse correcte au ton sarcastique perd 96 % de sa valeur perçue ; une reformulation concise de la bonne réponse en perd 63 % ; une réponse factuellement fausse mais bien présentée ne perd que 13 %. Les auteurs avertissent toutefois explicitement que ces chiffres, propres à un juge spécifique, ne constituent pas une preuve généralisable à tous les benchmarks à jury LLM.</p>
+
+<p>Plusieurs parades ont été proposées pour neutraliser ces biais. La plus rigoureuse sur le plan statistique est le length-controlled win rate (LC WR), introduit par AlpacaEval 2.0 : un generalized linear model (GLM) modélise conjointement l'identité du modèle, la différence de longueur (normalisée par une transformation tanh) et la difficulté de l'instruction ; en fixant le terme longueur à zéro on obtient un win rate contrefactuel « toutes choses égales en longueur ». Après cette correction, le swing résiduel tombe à 9,7 points de pourcentage (41,9 %–51,6 %) et la corrélation Spearman avec Chatbot Arena remonte de 0,94 à 0,98 — la plus élevée parmi les benchmarks comparés (arXiv:2404.04475). D'autres leviers agissent en amont : formuler le rubric de façon à pénaliser explicitement la verbosité inutile, imposer des verdicts binaires pass/fail (qui réduisent mécaniquement la surface d'influence de la longueur sur un score continu), et fine-tuner le juge sur des données débiaisées de sorte que la longueur et le style ne co-varient plus avec la qualité.</p>
+</section>
+<section id="biais-auto-preference">
+<h3>Biais d'auto-préférence : la perplexité comme cause racine</h3>
+<p>Le self-preference bias (biais d'auto-préférence) désigne la tendance d'un LLM à sur-évaluer ses propres sorties lorsqu'il joue le rôle de juge. L'analyse quantitative de Wataoka et al. introduit une métrique d'<em>equal opportunity</em> définie comme P(Y′=1|S=1,Y=1) − P(Y′=1|S=0,Y=1), où Y est la préférence humaine, Y′ la préférence du modèle-juge, et S l'indicateur d'auto-paternité. GPT-4 y atteint un score de biais de <strong>0,520</strong> — soit 52 points de pourcentage d'écart — : il valide ses propres réponses à hauteur de 87,76 % dans les cas où les humains les jugent meilleures, mais seulement à 47,61 % quand les humains préfèrent l'autre candidat. Le biais de <em>demographic parity</em> est encore plus marqué (0,749 pour GPT-4, contre 0,191 pour GPT-3.5-Turbo et 0,382 pour Vicuna-13b). La relation entre capacité du modèle et intensité du biais n'est toutefois ni systématique ni monotone : une part de l'auto-préférence des modèles les plus puissants est légitime (leurs réponses sont objectivement meilleures), et le biais réellement nuisible — préférer ses propres sorties erronées — ne croît pas mécaniquement avec la capacité.</p>
+
+<p>Le mécanisme sous-jacent n'est pas la reconnaissance d'auteur au sens littéral. Wataoka et al. montrent que les LLM attribuent des scores systématiquement plus élevés aux textes à faible perplexité sous leur propre distribution, <em>quel que soit le générateur réel</em> : soumettre à GPT-4 un texte produit par un autre modèle mais stylistiquement proche de son espace d'entraînement déclenche la même sur-évaluation qu'un texte auto-généré. La cause racine est donc la <strong>familiarité textuelle</strong> — mesurée par la perplexité — et non la self-identification. Ce résultat est distinct mais complémentaire des travaux de Panickssery et al. (NeurIPS 2024), qui établissent eux un lien causal <em>suggéré (non pleinement établi)</em> entre la capacité de self-recognition (distinguer ses propres sorties d'autres modèles ou d'humains) et l'intensité du biais d'auto-préférence : en fine-tunant GPT-3.5 et Llama 2 pour amplifier ou réduire la self-recognition sur 500 exemples, les auteurs observent que le biais varie de façon correspondante, y compris sur d'autres jeux de résumé.</p>
+
+<p>Ces deux mécanismes — perplexité-familiarité et self-recognition — ne sont pas mutuellement exclusifs : le premier opère au niveau de la vraisemblance de surface, le second au niveau de la représentation interne du style propre au modèle. Ensemble, ils invalident l'auto-évaluation comme proxy fiable de la qualité : un LLM qui se juge lui-même n'est pas en train d'exercer un jugement neutre sur le contenu, mais de récompenser la familiarité de sa propre distribution. Cela compromet directement les pipelines où le modèle évalue ses propres sorties, notamment le reward modeling dans le RLHF (Reinforcement Learning from Human Feedback, apprentissage par renforcement depuis un retour humain), le Constitutional AI (auto-critique par le modèle) et le self-refinement (raffinement itératif auto-guidé).</p>
+
+<p>Les parades pratiques reconnues sont au nombre de deux. La première consiste à constituer un <strong>ensemble multi-modèles</strong> : en soumettant la même paire de réponses à plusieurs juges et en agrégeant par vote majoritaire ou moyenne pondérée, le biais d'auto-préférence de chaque modèle est dilué par les jugements des autres. Wataoka et al. proposent en outre un <strong>downsampling pondéré</strong> : lorsqu'un modèle exhibe une faible perplexité sur un échantillon, on diminue le poids de son évaluation pour cet échantillon proportionnellement à l'avantage de perplexité mesuré. La seconde parade, plus directe, est de choisir un <strong>juge d'une famille différente</strong> de celle du générateur (cross-family judging) : les recherches systématiques sur plusieurs stratégies de débiaisage confirment que la diversité de famille est l'un des leviers les plus efficaces pour contenir le self-preference bias sans recourir à du fine-tuning spécialisé.</p>
+</section>
+<div class="widget peo-root" id="peo-root">
+  <style>
+    .peo-root{--peo-ink:var(--ink,#15202E);--peo-soft:var(--ink-soft,#43536A);
+      --peo-faint:var(--ink-faint,#7A889B);--peo-card:var(--card,#fff);
+      --peo-line:var(--line,#D7DFE9);--peo-line-soft:var(--line-soft,#E7ECF3);
+      --peo-blue:var(--blue,#23537F);--peo-blue-br:var(--blue-bright,#2C77B6);
+      --peo-blue-wash:var(--blue-wash,#E7EEF6);--peo-bord:var(--bordeaux,#7C2A38);
+      --peo-bord-br:var(--bordeaux-bright,#9B3443);--peo-bord-wash:var(--bordeaux-wash,#F4E9EB);
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--peo-ink);
+      border:1px solid var(--peo-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--peo-card);max-width:680px}
+    .peo-root *{box-sizing:border-box}
+    .peo-k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;
+      color:var(--peo-faint);font-weight:600;margin:0 0 2px}
+    .peo-title{font-weight:700;font-size:1.05rem;margin:0 0 12px}
+    .peo-ctl{margin:0 0 4px}
+    .peo-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .peo-row+.peo-row{margin-top:11px}
+    .peo-lab{flex:0 0 128px;font-weight:600;font-size:.84rem;color:var(--peo-soft)}
+    .peo-lab small{display:block;font-weight:500;font-size:.7rem;color:var(--peo-faint)}
+    .peo-seg{display:inline-flex;border:1px solid var(--peo-line);border-radius:8px;overflow:hidden}
+    .peo-seg button{border:0;background:var(--peo-card);color:var(--peo-soft);
+      font:700 12.5px/1 inherit;padding:8px 11px;cursor:pointer}
+    .peo-seg button+button{border-left:1px solid var(--peo-line)}
+    .peo-seg button:hover{background:var(--peo-line-soft)}
+    .peo-seg button[aria-pressed="true"]{background:var(--peo-blue-wash);color:var(--peo-blue);box-shadow:inset 0 -2px 0 var(--peo-blue-br)}
+    .peo-toggle{display:inline-flex;align-items:center;gap:9px;cursor:pointer;
+      border:1px solid var(--peo-line);border-radius:8px;padding:7px 11px;
+      font-size:.8rem;font-weight:600;color:var(--peo-soft);user-select:none}
+    .peo-toggle input{accent-color:var(--peo-bord-br);width:16px;height:16px;margin:0}
+    .peo-toggle.on{background:var(--peo-bord-wash);border-color:var(--peo-bord-br);color:var(--peo-bord)}
+    .peo-gauges{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0 0}
+    .peo-gauge{border:1px solid var(--peo-line);border-radius:10px;padding:11px 12px 9px;background:var(--peo-card)}
+    .peo-gauge.peo-self{border-left:3px solid var(--peo-blue-br)}
+    .peo-gauge.peo-other{border-left:3px solid var(--peo-bord-br)}
+    .peo-gauge h4{margin:0 0 1px;font-size:.79rem;font-weight:700}
+    .peo-gauge.peo-self h4{color:var(--peo-blue)}
+    .peo-gauge.peo-other h4{color:var(--peo-bord)}
+    .peo-gauge .peo-cond{margin:0 0 7px;font-size:.68rem;color:var(--peo-faint);line-height:1.3}
+    .peo-gauge svg{width:100%;height:auto;display:block}
+    .peo-gv{font:800 1.45rem/1 ui-monospace,monospace;margin:6px 0 0}
+    .peo-gauge.peo-self .peo-gv{color:var(--peo-blue)}
+    .peo-gauge.peo-other .peo-gv{color:var(--peo-bord)}
+    .peo-gv small{font-size:.62rem;font-weight:600;color:var(--peo-faint);letter-spacing:.02em}
+    .peo-score{display:flex;align-items:stretch;gap:0;margin:16px 0 0;
+      border:1px solid var(--peo-line);border-radius:10px;overflow:hidden}
+    .peo-score-main{flex:1 1 auto;padding:11px 14px;background:var(--peo-blue-wash)}
+    .peo-score-main .peo-sk{font-size:.66rem;letter-spacing:.05em;text-transform:uppercase;
+      color:var(--peo-soft);font-weight:700}
+    .peo-score-main .peo-sv{font:800 1.7rem/1 ui-monospace,monospace;color:var(--peo-blue);margin:4px 0 2px}
+    .peo-score-main .peo-sn{font-size:.72rem;color:var(--peo-soft);line-height:1.35}
+    .peo-score-flag{flex:0 0 96px;display:flex;flex-direction:column;align-items:center;
+      justify-content:center;gap:2px;padding:8px;text-align:center;
+      font-weight:700;font-size:.7rem;border-left:1px solid var(--peo-line)}
+    .peo-score-flag .peo-dot{font:800 1.05rem/1 ui-monospace,monospace}
+    .peo-bar{position:relative;height:14px;border-radius:7px;background:var(--peo-line-soft);
+      margin:10px 0 2px;overflow:hidden}
+    .peo-bar i{position:absolute;left:0;top:0;bottom:0;border-radius:7px;
+      background:linear-gradient(90deg,var(--peo-blue-br),var(--peo-bord-br));transition:width .25s ease}
+    .peo-read{margin:14px 0 0;padding:11px 13px;border-radius:8px;border:1px solid var(--peo-line);
+      background:var(--peo-blue-wash);font-size:.86rem;line-height:1.5;color:var(--peo-ink)}
+    .peo-read b{font-weight:700}
+    .peo-myth{margin:10px 0 0;padding:10px 13px;border-radius:8px;
+      border:1px solid var(--peo-bord-br);background:var(--peo-bord-wash);
+      font-size:.8rem;line-height:1.45;color:var(--peo-ink)}
+    .peo-myth b{color:var(--peo-bord)}
+    .peo-note{margin:10px 0 0;font-size:.72rem;color:var(--peo-faint);line-height:1.45}
+    @media(max-width:520px){.peo-gauges{grid-template-columns:1fr}
+      .peo-lab{flex-basis:100%}.peo-score{flex-wrap:wrap}.peo-score-flag{flex-basis:100%;border-left:0;border-top:1px solid var(--peo-line);flex-direction:row}}
+  </style>
+
+  <p class="peo-k">Sonde interactive · Wataoka, Takahashi &amp; Ri (2024)</p>
+  <p class="peo-title">Equal opportunity : le biais d'auto-préférence comme écart de deux taux d'acceptation</p>
+
+  <div class="peo-ctl">
+    <div class="peo-row">
+      <span class="peo-lab">Modèle-juge<small>GPT-4 = le plus capable</small></span>
+      <span class="peo-seg" id="peo-seg" role="group" aria-label="modèle juge">
+        <button type="button" data-m="vicuna">Vicuna-13B</button>
+        <button type="button" data-m="gpt35">GPT-3.5-Turbo</button>
+        <button type="button" data-m="gpt4" aria-pressed="true">GPT-4</button>
+      </span>
+    </div>
+    <div class="peo-row">
+      <span class="peo-lab">Candidat adverse<small>contrefactuel</small></span>
+      <label class="peo-toggle on" id="peo-toggle-lab" for="peo-toggle">
+        <input type="checkbox" id="peo-toggle" checked>
+        <span id="peo-toggle-txt">Texte adverse à FAIBLE perplexité (familier)</span>
+      </label>
+    </div>
+  </div>
+
+  <div class="peo-gauges">
+    <div class="peo-gauge peo-self">
+      <h4>Condition A — l'humain préfère SA réponse</h4>
+      <p class="peo-cond">P(juge accepte | humain préfère le candidat du juge)</p>
+      <svg id="peo-svg-self" viewBox="0 0 220 96" aria-hidden="true"></svg>
+      <p class="peo-gv"><span id="peo-self-v">87,76 %</span> <small id="peo-self-n">acceptation</small></p>
+    </div>
+    <div class="peo-gauge peo-other">
+      <h4>Condition B — l'humain préfère l'AUTRE</h4>
+      <p class="peo-cond">P(juge accepte | humain préfère le candidat adverse)</p>
+      <svg id="peo-svg-other" viewBox="0 0 220 96" aria-hidden="true"></svg>
+      <p class="peo-gv"><span id="peo-other-v">47,61 %</span> <small id="peo-other-n">acceptation</small></p>
+    </div>
+  </div>
+
+  <div class="peo-bar" aria-hidden="true"><i id="peo-bar-fill" style="width:77%"></i></div>
+
+  <div class="peo-score">
+    <div class="peo-score-main">
+      <div class="peo-sk">Écart des deux taux d'acceptation = TA(A) − TA(B)</div>
+      <div class="peo-sv" id="peo-score-v">40,15 pp</div>
+      <div class="peo-sn" id="peo-score-n">87,76 % − 47,61 % : à qualité humaine égale, le juge accepte SA réponse 40 points plus souvent.</div>
+    </div>
+    <div class="peo-score-flag" id="peo-flag">
+      <span class="peo-dot" id="peo-flag-dot">●</span>
+      <span id="peo-flag-txt">Biais fort</span>
+    </div>
+  </div>
+
+  <p class="peo-note" id="peo-metric">Score equal opportunity publié (GPT-4) : <b>0,520</b> — le plus élevé du
+    papier. C'est une statistique agrégée du même phénomène, distincte de la soustraction brute
+    ci-dessus (≈ 40 pp sur ces deux taux précis).</p>
+
+  <div class="peo-read" id="peo-read"></div>
+
+  <p class="peo-myth"><b>Idée reçue :</b> « le juge favorise ses propres réponses parce qu'il
+    se reconnaît. » La sonde montre le contraire : décochez la familiarité et l'écart
+    s'effondre, <b>même réponse, même auteur</b>. Ce qui déclenche la sur-évaluation, c'est la
+    <b>faible perplexité</b> (familiarité du style), pas la signature de l'auteur.</p>
+
+  <p class="peo-note">Données vérifiées (Wataoka et al., 2024) : pour GPT-4, le juge accepte sa
+    réponse dans <b>87,76 %</b> des cas où l'humain la préfère, mais seulement <b>47,61 %</b> quand
+    l'humain préfère l'autre — <b>≈ 40 pp</b> d'écart ; le score equal opportunity publié vaut
+    <b>0,520</b>. Pour Vicuna-13B et GPT-3.5-Turbo, seul l'<b>ordre</b> est documenté (via la parité
+    démographique : 0,382 et 0,191 ; GPT-4 = 0,749) — le papier ne publie pas leur equal opportunity
+    séparé, donc leurs deux taux ici sont illustratifs, calés sur cet ordre.</p>
+
+  <script>
+  (function(){
+    var root=document.getElementById("peo-root");
+    if(!root||root.dataset.peoInit)return; root.dataset.peoInit="1";
+    var SVGNS="http://www.w3.org/2000/svg";
+
+    // Modèles. GPT-4 : taux conditionnels d'acceptation VÉRIFIÉS (87,76 % / 47,61 %,
+    // écart ≈ 40 pp) ET score equal opportunity publié = 0,520 (eo).
+    // Pour Vicuna-13B / GPT-3.5-Turbo, le papier ne publie PAS d'equal opportunity séparé :
+    // seul l'ORDRE est connu (parité démographique, dp). Leurs deux taux sont donc
+    // illustratifs, calés pour reproduire cet ordre — eo:null = pas de score publié.
+    var MODELS={
+      vicuna:{name:"Vicuna-13B", self:0.766, other:0.384, eo:null, dp:0.382},
+      gpt35: {name:"GPT-3.5-Turbo", self:0.6855, other:0.4945, eo:null, dp:0.191},
+      gpt4:  {name:"GPT-4", self:0.8776, other:0.4761, eo:0.520, dp:0.749}
+    };
+
+    var segEl=document.getElementById("peo-seg");
+    var tgl=document.getElementById("peo-toggle"), tglLab=document.getElementById("peo-toggle-lab"),
+        tglTxt=document.getElementById("peo-toggle-txt");
+    var svgSelf=document.getElementById("peo-svg-self"), svgOther=document.getElementById("peo-svg-other");
+    var selfV=document.getElementById("peo-self-v"), otherV=document.getElementById("peo-other-v");
+    var scoreV=document.getElementById("peo-score-v"), scoreN=document.getElementById("peo-score-n");
+    var flag=document.getElementById("peo-flag"), flagDot=document.getElementById("peo-flag-dot"),
+        flagTxt=document.getElementById("peo-flag-txt");
+    var barFill=document.getElementById("peo-bar-fill");
+    var metricEl=document.getElementById("peo-metric");
+    var readEl=document.getElementById("peo-read");
+
+    var cur="gpt4", familiar=true, prevScore=null, lastAct="init";
+
+    function fr(s){ return (""+s).replace(".",","); }
+    function pct(x){ return fr((x*100).toFixed(2))+" %"; }
+    function pp(x){ return fr((x*100).toFixed(2))+" pp"; }
+    function score3(x){ return fr(x.toFixed(3)); }
+
+    function mk(tag,attrs){ var el=document.createElementNS(SVGNS,tag);
+      for(var k in attrs) el.setAttribute(k,attrs[k]); return el; }
+    function add(el,p){ p.appendChild(el); return el; }
+
+    // jauge en demi-arc
+    function drawGauge(svg,frac,color){
+      svg.textContent="";
+      var cx=110, cy=86, r=70, sw=15;
+      function pt(a){ return [cx+r*Math.cos(Math.PI-a*Math.PI), cy-r*Math.sin(Math.PI-a*Math.PI)]; }
+      function arc(a0,a1,col,width){
+        var p0=pt(a0), p1=pt(a1), large=(a1-a0)>0.5?1:0;
+        return mk("path",{d:"M"+p0[0].toFixed(2)+" "+p0[1].toFixed(2)+
+          " A"+r+" "+r+" 0 "+large+" 1 "+p1[0].toFixed(2)+" "+p1[1].toFixed(2),
+          fill:"none",stroke:col,"stroke-width":width,"stroke-linecap":"round"});
+      }
+      add(arc(0,1,"var(--peo-line-soft)",sw),svg);
+      if(frac>0.001) add(arc(0,frac,color,sw),svg);
+      // graduations 0 / 50 / 100
+      [0,0.5,1].forEach(function(g){
+        var pa=pt(g), pb=pt(g);
+        var ox=Math.cos(Math.PI-g*Math.PI), oy=-Math.sin(Math.PI-g*Math.PI);
+        add(mk("line",{x1:(cx+(r-sw/2-2)*ox).toFixed(1),y1:(cy-(r-sw/2-2)*oy).toFixed(1),
+          x2:(cx+(r+sw/2+1)*ox).toFixed(1),y2:(cy-(r+sw/2+1)*oy).toFixed(1),
+          stroke:"var(--peo-faint)","stroke-width":1}),svg);
+      });
+      var lab=mk("text",{x:cx,y:cy-2,"text-anchor":"middle","font-size":11,
+        "font-weight":700,fill:color}); lab.textContent=fr((frac*100).toFixed(1))+" %"; add(lab,svg);
+      var t0=mk("text",{x:cx-r-2,y:cy+13,"text-anchor":"middle","font-size":8,fill:"var(--peo-faint)"});
+      t0.textContent="0"; add(t0,svg);
+      var t1=mk("text",{x:cx+r+2,y:cy+13,"text-anchor":"middle","font-size":8,fill:"var(--peo-faint)"});
+      t1.textContent="100"; add(t1,svg);
+    }
+
+    function setParts(el,parts){
+      el.textContent="";
+      parts.forEach(function(p){
+        if(typeof p==="string") el.appendChild(document.createTextNode(p));
+        else{ var b=document.createElement("b"); b.textContent=p.b; el.appendChild(b); }
+      });
+    }
+    function setRead(parts){ setParts(readEl,parts); }
+
+    function render(){
+      var m=MODELS[cur];
+      var self=m.self, other=m.other;
+      // toggle familiarité : si le candidat adverse n'est PAS familier (perplexité haute),
+      // le juge n'a plus de raison de sur-évaluer "sa" condition → l'écart se referme.
+      // On annule alors la composante de familiarité : les deux taux convergent vers leur moyenne.
+      if(!familiar){
+        var mid=(self+other)/2;
+        // un résidu minime d'auto-identification subsiste (≈ 1/8 de l'écart d'origine)
+        var resid=(self-other)*0.06;
+        self=mid+resid; other=mid-resid;
+      }
+      var gap=self-other; // écart direct des deux taux d'acceptation (en fraction)
+
+      selfV.textContent=pct(self);
+      otherV.textContent=pct(other);
+      drawGauge(svgSelf, self, "var(--peo-blue-br)");
+      drawGauge(svgOther, other, "var(--peo-bord-br)");
+
+      // panneau central : l'écart DIRECT TA(A) − TA(B), exprimé en points de %
+      scoreV.textContent=pp(gap);
+      scoreN.textContent=pct(self)+" − "+pct(other)+" : à qualité humaine égale, le juge accepte "+
+        (familiar
+          ? "SA réponse "+fr((gap*100).toFixed(1))+" points plus souvent."
+          : "les deux conditions à des taux quasi égaux (familiarité retirée).");
+
+      // ligne « métrique publiée » : EO si publié, sinon parité démographique (ordre seul)
+      if(familiar){
+        if(m.eo!==null){
+          setParts(metricEl,["Score equal opportunity publié ("+m.name+") : ",
+            {b:score3(m.eo)}, " — le plus élevé du papier. Statistique agrégée du même phénomène, "+
+            "distincte de la soustraction brute ci-dessus (≈ "+pp(gap)+" sur ces deux taux précis)."]);
+        } else {
+          setParts(metricEl,[m.name+" : equal opportunity non publié séparément. Position connue via la "+
+            "parité démographique = ", {b:score3(m.dp)}, " (GPT-4 = 0,749, le plus biaisé). Les deux taux "+
+            "ci-dessus sont illustratifs, calés sur cet ordre."]);
+        }
+      } else {
+        setParts(metricEl,["Perplexité élevée : l'écart s'effondre à ≈ ", {b:pp(gap)},
+          ". Même auteur, même réponse — donc le score de biais publié n'est pas une propriété de "+
+          "l'auteur mais de la familiarité du texte jugé."]);
+      }
+
+      // largeur de barre = écart normalisé sur [0 ; 0,40] (l'écart max observé, GPT-4 familier)
+      barFill.style.width=Math.max(2,Math.min(100, gap/0.4015*100)).toFixed(1)+"%";
+
+      // étiquette de sévérité (sur l'écart direct)
+      var sev;
+      if(gap>=0.30) sev={t:"Biais fort",c:"var(--peo-bord)"};
+      else if(gap>=0.15) sev={t:"Biais net",c:"var(--peo-bord-br)"};
+      else if(gap>=0.05) sev={t:"Biais modéré",c:"var(--peo-soft)"};
+      else sev={t:"Quasi nul",c:"var(--peo-blue)"};
+      flagDot.style.color=sev.c; flagTxt.textContent=sev.t; flag.style.color=sev.c;
+
+      // texte de lecture
+      if(lastAct==="init"){
+        setRead([{b:"Deux conditionnelles, un seul écart. "},
+          "À gauche : à quelle fréquence le juge accepte SA réponse quand l'humain la préfère déjà. ",
+          "À droite : à quelle fréquence il l'accepte quand l'humain préfère l'AUTRE. ",
+          "Le biais equal opportunity, c'est l'", {b:"écart entre les deux"},
+          " : un juge équitable aurait les deux jauges au même niveau (écart 0)."]);
+      } else if(lastAct==="model"){
+        setRead([{b:"Juge "+m.name+". "},
+          "Écart "+pp(gap)+" ("+pct(self)+" vs "+pct(other)+"). ",
+          familiar? "Le biais se ":"Familiarité retirée : l'écart se ",
+          {b: gap>=0.30?"creuse avec la capacité du modèle":(gap>=0.12?"maintient":"referme")},
+          ". GPT-4, le plus capable, est aussi le plus biaisé du papier."]);
+      } else if(lastAct==="toggle"){
+        if(familiar){
+          setRead([{b:"Candidat adverse familier (faible perplexité). "},
+            "L'écart remonte à "+pp(gap)+". ",
+            "Le juge sur-évalue le texte qui « sonne » comme le sien — ",
+            {b:"c'est la familiarité, pas l'auteur"},", qui crée le biais."]);
+        } else {
+          setRead([{b:"Candidat adverse à perplexité ÉLEVÉE. "},
+            "Même modèle, même réponse — mais l'écart tombe à "+pp(gap)+". ",
+            "Si le biais venait de l'auto-identification, il ne bougerait pas. ",
+            "Il s'effondre parce que la variable causale est la ", {b:"faible perplexité"},
+            " du texte évalué (Wataoka et al., 2024)."]);
+        }
+      }
+      prevScore=gap;
+    }
+
+    // sélection du modèle
+    segEl.addEventListener("click",function(e){
+      var b=e.target.closest("button"); if(!b)return;
+      cur=b.getAttribute("data-m");
+      Array.prototype.forEach.call(segEl.querySelectorAll("button"),function(x){
+        x.setAttribute("aria-pressed", x===b ? "true":"false"); });
+      lastAct="model"; render();
+    });
+
+    // toggle familiarité
+    function syncToggle(){
+      familiar=tgl.checked;
+      tglLab.classList.toggle("on", familiar);
+      tglTxt.textContent= familiar
+        ? "Texte adverse à FAIBLE perplexité (familier)"
+        : "Texte adverse à perplexité ÉLEVÉE (étranger)";
+    }
+    tgl.addEventListener("change",function(){ syncToggle(); lastAct="toggle"; render(); });
+
+    // init
+    Array.prototype.forEach.call(segEl.querySelectorAll("button"),function(x){
+      x.setAttribute("aria-pressed", x.getAttribute("data-m")===cur ? "true":"false"); });
+    syncToggle();
+    render();
+  })();
+  </script>
+</div>
+
+<section id="taxonomie-biais">
+<h3>Taxonomie des biais et frameworks de mesure</h3>
+<p>La littérature sur LLM-as-judge a longtemps catalogué les biais de manière ad hoc — position bias, verbosity bias, self-enhancement bias parmi les plus anciennement identifiés — avant que plusieurs équipes ne proposent des taxonomies structurées. On distingue couramment les biais liés à la <em>présentation</em> de la réponse (mise en forme : position, verbosité), au <em>contenu</em> du texte évalué (sentiment, signaux lexicaux), au <em>contexte social ou identitaire</em> encodé dans la réponse, et au <em>raisonnement</em> du juge lui-même (sur-confiance, self-enhancement). Ces regroupements offrent un cadre analytique : ils classent les origines des biais sans les quantifier.</p>
+
+<p>Pour combler ce vide, des frameworks de mesure ont été proposés avec des instruments dédiés. CALM (« Justice or Prejudice? Quantifying Biases in LLM-as-a-Judge », arxiv:2410.02736) inventorie douze types de biais et les quantifie via le <em>Robustness Rate</em> (RR). Sur des modèles comme GPT-4o et Claude-3.5, le <em>chain-of-thought bias</em> ressort comme l'un des biais persistants, sans pour autant être systématiquement le plus prononcé : GPT-4o atteint un RR global de 0,977 mais chute à 0,700 sur la dimension CoT, tandis que le CoT bias de Claude-3.5 descend jusqu'à RR = 0,610 (son position bias restant nettement plus haut, à 0,832). Le seuil parfois avancé d'un RR &lt; 0,75 « pour tous les modèles » ne tient pas : GPT-4o reste au-dessus de ce seuil sur cette dimension.</p>
+
+<p>Parmi les biais les moins intuitifs figure l'<em>authority bias</em> (biais d'autorité) : un juge LLM accorde une crédibilité accrue à des réponses qui invoquent des citations ou des noms d'autorité, même fabriqués. Choi et al. (arxiv:2601.04790) montrent expérimentalement que des citations fictives déplacent les verdicts de manière mesurable. L'amplification spécifique de ce biais par citations fabriquées dans les frameworks multi-agents de consensus n'a toutefois pas été démontrée directement : la sensibilité des juges individuels aux citations fabriquées et l'amplification de certains biais par les frameworks multi-agents proviennent d'études distinctes, avec des mécanismes différents.</p>
+
+<p>Face à cette diversité de biais, l'inventaire des parades transversales converge vers quelques approches complémentaires. La première est le <em>multi-agent judging</em> (jugement multi-agents) ou PoLL (panel of LLMs) : des panels de modèles issus de familles distinctes visent à réduire l'intra-model bias, mais le <em>multi-agent debate</em> (débat multi-agents) peut au contraire <em>amplifier</em> les biais dès le premier tour de délibération (position bias consistency : 0,82 → 0,71 chez DeepSeek-V3), là où le <em>meta-judging</em> reste dans ±1–2 % du single-judge. La deuxième parade est la <em>rule augmentation</em> (enrichissement par rubric) : l'ajout de critères explicites et pondérés vise à contenir les biais de contenu. La troisième est la conversion <em>scoring → ranking</em> : passer d'un score Likert absolu à un classement relatif supprime le biais d'échelle non calibrée, au prix d'une perte d'information sur l'amplitude des différences de qualité. Il n'existe pas de parade unique : les biais de présentation appellent des correctifs différents des biais cognitifs, et les gains varient selon le modèle-juge et la nature du dataset d'évaluation.</p>
+</section>
+<section id="fiabilite-statistique">
+<h3>Fiabilité statistique : accord juge↔humain et garanties</h3>
+<p>Mesurer la confiance dans un juge automatique commence par quantifier dans quelle mesure ses décisions reproduisent celles d'annotateurs humains de référence. L'outillage classique de la psychométrie s'y applique directement. Le pourcentage brut d'accord (raw agreement) est le plus immédiat mais ignore la part due au hasard ; Cohen's kappa (κ) corrige cette part pour deux annotateurs sur des données nominales ; Fleiss' kappa généralise à <em>k</em> annotateurs ; Scott's pi repose sur une hypothèse de distribution marginale légèrement différente. Pour des données ordinales ou mixtes — comme les notes sur une échelle 1-5 — Krippendorff's alpha (α) est préféré : il est défini pour tout nombre d'annotateurs, tolère les données manquantes et s'adapte à la nature de l'échelle via une fonction de distance. Spearman's ρ et Kendall's τ mesurent quant à eux la concordance de rang entre deux séries ordonnées ; τ est de fait la métrique de corrélation de rang la plus employée dans la littérature d'évaluation des LLM. En pratique, un κ ou α &lt; 0,4 indique un accord médiocre, 0,4–0,6 un accord modéré, 0,6–0,8 un accord substantiel, &gt; 0,8 un excellent accord.</p>
+
+<p>La corrélation entre jugements automatiques et jugements humains est fortement dépendante du modèle, du benchmark, de la métrique et de la tâche, et varie très largement d'une étude à l'autre — d'environ 0,27 à environ 0,93. Aucune méta-analyse publiée ne consolide de plages « typiques » par famille de tâche : sur certains benchmarks (SummEval, FRANK), la factualité automatique obtient même des corrélations inférieures à la cohérence, contredisant l'ordre supposé. La dépendance au domaine reste donc réelle — et un seuil unique d'acceptation d'un juge difficilement justifiable — mais sans plages numériques établies pour la quantifier. G-Eval (GPT-4 en backbone, chain-of-thought plus form-filling) atteint une Spearman correlation moyenne de 0,514 avec les jugements humains sur la tâche de summarization (SummEval), calculée comme moyenne sur quatre dimensions, dépassant tous les évaluateurs antérieurs testés — tout en signalant un biais systématique en faveur des textes produits par des LLM. Les métriques automatiques classiques, BLEU et ROUGE, exhibent une corrélation faible avec les jugements humains dès lors que la tâche exige de la diversité ou de la créativité, ce qui légitime le recours à des juges neuronaux pour ces domaines.</p>
+
+<p>Avant de déployer un juge automatique, une calibration empirique sur un échantillon annoté par des experts est indispensable. La pratique courante recommande de 50 à 100 exemples couvrant au moins trois annotateurs humains pour estimer la winning rate ω du juge et décider de son acceptation. Ce protocole est formalisé par l'<strong>alternative annotator test</strong> (alt-test) de Calderon et al. (ACL 2025, arXiv:2501.10970) : il applique <em>m</em> tests t appariés (un par annotateur, avec un hyperparamètre ε de coût-bénéfice), corrige par la procédure de Benjamini-Yekutieli pour contrôler le taux de fausses découvertes (FDR) en présence d'hypothèses dépendantes, puis calcule la winning rate ω comme la proportion d'annotateurs battus. Si ω ≥ 0,5 — seuil lui-même présenté comme un hyperparamètre ajustable selon les enjeux — le remplacement de l'annotateur humain par le LLM est statistiquement justifié ; ω est donc calculé sur les annotateurs, non sur les exemples. Appliqué à six LLM sur quatre techniques de prompting, le test montre que les modèles closed-source (notamment GPT-4o) atteignent ce seuil sur plusieurs tâches de langage et vision-langage, tandis que les modèles open-source examinés restent en dessous. À Chatbot Arena, la concordance crowd-to-expert varie de 72 % à 83 %, et l'accord expert-to-expert de 79,4 % à 89,8 % ; l'écart de 5 à 10 points est attribué aux erreurs commises par les utilisateurs non experts qui négligent certaines erreurs factuelles.</p>
+</section>
+<section id="limites-pieges">
+<h3>Limites, pièges et idées reçues</h3>
+<p>L'accord agrégé en pourcentage entre un juge LLM et des évaluateurs humains est la métrique la plus souvent citée pour légitimer un protocole d'évaluation. Or cette métrique est structurellement trompeuse. Une étude portant sur 13 juges LLM évalués sur 9 modèles dans des conditions où l'accord inter-humain est élevé montre que des juges affichant un fort taux d'accord en pourcentage peuvent néanmoins diverger jusqu'à 5 points des scores attribués par les humains sur des questions de scoring absolu. Cette divergence touche les <em>valeurs</em> numériques absolues, mais n'invalide pas l'ordre relatif : les rangs des modèles sont au contraire largement préservés (corrélation de Spearman ρ jusqu'à 0,99, même pour des juges de moindre qualité). Autrement dit, deux juges peuvent <em>classer</em> les modèles dans le même ordre tout en produisant des <em>valeurs</em> numériques incompatibles, ce qui appelle une prudence particulière sur l'interprétation des scores absolus plutôt que sur leur classement.</p>
+
+<p>Le Judge Reliability Harness (2026) systématise ce diagnostic. En soumettant quatre juges SOTA à des perturbations contrôlées — paraphrases sémantiquement équivalentes, reformatages textuels, variations de verbosité, inversion des labels ground truth — les auteurs constatent qu'aucun des quatre juges n'est uniformément fiable sur les quatre benchmarks étudiés (sécurité, persuasion, mésusage, comportement agentique). Des modifications superficielles de la mise en forme suffisent à renverser des verdicts, ce qui révèle que l'accord agrégé sur des instances non perturbées est un proxy fragile de la fiabilité réelle.</p>
+
+<p>Le gaming des benchmarks automatiques illustre la même fragilité par une voie radicalement différente. Une attaque par modèle nul (null model attack), présentée comme oral à l'ICLR 2025, montre qu'un modèle produisant une réponse constante — identique quelle que soit l'instruction — atteint 86,5 % de length-controlled win rate (LC WR) sur AlpacaEval 2.0. Le résultat, délibérément proof-of-concept, démontre que les juges LLM automatiques sont vulnérables à la confusion syntaxique du template d'évaluation : la correction de verbosité n'est qu'un facteur secondaire qui amplifie le score, la réponse courte bénéficiant de la normalisation de longueur, mais elle n'est pas la surface d'attaque principale. Cette attaque ne prouve pas que les benchmarks sont inutiles, mais qu'un score élevé est une condition nécessaire, non suffisante, de la qualité.</p>
+
+<p>The Leaderboard Illusion (2025) documente un vecteur de gaming institutionnel : Meta a testé en privé au moins 27 variants de Llama-4 dans les mois précédant le lancement public, ne divulguant que le meilleur score. Des expériences d'entraînement avec 70 % de données Arena dans le mix — la proportion maximale testée — génèrent jusqu'à 112 % de gain relatif sur la distribution Arena (et 81,7 % avec seulement 30 % de données Arena). Parallèlement, Google et OpenAI ont reçu respectivement environ 19,2 % et 20,4 % de l'ensemble des données Arena, contre 29,7 % pour l'ensemble des 83 modèles open-weight. Ces asymétries d'accès structurent le classement de façon systématique en faveur des acteurs disposant de ressources de test privé, sans que les utilisateurs du leaderboard en aient conscience.</p>
+
+<p>La contamination des données de test constitue un autre vecteur de distorsion. La contamination <em>sémantique</em> — instances paraphrasées ou traduites présentes dans les données de pré-entraînement — échappe aux détections par chevauchement de n-grammes, et sa quantification précise reste inaccessible pour les modèles fermés faute d'accès aux données d'entraînement.</p>
+</section>
+<details class="ex"><summary>Vérifie ta compréhension<span class="cnt">Partie 1</span></summary><div class="exbody"><p><b>Question.</b> Sur MT-Bench, GPT-4 utilisé comme juge pairwise atteint 85 % d'accord avec les humains, soit plus que l'accord inter-humain (81 % au premier tour). Peut-on en conclure que GPT-4 est un meilleur évaluateur que les humains, et que franchir ce seuil suffit à déployer un juge en production ?</p><div class="eg b"><span class="egk">Réponse</span><p>Non, sur les deux points. D'abord, ce taux de ~80–85 % d'accord sur des tâches subjectives n'est pas une cible de performance que l'on « dépasse » : il reflète le désaccord humain intrinsèque sur des préférences dispersées. Aucun évaluateur ne peut être « plus correct » que le consensus humain quand ce consensus est lui-même flou — d'ailleurs le chiffre dépend du protocole (en incluant les égalités, setup S1, l'accord GPT-4↔humain tombe à ~70 %, et l'accord inter-humain à 63 %, ce qui ruine l'idée d'un « plancher universel » à 80 %).</p><p>Ensuite, l'accord agrégé est une condition <em>nécessaire mais non suffisante</em>. Un juge à fort accord global peut diverger de plusieurs points sur les scores absolus et voir ses verdicts renversés par une simple paraphrase ou un reformatage — aucun des quatre juges SOTA du Judge Reliability Harness n'est uniformément fiable. Le déploiement exige en plus : calibration sur un jeu annoté par des experts (alt-test, ω ≥ 0,5 sur ≥ 3 annotateurs avec correction Benjamini-Yekutieli), correction des biais systématiques (position, verbosité, auto-préférence), et tests adversariaux hors distribution.</p></div></div></details>
+<details class="ex"><summary>Vérifie ta compréhension<span class="cnt">Partie 2</span></summary><div class="exbody"><p><b>Question.</b> Le length-controlled win rate (LC WR) d'AlpacaEval 2.0 a été introduit précisément pour neutraliser le biais de verbosité. Pourquoi cette parade ne suffit-elle pas à rendre le benchmark inattaquable, et le style bias est-il vraiment le pire des biais de présentation ?</p><div class="eg b"><span class="egk">Réponse</span><p>Le LC WR réduit fortement le biais de longueur — le swing de verbosité passe de 41,4 pp (raw WR oscillant de 22,9 % à 64,3 %) à ~9,7 pp résiduels (41,9 %–51,6 %) — et porte la corrélation Spearman avec Chatbot Arena de 0,94 à 0,98. Mais il ne l'élimine pas, et surtout il ouvre une nouvelle surface d'attaque : un <em>modèle nul</em> renvoyant une réponse constante avec injection adversariale atteint 86,5 % de LC WR (supérieur à son raw WR de 76,9 %), car le correcteur de longueur récompense la brièveté inconditionnelle. La leçon : un score élevé est nécessaire mais non suffisant pour conclure à la qualité.</p><p>Quant à la hiérarchie des biais de présentation : le <em>style bias</em> (préférence pour le markdown à contenu identique) et la complétude pèsent lourdement sur les juges — SOS-Bench montre à l'échelle du classement qu'ils prédisent mieux le score d'un juge que la sécurité, la connaissance factuelle ou le suivi d'instructions — tandis que le <em>position bias</em> est plus aisément neutralisable par swap-and-tie. La question « quel est le pire biais » n'a pas de réponse universelle chiffrée : l'ampleur mesurée dépend du juge, du protocole et de la métrique.</p></div></div></details>
+<section id="biblio"><h3>Bibliographie &amp; repos</h3><div><a href="https://arxiv.org/abs/2306.05685">Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena — arXiv abstract (NeurIPS 2023 Datasets and Benchmarks)</a></div><div><a href="https://arxiv.org/html/2306.05685">Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena — full HTML paper (arXiv)</a></div><div><a href="https://papers.nips.cc/paper_files/paper/2023/hash/91f18a1287b398d378ef22505bf41832-Abstract-Datasets_and_Benchmarks.html">NeurIPS 2023 Datasets and Benchmarks proceedings page</a></div><div><a href="https://www.emergentmind.com/papers/2306.05685">MT-Bench paper summary — Emergent Mind</a></div><div><a href="https://eugeneyan.com/writing/llm-evaluators/">Evaluating the Effectiveness of LLM-Evaluators (Eugene Yan, independent commentary)</a></div><div><a href="https://arxiv.org/html/2411.15594v6">Judging the Judges: Evaluating Alignment and Vulnerabilities in LLMs-as-Judges (arXiv 2411.15594v6)</a></div><div><a href="https://www.comet.com/site/blog/llm-as-a-judge/">LLM-as-a-Judge Guide — Comet</a></div><div><a href="https://arxiv.org/html/2411.16594">From Generation to Judgment: Opportunities and Challenges of LLM-as-a-judge (2024) — HTML full text, Section 4.2.1</a></div><div><a href="https://arxiv.org/abs/2303.16634">G-Eval: NLG Evaluation using GPT-4 with Better Human Alignment (arXiv 2303.16634)</a></div><div><a href="https://ar5iv.labs.arxiv.org/html/2303.16634">G-Eval — ar5iv HTML render (2303.16634)</a></div><div><a href="https://aclanthology.org/2023.emnlp-main.153/">G-Eval: NLG Evaluation using GPT-4 with Better Human Alignment – ACL Anthology (EMNLP 2023)</a></div><div><a href="https://arxiv.org/abs/2410.21819">Self-Preference Bias in LLM-as-a-Judge (arXiv 2410.21819)</a></div><div><a href="https://arxiv.org/abs/2603.05399">Judge Reliability Harness: Stress Testing the Reliability of LLM Judges (arXiv:2603.05399)</a></div><div><a href="https://arxiv.org/html/2602.00521v2">Diagnosing the Reliability of LLM-as-a-Judge via Item Response Theory (arXiv:2602.00521)</a></div><div><a href="https://www.lmsys.org/blog/2023-12-07-leaderboard/">Chatbot Arena: New Models &amp; Elo System Update — LMSYS Blog (2023-12-07)</a></div><div><a href="https://bryanyzhu.github.io/posts/2024-08-16-elo-part2/">Chatbot Arena and the Elo rating system - Part 2 — Yi Zhu (Boson AI, 2024)</a></div><div><a href="https://arxiv.org/html/2403.04132">Chiang et al. 2024 (arXiv 2403.04132) — méthodologie définitive BT-MLE avec sandwich standard errors</a></div><div><a href="https://arxiv.org/abs/2404.04475">Length-Controlled AlpacaEval: A Simple Way to Debias Automatic Evaluators (arXiv 2404.04475)</a></div><div><a href="https://arxiv.org/html/2404.04475v1">Length-Controlled AlpacaEval HTML full text (v1)</a></div><div><a href="https://arxiv.org/html/2406.11939v2">Arena-Hard &amp; BenchBuilder: Crowdsourced Benchmarks (arXiv 2406.11939)</a></div><div><a href="https://arxiv.org/abs/2406.04770">WildBench: Benchmarking LLMs with Challenging Tasks from Real Users in the Wild (arXiv 2406.04770)</a></div><div><a href="https://github.com/tatsu-lab/alpaca_eval/blob/main/README.md">tatsu-lab/alpaca_eval — README (dépôt officiel GitHub)</a></div><div><a href="https://arxiv.org/abs/2403.04132">Chatbot Arena: An Open Platform for Evaluating LLMs by Human Preference (Chiang et al., 2024) — arXiv:2403.04132</a></div><div><a href="https://proceedings.mlr.press/v235/chiang24b.html">Chatbot Arena — ICML 2024 Proceedings (PMLR v235)</a></div><div><a href="https://simonwillison.net/2025/Apr/30/criticism-of-the-chatbot-arena/">Understanding the recent criticism of the Chatbot Arena (Simon Willison, 2025)</a></div><div><a href="https://arxiv.org/abs/2409.15268">Style Outweighs Substance: Failure Modes of LLM Judges in Alignment Benchmarking (arXiv:2409.15268v2, ICLR 2025)</a></div><div><a href="https://arxiv.org/html/2409.15268v1">Style over Substance: Failure Modes of LLM Judges in Alignment Benchmarking (arXiv:2409.15268, HTML v1)</a></div><div><a href="https://tatsu-lab.github.io/alpaca_eval/">AlpacaEval Leaderboard officiel (tatsu-lab)</a></div><div><a href="https://arxiv.org/html/2410.21819v2">Self-Preference Bias in LLM-as-a-Judge (Wataoka, Takahashi, Ri — arXiv 2410.21819, HTML version)</a></div><div><a href="https://arxiv.org/html/2410.21819">Full HTML version of arXiv:2410.21819</a></div><div><a href="https://arxiv.org/abs/2404.13076">LLM Evaluators Recognize and Favor Their Own Generations (Panickssery et al., NeurIPS 2024)</a></div><div><a href="https://proceedings.neurips.cc/paper_files/paper/2024/hash/7f1f0218e45f5414c79c0679633e47bc-Abstract-Conference.html">LLM Evaluators Recognize and Favor Their Own Generations (NeurIPS 2024)</a></div><div><a href="https://www.alignmentforum.org/posts/CeCKzsKABGKt9aabb/llm-evaluators-recognize-and-favor-their-own-generations">LLM Evaluators Recognize and Favor Their Own Generations — AlignmentForum (résumé détaillé avec résultats out-of-domain et bidirectionnel)</a></div><div><a href="https://arxiv.org/abs/2509.03647">Breaking the Mirror: Activation-Based Mitigation of Self-Preference in LLM Evaluators (arXiv 2509.03647)</a></div><div><a href="https://arxiv.org/abs/2504.03846">Do LLM Evaluators Prefer Themselves for a Reason? (Chen et al., 2025)</a></div><div><a href="https://arxiv.org/html/2604.22891v2">Quantifying and Mitigating Self-Preference Bias of LLM Judges (2026)</a></div><div><a href="https://arxiv.org/abs/2410.02736">Justice or Prejudice? Quantifying Biases in LLM-as-a-Judge (arXiv:2410.02736)</a></div><div><a href="https://llm-judge-bias.github.io/">CALM project page — llm-judge-bias.github.io</a></div><div><a href="https://arxiv.org/html/2410.02736">CALM HTML paper — arxiv.org/html/2410.02736</a></div><div><a href="https://arxiv.org/abs/2505.19477">Judging with Many Minds: Do More Perspectives Mean Less Prejudice? On Bias Amplifications and Resistance in Multi-Agent Based LLM-as-Judge (arXiv 2505.19477)</a></div><div><a href="https://arxiv.org/abs/2510.07517">Measuring and Mitigating Identity Bias in Multi-Agent Debate via Anonymization (arXiv 2510.07517)</a></div><div><a href="https://arxiv.org/abs/2601.04790">Belief in Authority: Impact of Authority in Multi-Agent Evaluation Framework (arxiv 2601.04790)</a></div><div><a href="https://aclanthology.org/2022.emnlp-main.131/">UniEval — EMNLP 2022 (méthode antérieure, score 0,474 selon G-Eval)</a></div><div><a href="https://www.themoonlight.io/en/review/the-alternative-annotator-test-for-llm-as-a-judge-how-to-statistically-justify-replacing-human-annotators-with-llms">The Alternative Annotator Test for LLM-as-a-Judge — Moonlight Literature Review</a></div><div><a href="https://github.com/nitaytech/AltTest">nitaytech/AltTest — GitHub repository (official code and documentation)</a></div><div><a href="https://aclanthology.org/2025.acl-long.782/">The Alternative Annotator Test for LLM-as-a-Judge (ACL Anthology, ACL 2025)</a></div><div><a href="https://arxiv.org/abs/2501.10970">arXiv:2501.10970 — The Alternative Annotator Test for LLM-as-a-Judge</a></div><div><a href="https://arxiv.org/abs/2406.12624">Judging the Judges: Evaluating Alignment and Vulnerabilities in LLMs-as-Judges (Thakur et al., 2024 / GEM2 2025)</a></div><div><a href="https://blog.ml.cmu.edu/2025/12/09/validating-llm-as-a-judge-systems-under-rating-indeterminacy/">Validating LLM-as-a-Judge Systems under Rating Indeterminacy (CMU ML Blog, 2025)</a></div><div><a href="https://arxiv.org/html/2601.03444v1">Grading Scale Impact on LLM-as-a-Judge: Human-LLM Alignment Is Highest on 0-5 Grading Scale (2025)</a></div><div><a href="https://arxiv.org/abs/2410.07137">Cheating Automatic LLM Benchmarks (arXiv 2410.07137, ICLR 2025 oral)</a></div><div><a href="https://proceedings.iclr.cc/paper_files/paper/2025/hash/9adc8ada9183f4b9a007a02773fd8114-Abstract-Conference.html">Cheating Automatic LLM Benchmarks — ICLR 2025 Proceedings (official conference page)</a></div><div><a href="https://arxiv.org/abs/2504.20879">The Leaderboard Illusion (arXiv:2504.20879)</a></div><div><a href="https://techcrunch.com/2025/04/30/study-accuses-lm-arena-of-helping-top-ai-labs-game-its-benchmark/">Study accuses LM Arena of helping top AI labs game its benchmark (TechCrunch)</a></div><div><a href="https://arxiv.org/html/2504.20879">The Leaderboard Illusion — HTML full text (arXiv)</a></div></section>
+<section id="pointers"><h3>Pour aller plus loin</h3><div class="xptr-grid"><div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2306.05685">Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena (Zheng et al., NeurIPS 2023)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Papier fondateur qui formalise le paradigme LLM-as-a-Judge, introduit MT-Bench (80 questions multi-tour) et publie les corpus open source (3 K votes experts, 30 K conversations).</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2403.04132">Chatbot Arena: An Open Platform for Evaluating LLMs by Human Preference (Chiang et al., ICML 2024)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Description statistique complète de Chatbot Arena : transition Elo → Bradley-Terry MLE (erreurs standard de type sandwich), accord crowd↔expert.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/html/2411.15594v6">A Survey on LLM-as-a-Judge (Gu et al., 2024)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Tour d'horizon complet des méthodes (pointwise, pairwise, listwise), des biais documentés et des métriques d'accord juge/humain.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2303.16634">G-Eval: NLG Evaluation using GPT-4 with Better Human Alignment (arXiv:2303.16634)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Article fondateur de G-Eval : chain-of-thought + form-filling + probability weighting pour l'évaluation NLG avec GPT-4.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2411.16594">From Generation to Judgment: Opportunities and Challenges of LLM-as-a-Judge (arXiv:2411.16594)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Survey des paradigmes pointwise/pairwise/listwise, taxonomie des biais (position, longueur, présentation, preference leakage) et parades.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2404.04475">Length-Controlled AlpacaEval (arXiv:2404.04475)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Papier de référence introduisant le LC WR via GLM contrefactuel ; mesure le swing de verbosité 22,9 %–64,3 % et montre la corrélation Spearman 0,94→0,98 avec Chatbot Arena.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2409.15268">SOS-Bench — Style Outweighs Substance (arXiv:2409.15268)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Méta-benchmark 152 380 points (19 évaluations) montrant que les préférences des juges LLM ne corrèlent pas avec safety, world knowledge ou instruction following, mais avec le style et la complétude.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2410.02736">Justice or Prejudice? Quantifying Biases in LLM-as-a-Judge — CALM (arXiv:2410.02736)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Framework CALM (12 types de biais, Robustness Rate) et résultats empiriques comparatifs sur plusieurs modèles-juges frontier.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/pdf/2601.04790">Belief in Authority: Impact of Authority in Multi-Agent Evaluation Framework (arXiv:2601.04790)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Étude expérimentale de l'authority bias avec citations fictives dans les frameworks multi-agents ; montre que le consensus peut amplifier plutôt que filtrer ce biais.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/pdf/2505.19477">Judging with Many Minds: Bias Amplification in Multi-Agent LLM-as-Judge (arXiv:2505.19477)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Résultats empiriques sur l'effet du débat multi-agents : amplification des biais dès le premier round, contrairement au meta-judging qui préserve la robustesse.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://github.com/lm-sys/FastChat">FastChat / MT-Bench (dépôt officiel LMSYS)</a><span class="xptr-kind">implementation</span><p class="xptr-blurb">Code source de l'évaluation MT-Bench et de Chatbot Arena, incluant les scripts d'appel au juge GPT-4 et les données open source publiées par Zheng et al.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://deepeval.com/docs/metrics-llm-evals">DeepEval — G-Eval metric</a><span class="xptr-kind">library</span><p class="xptr-blurb">Implémentation open-source de G-Eval (et d'autres métriques LLM-as-judge) dans le framework d'évaluation DeepEval.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arena.ai/">Chatbot Arena (Arena AI / LMArena)</a><span class="xptr-kind">tool</span><p class="xptr-blurb">Plateforme open de battles en aveugle crowdsourcées ; classement public via le modèle Bradley-Terry avec intervalles de confiance (anciennement lmarena.ai, rebaptisée arena.ai).</p></div>
+<div class="xptr"><a class="xptr-name" href="https://tatsu-lab.github.io/alpaca_eval/">AlpacaEval Leaderboard</a><span class="xptr-kind">tool</span><p class="xptr-blurb">Classement officiel AlpacaEval 2.0 : raw WR et LC WR pour ~100 modèles, code open-source, instructions de soumission.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://www.lmsys.org/blog/2023-12-07-leaderboard/">LMSYS Elo System Update — transition vers Bradley-Terry (blog, déc. 2023)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Explication technique de la transition du système Elo en ligne vers le modèle Bradley-Terry estimé par MLE batch avec (erreurs standard de type sandwich), avec notebook reproductible.</p></div></div></section>
+<section id="glossaire"><h3>Glossaire</h3><div class="gloss-grid"><div class="gterm"><span class="gt-name">LLM-as-a-Judge</span><p class="gt-def">Paradigme (« LLM-juge ») où l'on délègue à un grand modèle de langage l'évaluation de la qualité des sorties d'un autre modèle, en remplacement ou en complément d'annotateurs humains. Introduit par Zheng et al. (MT-Bench / Chatbot Arena, NeurIPS 2023), il sert de proxy d'annotation scalable mais hérite de biais systématiques (position, verbosité, self-preference) qui en bornent la fiabilité.</p><p class="gt-see">→ Pairwise judging, Self-preference bias</p></div>
+<div class="gterm"><span class="gt-name">Pairwise judging</span><p class="gt-def">Mode de jugement (« comparaison par paires ») où le juge compare deux réponses A et B à une même requête et désigne la meilleure, plutôt que de noter chaque réponse isolément (pointwise / notation absolue). Mieux aligné sur le jugement humain que le pointwise, mais sensible au position bias — d'où la parade swap-and-tie.</p><p class="gt-see">→ LLM-as-a-Judge, Swap-and-tie, Position bias</p></div>
+<div class="gterm"><span class="gt-name">Swap-and-tie</span><p class="gt-def">Parade au position bias (« permuter-et-égaliser ») : on exécute chaque comparaison pairwise deux fois en inversant l'ordre des réponses et l'on ne déclare une victoire que si la même réponse gagne dans les deux ordres ; un verdict incohérent est traité comme une égalité (tie). Proposée dans Zheng et al. (2023).</p><p class="gt-see">→ Pairwise judging, Position bias</p></div>
+<div class="gterm"><span class="gt-name">Position bias</span><p class="gt-def">Biais de position : tendance d'un juge LLM à favoriser une réponse selon sa place (souvent la première) dans le prompt, indépendamment de son contenu. Mesuré sur des paires contrôlées ; généralement faible mais parfois suffisant pour inverser un classement sur des sous-ensembles de tâches. Neutralisé par swap-and-tie.</p><p class="gt-see">→ Swap-and-tie, Verbosity bias, Style bias</p></div>
+<div class="gterm"><span class="gt-name">Verbosity bias</span><p class="gt-def">Biais de verbosité : préférence du juge pour les réponses plus longues à qualité substantielle égale. Sur AlpacaEval, ne faire varier que la longueur du modèle de référence fait osciller le win rate de plus de 40 points. Le length-controlled win rate (LC WR) d'AlpacaEval 2.0 le réduit fortement (résidu ~9,7 pp) sans l'éliminer.</p><p class="gt-see">→ Length-controlled win rate, Style bias</p></div>
+<div class="gterm"><span class="gt-name">Self-preference bias</span><p class="gt-def">Biais d'auto-préférence : tendance d'un juge LLM à sur-noter ses propres générations (ou celles de modèles proches). Deux mécanismes coexistent — la familiarité textuelle (faible perplexité du texte sous la distribution du juge) et la self-recognition (capacité à reconnaître ses propres sorties), corrélée linéairement à l'intensité du biais (Panickssery et al., NeurIPS 2024).</p><p class="gt-see">→ Perplexity, LLM-as-a-Judge</p></div>
+<div class="gterm"><span class="gt-name">Length-controlled win rate</span><p class="gt-def">Length-controlled win rate (LC WR, « taux de victoire contrôlé en longueur ») : variante d'AlpacaEval 2.0 qui débiaise le win rate brut de l'effet de longueur via un modèle de régression. Atteint une corrélation de Spearman de 0,98 avec Chatbot Arena, mais reste attaquable (un modèle nul à injection adversariale atteint 86,5 % de LC WR).</p><p class="gt-see">→ Verbosity bias, AlpacaEval</p></div></div></section>
+</main>
+</div>
+<!-- ───────────────────────────────────────────────────────────────────
+     COUCHE THÈME — bouton bascule dark-mode + infobulles de glossaire.
+     Extrait du widget theme-tooltips (CSS exclus : voir charte.css).
+     Injecté verbatim dans toutes les éditions à l'emplacement du jeton THEME_LAYER.
+     ─────────────────────────────────────────────────────────────────── -->
+
+<!-- (B) BOUTON BASCULE -->
+<button id="theme_toggle" type="button" aria-pressed="false"
+        title="Basculer le thème clair / sombre">
+  <span id="theme_toggle_ico" aria-hidden="true">☾</span>
+  <span id="theme_toggle_lbl">Sombre</span>
+</button>
+
+<!-- Popover unique réutilisé (créé aussi par JS en secours) -->
+<div id="theme_tip" role="tooltip" aria-hidden="true"></div>
+
+<!-- SCRIPT — (B) bascule + persistance, (C) infobulles accessibles.
+     Tout en IIFE, fonctions préfixées theme_. Aucun alert. -->
+<script>
+(function(){
+  "use strict";
+  var KEY = "theme_pref_v1";
+  var docEl = document.documentElement;
+
+  /* ---- stockage sûr : jamais d'erreur si localStorage indisponible ---- */
+  function theme_read(){
+    try { return window.localStorage.getItem(KEY); } catch(e){ return null; }
+  }
+  function theme_write(v){
+    try { window.localStorage.setItem(KEY, v); } catch(e){ /* silencieux */ }
+  }
+
+  /* ---- (B) application du thème ---- */
+  function theme_apply(mode, persist){
+    var dark = (mode === "dark");
+    if (dark) docEl.setAttribute("data-theme","dark");
+    else docEl.removeAttribute("data-theme");
+    var btn = document.getElementById("theme_toggle");
+    if (btn){
+      btn.setAttribute("aria-pressed", dark ? "true" : "false");
+      var ico = document.getElementById("theme_toggle_ico");
+      var lbl = document.getElementById("theme_toggle_lbl");
+      if (ico) ico.textContent = dark ? "☀" : "☾";
+      if (lbl) lbl.textContent = dark ? "Clair" : "Sombre";
+    }
+    if (persist) theme_write(dark ? "dark" : "light");
+  }
+
+  /* Appliquer la préférence au plus tôt (limite le flash). */
+  theme_apply(theme_read() === "dark" ? "dark" : "light", false);
+
+  function theme_initToggle(){
+    var btn = document.getElementById("theme_toggle");
+    if (!btn) return;
+    btn.addEventListener("click", function(){
+      docEl.classList.add("theme-anim"); /* transitions seulement sur action */
+      var nowDark = docEl.getAttribute("data-theme") === "dark";
+      theme_apply(nowDark ? "light" : "dark", true);
+    });
+  }
+
+  /* ---- (C) infobulles accessibles ---- */
+  var tip = null, current = null, uid = 0;
+
+  function theme_tipEl(){
+    if (tip) return tip;
+    tip = document.getElementById("theme_tip");
+    if (!tip){
+      tip = document.createElement("div");
+      tip.id = "theme_tip";
+      tip.setAttribute("role","tooltip");
+      tip.setAttribute("aria-hidden","true");
+      document.body.appendChild(tip);
+    }
+    return tip;
+  }
+
+  function theme_show(el){
+    var def = el.getAttribute("data-def");
+    if (!def) return;
+    var t = theme_tipEl();
+    t.textContent = def; /* textContent : aucune injection HTML possible */
+    if (!el.id) el.id = "theme_gloss_" + (++uid);
+    t.id = "theme_tip"; /* stable */
+    el.setAttribute("aria-describedby", "theme_tip");
+
+    /* mesure puis positionnement (au-dessus si la place le permet) */
+    t.style.left = "0px"; t.style.top = "0px";
+    t.setAttribute("aria-hidden","false");
+    t.setAttribute("data-show","1");
+
+    var r = el.getBoundingClientRect();
+    var tw = t.offsetWidth, th = t.offsetHeight;
+    var sx = window.pageXOffset, sy = window.pageYOffset;
+    var margin = 8;
+
+    var left = r.left + sx + (r.width/2) - (tw/2);
+    left = Math.max(sx + margin, Math.min(left, sx + document.documentElement.clientWidth - tw - margin));
+
+    var below = (r.top < th + 12); /* pas de place au-dessus → on passe dessous */
+    var top = below ? (r.bottom + sy + 8) : (r.top + sy - th - 8);
+    if (below) t.setAttribute("data-below","1"); else t.removeAttribute("data-below");
+
+    /* recentre la flèche sur le terme */
+    var ax = (r.left + sx + r.width/2) - left;
+    ax = Math.max(8, Math.min(ax, tw - 16));
+    t.style.setProperty("--theme-tip-ax", ax + "px");
+
+    t.style.left = left + "px";
+    t.style.top = top + "px";
+    current = el;
+  }
+
+  function theme_hide(){
+    if (!tip) return;
+    tip.removeAttribute("data-show");
+    tip.setAttribute("aria-hidden","true");
+    if (current){
+      current.removeAttribute("aria-describedby");
+      current = null;
+    }
+  }
+
+  function theme_wire(el){
+    if (el.getAttribute("data-theme-wired")) return;
+    el.setAttribute("data-theme-wired","1");
+    if (!el.hasAttribute("tabindex")) el.setAttribute("tabindex","0");
+    el.addEventListener("mouseenter", function(){ theme_show(el); });
+    el.addEventListener("mouseleave", theme_hide);
+    el.addEventListener("focus", function(){ theme_show(el); });
+    el.addEventListener("blur", theme_hide);
+  }
+
+  function theme_scan(root){
+    var nodes = (root || document).querySelectorAll(".theme-gloss[data-def]");
+    for (var i=0;i<nodes.length;i++) theme_wire(nodes[i]);
+  }
+
+  /* Échap referme ; un défilement masque l'infobulle (position figée sinon) */
+  document.addEventListener("keydown", function(e){
+    if (e.key === "Escape" || e.keyCode === 27) theme_hide();
+  });
+  window.addEventListener("scroll", theme_hide, true);
+
+  /* Termes ajoutés dynamiquement après coup */
+  function theme_observe(){
+    if (typeof MutationObserver === "undefined") return;
+    var mo = new MutationObserver(function(muts){
+      for (var i=0;i<muts.length;i++){
+        var added = muts[i].addedNodes;
+        for (var j=0;j<added.length;j++){
+          var n = added[j];
+          if (n.nodeType === 1){
+            if (n.classList && n.classList.contains("theme-gloss")) theme_wire(n);
+            if (n.querySelectorAll) theme_scan(n);
+          }
+        }
+      }
+    });
+    mo.observe(document.body, {childList:true, subtree:true});
+  }
+
+  /* ---- init ---- */
+  function theme_init(){
+    theme_apply(theme_read() === "dark" ? "dark" : "light", false);
+    theme_initToggle();
+    theme_scan(document);
+    theme_observe();
+  }
+  if (document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", theme_init);
+  } else {
+    theme_init();
+  }
+})();
+</script>
+
+<footer><div class="fin">Évaluation des LLM et LLM-as-a-Judge · scriptorium</div></footer>
+<script>
+  const prog=document.getElementById('prog');
+  const onScroll=()=>{const h=document.documentElement;const sc=h.scrollTop;const max=h.scrollHeight-h.clientHeight;
+    prog.style.width=(max>0?(sc/max*100):0)+'%';};
+  document.addEventListener('scroll',onScroll,{passive:true});onScroll();
+  const links=[...document.querySelectorAll('nav.toc a')];
+  const map=new Map(links.map(a=>[a.getAttribute('href').slice(1),a]));
+  const obs=new IntersectionObserver((entries)=>{entries.forEach(e=>{
+    if(e.isIntersecting){links.forEach(l=>l.classList.remove('active'));
+      const a=map.get(e.target.id); if(a)a.classList.add('active');}});
+  },{rootMargin:'-12% 0px -78% 0px',threshold:0});
+  document.querySelectorAll('section[id]').forEach(s=>obs.observe(s));
+</script>
+</body></html>
