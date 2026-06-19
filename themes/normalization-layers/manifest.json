@@ -1,0 +1,545 @@
+{
+  "edition": "monographie",
+  "slug": "normalization-layers",
+  "meta": {
+    "title": "Normalisation dans les réseaux profonds : BatchNorm, LayerNorm, RMSNorm",
+    "kicker": "Normalisation des réseaux profonds · monographie",
+    "h1": "Normalisation dans les réseaux profonds : BatchNorm, LayerNorm, RMSNorm",
+    "lede": "De BatchNorm sur l'axe du batch à LayerNorm puis RMSNorm sur l'axe des features : pourquoi la normalisation stabilise l'entraînement profond en lissant le paysage de perte plutôt qu'en réduisant l'internal covariate shift, et comment le choix de l'axe et le placement (Pre-LN, Post-LN, Peri-LN) sont devenus décisifs pour les Transformers et les LLM.",
+    "meta_chips": [
+      "Monographie"
+    ],
+    "footer": "Normalisation dans les réseaux profonds : BatchNorm, LayerNorm, RMSNorm · scriptorium"
+  },
+  "elements": [
+    {
+      "type": "abstract"
+    },
+    {
+      "type": "section",
+      "id": "batchnorm",
+      "heading": "BatchNorm : normaliser sur la dimension du batch",
+      "level": 3,
+      "prose": "<p>Batch normalization (normalisation par lots) est introduit par Sergey Ioffe et Christian Szegedy dans un article soumis sur arXiv le 11 février 2015 et publié à ICML 2015 (PMLR vol. 37, pp. 448–456). Le problème central qu'il cible est l'<em>internal covariate shift</em> (dérive des distributions internes) : à chaque mise à jour des paramètres, la distribution des entrées reçues par chaque couche évolue, parce que les couches précédentes ont elles-mêmes changé. Ce phénomène force les couches profondes à constamment réadapter leurs poids, ce qui contraint à de faibles learning rates et à une initialisation très soignée.</p>\n\n<p>La réponse proposée consiste à normaliser les activations au sein de chaque mini-batch. Pour un mini-batch B = {x<sub>1</sub>, …, x<sub>m</sub>}, on calcule la moyenne μ<sub>B</sub> = (1/m)Σx<sub>i</sub> et la variance σ²<sub>B</sub> = (1/m)Σ(x<sub>i</sub> − μ<sub>B</sub>)², puis on normalise : x̂<sub>i</sub> = (x<sub>i</sub> − μ<sub>B</sub>) / √(σ²<sub>B</sub> + ε), où ε est une petite constante de stabilisation numérique. Cette normalisation s'opère sur la <em>dimension du batch</em>, indépendamment pour chaque feature. Pour préserver la capacité expressive du réseau, la sortie finale est y<sub>i</sub> = γ · x̂<sub>i</sub> + β, où γ (scale) et β (shift) sont des paramètres appris — une paire par feature — qui permettent au réseau de défaire la normalisation si cela s'avère optimal.</p>\n\n<p>Les résultats empiriques sur ImageNet sont frappants. Un réseau entraîné avec batch normalization atteint la même précision qu'un réseau de référence en 14 fois moins d'étapes d'entraînement. Un ensemble de réseaux ainsi équipés atteint 4,82 % d'erreur top-5 en test, surpassant les annotateurs humains. Au-delà de la vitesse brute, batch normalization autorise des learning rates bien plus élevés et réduit la sensibilité à l'initialisation.</p>\n\n<p>Ioffe et Szegedy soulignent également un effet régularisant : le bruit introduit par le calcul de statistiques sur un mini-batch perturbe les activations de façon stochastique à l'entraînement, ce qui peut dans certains cas remplacer le Dropout. Deux limites structurelles modèrent cependant cet enthousiasme. Premièrement, plus le batch est petit, moins les statistiques μ<sub>B</sub> et σ²<sub>B</sub> sont fiables — la normalisation devient bruyante et instable, rendant batch normalization peu adapté aux configurations à mémoire contrainte ou aux très petits batchs par dispositif en apprentissage distribué. Deuxièmement, les réseaux récurrents (RNNs) posent un problème structural : les statistiques varient naturellement d'un pas de temps à l'autre et les séquences ont des longueurs variables, rendant délicate l'application directe de batch normalization à l'axe temporel. Ces deux limitations ont directement motivé le développement de layer normalization en 2016.</p>",
+      "claims": [
+        "claim:1",
+        "claim:2",
+        "claim:3",
+        "claim:4"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "layernorm",
+      "heading": "LayerNorm : normaliser par exemple sur l'axe des features",
+      "level": 3,
+      "prose": "<p>Layer normalization (normalisation de couche) est proposée par Jimmy Lei Ba, Jamie Ryan Kiros et Geoffrey E. Hinton dans un preprint déposé sur arXiv le 21 juillet 2016 (<a href=\"https://arxiv.org/abs/1607.06450\">arXiv:1607.06450</a>), resté non publié en conférence. Son point de départ est une limitation précise de batch normalization : ses statistiques dépendent de la taille du mini-batch et de l'ensemble des exemples qui le composent — une dépendance particulièrement gênante pour les recurrent neural networks (RNNs, réseaux récurrents), où chaque séquence peut avoir une longueur différente et où une normalisation partagée sur la dimension temporelle impliquerait soit des statistiques séparées par position, soit un comportement indéfini pour des séquences plus longues que celles rencontrées à l'entraînement.</p>\n\n<p>Le calcul de LayerNorm opère sur la dimension des features plutôt que sur celle du batch. Pour un seul exemple dont une couche comporte <em>H</em> unités avec des pré-activations a<sub>1</sub>,&nbsp;…,&nbsp;a<sub>H</sub>, on calcule la moyenne μ&nbsp;=&nbsp;(1/<em>H</em>)Σ<sub>i</sub>&nbsp;a<sub>i</sub> et la variance σ²&nbsp;=&nbsp;(1/<em>H</em>)Σ<sub>i</sub>&nbsp;(a<sub>i</sub>&nbsp;−&nbsp;μ)², strictement à partir de ces <em>H</em> valeurs. Chaque unité est alors normalisée : ā<sub>i</sub>&nbsp;=&nbsp;(a<sub>i</sub>&nbsp;−&nbsp;μ)/√(σ²&nbsp;+&nbsp;ε), puis rééchelonnée par des paramètres appris : h<sub>i</sub>&nbsp;=&nbsp;g<sub>i</sub>&nbsp;·&nbsp;ā<sub>i</sub>&nbsp;+&nbsp;b<sub>i</sub>. Les vecteurs <em>g</em> (gain) et <em>b</em> (biais), de même dimension que la couche, jouent le même rôle que γ et β dans batch normalization : ils permettent au réseau de restaurer n'importe quelle représentation, y compris une activation non normalisée si la tâche le requiert.</p>\n\n<p>La différence d'axe avec batch normalization est fondamentale. Batch normalization partage μ et σ² sur la dimension du batch : une même feature est normalisée relativement à ses valeurs dans l'ensemble des exemples du mini-batch, rendant chaque normalisation dépendante des autres exemples présents. LayerNorm inverse cet axe : μ et σ² sont calculés sur toutes les features d'un seul exemple, sans aucune référence aux autres. Chaque exemple est ainsi traité de façon entièrement autonome, ce qui rend LayerNorm insensible à la taille du batch — y compris pour un batch d'un seul exemple, situation où batch normalization devient instable.</p>\n\n<p>C'est de cette autonomie que découle la propriété la plus utile opérationnellement : le calcul de LayerNorm est rigoureusement identique à l'entraînement et à l'inférence. Batch normalization, en inférence, substitue aux statistiques du mini-batch des estimations globales de la population — accumulées sous forme de moyennes mobiles exponentielles pendant l'entraînement — une substitution qui peut introduire une divergence si la distribution des données d'inférence diffère de celle de l'entraînement. LayerNorm n'a besoin d'aucune statistique accumulée : μ et σ² sont recalculés à chaque passe, pour chaque exemple seul, ce qui simplifie le déploiement et garantit un comportement cohérent entre entraînement et production.</p>",
+      "claims": [
+        "claim:5",
+        "claim:6",
+        "claim:7",
+        "claim:8"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "rmsnorm",
+      "heading": "RMSNorm : la simplification devenue standard des LLM",
+      "level": 3,
+      "prose": "<p>En 2019, Biao Zhang et Rico Sennrich s'attaquent à une question précise : parmi les deux opérations constitutives de LayerNorm — le re-centering (re-centrage, soustraction de la moyenne) et le re-scaling (remise à l'échelle par l'écart-type) — laquelle est réellement indispensable ? Leur papier, accepté à NeurIPS 2019 (arXiv:1910.07467), argumente que le re-centering est « dispensable » : c'est la seule opération de re-scaling qui garantit la re-scaling invariance et assure l'adaptation implicite du learning rate. RMSNorm naît directement de cette hypothèse — supprimer la soustraction de la moyenne, conserver uniquement la division par la root mean square (racine de la moyenne quadratique) de l'entrée, puis appliquer un vecteur de gain appris.</p>\n\n<p>La formule se réduit à RMSNorm(<i>x</i>) = (<i>x</i> / RMS(<i>x</i>)) ⊙ <i>g</i>, avec RMS(<i>x</i>) = √(1/<i>d</i> · Σ<sub>i</sub> <i>x</i><sub>i</sub><sup>2</sup>). L'unique paramètre appris est le vecteur de gain <i>g</i> ∈ ℝ<sup><i>d</i></sup> ; le terme de biais β de LayerNorm est supprimé, tout comme le calcul de la moyenne μ. Cette sobriété réduit à la fois le coût arithmétique et le nombre de paramètres de la couche de normalisation. Le papier introduit également pRMSNorm (<i>partial</i> RMSNorm), une variante où le RMS est estimé sur un sous-ensemble de p % des entrées plutôt que sur leur totalité, sans rompre les garanties théoriques de re-scaling invariance ni l'adaptation implicite du learning rate.</p>\n\n<p>Sur une gamme de modèles et de matériels, Zhang et Sennrich mesurent un gain de vitesse de 7 % à 64 % par rapport à LayerNorm pour des performances comparables sur leurs benchmarks de traduction neuronale. L'avantage est particulièrement prononcé dans les architectures à très grand nombre de couches, où le coût de la normalisation — une seule statistique scalaire (la racine carrée de la variance non centrée) au lieu de deux (μ et σ²) — s'accumule de façon significative sur l'ensemble du forward pass et du backward pass.</p>\n\n<p>L'adoption de RMSNorm dans les grands modèles de langage est rapide et décisive. Gopher (DeepMind, décembre 2021), modèle à 280 milliards de paramètres décrit dans le rapport technique <i>Scaling Language Models</i> (Rae et al., arXiv:2112.11446), le retient pour sa stabilité d'entraînement dans les architectures profondes. LLaMA (Meta, 2023) franchit le pas en citant explicitement Zhang et Sennrich (2019) — « We use the RMSNorm normalizing function, introduced by Zhang and Sennrich (2019) » — et l'applique en pre-norm : la normalisation porte sur l'<em>entrée</em> de chaque sous-couche du transformer plutôt que sur sa sortie, position jugée plus stable à l'entraînement. LLaMA 2 et LLaMA 3 conservent ce choix sans modification, entraînant une diffusion en cascade dans l'écosystème open-weight — Mistral et la majorité des modèles dérivés de l'architecture LLaMA font désormais de RMSNorm leur couche de normalisation standard ; Falcon fait exception en conservant une LayerNorm standard.</p>",
+      "claims": [
+        "claim:9",
+        "claim:10",
+        "claim:11"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "proprietes-paysage-perte",
+      "heading": "Ce que la normalisation change : axes, invariances et paysage de perte",
+      "level": 3,
+      "prose": "<p>La diversité des méthodes de normalisation se lit d'abord dans le choix des <em>axes</em> sur lesquels les statistiques sont estimées. Pour un tenseur d'entrée de forme (N, C, H, W) — respectivement taille du batch (lot d'exemples), nombre de canaux, hauteur et largeur — batch normalization calcule la moyenne et la variance sur l'axe N et les dimensions spatiales H, W séparément pour chaque canal C : les paramètres de normalisation sont partagés entre tous les exemples du batch, mais propres à chaque feature map. Layer normalization (normalisation de couche) agrège à l'intérieur d'un seul exemple sur la totalité des dimensions C, H, W ; elle est entièrement indépendante de la taille du batch et n'exige aucune statistique mémorisée à l'inférence. Instance normalization (normalisation d'instance) pousse l'isolation par exemple encore plus loin : elle normalise chaque canal de chaque exemple sur H et W uniquement, rendant la représentation insensible au contenu global du canal. Group normalization (normalisation par groupes), introduite par Wu et He (ECCV 2018), unifie ces cas dans un continuum paramétré par le nombre de groupes G : lorsque G = 1, les C canaux constituent un seul groupe et l'on retrouve layer normalization ; lorsque G = C, chaque canal forme son propre groupe et l'on retrouve instance normalization. La valeur pratique de ce continuum est illustrée par les expériences originales de Wu et He : group normalization réduit de 10,6 points l'erreur par rapport à batch normalization pour une taille de batch de 2 sur ResNet-50 (ImageNet), tout en atteignant des performances comparables pour les grandes tailles de batch — là où batch normalization se dégrade structurellement.</p>\n\n<p>Layer normalization présente plusieurs invariances formelles qui découlent directement de sa définition LN(x) = γ ⊙ (x − μ) / √(σ² + ε) + β. Zhang & Sennrich (2019) les synthétisent en deux familles — une invariance de re-scaling et une invariance de re-centering — tandis que Ba et al. (2016) en donnent une variante en trois catégories appariées. Concrètement : (i) weight matrix rescaling invariance (redimensionnement de la matrice de poids) : si la matrice de poids en amont d'une couche est multipliée par un scalaire c, la sortie normalisée est inchangée, car c apparaît à la fois au numérateur et au dénominateur ; (ii) data rescaling invariance : multiplier x par un scalaire α laisse LN(x) invariant, α s'annulant dans le rapport (x − μ) / σ ; (iii) re-centering (shift) invariance : ajouter une constante b à chaque composante de x ne modifie pas LN(x), car la nouvelle moyenne μ(x + b) = μ(x) + b annule exactement l'offset. C'est cette dernière, le re-centering, que RMSNorm abandonne. Ces propriétés renforcent la robustesse de layer normalization face à une large classe de perturbations des poids et des données, sans requérir la moindre information de batch.</p>\n\n<p>RMSNorm (Root Mean Square Normalization), proposé par Zhang et Sennrich (NeurIPS 2019), supprime l'étape de recentrage et retient uniquement re-scaling invariance : RMSNorm(δa) = RMSNorm(a) pour tout scalaire δ ≠ 0, car δ apparaît à la fois au numérateur a et dans RMS(δa) = |δ| · RMS(a). En revanche, RMSNorm n'est pas invariant aux décalages additifs : RMSNorm(a + b·<strong>1</strong>) ≠ RMSNorm(a) en général, l'absence de soustraction de μ laissant les offsets constants agir sur la norme quadratique. L'hypothèse de Zhang et Sennrich est que re-scaling invariance est la propriété nécessaire et suffisante ; le recentrage serait computationnellement redondant. La validation empirique est convaincante : RMSNorm atteint des performances comparables à layer normalization sur les benchmarks de traduction et de modélisation du langage, avec un gain de vitesse mesuré entre 7 % et 64 % selon les architectures testées. La variante pRMSNorm va plus loin en estimant le RMS sur seulement p % des entrées, en préservant re-scaling invariance.</p>\n\n<p>L'étape de recentrage de layer normalization admet une lecture géométrique précise. Étant donné un vecteur d'activation x ∈ ℝ<sup>H</sup>, soustraire la moyenne μ = (1/H) Σ x<sub>i</sub> revient à calculer x̂ = x − μ · <strong>1</strong>, où <strong>1</strong> = (1, 1, …, 1)<sup>⊤</sup> est le vecteur uniforme. On vérifie que ⟨x̂, <strong>1</strong>⟩ = Σ(x<sub>i</sub> − μ) = 0 : le vecteur centré est orthogonal à <strong>1</strong>, et donc contenu dans l'hyperplan {v ∈ ℝ<sup>H</sup> : ⟨v, <strong>1</strong>⟩ = 0} — le sous-espace de codimension 1 perpendiculaire à la direction uniforme. La division par σ = ‖x̂‖ / √H restreint ensuite le résultat à une hypersphère dans ce sous-espace. Layer normalization projette ainsi x sur l'hyperplan orthogonal au vecteur uniforme, éliminant la composante continue (DC component) de l'activation — la partie constante commune à toutes les coordonnées — avant de normaliser la forme résiduelle à norme fixée. Cette interprétation rend l'invariance de re-centering évidente par construction : tout signal de la forme x + b · <strong>1</strong> a sa composante b · <strong>1</strong> intégralement supprimée par la projection sur cet hyperplan, quelle que soit la valeur de b.</p>\n\n<p>La justification originale de batch normalization invoquait la réduction de l'internal covariate shift — défini comme le changement de distribution des entrées de chaque couche au fil de l'entraînement — comme mécanisme explicatif principal de ses bénéfices. Santurkar, Tsipras, Ilyas et Madry (NeurIPS 2018) invalident ce récit expérimentalement : un réseau avec batch normalization suivi d'une injection délibérée de bruit — aggravant artificiellement l'internal covariate shift — s'entraîne aussi vite et aussi stablement qu'un réseau batch normalization standard, démontrant que la réduction de l'internal covariate shift n'est pas le mécanisme opératif. L'analyse de Santurkar et al. localise le bénéfice véritable dans la géométrie du paysage de la perte. Le Théorème 1 établit une borne supérieure sur la norme au carré du gradient après une couche batch normalization — en notant g = ∇<sub>y</sub>ℒ le gradient de la perte sans batch normalization et ĝ = ∇<sub>y</sub>ℒ̂ avec batch normalization : ‖ĝ‖² ≤ (γ² / σ<sub>j</sub>²)(‖g‖² − μ(g)² − (1/√m) ⟨g, ŷ⟩²). Le membre de droite est strictement inférieur à (γ² / σ<sub>j</sub>²) ‖g‖² car les termes soustraits sont positifs ou nuls. Batch normalization réduit donc la Lipschitz constant (constante de Lipschitz) de la perte par rapport aux activations : le paysage de la perte varie moins vite lorsqu'on se déplace dans l'espace des activations.</p>\n\n<p>Le Théorème 2 de Santurkar et al. étend cette analyse à la courbure. En comparant le Hessian (hessien) effectif Ĥ avec batch normalization au Hessian H sans, le long de la direction du gradient : ĝ<sup>⊤</sup> Ĥ ĝ ≤ (γ² / σ²)(g<sup>⊤</sup> H g − (1/mγ) ⟨g, ŷ⟩ ‖ĝ‖²). Cette borne dit que batch normalization réduit la courbure effective de la perte dans la direction du gradient, améliorant la beta-smoothness (régularité beta) — la propriété que le gradient ne change pas trop rapidement dans une boule de rayon donné. Un paysage plus lisse signifie que les pas de gradient sont plus prédictifs : l'information du premier ordre reste valide sur une région plus large, permettant des learning rates (taux d'apprentissage) plus élevés et une convergence plus stable sans corrections du second ordre. C'est cette beta-smoothness améliorée, et non la réduction de l'internal covariate shift, que les théorèmes de Santurkar et al. certifient formellement.</p>\n\n<p>Lubana, Dick et Tanaka (NeurIPS 2021) ancrent théoriquement les écarts empiriques de convergence entre méthodes de normalisation en identifiant trois propriétés à travers lesquelles elles interagissent avec l'entraînement profond : le contrôle de la croissance des activations (activation growth control), prévenant la croissance exponentielle dans les réseaux résiduels ; la distinguishability (distinguabilité) des exemples, garantissant que deux entrées distinctes produisent des activations suffisamment dissemblables pour que le signal de gradient soit informatif ; et la stabilité des gradients, assurant que les normes de gradients ne croissent pas de manière excessive dans les premières couches. L'analyse du spectre de group normalization révèle un compromis structurel entre les deux dernières propriétés. Dans la limite layernorm (un groupe couvrant tous les canaux), Lubana et al. établissent un effondrement du rang (rank collapse) des activations — borné par Ω(√(largeur/taille de groupe)) — rendant les représentations de différents exemples de plus en plus similaires à l'initialisation. Le papier le présente comme une explication, valable à l'initialisation, de la convergence plus lente de layer normalization relativement aux variantes de group normalization à plus petits groupes ; il ne le démontre pas comme un mécanisme causal sur toute la durée de l'entraînement. Dans la limite instance normalization (un canal par groupe), les statistiques deviennent très locales, générant de grandes normes de gradient dans les premières couches et causant une instabilité à l'entraînement. Les valeurs intermédiaires de G équilibrent empiriquement ces deux pressions concurrentes, bien que la valeur optimale reste dépendante de la tâche et de l'architecture.</p>",
+      "claims": [
+        "claim:12",
+        "claim:13",
+        "claim:14",
+        "claim:15"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-axe-normalisation-bn-ln-in-gn"
+    },
+    {
+      "type": "section",
+      "id": "placement-transformer",
+      "heading": "Pre-LN, Post-LN, Peri-LN : ou placer la normalisation",
+      "level": 3,
+      "prose": "<p>La disposition de la couche de normalisation dans un bloc Transformer découpe l'espace des architectures en deux familles canoniques. <strong>Post-LN</strong> — la disposition d'origine du Transformer de Vaswani et al. (2017) et de BERT — applique la normalisation <em>après</em> la connexion résiduelle : <code>y = Norm(x + Sublayer(x))</code>. <strong>Pre-LN</strong> — adopté par GPT-2 puis généralisé dans LLaMA, Mistral et la quasi-totalité des grands modèles récents — la place <em>à l'intérieur</em> de la branche résiduelle, avant la sous-couche : <code>y = x + Sublayer(Norm(x))</code>. Cette différence d'une ligne produit des dynamiques d'entraînement radicalement différentes.</p>\n\n<p>Xiong et al. fournissent la première explication formelle dans leur analyse par mean-field theory (théorie des champs moyens), présentée à l'ICML 2020 (<em>On Layer Normalization in the Transformer Architecture</em>, arXiv:2002.04745). Ils montrent qu'à l'initialisation, un réseau Post-LN présente une asymétrie de gradient caractéristique : les paramètres des couches proches de la sortie reçoivent de grands gradients, tandis que ceux des premières couches voient les leurs décroître exponentiellement avec la profondeur. Appliquer un learning rate standard à ce gradient déséquilibré déstabilise immédiatement l'entraînement ; le warmup progressif n'est donc pas un simple préalable empirique — il compense structurellement cette asymétrie initiale. En profondeur, le problème s'aggrave : la normalisation portée sur le chemin résiduel principal provoque un vanishing gradient (évanouissement du gradient) dans les couches basses, rendant l'entraînement de réseaux très profonds fragile sans ajustement minutieux du scheduler. Réciproquement, Xiong et al. établissent qu'en Pre-LN les gradients sont bien conditionnés à l'initialisation, ce qui rend le warmup facultatif : sur la traduction automatique, le masked language modeling et la génération autorégressive, les modèles Pre-LN sans warmup atteignent des performances comparables aux baselines Post-LN tout en convergeant plus vite.</p>\n\n<p>Cette stabilité a un coût en expressivité. En Pre-LN, le chemin résiduel principal n'est pas normalisé : la magnitude des hidden states croît exponentiellement avec la profondeur, le signal du « tronc » prenant une ampleur croissante tandis que la contribution de chaque sous-couche individuelle devient proportionnellement marginale. Kim et al. (2025) mesurent qu'à la fin de l'entraînement, Pre-LN produit des représentations « markedly more redundant » : les couches profondes peinent à raffiner l'information, plafonnant l'expressivité effective du modèle. Ce phénomène est souvent toléré en pratique parce que Pre-LN converge sans attention particulière au schedule — mais il laisse de la performance sur la table, en particulier à l'échelle.</p>\n\n<p>Peri-LN (Kim et al., <em>Peri-LN: Revisiting Normalization Layer in the Transformer Architecture</em>, ICML 2025, arXiv:2502.02732) propose une troisième stratégie : appliquer la normalisation <em>autour</em> de la sous-couche, c'est-à-dire avant <em>et</em> après le module à l'intérieur de la branche résiduelle, selon la formule <code>y<sub>l</sub>&nbsp;=&nbsp;x<sub>l</sub>&nbsp;+&nbsp;Norm(Module(Norm(x<sub>l</sub>)))</code>, en laissant le chemin résiduel principal libre. La double normalisation contrôle la variance en entrée et en sortie du module sans toucher au gradient flow sur le chemin principal, ce qui préserve la stabilité de Pre-LN tout en maîtrisant la croissance exponentielle des activations. L'analyse théorique des auteurs montre que Peri-LN produit une croissance de variance approximativement <em>linéaire</em> avec la profondeur — contre exponentielle pour Pre-LN et un effondrement exponentiel pour Post-LN. Sur des modèles de 400 M à 3,2 Mds de paramètres, Peri-LN obtient une perte de pre-training (pré-entraînement) de 3,11 contre 3,20 pour Pre-LN et 4,43 pour Post-LN, et réduit de plus de moitié l'écart-type de performance entre tirages aléatoires.</p>\n\n<figure class='fig'><svg viewBox='0 0 900 500' role='img' aria-label='Comparaison de trois blocs résiduels Transformer (Post-LN, Pre-LN, Peri-LN) montrant la position de la couche de normalisation et le comportement de la variance avec la profondeur' xmlns='http://www.w3.org/2000/svg' font-family='system-ui,-apple-system,sans-serif'><defs><marker id='plnf-ah' markerWidth='9' markerHeight='9' refX='6.5' refY='3' orient='auto'><path d='M0,0 L7,3 L0,6 Z' fill='var(--ink,#15202E)'/></marker></defs><line x1='300' y1='34' x2='300' y2='462' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-dasharray='3 4' opacity='0.5'/><line x1='600' y1='34' x2='600' y2='462' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-dasharray='3 4' opacity='0.5'/><line x1='18' y1='18' x2='44' y2='18' stroke='var(--bordeaux,#7C2A38)' stroke-width='5' stroke-linecap='round'/><text x='50' y='22' font-size='12' fill='var(--ink,#15202E)'>chemin résiduel (tronc)</text><text x='150' y='40' text-anchor='middle' font-size='16' font-weight='700' fill='var(--ink,#15202E)'>Post-LN</text><text x='150' y='60' text-anchor='middle' font-size='11' font-family='ui-monospace,monospace' fill='var(--ink-faint,#7A889B)'>y = Norm(x + Sublayer(x))</text><line x1='150' y1='96' x2='150' y2='338' stroke='var(--bordeaux,#7C2A38)' stroke-width='5' stroke-linecap='round'/><path d='M150,308 H208 V176 H162' fill='none' stroke='var(--ink,#15202E)' stroke-width='1.6' marker-end='url(#plnf-ah)'/><rect x='166' y='231' width='84' height='30' rx='4' fill='var(--paper,#FFFFFF)' stroke='var(--ink,#15202E)' stroke-width='1.4'/><text x='208' y='250' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)'>Sublayer</text><rect x='108' y='114' width='84' height='28' rx='4' fill='var(--paper,#FFFFFF)' stroke='var(--blue,#23537F)' stroke-width='1.6'/><text x='150' y='132' text-anchor='middle' font-size='13' fill='var(--blue,#23537F)'>Norm</text><circle cx='150' cy='308' r='3.5' fill='var(--bordeaux,#7C2A38)'/><circle cx='150' cy='176' r='11' fill='var(--paper,#FFFFFF)' stroke='var(--ink,#15202E)' stroke-width='1.5'/><line x1='150' y1='170' x2='150' y2='182' stroke='var(--ink,#15202E)' stroke-width='1.5'/><line x1='144' y1='176' x2='156' y2='176' stroke='var(--ink,#15202E)' stroke-width='1.5'/><text x='150' y='88' text-anchor='middle' font-size='13' font-style='italic' fill='var(--ink,#15202E)'>y</text><text x='150' y='356' text-anchor='middle' font-size='13' font-style='italic' fill='var(--ink,#15202E)'>x</text><text x='150' y='378' text-anchor='middle' font-size='12' font-weight='600' fill='var(--bordeaux,#7C2A38)'>effondrement exponentiel</text><line x1='72' y1='456' x2='228' y2='456' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><line x1='72' y1='456' x2='72' y2='394' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><path d='M72,400 C94,444 112,451 228,453' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='2'/><text x='66' y='400' text-anchor='end' font-size='10' fill='var(--ink-faint,#7A889B)'>σ²</text><text x='150' y='470' text-anchor='middle' font-size='10' fill='var(--ink-faint,#7A889B)'>profondeur</text><text x='450' y='40' text-anchor='middle' font-size='16' font-weight='700' fill='var(--ink,#15202E)'>Pre-LN</text><text x='450' y='60' text-anchor='middle' font-size='11' font-family='ui-monospace,monospace' fill='var(--ink-faint,#7A889B)'>y = x + Sublayer(Norm(x))</text><line x1='450' y1='96' x2='450' y2='338' stroke='var(--bordeaux,#7C2A38)' stroke-width='5' stroke-linecap='round'/><path d='M450,308 H508 V162 H461' fill='none' stroke='var(--ink,#15202E)' stroke-width='1.6' marker-end='url(#plnf-ah)'/><rect x='466' y='183' width='84' height='30' rx='4' fill='var(--paper,#FFFFFF)' stroke='var(--ink,#15202E)' stroke-width='1.4'/><text x='508' y='202' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)'>Sublayer</text><rect x='466' y='247' width='84' height='30' rx='4' fill='var(--paper,#FFFFFF)' stroke='var(--blue,#23537F)' stroke-width='1.6'/><text x='508' y='266' text-anchor='middle' font-size='13' fill='var(--blue,#23537F)'>Norm</text><circle cx='450' cy='308' r='3.5' fill='var(--bordeaux,#7C2A38)'/><circle cx='450' cy='162' r='11' fill='var(--paper,#FFFFFF)' stroke='var(--ink,#15202E)' stroke-width='1.5'/><line x1='450' y1='156' x2='450' y2='168' stroke='var(--ink,#15202E)' stroke-width='1.5'/><line x1='444' y1='162' x2='456' y2='162' stroke='var(--ink,#15202E)' stroke-width='1.5'/><text x='450' y='88' text-anchor='middle' font-size='13' font-style='italic' fill='var(--ink,#15202E)'>y</text><text x='450' y='356' text-anchor='middle' font-size='13' font-style='italic' fill='var(--ink,#15202E)'>x</text><text x='450' y='378' text-anchor='middle' font-size='12' font-weight='600' fill='var(--bordeaux,#7C2A38)'>croissance exponentielle</text><line x1='372' y1='456' x2='528' y2='456' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><line x1='372' y1='456' x2='372' y2='394' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><path d='M372,453 C488,452 510,432 528,398' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='2'/><text x='366' y='400' text-anchor='end' font-size='10' fill='var(--ink-faint,#7A889B)'>σ²</text><text x='450' y='470' text-anchor='middle' font-size='10' fill='var(--ink-faint,#7A889B)'>profondeur</text><text x='750' y='40' text-anchor='middle' font-size='16' font-weight='700' fill='var(--ink,#15202E)'>Peri-LN</text><text x='750' y='60' text-anchor='middle' font-size='11' font-family='ui-monospace,monospace' fill='var(--ink-faint,#7A889B)'>y = x + Norm(Module(Norm(x)))</text><line x1='750' y1='96' x2='750' y2='338' stroke='var(--bordeaux,#7C2A38)' stroke-width='5' stroke-linecap='round'/><path d='M750,316 H808 V150 H761' fill='none' stroke='var(--ink,#15202E)' stroke-width='1.6' marker-end='url(#plnf-ah)'/><rect x='766' y='163' width='84' height='26' rx='4' fill='var(--paper,#FFFFFF)' stroke='var(--blue,#23537F)' stroke-width='1.6'/><text x='808' y='180' text-anchor='middle' font-size='13' fill='var(--blue,#23537F)'>Norm</text><rect x='766' y='213' width='84' height='30' rx='4' fill='var(--paper,#FFFFFF)' stroke='var(--ink,#15202E)' stroke-width='1.4'/><text x='808' y='232' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)'>Module</text><rect x='766' y='275' width='84' height='26' rx='4' fill='var(--paper,#FFFFFF)' stroke='var(--blue,#23537F)' stroke-width='1.6'/><text x='808' y='292' text-anchor='middle' font-size='13' fill='var(--blue,#23537F)'>Norm</text><circle cx='750' cy='316' r='3.5' fill='var(--bordeaux,#7C2A38)'/><circle cx='750' cy='150' r='11' fill='var(--paper,#FFFFFF)' stroke='var(--ink,#15202E)' stroke-width='1.5'/><line x1='750' y1='144' x2='750' y2='156' stroke='var(--ink,#15202E)' stroke-width='1.5'/><line x1='744' y1='150' x2='756' y2='150' stroke='var(--ink,#15202E)' stroke-width='1.5'/><text x='750' y='88' text-anchor='middle' font-size='13' font-style='italic' fill='var(--ink,#15202E)'>y</text><text x='750' y='356' text-anchor='middle' font-size='13' font-style='italic' fill='var(--ink,#15202E)'>x</text><text x='750' y='378' text-anchor='middle' font-size='12' font-weight='600' fill='var(--bordeaux,#7C2A38)'>croissance ~ linéaire</text><line x1='672' y1='456' x2='828' y2='456' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><line x1='672' y1='456' x2='672' y2='394' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><path d='M672,450 L828,404' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='2'/><text x='666' y='400' text-anchor='end' font-size='10' fill='var(--ink-faint,#7A889B)'>σ²</text><text x='750' y='470' text-anchor='middle' font-size='10' fill='var(--ink-faint,#7A889B)'>profondeur</text></svg><figcaption><span class='fcap-k'></span>Placement de la couche de normalisation dans le bloc résiduel : Post-LN (Norm sur le tronc, après l'addition) entraîne un effondrement exponentiel de la variance en profondeur, Pre-LN (Norm dans la branche, tronc libre) une croissance exponentielle, et Peri-LN (Norm avant et après le module) une croissance approximativement linéaire. Le tronc résiduel est surligné en bordeaux, les couches Norm en bleu.</figcaption></figure>\n\n<p>Gemma 2 (Google DeepMind, 2024) constitue la validation industrielle la plus visible de cette stratégie : le rapport technique indique explicitement l'utilisation de RMSNorm à la fois en pré-normalisation et en post-normalisation pour chaque sous-couche — attention et feedforward — sur les trois tailles du modèle (2 Mds, 9 Mds et 27 Mds de paramètres). OLMo 2 (Allen AI, 2024) explore une voie voisine mais distincte : il revient à une variante post-norm — RMSNorm appliquée en sortie de chaque sous-couche, à l'intérieur de la branche résiduelle — stabilisée par une QK-Norm, et non à la double normalisation de Peri-LN. Ces explorations récentes convergent sur un point : c'est la position de la couche de normalisation, plus que sa formule, qui gouverne la stabilité des très grands modèles.</p>",
+      "claims": [
+        "claim:16",
+        "claim:17",
+        "claim:18",
+        "claim:19"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "variantes-perimetre",
+      "heading": "Etendre le perimetre : GroupNorm, AdaLN, Dynamic Tanh",
+      "level": 3,
+      "prose": "<p>BatchNorm souffre d'un défaut structurel dès que la taille du batch descend : l'estimateur de variance devient peu fiable sur un ou deux exemples, ce qui dégrade sensiblement les performances dans des contextes à mémoire GPU contrainte — détection d'objets, segmentation d'instance, traitement médical. Le GroupNorm (normalisation par groupes), proposé par Wu et He à ECCV 2018, résout ce problème en rendant le calcul des statistiques indépendant du batch : les <em>C</em> canaux d'une carte d'activation sont divisés en <em>G</em> groupes, et la moyenne et la variance sont estimées à l'intérieur de chaque groupe, sur les dimensions canaux et spatiales du groupe considéré. Deux cas limites ferment l'espace des variantes : lorsque G&nbsp;=&nbsp;1, le groupe unique englobe tous les canaux et l'on retrouve exactement LayerNorm ; lorsque G&nbsp;=&nbsp;C, chaque canal forme son propre groupe et l'on retrouve InstanceNorm. L'hyperparamètre <em>G</em> contrôle donc un continuum entre ces deux extrêmes, libérant un degré de liberté pour adapter la granularité de la normalisation à la tâche. Sur ResNet-50/ImageNet, avec un batch de taille&nbsp;2 par GPU, GroupNorm affiche une erreur de classification inférieure de 10,6&nbsp;points à BatchNorm ; aux tailles de batch standards (32 ou plus), les deux méthodes sont comparables — GroupNorm est une alternative robuste pour les régimes de petits batchs, non un successeur universel.</p>\n\n<p>Dans les modèles génératifs conditionnels, la normalisation doit non seulement stabiliser les distributions internes mais aussi servir de vecteur d'injection pour un signal externe — label de classe, pas de temps de diffusion, embedding textuel. L'AdaLN (adaptive layer normalization, normalisation adaptative par couche) répond à ce double rôle en remplaçant les paramètres fixes γ et β de LayerNorm par des vecteurs <em>prédits dynamiquement</em> depuis le signal de conditionnement via un MLP léger : la normalisation reste statistiquement invariante, mais son re-scaling affin devient conditionnel. Peebles et Xie introduisent dans DiT (Diffusion Transformer, ICCV 2023) la variante <strong>adaLN-Zero</strong>, qui ajoute une contrainte d'initialisation critique : la couche linéaire finale du projecteur de conditionnement est initialisée à zéro, de sorte que chaque bloc résiduel se comporte comme une identité pure au début de l'entraînement — propriété connue pour stabiliser la propagation des gradients en profondeur. L'ablation de DiT montre qu'adaLN-Zero atteint un FID nettement inférieur à celui des blocs à conditionnement par cross-attention et à conditionnement in-context, et surpasse même la variante adaLN sans initialisation zéro, tout en mobilisant un nombre de paramètres comparable. Ce design est repris dans MMDiT (Stable Diffusion 3, 2024), où deux flux de conditionnement distincts — texte et image — sont injectés via des adaLN séparées, autorisant un traitement symétrique des deux modalités.</p>\n\n<p>Le Dynamic Tanh (DyT), présenté dans <em>Transformers without Normalization</em> (Zhu, Chen, He, LeCun, Liu — CVPR 2025), naît d'une observation empirique systématique : dans des Vision Transformers, des Speech Transformers et des Diffusion Transformers entraînés, LayerNorm produit des mappings entrée-sortie en forme de S — lorsqu'on trace, pour l'ensemble des tokens d'un batch, la valeur en entrée de la couche de normalisation contre sa sortie normalisée, la courbe ressemble à une tangente hyperbolique à l'échelle. Les auteurs proposent de remplacer LayerNorm par l'opération élémentaire :</p>\n\n<p style=\"text-align:center; font-style:italic;\">DyT(x) = γ · tanh(αx) + β</p>\n\n<p>où α est un scalaire appris (commun à tous les canaux), γ et β des vecteurs appris par canal — identiques en nature aux paramètres affines de LayerNorm. Pendant l'entraînement, α converge spontanément vers une valeur proche de 1/std des activations, reproduisant mécaniquement l'effet de re-scaling sans jamais calculer de statistiques de batch ou de couche. Les résultats sur des architectures utilisant LayerNorm ou RMSNorm sont probants : ViT-L supervisé atteint 83,6&nbsp;% (contre 83,1&nbsp;% avec LayerNorm, +0,5&nbsp;point) ; DiT-B obtient un FID de 63,9 (contre 64,9 avec LayerNorm, meilleur) ; LLaMA 7&nbsp;B–70&nbsp;B entraîné sur 200&nbsp;milliards de tokens présente une perte et des performances zero-shot comparables à RMSNorm (±0,01 de perte). L'initialisation de α se révèle critique et dépend de la <em>largeur</em> du modèle — non de sa profondeur : LLaMA 7&nbsp;B (largeur 4&nbsp;096) requiert α₀&nbsp;=&nbsp;0,8 pour les blocs d'attention et 0,2 pour les autres, tandis que LLaMA 70&nbsp;B (largeur 8&nbsp;192) requiert 0,2 et 0,05 respectivement. DyT n'est toutefois pas un remplacement universel de la normalisation : substituer BatchNorm par DyT dans ResNet-50 et VGG19 dégrade les performances, confirmant que l'observation empirique à la base de la méthode est propre aux architectures utilisant LayerNorm ou RMSNorm.</p>",
+      "claims": [
+        "claim:20",
+        "claim:21",
+        "claim:22"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-dyt-alpha-squashing"
+    },
+    {
+      "type": "section",
+      "id": "applications",
+      "heading": "Des CNN aux grands modeles de langage",
+      "level": 3,
+      "prose": "<p>BatchNorm s'impose d'abord dans l'univers des réseaux convolutifs : ResNet (He et al., 2015) et VGG l'intègrent après chaque couche convolutive pour stabiliser l'entraînement et contrer l'<em>internal covariate shift</em>. La formule canonique — BN(x) = γ ⊙ (x − μ̂<sub>B</sub>) / σ̂<sub>B</sub> + β — calcule μ̂<sub>B</sub> et σ̂<sub>B</sub> sur le mini-batch courant ; à l'inférence, ces statistiques sont remplacées par des moyennes mobiles accumulées durant l'entraînement. Sur ImageNet, Ioffe &amp; Szegedy ont montré qu'un modèle batch-normalisé atteint la même précision qu'un réseau de référence avec 14 fois moins d'étapes, et un ensemble de réseaux batch-normalisés a affiché 4,82 % de top-5 error — surpassant les annotateurs humains selon leur rapport.</p>\n\n<p>ConvNeXt (Liu et al., 2022) marque un pivot : en s'inspirant des Vision Transformers, ce CNN pur substitue LayerNorm (normalisation par couche) à BatchNorm, n'en conservant qu'une seule instance avant les couches convolutives 1×1. Ces modifications micro-design contribuent collectivement à porter la précision top-1 de 80,6 % à 82,0 % sur ImageNet, démontrant que l'<em>inductive bias</em> de BatchNorm n'est pas une condition nécessaire dans un CNN bien conçu.</p>\n\n<p>LayerNorm (Ba et al., 2016) normalise chaque échantillon sur la dimension des features plutôt que sur le batch, ce qui le rend indépendant de la taille du batch et adapté aux séquences de longueur variable. Le Transformer original de Vaswani et al. (2017) l'applique en post-norm (pré-somme résiduelle exclue : la normalisation intervient après l'addition résiduelle). GPT-2 (Radford et al., 2019) inverse cette convention avec le pre-norm (pré-normalisation) : LayerNorm est appliqué <em>avant</em> chaque sous-couche, le résidu étant ajouté après. Cette configuration pre-norm stabilise les gradients dès le début de l'entraînement et s'est depuis imposée comme standard dans la quasi-totalité des LLM, de GPT-3 à LLaMA.</p>\n\n<p>RMSNorm (Zhang &amp; Sennrich, NeurIPS 2019) simplifie LayerNorm en supprimant le centrage (soustraction de la moyenne) et en normalisant uniquement par la root mean square (racine de la moyenne des carrés) de l'entrée : RMSNorm(x) = x / RMS(x) · g, avec RMS(x) = √(1/<em>d</em> Σ x<sub>i</sub>²) et g paramètre de gain appris. Cette suppression trouve une justification théorique dans une analyse géométrique (Gupta et al., 2024, arXiv 2409.12951) : les LLM opèrent naturellement dans un sous-espace orthogonal au vecteur uniforme <strong>1</strong> = [1,…,1]<sup>T</sup> à l'inférence, rendant le centrage structurellement redondant. Sur le plan de la vitesse, RMSNorm réduit le temps d'exécution de 7 % à 64 % selon les architectures testées.</p>\n\n<p>LLaMA, LLaMA-2 (jusqu'à 70 B de paramètres), LLaMA-3, Mistral, Mixtral et Qwen adoptent tous RMSNorm en configuration pre-norm. Comparé à LayerNorm, RMSNorm n'apprend qu'un seul vecteur de gain γ — le biais β de LayerNorm est supprimé — divisant par deux le volume de paramètres propres à la couche de normalisation. Cette économie reste toutefois marginale en valeur absolue à l'échelle d'un LLM de plusieurs dizaines de milliards de paramètres (moins de 0,01 % du total pour LLaMA 7B) ; son intérêt pratique tient davantage à la suppression d'un calcul de moyenne et à la réduction des transferts mémoire lors de l'inférence.</p>\n\n<p>Gemma 2 (Google DeepMind, 2024) pousse la normalisation plus loin en appliquant RMSNorm en double configuration pre-norm <em>et</em> post-norm sur chaque sous-couche — attention et feed-forward — pour toutes les tailles de modèle : 2 B, 9 B et 27 B. Cette double normalisation vise à stabiliser l'entraînement ; le rapport technique cite explicitement Zhang &amp; Sennrich [2019].</p>\n\n<p>À l'autre extrémité du spectre, les CNN déployés sur des dispositifs embarqués (EfficientDet, YOLO et ses variantes) recourent au BN folding (fusion de BatchNorm) lors de l'export vers TensorRT ou ONNX. Les paramètres γ, β, μ et σ² sont absorbés dans les poids et biais de la couche convolutive précédente : BatchNorm disparaît entièrement du graphe de calcul, supprimant tout surcoût d'exécution à l'inférence.</p>",
+      "claims": [
+        "claim:23",
+        "claim:24",
+        "claim:25",
+        "claim:26"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "idees-recues",
+      "heading": "Idees recues et pieges en pratique",
+      "level": 3,
+      "prose": "<p>L'explication historique de BatchNorm — qu'il accélère l'entraînement en réduisant l'<em>internal covariate shift</em> (dérive de la distribution interne des activations) — a été mise à l'épreuve à NeurIPS 2018 par Santurkar et al. L'expérience centrale consiste à réintroduire artificiellement du bruit distribué après chaque couche BatchNorm de façon à annuler tout bénéfice de stabilisation distributionnelle tout en conservant les paramètres appris : le temps d'entraînement demeure quasi inchangé, désaccouplant la performance de toute hypothèse de stabilisation de la distribution. Le bénéfice réel serait le lissage du <em>loss landscape</em> (paysage de la fonction de perte), qui conditionne mieux l'optimisation et tolère des <em>learning rates</em> plus élevés. Ce diagnostic n'invalide pas l'utilité pratique de BatchNorm, mais il invalide le récit fondateur du papier de 2015 — une distinction qui importe dès qu'on tente de substituer, d'analyser ou de justifier BatchNorm dans un pipeline.</p>\n\n<p>Un second ensemble de pièges concerne l'écart structurel entre entraînement et inférence. À l'inférence, le modèle s'appuie sur des statistiques de population estimées par une <em>exponential moving average</em> (moyenne mobile exponentielle) accumulée pendant l'entraînement. Wu et Johnson (2021) caractérisent ce défaut précisément : l'EMA « sort souvent de la distribution des statistiques de mini-batch, particulièrement en début d'entraînement », introduisant un lag systématique qui dégrade silencieusement l'accuracy de validation. Leur correctif, PreciseBN, recalcule les statistiques en effectuant un <em>forward pass</em> (passe avant) du modèle gelé sur 10³–10⁴ exemples post-entraînement, pour un surcoût d'environ 0,5 % du temps de calcul total et un gain mesuré jusqu'à 3,5 points de pourcentage d'erreur de validation dans les régimes à petits batches. L'écueil le plus brutal reste l'incohérence de domaine : sur une détection RetinaNet, une simple divergence de stratégie de bookkeeping — statistiques de population calculées sur un domaine alors que le gradient SGD en traverse un autre — fait chuter l'<em>average precision</em> (précision moyenne) de 39,1 AP à 2,1 AP, soit 37 points de dégradation causés uniquement par une erreur de configuration BatchNorm.</p>\n\n<p>BatchNorm couple intrinsèquement les exemples d'un même batch, ouvrant deux vecteurs de fuite d'information. Le premier est la composition du batch : construire les batches de façon à regrouper certaines classes — par exemple 16 classes × 2 exemples par classe — permet au modèle d'exploiter la co-occurrence intra-batch plutôt que des caractéristiques généralisables par exemple. Les têtes de détection R-CNN, dont les régions d'intérêt (RoIs) proviennent souvent de la même image, sont particulièrement exposées à ce biais de composition. Le second vecteur est la <em>temporal cheating</em> (triche temporelle) : dans les tâches vidéo ou d'anticipation, BatchNorm partage la moyenne et la variance du batch entre toutes les frames d'un mini-batch, injectant dans la normalisation d'une frame des statistiques appartenant à des frames futures. Des modèles CNN-LSTM sans BatchNorm, conçus précisément pour éliminer ce couplage, surpassent l'état de l'art sur trois benchmarks de suivi de flux opératoire chirurgical grâce à un entraînement bout-en-bout sans artifice.</p>\n\n<p>L'adoption de RMSNorm dans les grands modèles de langage s'est accompagnée d'une généralisation qui excède les prétentions du papier original. Zhang et Sennrich (NeurIPS 2019) suppriment la soustraction de la moyenne de LayerNorm, gagnent 7 % à 64 % de temps de calcul selon l'architecture, et décrivent des performances <em>comparables</em> — terme littéral des auteurs, et non « supérieures ». Le glissement de sens est récurrent dans la communauté. Par ailleurs, le passage de la famille Llama à RMSNorm a été réalisé simultanément avec les RoPE positional encodings, les activations SwiGLU et la suppression des biais dans les couches linéaires : imputer un éventuel gain de qualité à la seule normalisation est statistiquement impossible. Falcon LLM a pour sa part conservé le LayerNorm complet (avec soustraction de la moyenne) après ablations explicites et reste compétitif — ce contre-exemple direct affaiblit le récit selon lequel « les modèles modernes utilisent tous RMSNorm ».</p>\n\n<p>Dans les Transformers, la position du bloc de normalisation par rapport à la connexion résiduelle est une source de confusion récurrente. Xiong et al. (ICML 2020) démontrent via la <em>mean-field theory</em> (théorie des champs moyens) que le placement Post-LN d'origine produit à l'initialisation des gradients attendus très élevés près de la couche de sortie, rendant le <em>warm-up</em> indispensable pour éviter la divergence. Le placement Pre-LN, qui applique la normalisation à l'intérieur de la branche résiduelle, donne des gradients bien conditionnés et permet de supprimer entièrement le warm-up. Ce diagnostic est cependant incomplet : les mêmes auteurs notent que Post-LN peut atteindre une meilleure performance finale lorsque l'entraînement réussit. Présenter Pre-LN comme universellement supérieur occulte ce compromis — convergence plus facile contre qualité finale potentiellement moindre — qui doit être évalué en fonction du budget d'entraînement disponible.</p>\n\n<p>L'idée que BatchNorm serait un composant indispensable pour atteindre l'état de l'art en classification d'images est directement réfutée par les NFNets (Normalizer-Free Networks) de Brock et al. (2021). Sans aucune couche de normalisation, le modèle NFNet-F5 atteint 86,5 % de top-1 accuracy sur ImageNet (en combinaison avec Sharpness Aware Minimization), et des variantes plus petites égalent l'accuracy d'EfficientNet-B7 en étant jusqu'à 8,7× plus rapides à entraîner. La clé de cette stabilité est l'<em>Adaptive Gradient Clipping</em> (AGC) : plutôt que de normaliser les activations, AGC contrôle la magnitude des mises à jour en les bornant par le ratio local norme-gradient/norme-paramètre, couche par couche. Ce résultat déplace la question de « BatchNorm ou non ? » vers une question plus fondamentale : quels mécanismes de contrôle de la dynamique d'entraînement sont réellement nécessaires ?</p>",
+      "claims": [
+        "claim:27",
+        "claim:28",
+        "claim:29",
+        "claim:30"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "ecosysteme",
+      "heading": "Ecosysteme & pour aller plus loin",
+      "level": 3,
+      "prose": "<p>Dans PyTorch&nbsp;2.12, les trois variantes se distinguent d'abord par leurs conventions d'epsilon. <code>torch.nn.BatchNorm2d(num_features, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)</code> agit sur des tenseurs&nbsp;<em>NCHW</em>&nbsp;: pendant l'entraînement, elle maintient des <em>running statistics</em> (statistiques mobiles) via un moving average avec <code>momentum=0.1</code>, puis bascule sur ces valeurs en mode <code>.eval()</code>. La version&nbsp;2.12 ajoute un paramètre <code>bias=True</code> permettant de désactiver le terme additif indépendamment de <code>affine</code>. <code>torch.nn.LayerNorm(normalized_shape, eps=1e-05, elementwise_affine=True, bias=True)</code> expose un eps fixe à <code>1e-05</code>, quelle que soit la précision du calcul. <code>torch.nn.RMSNorm(normalized_shape, eps=None, elementwise_affine=True)</code> adopte une convention différente&nbsp;: <code>eps=None</code> résout à l'epsilon machine (machine epsilon) du type <em>opmath</em> courant — <code>torch.finfo(torch.float32).eps</code>&nbsp;≈&nbsp;1.2e-07 pour les entrées fp16/bf16/fp32, soit environ 80× plus petit que celui de LayerNorm. Cette divergence de convention, rarement mise en avant (voir Issue&nbsp;#155527 dans pytorch/pytorch), peut surprendre lors d'une migration entre couches.</p>\n\n<p>L'implémentation de référence de RMSNorm est publiée par les auteurs du papier original — Zhang &amp; Sennrich, NeurIPS&nbsp;2019 — dans le dépôt <code>bzhangGo/rmsnorm</code>. Elle est volontairement minimale&nbsp;: le fichier <code>rmsnorm_torch.py</code> montre en quelques dizaines de lignes que supprimer la <em>mean subtraction</em> (soustraction de la moyenne) réduit la normalisation à un seul calcul de racine de la moyenne des carrés, sans accumulation de statistiques séparée. C'est cette référence qu'ont consultée les équipes ayant adopté RMSNorm dans LLaMA, Mistral et Gemma.</p>\n\n<p>Pour l'entraînement à grande échelle, deux familles de <em>fused kernels</em> (noyaux fusionnés) coexistent. NVIDIA/apex fournit <code>apex.normalization.FusedLayerNorm</code> et <code>FusedRMSNorm</code>&nbsp;: des kernels CUDA qui fusionnent normalisation, mise à l'échelle et décalage en un seul passage mémoire, réduisant la pression sur la bande passante HBM. Apex a constitué une dépendance optionnelle de HuggingFace Transformers pour accélérer layer normalization, notamment sur les architectures BERT et GPT-2. Une alternative plus récente et indépendante des pilotes NVIDIA est <strong>Liger Kernel</strong> (Hsu et al., arXiv&nbsp;2410.10989, LinkedIn, 2024)&nbsp;: une collection de kernels Triton fusionnés couvrant RMSNorm, RoPE, SwiGLU et CrossEntropy. Sur les LLM en entraînement, Liger affiche en moyenne +25&nbsp;% de throughput (débit) et −40&nbsp;% d'utilisation mémoire GPU (avec une forte dispersion selon le modèle) par rapport aux implémentations HuggingFace de référence, avec une installation réduite à <code>pip install liger-kernel</code>.</p>\n\n<p>Dans l'écosystème JAX, Flax expose l'ensemble des couches de normalisation dans deux APIs complémentaires&nbsp;: <code>flax.linen</code> (style fonctionnel, héritage) et <code>flax.nnx</code> (style orienté objet, recommandé pour les nouveaux projets). BatchNorm, LayerNorm, RMSNorm, GroupNorm et InstanceNorm sont tous disponibles dans <code>flax.linen.normalization</code>, avec des signatures parallèles à leurs équivalents PyTorch. Le fichier source <code>flax/linen/normalization.py</code> constitue une lecture utile pour apprécier les différences de sémantique entre les deux frameworks, notamment sur la gestion de l'état mutable de batch normalization, structurellement différente en JAX.</p>\n\n<p><em>Dive into Deep Learning</em> (d2l.ai) propose des implémentations from-scratch de batch normalization dans quatre frameworks — PyTorch, MXNet, JAX/Flax et TensorFlow — avec une pédagogie explicite sur les dimensions de calcul&nbsp;: moyenne et variance calculées sur <em>N×H×W</em> pour les couches convolutionnelles, sur la dimension <em>features</em> pour les couches fully-connected. C'est le point d'entrée le plus didactique avant de passer aux APIs haut niveau.</p>\n\n<p>Sur le plan théorique, <em>Beyond BatchNorm</em> (Lubana, Dick &amp; Tanaka, NeurIPS&nbsp;2021, arXiv&nbsp;2106.05956) établit un cadre unifié comparant batch normalization, GroupNorm, LayerNorm et InstanceNorm sur trois axes&nbsp;: (1)&nbsp;contrôle de la croissance des activations dans les ResNets, (2)&nbsp;distinguabilité des échantillons en <em>forward pass</em> (passe avant), (3)&nbsp;stabilité des gradients en <em>backward pass</em> (passe arrière). Cette grille permet de raisonner sur le choix d'une couche de normalisation en fonction de l'architecture et du régime d'entraînement, plutôt que de suivre une règle empirique.</p>",
+      "claims": [
+        "claim:31",
+        "claim:32",
+        "claim:33"
+      ]
+    },
+    {
+      "type": "exercise",
+      "part": "Axes, invariances et mécanisme réel",
+      "question": "<p><strong>(a)</strong> BatchNorm et LayerNorm calculent leurs statistiques μ et σ² sur des axes différents. Lesquels ? Pourquoi LayerNorm n'équivaut-il <em>pas</em> à BatchNorm appliqué à un batch de taille 1 ?</p><p><strong>(b)</strong> RMSNorm est présenté comme une simplification de LayerNorm. Quelle opération supprime-t-il exactement, quel paramètre conserve-t-il, et quelle invariance abandonne-t-il au passage ?</p><p><strong>(c)</strong> Le papier d'origine de BatchNorm (2015) attribuait son efficacité à la réduction de l'<em>internal covariate shift</em>. Quelle expérience de Santurkar et al. (2018) invalide ce récit, et quel est, selon eux, le mécanisme réellement opératif ?</p>",
+      "answer": "<p><strong>(a)</strong> BatchNorm calcule μ et σ² sur la <em>dimension du batch</em> (et, en convolution, sur les positions spatiales), séparément pour chaque feature : la normalisation d'un exemple dépend donc des autres exemples du mini-batch. LayerNorm calcule μ et σ² sur l'<em>axe des features d'un seul exemple</em>, sans aucune référence aux autres. Ces deux axes sont orthogonaux : à batch=1, BatchNorm normalise une feature sur un unique scalaire par feature (variance nulle, comportement instable), alors que LayerNorm agrège sur les H features de l'exemple — les deux opérations ne coïncident jamais.</p><p><strong>(b)</strong> RMSNorm supprime le <em>re-centering</em> (la soustraction de la moyenne μ) et ne conserve que la division par la root mean square, suivie d'un unique vecteur de gain <em>g</em> appris (le biais β de LayerNorm disparaît aussi). Il conserve la <em>re-scaling invariance</em> — RMSNorm(δx) = RMSNorm(x) — mais abandonne l'invariance au décalage additif constant (shift invariance) que garantissait le recentrage de LayerNorm.</p><p><strong>(c)</strong> Santurkar et al. réinjectent délibérément du bruit distributionnel après chaque couche BatchNorm — aggravant artificiellement l'internal covariate shift — et observent que l'entraînement reste aussi rapide et stable. La réduction de l'internal covariate shift n'est donc pas le mécanisme opératif ; le bénéfice réel est le <em>lissage du paysage de perte</em> (bornes de Lipschitz et de courbure améliorées, prouvées couche par couche), qui rend les pas de gradient plus prédictifs et tolère des learning rates plus élevés.</p>"
+    },
+    {
+      "type": "exercise",
+      "part": "Placement, idées reçues et limites",
+      "question": "<p><strong>(a)</strong> Pre-LN et Post-LN diffèrent par la position de la normalisation autour de la connexion résiduelle. Lequel rend le <em>warmup</em> évitable, et pourquoi (argument de Xiong et al., 2020) ? Quel problème de Pre-LN la stratégie Peri-LN (Gemma 2) corrige-t-elle ?</p><p><strong>(b)</strong> Vrai ou faux : « passer de LayerNorm à RMSNorm divise par deux la mémoire d'un LLM ». Justifiez chiffres à l'appui.</p><p><strong>(c)</strong> La normalisation est-elle indispensable pour atteindre l'état de l'art en classification d'images ? Donnez un contre-exemple chiffré et le mécanisme qui le rend possible.</p>",
+      "answer": "<p><strong>(a)</strong> C'est <em>Pre-LN</em> (normalisation à l'intérieur de la branche résiduelle, <code>y = x + Sublayer(Norm(x))</code>) qui rend le warmup évitable : Xiong et al. montrent par mean-field theory que ses gradients sont bien conditionnés dès l'initialisation, là où Post-LN présente une asymétrie de gradient (gradients attendus très élevés près de la sortie) qui exige un warmup pour ne pas diverger. Mais Pre-LN ne normalise pas le tronc résiduel : la variance des hidden states croît exponentiellement avec la profondeur, rendant les couches profondes redondantes. Peri-LN normalise <em>avant et après</em> le module (<code>y = x + Norm(Module(Norm(x)))</code>), ramenant cette croissance de variance à un régime approximativement linéaire tout en préservant la stabilité de gradient de Pre-LN.</p><p><strong>(b)</strong> Faux. Le facteur 2 ne porte que sur les paramètres <em>propres à la couche de normalisation</em> (RMSNorm n'apprend que le gain g, supprimant le biais β), or ceux-ci représentent moins de 0,01 % des paramètres d'un LLM comme LLaMA 7B. L'avantage réel de RMSNorm n'est pas la mémoire de paramètres mais la <em>vitesse</em> — gain mesuré de 7 % à 64 % selon l'architecture — obtenue en supprimant le calcul de la moyenne et en réduisant les transferts mémoire.</p><p><strong>(c)</strong> Non : les NFNets (Brock et al., 2021), sans aucune couche de normalisation, atteignent 86,5 % de top-1 sur ImageNet (NFNet-F5 avec Sharpness Aware Minimization), et des variantes plus petites égalent EfficientNet-B7 en s'entraînant jusqu'à 8,7× plus vite. Le mécanisme clé est l'<em>Adaptive Gradient Clipping</em> (AGC), qui borne la magnitude des mises à jour couche par couche au lieu de normaliser les activations.</p>"
+    },
+    {
+      "type": "biblio",
+      "entries": [
+        {
+          "label": "8.5. Batch Normalization — Dive into Deep Learning 1.0.3",
+          "href": "https://d2l.ai/chapter_convolutional-modern/batch-norm.html"
+        },
+        {
+          "label": "Build Better Deep Learning Models with Batch and Layer Normalization — Pinecone",
+          "href": "https://www.pinecone.io/learn/batch-layer-normalization/"
+        },
+        {
+          "label": "Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift — ar5iv HTML rendering (arXiv:1502.03167)",
+          "href": "https://ar5iv.labs.arxiv.org/abs/1502.03167"
+        },
+        {
+          "label": "Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift (Ioffe & Szegedy, 2015) — arXiv 1502.03167",
+          "href": "https://arxiv.org/abs/1502.03167"
+        },
+        {
+          "label": "Time for AI to cross the human performance range in ImageNet image classification — AI Impacts",
+          "href": "https://aiimpacts.org/time-for-ai-to-cross-the-human-performance-range-in-imagenet-image-classification/"
+        },
+        {
+          "label": "Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift — ICML 2015 Proceedings (PMLR v37)",
+          "href": "https://proceedings.mlr.press/v37/ioffe15.html"
+        },
+        {
+          "label": "How Does Batch Normalization Help Optimization? (No, It Is Not About Internal Covariate Shift) — Santurkar et al., NeurIPS 2018",
+          "href": "https://arxiv.org/abs/1805.11604"
+        },
+        {
+          "label": "Layer Normalization (Ba et al., 2016) — arXiv:1607.06450",
+          "href": "https://arxiv.org/abs/1607.06450"
+        },
+        {
+          "label": "Group Normalization (Wu & He, 2018) — arXiv:1803.08494",
+          "href": "https://arxiv.org/abs/1803.08494"
+        },
+        {
+          "label": "Recurrent Batch Normalization (Cooijmans et al., 2016) — arXiv:1603.09025",
+          "href": "https://arxiv.org/abs/1603.09025"
+        },
+        {
+          "label": "Keras documentation: LayerNormalization layer",
+          "href": "https://keras.io/api/layers/normalization_layers/layer_normalization/"
+        },
+        {
+          "label": "Different Normalization Layers in Deep Learning — Towards Data Science",
+          "href": "https://towardsdatascience.com/different-normalization-layers-in-deep-learning-1a7214ff71d6/"
+        },
+        {
+          "label": "Deep Learning Normalization Methods — tungmphung.com",
+          "href": "https://tungmphung.com/deep-learning-normalization-methods/"
+        },
+        {
+          "label": "Root Mean Square Layer Normalization — NeurIPS 2019 Proceedings",
+          "href": "https://proceedings.neurips.cc/paper/2019/hash/1e8a19426224ca89e83cef47f1e7f53b-Abstract.html"
+        },
+        {
+          "label": "Root Mean Square Layer Normalization — arXiv 1910.07467",
+          "href": "https://arxiv.org/abs/1910.07467"
+        },
+        {
+          "label": "Normalization Techniques in Transformer-Based LLMs: LayerNorm, RMSNorm, and Beyond — Sushant Kumar",
+          "href": "https://sushant-kumar.com/blog/normalization-in-transformer-based-llms"
+        },
+        {
+          "label": "LLaMA paper (ar5iv) — section 2.2 confirming Zhang & Sennrich (2019) citation and pre-norm RMSNorm",
+          "href": "https://ar5iv.labs.arxiv.org/html/2302.13971"
+        },
+        {
+          "label": "HuggingFace Transformers — modeling_falcon.py using LayerNorm (not RMSNorm)",
+          "href": "https://github.com/huggingface/transformers/blob/main/src/transformers/models/falcon/modeling_falcon.py"
+        },
+        {
+          "label": "Sebastian Raschka — Finetuning Falcon LLMs (confirms Falcon uses LayerNorm vs LLaMA's RMSNorm)",
+          "href": "https://sebastianraschka.com/blog/2023/falcon-finetuning.html"
+        },
+        {
+          "label": "Falcon2-11B Technical Report (arxiv 2407.14885)",
+          "href": "https://arxiv.org/html/2407.14885v1"
+        },
+        {
+          "label": "Mistral-7B-v0.1 config.json (Hugging Face)",
+          "href": "https://huggingface.co/mistralai/Mistral-7B-v0.1/blob/main/config.json"
+        },
+        {
+          "label": "Revisiting LayerNorm: aka Norms are Important — Ceramic AI",
+          "href": "https://www.ceramic.ai/blog/revisiting-layernorm"
+        },
+        {
+          "label": "How Does Batch Normalization Help Optimization? – gradient science (blog des auteurs)",
+          "href": "https://gradientscience.org/batchnorm/"
+        },
+        {
+          "label": "How Does Batch Normalization Help Optimization? (NeurIPS 2018, Santurkar et al.) — PDF NeurIPS",
+          "href": "https://proceedings.neurips.cc/paper_files/paper/2018/file/905056c1ac1dad141560467e0a99e1cf-Paper.pdf"
+        },
+        {
+          "label": "How Does Batch Normalization Help Optimization? — ar5iv HTML rendering (arxiv 1805.11604)",
+          "href": "https://ar5iv.labs.arxiv.org/html/1805.11604"
+        },
+        {
+          "label": "Batch Normalization (Part 2) — ML Review (kobejean, independent)",
+          "href": "https://kobejean.github.io/machine-learning/2019/04/28/batch-normalization-part-2/"
+        },
+        {
+          "label": "Beyond BatchNorm: Towards a Unified Understanding of Normalization in Deep Learning (arxiv)",
+          "href": "https://arxiv.org/abs/2106.05956"
+        },
+        {
+          "label": "Beyond BatchNorm: Towards a Unified Understanding of Normalization in Deep Learning (NeurIPS 2021 proceedings)",
+          "href": "https://proceedings.neurips.cc/paper/2021/hash/2578eb9cdf020730f77793e8b58e165a-Abstract.html"
+        },
+        {
+          "label": "ar5iv HTML render of arxiv 2106.05956",
+          "href": "https://ar5iv.labs.arxiv.org/html/2106.05956"
+        },
+        {
+          "label": "On Layer Normalization in the Transformer Architecture — Xiong et al., ICML 2020 (PMLR proceedings)",
+          "href": "https://proceedings.mlr.press/v119/xiong20b"
+        },
+        {
+          "label": "Mix-LN: Unleashing the Power of Deeper Layers by Combining Pre-LN and Post-LN — arXiv 2412.13795",
+          "href": "https://arxiv.org/html/2412.13795v1"
+        },
+        {
+          "label": "On Layer Normalization in the Transformer Architecture (arXiv:2002.04745)",
+          "href": "https://arxiv.org/abs/2002.04745"
+        },
+        {
+          "label": "On Layer Normalization in the Transformer Architecture – ICML 2020 Proceedings (PMLR 119)",
+          "href": "https://proceedings.mlr.press/v119/xiong20b/xiong20b.pdf"
+        },
+        {
+          "label": "Peri-LN: Revisiting Normalization Layer in the Transformer Architecture (arXiv:2502.02732)",
+          "href": "https://arxiv.org/abs/2502.02732"
+        },
+        {
+          "label": "Peri-LN: Revisiting Normalization Layer in the Transformer Architecture — ICML 2025 Proceedings",
+          "href": "https://proceedings.mlr.press/v267/kim25u.html"
+        },
+        {
+          "label": "Understanding the Difficulty of Training Transformers — ADMIN (Liu et al., EMNLP 2020)",
+          "href": "https://arxiv.org/abs/2004.08249"
+        },
+        {
+          "label": "B2T Connection: Serving Stability and Performance in Deep Transformers (Xu et al., 2022)",
+          "href": "https://arxiv.org/abs/2206.00330"
+        },
+        {
+          "label": "Gemma 2: Improving Open Language Models at a Practical Size (arXiv 2408.00118)",
+          "href": "https://arxiv.org/abs/2408.00118"
+        },
+        {
+          "label": "Gemma explained: What's new in Gemma 2 — Google Developers Blog",
+          "href": "https://developers.googleblog.com/gemma-explained-new-in-gemma-2/"
+        },
+        {
+          "label": "Group Normalization — version HTML lisible (ar5iv)",
+          "href": "https://ar5iv.labs.arxiv.org/html/1803.08494"
+        },
+        {
+          "label": "Review — Group Norm (GN): Group Normalization (Image Classification) — Sik-Ho Tsang, Medium",
+          "href": "https://sh-tsang.medium.com/review-group-norm-gn-group-normalization-image-classification-5f7fe0f58eb6"
+        },
+        {
+          "label": "Scalable Diffusion Models with Transformers (ar5iv HTML, arXiv:2212.09748)",
+          "href": "https://ar5iv.labs.arxiv.org/html/2212.09748"
+        },
+        {
+          "label": "DiT models.py — facebookresearch/DiT (code officiel)",
+          "href": "https://github.com/facebookresearch/DiT/blob/main/models.py"
+        },
+        {
+          "label": "Diffusion Transformer Explained — Towards Data Science",
+          "href": "https://towardsdatascience.com/diffusion-transformer-explained-e603c4770f7e/"
+        },
+        {
+          "label": "Unveiling the Secret of AdaLN-Zero in Diffusion Transformer (OpenReview)",
+          "href": "https://openreview.net/forum?id=E4roJSM9RM"
+        },
+        {
+          "label": "Transformers without Normalization (arXiv 2503.10622v1, HTML)",
+          "href": "https://arxiv.org/html/2503.10622v1"
+        },
+        {
+          "label": "DyT Project Page — Jiachen Zhu et al.",
+          "href": "https://jiachenzhu.github.io/DyT/"
+        },
+        {
+          "label": "Transformers without Normalization (arXiv 2503.10622v2)",
+          "href": "https://arxiv.org/abs/2503.10622v2"
+        },
+        {
+          "label": "Paper page – Transformers without Normalization (Hugging Face)",
+          "href": "https://huggingface.co/papers/2503.10622"
+        },
+        {
+          "label": "A ConvNet for the 2020s (arXiv:2201.03545) — abstract et pages 4-5 de la version v2",
+          "href": "https://arxiv.org/abs/2201.03545"
+        },
+        {
+          "label": "ConvNeXt — Hugging Face Computer Vision Course (Unit 2)",
+          "href": "https://huggingface.co/learn/computer-vision-course/en/unit2/cnns/convnext"
+        },
+        {
+          "label": "Group Normalization, Wu & He, ECCV 2018 (arXiv:1803.08494)",
+          "href": "https://arxiv.org/pdf/1803.08494"
+        },
+        {
+          "label": "The Empire Strikes Back: How ConvNeXt Brought CNNs Back from the Dead (Medium, Amarasinghe)",
+          "href": "https://medium.com/@amarasinghelra/the-empire-strikes-back-how-convnext-brought-cnns-back-from-the-dead-d6f48f14bb92"
+        },
+        {
+          "label": "Normalization Placement Matters — Scaling Thoughts",
+          "href": "https://scalingthoughts.com/blog/normalization-placement-matters/"
+        },
+        {
+          "label": "The Crystallization of Transformer Architectures (2017–2025) — Jun Yu Tan",
+          "href": "https://jytan.net/blog/2025/transformer-architectures/"
+        },
+        {
+          "label": "On Layer Normalization in the Transformer Architecture (Xiong et al., 2020) — ar5iv",
+          "href": "https://ar5iv.labs.arxiv.org/html/2002.04745"
+        },
+        {
+          "label": "Gemma 2: Improving Open Language Models at a Practical Size (arXiv:2408.00118)",
+          "href": "https://arxiv.org/html/2408.00118v1"
+        },
+        {
+          "label": "Essential Highlights from Gemma 2 — Abhishek Selokar, Medium",
+          "href": "https://medium.com/@imabhi1216/essential-highlights-from-gemma-2-improving-open-language-models-at-a-practical-size-4acd315caaa1"
+        },
+        {
+          "label": "RMSNorm vs LayerNorm — Sebastian Raschka FAQ",
+          "href": "https://sebastianraschka.com/faq/docs/rmsnorm-vs-layernorm.html"
+        },
+        {
+          "label": "Why Modern Transformers Use RMSNorm Instead of LayerNorm — Medium (Ashutosh)",
+          "href": "https://medium.com/@ashutoshs81127/why-modern-transformers-use-rmsnorm-instead-of-layernorm-5f386be7156c"
+        },
+        {
+          "label": "Batch Normalization vs Internal Covariate Shift — ML Journey",
+          "href": "https://mljourney.com/batch-normalization-vs-internal-covariate-shift/"
+        },
+        {
+          "label": "Revisiting Internal Covariate Shift for Batch Normalization — Awais et al., IEEE TNNLS 2020 (PubMed)",
+          "href": "https://pubmed.ncbi.nlm.nih.gov/33095717/"
+        },
+        {
+          "label": "Rethinking 'Batch' in BatchNorm — Wu & Johnson (2021), arXiv abstract",
+          "href": "https://arxiv.org/abs/2105.07576"
+        },
+        {
+          "label": "Rethinking 'Batch' in BatchNorm — ar5iv full HTML (Table 5, Section 5.2)",
+          "href": "https://ar5iv.labs.arxiv.org/html/2105.07576"
+        },
+        {
+          "label": "Root Mean Square Layer Normalization — NeurIPS Proceedings (abstract)",
+          "href": "https://proceedings.neurips.cc/paper_files/paper/2019/hash/1e8a19426224ca89e83cef47f1e7f53b-Abstract.html"
+        },
+        {
+          "label": "Peri-LN: Revisiting Layer Normalization in the Transformer Architecture (arXiv:2502.02732)",
+          "href": "https://arxiv.org/html/2502.02732v1"
+        },
+        {
+          "label": "High-Performance Large-Scale Image Recognition Without Normalization (arXiv:2102.06171, Brock et al., 2021)",
+          "href": "https://arxiv.org/abs/2102.06171"
+        },
+        {
+          "label": "Normalizer-Free ResNets — m0nads (secondary analysis)",
+          "href": "https://m0nads.wordpress.com/2021/03/25/image-recognition-without-normalization/"
+        },
+        {
+          "label": "DeepMind Achieves High-Performance Large-Scale Image Recognition Without Batch Normalization — Synced Review",
+          "href": "https://syncedreview.com/2021/02/16/deepmind-achieves-high-performance-large-scale-image-recognition-without-batch-normalization/"
+        },
+        {
+          "label": "Review — NFNet: Normalizer-Free Networks (Sik-Ho Tsang, Medium)",
+          "href": "https://sh-tsang.medium.com/review-nfnet-normalizer-free-networks-207b76641128"
+        },
+        {
+          "label": "PyTorch 2.12 — torch.nn.LayerNorm",
+          "href": "https://docs.pytorch.org/docs/2.12/generated/torch.nn.LayerNorm.html"
+        },
+        {
+          "label": "PyTorch 2.12 — torch.nn.RMSNorm",
+          "href": "https://docs.pytorch.org/docs/2.12/generated/torch.nn.RMSNorm.html"
+        },
+        {
+          "label": "GitHub issue #155527 — RMSNorm eps=None documentation discrepancy",
+          "href": "https://github.com/pytorch/pytorch/issues/155527"
+        },
+        {
+          "label": "Liger Kernel: Efficient Triton Kernels for LLM Training (arXiv:2410.10989)",
+          "href": "https://arxiv.org/abs/2410.10989"
+        },
+        {
+          "label": "LinkedIn/Liger-Kernel — GitHub README",
+          "href": "https://github.com/linkedin/Liger-Kernel"
+        },
+        {
+          "label": "T5 silently uses apex.FusedRMSNorm which has a memory leak — huggingface/transformers #45704 (April 2026)",
+          "href": "https://github.com/huggingface/transformers/issues/45704"
+        },
+        {
+          "label": "Fused LayerNorm method card — MosaicML Composer (remplace torch.nn.LayerNorm par apex.normalization.fused_layer_norm pour le gain GPU)",
+          "href": "https://docs.mosaicml.com/projects/composer/en/v0.12.1/method_cards/fused_layernorm.html"
+        },
+        {
+          "label": "Builtin FusedLayerNorm is slower than apex one — pytorch/pytorch #37713",
+          "href": "https://github.com/pytorch/pytorch/issues/37713"
+        },
+        {
+          "label": "replacing apex.normalization.FusedLayerNorm with torch.nn.LayerNorm — huggingface/transformers #9377",
+          "href": "https://github.com/huggingface/transformers/issues/9377"
+        },
+        {
+          "label": "Replace apex FusedLayerNorm by PyTorch LayerNorm · Pull Request #9386 · huggingface/transformers",
+          "href": "https://github.com/huggingface/transformers/pull/9386"
+        },
+        {
+          "label": "How to Speed Up Transformer Training Using NVIDIA Apex (FusedAdam, FusedLayerNorm) and Native torch.amp - MarkTechPost",
+          "href": "https://www.marktechpost.com/2026/06/01/how-to-speed-up-transformer-training-using-nvidia-apex-fusedadam-fusedlayernorm-and-native-torch-amp/"
+        }
+      ]
+    },
+    {
+      "type": "pointers",
+      "title": "Pour aller plus loin",
+      "items": [
+        {
+          "name": "torch.nn.BatchNorm2d — PyTorch 2.12",
+          "url": "https://docs.pytorch.org/docs/2.12/generated/torch.nn.BatchNorm2d.html",
+          "kind": "library",
+          "blurb": "Référence officielle PyTorch 2.12.0 de BatchNorm2d, avec signature complète, formule de normalisation et exemples d'utilisation sur entrée 4D."
+        },
+        {
+          "name": "torch.nn.LayerNorm — PyTorch 2.12",
+          "url": "https://docs.pytorch.org/docs/2.12/generated/torch.nn.LayerNorm.html",
+          "kind": "library",
+          "blurb": "Documentation PyTorch 2.12.0 de LayerNorm, couvrant les paramètres normalized_shape, eps, elementwise_affine et bias, avec exemples NLP et vision."
+        },
+        {
+          "name": "torch.nn.RMSNorm — PyTorch 2.12",
+          "url": "https://docs.pytorch.org/docs/2.12/generated/torch.nn.RMSNorm.html",
+          "kind": "library",
+          "blurb": "Documentation PyTorch 2.12.0 de RMSNorm (Root Mean Square Layer Normalization), avec formule, paramètres, formes d'entrée/sortie et méthodes reset_parameters/forward."
+        },
+        {
+          "name": "bzhangGo/rmsnorm",
+          "url": "https://github.com/bzhangGo/rmsnorm",
+          "kind": "implementation",
+          "blurb": "Implémentation de référence de RMSNorm par Biao Zhang et Rico Sennrich (NeurIPS 2019), en PyTorch, TensorFlow et Theano, sur des tâches de traduction, classification et légende d'images."
+        },
+        {
+          "name": "NVIDIA/apex — FusedLayerNorm & FusedRMSNorm",
+          "url": "https://github.com/NVIDIA/apex",
+          "kind": "package",
+          "blurb": "Extension PyTorch NVIDIA (9k étoiles) fournissant des kernels CUDA fusionnés pour l'entraînement mixte-précision, dont apex.normalization.FusedLayerNorm et FusedRMSNorm nécessitant un build avec extensions CUDA."
+        },
+        {
+          "name": "Liger Kernel (linkedin/Liger-Kernel)",
+          "url": "https://github.com/linkedin/Liger-Kernel",
+          "kind": "package",
+          "blurb": "Collection de kernels Triton fusionnés pour l'entraînement LLM (LigerRMSNorm, RoPE, SwiGLU…) annonçant +25 % de throughput multi-GPU et −40 % de mémoire GPU par rapport à HuggingFace."
+        },
+        {
+          "name": "flax.linen.normalization (Google/Flax)",
+          "url": "https://github.com/google/flax/blob/main/flax/linen/normalization.py",
+          "kind": "library",
+          "blurb": "Fichier source Flax (1 391 lignes) contenant les implémentations JAX de BatchNorm, LayerNorm, RMSNorm, GroupNorm, InstanceNorm et SpectralNorm dans flax.linen."
+        },
+        {
+          "name": "d2l.ai — Batch Normalization (from-scratch)",
+          "url": "https://d2l.ai/chapter_convolutional-modern/batch-norm.html",
+          "kind": "reading",
+          "blurb": "Section 8.5 de Dive into Deep Learning (v1.0.3) couvrant la batch normalization avec implémentations pédagogiques from-scratch en PyTorch, MXNet, JAX et TensorFlow, appliquées à LeNet sur Fashion-MNIST."
+        },
+        {
+          "name": "Beyond BatchNorm (Lubana et al., NeurIPS 2021)",
+          "url": "https://arxiv.org/abs/2106.05956",
+          "kind": "reading",
+          "blurb": "Papier NeurIPS 2021 (Lubana, Dick, Tanaka) proposant un cadre unifié étendant les propriétés de BatchNorm à GroupNorm, LayerNorm et InstanceNorm sur des réseaux initialisés aléatoirement."
+        }
+      ]
+    },
+    {
+      "type": "glossary"
+    }
+  ]
+}

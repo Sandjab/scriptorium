@@ -1,0 +1,1944 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Normalisation dans les réseaux profonds : BatchNorm, LayerNorm, RMSNorm</title>
+<style>
+/* vietnamese */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLySOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLyTOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLySOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLyTOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 700;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLySOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 700;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLyTOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 700;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 800;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLySOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 800;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLyTOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 800;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx3cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxTcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxPcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx_cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx7cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxDcwgknk-4.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx3cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxTcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxPcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx_cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx7cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxDcwgknk-4.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx3cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxTcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxPcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx_cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx7cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxDcwgknk-4.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCt-xNNww_2s0amA9M8onfmTNmnUHowCw.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCt-xNNww_2s0amA9M8on7mTNmnUHowCw.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCt-xNNww_2s0amA9M8onXmTNmnUHowCw.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCt-xNNww_2s0amA9M8onTmTNmnUHowCw.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCt-xNNww_2s0amA9M8onrmTNmnUHo.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCr-xNNww_2s0amA9M0knjsS_ulYHs.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCr-xNNww_2s0amA9M9knjsS_ulYHs.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCr-xNNww_2s0amA9M2knjsS_ulYHs.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCr-xNNww_2s0amA9M3knjsS_ulYHs.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCr-xNNww_2s0amA9M5knjsS_ul.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vKsW3MafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vKsW3FafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vKsW3OafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vKsW3PafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vKsW3BafaPWnII.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vmtm3MafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vmtm3FafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vmtm3OafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vmtm3PafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vmtm3BafaPWnII.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* =====================================================================
+   charte.css — Charte graphique commune (monograph skill)
+   Sources :
+     (1) themes/automatic-prompt-optimization/legacy/apo-base.html  l.11-192
+     (2) themes/automatic-prompt-optimization/legacy/build/assemble.py  EXTRA_CSS
+     (3) themes/automatic-prompt-optimization/legacy/build/widgets/theme-tooltips.html  <style> blocks
+   NE PAS modifier — fichier de référence distillé depuis le legacy APO.
+   ===================================================================== */
+
+/* ===== (1) BASE : tokens + typographie + composants de mise en page ===== */
+
+  :root{
+    --paper:#F4F6FA; --card:#FFFFFF;
+    --ink:#15202E; --ink-soft:#43536A; --ink-faint:#7A889B;
+    --blue:#23537F; --blue-deep:#142E49; --blue-bright:#2C77B6; --blue-wash:#E7EEF6;
+    --bordeaux:#7C2A38; --bordeaux-bright:#9B3443; --bordeaux-wash:#F3E3E6;
+    --line:#D7DFE9; --line-soft:#E7ECF3;
+    --code:#11283F;
+    --maxw:1240px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Spectral",Georgia,serif; font-size:17px; line-height:1.62;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,h4,.lbl,.chip,nav,th,.tag,.fcap-k{font-family:"Archivo",system-ui,sans-serif;}
+  code,kbd,.mono{font-family:"JetBrains Mono",monospace;}
+
+  /* progress bar */
+  #prog{position:fixed;top:0;left:0;height:3px;width:0;background:var(--bordeaux-bright);z-index:60;transition:width .08s linear;}
+
+  /* header */
+  header.top{
+    background:linear-gradient(165deg,var(--blue-deep),#0E2236 70%);
+    color:#EAF1F8; padding:62px 28px 54px;
+    border-bottom:3px solid var(--bordeaux);
+  }
+  .top-in{max-width:var(--maxw);margin:0 auto;}
+  .kicker{font-family:"JetBrains Mono",monospace;font-size:12.5px;letter-spacing:.22em;
+    text-transform:uppercase;color:#9DC2E0;margin:0 0 16px;}
+  header.top h1{font-size:clamp(30px,4.6vw,52px);line-height:1.05;margin:0;font-weight:800;letter-spacing:-.01em;}
+  header.top h1 em{font-style:normal;color:#E7B3BD;}
+  header.top .lede{font-size:18px;max-width:760px;margin:20px 0 0;color:#C7D7E6;line-height:1.55;}
+  .meta{margin-top:26px;display:flex;flex-wrap:wrap;gap:10px;}
+  .meta span{font-family:"JetBrains Mono",monospace;font-size:11.5px;letter-spacing:.04em;
+    border:1px solid rgba(157,194,224,.35);color:#B7CFE4;padding:5px 11px;border-radius:2px;}
+
+  /* layout */
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 28px;display:grid;
+    grid-template-columns:248px minmax(0,1fr);gap:48px;align-items:start;}
+  nav.toc{position:sticky;top:22px;padding:30px 0 60px;font-size:13.5px;max-height:calc(100vh - 30px);overflow:auto;}
+  nav.toc .navhead{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);margin:18px 0 9px;font-weight:700;}
+  nav.toc a{display:block;color:var(--ink-soft);text-decoration:none;padding:4px 12px;border-left:2px solid var(--line);
+    line-height:1.32;margin:1px 0;transition:.15s;}
+  nav.toc a:hover{color:var(--blue-bright);border-left-color:var(--blue-bright);}
+  nav.toc a.active{color:var(--bordeaux);border-left-color:var(--bordeaux);font-weight:600;background:var(--bordeaux-wash);}
+  nav.toc a.sub{padding-left:24px;font-size:12.5px;}
+
+  main{padding:42px 0 100px;min-width:0;}
+  section{margin-bottom:30px;scroll-margin-top:18px;}
+  .part-band{margin:54px 0 10px;padding:14px 0 12px;border-top:2px solid var(--blue-deep);border-bottom:1px solid var(--line);}
+  .part-band .pk{font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.2em;color:var(--bordeaux);text-transform:uppercase;}
+  .part-band h2{font-size:clamp(24px,3.2vw,34px);margin:6px 0 0;font-weight:800;letter-spacing:-.01em;color:var(--blue-deep);}
+  h3{font-size:22px;margin:36px 0 8px;color:var(--blue-deep);font-weight:700;letter-spacing:-.005em;}
+  h4{font-size:16px;margin:22px 0 6px;color:var(--ink);font-weight:700;}
+  p{margin:11px 0;}
+  a.ref{color:var(--blue-bright);text-decoration:none;border-bottom:1px solid var(--blue-wash);font-weight:500;}
+  a.ref:hover{border-bottom-color:var(--blue-bright);}
+  strong{font-weight:600;}
+  .hl{color:var(--bordeaux);font-weight:600;}
+  em.term{font-style:italic;color:var(--ink);}
+  .lead{font-size:18.5px;color:var(--ink-soft);line-height:1.6;}
+
+  /* cards & components */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:7px;padding:22px 24px;margin:16px 0;
+    box-shadow:0 1px 2px rgba(20,46,73,.04);}
+  .opt{border-left:3px solid var(--blue);}
+  .opt .lbl{font-family:"Archivo";font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--blue);font-weight:700;}
+  .opt h4{margin:3px 0 8px;font-size:18px;}
+  .pc{display:grid;grid-template-columns:1fr 1fr;gap:10px 26px;margin-top:12px;}
+  @media(max-width:620px){.pc{grid-template-columns:1fr;}}
+  .pc ul{margin:4px 0;padding:0;list-style:none;font-size:15px;}
+  .pc li{padding:3px 0 3px 22px;position:relative;line-height:1.45;color:var(--ink-soft);}
+  .pros .k,.cons .k{font-family:"Archivo";font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;display:block;margin-bottom:3px;}
+  .pros .k{color:var(--blue);}.cons .k{color:var(--bordeaux);}
+  .pros li::before{content:"+";position:absolute;left:4px;color:var(--blue-bright);font-weight:700;}
+  .cons li::before{content:"–";position:absolute;left:5px;color:var(--bordeaux-bright);font-weight:700;}
+  .links{margin-top:13px;font-family:"JetBrains Mono",monospace;font-size:12.5px;display:flex;gap:16px;flex-wrap:wrap;}
+  .links a{color:var(--blue);text-decoration:none;border-bottom:1px dotted var(--blue);}
+  .links a:hover{color:var(--bordeaux);border-bottom-color:var(--bordeaux);}
+  .links a::before{content:"↗ ";opacity:.6;}
+
+  /* callout */
+  .callout{background:var(--bordeaux-wash);border:1px solid #E3C3C9;border-left:4px solid var(--bordeaux);
+    border-radius:6px;padding:18px 22px;margin:20px 0;}
+  .callout .ct{font-family:"Archivo";font-weight:700;color:var(--bordeaux);font-size:13px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
+  .note{background:var(--blue-wash);border:1px solid #CFE0EF;border-left:4px solid var(--blue);border-radius:6px;padding:18px 22px;margin:20px 0;}
+  .note .ct{font-family:"Archivo";font-weight:700;color:var(--blue);font-size:13px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
+
+  /* figures */
+  figure.fig{margin:24px 0;background:var(--card);border:1px solid var(--line);border-radius:7px;padding:24px 22px 16px;}
+  figure.fig svg{width:100%;height:auto;display:block;}
+  figcaption{margin-top:12px;font-size:13.5px;color:var(--ink-faint);line-height:1.45;border-top:1px solid var(--line-soft);padding-top:10px;}
+  figcaption .fcap-k{color:var(--bordeaux);font-weight:700;font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin-right:8px;}
+
+  /* table */
+  .tbl-w{overflow-x:auto;margin:18px 0;border:1px solid var(--line);border-radius:7px;}
+  table{border-collapse:collapse;width:100%;font-size:14px;background:var(--card);}
+  th{background:var(--blue-deep);color:#E7F0F8;text-align:left;padding:11px 14px;font-size:12px;letter-spacing:.04em;font-weight:600;position:sticky;top:0;}
+  td{padding:11px 14px;border-top:1px solid var(--line-soft);vertical-align:top;line-height:1.45;color:var(--ink-soft);}
+  td:first-child{color:var(--ink);font-weight:600;font-family:"Archivo";font-size:13.5px;}
+  tr:hover td{background:#FAFCFE;}
+  .tag{display:inline-block;font-family:"JetBrains Mono",monospace;font-size:11px;padding:2px 7px;border-radius:3px;background:var(--blue-wash);color:var(--blue);}
+  .tag.b{background:var(--bordeaux-wash);color:var(--bordeaux);}
+
+  code{background:#E9EEF4;color:var(--code);padding:1.5px 6px;border-radius:4px;font-size:14px;}
+  .axis-chips{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 4px;}
+  .axis-chips a{font-family:"Archivo";font-size:12.5px;font-weight:600;text-decoration:none;color:var(--blue);
+    background:var(--card);border:1px solid var(--line);padding:7px 13px;border-radius:30px;transition:.15s;}
+  .axis-chips a:hover{background:var(--blue-deep);color:#fff;border-color:var(--blue-deep);}
+
+  /* decision path (interactive Part II) */
+  .dpath{margin:18px 0;}
+  .fork{background:var(--card);border:1px solid var(--line);border-radius:7px;margin:10px 0;overflow:hidden;}
+  .fork-h{padding:13px 18px;background:#F0F4F9;border-bottom:1px solid var(--line);
+    font-family:"Archivo";font-weight:700;font-size:14px;color:var(--blue-deep);display:flex;gap:10px;align-items:baseline;}
+  .fork-h .n{font-family:"JetBrains Mono";color:var(--bordeaux);font-size:12px;}
+  .branches{display:grid;grid-template-columns:1fr 1fr;}
+  @media(max-width:620px){.branches{grid-template-columns:1fr;}}
+  .br{padding:14px 18px;font-size:14.5px;line-height:1.5;color:var(--ink-faint);border-right:1px solid var(--line-soft);}
+  .br.chosen{color:var(--ink);background:linear-gradient(0deg,var(--bordeaux-wash),#fff);border-left:3px solid var(--bordeaux);}
+  .br .st{font-family:"Archivo";font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:5px;}
+  .br.chosen .st{color:var(--bordeaux);}
+  .br.alt .st{color:var(--ink-faint);}
+  .br.chosen .st::after{content:" ◆ retenu";color:var(--bordeaux);}
+
+  /* collapsible examples */
+  details.ex{margin:18px 0;border:1px solid var(--line);border-radius:6px;background:#FBFCFE;overflow:hidden;}
+  details.ex>summary{cursor:pointer;list-style:none;padding:12px 18px;font-family:"Archivo",sans-serif;
+    font-weight:700;font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--blue-deep);
+    background:#EBF1F7;display:flex;align-items:center;gap:11px;user-select:none;transition:.15s;}
+  details.ex>summary::-webkit-details-marker{display:none;}
+  details.ex>summary::before{content:"▸";color:var(--bordeaux);font-size:13px;line-height:1;
+    transition:transform .2s ease;display:inline-block;}
+  details.ex[open]>summary::before{transform:rotate(90deg);}
+  details.ex>summary:hover{background:#E1EAF3;color:var(--bordeaux);}
+  details.ex>summary .cnt{margin-left:auto;font-family:"JetBrains Mono",monospace;font-size:10px;
+    letter-spacing:.04em;color:var(--ink-faint);font-weight:400;}
+  .exbody{padding:8px 20px 16px;font-size:15px;line-height:1.55;color:var(--ink-soft);}
+  .exbody p{margin:9px 0;}
+  .eg{margin:11px 0;padding:11px 15px;border-left:3px solid var(--blue);background:#fff;
+    border:1px solid var(--line-soft);border-left:3px solid var(--blue);border-radius:0 5px 5px 0;}
+  .eg.b{border-left-color:var(--bordeaux);}
+  .eg .egk{font-family:"Archivo",sans-serif;font-size:11.5px;font-weight:700;letter-spacing:.04em;
+    color:var(--blue-deep);display:block;margin-bottom:4px;}
+  .eg.b .egk{color:var(--bordeaux);}
+  .eg p{margin:5px 0;}
+  .exbody code{font-size:13px;}
+  .arrow{color:var(--bordeaux);font-weight:600;}
+
+  /* worked examples: code / diff / calc / steps */
+  .exbody pre.code{background:#0E2132;color:#D6E3EF;border:1px solid #1C3650;border-radius:6px;
+    padding:12px 14px;margin:11px 0;font-family:"JetBrains Mono",monospace;font-size:11.8px;line-height:1.62;
+    overflow-x:auto;white-space:pre;}
+  .exbody pre.code .h{color:#E7B3BD;}
+  .exbody pre.code .c{color:#7C9DBA;}
+  .exbody pre.code .del{display:block;background:rgba(155,52,67,.32);color:#F2C6CC;}
+  .exbody pre.code .add{display:block;background:rgba(44,119,182,.30);color:#C5DEF3;}
+  .calc{background:#fff;border:1px solid var(--line-soft);border-left:3px solid var(--blue-deep);
+    border-radius:0 5px 5px 0;padding:9px 14px;margin:10px 0;font-family:"JetBrains Mono",monospace;
+    font-size:12px;line-height:1.75;color:var(--ink);overflow-x:auto;white-space:pre-wrap;}
+  .calc .r{color:var(--bordeaux);font-weight:700;}
+  .calc .g{color:#1C6A4C;font-weight:700;}
+  .calc .c{color:var(--ink-faint);}
+  ol.steps{counter-reset:s;margin:11px 0;padding:0;list-style:none;}
+  ol.steps li{position:relative;padding:5px 0 5px 32px;font-size:14.5px;line-height:1.5;margin:3px 0;color:var(--ink-soft);}
+  ol.steps li b{color:var(--ink);}
+  ol.steps li::before{counter-increment:s;content:counter(s);position:absolute;left:0;top:4px;
+    width:21px;height:21px;background:var(--blue-deep);color:#fff;border-radius:50%;
+    font-family:"JetBrains Mono",monospace;font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:600;}
+  .eg pre.code{margin:8px 0;}
+
+  footer{background:var(--blue-deep);color:#A9C2D8;padding:34px 28px;font-size:13px;}
+  footer .fin{max-width:var(--maxw);margin:0 auto;font-family:"JetBrains Mono",monospace;letter-spacing:.03em;}
+
+  @media(max-width:900px){
+    .wrap{grid-template-columns:1fr;gap:0;}
+    nav.toc{position:static;max-height:none;border-bottom:1px solid var(--line);margin-bottom:10px;
+      display:grid;grid-template-columns:1fr 1fr;gap:0 18px;}
+  }
+
+/* ===== (2) ENRICHISSEMENTS : blocs xwrap / xabstract / xtldr / gloss-grid / gterm ===== */
+
+  /* ===== enrichissements (blocs ajoutes) ===== */
+  .xwrap{max-width:var(--maxw);margin:0 auto;padding:0 28px;}
+  .xabstract{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--bordeaux);
+    border-radius:8px;padding:24px 28px;margin:28px 0 0;box-shadow:0 1px 2px rgba(20,46,73,.05);}
+  .xabstract .xk{font-family:"Archivo",system-ui,sans-serif;font-size:11px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--bordeaux);font-weight:700;margin:0 0 9px;}
+  .xabstract .xthese{font-size:19px;line-height:1.5;color:var(--ink);font-weight:600;margin:0 0 12px;
+    font-family:"Spectral",Georgia,serif;}
+  .xabstract ul{margin:8px 0 0;padding:0;list-style:none;}
+  .xabstract li{position:relative;padding:5px 0 5px 22px;font-size:15px;color:var(--ink-soft);line-height:1.5;}
+  .xabstract li::before{content:"\25B8";position:absolute;left:2px;color:var(--blue-bright);font-weight:700;}
+  .xabstract .xpath li::before{content:counter(xp);counter-increment:xp;background:var(--blue-deep);color:#fff;
+    width:19px;height:19px;border-radius:50%;font-family:"JetBrains Mono",monospace;font-size:10px;left:0;top:5px;
+    display:flex;align-items:center;justify-content:center;}
+  .xabstract ul.xpath{counter-reset:xp;}
+  .xabstract .xfoot{font-size:13px;color:var(--ink-faint);margin:14px 0 0;line-height:1.5;}
+  .xtldr{background:var(--blue-wash);border:1px solid #CFE0EF;border-left:4px solid var(--blue);
+    border-radius:6px;padding:14px 20px;margin:16px 0 4px;}
+  .xtldr .xk{font-family:"Archivo",system-ui,sans-serif;font-size:11px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--blue);font-weight:700;margin-bottom:7px;}
+  .xtldr ul{margin:0;padding-left:19px;}
+  .xtldr li{font-size:14px;color:var(--ink-soft);line-height:1.5;margin:4px 0;}
+  .gloss-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin:18px 0;}
+  @media(max-width:760px){.gloss-grid{grid-template-columns:1fr;}}
+  .gterm{background:var(--card);border:1px solid var(--line);border-radius:7px;padding:14px 17px;
+    border-left:3px solid var(--blue);}
+  .gterm .gt-name{font-family:"Archivo",system-ui,sans-serif;font-weight:700;color:var(--blue-deep);
+    font-size:14.5px;display:block;margin-bottom:5px;}
+  .gterm .gt-def{font-size:13.5px;color:var(--ink-soft);line-height:1.5;margin:0;}
+  .gterm .gt-see{font-family:"JetBrains Mono",monospace;font-size:10.5px;color:var(--ink-faint);
+    margin:8px 0 0;}
+
+  .xptr-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin:18px 0;}
+  @media(max-width:760px){.xptr-grid{grid-template-columns:1fr;}}
+  .xptr{background:var(--card);border:1px solid var(--line);border-radius:7px;padding:14px 17px;
+    border-left:3px solid var(--blue-bright);}
+  .xptr .xptr-name{font-family:"Archivo",system-ui,sans-serif;font-weight:700;color:var(--blue);
+    font-size:14.5px;text-decoration:none;}
+  .xptr .xptr-name:hover{text-decoration:underline;}
+  .xptr .xptr-kind{font-family:"JetBrains Mono",monospace;font-size:9.5px;letter-spacing:.08em;
+    text-transform:uppercase;color:#fff;background:var(--blue-bright);border-radius:4px;
+    padding:1px 6px;margin-left:8px;vertical-align:middle;}
+  .xptr .xptr-blurb{font-size:13.5px;color:var(--ink-soft);line-height:1.5;margin:8px 0 0;}
+
+/* ===== (3) DARK MODE + BOUTON THÈME + TOOLTIPS ===== */
+
+  /* Transitions douces sur les surfaces principales lors de la bascule */
+  html.theme-anim body,
+  html.theme-anim .card,
+  html.theme-anim .callout,
+  html.theme-anim .note,
+  html.theme-anim figure.fig,
+  html.theme-anim .tbl-w,
+  html.theme-anim nav.toc a{
+    transition:background-color .25s ease, color .25s ease, border-color .25s ease;
+  }
+
+  html[data-theme="dark"]{
+    /* papier sombre, encre claire */
+    --paper:#0E1620; --card:#16212E;
+    --ink:#E4EBF3; --ink-soft:#AFC0D2; --ink-faint:#7C8DA1;
+    /* bleus : on éclaircit pour rester lisibles sur fond foncé */
+    --blue:#6FA8D8; --blue-deep:#0A1521; --blue-bright:#7FB6E4; --blue-wash:#1B2C3E;
+    /* bordeaux : accent gardé lisible, remonté en clarté */
+    --bordeaux:#C66875; --bordeaux-bright:#D67C88; --bordeaux-wash:#2C1A1F;
+    --line:#2A3848; --line-soft:#212E3C;
+    --code:#0A1521;
+    color-scheme:dark;
+  }
+
+  /* Ajustements ciblés sur surfaces déjà opaques du doc (non pilotées par les variables) */
+  html[data-theme="dark"] body{background:var(--paper);color:var(--ink);}
+  html[data-theme="dark"] header.top{
+    background:linear-gradient(165deg,#0A1521,#060D16 70%);
+    border-bottom-color:var(--bordeaux);
+  }
+  html[data-theme="dark"] th{background:#0A1521;color:#D7E6F4;}
+  html[data-theme="dark"] tr:hover td{background:#1B2735;}
+  html[data-theme="dark"] code{background:#0E1C2A;color:#CFE0F2;}
+  html[data-theme="dark"] .card{box-shadow:0 1px 2px rgba(0,0,0,.45);}
+  html[data-theme="dark"] details.ex{background:#101A25;}
+  html[data-theme="dark"] details.ex>summary{background:#142231;color:#CFE0F2;}
+  html[data-theme="dark"] details.ex>summary:hover{background:#1A2C3E;}
+  html[data-theme="dark"] .eg{background:#101A25;}
+  html[data-theme="dark"] .calc{background:#101A25;}
+  html[data-theme="dark"] .fork-h{background:#142231;}
+  html[data-theme="dark"] footer{background:#0A1521;color:#8CA6BE;}
+  /* la coloration de pre.code reste codée en dur dans le doc (déjà sombre, cohérente) */
+
+  #theme_toggle{
+    position:fixed; top:14px; right:14px; z-index:120;
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:"Archivo",system-ui,sans-serif; font-size:12px; font-weight:700;
+    letter-spacing:.08em; text-transform:uppercase;
+    color:var(--blue); background:var(--card);
+    border:1px solid var(--line); border-radius:30px;
+    padding:8px 14px; cursor:pointer; line-height:1;
+    box-shadow:0 2px 6px rgba(20,46,73,.14);
+    transition:background-color .15s, color .15s, border-color .15s, box-shadow .15s;
+  }
+  #theme_toggle:hover{
+    color:#fff; background:var(--blue-deep); border-color:var(--blue-deep);
+  }
+  #theme_toggle:focus-visible{
+    outline:2px solid var(--bordeaux); outline-offset:2px;
+  }
+  #theme_toggle #theme_toggle_ico{font-size:14px;}
+  html[data-theme="dark"] #theme_toggle{
+    box-shadow:0 2px 8px rgba(0,0,0,.5);
+  }
+  html[data-theme="dark"] #theme_toggle:hover{
+    color:#0A1521; background:var(--blue-bright); border-color:var(--blue-bright);
+  }
+  @media print{ #theme_toggle{display:none;} }
+
+  .theme-gloss{
+    cursor:help; text-decoration:none;
+    border-bottom:1px dotted var(--bordeaux);
+    color:inherit; outline:none;
+  }
+  .theme-gloss:focus-visible{
+    outline:2px solid var(--bordeaux); outline-offset:2px; border-radius:2px;
+  }
+  abbr.theme-gloss{text-decoration:none;}
+
+  #theme_tip{
+    position:absolute; z-index:130; max-width:300px;
+    background:var(--blue-deep); color:#EAF1F8;
+    border:1px solid var(--bordeaux);
+    border-radius:6px; padding:9px 12px;
+    font-family:"Archivo",system-ui,sans-serif; font-size:13px; line-height:1.45;
+    box-shadow:0 6px 20px rgba(10,21,33,.4);
+    opacity:0; transform:translateY(3px); pointer-events:none;
+    transition:opacity .14s ease, transform .14s ease;
+  }
+  #theme_tip[data-show="1"]{ opacity:1; transform:translateY(0); }
+  #theme_tip::after{
+    content:""; position:absolute; left:var(--theme-tip-ax,16px);
+    bottom:-6px; width:10px; height:10px;
+    background:var(--blue-deep);
+    border-right:1px solid var(--bordeaux); border-bottom:1px solid var(--bordeaux);
+    transform:rotate(45deg);
+  }
+  #theme_tip[data-below="1"]::after{
+    bottom:auto; top:-6px;
+    border-right:none; border-bottom:none;
+    border-left:1px solid var(--bordeaux); border-top:1px solid var(--bordeaux);
+  }
+  html[data-theme="dark"] #theme_tip{
+    background:#1B2C3E; color:#E4EBF3;
+  }
+  html[data-theme="dark"] #theme_tip::after{ background:#1B2C3E; }
+  @media print{ #theme_tip{display:none;} }
+
+</style>
+</head>
+<body>
+<div id="prog" style="width:0%"></div>
+<header class="top"><div class="top-in">
+  <p class="kicker">Normalisation des réseaux profonds · monographie</p>
+  <h1>Normalisation dans les réseaux profonds : BatchNorm, LayerNorm, RMSNorm</h1>
+  <p class="lede">De BatchNorm sur l'axe du batch à LayerNorm puis RMSNorm sur l'axe des features : pourquoi la normalisation stabilise l'entraînement profond en lissant le paysage de perte plutôt qu'en réduisant l'internal covariate shift, et comment le choix de l'axe et le placement (Pre-LN, Post-LN, Peri-LN) sont devenus décisifs pour les Transformers et les LLM.</p>
+  <div class="meta"><span>Monographie</span></div>
+</div></header>
+<div class="wrap">
+<nav class="toc" id="toc"><a href="#batchnorm">BatchNorm : normaliser sur la dimension du batch</a>
+<a href="#layernorm">LayerNorm : normaliser par exemple sur l'axe des features</a>
+<a href="#rmsnorm">RMSNorm : la simplification devenue standard des LLM</a>
+<a href="#proprietes-paysage-perte">Ce que la normalisation change : axes, invariances et paysage de perte</a>
+<a href="#placement-transformer">Pre-LN, Post-LN, Peri-LN : ou placer la normalisation</a>
+<a href="#variantes-perimetre">Etendre le perimetre : GroupNorm, AdaLN, Dynamic Tanh</a>
+<a href="#applications">Des CNN aux grands modeles de langage</a>
+<a href="#idees-recues">Idees recues et pieges en pratique</a>
+<a href="#ecosysteme">Ecosysteme &amp; pour aller plus loin</a></nav>
+<main>
+<div class="xwrap"><div class="xabstract"><div class="xk">Résumé</div><p class="xthese">La normalisation accélère et stabilise l'entraînement des réseaux profonds non pas en réduisant l'internal covariate shift comme on l'a longtemps cru, mais en lissant le paysage de perte ; le passage de BatchNorm (axe du batch) à LayerNorm puis RMSNorm (axe des features) répond aux contraintes des Transformers et des LLM, où l'axe de normalisation et son placement comptent davantage que la formule elle-même.</p><ul><li>BatchNorm normalise sur la dimension du batch (μ_B, σ²_B par feature, γ et β appris) et a transformé l'entraînement des CNN — 4,82 % d'erreur top-5 sur ImageNet, même précision atteinte en 14 fois moins d'étapes — mais dépend de la taille du batch et diffère entre entraînement et inférence.</li><li>LayerNorm normalise sur l'axe des features d'un seul exemple, indépendamment du batch et à l'identique en entraînement comme en inférence, ce qui la rend naturelle pour les Transformers et les RNN ; elle n'équivaut pas à BatchNorm à batch=1, qui opère sur un axe orthogonal.</li><li>RMSNorm supprime le re-centering et ne garde que le re-scaling (un seul gain g), pour un gain de vitesse de 7 % à 64 % à performance comparable ; elle est devenue le standard des LLM open-weight (LLaMA, Mistral, Gemma), Falcon faisant exception avec LayerNorm.</li><li>Le placement est décisif : Pre-LN conditionne mieux les gradients que Post-LN (warmup évitable), et la double normalisation Peri-LN (Gemma 2) stabilise les très grands modèles — perte de pré-entraînement 3,11 contre 3,20 (Pre-LN) et 4,43 (Post-LN) à 3,2 Mds de paramètres.</li><li>Le mécanisme réel n'est pas l'internal covariate shift : réinjecter du bruit distributionnel après BatchNorm ne dégrade pas l'entraînement (Santurkar et al., 2018) ; le bénéfice tient au lissage du paysage de perte (bornes de Lipschitz améliorées, prouvées couche par couche), conclusion appuyée empiriquement mais encore contestée (Awais et al., 2020).</li><li>Plusieurs « évidences » sont des idées reçues : LayerNorm n'égale pas BatchNorm à batch=1, RMSNorm ne « divise pas la mémoire par deux » (le facteur 2 ne porte que sur &lt; 0,01 % des paramètres — l'avantage réel est la vitesse), et Post-LN bien stabilisé n'est pas systématiquement « légèrement meilleur » que Pre-LN.</li><li>Hors du régime de grand batch, BatchNorm se dégrade (GroupNorm −10,6 points à batch=2 sur ResNet-50) et un désalignement de domaine entre les statistiques et le gradient est catastrophique (−37 AP sur RetinaNet).</li><li>La normalisation n'est pas indispensable : les NFNets atteignent 86,5 % sur ImageNet sans aucune couche de normalisation (Scaled Weight Standardization + Adaptive Gradient Clipping, avec SAM) et Dynamic Tanh (DyT) remplace LayerNorm dans les Transformers — mais ces substituts restent partiels et dépendants de l'architecture et du matériel.</li></ul></div></div>
+<section id="batchnorm">
+<h3>BatchNorm : normaliser sur la dimension du batch</h3>
+<p>Batch normalization (normalisation par lots) est introduit par Sergey Ioffe et Christian Szegedy dans un article soumis sur arXiv le 11 février 2015 et publié à ICML 2015 (PMLR vol. 37, pp. 448–456). Le problème central qu'il cible est l'<em>internal covariate shift</em> (dérive des distributions internes) : à chaque mise à jour des paramètres, la distribution des entrées reçues par chaque couche évolue, parce que les couches précédentes ont elles-mêmes changé. Ce phénomène force les couches profondes à constamment réadapter leurs poids, ce qui contraint à de faibles learning rates et à une initialisation très soignée.</p>
+
+<p>La réponse proposée consiste à normaliser les activations au sein de chaque mini-batch. Pour un mini-batch B = {x<sub>1</sub>, …, x<sub>m</sub>}, on calcule la moyenne μ<sub>B</sub> = (1/m)Σx<sub>i</sub> et la variance σ²<sub>B</sub> = (1/m)Σ(x<sub>i</sub> − μ<sub>B</sub>)², puis on normalise : x̂<sub>i</sub> = (x<sub>i</sub> − μ<sub>B</sub>) / √(σ²<sub>B</sub> + ε), où ε est une petite constante de stabilisation numérique. Cette normalisation s'opère sur la <em>dimension du batch</em>, indépendamment pour chaque feature. Pour préserver la capacité expressive du réseau, la sortie finale est y<sub>i</sub> = γ · x̂<sub>i</sub> + β, où γ (scale) et β (shift) sont des paramètres appris — une paire par feature — qui permettent au réseau de défaire la normalisation si cela s'avère optimal.</p>
+
+<p>Les résultats empiriques sur ImageNet sont frappants. Un réseau entraîné avec batch normalization atteint la même précision qu'un réseau de référence en 14 fois moins d'étapes d'entraînement. Un ensemble de réseaux ainsi équipés atteint 4,82 % d'erreur top-5 en test, surpassant les annotateurs humains. Au-delà de la vitesse brute, batch normalization autorise des learning rates bien plus élevés et réduit la sensibilité à l'initialisation.</p>
+
+<p>Ioffe et Szegedy soulignent également un effet régularisant : le bruit introduit par le calcul de statistiques sur un mini-batch perturbe les activations de façon stochastique à l'entraînement, ce qui peut dans certains cas remplacer le Dropout. Deux limites structurelles modèrent cependant cet enthousiasme. Premièrement, plus le batch est petit, moins les statistiques μ<sub>B</sub> et σ²<sub>B</sub> sont fiables — la normalisation devient bruyante et instable, rendant batch normalization peu adapté aux configurations à mémoire contrainte ou aux très petits batchs par dispositif en apprentissage distribué. Deuxièmement, les réseaux récurrents (RNNs) posent un problème structural : les statistiques varient naturellement d'un pas de temps à l'autre et les séquences ont des longueurs variables, rendant délicate l'application directe de batch normalization à l'axe temporel. Ces deux limitations ont directement motivé le développement de layer normalization en 2016.</p>
+</section>
+<section id="layernorm">
+<h3>LayerNorm : normaliser par exemple sur l'axe des features</h3>
+<p>Layer normalization (normalisation de couche) est proposée par Jimmy Lei Ba, Jamie Ryan Kiros et Geoffrey E. Hinton dans un preprint déposé sur arXiv le 21 juillet 2016 (<a href="https://arxiv.org/abs/1607.06450">arXiv:1607.06450</a>), resté non publié en conférence. Son point de départ est une limitation précise de batch normalization : ses statistiques dépendent de la taille du mini-batch et de l'ensemble des exemples qui le composent — une dépendance particulièrement gênante pour les recurrent neural networks (RNNs, réseaux récurrents), où chaque séquence peut avoir une longueur différente et où une normalisation partagée sur la dimension temporelle impliquerait soit des statistiques séparées par position, soit un comportement indéfini pour des séquences plus longues que celles rencontrées à l'entraînement.</p>
+
+<p>Le calcul de LayerNorm opère sur la dimension des features plutôt que sur celle du batch. Pour un seul exemple dont une couche comporte <em>H</em> unités avec des pré-activations a<sub>1</sub>,&nbsp;…,&nbsp;a<sub>H</sub>, on calcule la moyenne μ&nbsp;=&nbsp;(1/<em>H</em>)Σ<sub>i</sub>&nbsp;a<sub>i</sub> et la variance σ²&nbsp;=&nbsp;(1/<em>H</em>)Σ<sub>i</sub>&nbsp;(a<sub>i</sub>&nbsp;−&nbsp;μ)², strictement à partir de ces <em>H</em> valeurs. Chaque unité est alors normalisée : ā<sub>i</sub>&nbsp;=&nbsp;(a<sub>i</sub>&nbsp;−&nbsp;μ)/√(σ²&nbsp;+&nbsp;ε), puis rééchelonnée par des paramètres appris : h<sub>i</sub>&nbsp;=&nbsp;g<sub>i</sub>&nbsp;·&nbsp;ā<sub>i</sub>&nbsp;+&nbsp;b<sub>i</sub>. Les vecteurs <em>g</em> (gain) et <em>b</em> (biais), de même dimension que la couche, jouent le même rôle que γ et β dans batch normalization : ils permettent au réseau de restaurer n'importe quelle représentation, y compris une activation non normalisée si la tâche le requiert.</p>
+
+<p>La différence d'axe avec batch normalization est fondamentale. Batch normalization partage μ et σ² sur la dimension du batch : une même feature est normalisée relativement à ses valeurs dans l'ensemble des exemples du mini-batch, rendant chaque normalisation dépendante des autres exemples présents. LayerNorm inverse cet axe : μ et σ² sont calculés sur toutes les features d'un seul exemple, sans aucune référence aux autres. Chaque exemple est ainsi traité de façon entièrement autonome, ce qui rend LayerNorm insensible à la taille du batch — y compris pour un batch d'un seul exemple, situation où batch normalization devient instable.</p>
+
+<p>C'est de cette autonomie que découle la propriété la plus utile opérationnellement : le calcul de LayerNorm est rigoureusement identique à l'entraînement et à l'inférence. Batch normalization, en inférence, substitue aux statistiques du mini-batch des estimations globales de la population — accumulées sous forme de moyennes mobiles exponentielles pendant l'entraînement — une substitution qui peut introduire une divergence si la distribution des données d'inférence diffère de celle de l'entraînement. LayerNorm n'a besoin d'aucune statistique accumulée : μ et σ² sont recalculés à chaque passe, pour chaque exemple seul, ce qui simplifie le déploiement et garantit un comportement cohérent entre entraînement et production.</p>
+</section>
+<section id="rmsnorm">
+<h3>RMSNorm : la simplification devenue standard des LLM</h3>
+<p>En 2019, Biao Zhang et Rico Sennrich s'attaquent à une question précise : parmi les deux opérations constitutives de LayerNorm — le re-centering (re-centrage, soustraction de la moyenne) et le re-scaling (remise à l'échelle par l'écart-type) — laquelle est réellement indispensable ? Leur papier, accepté à NeurIPS 2019 (arXiv:1910.07467), argumente que le re-centering est « dispensable » : c'est la seule opération de re-scaling qui garantit la re-scaling invariance et assure l'adaptation implicite du learning rate. RMSNorm naît directement de cette hypothèse — supprimer la soustraction de la moyenne, conserver uniquement la division par la root mean square (racine de la moyenne quadratique) de l'entrée, puis appliquer un vecteur de gain appris.</p>
+
+<p>La formule se réduit à RMSNorm(<i>x</i>) = (<i>x</i> / RMS(<i>x</i>)) ⊙ <i>g</i>, avec RMS(<i>x</i>) = √(1/<i>d</i> · Σ<sub>i</sub> <i>x</i><sub>i</sub><sup>2</sup>). L'unique paramètre appris est le vecteur de gain <i>g</i> ∈ ℝ<sup><i>d</i></sup> ; le terme de biais β de LayerNorm est supprimé, tout comme le calcul de la moyenne μ. Cette sobriété réduit à la fois le coût arithmétique et le nombre de paramètres de la couche de normalisation. Le papier introduit également pRMSNorm (<i>partial</i> RMSNorm), une variante où le RMS est estimé sur un sous-ensemble de p % des entrées plutôt que sur leur totalité, sans rompre les garanties théoriques de re-scaling invariance ni l'adaptation implicite du learning rate.</p>
+
+<p>Sur une gamme de modèles et de matériels, Zhang et Sennrich mesurent un gain de vitesse de 7 % à 64 % par rapport à LayerNorm pour des performances comparables sur leurs benchmarks de traduction neuronale. L'avantage est particulièrement prononcé dans les architectures à très grand nombre de couches, où le coût de la normalisation — une seule statistique scalaire (la racine carrée de la variance non centrée) au lieu de deux (μ et σ²) — s'accumule de façon significative sur l'ensemble du forward pass et du backward pass.</p>
+
+<p>L'adoption de RMSNorm dans les grands modèles de langage est rapide et décisive. Gopher (DeepMind, décembre 2021), modèle à 280 milliards de paramètres décrit dans le rapport technique <i>Scaling Language Models</i> (Rae et al., arXiv:2112.11446), le retient pour sa stabilité d'entraînement dans les architectures profondes. LLaMA (Meta, 2023) franchit le pas en citant explicitement Zhang et Sennrich (2019) — « We use the RMSNorm normalizing function, introduced by Zhang and Sennrich (2019) » — et l'applique en pre-norm : la normalisation porte sur l'<em>entrée</em> de chaque sous-couche du transformer plutôt que sur sa sortie, position jugée plus stable à l'entraînement. LLaMA 2 et LLaMA 3 conservent ce choix sans modification, entraînant une diffusion en cascade dans l'écosystème open-weight — Mistral et la majorité des modèles dérivés de l'architecture LLaMA font désormais de RMSNorm leur couche de normalisation standard ; Falcon fait exception en conservant une LayerNorm standard.</p>
+</section>
+<section id="proprietes-paysage-perte">
+<h3>Ce que la normalisation change : axes, invariances et paysage de perte</h3>
+<p>La diversité des méthodes de normalisation se lit d'abord dans le choix des <em>axes</em> sur lesquels les statistiques sont estimées. Pour un tenseur d'entrée de forme (N, C, H, W) — respectivement taille du batch (lot d'exemples), nombre de canaux, hauteur et largeur — batch normalization calcule la moyenne et la variance sur l'axe N et les dimensions spatiales H, W séparément pour chaque canal C : les paramètres de normalisation sont partagés entre tous les exemples du batch, mais propres à chaque feature map. Layer normalization (normalisation de couche) agrège à l'intérieur d'un seul exemple sur la totalité des dimensions C, H, W ; elle est entièrement indépendante de la taille du batch et n'exige aucune statistique mémorisée à l'inférence. Instance normalization (normalisation d'instance) pousse l'isolation par exemple encore plus loin : elle normalise chaque canal de chaque exemple sur H et W uniquement, rendant la représentation insensible au contenu global du canal. Group normalization (normalisation par groupes), introduite par Wu et He (ECCV 2018), unifie ces cas dans un continuum paramétré par le nombre de groupes G : lorsque G = 1, les C canaux constituent un seul groupe et l'on retrouve layer normalization ; lorsque G = C, chaque canal forme son propre groupe et l'on retrouve instance normalization. La valeur pratique de ce continuum est illustrée par les expériences originales de Wu et He : group normalization réduit de 10,6 points l'erreur par rapport à batch normalization pour une taille de batch de 2 sur ResNet-50 (ImageNet), tout en atteignant des performances comparables pour les grandes tailles de batch — là où batch normalization se dégrade structurellement.</p>
+
+<p>Layer normalization présente plusieurs invariances formelles qui découlent directement de sa définition LN(x) = γ ⊙ (x − μ) / √(σ² + ε) + β. Zhang & Sennrich (2019) les synthétisent en deux familles — une invariance de re-scaling et une invariance de re-centering — tandis que Ba et al. (2016) en donnent une variante en trois catégories appariées. Concrètement : (i) weight matrix rescaling invariance (redimensionnement de la matrice de poids) : si la matrice de poids en amont d'une couche est multipliée par un scalaire c, la sortie normalisée est inchangée, car c apparaît à la fois au numérateur et au dénominateur ; (ii) data rescaling invariance : multiplier x par un scalaire α laisse LN(x) invariant, α s'annulant dans le rapport (x − μ) / σ ; (iii) re-centering (shift) invariance : ajouter une constante b à chaque composante de x ne modifie pas LN(x), car la nouvelle moyenne μ(x + b) = μ(x) + b annule exactement l'offset. C'est cette dernière, le re-centering, que RMSNorm abandonne. Ces propriétés renforcent la robustesse de layer normalization face à une large classe de perturbations des poids et des données, sans requérir la moindre information de batch.</p>
+
+<p>RMSNorm (Root Mean Square Normalization), proposé par Zhang et Sennrich (NeurIPS 2019), supprime l'étape de recentrage et retient uniquement re-scaling invariance : RMSNorm(δa) = RMSNorm(a) pour tout scalaire δ ≠ 0, car δ apparaît à la fois au numérateur a et dans RMS(δa) = |δ| · RMS(a). En revanche, RMSNorm n'est pas invariant aux décalages additifs : RMSNorm(a + b·<strong>1</strong>) ≠ RMSNorm(a) en général, l'absence de soustraction de μ laissant les offsets constants agir sur la norme quadratique. L'hypothèse de Zhang et Sennrich est que re-scaling invariance est la propriété nécessaire et suffisante ; le recentrage serait computationnellement redondant. La validation empirique est convaincante : RMSNorm atteint des performances comparables à layer normalization sur les benchmarks de traduction et de modélisation du langage, avec un gain de vitesse mesuré entre 7 % et 64 % selon les architectures testées. La variante pRMSNorm va plus loin en estimant le RMS sur seulement p % des entrées, en préservant re-scaling invariance.</p>
+
+<p>L'étape de recentrage de layer normalization admet une lecture géométrique précise. Étant donné un vecteur d'activation x ∈ ℝ<sup>H</sup>, soustraire la moyenne μ = (1/H) Σ x<sub>i</sub> revient à calculer x̂ = x − μ · <strong>1</strong>, où <strong>1</strong> = (1, 1, …, 1)<sup>⊤</sup> est le vecteur uniforme. On vérifie que ⟨x̂, <strong>1</strong>⟩ = Σ(x<sub>i</sub> − μ) = 0 : le vecteur centré est orthogonal à <strong>1</strong>, et donc contenu dans l'hyperplan {v ∈ ℝ<sup>H</sup> : ⟨v, <strong>1</strong>⟩ = 0} — le sous-espace de codimension 1 perpendiculaire à la direction uniforme. La division par σ = ‖x̂‖ / √H restreint ensuite le résultat à une hypersphère dans ce sous-espace. Layer normalization projette ainsi x sur l'hyperplan orthogonal au vecteur uniforme, éliminant la composante continue (DC component) de l'activation — la partie constante commune à toutes les coordonnées — avant de normaliser la forme résiduelle à norme fixée. Cette interprétation rend l'invariance de re-centering évidente par construction : tout signal de la forme x + b · <strong>1</strong> a sa composante b · <strong>1</strong> intégralement supprimée par la projection sur cet hyperplan, quelle que soit la valeur de b.</p>
+
+<p>La justification originale de batch normalization invoquait la réduction de l'internal covariate shift — défini comme le changement de distribution des entrées de chaque couche au fil de l'entraînement — comme mécanisme explicatif principal de ses bénéfices. Santurkar, Tsipras, Ilyas et Madry (NeurIPS 2018) invalident ce récit expérimentalement : un réseau avec batch normalization suivi d'une injection délibérée de bruit — aggravant artificiellement l'internal covariate shift — s'entraîne aussi vite et aussi stablement qu'un réseau batch normalization standard, démontrant que la réduction de l'internal covariate shift n'est pas le mécanisme opératif. L'analyse de Santurkar et al. localise le bénéfice véritable dans la géométrie du paysage de la perte. Le Théorème 1 établit une borne supérieure sur la norme au carré du gradient après une couche batch normalization — en notant g = ∇<sub>y</sub>ℒ le gradient de la perte sans batch normalization et ĝ = ∇<sub>y</sub>ℒ̂ avec batch normalization : ‖ĝ‖² ≤ (γ² / σ<sub>j</sub>²)(‖g‖² − μ(g)² − (1/√m) ⟨g, ŷ⟩²). Le membre de droite est strictement inférieur à (γ² / σ<sub>j</sub>²) ‖g‖² car les termes soustraits sont positifs ou nuls. Batch normalization réduit donc la Lipschitz constant (constante de Lipschitz) de la perte par rapport aux activations : le paysage de la perte varie moins vite lorsqu'on se déplace dans l'espace des activations.</p>
+
+<p>Le Théorème 2 de Santurkar et al. étend cette analyse à la courbure. En comparant le Hessian (hessien) effectif Ĥ avec batch normalization au Hessian H sans, le long de la direction du gradient : ĝ<sup>⊤</sup> Ĥ ĝ ≤ (γ² / σ²)(g<sup>⊤</sup> H g − (1/mγ) ⟨g, ŷ⟩ ‖ĝ‖²). Cette borne dit que batch normalization réduit la courbure effective de la perte dans la direction du gradient, améliorant la beta-smoothness (régularité beta) — la propriété que le gradient ne change pas trop rapidement dans une boule de rayon donné. Un paysage plus lisse signifie que les pas de gradient sont plus prédictifs : l'information du premier ordre reste valide sur une région plus large, permettant des learning rates (taux d'apprentissage) plus élevés et une convergence plus stable sans corrections du second ordre. C'est cette beta-smoothness améliorée, et non la réduction de l'internal covariate shift, que les théorèmes de Santurkar et al. certifient formellement.</p>
+
+<p>Lubana, Dick et Tanaka (NeurIPS 2021) ancrent théoriquement les écarts empiriques de convergence entre méthodes de normalisation en identifiant trois propriétés à travers lesquelles elles interagissent avec l'entraînement profond : le contrôle de la croissance des activations (activation growth control), prévenant la croissance exponentielle dans les réseaux résiduels ; la distinguishability (distinguabilité) des exemples, garantissant que deux entrées distinctes produisent des activations suffisamment dissemblables pour que le signal de gradient soit informatif ; et la stabilité des gradients, assurant que les normes de gradients ne croissent pas de manière excessive dans les premières couches. L'analyse du spectre de group normalization révèle un compromis structurel entre les deux dernières propriétés. Dans la limite layernorm (un groupe couvrant tous les canaux), Lubana et al. établissent un effondrement du rang (rank collapse) des activations — borné par Ω(√(largeur/taille de groupe)) — rendant les représentations de différents exemples de plus en plus similaires à l'initialisation. Le papier le présente comme une explication, valable à l'initialisation, de la convergence plus lente de layer normalization relativement aux variantes de group normalization à plus petits groupes ; il ne le démontre pas comme un mécanisme causal sur toute la durée de l'entraînement. Dans la limite instance normalization (un canal par groupe), les statistiques deviennent très locales, générant de grandes normes de gradient dans les premières couches et causant une instabilité à l'entraînement. Les valeurs intermédiaires de G équilibrent empiriquement ces deux pressions concurrentes, bien que la valeur optimale reste dépendante de la tâche et de l'architecture.</p>
+</section>
+<div class="widget nax-root" id="nax-root">
+  <style>
+    .nax-root{--nax-ink:var(--ink,#15202E);--nax-soft:var(--ink-soft,#43536A);
+      --nax-faint:var(--ink-faint,#7A889B);--nax-card:var(--card,#fff);
+      --nax-line:var(--line,#D7DFE9);--nax-blue:var(--blue,#23537F);
+      --nax-bright:var(--blue-bright,#2C77B6);--nax-hot:var(--bordeaux-bright,#9B3443);
+      --nax-warm:#E0A33A;
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--nax-ink);
+      border:1px solid var(--nax-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--nax-card);max-width:760px}
+    .nax-root *{box-sizing:border-box}
+    .nax-k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;
+      color:var(--nax-faint);font-weight:600;margin:0 0 2px}
+    .nax-title{font-weight:700;font-size:1.05rem;margin:0 0 4px}
+    .nax-sub{font-size:.86rem;color:var(--nax-soft);margin:0 0 12px}
+    .nax-sub code{background:var(--nax-line);padding:1px 5px;border-radius:4px;font-size:.85em}
+    .nax-formula{padding:8px 12px;border:1px solid var(--nax-line);border-radius:8px;
+      background:var(--nax-card);font:600 13px/1.6 ui-monospace,monospace;color:var(--nax-soft);
+      margin:0 0 12px;overflow-x:auto;white-space:nowrap}
+    .nax-formula b{color:var(--nax-ink)}
+    .nax-formula .nax-hl{color:var(--nax-bright);font-weight:700}
+    .nax-ctl{display:flex;flex-wrap:wrap;gap:14px 18px;align-items:flex-end;
+      padding:10px 12px;border:1px solid var(--nax-line);border-radius:8px;margin:0 0 12px}
+    .nax-modes{display:flex;gap:0;border:1px solid var(--nax-blue);border-radius:8px;overflow:hidden}
+    .nax-mode{padding:8px 13px;border:none;background:transparent;color:var(--nax-blue);
+      font:600 13px/1 inherit;cursor:pointer}
+    .nax-mode.nax-on{background:var(--nax-blue);color:#fff}
+    .nax-mode+.nax-mode{border-left:1px solid var(--nax-blue)}
+    .nax-field{display:flex;flex-direction:column;gap:4px;flex:0 1 200px;min-width:170px}
+    .nax-field label{font-size:.74rem;color:var(--nax-faint);font-weight:600;letter-spacing:.03em;
+      display:flex;justify-content:space-between;gap:8px}
+    .nax-field label b{color:var(--nax-ink);font-variant-numeric:tabular-nums}
+    .nax-field input[type=range]{width:100%;accent-color:var(--nax-bright);cursor:pointer}
+    .nax-hwtog{display:inline-flex;align-items:center;gap:7px;font-size:.78rem;
+      color:var(--nax-soft);cursor:pointer;user-select:none;align-self:flex-end;padding-bottom:2px}
+    .nax-hwtog input{accent-color:var(--nax-bright);cursor:pointer}
+    .nax-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.78rem;color:var(--nax-soft);
+      margin:0 0 10px;align-items:center}
+    .nax-legrow{display:flex;align-items:center;gap:6px}
+    .nax-legrow code{background:var(--nax-line);padding:1px 4px;border-radius:4px;font-size:.85em}
+    .nax-swatch{display:inline-flex;gap:2px}
+    .nax-swatch i{width:11px;height:13px;border-radius:2px;display:block;border:1px solid rgba(0,0,0,.1)}
+    .nax-tensor{display:flex;flex-wrap:wrap;gap:14px;margin:0 0 12px;align-items:flex-start}
+    .nax-card{display:flex;flex-direction:column;gap:5px}
+    .nax-cardhd{font:600 11px/1 ui-monospace,monospace;color:var(--nax-soft);text-align:center}
+    .nax-grid{display:grid;gap:3px}
+    .nax-lbl{font:600 9px/1 ui-monospace,monospace;color:var(--nax-faint);
+      display:flex;align-items:center;justify-content:flex-end;padding-right:3px}
+    .nax-cell{width:30px;height:30px;border-radius:4px;border:1px solid var(--nax-line);
+      display:flex;align-items:center;justify-content:center;
+      font:600 9.5px/1 ui-monospace,monospace;color:var(--nax-ink);cursor:default;
+      transition:opacity .12s,box-shadow .12s,transform .12s}
+    .nax-cell.nax-dim{opacity:.28}
+    .nax-cell.nax-spot{box-shadow:0 0 0 2px var(--nax-ink);transform:translateY(-1px);z-index:2;opacity:1}
+    .nax-axhint{font-size:.74rem;color:var(--nax-faint);margin:0 0 12px}
+    .nax-axhint b{color:var(--nax-soft)}
+    .nax-out{min-height:3.2em;padding:10px 12px;border-radius:8px;border:1px solid var(--nax-line);
+      background:var(--nax-card);font-size:.88rem;line-height:1.5;margin:0 0 10px}
+    .nax-out b{font-weight:700;color:var(--nax-ink)}
+    .nax-out code{background:var(--nax-line);padding:1px 5px;border-radius:4px;font-size:.85em}
+    .nax-out.nax-warn{border-color:var(--nax-warm);background:rgba(224,163,58,.06)}
+    .nax-stat{font:600 12.5px/1.4 ui-monospace,monospace;color:var(--nax-soft);
+      padding:8px 12px;border:1px dashed var(--nax-line);border-radius:8px;margin:0 0 12px;
+      display:flex;flex-wrap:wrap;gap:6px 18px}
+    .nax-stat b{color:var(--nax-ink)}
+    .nax-stat .nax-bad{color:var(--nax-hot)}
+    details.nax-note{margin:0;font-size:.85rem;color:var(--nax-soft)}
+    details.nax-note summary{cursor:pointer;font-weight:600;color:var(--nax-blue)}
+    details.nax-note p{margin:8px 0 0}
+    details.nax-note code{background:var(--nax-line);padding:1px 5px;border-radius:4px;font-size:.85em}
+  </style>
+
+  <p class="nax-k">Probe — mécanisme isolé</p>
+  <p class="nax-title">Axe de normalisation : BN / LN / IN / GN</p>
+  <p class="nax-sub">Un même tenseur <code>(N, C, H·W)</code> : <b>N</b> exemples (cartes),
+    <b>C</b> canaux (lignes), <b>H·W</b> positions spatiales (colonnes). Toutes les méthodes
+    appliquent la même formule — elles ne diffèrent que par le <b>jeu de cellules</b> sur lequel
+    la paire <code>(μ, σ²)</code> est estimée. <b>Survolez une cellule</b> : son groupe de
+    normalisation s'isole, le reste s'estompe.</p>
+
+  <div class="nax-formula">
+    x̂ = γ·(x − <b>μ</b><span class="nax-hl">g</span>) / √(<b>σ²</b><span class="nax-hl">g</span> + ε) + β
+    &nbsp;&nbsp;— seul le groupe <span class="nax-hl">g</span> change d'une méthode à l'autre
+  </div>
+
+  <div class="nax-ctl">
+    <div class="nax-modes" role="group" aria-label="Méthode de normalisation">
+      <button class="nax-mode nax-on" id="nax-bn" type="button">BatchNorm</button>
+      <button class="nax-mode" id="nax-ln" type="button">LayerNorm</button>
+      <button class="nax-mode" id="nax-in" type="button">InstanceNorm</button>
+      <button class="nax-mode" id="nax-gn" type="button">GroupNorm</button>
+    </div>
+    <div class="nax-field">
+      <label>Taille du batch N <b><span id="nax-nval">4</span></b></label>
+      <input type="range" id="nax-n" min="1" max="4" step="1" value="4">
+    </div>
+    <div class="nax-field">
+      <label>Groupes G (GroupNorm) <b><span id="nax-gval">1 ≡ LayerNorm</span></b></label>
+      <input type="range" id="nax-g" min="0" max="3" step="1" value="0">
+    </div>
+    <label class="nax-hwtog">
+      <input type="checkbox" id="nax-hw1"> H·W = 1 (couche linéaire)
+    </label>
+  </div>
+
+  <div class="nax-legend">
+    <div class="nax-legrow">
+      <span class="nax-swatch"><i style="background:hsl(8,60%,84%)"></i><i style="background:hsl(150,60%,84%)"></i><i style="background:hsl(260,60%,84%)"></i></span>
+      même couleur = même <code>(μ, σ²)</code>
+    </div>
+    <div class="nax-legrow"><span class="nax-swatch"><i style="box-shadow:0 0 0 2px var(--nax-ink);background:#fff"></i></span> groupe survolé</div>
+  </div>
+
+  <div class="nax-tensor" id="nax-tensor"></div>
+
+  <p class="nax-axhint" id="nax-axhint"></p>
+
+  <div class="nax-out" id="nax-out"></div>
+
+  <div class="nax-stat" id="nax-stat"></div>
+
+  <details class="nax-note">
+    <summary>Le renversement d'axe — et pourquoi BatchNorm s'effondre à N=1</summary>
+    <p><b>BatchNorm</b> est la seule méthode qui <b>traverse les exemples</b> : sa couleur, fixée
+      par le canal <code>c</code>, est <i>partagée par toutes les cartes</i> (la statistique
+      moyenne sur l'axe batch N). <b>LayerNorm / InstanceNorm / GroupNorm</b> au contraire ne
+      sortent <i>jamais</i> d'un exemple : chaque carte est coloriée indépendamment, et l'on ne
+      fait que découper plus ou moins finement la dimension des features (C·H·W entière → bandes
+      de canaux → un canal). C'est ce renversement d'axe — moyenner <i>à travers le batch</i>
+      versus <i>à l'intérieur d'un exemple</i> — qui structure tout le sujet.</p>
+    <p><b>GroupNorm est le continuum.</b> Avec <code>g = ⌊c·G/C⌋</code> : <code>G = 1</code> place
+      tous les canaux dans un seul groupe → carte entière → <b>LayerNorm</b> ;
+      <code>G = C</code> donne un canal par groupe → <b>InstanceNorm</b>. Glissez G pour voir les
+      bandes se subdiviser.</p>
+    <p><b>Le cas N = 1.</b> Avec un seul exemple, la moyenne « sur l'axe N » n'a aucun autre
+      exemple à moyenner : le groupe BatchNorm d'un canal se réduit aux mêmes cellules que
+      InstanceNorm → <b>BN ≡ IN</b>, les deux coloriages coïncident. Si en plus <code>H·W = 1</code>
+      (un MLP, pas de spatial), le groupe se réduit à <i>une seule cellule</i> : <code>σ² = 0</code>
+      exactement, et <code>x̂ = (x−x)/√ε ≈ 0</code> écrase le signal. C'est l'échec structurel de
+      BatchNorm à petit batch ; LayerNorm/RMSNorm l'évitent par construction (indépendants de N).</p>
+  </details>
+
+  <script>
+  (function(){
+    var root=document.getElementById("nax-root");
+    if(!root||root.dataset.naxInit)return; root.dataset.naxInit="1";
+
+    var C=6, HW_MAX=4, N_MAX=4;
+    var DIVS=[1,2,3,6];            // diviseurs de C => valeurs de G pour GroupNorm
+    var st={method:"BN", N:4, gIdx:0, hw:4, spot:null};
+
+    // ---- valeurs déterministes v[n][c][hw] : moyennes par canal distinctes,
+    //      léger décalage par exemple, bruit spatial (1 décimale). ----
+    function rng(s){var x=Math.sin(s*12.9898)*43758.5453;return x-Math.floor(x);}
+    var V=[];
+    for(var n=0;n<N_MAX;n++){V[n]=[];for(var c=0;c<C;c++){V[n][c]=[];
+      for(var h=0;h<HW_MAX;h++){
+        var mu_c=(c-(C-1)/2)*0.9;          // étale les canaux
+        var sh_n=(n-(N_MAX-1)/2)*0.4;      // décale chaque exemple
+        var noise=(rng(n*131+c*17+h*7+3)-0.5)*1.6;
+        V[n][c][h]=Math.round((mu_c+sh_n+noise)*10)/10;
+      }}}
+
+    var tensor=document.getElementById("nax-tensor");
+    var out=document.getElementById("nax-out");
+    var statEl=document.getElementById("nax-stat");
+    var axhint=document.getElementById("nax-axhint");
+    var nVal=document.getElementById("nax-nval");
+    var gVal=document.getElementById("nax-gval");
+    var nS=document.getElementById("nax-n");
+    var gS=document.getElementById("nax-g");
+    var hw1=document.getElementById("nax-hw1");
+    var btn={BN:document.getElementById("nax-bn"),LN:document.getElementById("nax-ln"),
+      IN:document.getElementById("nax-in"),GN:document.getElementById("nax-gn")};
+
+    function fmt(x,d){d=(d===undefined)?2:d;return x.toFixed(d).replace(".",",");}
+    function Gval(){return DIVS[st.gIdx];}
+
+    // ---- construction DOM sûre (pas d'innerHTML) ----
+    function node(spec){
+      if(typeof spec==="string")return document.createTextNode(spec);
+      var e=document.createElement(spec.t||"span");
+      if(spec.c)e.className=spec.c;
+      if(spec.x!=null)e.textContent=spec.x;
+      if(spec.kids)spec.kids.forEach(function(k){e.appendChild(node(k));});
+      return e;
+    }
+    function setKids(el,parts){
+      while(el.firstChild)el.removeChild(el.firstChild);
+      parts.forEach(function(p){el.appendChild(node(p));});
+    }
+
+    // clé de groupe : quelles paires (n,c) partagent une même paire (μ,σ²) ?
+    function key(n,c){
+      switch(st.method){
+        case "BN": return "c"+c;                                  // par canal, TOUTES les cartes
+        case "LN": return "n"+n;                                  // par exemple
+        case "IN": return "n"+n+"_c"+c;                           // par (exemple, canal)
+        case "GN": return "n"+n+"_g"+Math.floor(c/(C/Gval()));    // par (exemple, groupe)
+      }
+    }
+
+    // énumère les groupes présents (ordre de 1re apparition) + calcule μ, σ², taille
+    function groups(){
+      var idx={}, vals={}, order=0;
+      for(var n=0;n<st.N;n++)for(var c=0;c<C;c++){
+        var k=key(n,c);
+        if(!(k in idx)){idx[k]=order++;vals[k]=[];}
+        for(var h=0;h<st.hw;h++)vals[k].push(V[n][c][h]);
+      }
+      var G={};
+      for(var kk in vals){
+        var a=vals[kk], m=0, i;
+        for(i=0;i<a.length;i++)m+=a[i]; m/=a.length;
+        var v=0; for(i=0;i<a.length;i++){var d=a[i]-m; v+=d*d;} v/=a.length;
+        G[kk]={idx:idx[kk],mu:m,va:v,size:a.length};
+      }
+      G.__count=order;
+      return G;
+    }
+    function firstKey(G){
+      var ks=Object.keys(G); for(var i=0;i<ks.length;i++)if(ks[i]!=="__count")return ks[i];
+    }
+
+    // ---- (re)construit la grille DOM pour N et H·W courants ----
+    function build(){
+      while(tensor.firstChild)tensor.removeChild(tensor.firstChild);
+      for(var n=0;n<st.N;n++){
+        var card=document.createElement("div"); card.className="nax-card";
+        card.appendChild(node({t:"div",c:"nax-cardhd",x:"n="+n}));
+        var grid=document.createElement("div"); grid.className="nax-grid";
+        grid.style.gridTemplateColumns="18px repeat("+st.hw+",30px)";
+        for(var c=0;c<C;c++){
+          grid.appendChild(node({t:"div",c:"nax-lbl",x:"c"+c}));
+          for(var h=0;h<st.hw;h++){
+            var cell=document.createElement("div"); cell.className="nax-cell";
+            cell.dataset.n=n; cell.dataset.c=c;
+            cell.textContent=fmt(V[n][c][h],1);
+            grid.appendChild(cell);
+          }
+        }
+        card.appendChild(grid); tensor.appendChild(card);
+      }
+      render();
+    }
+
+    function render(){
+      var m;
+      for(m in btn)btn[m].classList.toggle("nax-on",st.method===m);
+      nVal.textContent=st.N;
+      var Gv=Gval();
+      gVal.textContent=Gv+(Gv===1?" ≡ LayerNorm":(Gv===C?" ≡ InstanceNorm":""));
+
+      var G=groups(), total=G.__count;
+      // colorier + spotlight
+      var cells=tensor.querySelectorAll(".nax-cell");
+      for(var i=0;i<cells.length;i++){
+        var cell=cells[i];
+        var k=key(+cell.dataset.n,+cell.dataset.c);
+        var hue=Math.round(G[k].idx*360/Math.max(total,1));
+        cell.style.background="hsl("+hue+",60%,84%)";
+        cell.style.borderColor="hsl("+hue+",42%,62%)";
+        cell.classList.remove("nax-dim","nax-spot");
+        if(st.spot){ cell.classList.add(k===st.spot?"nax-spot":"nax-dim"); }
+      }
+
+      // axes réduits + comptes
+      var axisTxt={BN:"N (batch) + H·W — par canal C",
+        LN:"C + H·W — par exemple",
+        IN:"H·W — par (exemple, canal)",
+        GN:"C/G canaux + H·W — par (exemple, groupe)"}[st.method];
+      var gsize=G[firstKey(G)].size;
+      setKids(axhint,["Axes réduits : ",{t:"b",x:axisTxt},
+        "  ·  groupes distincts : ",{t:"b",x:String(total)},
+        "  ·  taille d'un groupe : ",{t:"b",x:String(gsize)},
+        " cellule"+(gsize>1?"s":"")]);
+
+      // message pédagogique
+      var degenBN=(st.method==="BN" && st.N===1);
+      var degenSize1=!!(st.spot && G[st.spot] && G[st.spot].size===1);
+      out.className="nax-out"+((degenBN||degenSize1)?" nax-warn":"");
+      var parts;
+      if(st.method==="BN"){
+        parts=[{t:"b",x:"BatchNorm."}," Statistiques sur l'axe ",{t:"b",x:"batch N"},
+          " + spatial H·W, séparément par canal. Une couleur = un canal, ",
+          {t:"b",x:"partagée par toutes les cartes"},
+          " : c'est la seule méthode qui communique entre exemples."];
+        if(degenBN){
+          parts.push(" ",{t:"b",x:"N=1 : dégénéré"},
+            " — la moyenne sur N n'a aucun autre exemple ; le coloriage coïncide avec InstanceNorm");
+          parts.push(st.hw===1
+            ? [", et avec H·W=1 chaque groupe n'a qu'une cellule → ",{t:"b",x:"σ²=0"},", le signal est écrasé."]
+            : " (cochez H·W=1 pour voir σ² tomber à 0).");
+        }
+      }else if(st.method==="LN"){
+        parts=[{t:"b",x:"LayerNorm."},
+          " Une couleur = un exemple entier (C·H·W). Aucune communication entre cartes → ",
+          {t:"b",x:"indépendant de la taille du batch"},
+          ", aucune statistique mémorisée à l'inférence."];
+      }else if(st.method==="IN"){
+        parts=[{t:"b",x:"InstanceNorm."},
+          " Une couleur par (exemple, canal), sur H·W seulement : isolation maximale par carte ET par ligne."];
+        if(st.hw===1)parts.push(" Avec H·W=1, chaque groupe = une cellule → ",{t:"b",x:"σ²=0"}," (dégénéré).");
+      }else{
+        parts=[{t:"b",x:"GroupNorm."}," Une couleur par (exemple, groupe de canaux). ",
+          {t:"code",x:"g=⌊c·G/C⌋"}," découpe les C lignes en bandes : "];
+        if(Gv===1)parts.push({t:"b",x:"G=1 ⇒ une seule bande = LayerNorm."});
+        else if(Gv===C)parts.push({t:"b",x:"G=C ⇒ une bande par canal = InstanceNorm."});
+        else parts.push("ici ",{t:"b",x:Gv+" bandes"}," de "+(C/Gv)+" canaux — entre LN et IN.");
+      }
+      // aplatir (certaines branches poussent des sous-tableaux)
+      var flat=[]; parts.forEach(function(p){
+        if(Array.isArray(p))p.forEach(function(q){flat.push(q);}); else flat.push(p);});
+      setKids(out,flat);
+
+      // ligne de stats : groupe survolé, sinon 1er groupe
+      var skey=(st.spot && G[st.spot]) ? st.spot : firstKey(G);
+      var grp=G[skey], bad=grp.size===1;
+      var sparts=[
+        {t:"span",kids:[(st.spot?"groupe survolé":"groupe (exemple)")+" : ",{t:"b",x:skey}]},
+        {t:"span",kids:["taille : ",{t:"b",x:String(grp.size)}]},
+        {t:"span",kids:["μ = ",{t:"b",x:fmt(grp.mu)}]},
+        {t:"span",kids:["σ² = ",{t:"b",c:(bad?"nax-bad":""),x:fmt(grp.va)}].concat(
+          bad?[" ",{t:"span",c:"nax-bad",x:"← un seul élément : dégénéré"}]:[])}
+      ];
+      setKids(statEl,sparts);
+    }
+
+    // ---- interactions ----
+    btn.BN.addEventListener("click",function(){st.method="BN";render();});
+    btn.LN.addEventListener("click",function(){st.method="LN";render();});
+    btn.IN.addEventListener("click",function(){st.method="IN";render();});
+    btn.GN.addEventListener("click",function(){st.method="GN";render();});
+
+    nS.addEventListener("input",function(){st.N=parseInt(nS.value,10);st.spot=null;build();});
+    gS.addEventListener("input",function(){st.gIdx=parseInt(gS.value,10);st.method="GN";render();});
+    hw1.addEventListener("change",function(){st.hw=hw1.checked?1:4;st.spot=null;build();});
+
+    // survol / clic (touch) : isoler le groupe de la cellule pointée
+    function pick(e){
+      var t=e.target;
+      if(t&&t.classList&&t.classList.contains("nax-cell")){
+        st.spot=key(+t.dataset.n,+t.dataset.c); render();
+      }
+    }
+    tensor.addEventListener("mouseover",pick);
+    tensor.addEventListener("click",pick);
+    tensor.addEventListener("mouseleave",function(){st.spot=null;render();});
+
+    build();
+  })();
+  </script>
+</div>
+
+<section id="placement-transformer">
+<h3>Pre-LN, Post-LN, Peri-LN : ou placer la normalisation</h3>
+<p>La disposition de la couche de normalisation dans un bloc Transformer découpe l'espace des architectures en deux familles canoniques. <strong>Post-LN</strong> — la disposition d'origine du Transformer de Vaswani et al. (2017) et de BERT — applique la normalisation <em>après</em> la connexion résiduelle : <code>y = Norm(x + Sublayer(x))</code>. <strong>Pre-LN</strong> — adopté par GPT-2 puis généralisé dans LLaMA, Mistral et la quasi-totalité des grands modèles récents — la place <em>à l'intérieur</em> de la branche résiduelle, avant la sous-couche : <code>y = x + Sublayer(Norm(x))</code>. Cette différence d'une ligne produit des dynamiques d'entraînement radicalement différentes.</p>
+
+<p>Xiong et al. fournissent la première explication formelle dans leur analyse par mean-field theory (théorie des champs moyens), présentée à l'ICML 2020 (<em>On Layer Normalization in the Transformer Architecture</em>, arXiv:2002.04745). Ils montrent qu'à l'initialisation, un réseau Post-LN présente une asymétrie de gradient caractéristique : les paramètres des couches proches de la sortie reçoivent de grands gradients, tandis que ceux des premières couches voient les leurs décroître exponentiellement avec la profondeur. Appliquer un learning rate standard à ce gradient déséquilibré déstabilise immédiatement l'entraînement ; le warmup progressif n'est donc pas un simple préalable empirique — il compense structurellement cette asymétrie initiale. En profondeur, le problème s'aggrave : la normalisation portée sur le chemin résiduel principal provoque un vanishing gradient (évanouissement du gradient) dans les couches basses, rendant l'entraînement de réseaux très profonds fragile sans ajustement minutieux du scheduler. Réciproquement, Xiong et al. établissent qu'en Pre-LN les gradients sont bien conditionnés à l'initialisation, ce qui rend le warmup facultatif : sur la traduction automatique, le masked language modeling et la génération autorégressive, les modèles Pre-LN sans warmup atteignent des performances comparables aux baselines Post-LN tout en convergeant plus vite.</p>
+
+<p>Cette stabilité a un coût en expressivité. En Pre-LN, le chemin résiduel principal n'est pas normalisé : la magnitude des hidden states croît exponentiellement avec la profondeur, le signal du « tronc » prenant une ampleur croissante tandis que la contribution de chaque sous-couche individuelle devient proportionnellement marginale. Kim et al. (2025) mesurent qu'à la fin de l'entraînement, Pre-LN produit des représentations « markedly more redundant » : les couches profondes peinent à raffiner l'information, plafonnant l'expressivité effective du modèle. Ce phénomène est souvent toléré en pratique parce que Pre-LN converge sans attention particulière au schedule — mais il laisse de la performance sur la table, en particulier à l'échelle.</p>
+
+<p>Peri-LN (Kim et al., <em>Peri-LN: Revisiting Normalization Layer in the Transformer Architecture</em>, ICML 2025, arXiv:2502.02732) propose une troisième stratégie : appliquer la normalisation <em>autour</em> de la sous-couche, c'est-à-dire avant <em>et</em> après le module à l'intérieur de la branche résiduelle, selon la formule <code>y<sub>l</sub>&nbsp;=&nbsp;x<sub>l</sub>&nbsp;+&nbsp;Norm(Module(Norm(x<sub>l</sub>)))</code>, en laissant le chemin résiduel principal libre. La double normalisation contrôle la variance en entrée et en sortie du module sans toucher au gradient flow sur le chemin principal, ce qui préserve la stabilité de Pre-LN tout en maîtrisant la croissance exponentielle des activations. L'analyse théorique des auteurs montre que Peri-LN produit une croissance de variance approximativement <em>linéaire</em> avec la profondeur — contre exponentielle pour Pre-LN et un effondrement exponentiel pour Post-LN. Sur des modèles de 400 M à 3,2 Mds de paramètres, Peri-LN obtient une perte de pre-training (pré-entraînement) de 3,11 contre 3,20 pour Pre-LN et 4,43 pour Post-LN, et réduit de plus de moitié l'écart-type de performance entre tirages aléatoires.</p>
+
+<figure class='fig'><svg viewBox='0 0 900 500' role='img' aria-label='Comparaison de trois blocs résiduels Transformer (Post-LN, Pre-LN, Peri-LN) montrant la position de la couche de normalisation et le comportement de la variance avec la profondeur' xmlns='http://www.w3.org/2000/svg' font-family='system-ui,-apple-system,sans-serif'><defs><marker id='plnf-ah' markerWidth='9' markerHeight='9' refX='6.5' refY='3' orient='auto'><path d='M0,0 L7,3 L0,6 Z' fill='var(--ink,#15202E)'/></marker></defs><line x1='300' y1='34' x2='300' y2='462' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-dasharray='3 4' opacity='0.5'/><line x1='600' y1='34' x2='600' y2='462' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-dasharray='3 4' opacity='0.5'/><line x1='18' y1='18' x2='44' y2='18' stroke='var(--bordeaux,#7C2A38)' stroke-width='5' stroke-linecap='round'/><text x='50' y='22' font-size='12' fill='var(--ink,#15202E)'>chemin résiduel (tronc)</text><text x='150' y='40' text-anchor='middle' font-size='16' font-weight='700' fill='var(--ink,#15202E)'>Post-LN</text><text x='150' y='60' text-anchor='middle' font-size='11' font-family='ui-monospace,monospace' fill='var(--ink-faint,#7A889B)'>y = Norm(x + Sublayer(x))</text><line x1='150' y1='96' x2='150' y2='338' stroke='var(--bordeaux,#7C2A38)' stroke-width='5' stroke-linecap='round'/><path d='M150,308 H208 V176 H162' fill='none' stroke='var(--ink,#15202E)' stroke-width='1.6' marker-end='url(#plnf-ah)'/><rect x='166' y='231' width='84' height='30' rx='4' fill='var(--paper,#FFFFFF)' stroke='var(--ink,#15202E)' stroke-width='1.4'/><text x='208' y='250' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)'>Sublayer</text><rect x='108' y='114' width='84' height='28' rx='4' fill='var(--paper,#FFFFFF)' stroke='var(--blue,#23537F)' stroke-width='1.6'/><text x='150' y='132' text-anchor='middle' font-size='13' fill='var(--blue,#23537F)'>Norm</text><circle cx='150' cy='308' r='3.5' fill='var(--bordeaux,#7C2A38)'/><circle cx='150' cy='176' r='11' fill='var(--paper,#FFFFFF)' stroke='var(--ink,#15202E)' stroke-width='1.5'/><line x1='150' y1='170' x2='150' y2='182' stroke='var(--ink,#15202E)' stroke-width='1.5'/><line x1='144' y1='176' x2='156' y2='176' stroke='var(--ink,#15202E)' stroke-width='1.5'/><text x='150' y='88' text-anchor='middle' font-size='13' font-style='italic' fill='var(--ink,#15202E)'>y</text><text x='150' y='356' text-anchor='middle' font-size='13' font-style='italic' fill='var(--ink,#15202E)'>x</text><text x='150' y='378' text-anchor='middle' font-size='12' font-weight='600' fill='var(--bordeaux,#7C2A38)'>effondrement exponentiel</text><line x1='72' y1='456' x2='228' y2='456' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><line x1='72' y1='456' x2='72' y2='394' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><path d='M72,400 C94,444 112,451 228,453' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='2'/><text x='66' y='400' text-anchor='end' font-size='10' fill='var(--ink-faint,#7A889B)'>σ²</text><text x='150' y='470' text-anchor='middle' font-size='10' fill='var(--ink-faint,#7A889B)'>profondeur</text><text x='450' y='40' text-anchor='middle' font-size='16' font-weight='700' fill='var(--ink,#15202E)'>Pre-LN</text><text x='450' y='60' text-anchor='middle' font-size='11' font-family='ui-monospace,monospace' fill='var(--ink-faint,#7A889B)'>y = x + Sublayer(Norm(x))</text><line x1='450' y1='96' x2='450' y2='338' stroke='var(--bordeaux,#7C2A38)' stroke-width='5' stroke-linecap='round'/><path d='M450,308 H508 V162 H461' fill='none' stroke='var(--ink,#15202E)' stroke-width='1.6' marker-end='url(#plnf-ah)'/><rect x='466' y='183' width='84' height='30' rx='4' fill='var(--paper,#FFFFFF)' stroke='var(--ink,#15202E)' stroke-width='1.4'/><text x='508' y='202' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)'>Sublayer</text><rect x='466' y='247' width='84' height='30' rx='4' fill='var(--paper,#FFFFFF)' stroke='var(--blue,#23537F)' stroke-width='1.6'/><text x='508' y='266' text-anchor='middle' font-size='13' fill='var(--blue,#23537F)'>Norm</text><circle cx='450' cy='308' r='3.5' fill='var(--bordeaux,#7C2A38)'/><circle cx='450' cy='162' r='11' fill='var(--paper,#FFFFFF)' stroke='var(--ink,#15202E)' stroke-width='1.5'/><line x1='450' y1='156' x2='450' y2='168' stroke='var(--ink,#15202E)' stroke-width='1.5'/><line x1='444' y1='162' x2='456' y2='162' stroke='var(--ink,#15202E)' stroke-width='1.5'/><text x='450' y='88' text-anchor='middle' font-size='13' font-style='italic' fill='var(--ink,#15202E)'>y</text><text x='450' y='356' text-anchor='middle' font-size='13' font-style='italic' fill='var(--ink,#15202E)'>x</text><text x='450' y='378' text-anchor='middle' font-size='12' font-weight='600' fill='var(--bordeaux,#7C2A38)'>croissance exponentielle</text><line x1='372' y1='456' x2='528' y2='456' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><line x1='372' y1='456' x2='372' y2='394' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><path d='M372,453 C488,452 510,432 528,398' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='2'/><text x='366' y='400' text-anchor='end' font-size='10' fill='var(--ink-faint,#7A889B)'>σ²</text><text x='450' y='470' text-anchor='middle' font-size='10' fill='var(--ink-faint,#7A889B)'>profondeur</text><text x='750' y='40' text-anchor='middle' font-size='16' font-weight='700' fill='var(--ink,#15202E)'>Peri-LN</text><text x='750' y='60' text-anchor='middle' font-size='11' font-family='ui-monospace,monospace' fill='var(--ink-faint,#7A889B)'>y = x + Norm(Module(Norm(x)))</text><line x1='750' y1='96' x2='750' y2='338' stroke='var(--bordeaux,#7C2A38)' stroke-width='5' stroke-linecap='round'/><path d='M750,316 H808 V150 H761' fill='none' stroke='var(--ink,#15202E)' stroke-width='1.6' marker-end='url(#plnf-ah)'/><rect x='766' y='163' width='84' height='26' rx='4' fill='var(--paper,#FFFFFF)' stroke='var(--blue,#23537F)' stroke-width='1.6'/><text x='808' y='180' text-anchor='middle' font-size='13' fill='var(--blue,#23537F)'>Norm</text><rect x='766' y='213' width='84' height='30' rx='4' fill='var(--paper,#FFFFFF)' stroke='var(--ink,#15202E)' stroke-width='1.4'/><text x='808' y='232' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)'>Module</text><rect x='766' y='275' width='84' height='26' rx='4' fill='var(--paper,#FFFFFF)' stroke='var(--blue,#23537F)' stroke-width='1.6'/><text x='808' y='292' text-anchor='middle' font-size='13' fill='var(--blue,#23537F)'>Norm</text><circle cx='750' cy='316' r='3.5' fill='var(--bordeaux,#7C2A38)'/><circle cx='750' cy='150' r='11' fill='var(--paper,#FFFFFF)' stroke='var(--ink,#15202E)' stroke-width='1.5'/><line x1='750' y1='144' x2='750' y2='156' stroke='var(--ink,#15202E)' stroke-width='1.5'/><line x1='744' y1='150' x2='756' y2='150' stroke='var(--ink,#15202E)' stroke-width='1.5'/><text x='750' y='88' text-anchor='middle' font-size='13' font-style='italic' fill='var(--ink,#15202E)'>y</text><text x='750' y='356' text-anchor='middle' font-size='13' font-style='italic' fill='var(--ink,#15202E)'>x</text><text x='750' y='378' text-anchor='middle' font-size='12' font-weight='600' fill='var(--bordeaux,#7C2A38)'>croissance ~ linéaire</text><line x1='672' y1='456' x2='828' y2='456' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><line x1='672' y1='456' x2='672' y2='394' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><path d='M672,450 L828,404' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='2'/><text x='666' y='400' text-anchor='end' font-size='10' fill='var(--ink-faint,#7A889B)'>σ²</text><text x='750' y='470' text-anchor='middle' font-size='10' fill='var(--ink-faint,#7A889B)'>profondeur</text></svg><figcaption><span class="fcap-k">Figure 1</span>Placement de la couche de normalisation dans le bloc résiduel : Post-LN (Norm sur le tronc, après l'addition) entraîne un effondrement exponentiel de la variance en profondeur, Pre-LN (Norm dans la branche, tronc libre) une croissance exponentielle, et Peri-LN (Norm avant et après le module) une croissance approximativement linéaire. Le tronc résiduel est surligné en bordeaux, les couches Norm en bleu.</figcaption></figure>
+
+<p>Gemma 2 (Google DeepMind, 2024) constitue la validation industrielle la plus visible de cette stratégie : le rapport technique indique explicitement l'utilisation de RMSNorm à la fois en pré-normalisation et en post-normalisation pour chaque sous-couche — attention et feedforward — sur les trois tailles du modèle (2 Mds, 9 Mds et 27 Mds de paramètres). OLMo 2 (Allen AI, 2024) explore une voie voisine mais distincte : il revient à une variante post-norm — RMSNorm appliquée en sortie de chaque sous-couche, à l'intérieur de la branche résiduelle — stabilisée par une QK-Norm, et non à la double normalisation de Peri-LN. Ces explorations récentes convergent sur un point : c'est la position de la couche de normalisation, plus que sa formule, qui gouverne la stabilité des très grands modèles.</p>
+</section>
+<section id="variantes-perimetre">
+<h3>Etendre le perimetre : GroupNorm, AdaLN, Dynamic Tanh</h3>
+<p>BatchNorm souffre d'un défaut structurel dès que la taille du batch descend : l'estimateur de variance devient peu fiable sur un ou deux exemples, ce qui dégrade sensiblement les performances dans des contextes à mémoire GPU contrainte — détection d'objets, segmentation d'instance, traitement médical. Le GroupNorm (normalisation par groupes), proposé par Wu et He à ECCV 2018, résout ce problème en rendant le calcul des statistiques indépendant du batch : les <em>C</em> canaux d'une carte d'activation sont divisés en <em>G</em> groupes, et la moyenne et la variance sont estimées à l'intérieur de chaque groupe, sur les dimensions canaux et spatiales du groupe considéré. Deux cas limites ferment l'espace des variantes : lorsque G&nbsp;=&nbsp;1, le groupe unique englobe tous les canaux et l'on retrouve exactement LayerNorm ; lorsque G&nbsp;=&nbsp;C, chaque canal forme son propre groupe et l'on retrouve InstanceNorm. L'hyperparamètre <em>G</em> contrôle donc un continuum entre ces deux extrêmes, libérant un degré de liberté pour adapter la granularité de la normalisation à la tâche. Sur ResNet-50/ImageNet, avec un batch de taille&nbsp;2 par GPU, GroupNorm affiche une erreur de classification inférieure de 10,6&nbsp;points à BatchNorm ; aux tailles de batch standards (32 ou plus), les deux méthodes sont comparables — GroupNorm est une alternative robuste pour les régimes de petits batchs, non un successeur universel.</p>
+
+<p>Dans les modèles génératifs conditionnels, la normalisation doit non seulement stabiliser les distributions internes mais aussi servir de vecteur d'injection pour un signal externe — label de classe, pas de temps de diffusion, embedding textuel. L'AdaLN (adaptive layer normalization, normalisation adaptative par couche) répond à ce double rôle en remplaçant les paramètres fixes γ et β de LayerNorm par des vecteurs <em>prédits dynamiquement</em> depuis le signal de conditionnement via un MLP léger : la normalisation reste statistiquement invariante, mais son re-scaling affin devient conditionnel. Peebles et Xie introduisent dans DiT (Diffusion Transformer, ICCV 2023) la variante <strong>adaLN-Zero</strong>, qui ajoute une contrainte d'initialisation critique : la couche linéaire finale du projecteur de conditionnement est initialisée à zéro, de sorte que chaque bloc résiduel se comporte comme une identité pure au début de l'entraînement — propriété connue pour stabiliser la propagation des gradients en profondeur. L'ablation de DiT montre qu'adaLN-Zero atteint un FID nettement inférieur à celui des blocs à conditionnement par cross-attention et à conditionnement in-context, et surpasse même la variante adaLN sans initialisation zéro, tout en mobilisant un nombre de paramètres comparable. Ce design est repris dans MMDiT (Stable Diffusion 3, 2024), où deux flux de conditionnement distincts — texte et image — sont injectés via des adaLN séparées, autorisant un traitement symétrique des deux modalités.</p>
+
+<p>Le Dynamic Tanh (DyT), présenté dans <em>Transformers without Normalization</em> (Zhu, Chen, He, LeCun, Liu — CVPR 2025), naît d'une observation empirique systématique : dans des Vision Transformers, des Speech Transformers et des Diffusion Transformers entraînés, LayerNorm produit des mappings entrée-sortie en forme de S — lorsqu'on trace, pour l'ensemble des tokens d'un batch, la valeur en entrée de la couche de normalisation contre sa sortie normalisée, la courbe ressemble à une tangente hyperbolique à l'échelle. Les auteurs proposent de remplacer LayerNorm par l'opération élémentaire :</p>
+
+<p style="text-align:center; font-style:italic;">DyT(x) = γ · tanh(αx) + β</p>
+
+<p>où α est un scalaire appris (commun à tous les canaux), γ et β des vecteurs appris par canal — identiques en nature aux paramètres affines de LayerNorm. Pendant l'entraînement, α converge spontanément vers une valeur proche de 1/std des activations, reproduisant mécaniquement l'effet de re-scaling sans jamais calculer de statistiques de batch ou de couche. Les résultats sur des architectures utilisant LayerNorm ou RMSNorm sont probants : ViT-L supervisé atteint 83,6&nbsp;% (contre 83,1&nbsp;% avec LayerNorm, +0,5&nbsp;point) ; DiT-B obtient un FID de 63,9 (contre 64,9 avec LayerNorm, meilleur) ; LLaMA 7&nbsp;B–70&nbsp;B entraîné sur 200&nbsp;milliards de tokens présente une perte et des performances zero-shot comparables à RMSNorm (±0,01 de perte). L'initialisation de α se révèle critique et dépend de la <em>largeur</em> du modèle — non de sa profondeur : LLaMA 7&nbsp;B (largeur 4&nbsp;096) requiert α₀&nbsp;=&nbsp;0,8 pour les blocs d'attention et 0,2 pour les autres, tandis que LLaMA 70&nbsp;B (largeur 8&nbsp;192) requiert 0,2 et 0,05 respectivement. DyT n'est toutefois pas un remplacement universel de la normalisation : substituer BatchNorm par DyT dans ResNet-50 et VGG19 dégrade les performances, confirmant que l'observation empirique à la base de la méthode est propre aux architectures utilisant LayerNorm ou RMSNorm.</p>
+</section>
+<div class="widget dyt-root" id="dyt-root">
+  <style>
+    .dyt-root{--dyt-ink:var(--ink,#15202E);--dyt-soft:var(--ink-soft,#43536A);
+      --dyt-faint:var(--ink-faint,#7A889B);--dyt-card:var(--card,#fff);
+      --dyt-line:var(--line,#D7DFE9);--dyt-soft-line:var(--line-soft,#E7ECF3);
+      --dyt-blue:var(--blue,#23537F);--dyt-bright:var(--blue-bright,#2C77B6);
+      --dyt-wash:var(--blue-wash,#E7EEF6);--dyt-hot:var(--bordeaux-bright,#9B3443);
+      --dyt-warm:#E0A33A;
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--dyt-ink);
+      border:1px solid var(--dyt-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--dyt-card);max-width:760px}
+    .dyt-root *{box-sizing:border-box}
+    .dyt-k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;
+      color:var(--dyt-faint);font-weight:600;margin:0 0 2px}
+    .dyt-title{font-weight:700;font-size:1.05rem;margin:0 0 4px}
+    .dyt-sub{font-size:.86rem;color:var(--dyt-soft);margin:0 0 12px}
+    .dyt-sub code{background:var(--dyt-line);padding:1px 5px;border-radius:4px;font-size:.85em}
+    .dyt-formula{padding:8px 12px;border:1px solid var(--dyt-line);border-radius:8px;
+      background:var(--dyt-card);font:600 14px/1.6 ui-monospace,monospace;color:var(--dyt-soft);
+      margin:0 0 12px;overflow-x:auto;white-space:nowrap}
+    .dyt-formula b{color:var(--dyt-ink)}
+    .dyt-formula .dyt-hl{color:var(--dyt-bright);font-weight:800;
+      background:var(--dyt-wash);padding:0 4px;border-radius:4px}
+    .dyt-ctl{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:flex-end;
+      padding:10px 12px;border:1px solid var(--dyt-line);border-radius:8px;margin:0 0 12px}
+    .dyt-field{display:flex;flex-direction:column;gap:4px;flex:1 1 150px;min-width:140px}
+    .dyt-field.dyt-star{flex:1 1 200px;min-width:190px}
+    .dyt-field label{font-size:.74rem;color:var(--dyt-faint);font-weight:600;letter-spacing:.02em;
+      display:flex;justify-content:space-between;gap:8px}
+    .dyt-field.dyt-star label{color:var(--dyt-bright)}
+    .dyt-field label b{color:var(--dyt-ink);font-variant-numeric:tabular-nums}
+    .dyt-field input[type=range]{width:100%;accent-color:var(--dyt-bright);cursor:pointer}
+    .dyt-field.dyt-star input[type=range]{accent-color:var(--dyt-bright);height:6px}
+    .dyt-modes{display:flex;gap:0;border:1px solid var(--dyt-blue);border-radius:8px;overflow:hidden;
+      align-self:flex-end}
+    .dyt-mode{padding:8px 11px;border:none;background:transparent;color:var(--dyt-blue);
+      font:600 12.5px/1 ui-monospace,monospace;cursor:pointer;white-space:nowrap}
+    .dyt-mode.dyt-on{background:var(--dyt-blue);color:#fff}
+    .dyt-mode+.dyt-mode{border-left:1px solid var(--dyt-blue)}
+    .dyt-cvwrap{border:1px solid var(--dyt-line);border-radius:8px;overflow:hidden;margin:0 0 10px;
+      background:var(--dyt-card)}
+    .dyt-cv{display:block;width:100%;touch-action:pan-y}
+    .dyt-legend{display:flex;gap:8px 16px;flex-wrap:wrap;font-size:.78rem;color:var(--dyt-soft);
+      margin:0 0 10px;align-items:center}
+    .dyt-legrow{display:flex;align-items:center;gap:6px}
+    .dyt-ln{width:22px;height:0;border-top:2.5px solid var(--dyt-bright)}
+    .dyt-ln.dyt-ref{border-top:2px dashed var(--dyt-hot)}
+    .dyt-ln.dyt-asy{border-top:2px dotted var(--dyt-faint)}
+    .dyt-dot{width:11px;height:11px;border-radius:50%;border:1.5px solid #fff;
+      box-shadow:0 0 0 1px rgba(0,0,0,.15)}
+    .dyt-out{min-height:3.4em;padding:10px 12px;border-radius:8px;border:1px solid var(--dyt-line);
+      background:var(--dyt-card);font-size:.88rem;line-height:1.5;margin:0 0 10px}
+    .dyt-out b{font-weight:700;color:var(--dyt-ink)}
+    .dyt-out code{background:var(--dyt-line);padding:1px 5px;border-radius:4px;font-size:.85em}
+    .dyt-out.dyt-match{border-color:var(--dyt-bright);background:var(--dyt-wash)}
+    .dyt-out.dyt-warn{border-color:var(--dyt-warm);background:rgba(224,163,58,.08)}
+    .dyt-badge{display:inline-block;font:700 10.5px/1 ui-monospace,monospace;letter-spacing:.04em;
+      text-transform:uppercase;color:#fff;background:var(--dyt-bright);padding:3px 7px;border-radius:5px;
+      margin-right:6px;vertical-align:1px}
+    .dyt-stat{font:600 12.5px/1.5 ui-monospace,monospace;color:var(--dyt-soft);
+      padding:8px 12px;border:1px dashed var(--dyt-line);border-radius:8px;margin:0 0 12px;
+      display:flex;flex-wrap:wrap;gap:6px 18px}
+    .dyt-stat b{color:var(--dyt-ink)}
+    .dyt-stat .dyt-good{color:var(--dyt-bright)}
+    .dyt-stat .dyt-bad{color:var(--dyt-hot)}
+    details.dyt-note{margin:0;font-size:.85rem;color:var(--dyt-soft)}
+    details.dyt-note summary{cursor:pointer;font-weight:600;color:var(--dyt-blue)}
+    details.dyt-note p{margin:8px 0 0}
+    details.dyt-note code{background:var(--dyt-line);padding:1px 5px;border-radius:4px;font-size:.85em}
+  </style>
+
+  <p class="dyt-k">Probe — mécanisme isolé</p>
+  <p class="dyt-title">Dynamic Tanh (DyT) — le rôle du paramètre α</p>
+  <p class="dyt-sub">DyT remplace une couche de normalisation par
+    <code>DyT(x) = γ·tanh(α·x) + β</code>, sans calculer ni μ ni σ. Faites glisser
+    <b>α</b> : <b>petit α</b> donne un mapping quasi linéaire (rien n'est écrasé) ;
+    <b>grand α</b> fait apparaître le <b>S</b> de tanh et écrase les valeurs extrêmes.
+    Réglez l'écart-type <b>σ</b> des activations, puis le bouton <b>α = 1/σ</b> :
+    DyT reproduit alors le re-scaling de LayerNorm — la normalisation est portée par α seul.</p>
+
+  <div class="dyt-formula">
+    DyT(x) = <b>γ</b>·tanh( <span class="dyt-hl">α</span>·x ) + <b>β</b>
+    &nbsp;&nbsp;— pente en 0 = <b>γ·α</b>, sortie bornée à <b>[β−γ, β+γ]</b>
+  </div>
+
+  <div class="dyt-ctl">
+    <div class="dyt-field dyt-star">
+      <label>α <span>(scale du tanh)</span> <b id="dyt-aval">1,00</b></label>
+      <input type="range" id="dyt-alpha" min="0.05" max="3.5" step="0.01" value="1">
+    </div>
+    <div class="dyt-field">
+      <label>γ <span>(gain)</span> <b id="dyt-gval">1,00</b></label>
+      <input type="range" id="dyt-gamma" min="0.2" max="3" step="0.05" value="1">
+    </div>
+    <div class="dyt-field">
+      <label>β <span>(biais)</span> <b id="dyt-bval">0,00</b></label>
+      <input type="range" id="dyt-beta" min="-1.2" max="1.2" step="0.05" value="0">
+    </div>
+    <div class="dyt-field">
+      <label>σ <span>(écart-type entrée)</span> <b id="dyt-sval">1,50</b></label>
+      <input type="range" id="dyt-sigma" min="0.5" max="4" step="0.05" value="1.5">
+    </div>
+    <div class="dyt-modes" role="group" aria-label="Régime de α relatif à 1/σ">
+      <button class="dyt-mode" id="dyt-m-lo" type="button">α ≪ 1/σ</button>
+      <button class="dyt-mode" id="dyt-m-eq" type="button">α = 1/σ</button>
+      <button class="dyt-mode" id="dyt-m-hi" type="button">α ≫ 1/σ</button>
+    </div>
+  </div>
+
+  <div class="dyt-legend">
+    <div class="dyt-legrow"><span class="dyt-ln"></span> DyT(x) = γ·tanh(αx)+β</div>
+    <div class="dyt-legrow"><span class="dyt-ln dyt-ref"></span> re-scaling LayerNorm γ·x/σ+β</div>
+    <div class="dyt-legrow"><span class="dyt-ln dyt-asy"></span> bornes β±γ</div>
+    <div class="dyt-legrow"><span class="dyt-dot" style="background:var(--dyt-bright)"></span> activation typique</div>
+    <div class="dyt-legrow"><span class="dyt-dot" style="background:#E0A33A"></span> valeur extrême (|x|&gt;2σ)</div>
+  </div>
+
+  <div class="dyt-cvwrap"><canvas class="dyt-cv" id="dyt-cv" aria-label="Tracé interactif de DyT et de la distribution d'entrée"></canvas></div>
+
+  <div class="dyt-out" id="dyt-out"></div>
+
+  <div class="dyt-stat" id="dyt-stat"></div>
+
+  <details class="dyt-note">
+    <summary>Pourquoi α ≈ 1/σ revient à normaliser — et ce que cette équivalence ne prouve pas</summary>
+    <p><b>Le mécanisme.</b> tanh est quasi linéaire près de 0 (<code>tanh(u) ≈ u</code> pour
+      <code>|u| ≲ 0,5</code>) puis sature vers ±1. Si l'on choisit <code>α = 1/σ</code>, l'argument
+      <code>α·x = x/σ</code> a un écart-type ≈ 1 : le <i>cœur</i> de la distribution tombe dans la
+      zone quasi linéaire de tanh, où <code>γ·tanh(x/σ)+β ≈ γ·(x/σ)+β</code> — exactement le
+      re-scaling qu'opère LayerNorm avec les <i>mêmes</i> paramètres affines γ, β. Mais contrairement
+      à LayerNorm, tanh <b>écrase en plus les queues</b> (les <code>|x|&gt;2σ</code>), qui partent
+      vers les plateaux ±γ+β au lieu de filer le long de la droite. D'où la « normalisation
+      implicite » : aucune statistique (μ, σ) n'est calculée à l'exécution — α, paramètre appris,
+      en tient lieu.</p>
+    <p><b>Le fait empirique.</b> Dans le papier d'origine, α appris converge vers ≈ 1/std des
+      activations pendant l'entraînement, sans y être contraint. Les trois ingrédients qui font
+      tenir DyT : (1) le squashing non linéaire de tanh sur les extrêmes, (2) ce α ≈ 1/std qui joue
+      le rôle de normalisation, (3) les paramètres affines γ, β identiques à LayerNorm.</p>
+    <p><b>La prudence.</b> Le « S » de tanh est présenté comme une <i>inspiration</i>, pas comme une
+      explication causale suffisante : la corrélation <code>α → 1/std</code> ne prouve pas que c'est
+      bien <i>elle</i> qui remplace LayerNorm — d'autres propriétés (invariance d'échelle,
+      stabilisation du gradient) pourraient être la vraie cause, et le mécanisme complet reste à
+      approfondir. Ce probe illustre l'équivalence fonctionnelle, pas une démonstration causale.</p>
+  </details>
+
+  <script>
+  (function(){
+    var root=document.getElementById("dyt-root");
+    if(!root||root.dataset.dytInit)return; root.dataset.dytInit="1";
+
+    var cv=document.getElementById("dyt-cv");
+    var ctx=cv.getContext("2d");
+    var outEl=document.getElementById("dyt-out");
+    var statEl=document.getElementById("dyt-stat");
+    var aS=document.getElementById("dyt-alpha"), gS=document.getElementById("dyt-gamma"),
+        bS=document.getElementById("dyt-beta"), sS=document.getElementById("dyt-sigma");
+    var aV=document.getElementById("dyt-aval"), gV=document.getElementById("dyt-gval"),
+        bV=document.getElementById("dyt-bval"), sV=document.getElementById("dyt-sval");
+
+    var st={alpha:1, gamma:1, beta:0, sigma:1.5, hov:null};
+
+    // ---- domaine du tracé ----
+    var XMIN=-8, XMAX=8, YMIN=-4.5, YMAX=4.5;
+    var padL=46, padR=14, padT=14, padB=28;
+    var W=700, H=350, dpr=1, plotW, plotH;
+
+    function fmt(x,d){ d=(d==null)?2:d; if(!isFinite(x))return "∞";
+      return x.toFixed(d).replace(".",","); }
+    function clampA(v){ return Math.max(0.05, Math.min(3.5, v)); }
+    function dyt(x){ return st.gamma*Math.tanh(st.alpha*x)+st.beta; }
+    function lnLine(x){ return st.gamma*x/st.sigma+st.beta; }
+    function gpdf(x){ var s=st.sigma; return Math.exp(-x*x/(2*s*s))/(s*Math.sqrt(2*Math.PI)); }
+    function px(x){ return padL + (x-XMIN)/(XMAX-XMIN)*plotW; }
+    function py(y){ return padT + (YMAX-y)/(YMAX-YMIN)*plotH; }
+
+    // écart-type du signal normalisé tanh(αx) sous N(0,σ) — proxy de la « cible » LN = 1
+    function tanhStd(){
+      var n=400, lo=-6*st.sigma, hi=6*st.sigma, dx=(hi-lo)/n, m=0, v=0, Z=0, i, x, w, t;
+      for(i=0;i<=n;i++){ x=lo+i*dx; w=gpdf(x)*dx; t=Math.tanh(st.alpha*x); m+=w*t; Z+=w; }
+      m/=Z;
+      for(i=0;i<=n;i++){ x=lo+i*dx; w=gpdf(x)*dx; t=Math.tanh(st.alpha*x)-m; v+=w*t*t; }
+      return Math.sqrt(v/Z);
+    }
+
+    function resize(){
+      dpr=window.devicePixelRatio||1;
+      W=Math.max(280, cv.clientWidth||700);
+      H=Math.round(Math.max(300, Math.min(380, W*0.5)));
+      cv.style.height=H+"px";
+      cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
+      ctx.setTransform(dpr,0,0,dpr,0,0);
+      plotW=W-padL-padR; plotH=H-padT-padB;
+      draw();
+    }
+
+    function draw(){
+      ctx.clearRect(0,0,W,H);
+      var cs=getComputedStyle(root);
+      var cLine=cs.getPropertyValue("--dyt-line")||"#D7DFE9";
+      var cSoftL=cs.getPropertyValue("--dyt-soft-line")||"#E7ECF3";
+      var cFaint=cs.getPropertyValue("--dyt-faint")||"#7A889B";
+      var cSoft=cs.getPropertyValue("--dyt-soft")||"#43536A";
+      var cInk=cs.getPropertyValue("--dyt-ink")||"#15202E";
+      var cBright=cs.getPropertyValue("--dyt-bright")||"#2C77B6";
+      var cHot=cs.getPropertyValue("--dyt-hot")||"#9B3443";
+      var cWarm="#E0A33A";
+      var baseY=py(YMIN);
+
+      // --- cadre + grille ---
+      ctx.lineWidth=1;
+      ctx.strokeStyle=cSoftL.trim();
+      var gx, gy;
+      ctx.beginPath();
+      for(gx=XMIN;gx<=XMAX;gx+=2){ ctx.moveTo(px(gx),padT); ctx.lineTo(px(gx),baseY); }
+      for(gy=-4;gy<=4;gy+=2){ ctx.moveTo(padL,py(gy)); ctx.lineTo(px(XMAX),py(gy)); }
+      ctx.stroke();
+      // axes 0
+      ctx.strokeStyle=cLine.trim(); ctx.lineWidth=1.4;
+      ctx.beginPath();
+      ctx.moveTo(px(0),padT); ctx.lineTo(px(0),baseY);
+      ctx.moveTo(padL,py(0)); ctx.lineTo(px(XMAX),py(0));
+      ctx.stroke();
+      // labels
+      ctx.fillStyle=cFaint.trim();
+      ctx.font="11px ui-monospace,monospace";
+      ctx.textAlign="center"; ctx.textBaseline="top";
+      for(gx=XMIN;gx<=XMAX;gx+=2){ if(gx!==0) ctx.fillText(String(gx),px(gx),baseY+5); }
+      ctx.textAlign="right"; ctx.textBaseline="middle";
+      for(gy=-4;gy<=4;gy+=2){ if(gy!==0) ctx.fillText(String(gy),padL-6,py(gy)); }
+
+      // --- clip zone de tracé ---
+      ctx.save();
+      ctx.beginPath(); ctx.rect(padL,padT,plotW,plotH); ctx.clip();
+
+      // --- repères σ et 2σ ---
+      ctx.setLineDash([3,4]); ctx.strokeStyle=cFaint.trim(); ctx.lineWidth=1;
+      ctx.fillStyle=cFaint.trim(); ctx.font="10px ui-monospace,monospace";
+      ctx.textAlign="center"; ctx.textBaseline="top";
+      [[st.sigma,"σ"],[-st.sigma,"σ"],[2*st.sigma,"2σ"],[-2*st.sigma,"2σ"]].forEach(function(g){
+        if(g[0]>=XMIN&&g[0]<=XMAX){
+          ctx.beginPath(); ctx.moveTo(px(g[0]),padT+2); ctx.lineTo(px(g[0]),baseY); ctx.stroke();
+          ctx.fillText(g[1],px(g[0]),padT+1);
+        }
+      });
+      ctx.setLineDash([]);
+
+      // --- distribution d'entrée (bandeau bas), queues écrasées en chaud ---
+      var peak=gpdf(0), bandH=plotH*0.30, N=240, i, x, h;
+      function band(x0,x1,fill){
+        if(x1<=x0)return;
+        ctx.beginPath(); ctx.moveTo(px(x0),baseY);
+        var n2=Math.max(2,Math.round((x1-x0)/(XMAX-XMIN)*N));
+        for(i=0;i<=n2;i++){ x=x0+(x1-x0)*i/n2; h=gpdf(x)/peak*bandH; ctx.lineTo(px(x),baseY-h); }
+        ctx.lineTo(px(x1),baseY); ctx.closePath(); ctx.fillStyle=fill; ctx.fill();
+      }
+      var t2=Math.min(2*st.sigma,XMAX);
+      band(-t2,t2,"rgba(44,119,182,0.18)");                 // cœur (bleu)
+      band(-XMAX,-t2,"rgba(224,163,58,0.28)");               // queue gauche (chaud)
+      band(t2,XMAX,"rgba(224,163,58,0.28)");                 // queue droite (chaud)
+      ctx.fillStyle=cSoft.trim(); ctx.font="10px ui-monospace,monospace";
+      ctx.textAlign="left"; ctx.textBaseline="bottom";
+      ctx.fillText("P(x)",px(0)+5,baseY-bandH-2);
+
+      // --- bornes β±γ (asymptotes) ---
+      ctx.setLineDash([2,4]); ctx.strokeStyle=cFaint.trim(); ctx.lineWidth=1.2;
+      [st.beta+st.gamma, st.beta-st.gamma].forEach(function(y){
+        ctx.beginPath(); ctx.moveTo(padL,py(y)); ctx.lineTo(px(XMAX),py(y)); ctx.stroke();
+      });
+      ctx.setLineDash([]);
+
+      // --- droite LayerNorm γ·x/σ+β ---
+      ctx.strokeStyle=cHot.trim(); ctx.lineWidth=2; ctx.setLineDash([7,5]);
+      ctx.beginPath(); ctx.moveTo(px(XMIN),py(lnLine(XMIN))); ctx.lineTo(px(XMAX),py(lnLine(XMAX)));
+      ctx.stroke(); ctx.setLineDash([]);
+
+      // --- courbe DyT ---
+      ctx.strokeStyle=cBright.trim(); ctx.lineWidth=2.6; ctx.lineJoin="round";
+      ctx.beginPath();
+      var NC=320;
+      for(i=0;i<=NC;i++){ x=XMIN+(XMAX-XMIN)*i/NC;
+        if(i===0)ctx.moveTo(px(x),py(dyt(x))); else ctx.lineTo(px(x),py(dyt(x))); }
+      ctx.stroke();
+
+      // --- échantillons d'activations projetés sur la courbe (z = -3σ..3σ) ---
+      var z;
+      for(z=-3;z<=3.0001;z+=0.25){
+        x=z*st.sigma; if(x<XMIN||x>XMAX)continue;
+        var extreme=Math.abs(z)>2;
+        ctx.beginPath(); ctx.arc(px(x),py(dyt(x)),3.4,0,2*Math.PI);
+        ctx.fillStyle=extreme?cWarm:cBright.trim();
+        ctx.globalAlpha=0.9; ctx.fill(); ctx.globalAlpha=1;
+        ctx.lineWidth=1; ctx.strokeStyle="#fff"; ctx.stroke();
+      }
+
+      // --- sonde au survol ---
+      if(st.hov!=null){
+        var hx=st.hov, hy=dyt(hx), hl=lnLine(hx);
+        ctx.setLineDash([4,4]); ctx.strokeStyle=cInk.trim(); ctx.lineWidth=1;
+        ctx.beginPath(); ctx.moveTo(px(hx),padT); ctx.lineTo(px(hx),baseY); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.beginPath(); ctx.arc(px(hx),py(hy),4.5,0,2*Math.PI);
+        ctx.fillStyle=cBright.trim(); ctx.fill(); ctx.lineWidth=1.5; ctx.strokeStyle="#fff"; ctx.stroke();
+        if(hl>=YMIN&&hl<=YMAX){
+          ctx.beginPath(); ctx.arc(px(hx),py(hl),3.5,0,2*Math.PI);
+          ctx.fillStyle=cHot.trim(); ctx.fill(); ctx.strokeStyle="#fff"; ctx.stroke();
+        }
+      }
+      ctx.restore(); // fin clip
+
+      // --- infobulle sonde (hors clip) ---
+      if(st.hov!=null){
+        var qx=st.hov, qy=dyt(qx);
+        var lines=[
+          "x = "+fmt(qx),
+          "α·x = "+fmt(st.alpha*qx),
+          "tanh(α·x) = "+fmt(Math.tanh(st.alpha*qx)),
+          "DyT(x) = "+fmt(qy),
+          "LN(x) = "+fmt(lnLine(qx))
+        ];
+        ctx.font="11px ui-monospace,monospace";
+        var bw=0, j; for(j=0;j<lines.length;j++) bw=Math.max(bw,ctx.measureText(lines[j]).width);
+        bw+=14; var bh=lines.length*14+10;
+        var bx=px(qx)+10; if(bx+bw>W-2) bx=px(qx)-10-bw;
+        var by=py(qy)-bh-8; if(by<padT) by=padT+2; if(by+bh>baseY) by=baseY-bh;
+        ctx.fillStyle="rgba(255,255,255,0.96)"; ctx.strokeStyle=cLine.trim(); ctx.lineWidth=1;
+        ctx.beginPath(); ctx.rect(bx,by,bw,bh); ctx.fill(); ctx.stroke();
+        ctx.textAlign="left"; ctx.textBaseline="top"; ctx.fillStyle=cSoft.trim();
+        for(j=0;j<lines.length;j++) ctx.fillText(lines[j],bx+7,by+6+j*14);
+      }
+    }
+
+    function update(){
+      st.alpha=parseFloat(aS.value); st.gamma=parseFloat(gS.value);
+      st.beta=parseFloat(bS.value); st.sigma=parseFloat(sS.value);
+      aV.textContent=fmt(st.alpha); gV.textContent=fmt(st.gamma);
+      bV.textContent=fmt(st.beta); sV.textContent=fmt(st.sigma);
+
+      var inv=1/st.sigma;
+      var slopeDyt=st.gamma*st.alpha, slopeLN=st.gamma/st.sigma;
+      var rel=Math.abs(st.alpha*st.sigma-1);          // 0 ⇔ α = 1/σ
+      var ts=tanhStd();
+      var match=rel<0.12;
+      var over=st.alpha*st.sigma>2.2;                 // sur-saturation
+      var linear=st.alpha*st.sigma<0.4;               // quasi linéaire
+
+      // --- message pédagogique ---
+      outEl.className="dyt-out"+(match?" dyt-match":(over?" dyt-warn":""));
+      while(outEl.firstChild)outEl.removeChild(outEl.firstChild);
+      function add(parts){ parts.forEach(function(p){
+        if(typeof p==="string"){ outEl.appendChild(document.createTextNode(p)); }
+        else{ var e=document.createElement(p.t); if(p.c)e.className=p.c;
+          e.textContent=p.x; outEl.appendChild(e); } }); }
+      if(match){
+        add([{t:"span",c:"dyt-badge",x:"α ≈ 1/σ"},
+          {t:"b",x:"DyT reproduit le re-scaling de LayerNorm."},
+          " Le signal αx a un écart-type ≈ 1 : tanh reste quasi linéaire sur le cœur de la ",
+          "distribution, donc DyT(x) ≈ γ·(x/σ)+β — la droite bordeaux — tout en ",
+          {t:"b",x:"écrasant les queues"},". La normalisation est portée par α seul, ",
+          {t:"b",x:"sans calculer μ ni σ"},"."]);
+      }else if(linear){
+        add([{t:"b",x:"Régime quasi linéaire (α ≪ 1/σ)."},
+          " tanh(αx) ≈ αx sur toute la distribution : DyT n'est qu'une mise à l'échelle ",
+          "douce, le S est invisible et ",{t:"b",x:"les valeurs extrêmes passent sans être écrasées"},
+          ". Montez α vers 1/σ = "+fmt(inv)+" pour activer le squashing."]);
+      }else if(over){
+        add([{t:"b",x:"Sur-saturation (α ≫ 1/σ)."},
+          " Même le cœur de la distribution est poussé dans les plateaux de tanh : la sortie se ",
+          {t:"b",x:"binarise vers ±γ+β"},", l'information d'amplitude est écrasée. ",
+          "C'est trop fort pour normaliser — redescendez α vers 1/σ = "+fmt(inv)+"."]);
+      }else{
+        var dir=st.alpha<inv?"montez":"descendez";
+        add([{t:"b",x:"Le S apparaît."},
+          " Les queues (points orangés, |x|>2σ) commencent à plier vers les bornes ±γ+β tandis ",
+          "que le centre suit encore la droite. ",dir+" α vers ",
+          {t:"b",x:"1/σ = "+fmt(inv)}," pour caler exactement sur LayerNorm."]);
+      }
+
+      // --- ligne de stats ---
+      while(statEl.firstChild)statEl.removeChild(statEl.firstChild);
+      function stat(label,val,cls){
+        var s=document.createElement("span");
+        s.appendChild(document.createTextNode(label+" "));
+        var b=document.createElement("b"); if(cls)b.className=cls; b.textContent=val;
+        s.appendChild(b); statEl.appendChild(s);
+      }
+      stat("α =",fmt(st.alpha));
+      stat("1/σ =",fmt(inv),match?"dyt-good":"");
+      stat("pente en 0  γα =",fmt(slopeDyt));
+      stat("pente LN  γ/σ =",fmt(slopeLN));
+      stat("écart-type tanh(αx) =",fmt(ts)+" (cible LN ≈ 1)",
+        (ts>0.85&&ts<1.02)?"dyt-good":(over?"dyt-bad":""));
+      stat("borne ±γ+β =",fmt(st.beta-st.gamma)+" … "+fmt(st.beta+st.gamma));
+
+      draw();
+    }
+
+    // ---- interactions ----
+    [aS,gS,bS,sS].forEach(function(s){ s.addEventListener("input",update); });
+    document.getElementById("dyt-m-lo").addEventListener("click",function(){
+      aS.value=clampA(0.2/st.sigma); update(); });
+    document.getElementById("dyt-m-eq").addEventListener("click",function(){
+      aS.value=clampA(1/st.sigma); update(); });
+    document.getElementById("dyt-m-hi").addEventListener("click",function(){
+      aS.value=clampA(4/st.sigma); update(); });
+
+    function probe(e){
+      var r=cv.getBoundingClientRect();
+      var cx=(e.clientX-r.left);
+      var x=XMIN+(cx-padL)/plotW*(XMAX-XMIN);
+      st.hov=Math.max(XMIN,Math.min(XMAX,x)); draw();
+    }
+    cv.addEventListener("pointermove",probe);
+    cv.addEventListener("pointerdown",probe);
+    cv.addEventListener("pointerleave",function(){ st.hov=null; draw(); });
+
+    window.addEventListener("resize",resize);
+    resize();   // calcule les dimensions puis dessine
+    update();   // remplit textes + redessine
+  })();
+  </script>
+</div>
+
+<section id="applications">
+<h3>Des CNN aux grands modeles de langage</h3>
+<p>BatchNorm s'impose d'abord dans l'univers des réseaux convolutifs : ResNet (He et al., 2015) et VGG l'intègrent après chaque couche convolutive pour stabiliser l'entraînement et contrer l'<em>internal covariate shift</em>. La formule canonique — BN(x) = γ ⊙ (x − μ̂<sub>B</sub>) / σ̂<sub>B</sub> + β — calcule μ̂<sub>B</sub> et σ̂<sub>B</sub> sur le mini-batch courant ; à l'inférence, ces statistiques sont remplacées par des moyennes mobiles accumulées durant l'entraînement. Sur ImageNet, Ioffe &amp; Szegedy ont montré qu'un modèle batch-normalisé atteint la même précision qu'un réseau de référence avec 14 fois moins d'étapes, et un ensemble de réseaux batch-normalisés a affiché 4,82 % de top-5 error — surpassant les annotateurs humains selon leur rapport.</p>
+
+<p>ConvNeXt (Liu et al., 2022) marque un pivot : en s'inspirant des Vision Transformers, ce CNN pur substitue LayerNorm (normalisation par couche) à BatchNorm, n'en conservant qu'une seule instance avant les couches convolutives 1×1. Ces modifications micro-design contribuent collectivement à porter la précision top-1 de 80,6 % à 82,0 % sur ImageNet, démontrant que l'<em>inductive bias</em> de BatchNorm n'est pas une condition nécessaire dans un CNN bien conçu.</p>
+
+<p>LayerNorm (Ba et al., 2016) normalise chaque échantillon sur la dimension des features plutôt que sur le batch, ce qui le rend indépendant de la taille du batch et adapté aux séquences de longueur variable. Le Transformer original de Vaswani et al. (2017) l'applique en post-norm (pré-somme résiduelle exclue : la normalisation intervient après l'addition résiduelle). GPT-2 (Radford et al., 2019) inverse cette convention avec le pre-norm (pré-normalisation) : LayerNorm est appliqué <em>avant</em> chaque sous-couche, le résidu étant ajouté après. Cette configuration pre-norm stabilise les gradients dès le début de l'entraînement et s'est depuis imposée comme standard dans la quasi-totalité des LLM, de GPT-3 à LLaMA.</p>
+
+<p>RMSNorm (Zhang &amp; Sennrich, NeurIPS 2019) simplifie LayerNorm en supprimant le centrage (soustraction de la moyenne) et en normalisant uniquement par la root mean square (racine de la moyenne des carrés) de l'entrée : RMSNorm(x) = x / RMS(x) · g, avec RMS(x) = √(1/<em>d</em> Σ x<sub>i</sub>²) et g paramètre de gain appris. Cette suppression trouve une justification théorique dans une analyse géométrique (Gupta et al., 2024, arXiv 2409.12951) : les LLM opèrent naturellement dans un sous-espace orthogonal au vecteur uniforme <strong>1</strong> = [1,…,1]<sup>T</sup> à l'inférence, rendant le centrage structurellement redondant. Sur le plan de la vitesse, RMSNorm réduit le temps d'exécution de 7 % à 64 % selon les architectures testées.</p>
+
+<p>LLaMA, LLaMA-2 (jusqu'à 70 B de paramètres), LLaMA-3, Mistral, Mixtral et Qwen adoptent tous RMSNorm en configuration pre-norm. Comparé à LayerNorm, RMSNorm n'apprend qu'un seul vecteur de gain γ — le biais β de LayerNorm est supprimé — divisant par deux le volume de paramètres propres à la couche de normalisation. Cette économie reste toutefois marginale en valeur absolue à l'échelle d'un LLM de plusieurs dizaines de milliards de paramètres (moins de 0,01 % du total pour LLaMA 7B) ; son intérêt pratique tient davantage à la suppression d'un calcul de moyenne et à la réduction des transferts mémoire lors de l'inférence.</p>
+
+<p>Gemma 2 (Google DeepMind, 2024) pousse la normalisation plus loin en appliquant RMSNorm en double configuration pre-norm <em>et</em> post-norm sur chaque sous-couche — attention et feed-forward — pour toutes les tailles de modèle : 2 B, 9 B et 27 B. Cette double normalisation vise à stabiliser l'entraînement ; le rapport technique cite explicitement Zhang &amp; Sennrich [2019].</p>
+
+<p>À l'autre extrémité du spectre, les CNN déployés sur des dispositifs embarqués (EfficientDet, YOLO et ses variantes) recourent au BN folding (fusion de BatchNorm) lors de l'export vers TensorRT ou ONNX. Les paramètres γ, β, μ et σ² sont absorbés dans les poids et biais de la couche convolutive précédente : BatchNorm disparaît entièrement du graphe de calcul, supprimant tout surcoût d'exécution à l'inférence.</p>
+</section>
+<section id="idees-recues">
+<h3>Idees recues et pieges en pratique</h3>
+<p>L'explication historique de BatchNorm — qu'il accélère l'entraînement en réduisant l'<em>internal covariate shift</em> (dérive de la distribution interne des activations) — a été mise à l'épreuve à NeurIPS 2018 par Santurkar et al. L'expérience centrale consiste à réintroduire artificiellement du bruit distribué après chaque couche BatchNorm de façon à annuler tout bénéfice de stabilisation distributionnelle tout en conservant les paramètres appris : le temps d'entraînement demeure quasi inchangé, désaccouplant la performance de toute hypothèse de stabilisation de la distribution. Le bénéfice réel serait le lissage du <em>loss landscape</em> (paysage de la fonction de perte), qui conditionne mieux l'optimisation et tolère des <em>learning rates</em> plus élevés. Ce diagnostic n'invalide pas l'utilité pratique de BatchNorm, mais il invalide le récit fondateur du papier de 2015 — une distinction qui importe dès qu'on tente de substituer, d'analyser ou de justifier BatchNorm dans un pipeline.</p>
+
+<p>Un second ensemble de pièges concerne l'écart structurel entre entraînement et inférence. À l'inférence, le modèle s'appuie sur des statistiques de population estimées par une <em>exponential moving average</em> (moyenne mobile exponentielle) accumulée pendant l'entraînement. Wu et Johnson (2021) caractérisent ce défaut précisément : l'EMA « sort souvent de la distribution des statistiques de mini-batch, particulièrement en début d'entraînement », introduisant un lag systématique qui dégrade silencieusement l'accuracy de validation. Leur correctif, PreciseBN, recalcule les statistiques en effectuant un <em>forward pass</em> (passe avant) du modèle gelé sur 10³–10⁴ exemples post-entraînement, pour un surcoût d'environ 0,5 % du temps de calcul total et un gain mesuré jusqu'à 3,5 points de pourcentage d'erreur de validation dans les régimes à petits batches. L'écueil le plus brutal reste l'incohérence de domaine : sur une détection RetinaNet, une simple divergence de stratégie de bookkeeping — statistiques de population calculées sur un domaine alors que le gradient SGD en traverse un autre — fait chuter l'<em>average precision</em> (précision moyenne) de 39,1 AP à 2,1 AP, soit 37 points de dégradation causés uniquement par une erreur de configuration BatchNorm.</p>
+
+<p>BatchNorm couple intrinsèquement les exemples d'un même batch, ouvrant deux vecteurs de fuite d'information. Le premier est la composition du batch : construire les batches de façon à regrouper certaines classes — par exemple 16 classes × 2 exemples par classe — permet au modèle d'exploiter la co-occurrence intra-batch plutôt que des caractéristiques généralisables par exemple. Les têtes de détection R-CNN, dont les régions d'intérêt (RoIs) proviennent souvent de la même image, sont particulièrement exposées à ce biais de composition. Le second vecteur est la <em>temporal cheating</em> (triche temporelle) : dans les tâches vidéo ou d'anticipation, BatchNorm partage la moyenne et la variance du batch entre toutes les frames d'un mini-batch, injectant dans la normalisation d'une frame des statistiques appartenant à des frames futures. Des modèles CNN-LSTM sans BatchNorm, conçus précisément pour éliminer ce couplage, surpassent l'état de l'art sur trois benchmarks de suivi de flux opératoire chirurgical grâce à un entraînement bout-en-bout sans artifice.</p>
+
+<p>L'adoption de RMSNorm dans les grands modèles de langage s'est accompagnée d'une généralisation qui excède les prétentions du papier original. Zhang et Sennrich (NeurIPS 2019) suppriment la soustraction de la moyenne de LayerNorm, gagnent 7 % à 64 % de temps de calcul selon l'architecture, et décrivent des performances <em>comparables</em> — terme littéral des auteurs, et non « supérieures ». Le glissement de sens est récurrent dans la communauté. Par ailleurs, le passage de la famille Llama à RMSNorm a été réalisé simultanément avec les RoPE positional encodings, les activations SwiGLU et la suppression des biais dans les couches linéaires : imputer un éventuel gain de qualité à la seule normalisation est statistiquement impossible. Falcon LLM a pour sa part conservé le LayerNorm complet (avec soustraction de la moyenne) après ablations explicites et reste compétitif — ce contre-exemple direct affaiblit le récit selon lequel « les modèles modernes utilisent tous RMSNorm ».</p>
+
+<p>Dans les Transformers, la position du bloc de normalisation par rapport à la connexion résiduelle est une source de confusion récurrente. Xiong et al. (ICML 2020) démontrent via la <em>mean-field theory</em> (théorie des champs moyens) que le placement Post-LN d'origine produit à l'initialisation des gradients attendus très élevés près de la couche de sortie, rendant le <em>warm-up</em> indispensable pour éviter la divergence. Le placement Pre-LN, qui applique la normalisation à l'intérieur de la branche résiduelle, donne des gradients bien conditionnés et permet de supprimer entièrement le warm-up. Ce diagnostic est cependant incomplet : les mêmes auteurs notent que Post-LN peut atteindre une meilleure performance finale lorsque l'entraînement réussit. Présenter Pre-LN comme universellement supérieur occulte ce compromis — convergence plus facile contre qualité finale potentiellement moindre — qui doit être évalué en fonction du budget d'entraînement disponible.</p>
+
+<p>L'idée que BatchNorm serait un composant indispensable pour atteindre l'état de l'art en classification d'images est directement réfutée par les NFNets (Normalizer-Free Networks) de Brock et al. (2021). Sans aucune couche de normalisation, le modèle NFNet-F5 atteint 86,5 % de top-1 accuracy sur ImageNet (en combinaison avec Sharpness Aware Minimization), et des variantes plus petites égalent l'accuracy d'EfficientNet-B7 en étant jusqu'à 8,7× plus rapides à entraîner. La clé de cette stabilité est l'<em>Adaptive Gradient Clipping</em> (AGC) : plutôt que de normaliser les activations, AGC contrôle la magnitude des mises à jour en les bornant par le ratio local norme-gradient/norme-paramètre, couche par couche. Ce résultat déplace la question de « BatchNorm ou non ? » vers une question plus fondamentale : quels mécanismes de contrôle de la dynamique d'entraînement sont réellement nécessaires ?</p>
+</section>
+<section id="ecosysteme">
+<h3>Ecosysteme &amp; pour aller plus loin</h3>
+<p>Dans PyTorch&nbsp;2.12, les trois variantes se distinguent d'abord par leurs conventions d'epsilon. <code>torch.nn.BatchNorm2d(num_features, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)</code> agit sur des tenseurs&nbsp;<em>NCHW</em>&nbsp;: pendant l'entraînement, elle maintient des <em>running statistics</em> (statistiques mobiles) via un moving average avec <code>momentum=0.1</code>, puis bascule sur ces valeurs en mode <code>.eval()</code>. La version&nbsp;2.12 ajoute un paramètre <code>bias=True</code> permettant de désactiver le terme additif indépendamment de <code>affine</code>. <code>torch.nn.LayerNorm(normalized_shape, eps=1e-05, elementwise_affine=True, bias=True)</code> expose un eps fixe à <code>1e-05</code>, quelle que soit la précision du calcul. <code>torch.nn.RMSNorm(normalized_shape, eps=None, elementwise_affine=True)</code> adopte une convention différente&nbsp;: <code>eps=None</code> résout à l'epsilon machine (machine epsilon) du type <em>opmath</em> courant — <code>torch.finfo(torch.float32).eps</code>&nbsp;≈&nbsp;1.2e-07 pour les entrées fp16/bf16/fp32, soit environ 80× plus petit que celui de LayerNorm. Cette divergence de convention, rarement mise en avant (voir Issue&nbsp;#155527 dans pytorch/pytorch), peut surprendre lors d'une migration entre couches.</p>
+
+<p>L'implémentation de référence de RMSNorm est publiée par les auteurs du papier original — Zhang &amp; Sennrich, NeurIPS&nbsp;2019 — dans le dépôt <code>bzhangGo/rmsnorm</code>. Elle est volontairement minimale&nbsp;: le fichier <code>rmsnorm_torch.py</code> montre en quelques dizaines de lignes que supprimer la <em>mean subtraction</em> (soustraction de la moyenne) réduit la normalisation à un seul calcul de racine de la moyenne des carrés, sans accumulation de statistiques séparée. C'est cette référence qu'ont consultée les équipes ayant adopté RMSNorm dans LLaMA, Mistral et Gemma.</p>
+
+<p>Pour l'entraînement à grande échelle, deux familles de <em>fused kernels</em> (noyaux fusionnés) coexistent. NVIDIA/apex fournit <code>apex.normalization.FusedLayerNorm</code> et <code>FusedRMSNorm</code>&nbsp;: des kernels CUDA qui fusionnent normalisation, mise à l'échelle et décalage en un seul passage mémoire, réduisant la pression sur la bande passante HBM. Apex a constitué une dépendance optionnelle de HuggingFace Transformers pour accélérer layer normalization, notamment sur les architectures BERT et GPT-2. Une alternative plus récente et indépendante des pilotes NVIDIA est <strong>Liger Kernel</strong> (Hsu et al., arXiv&nbsp;2410.10989, LinkedIn, 2024)&nbsp;: une collection de kernels Triton fusionnés couvrant RMSNorm, RoPE, SwiGLU et CrossEntropy. Sur les LLM en entraînement, Liger affiche en moyenne +25&nbsp;% de throughput (débit) et −40&nbsp;% d'utilisation mémoire GPU (avec une forte dispersion selon le modèle) par rapport aux implémentations HuggingFace de référence, avec une installation réduite à <code>pip install liger-kernel</code>.</p>
+
+<p>Dans l'écosystème JAX, Flax expose l'ensemble des couches de normalisation dans deux APIs complémentaires&nbsp;: <code>flax.linen</code> (style fonctionnel, héritage) et <code>flax.nnx</code> (style orienté objet, recommandé pour les nouveaux projets). BatchNorm, LayerNorm, RMSNorm, GroupNorm et InstanceNorm sont tous disponibles dans <code>flax.linen.normalization</code>, avec des signatures parallèles à leurs équivalents PyTorch. Le fichier source <code>flax/linen/normalization.py</code> constitue une lecture utile pour apprécier les différences de sémantique entre les deux frameworks, notamment sur la gestion de l'état mutable de batch normalization, structurellement différente en JAX.</p>
+
+<p><em>Dive into Deep Learning</em> (d2l.ai) propose des implémentations from-scratch de batch normalization dans quatre frameworks — PyTorch, MXNet, JAX/Flax et TensorFlow — avec une pédagogie explicite sur les dimensions de calcul&nbsp;: moyenne et variance calculées sur <em>N×H×W</em> pour les couches convolutionnelles, sur la dimension <em>features</em> pour les couches fully-connected. C'est le point d'entrée le plus didactique avant de passer aux APIs haut niveau.</p>
+
+<p>Sur le plan théorique, <em>Beyond BatchNorm</em> (Lubana, Dick &amp; Tanaka, NeurIPS&nbsp;2021, arXiv&nbsp;2106.05956) établit un cadre unifié comparant batch normalization, GroupNorm, LayerNorm et InstanceNorm sur trois axes&nbsp;: (1)&nbsp;contrôle de la croissance des activations dans les ResNets, (2)&nbsp;distinguabilité des échantillons en <em>forward pass</em> (passe avant), (3)&nbsp;stabilité des gradients en <em>backward pass</em> (passe arrière). Cette grille permet de raisonner sur le choix d'une couche de normalisation en fonction de l'architecture et du régime d'entraînement, plutôt que de suivre une règle empirique.</p>
+</section>
+<details class="ex"><summary>Vérifie ta compréhension<span class="cnt">Partie Axes, invariances et mécanisme réel</span></summary><div class="exbody"><p><b>Question.</b> <p><strong>(a)</strong> BatchNorm et LayerNorm calculent leurs statistiques μ et σ² sur des axes différents. Lesquels ? Pourquoi LayerNorm n'équivaut-il <em>pas</em> à BatchNorm appliqué à un batch de taille 1 ?</p><p><strong>(b)</strong> RMSNorm est présenté comme une simplification de LayerNorm. Quelle opération supprime-t-il exactement, quel paramètre conserve-t-il, et quelle invariance abandonne-t-il au passage ?</p><p><strong>(c)</strong> Le papier d'origine de BatchNorm (2015) attribuait son efficacité à la réduction de l'<em>internal covariate shift</em>. Quelle expérience de Santurkar et al. (2018) invalide ce récit, et quel est, selon eux, le mécanisme réellement opératif ?</p></p><div class="eg b"><span class="egk">Réponse</span><p><strong>(a)</strong> BatchNorm calcule μ et σ² sur la <em>dimension du batch</em> (et, en convolution, sur les positions spatiales), séparément pour chaque feature : la normalisation d'un exemple dépend donc des autres exemples du mini-batch. LayerNorm calcule μ et σ² sur l'<em>axe des features d'un seul exemple</em>, sans aucune référence aux autres. Ces deux axes sont orthogonaux : à batch=1, BatchNorm normalise une feature sur un unique scalaire par feature (variance nulle, comportement instable), alors que LayerNorm agrège sur les H features de l'exemple — les deux opérations ne coïncident jamais.</p><p><strong>(b)</strong> RMSNorm supprime le <em>re-centering</em> (la soustraction de la moyenne μ) et ne conserve que la division par la root mean square, suivie d'un unique vecteur de gain <em>g</em> appris (le biais β de LayerNorm disparaît aussi). Il conserve la <em>re-scaling invariance</em> — RMSNorm(δx) = RMSNorm(x) — mais abandonne l'invariance au décalage additif constant (shift invariance) que garantissait le recentrage de LayerNorm.</p><p><strong>(c)</strong> Santurkar et al. réinjectent délibérément du bruit distributionnel après chaque couche BatchNorm — aggravant artificiellement l'internal covariate shift — et observent que l'entraînement reste aussi rapide et stable. La réduction de l'internal covariate shift n'est donc pas le mécanisme opératif ; le bénéfice réel est le <em>lissage du paysage de perte</em> (bornes de Lipschitz et de courbure améliorées, prouvées couche par couche), qui rend les pas de gradient plus prédictifs et tolère des learning rates plus élevés.</p></div></div></details>
+<details class="ex"><summary>Vérifie ta compréhension<span class="cnt">Partie Placement, idées reçues et limites</span></summary><div class="exbody"><p><b>Question.</b> <p><strong>(a)</strong> Pre-LN et Post-LN diffèrent par la position de la normalisation autour de la connexion résiduelle. Lequel rend le <em>warmup</em> évitable, et pourquoi (argument de Xiong et al., 2020) ? Quel problème de Pre-LN la stratégie Peri-LN (Gemma 2) corrige-t-elle ?</p><p><strong>(b)</strong> Vrai ou faux : « passer de LayerNorm à RMSNorm divise par deux la mémoire d'un LLM ». Justifiez chiffres à l'appui.</p><p><strong>(c)</strong> La normalisation est-elle indispensable pour atteindre l'état de l'art en classification d'images ? Donnez un contre-exemple chiffré et le mécanisme qui le rend possible.</p></p><div class="eg b"><span class="egk">Réponse</span><p><strong>(a)</strong> C'est <em>Pre-LN</em> (normalisation à l'intérieur de la branche résiduelle, <code>y = x + Sublayer(Norm(x))</code>) qui rend le warmup évitable : Xiong et al. montrent par mean-field theory que ses gradients sont bien conditionnés dès l'initialisation, là où Post-LN présente une asymétrie de gradient (gradients attendus très élevés près de la sortie) qui exige un warmup pour ne pas diverger. Mais Pre-LN ne normalise pas le tronc résiduel : la variance des hidden states croît exponentiellement avec la profondeur, rendant les couches profondes redondantes. Peri-LN normalise <em>avant et après</em> le module (<code>y = x + Norm(Module(Norm(x)))</code>), ramenant cette croissance de variance à un régime approximativement linéaire tout en préservant la stabilité de gradient de Pre-LN.</p><p><strong>(b)</strong> Faux. Le facteur 2 ne porte que sur les paramètres <em>propres à la couche de normalisation</em> (RMSNorm n'apprend que le gain g, supprimant le biais β), or ceux-ci représentent moins de 0,01 % des paramètres d'un LLM comme LLaMA 7B. L'avantage réel de RMSNorm n'est pas la mémoire de paramètres mais la <em>vitesse</em> — gain mesuré de 7 % à 64 % selon l'architecture — obtenue en supprimant le calcul de la moyenne et en réduisant les transferts mémoire.</p><p><strong>(c)</strong> Non : les NFNets (Brock et al., 2021), sans aucune couche de normalisation, atteignent 86,5 % de top-1 sur ImageNet (NFNet-F5 avec Sharpness Aware Minimization), et des variantes plus petites égalent EfficientNet-B7 en s'entraînant jusqu'à 8,7× plus vite. Le mécanisme clé est l'<em>Adaptive Gradient Clipping</em> (AGC), qui borne la magnitude des mises à jour couche par couche au lieu de normaliser les activations.</p></div></div></details>
+<section id="biblio"><h3>Bibliographie &amp; repos</h3><div><a href="https://d2l.ai/chapter_convolutional-modern/batch-norm.html">8.5. Batch Normalization — Dive into Deep Learning 1.0.3</a></div><div><a href="https://www.pinecone.io/learn/batch-layer-normalization/">Build Better Deep Learning Models with Batch and Layer Normalization — Pinecone</a></div><div><a href="https://ar5iv.labs.arxiv.org/abs/1502.03167">Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift — ar5iv HTML rendering (arXiv:1502.03167)</a></div><div><a href="https://arxiv.org/abs/1502.03167">Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift (Ioffe &amp; Szegedy, 2015) — arXiv 1502.03167</a></div><div><a href="https://aiimpacts.org/time-for-ai-to-cross-the-human-performance-range-in-imagenet-image-classification/">Time for AI to cross the human performance range in ImageNet image classification — AI Impacts</a></div><div><a href="https://proceedings.mlr.press/v37/ioffe15.html">Batch Normalization: Accelerating Deep Network Training by Reducing Internal Covariate Shift — ICML 2015 Proceedings (PMLR v37)</a></div><div><a href="https://arxiv.org/abs/1805.11604">How Does Batch Normalization Help Optimization? (No, It Is Not About Internal Covariate Shift) — Santurkar et al., NeurIPS 2018</a></div><div><a href="https://arxiv.org/abs/1607.06450">Layer Normalization (Ba et al., 2016) — arXiv:1607.06450</a></div><div><a href="https://arxiv.org/abs/1803.08494">Group Normalization (Wu &amp; He, 2018) — arXiv:1803.08494</a></div><div><a href="https://arxiv.org/abs/1603.09025">Recurrent Batch Normalization (Cooijmans et al., 2016) — arXiv:1603.09025</a></div><div><a href="https://keras.io/api/layers/normalization_layers/layer_normalization/">Keras documentation: LayerNormalization layer</a></div><div><a href="https://towardsdatascience.com/different-normalization-layers-in-deep-learning-1a7214ff71d6/">Different Normalization Layers in Deep Learning — Towards Data Science</a></div><div><a href="https://tungmphung.com/deep-learning-normalization-methods/">Deep Learning Normalization Methods — tungmphung.com</a></div><div><a href="https://proceedings.neurips.cc/paper/2019/hash/1e8a19426224ca89e83cef47f1e7f53b-Abstract.html">Root Mean Square Layer Normalization — NeurIPS 2019 Proceedings</a></div><div><a href="https://arxiv.org/abs/1910.07467">Root Mean Square Layer Normalization — arXiv 1910.07467</a></div><div><a href="https://sushant-kumar.com/blog/normalization-in-transformer-based-llms">Normalization Techniques in Transformer-Based LLMs: LayerNorm, RMSNorm, and Beyond — Sushant Kumar</a></div><div><a href="https://ar5iv.labs.arxiv.org/html/2302.13971">LLaMA paper (ar5iv) — section 2.2 confirming Zhang &amp; Sennrich (2019) citation and pre-norm RMSNorm</a></div><div><a href="https://github.com/huggingface/transformers/blob/main/src/transformers/models/falcon/modeling_falcon.py">HuggingFace Transformers — modeling_falcon.py using LayerNorm (not RMSNorm)</a></div><div><a href="https://sebastianraschka.com/blog/2023/falcon-finetuning.html">Sebastian Raschka — Finetuning Falcon LLMs (confirms Falcon uses LayerNorm vs LLaMA's RMSNorm)</a></div><div><a href="https://arxiv.org/html/2407.14885v1">Falcon2-11B Technical Report (arxiv 2407.14885)</a></div><div><a href="https://huggingface.co/mistralai/Mistral-7B-v0.1/blob/main/config.json">Mistral-7B-v0.1 config.json (Hugging Face)</a></div><div><a href="https://www.ceramic.ai/blog/revisiting-layernorm">Revisiting LayerNorm: aka Norms are Important — Ceramic AI</a></div><div><a href="https://gradientscience.org/batchnorm/">How Does Batch Normalization Help Optimization? – gradient science (blog des auteurs)</a></div><div><a href="https://proceedings.neurips.cc/paper_files/paper/2018/file/905056c1ac1dad141560467e0a99e1cf-Paper.pdf">How Does Batch Normalization Help Optimization? (NeurIPS 2018, Santurkar et al.) — PDF NeurIPS</a></div><div><a href="https://ar5iv.labs.arxiv.org/html/1805.11604">How Does Batch Normalization Help Optimization? — ar5iv HTML rendering (arxiv 1805.11604)</a></div><div><a href="https://kobejean.github.io/machine-learning/2019/04/28/batch-normalization-part-2/">Batch Normalization (Part 2) — ML Review (kobejean, independent)</a></div><div><a href="https://arxiv.org/abs/2106.05956">Beyond BatchNorm: Towards a Unified Understanding of Normalization in Deep Learning (arxiv)</a></div><div><a href="https://proceedings.neurips.cc/paper/2021/hash/2578eb9cdf020730f77793e8b58e165a-Abstract.html">Beyond BatchNorm: Towards a Unified Understanding of Normalization in Deep Learning (NeurIPS 2021 proceedings)</a></div><div><a href="https://ar5iv.labs.arxiv.org/html/2106.05956">ar5iv HTML render of arxiv 2106.05956</a></div><div><a href="https://proceedings.mlr.press/v119/xiong20b">On Layer Normalization in the Transformer Architecture — Xiong et al., ICML 2020 (PMLR proceedings)</a></div><div><a href="https://arxiv.org/html/2412.13795v1">Mix-LN: Unleashing the Power of Deeper Layers by Combining Pre-LN and Post-LN — arXiv 2412.13795</a></div><div><a href="https://arxiv.org/abs/2002.04745">On Layer Normalization in the Transformer Architecture (arXiv:2002.04745)</a></div><div><a href="https://proceedings.mlr.press/v119/xiong20b/xiong20b.pdf">On Layer Normalization in the Transformer Architecture – ICML 2020 Proceedings (PMLR 119)</a></div><div><a href="https://arxiv.org/abs/2502.02732">Peri-LN: Revisiting Normalization Layer in the Transformer Architecture (arXiv:2502.02732)</a></div><div><a href="https://proceedings.mlr.press/v267/kim25u.html">Peri-LN: Revisiting Normalization Layer in the Transformer Architecture — ICML 2025 Proceedings</a></div><div><a href="https://arxiv.org/abs/2004.08249">Understanding the Difficulty of Training Transformers — ADMIN (Liu et al., EMNLP 2020)</a></div><div><a href="https://arxiv.org/abs/2206.00330">B2T Connection: Serving Stability and Performance in Deep Transformers (Xu et al., 2022)</a></div><div><a href="https://arxiv.org/abs/2408.00118">Gemma 2: Improving Open Language Models at a Practical Size (arXiv 2408.00118)</a></div><div><a href="https://developers.googleblog.com/gemma-explained-new-in-gemma-2/">Gemma explained: What's new in Gemma 2 — Google Developers Blog</a></div><div><a href="https://ar5iv.labs.arxiv.org/html/1803.08494">Group Normalization — version HTML lisible (ar5iv)</a></div><div><a href="https://sh-tsang.medium.com/review-group-norm-gn-group-normalization-image-classification-5f7fe0f58eb6">Review — Group Norm (GN): Group Normalization (Image Classification) — Sik-Ho Tsang, Medium</a></div><div><a href="https://ar5iv.labs.arxiv.org/html/2212.09748">Scalable Diffusion Models with Transformers (ar5iv HTML, arXiv:2212.09748)</a></div><div><a href="https://github.com/facebookresearch/DiT/blob/main/models.py">DiT models.py — facebookresearch/DiT (code officiel)</a></div><div><a href="https://towardsdatascience.com/diffusion-transformer-explained-e603c4770f7e/">Diffusion Transformer Explained — Towards Data Science</a></div><div><a href="https://openreview.net/forum?id=E4roJSM9RM">Unveiling the Secret of AdaLN-Zero in Diffusion Transformer (OpenReview)</a></div><div><a href="https://arxiv.org/html/2503.10622v1">Transformers without Normalization (arXiv 2503.10622v1, HTML)</a></div><div><a href="https://jiachenzhu.github.io/DyT/">DyT Project Page — Jiachen Zhu et al.</a></div><div><a href="https://arxiv.org/abs/2503.10622v2">Transformers without Normalization (arXiv 2503.10622v2)</a></div><div><a href="https://huggingface.co/papers/2503.10622">Paper page – Transformers without Normalization (Hugging Face)</a></div><div><a href="https://arxiv.org/abs/2201.03545">A ConvNet for the 2020s (arXiv:2201.03545) — abstract et pages 4-5 de la version v2</a></div><div><a href="https://huggingface.co/learn/computer-vision-course/en/unit2/cnns/convnext">ConvNeXt — Hugging Face Computer Vision Course (Unit 2)</a></div><div><a href="https://arxiv.org/pdf/1803.08494">Group Normalization, Wu &amp; He, ECCV 2018 (arXiv:1803.08494)</a></div><div><a href="https://medium.com/@amarasinghelra/the-empire-strikes-back-how-convnext-brought-cnns-back-from-the-dead-d6f48f14bb92">The Empire Strikes Back: How ConvNeXt Brought CNNs Back from the Dead (Medium, Amarasinghe)</a></div><div><a href="https://scalingthoughts.com/blog/normalization-placement-matters/">Normalization Placement Matters — Scaling Thoughts</a></div><div><a href="https://jytan.net/blog/2025/transformer-architectures/">The Crystallization of Transformer Architectures (2017–2025) — Jun Yu Tan</a></div><div><a href="https://ar5iv.labs.arxiv.org/html/2002.04745">On Layer Normalization in the Transformer Architecture (Xiong et al., 2020) — ar5iv</a></div><div><a href="https://arxiv.org/html/2408.00118v1">Gemma 2: Improving Open Language Models at a Practical Size (arXiv:2408.00118)</a></div><div><a href="https://medium.com/@imabhi1216/essential-highlights-from-gemma-2-improving-open-language-models-at-a-practical-size-4acd315caaa1">Essential Highlights from Gemma 2 — Abhishek Selokar, Medium</a></div><div><a href="https://sebastianraschka.com/faq/docs/rmsnorm-vs-layernorm.html">RMSNorm vs LayerNorm — Sebastian Raschka FAQ</a></div><div><a href="https://medium.com/@ashutoshs81127/why-modern-transformers-use-rmsnorm-instead-of-layernorm-5f386be7156c">Why Modern Transformers Use RMSNorm Instead of LayerNorm — Medium (Ashutosh)</a></div><div><a href="https://mljourney.com/batch-normalization-vs-internal-covariate-shift/">Batch Normalization vs Internal Covariate Shift — ML Journey</a></div><div><a href="https://pubmed.ncbi.nlm.nih.gov/33095717/">Revisiting Internal Covariate Shift for Batch Normalization — Awais et al., IEEE TNNLS 2020 (PubMed)</a></div><div><a href="https://arxiv.org/abs/2105.07576">Rethinking 'Batch' in BatchNorm — Wu &amp; Johnson (2021), arXiv abstract</a></div><div><a href="https://ar5iv.labs.arxiv.org/html/2105.07576">Rethinking 'Batch' in BatchNorm — ar5iv full HTML (Table 5, Section 5.2)</a></div><div><a href="https://proceedings.neurips.cc/paper_files/paper/2019/hash/1e8a19426224ca89e83cef47f1e7f53b-Abstract.html">Root Mean Square Layer Normalization — NeurIPS Proceedings (abstract)</a></div><div><a href="https://arxiv.org/html/2502.02732v1">Peri-LN: Revisiting Layer Normalization in the Transformer Architecture (arXiv:2502.02732)</a></div><div><a href="https://arxiv.org/abs/2102.06171">High-Performance Large-Scale Image Recognition Without Normalization (arXiv:2102.06171, Brock et al., 2021)</a></div><div><a href="https://m0nads.wordpress.com/2021/03/25/image-recognition-without-normalization/">Normalizer-Free ResNets — m0nads (secondary analysis)</a></div><div><a href="https://syncedreview.com/2021/02/16/deepmind-achieves-high-performance-large-scale-image-recognition-without-batch-normalization/">DeepMind Achieves High-Performance Large-Scale Image Recognition Without Batch Normalization — Synced Review</a></div><div><a href="https://sh-tsang.medium.com/review-nfnet-normalizer-free-networks-207b76641128">Review — NFNet: Normalizer-Free Networks (Sik-Ho Tsang, Medium)</a></div><div><a href="https://docs.pytorch.org/docs/2.12/generated/torch.nn.LayerNorm.html">PyTorch 2.12 — torch.nn.LayerNorm</a></div><div><a href="https://docs.pytorch.org/docs/2.12/generated/torch.nn.RMSNorm.html">PyTorch 2.12 — torch.nn.RMSNorm</a></div><div><a href="https://github.com/pytorch/pytorch/issues/155527">GitHub issue #155527 — RMSNorm eps=None documentation discrepancy</a></div><div><a href="https://arxiv.org/abs/2410.10989">Liger Kernel: Efficient Triton Kernels for LLM Training (arXiv:2410.10989)</a></div><div><a href="https://github.com/linkedin/Liger-Kernel">LinkedIn/Liger-Kernel — GitHub README</a></div><div><a href="https://github.com/huggingface/transformers/issues/45704">T5 silently uses apex.FusedRMSNorm which has a memory leak — huggingface/transformers #45704 (April 2026)</a></div><div><a href="https://docs.mosaicml.com/projects/composer/en/v0.12.1/method_cards/fused_layernorm.html">Fused LayerNorm method card — MosaicML Composer (remplace torch.nn.LayerNorm par apex.normalization.fused_layer_norm pour le gain GPU)</a></div><div><a href="https://github.com/pytorch/pytorch/issues/37713">Builtin FusedLayerNorm is slower than apex one — pytorch/pytorch #37713</a></div><div><a href="https://github.com/huggingface/transformers/issues/9377">replacing apex.normalization.FusedLayerNorm with torch.nn.LayerNorm — huggingface/transformers #9377</a></div><div><a href="https://github.com/huggingface/transformers/pull/9386">Replace apex FusedLayerNorm by PyTorch LayerNorm · Pull Request #9386 · huggingface/transformers</a></div><div><a href="https://www.marktechpost.com/2026/06/01/how-to-speed-up-transformer-training-using-nvidia-apex-fusedadam-fusedlayernorm-and-native-torch-amp/">How to Speed Up Transformer Training Using NVIDIA Apex (FusedAdam, FusedLayerNorm) and Native torch.amp - MarkTechPost</a></div></section>
+<section id="pointers"><h3>Pour aller plus loin</h3><div class="xptr-grid"><div class="xptr"><a class="xptr-name" href="https://docs.pytorch.org/docs/2.12/generated/torch.nn.BatchNorm2d.html">torch.nn.BatchNorm2d — PyTorch 2.12</a><span class="xptr-kind">library</span><p class="xptr-blurb">Référence officielle PyTorch 2.12.0 de BatchNorm2d, avec signature complète, formule de normalisation et exemples d'utilisation sur entrée 4D.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://docs.pytorch.org/docs/2.12/generated/torch.nn.LayerNorm.html">torch.nn.LayerNorm — PyTorch 2.12</a><span class="xptr-kind">library</span><p class="xptr-blurb">Documentation PyTorch 2.12.0 de LayerNorm, couvrant les paramètres normalized_shape, eps, elementwise_affine et bias, avec exemples NLP et vision.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://docs.pytorch.org/docs/2.12/generated/torch.nn.RMSNorm.html">torch.nn.RMSNorm — PyTorch 2.12</a><span class="xptr-kind">library</span><p class="xptr-blurb">Documentation PyTorch 2.12.0 de RMSNorm (Root Mean Square Layer Normalization), avec formule, paramètres, formes d'entrée/sortie et méthodes reset_parameters/forward.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://github.com/bzhangGo/rmsnorm">bzhangGo/rmsnorm</a><span class="xptr-kind">implementation</span><p class="xptr-blurb">Implémentation de référence de RMSNorm par Biao Zhang et Rico Sennrich (NeurIPS 2019), en PyTorch, TensorFlow et Theano, sur des tâches de traduction, classification et légende d'images.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://github.com/NVIDIA/apex">NVIDIA/apex — FusedLayerNorm &amp; FusedRMSNorm</a><span class="xptr-kind">package</span><p class="xptr-blurb">Extension PyTorch NVIDIA (9k étoiles) fournissant des kernels CUDA fusionnés pour l'entraînement mixte-précision, dont apex.normalization.FusedLayerNorm et FusedRMSNorm nécessitant un build avec extensions CUDA.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://github.com/linkedin/Liger-Kernel">Liger Kernel (linkedin/Liger-Kernel)</a><span class="xptr-kind">package</span><p class="xptr-blurb">Collection de kernels Triton fusionnés pour l'entraînement LLM (LigerRMSNorm, RoPE, SwiGLU…) annonçant +25 % de throughput multi-GPU et −40 % de mémoire GPU par rapport à HuggingFace.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://github.com/google/flax/blob/main/flax/linen/normalization.py">flax.linen.normalization (Google/Flax)</a><span class="xptr-kind">library</span><p class="xptr-blurb">Fichier source Flax (1 391 lignes) contenant les implémentations JAX de BatchNorm, LayerNorm, RMSNorm, GroupNorm, InstanceNorm et SpectralNorm dans flax.linen.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://d2l.ai/chapter_convolutional-modern/batch-norm.html">d2l.ai — Batch Normalization (from-scratch)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Section 8.5 de Dive into Deep Learning (v1.0.3) couvrant la batch normalization avec implémentations pédagogiques from-scratch en PyTorch, MXNet, JAX et TensorFlow, appliquées à LeNet sur Fashion-MNIST.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2106.05956">Beyond BatchNorm (Lubana et al., NeurIPS 2021)</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Papier NeurIPS 2021 (Lubana, Dick, Tanaka) proposant un cadre unifié étendant les propriétés de BatchNorm à GroupNorm, LayerNorm et InstanceNorm sur des réseaux initialisés aléatoirement.</p></div></div></section>
+<section id="glossaire"><h3>Glossaire</h3><div class="gloss-grid"><div class="gterm"><span class="gt-name">Batch normalization (BatchNorm)</span><p class="gt-def">Normalisation (Ioffe &amp; Szegedy, 2015) qui calcule la moyenne μ_B et la variance σ²_B sur la dimension du batch, par feature — pour les couches convolutives, conjointement sur le batch et toutes les positions spatiales, les paramètres appris γ (scale) et β (shift) étant alors partagés par canal (feature map). Elle dépend de la taille du mini-batch et diffère entre entraînement et inférence, où des statistiques de population accumulées remplacent celles du batch.</p><p class="gt-see">→ Layer normalization (LayerNorm), Internal covariate shift, Group normalization (GroupNorm)</p></div>
+<div class="gterm"><span class="gt-name">Layer normalization (LayerNorm)</span><p class="gt-def">Normalisation (Ba et al., 2016) qui calcule μ et σ² sur les H features d'un seul exemple, sans dépendre des autres exemples du batch ni de sa taille. Le calcul est identique en entraînement et en inférence (aucune statistique de population accumulée), ce qui la rend naturelle pour les Transformers et les RNN. Elle n'équivaut PAS à BatchNorm appliqué à un batch de taille 1 : les deux opèrent sur des axes orthogonaux.</p><p class="gt-see">→ Batch normalization (BatchNorm), RMSNorm, Re-scaling invariance</p></div>
+<div class="gterm"><span class="gt-name">RMSNorm</span><p class="gt-def">Root mean square normalization (Zhang &amp; Sennrich, 2019), simplification de LayerNorm qui supprime l'étape de re-centering : RMSNorm(x) = (x / RMS(x)) ⊙ g avec RMS(x) = √(1/d · Σ xᵢ²), ne conservant qu'un vecteur de gain g appris. Procure un gain de vitesse de 7 % à 64 % sur LayerNorm à performance comparable ; devenue la normalisation dominante des LLM open-weight (LLaMA, Mistral, Gemma), Falcon faisant exception avec une LayerNorm standard.</p><p class="gt-see">→ Layer normalization (LayerNorm), Re-scaling invariance</p></div>
+<div class="gterm"><span class="gt-name">Internal covariate shift</span><p class="gt-def">Décalage de la distribution des activations d'une couche au fil de l'entraînement (changement de distribution interne). Hypothèse initiale d'Ioffe &amp; Szegedy pour expliquer pourquoi BatchNorm accélère l'entraînement, depuis remise en cause : Santurkar et al. (2018) montrent que réinjecter du bruit distributionnel après les couches BatchNorm ne dégrade pas la convergence, attribuant le bénéfice au lissage du paysage de perte ; le débat reste cependant ouvert (Awais et al., 2020).</p><p class="gt-see">→ Batch normalization (BatchNorm)</p></div>
+<div class="gterm"><span class="gt-name">Pre-LN / Post-LN / Peri-LN</span><p class="gt-def">Trois placements de la couche de normalisation par rapport au bloc résiduel. Post-LN (Transformer original) normalise la sortie de la sous-couche ; Pre-LN normalise son entrée, ce qui conditionne mieux les gradients à l'initialisation et rend le learning rate warmup (montée en température du taux d'apprentissage) évitable (Xiong et al., 2020) ; Peri-LN normalise les deux, y = x + Norm(Module(Norm(x))), pour une croissance de variance ~linéaire avec la profondeur (Gemma 2).</p><p class="gt-see">→ Layer normalization (LayerNorm), RMSNorm</p></div>
+<div class="gterm"><span class="gt-name">Group normalization (GroupNorm)</span><p class="gt-def">Normalisation (Wu &amp; He, 2018) qui calcule μ et σ² sur des groupes de canaux d'un seul exemple, donc indépendante de la dimension du batch. Sur ResNet-50/ImageNet à batch de taille 2 par GPU, elle présente une erreur inférieure de 10,6 points à BatchNorm ; aux tailles de batch standards, les deux sont comparables. BatchNorm, LayerNorm et instance normalization en sont des cas limites (par le nombre de groupes).</p><p class="gt-see">→ Batch normalization (BatchNorm), Layer normalization (LayerNorm)</p></div>
+<div class="gterm"><span class="gt-name">Re-scaling invariance</span><p class="gt-def">Invariance au redimensionnement (multiplication des entrées par un facteur δ ≠ 0) : la sortie de la normalisation reste inchangée, RMSNorm(δx) = RMSNorm(x). RMSNorm ne conserve que cette invariance ; LayerNorm satisfait en plus le re-centering (invariance au décalage additif constant, LN(x + b·1) = LN(x)), que RMSNorm abandonne. Ces invariances rendent la normalisation insensible à certaines reparamétrisations des poids et des données.</p><p class="gt-see">→ RMSNorm, Layer normalization (LayerNorm)</p></div></div></section>
+</main>
+</div>
+<!-- ───────────────────────────────────────────────────────────────────
+     COUCHE THÈME — bouton bascule dark-mode + infobulles de glossaire.
+     Extrait du widget theme-tooltips (CSS exclus : voir charte.css).
+     Injecté verbatim dans toutes les éditions à l'emplacement du jeton THEME_LAYER.
+     ─────────────────────────────────────────────────────────────────── -->
+
+<!-- (B) BOUTON BASCULE -->
+<button id="theme_toggle" type="button" aria-pressed="false"
+        title="Basculer le thème clair / sombre">
+  <span id="theme_toggle_ico" aria-hidden="true">☾</span>
+  <span id="theme_toggle_lbl">Sombre</span>
+</button>
+
+<!-- Popover unique réutilisé (créé aussi par JS en secours) -->
+<div id="theme_tip" role="tooltip" aria-hidden="true"></div>
+
+<!-- SCRIPT — (B) bascule + persistance, (C) infobulles accessibles.
+     Tout en IIFE, fonctions préfixées theme_. Aucun alert. -->
+<script>
+(function(){
+  "use strict";
+  var KEY = "theme_pref_v1";
+  var docEl = document.documentElement;
+
+  /* ---- stockage sûr : jamais d'erreur si localStorage indisponible ---- */
+  function theme_read(){
+    try { return window.localStorage.getItem(KEY); } catch(e){ return null; }
+  }
+  function theme_write(v){
+    try { window.localStorage.setItem(KEY, v); } catch(e){ /* silencieux */ }
+  }
+
+  /* ---- (B) application du thème ---- */
+  function theme_apply(mode, persist){
+    var dark = (mode === "dark");
+    if (dark) docEl.setAttribute("data-theme","dark");
+    else docEl.removeAttribute("data-theme");
+    var btn = document.getElementById("theme_toggle");
+    if (btn){
+      btn.setAttribute("aria-pressed", dark ? "true" : "false");
+      var ico = document.getElementById("theme_toggle_ico");
+      var lbl = document.getElementById("theme_toggle_lbl");
+      if (ico) ico.textContent = dark ? "☀" : "☾";
+      if (lbl) lbl.textContent = dark ? "Clair" : "Sombre";
+    }
+    if (persist) theme_write(dark ? "dark" : "light");
+  }
+
+  /* Appliquer la préférence au plus tôt (limite le flash). */
+  theme_apply(theme_read() === "dark" ? "dark" : "light", false);
+
+  function theme_initToggle(){
+    var btn = document.getElementById("theme_toggle");
+    if (!btn) return;
+    btn.addEventListener("click", function(){
+      docEl.classList.add("theme-anim"); /* transitions seulement sur action */
+      var nowDark = docEl.getAttribute("data-theme") === "dark";
+      theme_apply(nowDark ? "light" : "dark", true);
+    });
+  }
+
+  /* ---- (C) infobulles accessibles ---- */
+  var tip = null, current = null, uid = 0;
+
+  function theme_tipEl(){
+    if (tip) return tip;
+    tip = document.getElementById("theme_tip");
+    if (!tip){
+      tip = document.createElement("div");
+      tip.id = "theme_tip";
+      tip.setAttribute("role","tooltip");
+      tip.setAttribute("aria-hidden","true");
+      document.body.appendChild(tip);
+    }
+    return tip;
+  }
+
+  function theme_show(el){
+    var def = el.getAttribute("data-def");
+    if (!def) return;
+    var t = theme_tipEl();
+    t.textContent = def; /* textContent : aucune injection HTML possible */
+    if (!el.id) el.id = "theme_gloss_" + (++uid);
+    t.id = "theme_tip"; /* stable */
+    el.setAttribute("aria-describedby", "theme_tip");
+
+    /* mesure puis positionnement (au-dessus si la place le permet) */
+    t.style.left = "0px"; t.style.top = "0px";
+    t.setAttribute("aria-hidden","false");
+    t.setAttribute("data-show","1");
+
+    var r = el.getBoundingClientRect();
+    var tw = t.offsetWidth, th = t.offsetHeight;
+    var sx = window.pageXOffset, sy = window.pageYOffset;
+    var margin = 8;
+
+    var left = r.left + sx + (r.width/2) - (tw/2);
+    left = Math.max(sx + margin, Math.min(left, sx + document.documentElement.clientWidth - tw - margin));
+
+    var below = (r.top < th + 12); /* pas de place au-dessus → on passe dessous */
+    var top = below ? (r.bottom + sy + 8) : (r.top + sy - th - 8);
+    if (below) t.setAttribute("data-below","1"); else t.removeAttribute("data-below");
+
+    /* recentre la flèche sur le terme */
+    var ax = (r.left + sx + r.width/2) - left;
+    ax = Math.max(8, Math.min(ax, tw - 16));
+    t.style.setProperty("--theme-tip-ax", ax + "px");
+
+    t.style.left = left + "px";
+    t.style.top = top + "px";
+    current = el;
+  }
+
+  function theme_hide(){
+    if (!tip) return;
+    tip.removeAttribute("data-show");
+    tip.setAttribute("aria-hidden","true");
+    if (current){
+      current.removeAttribute("aria-describedby");
+      current = null;
+    }
+  }
+
+  function theme_wire(el){
+    if (el.getAttribute("data-theme-wired")) return;
+    el.setAttribute("data-theme-wired","1");
+    if (!el.hasAttribute("tabindex")) el.setAttribute("tabindex","0");
+    el.addEventListener("mouseenter", function(){ theme_show(el); });
+    el.addEventListener("mouseleave", theme_hide);
+    el.addEventListener("focus", function(){ theme_show(el); });
+    el.addEventListener("blur", theme_hide);
+  }
+
+  function theme_scan(root){
+    var nodes = (root || document).querySelectorAll(".theme-gloss[data-def]");
+    for (var i=0;i<nodes.length;i++) theme_wire(nodes[i]);
+  }
+
+  /* Échap referme ; un défilement masque l'infobulle (position figée sinon) */
+  document.addEventListener("keydown", function(e){
+    if (e.key === "Escape" || e.keyCode === 27) theme_hide();
+  });
+  window.addEventListener("scroll", theme_hide, true);
+
+  /* Termes ajoutés dynamiquement après coup */
+  function theme_observe(){
+    if (typeof MutationObserver === "undefined") return;
+    var mo = new MutationObserver(function(muts){
+      for (var i=0;i<muts.length;i++){
+        var added = muts[i].addedNodes;
+        for (var j=0;j<added.length;j++){
+          var n = added[j];
+          if (n.nodeType === 1){
+            if (n.classList && n.classList.contains("theme-gloss")) theme_wire(n);
+            if (n.querySelectorAll) theme_scan(n);
+          }
+        }
+      }
+    });
+    mo.observe(document.body, {childList:true, subtree:true});
+  }
+
+  /* ---- init ---- */
+  function theme_init(){
+    theme_apply(theme_read() === "dark" ? "dark" : "light", false);
+    theme_initToggle();
+    theme_scan(document);
+    theme_observe();
+  }
+  if (document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", theme_init);
+  } else {
+    theme_init();
+  }
+})();
+</script>
+
+<footer><div class="fin">Normalisation dans les réseaux profonds : BatchNorm, LayerNorm, RMSNorm · scriptorium</div></footer>
+<script>
+  const prog=document.getElementById('prog');
+  const onScroll=()=>{const h=document.documentElement;const sc=h.scrollTop;const max=h.scrollHeight-h.clientHeight;
+    prog.style.width=(max>0?(sc/max*100):0)+'%';};
+  document.addEventListener('scroll',onScroll,{passive:true});onScroll();
+  const links=[...document.querySelectorAll('nav.toc a')];
+  const map=new Map(links.map(a=>[a.getAttribute('href').slice(1),a]));
+  const obs=new IntersectionObserver((entries)=>{entries.forEach(e=>{
+    if(e.isIntersecting){links.forEach(l=>l.classList.remove('active'));
+      const a=map.get(e.target.id); if(a)a.classList.add('active');}});
+  },{rootMargin:'-12% 0px -78% 0px',threshold:0});
+  document.querySelectorAll('section[id]').forEach(s=>obs.observe(s));
+</script>
+</body></html>
