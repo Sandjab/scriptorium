@@ -1,0 +1,621 @@
+{
+  "edition": "monographie",
+  "slug": "bm25-inverted-index",
+  "meta": {
+    "title": "BM25 et l'index inversé",
+    "kicker": "BM25 et l'index inversé · monographie",
+    "h1": "BM25 et l'index inversé",
+    "lede": "Comment l'index inversé rend le scoring calculable à l'échelle, et comment la fonction de rang probabiliste de BM25 — saturation du term frequency, normalisation par longueur, IDF discriminant — classe les documents, avec ses paramètres, ses variantes et ses limites structurelles.",
+    "meta_chips": [
+      "Monographie"
+    ],
+    "footer": "BM25 et l'index inversé · scriptorium"
+  },
+  "elements": [
+    {
+      "type": "abstract"
+    },
+    {
+      "type": "section",
+      "id": "origines-cadre-probabiliste",
+      "heading": "Origines : du cadre probabiliste à Okapi BM25",
+      "level": 3,
+      "prose": "<p>Le nom complet — Okapi BM25 — est lui-même un condensé d'histoire. L'acronyme « BM » abrège <em>Best Matching</em> (meilleur appariement), l'étiquette générique que le groupe de Robertson donnait à la famille de fonctions de classement probabilistes qu'il développait depuis les années 1970. « Okapi » désigne le premier système d'<em>information retrieval</em> (recherche documentaire) à avoir mis ces fonctions en production : le système Okapi, conçu et exploité à la City University de Londres dans les années 1980 et 1990. Quant au suffixe numérique, la littérature secondaire l'attribue communément à un rang dans la série des formules Best Matching — le chiffre 25 coexiste avec BM11 et BM15, qui en sont des instances dégénérées — mais aucun document primaire de Robertson ne formalise explicitement cette numérotation séquentielle.</p>\n\n<p>L'architecture intellectuelle de BM25 remonte au <em>Probabilistic Relevance Framework</em> (cadre de pertinence probabiliste), posé par Stephen E. Robertson et Karen Spärck Jones à partir de 1976. Leur article fondateur, « Relevance weighting of search terms » (<em>Journal of the American Society for Information Science</em>, 27(3), 1976), formalise en termes de log-odds (rapport de vraisemblance logarithmique) l'idée que le classement des documents doit refléter la probabilité estimée de pertinence pour l'utilisateur. La pierre angulaire formelle en est le <em>Binary Independence Model</em> (BIM ; modèle d'indépendance binaire) : ce modèle représente chaque document comme un vecteur binaire — un terme est soit présent, soit absent — et suppose que les termes sont mutuellement indépendants conditionnellement à la pertinence. Cette hypothèse d'indépendance est la même stratégie que Naive Bayes, adoptée ici pour rendre le calcul tractable. BM25 dépasse le BIM précisément en réintégrant la fréquence du terme (<em>term frequency</em>) : là où le BIM ne retient que la présence ou l'absence, BM25 exploite le compte brut pondéré par la longueur du document, tout en conservant la dérivation probabiliste comme ossature.</p>\n\n<p>La consolidation publique de BM25 intervient à l'occasion du Third Text REtrieval Conference (TREC-3), organisé par le NIST du 2 au 4 novembre 1994 à Gaithersburg, Maryland. Le papier « Okapi at TREC-3 », signé par Robertson, Walker, Jones, Hancock-Beaulieu et Gatford, documente pour la première fois de façon reproductible la formule qui allait devenir le standard industriel de la décennie suivante. Les actes, publiés sous la référence NIST Special Publication 500-225 (pp. 109-126), constituent à ce jour la citation canonique de BM25 dans la littérature académique et dans les implémentations de production.</p>",
+      "claims": [
+        "claim:1",
+        "claim:2",
+        "claim:3"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "index-inverse",
+      "heading": "L'index inversé : la structure qui rend BM25 calculable",
+      "level": 3,
+      "prose": "<p>L'inverted index (index inversé) repose sur deux couches étroitement couplées. La première est le <em>dictionnaire</em> — aussi appelé <em>vocabulary</em> dans la littérature de recherche d'information — une structure clé–valeur (table de hachage, B-tree ou FST selon les compromis espace–temps) qui recense chaque terme unique du corpus après tokenisation et normalisation. Le dictionnaire ne stocke pas les documents eux-mêmes : il stocke des métadonnées globales par terme, dont la plus critique est <em>n(t)</em>, le document frequency (df), soit le nombre de documents contenant le terme t. Cette valeur est doublement utile dans BM25 : elle entre directement dans le calcul de l'IDF via ln[(N − n(t) + 0,5) / (n(t) + 0,5) + 1], et elle indique la longueur de la posting list correspondante, ce qui permet d'ordonner les termes d'une requête par sélectivité croissante sans avoir à accéder aux postings eux-mêmes.</p>\n\n<p>La seconde couche est l'ensemble des <em>posting lists</em> — une liste ordonnée par DocID pour chaque terme du vocabulaire. Chaque entrée d'une posting list contient au minimum le DocID du document ; pour le scoring de pertinence, elle stocke en outre la term frequency (TF), soit f(t, D), le nombre d'occurrences du terme dans ce document — un champ optionnel dans un index purement booléen, mais indispensable à BM25. Ce sont précisément les deux variables que la formule BM25 consomme par terme de requête côté document ; elles sont donc lisibles directement depuis la posting list sans accès au document original. Un troisième champ — les positions intra-document (offsets de mots) — peut être stocké optionnellement : il est indispensable pour les requêtes de phrase exacte mais représente un surcoût d'espace important et reste inutile pour le scoring BM25 standard.</p><figure class='fig'><svg viewBox='0 0 800 360' role='img' aria-label='Schéma de l’index inversé. À gauche, le dictionnaire : chaque terme porte son df = n(t) et un pointeur. À droite, pour chaque terme, sa posting list triée par DocID, cellules au format DocID:TF avec un champ positions grisé optionnel. Le df alimente l’IDF et dimensionne la longueur de la posting list ; les paires DocID:TF se lisent sans ouvrir aucun document.'><defs><marker id='fia-ar' markerWidth='8' markerHeight='8' refX='6.5' refY='3' orient='auto'><path d='M0 0 L7 3 L0 6 Z' fill='var(--bordeaux,#7C2A38)'/></marker></defs><text x='400' y='26' text-anchor='middle' font-size='15' font-weight='700' fill='var(--ink,#15202E)' font-family='system-ui,sans-serif'>Anatomie de l'index inversé : dictionnaire → posting lists</text><text x='28' y='56' font-size='12' font-weight='700' fill='var(--blue,#23537F)' font-family='system-ui,sans-serif'>DICTIONNAIRE</text><text x='28' y='71' font-size='9' fill='var(--ink-faint,#7A889B)' font-family='system-ui,sans-serif'>structure clé→valeur (hash · B-tree · FST)</text><text x='410' y='56' font-size='12' font-weight='700' fill='var(--bordeaux,#7C2A38)' font-family='system-ui,sans-serif'>POSTING LISTS</text><text x='410' y='71' font-size='9' fill='var(--ink-faint,#7A889B)' font-family='system-ui,sans-serif'>une liste triée par DocID par terme</text><text x='89' y='92' text-anchor='middle' font-size='9.5' font-weight='700' fill='var(--ink-soft,#43536A)' font-family='system-ui,sans-serif'>terme</text><text x='200' y='92' text-anchor='middle' font-size='9.5' font-weight='700' fill='var(--ink-soft,#43536A)' font-family='system-ui,sans-serif'>df = n(t)</text><text x='289' y='92' text-anchor='middle' font-size='9.5' font-weight='700' fill='var(--ink-soft,#43536A)' font-family='system-ui,sans-serif'>ptr</text><text x='410' y='92' font-size='9.5' font-weight='700' font-family='ui-monospace,monospace'><tspan fill='var(--blue,#23537F)'>DocID</tspan><tspan fill='var(--ink-faint,#7A889B)'> : </tspan><tspan fill='var(--bordeaux,#7C2A38)'>TF</tspan><tspan fill='var(--ink-soft,#43536A)' font-family='system-ui,sans-serif'>   ·   positions (optionnel, grisé)</tspan></text><rect x='28' y='101' width='300' height='38' rx='6' fill='var(--card,#FFFFFF)' stroke='var(--line,#D7DFE9)' stroke-width='1.2'/><line x1='150' y1='101' x2='150' y2='139' stroke='var(--line,#D7DFE9)' stroke-width='1'/><line x1='250' y1='101' x2='250' y2='139' stroke='var(--line,#D7DFE9)' stroke-width='1'/><text x='89' y='124' text-anchor='middle' font-size='12.5' font-weight='700' fill='var(--ink,#15202E)' font-family='ui-monospace,monospace'>okapi</text><text x='200' y='124' text-anchor='middle' font-size='11.5' font-family='ui-monospace,monospace'><tspan fill='var(--ink-soft,#43536A)'>df=</tspan><tspan fill='var(--ink,#15202E)' font-weight='700'>1</tspan></text><circle cx='270' cy='120' r='4.5' fill='var(--bordeaux,#7C2A38)'/><line x1='276' y1='120' x2='404' y2='120' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.4' marker-end='url(#fia-ar)'/><rect x='410' y='100' width='60' height='40' rx='4' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.2'/><rect x='411' y='123' width='58' height='16' fill='var(--line-soft,#E7ECF3)'/><line x1='410' y1='123' x2='470' y2='123' stroke='var(--blue,#23537F)' stroke-width='0.6' stroke-dasharray='2 2'/><text x='440' y='118' text-anchor='middle' font-size='12.5' font-weight='700' font-family='ui-monospace,monospace'><tspan fill='var(--blue,#23537F)'>33</tspan><tspan fill='var(--ink-faint,#7A889B)'>:</tspan><tspan fill='var(--bordeaux,#7C2A38)'>2</tspan></text><text x='440' y='135' text-anchor='middle' font-size='7' fill='var(--ink-faint,#7A889B)' font-family='ui-monospace,monospace'>pos[…]</text><text x='478' y='124' font-size='9' fill='var(--ink-faint,#7A889B)' font-family='ui-monospace,monospace'>(df=1)</text><rect x='28' y='157' width='300' height='38' rx='6' fill='var(--card,#FFFFFF)' stroke='var(--line,#D7DFE9)' stroke-width='1.2'/><line x1='150' y1='157' x2='150' y2='195' stroke='var(--line,#D7DFE9)' stroke-width='1'/><line x1='250' y1='157' x2='250' y2='195' stroke='var(--line,#D7DFE9)' stroke-width='1'/><text x='89' y='180' text-anchor='middle' font-size='12.5' font-weight='700' fill='var(--ink,#15202E)' font-family='ui-monospace,monospace'>bm25</text><text x='200' y='180' text-anchor='middle' font-size='11.5' font-family='ui-monospace,monospace'><tspan fill='var(--ink-soft,#43536A)'>df=</tspan><tspan fill='var(--ink,#15202E)' font-weight='700'>2</tspan></text><circle cx='270' cy='176' r='4.5' fill='var(--bordeaux,#7C2A38)'/><line x1='276' y1='176' x2='404' y2='176' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.4' marker-end='url(#fia-ar)'/><rect x='410' y='156' width='60' height='40' rx='4' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.2'/><rect x='411' y='179' width='58' height='16' fill='var(--line-soft,#E7ECF3)'/><line x1='410' y1='179' x2='470' y2='179' stroke='var(--blue,#23537F)' stroke-width='0.6' stroke-dasharray='2 2'/><text x='440' y='174' text-anchor='middle' font-size='12.5' font-weight='700' font-family='ui-monospace,monospace'><tspan fill='var(--blue,#23537F)'>12</tspan><tspan fill='var(--ink-faint,#7A889B)'>:</tspan><tspan fill='var(--bordeaux,#7C2A38)'>3</tspan></text><text x='440' y='191' text-anchor='middle' font-size='7' fill='var(--ink-faint,#7A889B)' font-family='ui-monospace,monospace'>pos[…]</text><rect x='476' y='156' width='60' height='40' rx='4' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.2'/><rect x='477' y='179' width='58' height='16' fill='var(--line-soft,#E7ECF3)'/><line x1='476' y1='179' x2='536' y2='179' stroke='var(--blue,#23537F)' stroke-width='0.6' stroke-dasharray='2 2'/><text x='506' y='174' text-anchor='middle' font-size='12.5' font-weight='700' font-family='ui-monospace,monospace'><tspan fill='var(--blue,#23537F)'>47</tspan><tspan fill='var(--ink-faint,#7A889B)'>:</tspan><tspan fill='var(--bordeaux,#7C2A38)'>1</tspan></text><text x='506' y='191' text-anchor='middle' font-size='7' fill='var(--ink-faint,#7A889B)' font-family='ui-monospace,monospace'>pos[…]</text><text x='544' y='180' font-size='9' fill='var(--ink-faint,#7A889B)' font-family='ui-monospace,monospace'>(df=2)</text><rect x='28' y='213' width='300' height='38' rx='6' fill='var(--card,#FFFFFF)' stroke='var(--line,#D7DFE9)' stroke-width='1.2'/><line x1='150' y1='213' x2='150' y2='251' stroke='var(--line,#D7DFE9)' stroke-width='1'/><line x1='250' y1='213' x2='250' y2='251' stroke='var(--line,#D7DFE9)' stroke-width='1'/><text x='89' y='236' text-anchor='middle' font-size='12.5' font-weight='700' fill='var(--ink,#15202E)' font-family='ui-monospace,monospace'>index</text><text x='200' y='236' text-anchor='middle' font-size='11.5' font-family='ui-monospace,monospace'><tspan fill='var(--ink-soft,#43536A)'>df=</tspan><tspan fill='var(--ink,#15202E)' font-weight='700'>4</tspan></text><circle cx='270' cy='232' r='4.5' fill='var(--bordeaux,#7C2A38)'/><line x1='276' y1='232' x2='404' y2='232' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.4' marker-end='url(#fia-ar)'/><rect x='410' y='212' width='60' height='40' rx='4' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.2'/><rect x='411' y='235' width='58' height='16' fill='var(--line-soft,#E7ECF3)'/><line x1='410' y1='235' x2='470' y2='235' stroke='var(--blue,#23537F)' stroke-width='0.6' stroke-dasharray='2 2'/><text x='440' y='230' text-anchor='middle' font-size='12.5' font-weight='700' font-family='ui-monospace,monospace'><tspan fill='var(--blue,#23537F)'>5</tspan><tspan fill='var(--ink-faint,#7A889B)'>:</tspan><tspan fill='var(--bordeaux,#7C2A38)'>1</tspan></text><text x='440' y='247' text-anchor='middle' font-size='7' fill='var(--ink-faint,#7A889B)' font-family='ui-monospace,monospace'>pos[…]</text><rect x='476' y='212' width='60' height='40' rx='4' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.2'/><rect x='477' y='235' width='58' height='16' fill='var(--line-soft,#E7ECF3)'/><line x1='476' y1='235' x2='536' y2='235' stroke='var(--blue,#23537F)' stroke-width='0.6' stroke-dasharray='2 2'/><text x='506' y='230' text-anchor='middle' font-size='12.5' font-weight='700' font-family='ui-monospace,monospace'><tspan fill='var(--blue,#23537F)'>12</tspan><tspan fill='var(--ink-faint,#7A889B)'>:</tspan><tspan fill='var(--bordeaux,#7C2A38)'>2</tspan></text><text x='506' y='247' text-anchor='middle' font-size='7' fill='var(--ink-faint,#7A889B)' font-family='ui-monospace,monospace'>pos[…]</text><rect x='542' y='212' width='60' height='40' rx='4' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.2'/><rect x='543' y='235' width='58' height='16' fill='var(--line-soft,#E7ECF3)'/><line x1='542' y1='235' x2='602' y2='235' stroke='var(--blue,#23537F)' stroke-width='0.6' stroke-dasharray='2 2'/><text x='572' y='230' text-anchor='middle' font-size='12.5' font-weight='700' font-family='ui-monospace,monospace'><tspan fill='var(--blue,#23537F)'>33</tspan><tspan fill='var(--ink-faint,#7A889B)'>:</tspan><tspan fill='var(--bordeaux,#7C2A38)'>1</tspan></text><text x='572' y='247' text-anchor='middle' font-size='7' fill='var(--ink-faint,#7A889B)' font-family='ui-monospace,monospace'>pos[…]</text><rect x='608' y='212' width='60' height='40' rx='4' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.2'/><rect x='609' y='235' width='58' height='16' fill='var(--line-soft,#E7ECF3)'/><line x1='608' y1='235' x2='668' y2='235' stroke='var(--blue,#23537F)' stroke-width='0.6' stroke-dasharray='2 2'/><text x='638' y='230' text-anchor='middle' font-size='12.5' font-weight='700' font-family='ui-monospace,monospace'><tspan fill='var(--blue,#23537F)'>47</tspan><tspan fill='var(--ink-faint,#7A889B)'>:</tspan><tspan fill='var(--bordeaux,#7C2A38)'>5</tspan></text><text x='638' y='247' text-anchor='middle' font-size='7' fill='var(--ink-faint,#7A889B)' font-family='ui-monospace,monospace'>pos[…]</text><text x='676' y='236' font-size='9' fill='var(--ink-faint,#7A889B)' font-family='ui-monospace,monospace'>(df=4)</text><line x1='200' y1='253' x2='200' y2='269' stroke='var(--ink-faint,#7A889B)' stroke-width='1.1' stroke-dasharray='3 2'/><line x1='550' y1='253' x2='550' y2='269' stroke='var(--ink-faint,#7A889B)' stroke-width='1.1' stroke-dasharray='3 2'/><rect x='24' y='270' width='332' height='66' rx='8' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1'/><text x='38' y='290' font-size='11' font-weight='700' fill='var(--blue,#23537F)' font-family='system-ui,sans-serif'>df = n(t) alimente l'IDF</text><text x='38' y='307' font-size='10' fill='var(--ink,#15202E)' font-family='ui-monospace,monospace'>ln[(N − n(t) + 0,5) / (n(t) + 0,5) + 1]</text><text x='38' y='324' font-size='9' fill='var(--ink-soft,#43536A)' font-family='system-ui,sans-serif'>… et dimensionne la posting list : df = nombre de cellules.</text><rect x='400' y='270' width='376' height='66' rx='8' fill='var(--bordeaux-wash,#F3E3E6)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1'/><text x='414' y='290' font-size='11' font-weight='700' fill='var(--bordeaux,#7C2A38)' font-family='system-ui,sans-serif'>Lecture directe des paires DocID:TF</text><text x='414' y='307' font-size='10' fill='var(--ink,#15202E)' font-family='system-ui,sans-serif'>→ scoring BM25 sans ouvrir aucun document brut.</text><text x='414' y='324' font-size='9' fill='var(--ink-faint,#7A889B)' font-family='system-ui,sans-serif'>champ positions (offsets) grisé = optionnel, hors BM25 standard.</text></svg><figcaption><span class='fcap-k'></span>Anatomie statique de l'index inversé : le dictionnaire associe à chaque terme son df = n(t) et un pointeur vers une posting list triée par DocID, dont chaque cellule DocID:TF se lit sans ouvrir le document — df alimentant l'IDF et fixant la longueur de la liste (champ positions optionnel, grisé).</figcaption></figure>\n\n<p>C'est cette architecture qui rend BM25 calculable sans scan linéaire du corpus. Pour une requête Q = {q₁, …, qₖ}, le moteur effectue, pour chaque terme qᵢ, un lookup dans le dictionnaire — récupérant n(qᵢ) pour l'IDF — puis parcourt uniquement la posting list de qᵢ pour collecter les paires (DocID, f(qᵢ, D)) nécessaires au calcul du score. La contribution IDF(qᵢ) est calculée une seule fois (valeur globale) ; chaque paire (DocID, f) permet ensuite d'évaluer le facteur de saturation contrôlé par k₁ et la normalisation par longueur contrôlée par b, sans jamais ouvrir un document brut. La complexité de traitement d'une requête à k termes passe ainsi de O(k·N) — un scan naïf parcourant les N documents pour chacun des k termes — à O(Σᵢ n(qᵢ)), où n(qᵢ) est la taille de la posting list de qᵢ. Pour des termes sélectifs à IDF élevé, n(qᵢ) ≪ N : le gain est de plusieurs ordres de grandeur.</p>\n\n<p>Lorsque la requête est conjonctive (AND), seuls les documents contenant tous les termes de la requête sont candidats au scoring. L'algorithme classique d'intersection de deux posting lists triées par DocID utilise deux pointeurs qui progressent simultanément : quand les DocIDs coïncident, le document est retenu et les deux pointeurs avancent ; sinon, seul le pointeur pointant vers le DocID le plus petit avance. Pour deux listes de tailles x et y, ce merge linéaire coûte O(x + y) opérations — une borne qui s'applique au cas général, quelle que soit la disproportion entre x et y. Une heuristique fondamentale consiste à traiter les termes par document frequency croissante : en intersectionnant d'abord les posting lists les plus courtes, tous les résultats intermédiaires restent bornés par la liste la plus petite, ce qui limite le travail total pour les requêtes à trois termes ou plus.</p>",
+      "claims": [
+        "claim:4",
+        "claim:5",
+        "claim:6"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "fonction-de-score",
+      "heading": "La fonction de score : TF saturation, normalisation par la longueur, IDF",
+      "level": 3,
+      "prose": "<p>La scoring function (fonction de score) de BM25 somme, pour chaque terme <em>q<sub>i</sub></em> de la requête, le produit d'un poids IDF et d'un composant de term frequency (fréquence du terme) normalisé par la longueur du document :</p>\n\n<p style=\"margin: 0.9em 2.2em; font-family: monospace; font-size: 0.97em;\">score(D, Q) = &sum;<sub>i</sub> IDF(q<sub>i</sub>) &middot; f(q<sub>i</sub>, D) &middot; (k<sub>1</sub> + 1) / [f(q<sub>i</sub>, D) + k<sub>1</sub> &middot; (1 &minus; b + b &middot; |D| / avgdl)]</p>\n\n<p>où <em>f(q<sub>i</sub>, D)</em> est le nombre brut d'occurrences de <em>q<sub>i</sub></em> dans le document <em>D</em>, <em>|D|</em> sa longueur en tokens, et <em>avgdl</em> la longueur moyenne du corpus.</p>\n\n<p>Le paramètre <em>k<sub>1</sub></em>, calibré conventionnellement dans l'intervalle [1,2&nbsp;; 2,0], gouverne la TF saturation. Lorsque <em>f(q<sub>i</sub>, D)</em> croît sans borne, le rapport <em>f&middot;(k<sub>1</sub>+1) / (f + k<sub>1</sub>)</em> converge asymptotiquement vers le plafond <em>k<sub>1</sub>+1</em> : avec <em>k<sub>1</sub> = 1,2</em>, aucun terme ne peut dépasser une contribution de 2,2 unités de score, quelle que soit sa répétition. Chaque occurrence supplémentaire produit donc des diminishing returns (rendements décroissants) — la première est la plus informative, les suivantes s'approchent à peine du plafond. Ce mécanisme contraste directement avec TF-IDF classique, où la contribution du term frequency croît linéairement (ou logarithmiquement dans la variante log-TF) sans borne supérieure, rendant le ranking vulnérable aux termes à très haute fréquence.</p>\n\n<p>La length normalization (normalisation par la longueur du document) est régie par le paramètre <em>b</em> ∈ [0, 1]. Le facteur au dénominateur, <em>(1 &minus; b + b &middot; |D| / avgdl)</em>, rapporte la longueur effective du document à la moyenne du corpus : un document deux fois plus long que la moyenne voit son term frequency implicitement divisé par deux quand <em>b = 1</em> (cas limite BM11), et laissé intact quand <em>b = 0</em> (cas limite BM15). Ces deux cas dégénérés, respectivement BM11 et BM15, servent de références diagnostiques pour isoler l'effet de la longueur. La valeur intermédiaire <em>b = 0,75</em> — retenue par défaut dans Elasticsearch et Apache Lucene — reflète l'observation empirique que la longueur d'un document n'est qu'un proxy imparfait de sa richesse topique : une partie de l'extra-longueur tient au style et non à la densité d'information.</p>\n\n<p>Le composant IDF est calculé selon la formule :</p>\n\n<p style=\"margin: 0.9em 2.2em; font-family: monospace; font-size: 0.97em;\">IDF(q<sub>i</sub>) = ln[(N &minus; n(q<sub>i</sub>) + 0,5) / (n(q<sub>i</sub>) + 0,5) + 1]</p>\n\n<p>où <em>N</em> est le nombre total de documents et <em>n(q<sub>i</sub>)</em> le nombre de documents contenant <em>q<sub>i</sub></em>. Les demi-unités d'ajustement (0,5) lissent l'estimateur dans les queues de distribution. Le <em>+1</em> ajouté hors de la fraction est un garde-fou arithmétique : sans lui, l'argument du logarithme passe en dessous de 1 dès que <em>n(q<sub>i</sub>) &gt; N/2</em>, produisant un IDF négatif qui pénalise — à contre-sens — les termes les plus répandus. Avec le <em>+1</em>, l'argument se simplifie en <em>(N + 1) / (n(q<sub>i</sub>) + 0,5)</em>, toujours supérieur à 1 pour tout <em>n(q<sub>i</sub>) &le; N</em>. Il est toutefois important de noter que ce <em>+1</em> ne figure pas dans la formulation de Robertson et al. publiée à TREC-3 (1994), qui écrivait l'IDF comme <em>log((N &minus; n + 0,5) / (n + 0,5))</em> ; le garde-fou a été introduit par des implémentations ultérieures — notamment Lucene — et s'est imposé comme standard de facto, si bien que Kamphuis et al. (ECIR 2020) dénombraient au moins huit variantes de la formule IDF seule circulant sous le nom « BM25 ».</p>",
+      "claims": [
+        "claim:7",
+        "claim:8",
+        "claim:9"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-tf-saturation-k1-b"
+    },
+    {
+      "type": "widget",
+      "ref": "synopsis-bm25-bout-en-bout"
+    },
+    {
+      "type": "section",
+      "id": "proprietes-theoriques",
+      "heading": "Fondements probabilistes et propriétés théoriques",
+      "level": 3,
+      "prose": "<p>BM25 tire ses fondements théoriques du <em>Binary Independence Model</em> (BIM, modèle d'indépendance binaire), formalisé par Robertson et Spärck Jones en 1976. Le BIM représente chaque document comme un vecteur de variables aléatoires binaires indépendantes — présence ou absence de chaque terme du vocabulaire — et évalue la pertinence comme la somme, sur tous les termes de la requête, des <em>log-odds</em> (logarithmes de rapports de vraisemblances) comparant les distributions dans les documents pertinents et non pertinents. En l'absence de jugements de pertinence explicites, ce rapport converge, par estimation bayésienne de Laplace, vers log((N − n + 0.5)/(n + 0.5)), où N est la taille de la collection et n le nombre de documents contenant le terme. C'est ce poids — dit poids Robertson-Spärck Jones (RSJ) — qui constitue la composante IDF (inverse document frequency, fréquence inverse de document) de BM25. Il se distingue de la formule que Spärck Jones avait proposée indépendamment en 1972 dans son article fondateur sur la spécificité des termes : log(N/n). Ces deux formules partagent la même intuition — les termes rares doivent peser davantage — mais leur équivalence asymptotique n'a été établie formellement qu'en 1979 par Croft et Harper, qui montrèrent que le log(N/n) de 1972 est une approximation du poids RSJ.</p>\n\n<p>La composante TF (term frequency, fréquence de terme) introduit une saturation contrôlée : quel que soit le nombre d'occurrences d'un terme, sa contribution converge vers le plafond fini (k₁ + 1) sans jamais l'atteindre. Pour un document de longueur égale à la moyenne de la collection (facteur de normalisation égal à 1), la composante TF prend la forme f · (k₁ + 1) / (f + k₁), où f est la fréquence du terme. Substituant f = k₁, on obtient k₁(k₁ + 1)/(2k₁) = (k₁ + 1)/2, exactement la moitié du plafond : k₁ est donc le <em>half-saturation point</em> (point de demi-saturation). Les valeurs par défaut k₁ ∈ [1.2, 2.0] sont empiriques, issues des campagnes TREC ; elles impliquent qu'une seule occurrence apporte déjà une fraction substantielle du gain maximal, l'apport marginal de chaque occurrence supplémentaire décroissant ensuite rapidement. Le paramètre b ∈ [0, 1] gouverne la normalisation par longueur : b = 0 la supprime entièrement (variante BM15), b = 1 l'applique intégralement (variante BM11), et b = 0.75 est la valeur empiriquement retenue en pratique.</p>\n\n<p>La synthèse formelle canonique de l'ensemble de ce cadre est le survey de Robertson et Zaragoza (2009), publié dans <em>Foundations and Trends in Information Retrieval</em> (vol. 3, n° 4, pp. 333–389). Ce texte reconstruit la chaîne de dérivation probabiliste complète — du BIM aux modèles avec <em>relevance feedback</em> (retour de pertinence), puis à BM25 et à son extension BM25F pour documents structurés en champs — en motivant chaque composante par des hypothèses probabilistes explicites plutôt que par des choix ad hoc. C'est la référence incontournable pour comprendre pourquoi BM25 prend cette forme précise, et non une autre.</p>\n\n<p>Une faiblesse théorique de BM25, formalisée par Lv et Zhai (SIGIR 2011 et CIKM 2011), est la violation de la propriété dite <em>TF normalization lower bound</em> (borne inférieure de normalisation TF). Cette propriété exige que la présence d'un terme de requête dans un document augmente strictement son score par rapport à son absence — exigence minimale de cohérence. BM25 la viole sur les documents nettement plus longs que la moyenne : la normalisation par longueur diminue la contribution du terme au point que son ajout dans un document très long peut ne pas améliorer le score, voire le réduire relativement à des documents plus courts qui ne contiennent pas le terme. BM25+ corrige ce défaut par l'ajout d'une constante δ (valeur par défaut δ = 1.0) à la composante TF normalisée de chaque terme correspondant : score<sub>BM25+</sub> = score<sub>BM25</sub> + Σᵢ IDF(qᵢ) · δ. Ce plancher additif garantit que la présence d'un terme de requête améliore toujours le rang d'un document, indépendamment de sa longueur.</p>",
+      "claims": [
+        "claim:10",
+        "claim:11",
+        "claim:12",
+        "claim:13"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "variantes-bm25",
+      "heading": "Les variantes : BM25F, BM25+, BM25L et « quel BM25 ? »",
+      "level": 3,
+      "prose": "<p>BM25F, proposée par Robertson et Zaragoza (CIKM 2004), étend BM25 aux documents structurés en champs — titre, corps, ancres, URL — en résolvant un problème d'ordre des opérations. L'approche naïve qui consiste à scorer chaque champ indépendamment puis à sommer les scores brise la <em>saturation function</em> (fonction de saturation), dont toute la vertu probabiliste est précisément non-linéaire : après saturation, doubler un poids de champ ne double pas le score. BM25F construit à la place une <em>effective term frequency</em> (fréquence de terme effective) agrégée sur tous les champs : tf<sub>eff</sub> = Σ<sub>f</sub> w<sub>f</sub> · tf<sub>f</sub> / (1 − b<sub>f</sub> + b<sub>f</sub> · |D<sub>f</sub>| / avgdl<sub>f</sub>), où w<sub>f</sub> est le poids du champ f (ex. w<sub>titre</sub> = 5, w<sub>corps</sub> = 1), b<sub>f</sub> son propre paramètre de <em>length normalization</em> (normalisation par longueur) et avgdl<sub>f</sub> la longueur moyenne de ce champ dans le corpus. Ce tf<sub>eff</sub> entre ensuite dans la formule BM25 standard en lieu et place de f(q, D), de sorte que la saturation s'applique à la fréquence combinée et non champ par champ. La pondération par champ s'exerce donc entièrement <em>en amont</em> de la non-linéarité, ce qui est la clé de la cohérence probabiliste du modèle.</p>\n\n<p>BM25+ (Lv et Zhai, CIKM 2011) corrige un défaut structurel de BM25 : sur un document très long, la <em>length normalization</em> peut ramener la contribution d'un terme à une valeur arbitrairement proche de zéro, quand bien même ce terme y apparaîtrait de nombreuses fois. La correction est minimale — un plancher δ ajouté au numérateur TF après normalisation : score<sub>BM25+</sub> = Σ IDF(q<sub>i</sub>) · [f(q<sub>i</sub>, D)·(k₁+1) / (f(q<sub>i</sub>, D) + k₁·(1−b+b·|D|/avgdl)) + δ]. La valeur canonique δ = 1,0 garantit qu'un document contenant le terme reçoit un poids strictement positif quelle que soit sa longueur relative au corpus.</p>\n\n<p>BM25L (Lv et Zhai, « When Documents Are Very Long, BM25 Fails! », SIGIR 2011 — un article distinct des mêmes auteurs la même année) traite le même problème de sur-pénalisation des longs documents par une voie différente : la term frequency normalisée est décalée par un terme proportionnel au ratio de longueur (|D|/avgdl − 1) avant d'entrer dans le scoring, et l'IDF employé est la variante Robertson-Walker qui exclut les valeurs négatives. BM25-Adpt, issu d'un second article des mêmes auteurs la même année (« Adaptive term frequency normalization for BM25 », CIKM 2011), abandonne le k₁ global au profit d'un k₁ par terme : chaque terme reçoit son propre paramètre de saturation estimé à partir de son <em>information gain</em> (gain d'information) dans le corpus, si bien que les termes à IDF élevé saturent moins vite et les termes courants plus vite. L'avantage théorique de BM25-Adpt est démontré sur plusieurs collections, mais l'estimation d'un k₁ par terme à l'indexation a freiné son adoption dans les moteurs de production courants.</p>\n\n<p>La question pratique — quel BM25 choisir ? — a reçu une réponse empirique avec l'étude de reproductibilité de Kamphuis, de Vries, Boytsov et Lin (ECIR 2020, « Which BM25 Do You Mean? »). Les auteurs examinent huit variantes, dont les cinq formulations nommées — Robertson (formulation originale), Lucene (version par défaut d'Apache Lucene, qui approxime les longueurs de documents sur un octet), ATIRE (IDF = log(N/df)), BM25L et BM25+ — auxquelles s'ajoutent Lucene-Accurate (longueurs exactes) et d'autres déclinaisons paramétriques ; l'évaluation couvre trois collections de dépêches d'actualité (Robust04, Core17 sur le corpus NYT, Core18 sur le corpus Washington Post). Le verdict est net : aucune différence d'efficacité statistiquement significative entre variantes, y compris entre Lucene-default (approximation lossy sur un octet) et toutes les autres. Cette parité appelle une réserve méthodologique : les trois collections sont composées de documents relativement courts et homogènes. Sur des corpus de longs documents hétérogènes — archives légales, contenus encyclopédiques, pages web riches — les corrections de BM25+ et BM25L pourraient révéler des gains que ces collections ne font pas apparaître.</p><figure class='fig'><svg viewBox='0 0 880 540' role='img' aria-label='Arbre généalogique des variantes de BM25. Racine PRF / BIM (Robertson et Spärck Jones, 1976) puis BM25 (TREC-3, 1994), qui se ramifie en deux familles. À gauche, les extensions du modèle : BM25F agrège la tf effective avant saturation ; BM25+ ajoute un plancher additif delta après saturation ; BM25L décale la tf selon le ratio |D| sur avgdl ; BM25-Adpt fixe un k1 par terme via le gain d information. À droite, les formulations nommées de Kamphuis et al. 2020 : Robertson original, Lucene avec +1 dans le log, ATIRE avec IDF égale log(N sur df), Lucene-Accurate. Verdict : pas de différence statistiquement significative en efficacité entre ces formulations.'><defs><marker id='bmv-ar' markerWidth='8' markerHeight='8' refX='6.5' refY='3' orient='auto'><path d='M0 0 L7 3 L0 6 Z' fill='var(--ink-faint,#7A889B)'/></marker></defs><text x='440' y='28' text-anchor='middle' font-size='15' font-weight='700' fill='var(--ink,#15202E)' font-family='system-ui,sans-serif'>« Quel BM25 ? » — arbre généalogique des variantes</text><rect x='300' y='46' width='280' height='44' rx='8' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.3'/><text x='440' y='68' text-anchor='middle' font-size='12.5' font-weight='700' fill='var(--blue,#23537F)' font-family='system-ui,sans-serif'>PRF / BIM</text><text x='440' y='83' text-anchor='middle' font-size='9.5' fill='var(--ink-soft,#43536A)' font-family='system-ui,sans-serif'>Robertson &amp; Spärck Jones, 1976</text><line x1='440' y1='90' x2='440' y2='106' stroke='var(--ink-faint,#7A889B)' stroke-width='1.4' marker-end='url(#bmv-ar)'/><rect x='330' y='108' width='220' height='48' rx='8' fill='var(--blue,#23537F)' stroke='var(--blue,#23537F)' stroke-width='1.3'/><text x='440' y='131' text-anchor='middle' font-size='15' font-weight='700' fill='var(--card,#FFFFFF)' font-family='system-ui,sans-serif'>BM25</text><text x='440' y='148' text-anchor='middle' font-size='9.5' fill='var(--blue-wash,#E7EEF6)' font-family='system-ui,sans-serif'>« Okapi at TREC-3 », 1994</text><line x1='440' y1='156' x2='440' y2='174' stroke='var(--ink-faint,#7A889B)' stroke-width='1.4'/><line x1='28' y1='174' x2='852' y2='174' stroke='var(--ink-faint,#7A889B)' stroke-width='1.4'/><line x1='28' y1='174' x2='28' y2='419' stroke='var(--ink-faint,#7A889B)' stroke-width='1.4'/><line x1='852' y1='174' x2='852' y2='419' stroke='var(--ink-faint,#7A889B)' stroke-width='1.4'/><line x1='28' y1='245' x2='40' y2='245' stroke='var(--ink-faint,#7A889B)' stroke-width='1.4'/><line x1='28' y1='303' x2='40' y2='303' stroke='var(--ink-faint,#7A889B)' stroke-width='1.4'/><line x1='28' y1='361' x2='40' y2='361' stroke='var(--ink-faint,#7A889B)' stroke-width='1.4'/><line x1='28' y1='419' x2='40' y2='419' stroke='var(--ink-faint,#7A889B)' stroke-width='1.4'/><line x1='852' y1='245' x2='840' y2='245' stroke='var(--ink-faint,#7A889B)' stroke-width='1.4'/><line x1='852' y1='303' x2='840' y2='303' stroke='var(--ink-faint,#7A889B)' stroke-width='1.4'/><line x1='852' y1='361' x2='840' y2='361' stroke='var(--ink-faint,#7A889B)' stroke-width='1.4'/><line x1='852' y1='419' x2='840' y2='419' stroke='var(--ink-faint,#7A889B)' stroke-width='1.4'/><text x='220' y='200' text-anchor='middle' font-size='11' font-weight='700' fill='var(--blue,#23537F)' font-family='system-ui,sans-serif'>Extensions du modèle — étiquetées par leur axe distinctif</text><text x='660' y='200' text-anchor='middle' font-size='11' font-weight='700' fill='var(--bordeaux,#7C2A38)' font-family='system-ui,sans-serif'>Formulations nommées — Kamphuis et al., ECIR 2020</text><rect x='40' y='220' width='360' height='50' rx='7' fill='var(--card,#FFFFFF)' stroke='var(--blue,#23537F)' stroke-width='1.2'/><text x='58' y='244' font-size='13' font-weight='700' fill='var(--blue,#23537F)' font-family='ui-monospace,monospace'>BM25F</text><text x='382' y='244' text-anchor='end' font-size='8.5' fill='var(--ink-faint,#7A889B)' font-family='system-ui,sans-serif'>Robertson &amp; Zaragoza · CIKM 2004</text><text x='58' y='261' font-size='9.5' fill='var(--ink-soft,#43536A)' font-family='system-ui,sans-serif'>champs : tf effective agrégée <tspan font-weight='700' fill='var(--bordeaux,#7C2A38)'>AVANT</tspan> saturation</text><rect x='40' y='278' width='360' height='50' rx='7' fill='var(--card,#FFFFFF)' stroke='var(--blue,#23537F)' stroke-width='1.2'/><text x='58' y='302' font-size='13' font-weight='700' fill='var(--blue,#23537F)' font-family='ui-monospace,monospace'>BM25+</text><text x='382' y='302' text-anchor='end' font-size='8.5' fill='var(--ink-faint,#7A889B)' font-family='system-ui,sans-serif'>Lv &amp; Zhai · CIKM 2011</text><text x='58' y='319' font-size='9.5' fill='var(--ink-soft,#43536A)' font-family='system-ui,sans-serif'>plancher additif δ <tspan font-weight='700' fill='var(--bordeaux,#7C2A38)'>APRÈS</tspan> saturation</text><rect x='40' y='336' width='360' height='50' rx='7' fill='var(--card,#FFFFFF)' stroke='var(--blue,#23537F)' stroke-width='1.2'/><text x='58' y='360' font-size='13' font-weight='700' fill='var(--blue,#23537F)' font-family='ui-monospace,monospace'>BM25L</text><text x='382' y='360' text-anchor='end' font-size='8.5' fill='var(--ink-faint,#7A889B)' font-family='system-ui,sans-serif'>Lv &amp; Zhai · SIGIR 2011</text><text x='58' y='377' font-size='9.5' fill='var(--ink-soft,#43536A)' font-family='system-ui,sans-serif'>décalage de la tf selon |D| / avgdl</text><rect x='40' y='394' width='360' height='50' rx='7' fill='var(--card,#FFFFFF)' stroke='var(--blue,#23537F)' stroke-width='1.2'/><text x='58' y='418' font-size='13' font-weight='700' fill='var(--blue,#23537F)' font-family='ui-monospace,monospace'>BM25-Adpt</text><text x='382' y='418' text-anchor='end' font-size='8.5' fill='var(--ink-faint,#7A889B)' font-family='system-ui,sans-serif'>Lv &amp; Zhai · CIKM 2011</text><text x='58' y='435' font-size='9.5' fill='var(--ink-soft,#43536A)' font-family='system-ui,sans-serif'>k₁ par terme via l'information gain</text><rect x='480' y='220' width='360' height='50' rx='7' fill='var(--card,#FFFFFF)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2'/><text x='498' y='244' font-size='12' font-weight='700' fill='var(--bordeaux,#7C2A38)' font-family='ui-monospace,monospace'>Robertson</text><text x='822' y='244' text-anchor='end' font-size='8.5' fill='var(--ink-faint,#7A889B)' font-family='system-ui,sans-serif'>formulation originale, 1994</text><text x='498' y='261' font-size='9' fill='var(--ink-soft,#43536A)' font-family='ui-monospace,monospace'>IDF = log((N−n+0,5) / (n+0,5))</text><rect x='480' y='278' width='360' height='50' rx='7' fill='var(--card,#FFFFFF)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2'/><text x='498' y='302' font-size='12' font-weight='700' fill='var(--bordeaux,#7C2A38)' font-family='ui-monospace,monospace'>Lucene / +1</text><text x='822' y='302' text-anchor='end' font-size='8.5' fill='var(--ink-faint,#7A889B)' font-family='system-ui,sans-serif'>défaut Apache Lucene</text><text x='498' y='319' font-size='9' fill='var(--ink-soft,#43536A)' font-family='system-ui,sans-serif'>+1 dans le log ; |D| approximée sur 1 octet (lossy)</text><rect x='480' y='336' width='360' height='50' rx='7' fill='var(--card,#FFFFFF)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2'/><text x='498' y='360' font-size='12' font-weight='700' fill='var(--bordeaux,#7C2A38)' font-family='ui-monospace,monospace'>ATIRE</text><text x='822' y='360' text-anchor='end' font-size='8.5' fill='var(--ink-faint,#7A889B)' font-family='system-ui,sans-serif'>IDF alternative</text><text x='498' y='377' font-size='9' fill='var(--ink-soft,#43536A)' font-family='ui-monospace,monospace'>IDF = log(N / df)</text><rect x='480' y='394' width='360' height='50' rx='7' fill='var(--card,#FFFFFF)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2'/><text x='498' y='418' font-size='12' font-weight='700' fill='var(--bordeaux,#7C2A38)' font-family='ui-monospace,monospace'>Lucene-Accurate</text><text x='822' y='418' text-anchor='end' font-size='8.5' fill='var(--ink-faint,#7A889B)' font-family='system-ui,sans-serif'>variante de Lucene</text><text x='498' y='435' font-size='9' fill='var(--ink-soft,#43536A)' font-family='system-ui,sans-serif'>comme Lucene, mais |D| exactes (non lossy)</text><rect x='40' y='460' width='800' height='62' rx='8' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1'/><text x='58' y='481' font-size='11' font-weight='700' fill='var(--blue,#23537F)' font-family='system-ui,sans-serif'>Verdict — Kamphuis et al. (Robust04 · Core17/NYT · Core18/WaPo)</text><text x='58' y='499' font-size='10' fill='var(--ink,#15202E)' font-family='system-ui,sans-serif'>Aucune différence d'efficacité statistiquement significative entre ces formulations,</text><text x='58' y='514' font-size='10' fill='var(--ink-soft,#43536A)' font-family='system-ui,sans-serif'>y compris l'approximation lossy de Lucene par défaut — d'où « quel BM25 ? » en pratique.</text></svg><figcaption><span class='fcap-k'></span>Arbre généalogique des variantes de BM25 : de PRF/BIM (1976) à BM25 (TREC-3, 1994), puis deux familles — les extensions du modèle (BM25F, BM25+, BM25L, BM25-Adpt) étiquetées par leur axe distinctif, et les formulations nommées de Kamphuis et al. 2020 (Robertson, Lucene/+1, ATIRE, Lucene-Accurate), empiriquement équivalentes en efficacité.</figcaption></figure>",
+      "claims": [
+        "claim:14",
+        "claim:15",
+        "claim:16",
+        "claim:17"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "reglage-parametres",
+      "heading": "Régler k1 et b : valeurs par défaut, calibration, pièges",
+      "level": 3,
+      "prose": "<p>Deux couples de valeurs structurent le paysage des implémentations mainstream. Elasticsearch et Lucene retiennent <strong>k1&nbsp;=&nbsp;1,2 et b&nbsp;=&nbsp;0,75</strong> depuis la transition Lucene&nbsp;6&nbsp;/ Elasticsearch&nbsp;5.0 en 2016&nbsp;; Anserini et son interface Python Pyserini opèrent avec <strong>k1&nbsp;=&nbsp;0,9 et b&nbsp;=&nbsp;0,4</strong>. Les premiers remontent directement au papier «&nbsp;Okapi at TREC-3&nbsp;» de Robertson et al. (1994)&nbsp;: les paramètres ont été calibrés sur les collections newswire des premières campagnes TREC (Wall Street Journal, AP Newswire) — des textes journalistiques de longueur modérée et relativement homogène. Le couple Anserini diffère sensiblement&nbsp;: un k1 plus bas sature la fréquence de terme plus rapidement (les premiers passages du terme comptent presque autant que ses occurrences répétées), et un b&nbsp;=&nbsp;0,4 pénalise moins fortement la longueur des documents, un réglage empiriquement mieux adapté aux tâches de passage retrieval à courte granularité. Ces deux couples coexistent sans qu'aucun ne soit universellement dominant&nbsp;: ils reflètent des hypothèses implicites sur la distribution de longueur et la densité terminologique du corpus cible.</p>\n\n<p>Le grid search systématique conduit par l'équipe Pyserini sur les collections MS MARCO illustre à quel point les optimaux peuvent s'éloigner des valeurs par défaut. La méthodologie consiste à faire varier k1 et b par incréments de 0,1, à évaluer sur cinq ensembles de 10&nbsp;000 requêtes d'entraînement, puis à moyenner les paramètres retenus pour régulariser. Sur <strong>MS MARCO Passage</strong> (passages courts, longueur quasi-uniforme), l'écart entre defaults (k1&nbsp;=&nbsp;0,9, b&nbsp;=&nbsp;0,4, MRR@10&nbsp;=&nbsp;0,184) et optimaux (k1&nbsp;=&nbsp;0,82, b&nbsp;=&nbsp;0,68, MRR@10&nbsp;=&nbsp;0,187) est modeste — environ +1,8&nbsp;% relatif. La situation est radicalement différente sur <strong>MS MARCO Document</strong>&nbsp;: les paramètres optimaux sont k1&nbsp;=&nbsp;4,46 et b&nbsp;=&nbsp;0,82, soit un k1 plus de trois fois supérieur au défaut Elasticsearch. Sur des documents web longs, les occurrences répétées d'un terme continuent d'apporter de l'information, et la saturation doit donc s'enclencher bien plus tard. Sur <strong>MS MARCO Doc Segmented</strong> — les mêmes documents découpés en passages et réindexés — l'optimum se situe à k1&nbsp;=&nbsp;2,16 et b&nbsp;=&nbsp;0,61, à mi-chemin entre les deux cas précédents, ce qui confirme que c'est bien la distribution de longueur effective des unités indexées, et non le sujet du corpus, qui pilote le bon réglage.</p>\n\n<p>Le piège classique consiste à hériter des defaults de sa stack et à les appliquer sans révision à un corpus à distribution très différente de celle des collections journalistiques de 1994. Les corpus médicaux (OHSUMED, TREC Precision Medicine), juridiques (COLIEE, case law retrieval) ou scientifiques présentent une densité terminologique et une distribution de longueur spécifiques&nbsp;: des documents légaux sont souvent longs et répétitifs en terminologie de référence, ce qui requiert un k1 plus élevé pour éviter une saturation prématurée, et un b dont la valeur dépend de la variabilité de longueur souhaitée entre un bref jugé de quelques pages et une opinion de fond de plusieurs dizaines de pages. Des études sur OHSUMED ont montré que les paramètres optimaux sur ce corpus médical ne se transfèrent pas vers un corpus gouvernemental (.gov), et réciproquement. La procédure minimale consiste à conduire un grid search sur un échantillon de requêtes labellisées du corpus cible&nbsp;: optimiser recall@1000 si BM25 alimente un reranker en aval&nbsp;; MRR@10 ou MAP si les résultats sont présentés directement à l'utilisateur. Sur des corpus sans annotations de pertinence, des heuristiques de proxy (densité terminologique, ratio max_length/avg_length) permettent au moins d'écarter les valeurs manifestement inadaptées avant tout déploiement.</p>",
+      "claims": [
+        "claim:18",
+        "claim:19",
+        "claim:20"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "recherche-efficace",
+      "heading": "Récupération top-k efficace : dynamic pruning et compression",
+      "level": 3,
+      "prose": "<p>La récupération top-k sur un inverted index naïf exige de parcourir et de scorer la totalité des listes de postings de chaque terme de la requête, ce qui devient prohibitif dès que ces listes comptent des millions d'entrées. Le <strong>dynamic pruning (élagage dynamique)</strong> rompt cette dépendance linéaire : en bornant le score maximal encore atteignable par un document, on peut le sauter dès que ce majorant est inférieur au seuil θ du k-ième meilleur résultat connu, sans jamais compromettre l'exactitude.</p>\n\n<p>L'algorithme <strong>WAND</strong> — Weak AND, Broder et al., CIKM 2003 — est la référence fondatrice de cette famille. Pour chaque terme <em>t</em>, WAND calcule et maintient un majorant global U<sub>t</sub> = max<sub>d</sub> contrib(<em>t</em>, d), la contribution maximale possible de ce terme sur l'ensemble de la collection. À chaque itération, les termes de la requête sont ordonnés par le plus petit docID non encore traité dans leur liste ; WAND calcule la somme préfixe des U<sub>t</sub> et identifie le <em>pivot</em> — premier terme pour lequel cette somme dépasse θ. Tout docID strictement inférieur à celui du pivot est sauté : aucun document ainsi écarté ne peut figurer dans le top-k, comme le prouve la définition même des majorants. Lorsque le pivot est présent dans toutes les listes pertinentes, son score exact est calculé et θ peut être rehaussé. WAND fournit ainsi les k meilleurs résultats avec une garantie d'exactitude totale, sans évaluer l'intégralité des postings.</p>\n\n<p>Le <strong>Block-Max WAND</strong> (Ding &amp; Suel, SIGIR 2011) affine ce mécanisme en introduisant des majorants à granularité de bloc. Les postings de chaque terme sont groupés en blocs de taille fixe (typiquement 64 ou 128 entrées), et chaque bloc stocke un majorant local BM<sub>b,t</sub> strictement plus serré que U<sub>t</sub>. Quand la somme des majorants de blocs actifs reste sous θ, le bloc entier est sauté sans qu'aucun de ses postings ne soit décodé ni scoré. Sur la collection TREC GOV2 (25,2 millions de documents), Ding &amp; Suel mesurent des accélérations de l'ordre de 2 à 4× par rapport à WAND standard. Des déploiements en production (Lucene, Elasticsearch) rapportent des gains entre 3× et 15× selon le type de requête, les disjonctions à longue traîne bénéficiant le plus de l'élagage par bloc.</p>\n\n<p>L'efficacité du dynamic pruning dépend également de la rapidité avec laquelle les postings peuvent être parcourus, ce qui place leur compression au cœur des performances. La technique de base est le <strong>d-gap encoding (encodage par écart)</strong> : au lieu de stocker les docIDs absolus, on stocke les différences δ<sub>i</sub> = docID<sub>i</sub> − docID<sub>i−1</sub>, toujours positives. Comme les listes de postings sont triées par ordre croissant, ces écarts suivent une distribution zipfienne — petits pour les termes fréquents — et se prêtent aux codes à longueur variable. L'<strong>Elias-Fano encoding</strong> représente une liste de <em>n</em> entiers triés dans [0, U] en au plus ⌈log<sub>2</sub>(U/n)⌉ + 2 bits par élément, soit 2 à 3 bits par posting pour des collections web standard ; il offre de surcroît un accès aléatoire en temps constant, propriété absente des codes à longueur variable classiques. Cette adressabilité directe est précieuse pour le dynamic pruning, qui saute des segments entiers de postings plutôt que de les dérouler séquentiellement. <strong>PForDelta</strong> (Zukowski et al., 2006) adopte une stratégie complémentaire fondée sur un encodage en bloc à largeur de bits fixe : les écarts d'un bloc de <em>k</em> entiers sont stockés avec le nombre de bits suffisant pour couvrir la grande majorité des valeurs, les exceptions rares étant gérées séparément ; le décodage est alors vectorisé par SIMD, ce qui ouvre la voie à un débit de décompression très élevé.</p>\n\n<p>Le cadre théorique de la récupération top-k a été formalisé par Navarro &amp; Nekrich (2012, SODA ; version étendue arXiv 2013). Dans le modèle RAM, ils décrivent une structure en espace linéaire qui répond à une requête de longueur <em>p</em> en O(<em>p</em>/log<sub>σ</sub> <em>n</em> + <em>k</em>), où σ est la taille de l'alphabet, <em>n</em> la taille du corpus et <em>k</em> le nombre de résultats demandés ; cette complexité est démontrée optimale dans ce modèle sous la condition lg D = Θ(log <em>n</em>), où D est le nombre de documents. Une extension dynamique supporte insertions et suppressions en O(log<sup>1+ε</sup> <em>n</em>) par opération, au prix d'un facteur poly-logarithmique supplémentaire par requête. Ces bornes formalisent la frontière irréductible entre structure d'index et temps de réponse, indépendamment de tout heuristique d'élagage.</p>",
+      "claims": [
+        "claim:21",
+        "claim:22",
+        "claim:23",
+        "claim:24"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-wand-pivot-elagage"
+    },
+    {
+      "type": "section",
+      "id": "bm25-en-production",
+      "heading": "BM25 en production : Lucene, Elasticsearch, RAG",
+      "level": 3,
+      "prose": "<p>En 2016, Apache Lucene a fait de BM25 son algorithme de scoring par défaut. Elasticsearch 5.0, fondé sur Lucene 6.2.0 et sorti la même année, a suivi ce mouvement en remplaçant TF-IDF comme algorithme de <em>similarity</em> par défaut. Cette transition n'a pas exigé de migration d'index : dans Lucene, BM25 est implémenté comme une classe de <em>similarity</em> pluggable (pattern Strategy), qui se substitue au module de scoring sans modifier le pipeline des <em>posting lists</em> ni le format de stockage. Ce mécanisme s'applique également à BM25F — la variante multi-champs — qui calcule un score BM25 indépendant pour chaque champ (titre, corps, ancre) avant de les combiner, permettant de pondérer différemment des zones textuelles de nature distincte.</p>\n\n<p>À l'échelle d'un cluster Elasticsearch, la <em>query</em> BM25 suit un modèle <em>scatter-gather</em> : les cinq <em>shards</em> primaires (valeur par défaut) sont interrogés en parallèle, chacun calculant son propre classement BM25 local sur son sous-ensemble de documents et renvoyant ses meilleurs candidats ; un nœud coordinateur fusionne ensuite ces classements partiels. Ce design distribue efficacement la charge de scoring, mais introduit une légère imprécision statistique : les IDF (<em>inverse document frequency</em>) sont calculées par <em>shard</em>, non sur le corpus global — biais atténué dès que le corpus est suffisamment grand et uniformément distribué entre les <em>shards</em>.</p>\n\n<p>La démonstration empirique la plus citée des gains de BM25 en production est l'A/B test mené par la Wikimedia Foundation sur l'English Wikipedia en septembre 2016. Avant l'expérience, le moteur de recherche Wikipedia reposait sur la similarité Lucene classique (TF-IDF). Du 1<sup>er</sup> au 10 septembre 2016, cinq variantes ont été exposées à 119 600 événements issus de 36 200 sessions uniques. La variante « BM25 avec <em>incoming links</em> (liens entrants) » a atteint un nDCG5 de 0,3362, contre 0,2772 pour le contrôle TF-IDF — soit une amélioration de +21 %. Les <em>incoming links</em> jouaient le rôle de facteur de popularité indépendant de la requête (<em>query-independent factor</em>), analogue à PageRank mais fondé sur la structure interne de Wikipedia. La recommandation finale a été d'adopter BM25 avec les <em>incoming links</em> comme facteur complémentaire.</p>\n\n<p>L'écosystème des systèmes qui embarquent BM25 via un index inversé est large : Apache Lucene (Java, bibliothèque socle d'Elasticsearch et d'Apache Solr) ; Tantivy (Rust, bibliothèque équivalente pour les runtimes natifs Rust) ; ParadeDB, qui amène BM25 nativement dans PostgreSQL via l'extension <em>pg_search</em> construite sur Tantivy ; et Anserini / Pyserini, respectivement les versions Java et Python d'un toolkit de research en information retrieval reproductible, basé sur Lucene et utilisé comme référence dans les benchmarks TREC et BEIR.</p>\n\n<p>Dans les pipelines RAG (<em>Retrieval-Augmented Generation</em>), BM25 occupe systématiquement la position de <em>first-stage retriever</em> (retriever de premier étage) : il sélectionne un ensemble large de passages candidats (typiquement top-100) sur l'ensemble du corpus, que le second étage — re-ranker neuronal ou encodeur dense — reclassera à moindre coût de calcul. Le <em>hybrid retrieval</em> (BM25 <em>sparse</em> + <em>embeddings</em> denses en parallèle, scores fusionnés par <em>Reciprocal Rank Fusion</em> ou pondération linéaire) améliore la couverture en <em>recall</em> et réduit les taux d'hallucination par rapport à BM25 seul. Les paramètres k₁ et b sont souvent re-calibrés pour les corpus RAG (valeurs de l'ordre de k₁ = 0,9, b = 0,4 relevées dans certains travaux), les documents étant généralement des passages courts et homogènes en longueur.</p>",
+      "claims": [
+        "claim:25",
+        "claim:27",
+        "claim:28"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "limites-idees-recues",
+      "heading": "Limites et idées reçues : bag-of-words et vocabulary mismatch",
+      "level": 3,
+      "prose": "<p>BM25 est un modèle bag-of-words (sac de mots) pur : il additionne les scores de chaque terme de la requête de façon indépendante, sans jamais tenir compte de l'ordre ni de la proximité des termes dans le document. « New York » et « York New » obtiennent exactement le même score pour toute requête portant sur ces deux mots — aucun mécanisme de phrase, de bigramme ou de co-occurrence n'existe dans le modèle de base. Les débutants supposent souvent une prise en compte implicite de la syntaxe ou de la structure de la phrase ; c'est une erreur de conception fréquente.</p>\n\n<p>La conséquence la plus directe de cette nature bag-of-words est le vocabulary mismatch (décalage de vocabulaire) : si aucun terme de la requête n'apparaît dans le document, le score est exactement zéro, quelle que soit la proximité sémantique des deux textes. « cancel membership » et « terminate subscription » désignent la même intention sans partager un seul token commun ; BM25 leur attribue un score nul et ne peut pas les rapprocher. LexBoost quantifie la perte imputable à ce seul défaut : en combinant le score BM25 d'un document avec la moyenne des scores BM25 de ses voisins denses (graphe de corpus construit hors ligne), il obtient +7 % (TREC DL 2019), +9 % (TREC DL 2020) et +16,8 % (TREC-COVID) de MAP (mean average precision) par rapport à BM25 seul — ce qui donne une mesure du plancher que le vocabulary mismatch impose au rappel lexical pur.</p>\n\n<p>Une idée reçue très répandue affirme que l'IDF (inverse document frequency) de BM25 est toujours positive. La formule originale log((N − n + 0,5) / (n + 0,5)) produit en réalité une valeur négative dès qu'un terme figure dans plus de la moitié du corpus (n > N/2) : le numérateur devient inférieur au dénominateur. Lucene et Elasticsearch contournent silencieusement ce piège en ajoutant 1 à l'intérieur du logarithme — log(1 + (N − n + 0,5) / (n + 0,5)) — ce qui garantit un IDF non négatif mais s'écarte de la formule publiée par Robertson et Sparck Jones. L'implémentation corrige donc le modèle sans toujours l'annoncer.</p>\n\n<p>BM25 souffre également d'une inadaptation structurelle aux courts fragments (snippets) : dans un document court, le palier de saturation TF (term frequency) est atteint bien plus vite que dans un long document, ce qui biaise le classement en défaveur des snippets concis. Des services comme Algolia ou SwiftType ont bâti une partie de leur différenciation commerciale sur des heuristiques alternatives précisément parce que BM25 pèche sur la recherche dans les courts fragments.</p>\n\n<p>Ces limites partagent une même racine : BM25 opère sur des signaux statistiques, pas sur le sens du texte. Son cadre probabiliste étend le Binary Independence Model (BIM) — formalisé par Robertson et Spärck Jones (1976), dont Robertson et Zaragoza (2009) offrent la synthèse rétrospective — et hérite de ses hypothèses d'indépendance des termes des années 1970–80. Cette hypothèse d'indépendance interdit structurellement à BM25 de modéliser co-occurrences, topics ou sémantique distributionnelle — incapacité qui ne se corrige pas par un réglage de paramètres, puisque ses poids de pertinence ne sont pas apprenables par backpropagation (rétropropagation).</p>",
+      "claims": [
+        "claim:29",
+        "claim:30",
+        "claim:31",
+        "claim:32"
+      ]
+    },
+    {
+      "type": "exercise",
+      "part": "Index inversé, fonction de score et saturation",
+      "question": "<p>(a) Pourquoi dit-on que c'est l'<em>index inversé</em>, et non la formule BM25 elle-même, qui rend le scoring calculable à l'échelle ? Quelle est la complexité du traitement d'une requête à <em>k</em> termes avec et sans index, pour une implémentation de base ?</p><p>(b) Avec k₁ = 1,2, la composante TF d'un terme ne peut effectivement pas dépasser 2,2. Pourquoi la contribution <em>totale</em> d'un terme au score d'un document peut-elle néanmoins largement excéder 2,2 ?</p><p>(c) Que représentent les cas dégénérés BM11 (b = 1) et BM15 (b = 0), et à quoi servent-ils ?</p>",
+      "answer": "<p>(a) BM25 n'est qu'une fonction de score : c'est l'index inversé qui évite de scanner les <em>N</em> documents du corpus. Pour chaque terme de la requête, on fait un lookup dans le dictionnaire (qui donne n(t) pour l'IDF et un pointeur) puis on ne parcourt que la posting list du terme. La complexité passe ainsi de O(k·N) pour un scan naïf à O(Σᵢ n(qᵢ)) pour une implémentation de base — où n(qᵢ) ≪ N pour les termes sélectifs à IDF élevé. (Les systèmes de production descendent encore plus bas grâce à l'élagage dynamique.)</p><p>(b) Parce que la contribution d'un terme est le <em>produit</em> IDF(qᵢ) × composante TF saturée. Le plafond k₁+1 = 2,2 ne borne que la composante TF ; le facteur IDF peut être très supérieur à 1 pour un terme rare. Un terme discriminant dépasse donc facilement 2,2 au total, tandis qu'un terme banal y reste bien en deçà.</p><p>(c) BM11 (b = 1) applique la normalisation par longueur complète : un document deux fois plus long que la moyenne voit son term frequency effectif divisé par deux. BM15 (b = 0) la supprime entièrement : la longueur n'affecte pas le score. Ces deux extrêmes encadrent le réglage usuel b = 0,75 et servent de références diagnostiques pour isoler expérimentalement l'effet de la length normalization.</p>"
+    },
+    {
+      "type": "exercise",
+      "part": "Variantes, réglage des paramètres et limites structurelles",
+      "question": "<p>(a) Les valeurs k₁ = 1,2 / b = 0,75 de Lucene et Elasticsearch sont souvent présentées comme « canoniques ». Est-ce exact ? Laquelle des deux remonte directement au papier « Okapi at TREC-3 » (1994) ?</p><p>(b) Sur MS MARCO Document, un grid search Pyserini trouve k₁ ≈ 4,46. Qu'est-ce que cette valeur, plus de trois fois supérieure au défaut Elasticsearch, révèle sur la transférabilité des « defaults » ?</p><p>(c) Qu'est-ce que le <em>vocabulary mismatch</em>, et pourquoi BM25 ne peut-il pas le corriger par un simple réglage de k₁ et b ?</p>",
+      "answer": "<p>(a) Non, elles ne sont pas canoniques. b = 0,75 remonte effectivement à « Okapi at TREC-3 » (Robertson et al., 1994), dont tous les runs utilisaient ce b. En revanche k₁ = 1,2 n'en provient pas : le papier TREC-3 employait k₁ = 2,0 ; la valeur 1,2 est la borne basse de la plage [1,2 ; 2,0] recommandée plus tard par Robertson &amp; Zaragoza (2009). Anserini/Pyserini retiennent un autre couple, k₁ = 0,9 / b = 0,4.</p><p>(b) Elle montre que les defaults, calibrés sur des dépêches newswire courtes et homogènes, ne se transfèrent pas aux corpus de longs documents web : sur ceux-ci, les occurrences répétées d'un terme continuent d'apporter de l'information, donc la saturation doit s'enclencher bien plus tard (k₁ élevé). Le même corpus découpé en passages (MS MARCO Doc Segmented) ramène l'optimum à k₁ ≈ 2,16, confirmant que c'est la distribution de longueur des unités indexées — non le sujet du corpus — qui pilote le bon réglage.</p><p>(c) Le vocabulary mismatch est l'échec de l'appariement lexical lorsque requête et document expriment la même intention avec des mots différents (« cancel membership » vs « terminate subscription », « car » vs « automobile ») : faute de token commun, le score BM25 est exactement zéro. Aucun réglage de k₁ ou b ne le corrige, car BM25 est un modèle bag-of-words qui opère sur des signaux statistiques de surface, pas sur le sens ; ses poids ne sont pas apprenables. On y remédie en sortant du modèle — enrichissement par voisins denses (LexBoost) ou hybrid retrieval BM25 + embeddings.</p>"
+    },
+    {
+      "type": "biblio",
+      "entries": [
+        {
+          "label": "Probabilistic relevance model — Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/Probabilistic_relevance_model"
+        },
+        {
+          "label": "Binary Independence Model — Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/Binary_Independence_Model"
+        },
+        {
+          "label": "Okapi BM25 — Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/Okapi_BM25"
+        },
+        {
+          "label": "Okapi at TREC-3 — IR Anthology (Webis Group)",
+          "href": "https://ir.webis.de/anthology/1994.trec_conference-1994.11/"
+        },
+        {
+          "label": "dblp: TREC 1994 — Okapi at TREC-3 (Robertson et al.)",
+          "href": "https://dblp.org/db/conf/trec/trec94.html"
+        },
+        {
+          "label": "TREC Publications — NIST (TREC-3, NIST SP 500-225)",
+          "href": "https://trec.nist.gov/publications.html"
+        },
+        {
+          "label": "TREC Proceedings — NIST (confirme SP 500-225)",
+          "href": "https://trec.nist.gov/proceedings/proceedings.html"
+        },
+        {
+          "label": "Some Simple Effective Approximations to the 2-Poisson Model — IR Anthology SIGIR 1994",
+          "href": "https://ir.webis.de/anthology/1994.sigirconf_conference-94.24/"
+        },
+        {
+          "label": "Robertson & Walker (1994) — Some Simple Effective Approximations to the 2-Poisson Model (papier SIGIR original, lu intégralement via pdftotext)",
+          "href": "https://www.staff.city.ac.uk/~sbrp622/papers/robertson_walker_sigir94.pdf"
+        },
+        {
+          "label": "Robertson & Zaragoza (2009) — The Probabilistic Relevance Framework: BM25 and Beyond (revue canonique par Robertson lui-même, lue via pdftotext)",
+          "href": "https://www.staff.city.ac.uk/~sbrp622/papers/foundations_bm25_review.pdf"
+        },
+        {
+          "label": "Robertson et al., Okapi at TREC-2 (NIST SP 500-215, 1994) — source primaire",
+          "href": "https://trec.nist.gov/pubs/trec2/papers/txt/02.txt"
+        },
+        {
+          "label": "Xapian: The BM25 Weighting Scheme — documentation technique indépendante",
+          "href": "https://xapian.org/docs/bm25.html"
+        },
+        {
+          "label": "A first take at building an inverted index — Introduction to Information Retrieval (Stanford / Manning, Raghavan, Schütze)",
+          "href": "https://nlp.stanford.edu/IR-book/html/htmledition/a-first-take-at-building-an-inverted-index-1.html"
+        },
+        {
+          "label": "Inverted Index — VeloDB Glossary",
+          "href": "https://www.velodb.io/glossary/inverted-index-1"
+        },
+        {
+          "label": "Postings list — Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/Postings_list"
+        },
+        {
+          "label": "What is BM25 Full-Text Search? How Document Ranking Works | Spice AI",
+          "href": "https://spice.ai/learn/bm25-full-text-search"
+        },
+        {
+          "label": "Why BM25 queries with more terms can be faster (and other scaling surprises) | turbopuffer",
+          "href": "https://turbopuffer.com/blog/bm25-latency-musings"
+        },
+        {
+          "label": "Optimizing BM25 for the Next Generation of Semantic Search Technology | Exa Blog",
+          "href": "https://exa.ai/blog/bm25-optimization"
+        },
+        {
+          "label": "BM25 Implementation: Inverted Index and Dynamic Pruning at Scale — System Overflow",
+          "href": "https://www.systemoverflow.com/learn/search-ranking/ranking-algorithms/bm25-implementation-inverted-index-and-dynamic-pruning-at-scale"
+        },
+        {
+          "label": "Manning et al. — Introduction to Information Retrieval: Processing Boolean Queries",
+          "href": "https://nlp.stanford.edu/IR-book/html/htmledition/processing-boolean-queries-1.html"
+        },
+        {
+          "label": "Manning et al. — Introduction to Information Retrieval: Faster Postings-List Intersection via Skip Pointers",
+          "href": "https://nlp.stanford.edu/IR-book/html/htmledition/faster-postings-list-intersection-via-skip-pointers-1.html"
+        },
+        {
+          "label": "Mr. Digital — Intersection and Merge Algorithms in Information Retrieval",
+          "href": "https://mr-digital.cn/en/intercestion-and-merge/"
+        },
+        {
+          "label": "Practical BM25 — Part 2: The BM25 Algorithm and Its Variables (Elastic blog)",
+          "href": "https://www.elastic.co/blog/practical-bm25-part-2-the-bm25-algorithm-and-its-variables"
+        },
+        {
+          "label": "Okapi BM25 — HandWiki",
+          "href": "https://handwiki.org/wiki/Okapi_BM25"
+        },
+        {
+          "label": "Which BM25 Do You Mean? A Large-Scale Reproducibility Study of Scoring Variants (Kamphuis et al., ECIR 2020)",
+          "href": "https://cs.uwaterloo.ca/~jimmylin/publications/Kamphuis_etal_ECIR2020_preprint.pdf"
+        },
+        {
+          "label": "Apache Lucene BM25Similarity API documentation (v8.1.1)",
+          "href": "https://lucene.apache.org/core/8_1_1/core/org/apache/lucene/search/similarities/BM25Similarity.html"
+        },
+        {
+          "label": "Understanding Inverse Document Frequency — Robertson's IDF page (City University London)",
+          "href": "https://www.staff.city.ac.uk/~sbrp622/idf.html"
+        },
+        {
+          "label": "Understanding Inverse Document Frequency: On theoretical arguments for IDF (Robertson, JDoc PDF)",
+          "href": "https://www.staff.city.ac.uk/~sbrp622/idfpapers/Robertson_idf_JDoc.pdf"
+        },
+        {
+          "label": "IDF Revisited: A Simple New Derivation within the Robertson-Spärck Jones Probabilistic Model (arXiv 0705.1161)",
+          "href": "https://arxiv.org/pdf/0705.1161"
+        },
+        {
+          "label": "IDF Revisited: A Simple New Derivation within the Robertson-Spärck Jones Probabilistic Model (arXiv:0705.1161)",
+          "href": "https://ar5iv.labs.arxiv.org/html/0705.1161"
+        },
+        {
+          "label": "DBLP: The Probabilistic Relevance Framework: BM25 and Beyond",
+          "href": "https://dblp.org/rec/journals/ftir/RobertsonZ09.html"
+        },
+        {
+          "label": "IR Anthology - Robertson & Zaragoza 2009",
+          "href": "https://ir.webis.de/anthology/2009.ftir_journal-ir0anthology0volumeA3A4.0/"
+        },
+        {
+          "label": "SCIRP reference - Robertson & Zaragoza 2009 citation",
+          "href": "https://www.scirp.org/reference/referencespapers?referenceid=3896864"
+        },
+        {
+          "label": "Lower-bounding term frequency normalization — Illinois Experts (CIKM 2011, Lv & Zhai)",
+          "href": "https://experts.illinois.edu/en/publications/lower-bounding-term-frequency-normalization/"
+        },
+        {
+          "label": "When documents are very long, BM25 fails — Illinois Experts (SIGIR 2011, Lv & Zhai)",
+          "href": "https://experts.illinois.edu/en/publications/when-documents-are-very-long-bm25-fails/"
+        },
+        {
+          "label": "BM25 Ranking: Foundations & Extensions — Emergent Mind",
+          "href": "https://www.emergentmind.com/topics/bm25-ranking"
+        },
+        {
+          "label": "BM25F from scratch – Doug Turnbull (softwaredoug.com)",
+          "href": "https://softwaredoug.com/blog/2025/09/18/bm25f-from-scratch"
+        },
+        {
+          "label": "Lower-Bounding Term Frequency Normalization (Lv & Zhai, CIKM 2011) — PDF Illinois",
+          "href": "https://timan.cs.illinois.edu/czhai/pub/cikm11-bm25.pdf"
+        },
+        {
+          "label": "What is Weighted BM25 Variants? | ClickRank",
+          "href": "https://www.clickrank.ai/seo-glossary/w/what-is-weighted-bm25-variants/"
+        },
+        {
+          "label": "Which BM25 Do You Mean? – Semantic Scholar entry",
+          "href": "https://www.semanticscholar.org/paper/Which-BM25-Do-You-Mean-A-Large-Scale-Study-of-Kamphuis-Vries/58737fba500075136ee0f33f7801a5ac7f82ab68"
+        },
+        {
+          "label": "Adaptive term frequency normalization for BM25 — Illinois Experts (Lv & Zhai, CIKM 2011)",
+          "href": "https://experts.illinois.edu/en/publications/adaptive-term-frequency-normalization-for-bm25/"
+        },
+        {
+          "label": "BM25Similarity (Lucene 9.9.1 API)",
+          "href": "https://lucene.apache.org/core/9_9_1/core/org/apache/lucene/search/similarities/BM25Similarity.html"
+        },
+        {
+          "label": "Practical BM25 - Part 3: Considerations for Picking b and k1 in Elasticsearch",
+          "href": "https://www.elastic.co/blog/practical-bm25-part-3-considerations-for-picking-b-and-k1-in-elasticsearch"
+        },
+        {
+          "label": "Anserini: BM25 Baselines for FEVER Fact Verification (GitHub)",
+          "href": "https://github.com/castorini/anserini/blob/master/docs/experiments-fever.md"
+        },
+        {
+          "label": "Sparse Retrieval (BM25) — castorini/pyserini (DeepWiki)",
+          "href": "https://deepwiki.com/castorini/pyserini/3.1-sparse-retrieval-(bm25)"
+        },
+        {
+          "label": "Okapi at TREC-3 (Robertson et al., 1994) — paper source, tous les runs : BM25(2.0 ; 0 ; 1 ; 0.75)",
+          "href": "https://trec.nist.gov/pubs/trec3/papers/city.ps.gz"
+        },
+        {
+          "label": "Pyserini — MS MARCO Document Ranking experiments (official docs)",
+          "href": "https://github.com/castorini/pyserini/blob/master/docs/experiments-msmarco-doc.md"
+        },
+        {
+          "label": "Elasticsearch BM25 similarity defaults (official docs)",
+          "href": "https://www.elastic.co/guide/en/elasticsearch/reference/current/index-modules-similarity.html"
+        },
+        {
+          "label": "WAND and Block-Max WAND: Efficient Algorithms for Top-k Document Retrieval (Medium, Jithendrasaikilaru)",
+          "href": "https://medium.com/@jithendrasaikilaru/wand-and-block-max-wand-efficient-algorithms-for-top-k-document-retrieval-5dfca4b84499"
+        },
+        {
+          "label": "WAND Top-k Retrieval — SlideShare presentation",
+          "href": "https://www.slideshare.net/slideshow/wand-topk-retrieval/110770929"
+        },
+        {
+          "label": "Faster Retrieval of Top Hits in Elasticsearch with Block-Max WAND (Elastic Blog)",
+          "href": "https://www.elastic.co/blog/faster-retrieval-of-top-hits-in-elasticsearch-with-block-max-wand"
+        },
+        {
+          "label": "Elias-Fano: quasi-succinct compression of sorted integers in C# — Wolf Garbe / Medium",
+          "href": "https://wolfgarbe.medium.com/elias-fano-quasi-succinct-compression-of-sorted-integers-in-c-89f92a8c9986"
+        },
+        {
+          "label": "EliasFanoEncoder — Apache Lucene 4.8.0 API",
+          "href": "https://lucene.apache.org/core/4_8_0/core/org/apache/lucene/util/packed/EliasFanoEncoder.html"
+        },
+        {
+          "label": "Sorted integers compression with Elias-Fano encoding — Antonio Mallia",
+          "href": "https://www.antoniomallia.it/sorted-integers-compression-with-elias-fano-encoding.html"
+        },
+        {
+          "label": "Elias-Fano coding — CuriousCoding",
+          "href": "https://curiouscoding.nl/teaching/elias-fano/"
+        },
+        {
+          "label": "Quasi-Succinct Indices — Sebastiano Vigna (WSDM 2013)",
+          "href": "https://vigna.di.unimi.it/algoweb/EliasFano.pdf"
+        },
+        {
+          "label": "BlockMax WAND: How Weaviate Achieved 10x Faster Keyword Search",
+          "href": "https://weaviate.io/blog/blockmax-wand"
+        },
+        {
+          "label": "Faster Top-k Document Retrieval Using Block-Max Indexes — Ding & Suel, SIGIR 2011 (PDF officiel NYU)",
+          "href": "https://research.engineering.nyu.edu/~suel/papers/bmw.pdf"
+        },
+        {
+          "label": "Optimal Top-k Document Retrieval — Navarro & Nekrich, arXiv 1307.6789 (2013)",
+          "href": "https://arxiv.org/abs/1307.6789"
+        },
+        {
+          "label": "DBLP: Top-k document retrieval in optimal time and linear space — SODA 2012",
+          "href": "https://dblp.org/rec/conf/soda/NavarroN12.html"
+        },
+        {
+          "label": "Time-Optimal Top-k Document Retrieval — Navarro & Nekrich, SIAM Journal on Computing 2017",
+          "href": "https://epubs.siam.org/doi/10.1137/140998949"
+        },
+        {
+          "label": "Elasticsearch 5.0.0 Released | Elastic Blog",
+          "href": "https://www.elastic.co/blog/elasticsearch-5-0-0-released"
+        },
+        {
+          "label": "BM25Similarity (Lucene 6.5.0 API) — Apache Software Foundation",
+          "href": "https://lucene.apache.org/core/6_5_0/core/org/apache/lucene/search/similarities/BM25Similarity.html"
+        },
+        {
+          "label": "Search Relevance - Solr & Elasticsearch Similarities | Sematext",
+          "href": "https://sematext.com/blog/search-relevance-solr-elasticsearch-similarity/"
+        },
+        {
+          "label": "Wikimedia Research — Discovery Search Test BM25 (rapport officiel de l'A/B test)",
+          "href": "https://wikimedia-research.github.io/Discovery-Search-Test-BM25/"
+        },
+        {
+          "label": "BM25Similarity (Lucene 6.0.0 API) — Apache Lucene Java",
+          "href": "https://lucene.apache.org/core/6_0_0/core/org/apache/lucene/search/similarities/BM25Similarity.html"
+        },
+        {
+          "label": "Class BM25Similarity — Apache Lucene.NET 4.8.0 Documentation",
+          "href": "https://lucenenet.apache.org/docs/4.8.0-beta00005/api/Lucene.Net/Lucene.Net.Search.Similarities.BM25Similarity.html"
+        },
+        {
+          "label": "org.apache.lucene.search.similarities (Lucene 8.0.0) — contrainte indexation+recherche",
+          "href": "https://lucene.apache.org/core/8_0_0/core/org/apache/lucene/search/similarities/package-summary.html"
+        },
+        {
+          "label": "Hybrid Retrieval for Hallucination Mitigation in Large Language Models: A Comparative Analysis (arxiv 2504.05324)",
+          "href": "https://arxiv.org/abs/2504.05324"
+        },
+        {
+          "label": "Evaluating Hybrid Retrieval Augmented Generation using Dynamic Test Sets: LiveRAG Challenge (arxiv 2506.22644)",
+          "href": "https://arxiv.org/abs/2506.22644"
+        },
+        {
+          "label": "Survey on BM25 as bag-of-words retrieval function (arXiv:2409.05882v1)",
+          "href": "https://arxiv.org/html/2409.05882v1"
+        },
+        {
+          "label": "A Short Note on Proximity-based Scoring of Documents with Multiple Fields (arXiv:1709.03260)",
+          "href": "https://arxiv.org/abs/1709.03260"
+        },
+        {
+          "label": "BM25 — Arpit Bhayani's blog",
+          "href": "https://arpitbhayani.me/blogs/bm25/"
+        },
+        {
+          "label": "An Axiomatic Study of Query Terms Order in Ad-hoc Retrieval (arXiv:1811.03569)",
+          "href": "https://arxiv.org/abs/1811.03569"
+        },
+        {
+          "label": "BM25: The Next Generation of Lucene Relevance — OpenSource Connections",
+          "href": "https://opensourceconnections.com/blog/2015/10/16/bm25-the-next-generation-of-lucene-relevation/"
+        },
+        {
+          "label": "BM25 Introduction (ethen8181, machine-learning/search)",
+          "href": "https://ethen8181.github.io/machine-learning/search/bm25_intro.html"
+        },
+        {
+          "label": "Understanding TF-IDF and BM-25 (KMW Technology)",
+          "href": "https://kmwllc.com/index.php/2020/03/20/understanding-tf-idf-and-bm-25/"
+        },
+        {
+          "label": "LexBoost: Improving Lexical Document Retrieval with Nearest Neighbors (arXiv 2409.05882)",
+          "href": "https://arxiv.org/abs/2409.05882"
+        },
+        {
+          "label": "LexBoost: Improving Lexical Document Retrieval with Nearest Neighbors — ACM DocEng 2024",
+          "href": "https://dl.acm.org/doi/10.1145/3685650.3685658"
+        },
+        {
+          "label": "Hybrid Search and Reranking survey (arXiv 2502.14822v2)",
+          "href": "https://arxiv.org/html/2502.14822v2"
+        }
+      ]
+    },
+    {
+      "type": "pointers",
+      "title": "Pour aller plus loin",
+      "items": [
+        {
+          "name": "Introduction to Information Retrieval — Manning, Raghavan, Schütze (Stanford/Cambridge, 2008)",
+          "url": "https://nlp.stanford.edu/IR-book/html/htmledition/irbook.html",
+          "kind": "reading",
+          "blurb": "Référence canonique sur les index inversés, le merge de posting lists et le scoring : chapitres 1 (Boolean retrieval) et 2 (Term vocabulary and postings lists) couvrent exactement l'architecture décrite dans cette section."
+        },
+        {
+          "name": "Practical BM25 — Part 2 : The BM25 algorithm and its variables (Elastic)",
+          "url": "https://www.elastic.co/blog/practical-bm25-part-2-the-bm25-algorithm-and-its-variables",
+          "kind": "reading",
+          "blurb": "Explique comment Elasticsearch exploite l'inverted index Lucene pour exécuter BM25 et détaille l'effet des paramètres k₁ et b sur le scoring par posting list."
+        },
+        {
+          "name": "Robertson & Zaragoza (2004) — Simple BM25 extension to multiple weighted fields",
+          "url": "https://ir.webis.de/anthology/2004.cikm_conference-2004.6/",
+          "kind": "reading",
+          "blurb": "Article fondateur de BM25F (CIKM 2004) : formalise la combinaison des term frequencies par champ avant saturation, avec un paramètre b_f et un poids w_f propres à chaque champ."
+        },
+        {
+          "name": "Lv & Zhai (2011) — Lower-Bounding Term Frequency Normalization (BM25+)",
+          "url": "https://experts.illinois.edu/en/publications/lower-bounding-term-frequency-normalization/",
+          "kind": "reading",
+          "blurb": "Article CIKM 2011 qui introduit BM25+ (plancher δ) pour corriger la sur-pénalisation des longs documents par BM25 standard ; la variante BM25L (TF normalisée décalée) provient de leur article SIGIR 2011 distinct, « When Documents Are Very Long, BM25 Fails! »."
+        },
+        {
+          "name": "Lv & Zhai (2011) — Adaptive term frequency normalization for BM25 (BM25-Adpt)",
+          "url": "https://experts.illinois.edu/en/publications/adaptive-term-frequency-normalization-for-bm25/",
+          "kind": "reading",
+          "blurb": "Article CIKM 2011 qui introduit BM25-Adpt : k₁ estimé par terme à partir de son information gain, rendant la saturation adaptative selon le pouvoir discriminant de chaque terme."
+        },
+        {
+          "name": "Kamphuis et al. (2020) — Which BM25 Do You Mean? (preprint ECIR 2020)",
+          "url": "https://cs.uwaterloo.ca/~jimmylin/publications/Kamphuis_etal_ECIR2020_preprint.pdf",
+          "kind": "reading",
+          "blurb": "Étude de reproductibilité à grande échelle comparant huit variantes BM25 sur trois collections de dépêches ; conclut à l'absence de différences d'efficacité statistiquement significatives."
+        },
+        {
+          "name": "Robertson & Zaragoza (2009) — The Probabilistic Relevance Framework: BM25 and Beyond",
+          "url": "https://ir.webis.de/anthology/2009.ftir_journal-ir0anthology0volumeA3A4.0/",
+          "kind": "reading",
+          "blurb": "Référence canonique Foundations and Trends in Information Retrieval (vol. 3, DOI 10.1561/1500000019) : dérivation probabiliste de BM25, traitement de BM25F et perspectives au-delà de la formule de base."
+        },
+        {
+          "name": "Pyserini — MS MARCO Passage BM25 experiments",
+          "url": "https://github.com/castorini/pyserini/blob/master/docs/experiments-msmarco-passage.md",
+          "kind": "tool",
+          "blurb": "Documentation officielle du grid search Pyserini sur MS MARCO Passage avec comparaison default vs tuned (k1=0.82, b=0.68, MRR@10=0.1875)."
+        },
+        {
+          "name": "Pyserini — MS MARCO Document BM25 experiments",
+          "url": "https://github.com/castorini/pyserini/blob/master/docs/experiments-msmarco-doc.md",
+          "kind": "tool",
+          "blurb": "Grid search sur MS MARCO Document révélant k1=4.46, b=0.82 comme optimaux — exemple canonique de l'écart entre defaults newswire et corpus web long."
+        },
+        {
+          "name": "Practical BM25 Part 3 — Considerations for Picking b and k1 (Elastic Blog)",
+          "url": "https://www.elastic.co/blog/practical-bm25-part-3-considerations-for-picking-b-and-k1-in-elasticsearch",
+          "kind": "reading",
+          "blurb": "Guide Elasticsearch sur les heuristiques de choix de k1 et b selon la longueur des documents et la diversité du vocabulaire, avec avertissement sur la priorité à accorder à la construction de requête avant le tuning paramétrique."
+        },
+        {
+          "name": "Pyserini 2CR — MS MARCO v1 Passage reproduction matrix",
+          "url": "https://castorini.github.io/pyserini/2cr/msmarco-v1-passage.html",
+          "kind": "tool",
+          "blurb": "Matrice de reproductibilité Pyserini montrant les scores BM25 default et tuned sur MS MARCO Passage, utile comme référence de baseline vérifiable."
+        },
+        {
+          "name": "Faster Top-k Document Retrieval Using Block-Max Indexes (Ding & Suel, SIGIR 2011)",
+          "url": "https://research.engineering.nyu.edu/~suel/papers/bmw.pdf",
+          "kind": "reading",
+          "blurb": "Article fondateur du Block-Max WAND, avec les résultats expérimentaux sur GOV2 et la définition formelle des majorants par bloc."
+        },
+        {
+          "name": "Faster Retrieval of Top Hits in Elasticsearch with Block-Max WAND (Elastic Blog)",
+          "url": "https://www.elastic.co/blog/faster-retrieval-of-top-hits-in-elasticsearch-with-block-max-wand",
+          "kind": "reading",
+          "blurb": "Retour d'expérience de production sur l'implémentation Block-Max WAND dans Lucene/Elasticsearch, avec mesures de speedup par type de requête."
+        },
+        {
+          "name": "Techniques for Inverted Index Compression (Pibiri & Venturini, 2019)",
+          "url": "https://arxiv.org/pdf/1908.10598",
+          "kind": "reading",
+          "blurb": "Synthèse exhaustive des schémas de compression de postings : d-gap, Elias-Fano, PForDelta, et comparaisons de débit de décodage."
+        },
+        {
+          "name": "Optimal Top-k Document Retrieval (Navarro & Nekrich, arxiv 2013)",
+          "url": "https://arxiv.org/abs/1307.6789",
+          "kind": "reading",
+          "blurb": "Preuve de l'optimalité RAM de la récupération top-k en espace linéaire et O(p/log_σ n + k), avec extension dynamique."
+        },
+        {
+          "name": "Apache Lucene",
+          "url": "https://lucene.apache.org/",
+          "kind": "library",
+          "blurb": "Bibliothèque Java de référence pour l'indexation et la recherche plein texte ; socle d'Elasticsearch et d'Apache Solr, avec BM25 comme similarity par défaut depuis la version 6."
+        },
+        {
+          "name": "Elasticsearch",
+          "url": "https://www.elastic.co/elasticsearch",
+          "kind": "tool",
+          "blurb": "Moteur de recherche distribué basé sur Lucene ; adopte BM25 par défaut depuis la version 5.0 et expose k₁ / b comme paramètres configurables par champ."
+        },
+        {
+          "name": "Apache Solr",
+          "url": "https://solr.apache.org/",
+          "kind": "tool",
+          "blurb": "Serveur de recherche plein texte basé sur Lucene ; partage le même mécanisme de similarity pluggable et supporte BM25 nativement."
+        },
+        {
+          "name": "Tantivy",
+          "url": "https://github.com/quickwit-oss/tantivy",
+          "kind": "library",
+          "blurb": "Bibliothèque de recherche plein texte en Rust, inspirée de Lucene ; implémente BM25 et sert de moteur à ParadeDB."
+        },
+        {
+          "name": "ParadeDB",
+          "url": "https://www.paradedb.com/",
+          "kind": "tool",
+          "blurb": "Extension PostgreSQL (pg_search) qui apporte BM25 natif dans Postgres via Tantivy, sans infrastructure de recherche externe."
+        },
+        {
+          "name": "Anserini",
+          "url": "https://github.com/castorini/anserini",
+          "kind": "tool",
+          "blurb": "Toolkit Java de research en information retrieval reproductible basé sur Lucene ; référence pour les benchmarks TREC et BEIR avec BM25 comme scorer de base."
+        },
+        {
+          "name": "Pyserini",
+          "url": "https://github.com/castorini/pyserini",
+          "kind": "package",
+          "blurb": "Interface Python pour Anserini ; permet d'exécuter des pipelines BM25 et hybrid (BM25 + dense) en quelques lignes, utilisé dans la majorité des travaux RAG académiques."
+        }
+      ]
+    },
+    {
+      "type": "glossary"
+    }
+  ]
+}
