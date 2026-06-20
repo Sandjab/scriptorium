@@ -1,0 +1,979 @@
+{
+  "generator": "frugalmonograph",
+  "theme": {
+    "slug": "state-space-models",
+    "title": "State Space Models et Mamba : modéliser les séquences en temps linéaire"
+  },
+  "summary": {
+    "sections_total": 8,
+    "sections_retained": 8,
+    "claims_total": 31,
+    "confirmed": 7,
+    "corrected": 24,
+    "rejected": 0,
+    "retained": 31
+  },
+  "claims": [
+    {
+      "id": "claim:1",
+      "section": "principe-ssm-continu",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le SSM continu est défini par h′(t) = A·h(t) + B·x(t), y(t) = C·h(t) + D·x(t), avec A ∈ ℝᴺˣᴺ, B ∈ ℝᴺˣ¹, C ∈ ℝ¹ˣᴺ, D ∈ ℝ¹ˣ¹ ; la discrétisation Zero-Order Hold avec pas Δ produit Ā = exp(ΔA) et B̄ = (ΔA)⁻¹(exp(ΔA) − I)·Δ·B.",
+      "original_statement": "Le SSM continu est défini par h′(t) = A·h(t) + B·x(t), y(t) = C·h(t) + D·x(t), avec A ∈ ℝᴺˣᴺ, B ∈ ℝᴺˣ¹, C ∈ ℝ¹ˣᴺ, D ∈ ℝ¹ˣ¹ ; la discrétisation Zero-Order Hold avec pas Δ produit Ā = exp(ΔA) et B̄ = (ΔA)⁻¹(exp(ΔA) − I)·Δ·B.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les deux formules ZOH sont exactes et mutuellement équivalentes : (ΔA)⁻¹(exp(ΔA)−I)·Δ·B = A⁻¹(exp(ΔA)−I)·B (car (ΔA)⁻¹·Δ = A⁻¹). Le papier Mamba (HTML vérifié) donne verbatim Ā = exp(ΔA), B̄ = (ΔA)⁻¹(exp(ΔA)−I)·ΔB avec A∈ℝᴺˣᴺ, B∈ℝᴺˣ¹, C∈ℝ¹ˣᴺ — les dimensions et formules de l'énoncé sont exactes. Nuance mineure : S4 préfère en pratique la discrétisation bilinéaire (Tustin) car exp(ΔA) coûte O(N³), mais le ZOH est valide et bien documenté pour la famille SSM ; l'énoncé ne commet aucune erreur factuelle."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les formules ZOH Ā=exp(ΔA) et B̄=(ΔA)⁻¹(exp(ΔA)−I)·ΔB sont confirmées mot pour mot dans le papier Mamba (2312.00752) ; les dimensions A∈ℝᴺˣᴺ, B∈ℝᴺˣ¹, C∈ℝ¹ˣᴺ, D∈ℝ¹ˣ¹ et le terme D·x(t) sont confirmés dans le blog S4/HazyResearch (forme générale du SSM continu). La notation (ΔA)⁻¹(exp(ΔA)−I)·Δ·B est algébriquement identique à A⁻¹(exp(ΔA)−I)·B utilisée dans d'autres sources ; le terme D est absent de la formulation Mamba (D=0 implicite) mais correct dans la forme générale."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:2",
+      "section": "principe-ssm-continu",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "La récurrence discrète h_t = Ā·h_{t−1} + B̄·x_t, y_t = C·h_t est algébriquement équivalente à une convolution y = K ⋆ x avec le kernel K = (C·B̄, C·Ā·B̄, C·Ā²·B̄, …, C·Āᴸ⁻¹·B̄) **uniquement lorsque Ā, B̄ et C sont des matrices constantes (système linéaire à temps invariant, LTI)**. Pour ces systèmes (ex. S4), l'entraînement parallèle via FFT est en O(L log L) et l'inférence récurrente requiert une mémoire constante O(N) par pas de séquence. Cette dualité est cependant brisée pour les SSM sélectifs comme Mamba, où B̄ et C sont fonctions de l'entrée (système temps-variant) : Mamba recourt à la place à un balayage parallèle hardware-aware (parallel scan), et non à une FFT. L'énoncé omet également le terme D·x_t (feedthrough direct, souvent nul en pratique).",
+      "original_statement": "La récurrence discrète h_t = Ā·h_{t−1} + B̄·x_t est algébriquement équivalente à une convolution y = K ⋆ x avec le kernel K = (C·B̄, C·Ā·B̄, C·Ā²·B̄, …, C·Āᴸ⁻¹·B̄) ; cette dualité permet un entraînement parallèle via FFT en O(L log L) et une inférence récurrente en mémoire constante O(N) par token.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "La formule du kernel K est correcte et l'O(L log L) FFT s'applique bien aux SSM LTI (S4). Mais la formulation de l'énoncé omet la restriction fondamentale : la dualité convolution ↔ récurrence ne vaut que si Ā, B̄, C sont des matrices constantes. Le papier Mamba (2312.00752) indique explicitement que son mécanisme de sélection (B̄, C dépendants de l'entrée) « prevents the use of efficient convolutions » — Mamba entraîne via un parallel scan hardware-aware, non via FFT. Présenter l'entraînement FFT comme une conséquence directe de cette dualité, dans un contexte où la notation Ā/B̄ renvoie précisément à Mamba, constitue une omission matérielle qui invalide l'énoncé tel quel."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "L'énoncé est techniquement exact sur les quatre points. Le Mamba paper (arXiv:2312.00752, Eq. 2a et 3a) confirme verbatim la récurrence discrète et le kernel K̄ = (C·B̄, C·Ā·B̄, …) ; la complexité O(BLD log L) FLOPs pour le mode convolutif est bien O(L log L) par canal, et l'inférence récurrente maintient un état h_t de taille fixe N (constant en L), ce que corroborent indépendamment le survey 2503.18970 et l'explainer TDS."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « La récurrence discrète h_t = Ā·h_{t−1} + B̄·x_t est algébriquement équivalente à une convolution y = K ⋆ x avec le kernel K = (C·B̄, C·Ā·B̄, C·Ā²·B̄, …, C·Āᴸ⁻¹·B̄) ; cette dualité permet un entraînement parallèle via FFT en O(L log L) et une inférence récurrente en mémoire constante O(N) par token. »"
+    },
+    {
+      "id": "claim:3",
+      "section": "principe-ssm-continu",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le pas Δ contrôle la résolution temporelle effective : un Δ petit produit un oversampling dense (mémoire longue de l'historique) et un Δ grand produit un sous-échantillonnage (oubli rapide, focalisation sur l'entrée courante).",
+      "original_statement": "Le pas Δ contrôle la résolution temporelle effective : un Δ petit produit un oversampling dense (mémoire longue de l'historique) et un Δ grand produit un sous-échantillonnage (oubli rapide, focalisation sur l'entrée courante).",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le sens du mécanisme est correct et vérifié : petit Δ → Ā ≈ I, B̄ ≈ 0 (état préservé, entrée courante quasi ignorée) → mémoire longue ; grand Δ → Ā ≈ 0, B̄ ≈ A⁻¹B (état réinitialisé, entrée courante dominante) → oubli rapide + focalisation sur le token courant. Le vocabulaire « oversampling / sous-échantillonnage » n'est pas celui du papier Mamba (qui parle de « résolution temporelle » et de « taux d'échantillonnage »), mais il est directionnellement cohérent avec le cadre de discrétisation. Incompletude non-fatale : le régime petit Δ implique aussi que l'entrée courante est quasi ignorée (B̄ → 0), aspect absent de l'énoncé, mais ce n'est pas une erreur directionnelle."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le papier Mamba (§ 3.5.2) confirme explicitement : « a large Δ resets the state h and focuses on the current input x, while a small Δ persists the state and ignores the current input. » Le cadrage oversampling/undersampling est l'interprétation standard de la discrétisation ZOH (small Δ = grille temporelle fine = oversampling ; large Δ = grille grossière = undersampling), cohérent avec les sources secondaires. La source Grootendorst, tutorial indépendant, confirme la même direction : petit Δ → contexte long, grand Δ → focalisation sur l'entrée courante."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:4",
+      "section": "principe-ssm-continu",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Il est courant d'affirmer que les SSMs offrent une complexité « linéaire en L » à l'entraînement, ce qui est inexact pour les modèles LTI de type S4 : leur forme convolutive via FFT est en O(L log L), non en O(L). La complexité O(L) via parallel scan n'est cependant pas exclusive à Mamba : S5 (Smith et al., 2022, arXiv:2208.04933) avait déjà appliqué le parallel scan à des SSMs LTI diagonaux avant Mamba. Ce qui est spécifique à Mamba, c'est que ses matrices d'état sélectives (dépendantes de l'entrée) rendent le noyau de convolution fixe inapplicable — le parallel scan y est contraint et non un simple choix architectural — et que son implémentation requiert des noyaux CUDA custom (kernel fusion, chargement HBM→SRAM) pour être compétitive en pratique.",
+      "original_statement": "Il est courant d'affirmer que les SSMs offrent une complexité « linéaire en L » à l'entraînement, ce qui est inexact pour les modèles LTI de type S4 : leur forme convolutive via FFT est en O(L log L), non en O(L). La complexité O(L) à l'entraînement est spécifique au parallel scan de Mamba, qui requiert des noyaux CUDA custom et ne peut pas exploiter le kernel de convolution fixe.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Le coeur du claim est correct : S4 entraîne en O(L log L) via FFT (confirmé par le papier S4 et le papier Mamba qui cite O(BLDlog(L))) tandis que Mamba utilise O(BLDN) ≈ O(L) via parallel scan avec kernels CUDA custom. Mais l'assertion « spécifique au parallel scan de Mamba » est fausse : S5 (Smith et al., 2022) avait déjà appliqué le parallel scan à des SSMs LTI pour obtenir O(L) à l'entraînement avant Mamba, comme le confirme le blog Mamba-2 (« S5 was the first S4 model to be computed recurrently with the parallel scan »). Ce qui est réellement exclusif à Mamba, c'est la combinaison de l'état sélectif (non-LTI, dépendant de l'entrée) qui rend le kernel FFT fixe inapplicable, plus l'implémentation hardware-aware nécessaire pour en tirer un gain pratique."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le papier Mamba (2312.00752) confirme explicitement que « la forme convolutive utilise O(BLD log L) FLOPs » (pour les SSMs à noyau fixe comme S4), que le mécanisme de sélection « empêche l'utilisation de convolutions efficaces », et que l'implémentation recourt à un algorithme parallèle hardware-aware avec fusion de noyaux CUDA. Le survey (2503.18970) confirme indépendamment : S4 → O(N log N) via FFT, Mamba → O(L) via algorithme parallèle. L'énoncé tient tel quel sur les quatre sous-claims (S4 FFT O(L log L), Mamba parallel scan O(L), noyaux CUDA custom, impossibilité du kernel fixe)."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « Il est courant d'affirmer que les SSMs offrent une complexité « linéaire en L » à l'entraînement, ce qui est inexact pour les modèles LTI de type S4 : leur forme convolutive via FFT est en O(L log L), non en O(L). La complexité O(L) à l'entraînement est spécifique au parallel scan de Mamba, qui requiert des noyaux CUDA custom et ne peut pas exploiter le kernel de convolution fixe. »"
+    },
+    {
+      "id": "claim:5",
+      "section": "lignee-hippo-s4-s5",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "HiPPO-LegS (NeurIPS 2020) atteint 98,3 % de précision sur permuted MNIST en encodant l'historique de l'entrée comme les coefficients de polynômes de Legendre sur une mesure qui pondère uniformément TOUTE l'histoire jusqu'au temps courant (mesure scaled, fenêtre croissante) — et non sur une fenêtre glissante fixe, qui caractérise la variante HiPPO-LagT/LegT — conférant une timescale robustness absente des RNN à gating.",
+      "original_statement": "HiPPO-LegS (NeurIPS 2020) atteint 98,3 % de précision sur permuted MNIST en encodant l'historique de l'entrée comme les coefficients de Legendre polynomials sur une fenêtre glissante uniforme, conférant une timescale robustness absente des RNN à gating.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "L'erreur factuelle centrale est l'attribution d'une \"fenêtre glissante uniforme\" à HiPPO-LegS : c'est la variante LagT/LegT (Translated Legendre) qui utilise une fenêtre fixe, tandis que LegS (Scaled Legendre) pondere uniformément toute l'histoire jusqu'au temps courant — c'est précisément cette différence qui fonde son avantage de timescale robustness. Les autres éléments (98,3 %, NeurIPS 2020, polynômes de Legendre, robustness vs gating) sont confirmés."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le chiffre 98,3 % sur permuted MNIST et la publication NeurIPS 2020 sont confirmés. L'erreur porte sur le type de fenêtre : \"fenêtre glissante uniforme\" décrit HiPPO-LegT (Translated Legendre, fenêtre fixe [t-θ, t] sensible à θ), non HiPPO-LegS ; LegS (Scaled Legendre) utilise une fenêtre qui s'étend à [0, t] et couvre tout l'historique — c'est précisément ce mécanisme (absence de paramètre de longueur fixe) qui lui confère la timescale robustness revendiquée."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « HiPPO-LegS (NeurIPS 2020) atteint 98,3 % de précision sur permuted MNIST en encodant l'historique de l'entrée comme les coefficients de Legendre polynomials sur une fenêtre glissante uniforme, conférant une timescale robustness absente des RNN à gating. »"
+    },
+    {
+      "id": "claim:6",
+      "section": "lignee-hippo-s4-s5",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "S4 (ICLR 2022) est le premier modèle à résoudre Path-X — séquences de 16 384 tokens du Long Range Arena — là où toutes les architectures précédentes (Transformers, LSTM, attention linéaire) échouaient à dépasser le niveau du hasard ; sa génération est 60× plus rapide qu'un Transformer de taille comparable, grâce à la mise à jour récurrente en O(N) par token (N = dimension d'état, fixe et indépendant de la longueur de séquence), contre O(L) par token pour l'attention.",
+      "original_statement": "S4 (ICLR 2022) est le premier modèle à résoudre Path-X — séquences de 16 000 tokens du Long Range Arena — là où tous les architectures précédentes (Transformers, LSTM, attention linéaire) échouaient à dépasser le niveau du hasard ; sa génération est 60× plus rapide qu'un Transformer de taille comparable grâce à la mise à jour récurrente en O(1) par token.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 4,
+          "note": "Deux erreurs identifiées : (1) le coût par token en mode récurrent est O(N) où N est la dimension d'état (fixe), et non O(1) — le paper lui-même spécifie « per-step cost O(N) » ; l'avantage sur le Transformer provient de l'absence d'attention O(L²), pas d'une mise à jour O(1) au sens strict. (2) La longueur exacte de Path-X est 16 384 (128×128), couramment arrondie à « 16k » mais pas 16 000. Les claims sur la primauté de S4 sur Path-X et le facteur 60× (pour la génération d'images/texte) sont confirmés par l'abstract officiel."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Un seul point est factuellement erroné : la longueur de séquence Path-X est 16 384 (128×128 pixels), non 16 000. Les deux sources primaires indépendantes (le papier S4 lui-même et le papier LRA de Google Brain qui définit le benchmark) confirment 16 384. Les autres affirmations — premier à résoudre Path-X, tous les modèles précédents à 50 % (niveau du hasard), génération 60× plus rapide — sont toutes vérifiées ; le qualificatif « O(1) par token » est correct en substance (coût constant en longueur de séquence) même si le papier préfère la formulation « constant memory and computation per time step »."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « S4 (ICLR 2022) est le premier modèle à résoudre Path-X — séquences de 16 000 tokens du Long Range Arena — là où tous les architectures précédentes (Transformers, LSTM, attention linéaire) échouaient à dépasser le niveau du hasard ; sa génération est 60× plus rapide qu'un Transformer de taille comparable grâce à la mise à jour récurrente en O(1) par token. »"
+    },
+    {
+      "id": "claim:7",
+      "section": "lignee-hippo-s4-s5",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "S4D justifie la suppression du terme low-rank de S4 en montrant que la matrice A purement diagonale retrouve le même noyau de convolution que DPLR dans la limite N → ∞ ; cette équivalence asymptotique est utilisée pour expliquer des performances quasi-identiques à N fini, bien que la limite infinie ne soit jamais atteinte en pratique et que l'initialisation de la diagonale soit le vrai levier.",
+      "original_statement": "S4D justifie la suppression du terme low-rank de S4 en montrant que la matrice A purement diagonale retrouve le même noyau de convolution que DPLR dans la limite N → ∞ ; cette équivalence asymptotique est utilisée pour expliquer des performances quasi-identiques à N fini, bien que la limite infinie ne soit jamais atteinte en pratique et que l'initialisation de la diagonale soit le vrai levier.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "L'énoncé tient. Theorem 3 confirme l'équivalence de noyau diagonale/DPLR à N→∞, et le papier cite explicitement ce résultat pour « expliquer les résultats empiriques » de DSS performant proche de S4. L'accent sur l'initialisation comme levier pratique est également confirmé verbatim (\"initialization is critical for performance\"), avec la mise en garde explicite que l'expressivité asymptotique seule \"does not guarantee strong performance after optimization\" — nuance que l'énoncé intègre via ses deux subordonnées concessives."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Le papier primaire (Theorem 3) confirme que la restriction diagonale de la matrice DPLR de S4 retrouve bien le même noyau dans la limite N → ∞, et que l'initialisation est le levier critique pour la performance à N fini. Nuances mineures : le papier n'emploie pas le terme « équivalence asymptotique » (il dit « limits to »/« in the limit of infinite state dimension ») ; il n'affirme pas non plus formellement que cette limite explique les performances à N fini — il la présente comme motivation théorique tout en s'appuyant sur des résultats empiriques pour le régime pratique, ce que l'énoncé sous-entend d'ailleurs en mentionnant l'initialisation comme « vrai levier »."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:8",
+      "section": "lignee-hippo-s4-s5",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "S5 (ICLR 2023) remplace les H SSM SISO indépendants de S4 par un unique SSM MIMO avec parallel prefix scan, atteignant 87,4 % de moyenne sur le Long Range Arena et 98,5 % sur Path-X.",
+      "original_statement": "S5 (ICLR 2023) remplace les H SSM SISO indépendants de S4 par un unique SSM MIMO avec parallel prefix scan, atteignant 87,4 % de moyenne sur le Long Range Arena et 98,5 % sur Path-X.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Tous les éléments chiffrés sont confirmés directement par le papier (87,4 % LRA, 98,5 % Path-X) et la venue ICLR 2023 (oral) est attestée. Le terme \"parallel prefix scan\" n'apparaît pas verbatim — le papier dit \"parallel scans\" et \"associative parallel scan primitives\" — mais c'est le nom algorithmique canonique du même mécanisme, sans erreur factuelle. L'assertion \"un unique SSM MIMO\" est confirmée par l'abstract (\"one multi-input, multi-output SSM\" vs \"many independent single-input, single-output SSMs\" pour S4)."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Tous les éléments de l'énoncé sont confirmés : S5 est bien publié à ICLR 2023 (oral notable top 5 %), il remplace les H SSM SISO indépendants de S4 par un unique SSM MIMO avec parallel scan (alias parallel prefix scan — terminologie équivalente), atteint 87,4 % (exactement 87,46 %) de moyenne sur le Long Range Arena et 98,5 % (exactement 98,58 %) sur Path-X. Le survey indépendant arxiv:2403.16899 reproduit ces scores et décrit la même architecture, ce qui valide l'indépendance de la vérification."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:9",
+      "section": "mamba-s6-selectivite",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Dans Mamba/S6, B et C sont des projections linéaires de x_t et Δ_t = softplus(Linear_Δ(x_t)) — ces points sont corrects. En revanche, deux affirmations doivent être corrigées : (1) A n'est pas « fixe » au sens de gelé — c'est un paramètre appris (nn.Parameter : A_log = log(-A)), mis à jour par gradient descent ; il est seulement non-dépendant de l'entrée (input-independent). La négativité des valeurs propres est garantie par la paramétrisation logarithmique A = -exp(A_log), non par le fait de « fixer » A. (2) La raison principale pour laquelle A n'est pas rendu sélectif n'est pas la stabilité numérique mais la redondance : comme Ā = exp(ΔA), la sélectivité de Δ suffit à assurer la sélectivité de (Ā, B̄) (Section 3.5.2 du papier). La stabilité numérique n'est pas l'argument invoqué dans le papier pour ce choix.",
+      "original_statement": "Dans Mamba/S6, les matrices B et C et le pas Δ sont des projections linéaires du token courant (B_t = Linear_B(x_t), C_t = Linear_C(x_t), Δ_t = softplus(Linear_Δ(x_t))), tandis que A reste une matrice diagonale fixe à valeurs propres négatives ; rendre A dépendant de l'entrée serait redondant car son influence transite entièrement par Δ dans la discrétisation ZOH, et la fixer garantit la stabilité numérique de la récurrence.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Deux erreurs factuelles distinctes : (a) A est un paramètre entraîné (A_log = nn.Parameter, no_weight_decay mais gradient actif) — l'appeler « fixe » le confond avec « gelé » ; (b) le papier (Section 3.5.2) justifie de ne pas rendre A sélectif par la REDONDANCE via exp(ΔA), pas par la stabilité — la stabilité est un effet collatéral de la paramétrisation log, non l'argument principal. La formule Δ_t = softplus(Linear_Δ(x_t)) est aussi une simplification (l'implémentation utilise une projection rang-réduit dt_rank puis dt_proj), mais acceptable comme abstraction pédagogique."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le papier Mamba (Algorithm 2, Section 3.2) confirme B/C comme projections linéaires de x_t, Δ comme softplus(Paramètre + sΔ(x_t)) avec un biais appris, et A fixe diagonal négatif ; il justifie explicitement de ne pas rendre A sélectif par redondance avec Δ (« selectivity in Δ is enough to ensure selectivity in (Ā, B̄) »), jamais par stabilité. La stabilité est assurée par le signe négatif de A (−exp(A_log)), pas par le fait de le fixer. Le papier sur la parité (2508.07395) confirme indépendamment que le A de Mamba est fixe et que ses valeurs propres discrètes (Ā = exp(ΔA) ∈ (0,1)) sont non-négatives, ce qui est cohérent avec un A continu négatif."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « Dans Mamba/S6, les matrices B et C et le pas Δ sont des projections linéaires du token courant (B_t = Linear_B(x_t), C_t = Linear_C(x_t), Δ_t = softplus(Linear_Δ(x_t))), tandis que A reste une matrice diagonale fixe à valeurs propres négatives ; rendre A dépendant de l'entrée serait redondant car son influence transite entièrement par Δ dans la discrétisation ZOH, et la fixer garantit la stabilité numérique de la récurrence. »"
+    },
+    {
+      "id": "claim:10",
+      "section": "mamba-s6-selectivite",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "La dépendance de B, C et Δ à l'entrée brise la propriété LTI et rend impossible le noyau de convolution fixe K = (CB̄, CĀB̄, …) : ce noyau est désormais temps-variant (K_t dépend de x_t), ne peut être précalculé ni appliqué globalement par FFT, et le modèle doit recourir à la forme récurrente h_t = Ā_t · h_{t−1} + B̄_t · x_t, rendue parallèle à l'entraînement par un scan associatif.",
+      "original_statement": "La dépendance de B, C et Δ à l'entrée brise la propriété LTI et rend impossible le noyau de convolution fixe K = (CB̄, CĀB̄, …) : ce noyau est désormais temps-variant (K_t dépend de x_t), ne peut être précalculé ni appliqué globalement par FFT, et le modèle doit recourir à la forme récurrente h_t = Ā_t · h_{t−1} + B̄_t · x_t, rendue parallèle à l'entraînement par un scan associatif.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Chaque affirmation de l'énoncé est confirmée directement par le papier original (HTML arxiv.org/html/2312.00752) : (1) B, C et Δ sont tous trois input-dependent (Algorithm 2, lignes 4–6, et Section 3.2 : « making several parameters Δ, B, C functions of the input ») ; (2) la rupture du LTI est explicite (Section 3.2 : « has changed from time-invariant to time-varying ») ; (3) le noyau K̄ = (CB̄, CĀB̄, …) est la formule exacte de l'équation 3a du papier, et l'impossibilité de la convolution est affirmée (« This loses the equivalence to convolutions ») ; (4) la forme récurrente h_t = Ā_t h_{t-1} + B̄_t x_t est correcte. Une seule nuance terminologique : le papier Mamba emploie « parallel scan » (Section 3.3.2), non « scan associatif » — mais le scan parallèle repose précisément sur la propriété associative, terme utilisé dans la littérature SSM connexe (Smith et al., S5) et dans le blog Grootendorst ; la différence est de vocabulaire, pas de substance. Aucune contre-vérité trouvée."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les deux sources confirment explicitement et indépendamment l'ensemble de l'énoncé : (1) le papier Mamba original (Section 3.2 + Algorithm 2) établit que rendre B, C, Δ fonctions de l'entrée « perd l'équivalence aux convolutions » et force « recurrence (scan) only » ; (2) le survey Visual Mamba (Section 2.2, auteurs distincts) nomme explicitement la « linear time-invariant (LTI) property as a fundamental limitation », écrit h_t = Ā_t h_{t−1} + B̄_t x_t avec les notations temps-variant et confirme le remplacement par un parallel scan. Aucun des six éléments de l'énoncé n'appelle de correction."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:11",
+      "section": "mamba-s6-selectivite",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "L'algorithme de scan hardware-aware de Mamba fusionne discrétisation et récurrence en un unique noyau CUDA qui charge les paramètres SSM depuis la HBM vers la SRAM et y effectue l'ensemble du calcul intermédiaire — évitant ainsi la matérialisation des tenseurs d'état de forme (batch, L, D, N) en HBM — puis réécrit uniquement les sorties compactes en HBM. Les états intermédiaires ne sont pas stockés mais recalculés au backward pass. Ce schéma permet d'atteindre un débit d'inférence 4 à 5 fois supérieur à celui d'un Transformer de taille comparable.",
+      "original_statement": "L'algorithme de scan hardware-aware de Mamba fusionne discrétisation et récurrence en un unique noyau CUDA exécuté entièrement en SRAM (évitant la matérialisation des tenseurs d'état de forme (batch, L, D, N) en HBM), recompute les états intermédiaires au backward pass plutôt que de les stocker, et atteint un débit d'inférence 5 fois supérieur à un Transformer de taille comparable.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Deux erreurs factuelles identifiées. (1) « exécuté entièrement en SRAM » est inexact : le kernel charge les paramètres SSM depuis la HBM et y réécrit les sorties ; seul le calcul des états intermédiaires (la récurrence de forme (B,L,D,N)) reste confiné en SRAM, sans jamais être matérialisé en HBM. (2) Le gain d'inférence est chiffré à « 4-5× » dans le papier (section 4.5), non à un facteur fixe de 5× — la borne basse est 4× ; dire « 5 fois » présente la borne haute comme une valeur certaine."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Deux inexactitudes : (1) le gain d'inférence est « 4 à 5 fois » dans le papier (pas exactement « 5 fois ») ; (2) les tenseurs de forme (B, L, D, N) que l'algorithme évite de stocker en HBM sont les entrées du scan discrétisé (Ā, B̄), pas les états cachés h_t qui ont pour forme (B, D, N) à chaque pas — la description « tenseurs d'état » est donc légèrement imprécise. Les trois autres points (fusion SRAM, recomputation backward, noyau unique) sont confirmés textuellement par le papier."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « L'algorithme de scan hardware-aware de Mamba fusionne discrétisation et récurrence en un unique noyau CUDA exécuté entièrement en SRAM (évitant la matérialisation des tenseurs d'état de forme (batch, L, D, N) en HBM), recompute les états intermédiaires au backward pass plutôt que de les stocker, et atteint un débit d'inférence 5 fois supérieur à un Transformer de taille comparable. »"
+    },
+    {
+      "id": "claim:12",
+      "section": "mamba-s6-selectivite",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Le scan sélectif de Mamba exige bien O(L·D·N) opérations — un préfacteur que l'étiquette « O(L) » occulte. Mais la comparaison honnête face aux Transformers n'est pas O(L·D·N) contre O(L²) : l'attention requiert O(L²·D), de sorte que D se simplifie dans les deux termes et que le seuil de croisement en FLOPs se situe à L = N, non à une valeur régie par D·N. Pour les tâches de rappel associatif difficiles, N = κ (nombre de paires), et puisque L ≥ κ est toujours vérifié, ce seuil n'est jamais franchi en pratique. L'avantage wall-clock s'efface plutôt autour de L ≈ 2K–4K tokens, mais cela tient à l'efficacité matérielle des multiplications matricielles sur tensor cores, non au préfacteur D·N.",
+      "original_statement": "Il est couramment affirmé que Mamba a une complexité d'entraînement strictement O(L) contre O(L²) pour les Transformers ; cette présentation est trompeuse car le scan sélectif exige O(L · D · N) opérations — avec D la dimension du modèle et N la dimension d'état — et pour de grandes valeurs de N (nécessaires sur des tâches de rappel associatif difficiles), le préfacteur D · N peut effacer l'avantage asymptotique face à des Transformers courts.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "L'erreur centrale de l'énoncé est asymétrique : il crédite Mamba d'un coût O(L·D·N) tout en réduisant le Transformer à O(L²), omettant le facteur D de l'attention (O(L²·D)). Une fois D rétabli des deux côtés, il s'annule et le seuil de croisement en FLOPs est L = N — trivial pour N=16 et, pour les tâches de rappel associatif, structurellement inférieur à L. L'affirmation que « D·N peut effacer l'avantage asymptotique » est donc techniquement fausse dans la plupart des régimes pratiques."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Le papier Mamba original (2312.00752) confirme explicitement O(BLDN) FLOPs pour le scan récurrent, avec N=16 en standard ; la simplification O(L) circulant dans la vulgarisation est donc trompeuse. Le papier TransMamba (2503.24067) formalise le point de croisement (« TransPoint ») au-delà duquel le Transformer est plus efficace pour L &lt; N, validant le raisonnement sur le préfacteur D·N — mais cette érosion est pratique (FLOPs finis) et non asymptotique au sens strict."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « Il est couramment affirmé que Mamba a une complexité d'entraînement strictement O(L) contre O(L²) pour les Transformers ; cette présentation est trompeuse car le scan sélectif exige O(L · D · N) opérations — avec D la dimension du modèle et N la dimension d'état — et pour de grandes valeurs de N (nécessaires sur des tâches de rappel associatif difficiles), le préfacteur D · N peut effacer l'avantage asymptotique face à des Transformers courts. »"
+    },
+    {
+      "id": "claim:13",
+      "section": "mamba-2-ssd",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le théorème SSD établit qu'un SSM avec A_t = α_t·I est algébriquement équivalent — sans approximation — à une attention causale masquée 1-semiseparable : la même transformation de séquence admet deux réalisations algorithmiques, l'une récurrente en O(T), l'autre quadratique en O(T²).",
+      "original_statement": "Le théorème SSD établit qu'un SSM avec A_t = α_t·I est algébriquement équivalent — sans approximation — à une attention causale masquée 1-semiseparable : la même transformation de séquence admet deux réalisations algorithmiques, l'une récurrente en O(T), l'autre quadratique en O(T²).",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Les quatre claims de l'énoncé sont vérifiés : A_t = α_t·I est la condition exacte du SSD ; l'équivalence est algébrique sans approximation (même transformation, deux algorithmes) ; la forme quadratique est bien une « structured masked attention » (SMA) 1-semiseparable à masque L causal — l'énoncé traduit fidèlement cette structure avec le qualificatif « 1-semiseparable » ; les complexités O(T) récurrente / O(T²) quadratique sont confirmées. Seule nuance : le terme officiel du papier est « Structured Masked Attention (1-SS SMA) » et non « attention causale masquée », mais le qualificatif « 1-semiseparable » dans l'énoncé suffit à distinguer cette forme de l'attention softmax standard."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le théorème SSD est confirmé dans les deux sources : A_t = α_t·I (scalar-times-identity) implique une équivalence algébrique exacte avec une attention causale masquée par une matrice 1-semiseparable, la même transformation admettant une réalisation récurrente en O(T) et une réalisation quadratique en O(T²). Hu et al. (2510.04944), équipe indépendante de Dao & Gu, formalisent et étendent ce même théorème en le citant explicitement, ce qui constitue une confirmation externe indépendante."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:14",
+      "section": "mamba-2-ssd",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "L'algorithme SSD par chunks structure trois des quatre étapes (sorties intra-chunk, états de chunk, sorties d'états) comme des batched matmuls exploitant les tensor cores GPU ; seule la propagation inter-chunks (Step 3) exige un scan — séquentiel ou parallèle au choix — opérant sur une séquence environ T/Q fois plus courte (réduite d'un facteur ≈ 100 selon le blog).",
+      "original_statement": "L'algorithme SSD par chunks structure trois des quatre étapes (intra-chunk, états de chunk, conversion d'états) comme des batched matmuls exploitant les tensor cores GPU ; seule la propagation inter-chunks est un scan séquentiel, opérant sur une séquence T/Q fois plus courte.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "La source primaire confirme explicitement que les étapes 1, 2 et 4 « leverages matmuls (and hence tensor cores) » et que « Only Step 3 requires a scan » — mais elle précise aussitôt que Step 3 admet « any desired algorithm, e.g. parallel or sequential scan », et que l'implémentation Triton optimisée remplace le matmul par un « actual associative scan » (scan parallèle). Qualifier Step 3 de « scan séquentiel » est donc inexact : l'algorithme n'impose pas la séquentialité, et l'implémentation GPU optimisée est justement un scan associatif (parallèle). Le nom « conversion d'états » pour Step 4 est également imprecis : le blog l'appelle « output states »."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les quatre étapes du SSD chunk algorithm sont confirmées : (1) intra-chunk outputs, (2) chunk states, (4) output states — trois batched matmuls exploitant les tensor cores — et (3) pass states — scan séquentiel sur T/Q éléments (explicitement nommé « T/Q total different green blocks » dans le blog des auteurs, ≈100× en pratique). Le terme « conversion d'états » pour le step 4 (officiellement « Output states ») est une périphrase française correcte mais non canonique ; cela ne rend pas l'énoncé faux."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « L'algorithme SSD par chunks structure trois des quatre étapes (intra-chunk, états de chunk, conversion d'états) comme des batched matmuls exploitant les tensor cores GPU ; seule la propagation inter-chunks est un scan séquentiel, opérant sur une séquence T/Q fois plus courte. »"
+    },
+    {
+      "id": "claim:15",
+      "section": "mamba-2-ssd",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Mamba-2 est 2 à 8× plus rapide (au niveau du noyau SSM) que Mamba-1 tout en restant compétitif avec les Transformers sur la modélisation du langage. Cette accélération est due à l'algorithme SSD (State Space Duality) qui traduit le calcul en multiplications matricielles exploitant les tensor cores — ce qui permet aussi, comme bénéfice collatéral, d'augmenter la state dimension de N = 16 à N = 64–256, au lieu d'en être la cause.",
+      "original_statement": "Mamba-2 est 2 à 8× plus rapide à l'entraînement que Mamba-1 tout en restant compétitif avec les Transformers sur la modélisation du langage, grâce à l'augmentation de la state dimension de N = 16 à N = 64–256.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 4,
+          "note": "La causalité est inversée. L'algorithme SSD — pas l'augmentation de la state dimension — est la cause du speedup 2–8× : il remplace le scan sélectif de Mamba-1 par des multiplications matricielles qui exploitent les tensor cores. L'augmentation de N (16 → 64–256) est un bénéfice rendu possible par cet algorithme plus efficace, non sa cause. De plus, le speedup 2–8× porte sur le noyau SSM, pas sur l'entraînement du modèle complet : les blogs officiels des auteurs précisent que Mamba-2 peut rester plus lent que les Transformers à courte longueur de séquence."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Les trois faits bruts (2-8× à l'entraînement, N=16→N=64-256, compétitivité avec les Transformers) sont exacts et confirmés par la source primaire ainsi que par la documentation Hugging Face (indépendante des auteurs). Cependant, la causalité est inversée dans l'énoncé : c'est l'algorithme SSD qui produit le gain de vitesse 2-8×, et ce gain qui rend possible l'augmentation de N — et non l'inverse."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « Mamba-2 est 2 à 8× plus rapide à l'entraînement que Mamba-1 tout en restant compétitif avec les Transformers sur la modélisation du langage, grâce à l'augmentation de la state dimension de N = 16 à N = 64–256. »"
+    },
+    {
+      "id": "claim:16",
+      "section": "mamba-2-ssd",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "L'exclusion de l'attention softmax de la dualité SSD est formellement caractérisée comme une « explosion de rang » dans la littérature académique (terme précis, pas une simplification), prouvée par l'argument du déterminant de Vandermonde : pour des entrées génériques Q, K, Softmax(QK^⊤) atteint le rang T, ce qui implique qu'une structure N-semiseparable nécessite N = T, rendant l'état constant impossible. Le framing « état effectif de taille linéaire en T » et le framing « explosion de rang » sont mathématiquement équivalents — l'un est la cause, l'autre la conséquence — et non deux mécanismes distincts dont l'un serait une simplification. La nuance valide est que la matrice n'est pas nécessairement de rang maximal pour toute entrée spécifique (les articles précisent « génériquement ») ; mais les auteurs originaux (Dao & Gu) emploient dans leur blog le cadre N = ∞ (état infini), ce qui est en réalité plus fort que « linéaire en T ».",
+      "original_statement": "L'exclusion de l'attention softmax de la dualité SSD est fréquemment décrite comme une « explosion de rang » — la matrice softmax serait plein rang, incompatible avec la structure 1-semiseparable. Cette formulation est une simplification : le mécanisme précis, tel que l'exposent les auteurs, est que maintenir softmax force un état effectif de taille linéaire en T (non pas que la matrice soit nécessairement de rang maximal pour toute entrée), rendant la récurrence en O(T) à état constant impossible.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "La prémisse centrale de l'énoncé — que « explosion de rang » est une simplification populaire tandis que « état linéaire en T » serait le mécanisme précis tel que l'exposent les auteurs — est inexacte : (1) « rank explosion » est le terme technique formel utilisé rigoureusement dans la littérature post-Mamba2 (2510.04944, Vandermonde), pas un raccourci pédagogique ; (2) les deux framings sont mathématiquement équivalents (rang T ↔ N = T ↔ état linéaire en T) ; (3) les auteurs originaux (Dao & Gu) dans leur blog utilisent N = ∞, soit un état infini, et non simplement « linéaire en T »."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Le papier lui-même utilise \"rank explosion\" dans son abstract (OpenReview confirmé). Les blogs des mêmes auteurs exposent le mécanisme précis : softmax nécessite un feature map de dimension infinie (N=∞, blog Part 2), ce qui se traduit par un état effectif de taille linéaire en T (blog Part 1, \"from linear to constant\") — rendant la récurrence à état constant impossible. L'énoncé identifie correctement cette hiérarchie : \"rank explosion\" est la formule de haut niveau de l'abstract, mais la formulation précise des auteurs repose sur la taille d'état O(T), sans impliquer que toute matrice softmax est nécessairement de rang maximal pour toute entrée."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « L'exclusion de l'attention softmax de la dualité SSD est fréquemment décrite comme une « explosion de rang » — la matrice softmax serait plein rang, incompatible avec la structure 1-semiseparable. Cette formulation est une simplification : le mécanisme précis, tel que l'exposent les auteurs, est que maintenir softmax force un état effectif de taille linéaire en T (non pas que la matrice soit nécessairement de rang maximal pour toute entrée), rendant la récurrence en O(T) à état constant impossible. »"
+    },
+    {
+      "id": "claim:17",
+      "section": "complexite-inference",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "À l'inférence, l'état récurrent d'un SSM est de taille fixe O(D·N) par couche — où D est la dimension du modèle et N la dimension d'état (un hyperparamètre fixe, ex. N=16 pour Mamba-1, N=64+ pour Mamba-2) — ce qui est équivalent à O(1) par rapport à la longueur de séquence, indépendamment du nombre de tokens traités ; tandis que le KV cache d'un Transformer croît linéairement comme O(L·D) par couche (L = longueur de séquence). Ce qui rend les SSM structurellement plus économes en mémoire pour les séquences longues, au prix d'une compression avec perte du contexte passé.",
+      "original_statement": "À l'inférence, l'état récurrent d'un SSM est de taille fixe O(N) indépendamment du nombre de tokens traités, tandis que le KV cache d'un Transformer croît linéairement comme O(L) par couche — ce qui rend les SSM structurellement plus économes en mémoire pour les séquences longues.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Deux défauts de notation invalident l'énoncé tel quel. Premièrement, les sources primaires (arXiv 2507.12442, PyTorch/SGLang blog) expriment la mémoire SSM à l'inférence comme O(1) par rapport à la longueur de séquence — et non O(N) — car N est un hyperparamètre constant du modèle, pas une quantité variable. Deuxièmement, l'état complet par couche est O(D×N) (dimension du modèle × expansion d'état), et l'énoncer simplement comme O(N) omet le facteur D. La conclusion qualitative (SSMs plus économes en mémoire pour les longues séquences) est correcte et bien soutenue, mais elle passe sous silence le compromis réel : la taille fixe de l'état impose une compression avec perte du contexte passé, contrairement au KV cache qui conserve tous les tokens."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les deux sources confirment la propriété centrale : à l'inférence, l'état récurrent d'un SSM est de dimension fixe (non dépendante de la longueur de séquence), tandis que le KV cache Transformer croît linéairement avec le nombre de tokens. Le papier Mamba (2312.00752) l'énonce explicitement — « autoregressive inference requires only constant time per step since it does not require a cache of previous elements » — et le papier Priming (2605.08301) le formalise indépendamment : « each SSM layer maintains a fixed-dimensional latent state [...] regardless of context length », contre « a Key-Value (KV) cache that grows linearly with context length ». La notation O(N) de l'énoncé (N = dimension d'état, constante vis-à-vis de L) est compatible avec ce O(1)-en-L ; la conclusion sur l'économie mémoire pour les longues séquences tient sans réserve."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « À l'inférence, l'état récurrent d'un SSM est de taille fixe O(N) indépendamment du nombre de tokens traités, tandis que le KV cache d'un Transformer croît linéairement comme O(L) par couche — ce qui rend les SSM structurellement plus économes en mémoire pour les séquences longues. »"
+    },
+    {
+      "id": "claim:18",
+      "section": "complexite-inference",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Mamba peut atteindre 4–5× de débit supérieur à un Transformer de taille comparable à l'inférence, à condition de pouvoir exploiter des batchs nettement plus grands rendus possibles par l'absence de KV cache ; l'algorithme de scan sélectif dépasse FlashAttention-2 au-delà de 2 048 tokens, mais le facteur 20–40× cité dans le papier concerne la comparaison avec un scan PyTorch non optimisé, non avec FlashAttention-2.",
+      "original_statement": "Mamba atteint 4–5× de débit supérieur à un Transformer de taille comparable à l'inférence, et l'algorithme de scan sélectif dépasse FlashAttention-2 au-delà de 2 000 tokens de longueur de séquence.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le gain de 4–5× est conditionnel à l'utilisation de batchs plus grands (rendue possible par l'absence de KV cache) et n'est pas un gain inconditionnel à taille de batch égale ; de plus, le papier contient une incohérence interne (« similar size » vs l'exemple Mamba-6.9B ≻ Transformer-1.3B, soit un ratio de 5 en paramètres). Le chiffre 20–40× souvent associé au scan sélectif est la comparaison avec un scan PyTorch brut, non avec FlashAttention-2 — pour laquelle le papier n'indique aucun multiplicateur précis."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le papier primaire confirme exactement les deux chiffres : \"4-5× higher inference throughput\" (conditionné à des batch sizes élevés, car sans KV cache Mamba peut utiliser de plus grands batches) et \"efficient SSM scan faster than FlashAttention-2 beyond sequence length 2K\" (2K = 2048, approximé en \"2 000\" dans l'énoncé). Le blog AMD confirme indépendamment la tendance (×2 à batch 1, ×3,5 à batch 16, OOM Transformer au batch 32+), cohérent avec le 4-5× aux batch sizes plus élevés. L'énoncé tient en tant que représentation fidèle du papier, avec la réserve que le 4-5× de débit est spécifique aux grandes tailles de batch, et que \"2K\" dans le papier désigne 2048 tokens."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Mamba atteint 4–5× de débit supérieur à un Transformer de taille comparable à l'inférence, et l'algorithme de scan sélectif dépasse FlashAttention-2 au-delà de 2 000 tokens de longueur de séquence. »"
+    },
+    {
+      "id": "claim:19",
+      "section": "complexite-inference",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Le seuil ~512–1 024 tokens provient des SSM à convolution (H3/FlashConv), non du scan sélectif de Mamba — les comparer comme si l'un corrigeait l'autre est une erreur de catégorie. Le papier Mamba (arXiv 2312.00752, section 4.5) indique que le kernel de scan sélectif dépasse FlashAttention-2 au-delà de 2K tokens (2 048, non 2 000), ce seuil concernant spécifiquement l'opération de scan en entraînement et non le débit modèle complet. En deçà de 2 048 tokens, les kernels d'attention très optimisés (FlashAttention-2) restent effectivement compétitifs — cette partie est correcte.",
+      "original_statement": "Le seuil à partir duquel les SSM surpassent l'attention optimisée est souvent présenté comme ~512–1024 tokens, mais les benchmarks du papier Mamba montrent que le scan sélectif ne dépasse FlashAttention-2 qu'au-delà de 2 000 tokens — en deçà, les kernels d'attention très optimisés restent compétitifs.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "L'énoncé construit un contraste fallacieux entre un seuil 512-1024 « communément présenté » (réel mais applicable aux SSM à convolution H3/FlashConv, une architecture distincte) et le 2K du scan sélectif de Mamba, comme si l'un corrigeait l'autre. Par ailleurs, le papier Mamba dit « 2K » (2 048 tokens), non « 2 000 », et ce seuil vise le kernel de scan seul, pas le modèle complet."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "La section 4.5 du papier Mamba (Figure 12) cite textuellement : « Our efficient SSM scan is faster than the best attention implementation that we know of (FlashAttention-2) beyond sequence length 2K ». L'énoncé est donc fidèle au papier ; la seule imprecision est l'arrondi « 2 000 tokens » à la place de « 2K » (2 048 tokens au sens informatique), ce qui est une approximation courante mais techniquement inexacte."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « Le seuil à partir duquel les SSM surpassent l'attention optimisée est souvent présenté comme ~512–1024 tokens, mais les benchmarks du papier Mamba montrent que le scan sélectif ne dépasse FlashAttention-2 qu'au-delà de 2 000 tokens — en deçà, les kernels d'attention très optimisés restent compétitifs. »"
+    },
+    {
+      "id": "claim:20",
+      "section": "forces-limites",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Sur le benchmark MQAR vecteur (32 paires clé-valeur, vecteurs normalisés), Mamba présente une MSE supérieure à 0,1 dans les deux régimes testés par Park et al. (2024), là où le Transformer réussit. Cependant, qualifier cet échec de \"parce que son état fixe ne peut pas maintenir un dictionnaire adressable\" est doublement inexact : (1) l'état de Mamba n'est pas \"fixe\" — ses transitions sont input-dépendantes (matrices Δ, B, C sélectives, couche S6), seule sa dimension est fixe ; (2) des travaux ultérieurs (Okpekpe & Orvieto 2025 ; Huang et al. 2025) montrent que Mamba peut résoudre MQAR avec un réglage précis et que des solutions analytiques existent — le gap est principalement une instabilité d'optimisation (fenêtre de taux d'apprentissage très étroite) plutôt qu'une incapacité expressive inhérente.",
+      "original_statement": "Sur le benchmark MQAR (multi-query associative recall), Mamba échoue à la récupération vectorielle de valeurs associées à des clés précises — l'erreur quadratique moyenne dépasse 0,1 dans tous les régimes testés — parce que son état fixe ne peut pas maintenir un dictionnaire adressable par accès aléatoire, mécanisme que les Transformers implémentent via l'attention.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Le fait empirique central (MSE > 0,1 dans deux régimes spécifiques) est réel et sourcé dans 2402.04248. Mais la causalité est doublement erronée : \"état fixe\" est une description inexacte de Mamba (dont les transitions sont input-sélectives), et \"ne peut pas maintenir\" est réfuté par 2508.19029 et 2506.11891 qui démontrent que Mamba peut résoudre MQAR — le vrai obstacle est l'instabilité d'optimisation, non une incapacité architecturale fondamentale. Par ailleurs, la source candidate 2406.07887 ne porte pas sur le benchmark MQAR synthétique et ne corrobore pas le chiffre MSE."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "L'énoncé tient tel quel. Park et al. (2402.04248, ICML 2024) rapportent explicitement en section 4.3 que « the mean squared error for retrieving normalized vectors are greater than 0.1 in all cases », confirmé par les valeurs de la Table 3 (0.864, 0.164, 0.723, 0.150 selon l'embedding et le nombre de requêtes). L'explication par l'état fixe compressé vs. l'attention pairwise est reprise mot pour mot en section 5.1 ; le terme « dictionnaire adressable par accès aléatoire » est une paraphrase conceptuellement fidèle. Arora et al. (2402.18668) confirment indépendamment l'échec de Mamba sur MQAR avec une métrique différente (32,2 points de précision d'écart)."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « Sur le benchmark MQAR (multi-query associative recall), Mamba échoue à la récupération vectorielle de valeurs associées à des clés précises — l'erreur quadratique moyenne dépasse 0,1 dans tous les régimes testés — parce que son état fixe ne peut pas maintenir un dictionnaire adressable par accès aléatoire, mécanisme que les Transformers implémentent via l'attention. »"
+    },
+    {
+      "id": "claim:21",
+      "section": "forces-limites",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Les SSMs linéaires standard (S4, Mamba) et les Transformers à log-précision partagent la même borne supérieure de complexité théorique TC⁰ — classe des circuits de profondeur constante à portes de SEUIL (threshold), et non de simples circuits booléens, qui définiraient AC⁰, une classe strictement plus faible. Cette borne implique que ni les SSMs linéaires ni les Transformers ne peuvent exprimer des calculs NC¹-complets comme la composition de permutations sur S₅. Cependant : (1) la borne est une borne supérieure commune, pas une preuve d'équivalence exacte — le papier fondateur (Merrill et al. 2024) note lui-même que les deux architectures peuvent n'occuper qu'un sous-ensemble propre de TC⁰, et que Mamba surpasse empiriquement les Transformers sur le suivi d'état non-commutatif approché ; (2) des variantes SSM avec valeurs propres négatives ou matrices de transition non-diagonales peuvent dépasser ce plafond pour des tâches de suivi d'état comme la parité (Schlegel et al., ICLR 2025) ; (3) la caractérisation d'\"illusion complète\" s'applique aux SSMs linéaires au mode d'entraînement parallèle et à précision logarithmique — elle ne couvre pas les SSMs sélectifs avec gating non-standard ni les variantes à précision arbitraire.",
+      "original_statement": "SSMs et Transformers partagent la même borne de complexité théorique TC⁰ (circuits booléens de profondeur constante), rendant l'état récurrent des SSMs une « illusion » d'expressivité : les deux architectures sont également incapables d'exprimer des calculs intrinsèquement séquentiels comme la composition de permutations, l'évaluation de code ou le suivi d'entités narratives.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "L'énoncé comporte deux erreurs factuelles : (a) TC⁰ désigne des circuits à portes de seuil, non de simples circuits booléens (AC⁰ est la classe correspondante) ; (b) \"également incapables\" est contredit par les propres données empiriques du papier source, qui montrent que Mamba surpasse les Transformers sur le suivi d'état non-commutatif approché, et par des travaux postérieurs (ICLR 2025) montrant que des modifications architecturales des SSMs débloquent des capacités de suivi d'état indisponibles aux Transformers."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "L'énoncé est confirmé par la source primaire (arxiv 2404.08819) : le papier établit que S4, Mamba et les SSMs standards tombent dans L-uniform TC⁰ exactement comme les Transformers, et liste explicitement la composition de permutations, l'évaluation de code et le suivi d'entités comme tâches inaccessibles aux deux architectures. Seule nuance : le papier parle d'« illusion de l'ÉTAT » (the state is an illusion), non d'« illusion d'expressivité » — le sens est équivalent en pratique mais le cadrage est légèrement différent. À noter aussi : les variantes à matrice de transition input-dépendante (IDS4) peuvent dépasser TC⁰, ce que l'énoncé ne mentionne pas."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « SSMs et Transformers partagent la même borne de complexité théorique TC⁰ (circuits booléens de profondeur constante), rendant l'état récurrent des SSMs une « illusion » d'expressivité : les deux architectures sont également incapables d'exprimer des calculs intrinsèquement séquentiels comme la composition de permutations, l'évaluation de code ou le suivi d'entités narratives. »"
+    },
+    {
+      "id": "claim:22",
+      "section": "forces-limites",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "La restriction des valeurs propres de la matrice de transition à [0, 1] — documentée pour Mamba, DeltaNet et GLA, et imputée également à RWKV et mLSTM — empêche ces modèles de résoudre la tâche de parité, pourtant résoluble par des RNN non linéaires comme le LSTM (sans restriction à une couche dans le papier) ; étendre la plage à [−1, 1] permet à Mamba et DeltaNet (les seules architectures testées expérimentalement) de résoudre la parité et améliore leur state-tracking — l'amélioration n'est pas démontrée sur RWKV, GLA et mLSTM.",
+      "original_statement": "La restriction des valeurs propres de la matrice de transition à [0, 1] — présente dans Mamba, DeltaNet, RWKV, GLA et mLSTM — empêche ces modèles de résoudre la tâche de parité, pourtant résoluble par un LSTM à une couche ; étendre la plage à [−1, 1] permet de résoudre la parité et améliore systématiquement le state-tracking sur l'ensemble de ces architectures.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "L'énoncé est partiellement correct mais comporte deux inexactitudes : (1) le papier ne parle pas de « LSTM à une couche » mais de RNN non linéaires (LSTM, sLSTM) en général ; (2) surtout, l'amélioration via [-1, 1] n'est démontrée expérimentalement que sur Mamba et DeltaNet — RWKV, GLA et mLSTM ne sont jamais modifiés ni testés, donc l'affirmation d'une amélioration « systématique sur l'ensemble de ces architectures » dépasse ce que le papier établit."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Deux déviations par rapport à l'énoncé. (1) Les papiers disent « RNN non-linéaires comme LSTM » ou « les LSTM résolvent parfaitement toutes les langues » — aucun ne précise « une couche ». (2) L'amélioration via [−1, 1] est démontrée expérimentalement uniquement pour Mamba et DeltaNet (Grazzi et al. 2411.12537) ; RWKV, GLA et mLSTM sont cités comme ayant la même restriction théorique, mais ils ne sont pas modifiés ni testés — l'énoncé généralise l'amélioration à « l'ensemble de ces architectures » de façon non étayée."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « La restriction des valeurs propres de la matrice de transition à [0, 1] — présente dans Mamba, DeltaNet, RWKV, GLA et mLSTM — empêche ces modèles de résoudre la tâche de parité, pourtant résoluble par un LSTM à une couche ; étendre la plage à [−1, 1] permet de résoudre la parité et améliore systématiquement le state-tracking sur l'ensemble de ces architectures. »"
+    },
+    {
+      "id": "claim:23",
+      "section": "forces-limites",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Le phénomène « Stuffed Mamba » montre que lorsque d_state dépasse les besoins du contexte d'entraînement, les modèles n'ont pas besoin d'apprendre à oublier — le forgetting n'est effectivement appris que si la longueur d'entraînement dépasse un seuil linéaire en taille d'état (T_forget ≈ 5,17·N_S, R²>0,999). La longueur minimale d'entraînement requise pour apprendre le forgetting croît linéairement avec la taille d'état. Sur une tâche synthétique de récupération de passkey à 5 chiffres dans un contexte bruité répétitif (information quasi-constante quelle que soit la longueur), le contexte maximal de récupération précise croît exponentiellement avec d_state ; ce résultat est spécifique à cette tâche et n'est pas établi pour la langue naturelle.",
+      "original_statement": "Le phénomène « Stuffed Mamba » montre que lorsque d_state dépasse les besoins du contexte d'entraînement, les modèles atteignent de bonnes performances sans jamais apprendre à oublier : la longueur minimale d'entraînement doit croître linéairement avec la taille d'état, et le contexte maximal de récupération précise ne croît qu'exponentiellement avec d_state.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Deux inexactitudes dans l'énoncé. (1) « jamais apprendre à oublier » est trop absolu : le papier établit explicitement l'existence d'un seuil T_forget(N_S) = 5,172·N_S − 4,469 tel que le forgetting est appris si et seulement si T_train > T_forget ; la bonne formulation est « sans avoir besoin d'apprendre à oublier ». (2) La croissance exponentielle du contexte de récupération est démontrée uniquement sur une tâche de passkey synthétique à contexte bruité répétitif (information quasi-constante en longueur), et les auteurs eux-mêmes soulignent que ce résultat ne se transfère pas directement à la langue naturelle."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les quatre composantes de l'énoncé sont confirmées par le papier primaire (COLM 2025) : (1) « stuffed » = état surdimensionné par rapport au contexte d'entraînement → bonnes performances sans apprentissage de l'oubli ; (2) la longueur seuil d'entraînement croît linéairement avec N_S (T_forget = 5.172·N_S − 4.469, R² > 0.999) ; (3) le contexte maximal de récupération précise croît exponentiellement avec N_S (T_recall = 4.756·(1.365^N_S − 1) − 0.742). Aucune réplication indépendante n'a été trouvée : les deux sources listées correspondent au même travail (preprint + version acceptée en conférence), ce qui limite la triangulation mais n'invalide pas la véracité des claims."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « Le phénomène « Stuffed Mamba » montre que lorsque d_state dépasse les besoins du contexte d'entraînement, les modèles atteignent de bonnes performances sans jamais apprendre à oublier : la longueur minimale d'entraînement doit croître linéairement avec la taille d'état, et le contexte maximal de récupération précise ne croît qu'exponentiellement avec d_state. »"
+    },
+    {
+      "id": "claim:24",
+      "section": "hybrides-applications",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Jamba (AI21 Labs, mars 2024), premier modèle hybride SSM-Transformer de grade production, adopte un ratio de 1 couche d'attention pour 7 couches Mamba dans un cadre mixture of experts (52B paramètres totaux, 12B actifs), supporte 256 000 tokens de contexte avec 140 000 tokens tenables sur un seul GPU de 80 Go, et affiche un débit 3× supérieur à Mixtral 8×7B sur les contextes longs.",
+      "original_statement": "Jamba (AI21 Labs, mars 2024), premier modèle hybride SSM-Transformer de grade production, adopte un ratio de 1 couche d'attention pour 7 couches Mamba dans un cadre mixture of experts (52B paramètres totaux, 12B actifs), supporte 256 000 tokens de contexte avec 140 000 tokens tenables sur un seul GPU de 80 Go, et affiche un débit 3× supérieur à Mixtral 8×7B sur les contextes longs.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Tous les chiffres clés de l'énoncé sont confirmés par les deux sources primaires : ratio 1:7 (« 1 attention layer for every 7 Mamba layers », papier §architecture), 52B/12B actifs, fenêtre 256 K tokens, 3× de débit sur Mixtral à 128 K tokens de contexte, et 140 K tokens sur un seul GPU 80 Go (blog AI21). Seule nuance relevée : le papier précise que le seuil de 128 K+ sur GPU unique requiert des poids en 8 bits (quantification int8), condition absente de l'énoncé ; le blog AI21 ne la mentionne pas non plus dans sa formulation « up to 140K », ce qui rend l'omission conforme à la source officielle. La qualité « premier de son genre » est une auto-déclaration d'AI21 (« world's first production-grade Mamba-based model »), non réfutée par les sources examinées."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Tous les chiffres de l'énoncé sont confirmés : ratio 1:7 attention/Mamba (attn_layer_period=8 dans la config HF), 52B/12B paramètres, 256K contexte, 140K tokens sur GPU 80 Go en 8-bit, débit 3× vs Mixtral 8×7B sur contextes longs (128K). L'énoncé tient tel quel."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:25",
+      "section": "hybrides-applications",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Falcon Mamba 7B, LLM entièrement SSM sans aucune couche d'attention, entraîné sur 5,8 trillions de tokens (selon le papier arxiv ; la fiche HuggingFace indique ~5,5T), surpasse Mistral 7B, Llama 3.1 8B et Falcon2 11B sur l'Open LLM Leaderboard v2 (15,04 vs 14,50, 13,78 et 13,78) — mais sur le Leaderboard v1, Falcon2 11B le devance légèrement (64,28 vs 64,09 pour Falcon Mamba 7B) — avec un coût mémoire à l'inférence constant indépendant de la longueur du contexte.",
+      "original_statement": "Falcon Mamba 7B, LLM entièrement SSM sans aucune couche d'attention, entraîné sur 5,8 trillions de tokens, surpasse Mistral 7B, Llama 3.1 8B et Falcon2 11B sur l'Open LLM Leaderboard avec un coût mémoire à l'inférence constant indépendant de la longueur du contexte.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Toutes les affirmations sont confirmées par le papier primaire (arXiv 2410.05355) et le blog HuggingFace : architecture pure SSM sans attention, 5,8T tokens d'entraînement, dépassement de Mistral 7B (15,04 vs 14,50), Llama 3.1 8B et Falcon2 11B (13,78 chacun) sur l'Open LLM Leaderboard v2, et mémoire constante à l'inférence. Seule nuance : la propriété de mémoire constante concerne strictement la phase de génération autoregresssive (pas le préfill), et le leaderboard visé est le v2 — deux points que l'énoncé n'explicite pas mais qui ne le rendent pas faux."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "L'énoncé est presque entièrement correct : architecture SSM pure, coût mémoire constant et entraînement sur ~5,8T tokens sont confirmés. Le seul point qui accroche est la comparaison avec Falcon2 11B : sur le Leaderboard v1, Falcon2 11B (64,28) devance Falcon Mamba 7B (64,09) ; le surpassement ne tient que sur le Leaderboard v2, ce que le papier lui-même cite sans préciser la version dans son résumé."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Falcon Mamba 7B, LLM entièrement SSM sans aucune couche d'attention, entraîné sur 5,8 trillions de tokens, surpasse Mistral 7B, Llama 3.1 8B et Falcon2 11B sur l'Open LLM Leaderboard avec un coût mémoire à l'inférence constant indépendant de la longueur du contexte. »"
+    },
+    {
+      "id": "claim:26",
+      "section": "hybrides-applications",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Un LLM entièrement SSM sans couche d'attention peut atteindre une qualité de modélisation du langage comparable à celle des meilleurs Transformers de même taille sur les benchmarks standards (perplexité, tâches NLP générales), mais présente un écart significatif sur les tâches de récupération exacte en contexte (in-context retrieval, copying, associative recall), où les Transformers conservent un avantage net lié à leur état de taille fixe limité.",
+      "original_statement": "Un LLM entièrement SSM sans couche d'attention atteint une qualité de modélisation du langage équivalente à celle des meilleurs Transformers de même taille sur l'ensemble des types de tâches, y compris les tâches de récupération exacte en contexte (in-context retrieval).",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "L'énoncé est invalidé sur la clause « y compris les tâches de récupération exacte en contexte » : Jelassi et al. (2402.01032) démontrent théoriquement et empiriquement un « fundamental gap » entre Transformers et SSMs purs sur les tâches de copie et de récupération en contexte, et Retrievit (2603.02874) confirme que les SSMs purs ont des capacités de retrieval limitées et ne rattrapent pas les Transformers sur la récupération positionnelle. La parité revendiquée par Falcon Mamba (2410.05355) porte sur des benchmarks NLP généraux, non sur le retrieval exact en contexte."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Jelassi et al. (arXiv:2402.01032) prouvent théoriquement qu'un Transformer à deux couches peut copier des chaînes de longueur exponentielle tandis que les SSM généralisés sont fondamentalement limités par leur état latent de taille fixe ; les expériences sur des LLM pré-entraînés (Mamba vs Pythia) montrent que les Transformers « surpassent dramatiquement » les SSM sur les tâches de copie et de récupération en contexte. La seconde source (arXiv:2402.04248) confirme indépendamment que les SSM purs échouent spécifiquement sur « les tâches impliquant des fonctions de retrieval non-standards ». Le qualificatif « y compris les tâches de récupération exacte en contexte » rend donc l'énoncé factuellement faux."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « Un LLM entièrement SSM sans couche d'attention atteint une qualité de modélisation du langage équivalente à celle des meilleurs Transformers de même taille sur l'ensemble des types de tâches, y compris les tâches de récupération exacte en contexte (in-context retrieval). »"
+    },
+    {
+      "id": "claim:27",
+      "section": "hybrides-applications",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Caduceus (BiMamba bidirectionnel, équivariant reverse-complement) surpasse Enformer sur la prédiction d'effets de variants à longue portée (>100 kb du TSS) dans le benchmark de l'article original, mais cette supériorité n'est pas confirmée par des évaluations indépendantes : sur les tâches QTL, Enformer surpasse Caduceus-Ph (eQTL AUC 0,77 vs 0,65), et NT v2 devance Caduceus sur l'identification de variants pathogènes. Par ailleurs, Caduceus (~7,7 M paramètres) n'est pas simplement « dix fois plus petit » que ces modèles : il est environ 33× plus petit qu'Enformer (~252 M) et environ 65× plus petit que NT v2 (500 M). La complexité linéaire du SSM est correctement décrite.",
+      "original_statement": "Caduceus (BiMamba bidirectionnel, équivariant reverse-complement) surpasse Enformer et Nucleotide Transformer v2 (500M paramètres) sur la prédiction d'effets de variants génomiques à longue portée (>100 kb du TSS) tout en étant dix fois plus petit, grâce à la complexité linéaire du SSM sur de très longues séquences.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "L'énoncé comporte deux inexactitudes factuelles : (1) le facteur de taille est erroné — Caduceus est ~33–65× plus petit que les modèles cités, pas seulement 10× ; (2) la supériorité sur Enformer et NT v2 est limitée au benchmark interne de l'article original (expression génique >100 kb TSS) et est contredite par des évaluations indépendantes (2025) où Enformer domine sur les tâches QTL et NT v2 sur la classification de variants pathogènes."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Le seul point faux est « dix fois plus petit » : Caduceus fait 1,9M–7,7M paramètres contre 500M pour NT v2, soit un rapport de ~65× à ~260×, pas 10×. Le « 10× » de l'abstract du papier Caduceus désigne des modèles sans bi-directionnalité ni équivariance, non NT v2 spécifiquement. La supériorité à >100 kb du TSS sur le benchmark VEP-SVM est confirmée par les auteurs, mais une évaluation indépendante (Nature Communications 2025) montre des résultats mixtes sur d'autres tâches VEP (NT v2 et Enformer y surpassent Caduceus)."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Caduceus (BiMamba bidirectionnel, équivariant reverse-complement) surpasse Enformer et Nucleotide Transformer v2 (500M paramètres) sur la prédiction d'effets de variants génomiques à longue portée (>100 kb du TSS) tout en étant dix fois plus petit, grâce à la complexité linéaire du SSM sur de très longues séquences. »"
+    },
+    {
+      "id": "claim:28",
+      "section": "ecosysteme",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Le package mamba-ssm (v 2.3.2.post1) expose les classes Mamba, Mamba2 et Mamba3, mais Mamba3 n'est pas incluse dans les wheels pré-compilés : elle requiert une installation depuis les sources avec MAMBA_FORCE_BUILD=TRUE. Le package requiert Linux, CUDA ≥ 11.6, PyTorch ≥ 1.12 et un GPU NVIDIA (path standard) ; un support ROCm pour GPU AMD est documenté (patch nécessaire en ROCm 6.0, optionnel en 6.1+), mais macOS et Windows ne sont pas supportés.",
+      "original_statement": "Le package mamba-ssm (v 2.3.2.post1) expose les classes Mamba, Mamba2 et Mamba3 et requiert Linux, CUDA ≥ 11.6 et PyTorch ≥ 1.12 ; un support ROCm pour GPU AMD est documenté, mais macOS et Windows ne sont pas supportés.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Tous les éléments structurels sont exacts (version, Linux/CUDA 11.6+/PyTorch 1.12+, ROCm documenté, pas de macOS/Windows), mais l'énoncé est trompeur sur Mamba3 : la page PyPI officielle précise que Mamba3 nécessite une installation depuis les sources avec MAMBA_FORCE_BUILD=TRUE et n'est pas disponible dans les wheels standard — présenter les trois classes sur le même plan sous-entend une accessibilité identique qui n'existe pas."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Tous les éléments de l'énoncé sont vérifiés : la version 2.3.2.post1, les trois classes (Mamba, Mamba2, Mamba3 confirmée par l'__init__.py et le papier ICLR 2026 arXiv:2603.15569), les prérequis Linux/CUDA ≥ 11.6/PyTorch ≥ 1.12, la section ROCm/AMD documentée dans le README, et l'absence de support macOS/Windows. Aucune correction nécessaire."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Le package mamba-ssm (v 2.3.2.post1) expose les classes Mamba, Mamba2 et Mamba3 et requiert Linux, CUDA ≥ 11.6 et PyTorch ≥ 1.12 ; un support ROCm pour GPU AMD est documenté, mais macOS et Windows ne sont pas supportés. »"
+    },
+    {
+      "id": "claim:29",
+      "section": "ecosysteme",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Les checkpoints Mamba-1 préentraînés publiés sur HuggingFace sous state-spaces couvrent des tailles de 130 M à 2,8 B paramètres, entraînés sur le Pile (300 B tokens) ou, pour la seule variante mamba-2.8b-slimpj, sur SlimPajama (600 B tokens). Les checkpoints Mamba-2 couvrent des tailles de 130 M à 2,7 B paramètres (et non 2,8 B), tous entraînés exclusivement sur le Pile (300 B tokens) — aucune variante SlimPajama n'existe pour Mamba-2.",
+      "original_statement": "Les checkpoints Mamba-1 et Mamba-2 préentraînés publiés sur HuggingFace sous state-spaces couvrent des tailles de 130 M à 2,8 B paramètres, entraînés sur le Pile (300 B tokens) ou SlimPajama (600 B tokens).",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Deux erreurs factuelles : (1) le plafond 2,8 B s'applique uniquement à Mamba-1 ; le plus grand modèle Mamba-2 publié par state-spaces est mamba2-2.7b (2,7 B paramètres). (2) La variante SlimPajama (600 B tokens) n'existe que pour Mamba-1 (mamba-2.8b-slimpj) ; tous les checkpoints Mamba-2 sont entraînés exclusivement sur le Pile (300 B tokens)."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "L'énoncé comporte deux inexactitudes : (1) Mamba-2 culmine à 2,7 B paramètres (non 2,8 B, qui est le maximum de Mamba-1) ; (2) la variante SlimPajama (600 B tokens) est exclusivement un checkpoint Mamba-1 (mamba-2.8b-slimpj) — tous les checkpoints Mamba-2 sont entraînés sur le Pile (300 B tokens)."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Les checkpoints Mamba-1 et Mamba-2 préentraînés publiés sur HuggingFace sous state-spaces couvrent des tailles de 130 M à 2,8 B paramètres, entraînés sur le Pile (300 B tokens) ou SlimPajama (600 B tokens). »"
+    },
+    {
+      "id": "claim:30",
+      "section": "ecosysteme",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "The Annotated S4 couvre en code JAX exécutable (et PyTorch pour le complément S4D) la chaîne complète : SSM continu → discrétisation bilinéaire (Tustin) → paramétrisation DPLR → initialisation HiPPO → calcul du noyau de convolution causal.",
+      "original_statement": "The Annotated S4 couvre en code JAX/PyTorch exécutable la chaîne complète : SSM continu → discrétisation ZOH → paramétrisation DPLR → initialisation HiPPO → calcul du noyau de convolution causal.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "L'erreur factuellement vérifiable est la méthode de discrétisation : le code `discretize()` dans s4.py implémente explicitement la méthode bilinéaire/Tustin — `(I − Δ/2·A)⁻¹(I + Δ/2·A)` — et non ZOH (`exp(ΔA)`). La page elle-même annonce « we use the bilinear method ». La discrétisation ZOH apparaît dans des travaux ultérieurs (Mamba, S4D) mais pas dans le tutoriel S4 original. Par ailleurs, la chaîne pédagogique principale est en JAX ; PyTorch ne couvre que le complément S4D (s4d.html), pas la chaîne S4 complète."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Two errors: (1) the implementation is JAX-only — PyTorch appears only as a data-loading dependency (torchvision/torchaudio), not for the model; (2) the discretization implemented in code is bilinear (Tustin transform), not ZOH — the discretize() function uses (I - Δ/2·A)^{-1}(I + Δ/2·A), not exp(ΔA). All other elements (continuous SSM, DPLR, HiPPO, causal convolution kernel) are correctly attributed."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « The Annotated S4 couvre en code JAX/PyTorch exécutable la chaîne complète : SSM continu → discrétisation ZOH → paramétrisation DPLR → initialisation HiPPO → calcul du noyau de convolution causal. »"
+    },
+    {
+      "id": "claim:31",
+      "section": "ecosysteme",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Les checkpoints Mamba au format originel (publics avant l'intégration HuggingFace) requièrent mamba-ssm pour être chargés. Cependant, les versions au format HuggingFace (suffixe -hf, publiées par l'organisation state-spaces) se chargent avec la bibliothèque transformers standard — sans mamba-ssm — via AutoModelForCausalLM.from_pretrained(). mamba-ssm reste recommandé pour bénéficier des kernels CUDA optimisés, mais son absence déclenche un repli sur l'implémentation \"eager\" en pur PyTorch, ce qui suffit à une utilisation pratique.",
+      "original_statement": "Les checkpoints state-spaces Mamba ne peuvent être exploités qu'avec le package mamba-ssm, rendant ce dernier indispensable pour toute utilisation pratique des modèles préentraînés.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "L'énoncé est réfuté : depuis l'intégration dans HuggingFace transformers (2024), les checkpoints au format -hf se chargent sans mamba-ssm, et la doc officielle confirme un repli eager fonctionnel. mamba-ssm est une dépendance de performance, non une condition nécessaire à toute utilisation pratique."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "L'énoncé est faux : HuggingFace Transformers intègre nativement Mamba et les checkpoints `-hf` fonctionnent sans mamba-ssm (repli sur une implémentation « eager »). mamba-ssm est recommandé pour ses noyaux CUDA optimisés, mais la documentation officielle le qualifie explicitement d'optionnel."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « Les checkpoints state-spaces Mamba ne peuvent être exploités qu'avec le package mamba-ssm, rendant ce dernier indispensable pour toute utilisation pratique des modèles préentraînés. »"
+    }
+  ]
+}

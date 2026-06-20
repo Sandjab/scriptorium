@@ -1,0 +1,37 @@
+[
+  {
+    "term": "State Space Model (SSM)",
+    "definition": "Modèle à espace d'états : système qui relie une entrée x(t) à une sortie y(t) en passant par un état latent caché h(t) de dimension N, défini en continu par h′(t) = A·h(t) + B·x(t) et y(t) = C·h(t) + D·x(t). Discrétisé avec un pas Δ, il devient une récurrence linéaire h_t = Ā·h_{t−1} + B̄·x_t qui — pour un système à temps invariant (LTI, matrices constantes, ex. S4) — est algébriquement équivalente à une convolution longue par un noyau K = (C·B̄, C·Ā·B̄, …) : d'où un entraînement parallélisable et une inférence récurrente à mémoire constante O(D·N). En deep learning de séquences, c'est l'alternative sub-quadratique à l'attention.",
+    "see_also": "Discretization (Δ, Zero-Order Hold), Selective scan (S6, Mamba), Parallel scan (parallel prefix scan)"
+  },
+  {
+    "term": "Discretization (Δ, Zero-Order Hold)",
+    "definition": "Discrétisation : passage du SSM continu (A, B) à ses matrices discrètes (Ā, B̄) pour un pas Δ. Le Zero-Order Hold (ZOH, maintien d'ordre zéro) donne Ā = exp(ΔA) et B̄ = (ΔA)⁻¹(exp(ΔA) − I)·Δ·B. Le pas Δ règle la résolution temporelle effective : un Δ petit densifie l'échantillonnage (mémoire longue de l'historique), un Δ grand sous-échantillonne (oubli rapide, focalisation sur le token courant). Dans Mamba, Δ devient dépendant de l'entrée (input-dependent) via softplus(Linear_Δ(x)), ce qui modifie Ā et B̄ token par token.",
+    "see_also": "State Space Model (SSM), Selective scan (S6, Mamba)"
+  },
+  {
+    "term": "HiPPO (High-order Polynomial Projection Operators)",
+    "definition": "Cadre (Gu et al., NeurIPS 2020) qui compresse en ligne l'historique d'un signal comme les coefficients de sa projection sur une base de polynômes orthogonaux. La variante HiPPO-LegS (Legendre, mesure scaled pondérant uniformément TOUTE l'histoire jusqu'au temps courant — et non une fenêtre glissante fixe, propre à HiPPO-LegT) fournit l'initialisation de la matrice A qui confère à S4 sa mémoire longue et sa timescale robustness (98,3 % sur permuted MNIST).",
+    "see_also": "S4 (Structured State Space Sequence model), State Space Model (SSM)"
+  },
+  {
+    "term": "S4 (Structured State Space Sequence model)",
+    "definition": "Premier SSM profond compétitif (Gu et al., ICLR 2022) : il rend tractable la matrice A initialisée par HiPPO via une paramétrisation structurée diagonale plus low-rank (DPLR), s'entraîne sous forme convolutive (noyau de Cauchy en O(N + L), FFT en O(L log L)) puis bascule en récurrence O(N) par token à l'inférence. C'est le premier modèle à résoudre Path-X (16 384 tokens) du Long Range Arena. S4D simplifie A à une matrice purement diagonale ; S5 (ICLR 2023) remplace les H SSM SISO indépendants par un unique SSM MIMO entraîné par parallel scan (87,4 % de moyenne LRA, 98,5 % sur Path-X).",
+    "see_also": "HiPPO (High-order Polynomial Projection Operators), Parallel scan (parallel prefix scan), Selective scan (S6, Mamba)"
+  },
+  {
+    "term": "Selective scan (S6, Mamba)",
+    "definition": "Cœur de Mamba (Gu & Dao, 2023) : un SSM rendu sélectif en faisant dépendre B, C et Δ du token courant (input-dependent), tandis que A reste un paramètre appris non dépendant de l'entrée (A = −exp(A_log), valeurs propres négatives garanties par la paramétrisation logarithmique). Cette sélectivité brise la propriété LTI — le noyau de convolution fixe devient inapplicable, car temps-variant — et impose un calcul par scan parallèle associatif, implémenté dans un noyau CUDA hardware-aware (fusion HBM→SRAM, recomputation des états au backward pass).",
+    "see_also": "State Space Model (SSM), Parallel scan (parallel prefix scan), State Space Duality (SSD, Mamba-2)"
+  },
+  {
+    "term": "State Space Duality (SSD, Mamba-2)",
+    "definition": "Dualité espace d'états (Dao & Gu, 2024) : un SSM à transition scalaire A_t = α_t·I est algébriquement équivalent — sans approximation — à une attention causale masquée 1-semiseparable ; la même transformation de séquence admet une réalisation récurrente en O(T) ou quadratique en O(T²). Mamba-2 en tire un algorithme par chunks dont trois étapes sur quatre sont des batched matmuls exploitant les tensor cores, 2 à 8× plus rapide que Mamba-1 au niveau du noyau. L'attention softmax échappe à cette dualité (« explosion de rang » / état effectif de taille linéaire en T).",
+    "see_also": "Selective scan (S6, Mamba), Parallel scan (parallel prefix scan), State Space Model (SSM)"
+  },
+  {
+    "term": "Parallel scan (parallel prefix scan)",
+    "definition": "Balayage parallèle : algorithme associatif qui calcule une récurrence linéaire sur T pas en O(log T) étapes parallèles sur GPU, sans matérialiser le noyau de convolution complet. Appliqué aux SSM dès S5 (Smith et al., 2022) sur des modèles LTI diagonaux, il devient contraint (et non un simple choix) pour Mamba, dont les matrices sélectives interdisent la forme convolutive fixe. Sa version hardware-aware atteint une complexité O(L) en longueur — avec un préfacteur O(L·D·N) que l'étiquette « O(L) » occulte — et tourne 20 à 40× plus vite qu'un scan PyTorch naïf.",
+    "see_also": "S4 (Structured State Space Sequence model), Selective scan (S6, Mamba)"
+  }
+]
