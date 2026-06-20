@@ -140,30 +140,195 @@ Lion/Adafactor/Sophia/Muon sont absents.
 > l'attention et le PE absolu sinusoïdal — partir de là, se centrer sur RoPE/relatif/extension de
 > contexte. Domaine : deep-learning-foundations.
 
-### Autres candidats — priorité moyenne (prompts riches à la demande)
+### Autoencodeurs & VAE — `variational-autoencoders` → `deep-learning-foundations`
+**Verdict : nouveau gap.** `diffusion-models` s'appuie sur un autoencodeur (latent diffusion) sans
+traiter le VAE en propre ; `clustering-dimensionality-reduction` couvre la réduction linéaire (PCA).
 
-| Sujet | slug | Domaine | Verdict / angle | Délimitation principale |
-|---|---|---|---|---|
-| Autoencodeurs & VAE | `variational-autoencoders` | deep-learning-foundations | nouveau gap | diffusion-models s'appuie sur un autoencodeur sans traiter le VAE en propre ; cadre génératif probabiliste + inférence variationnelle (ELBO, reparam, β-VAE, VQ-VAE) |
-| Systèmes de recommandation | `recommender-systems` | information-retrieval-representation | nouveau gap | ANN/embeddings n'effleurent que l'indexation ; factorisation matricielle/ALS, BPR, two-tower, éval top-N |
-| GAN | `generative-adversarial-networks` | deep-learning-foundations | nouveau gap | seul thème génératif = diffusion-models ; jeu min-max, mode collapse, WGAN, StyleGAN |
-| Régression régularisée & GLM | `regression-reguliere` | classical-ml-time-series | nouveau gap | lasso/elastic net éparpillés (Sparse PCA) ; régression linéaire/logistique, ridge/lasso/elastic net, GLM |
-| Sécurité LLM & jailbreaks | `llm-safety-jailbreaks` | llm-agents-generation | nouveau gap | attaques ponctuelles dispersées (MCP, MINJA, PoisonedRAG) ; taxonomie attaques/défenses au niveau modèle |
-| Vision-Language Models (VLM) | `multimodal-vlm` | llm-agents-generation | nouveau gap | ViT (transformer-attention), conditionnement (diffusion) ; architecture VLM, alignement vision-langage, VQA |
-| SVM / méthodes à noyau | `svm-kernel-methods` | classical-ml-time-series | gap réel | kernel trick effleuré (Kernel PCA, noyaux GP) ; marge maximale, hinge loss, dualité, SMO |
-| Graph neural networks | `graph-neural-networks` | deep-learning-foundations | gap réel | ⚠️ knowledge-graph-construction = *extraction* de graphes (≠ apprendre dessus) ; GCN/GraphSAGE/GAT/message passing |
-| Sketches en flux : quantiles & sampling | `streaming-quantiles-sampling` | probabilistic-structures-hashing | gap réel | complète count-min-sketch/hyperloglog ; t-digest/KLL/Greenwald-Khanna + reservoir sampling (Algorithm R, A-Res) fusionnés |
+> Autoencodeurs et VAE : apprendre des représentations latentes et générer par inférence
+> variationnelle. Couvrir l'autoencodeur (encodeur/décodeur, goulot, reconstruction), le débruitage
+> (denoising autoencoder), puis le Variational Autoencoder (Kingma & Welling 2013 : borne ELBO,
+> reconstruction + KL au prior, reparameterization trick), les variantes (β-VAE et le
+> désenchevêtrement, VQ-VAE et le codebook discret), et le lien avec les modèles latents génératifs.
+> Positionnement : brique fondamentale qui sous-tend la diffusion latente. Public : ingénieur ML.
+> Délimitations : diffusion-models s'appuie sur un autoencodeur (régularisation KL/VQ) sans traiter
+> le VAE en tant que tel (ne le citer que comme usage aval) ; clustering-dimensionality-reduction
+> couvre PCA/UMAP — se centrer sur le cadre génératif probabiliste et l'inférence variationnelle.
+> Domaine : deep-learning-foundations.
+
+### Systèmes de recommandation — `recommender-systems` → `information-retrieval-representation`
+**Verdict : nouveau gap.** `approximate-nearest-neighbor`/`text-embeddings` n'effleurent que
+l'indexation/similarité.
+
+> Systèmes de recommandation et filtrage collaboratif : prédire les préférences à grande échelle.
+> Couvrir le filtrage collaboratif (voisinage user/item), la factorisation matricielle (SVD-like,
+> ALS, termes de biais), le feedback implicite et le ranking par paires (BPR), l'architecture
+> two-tower (retrieval + ranking) des systèmes industriels, le démarrage à froid et l'évaluation
+> top-N (Recall@K, NDCG, hit rate, pièges de l'évaluation hors-ligne). Positionnement : grand
+> domaine applicatif absent. Public : ingénieur ML. Délimitations : ANN et text-embeddings
+> n'effleurent que l'indexation/similarité (Annoy/Voyager, arbitraire du cosinus de Steck et al.) —
+> se centrer sur les modèles de préférence et l'évaluation ; learning-to-rank (candidat distinct)
+> traite l'ordonnancement supervisé générique. Domaine : information-retrieval-representation.
+
+### Réseaux antagonistes génératifs (GAN) — `generative-adversarial-networks` → `deep-learning-foundations`
+**Verdict : nouveau gap.** `diffusion-models` est le seul thème génératif.
+
+> Réseaux antagonistes génératifs (GAN) : générer par un jeu à deux joueurs. Couvrir la formulation
+> min-max (générateur vs discriminateur, l'objectif de Goodfellow 2014 et son interprétation en
+> divergence de Jensen-Shannon), les pathologies d'entraînement (instabilité, mode collapse,
+> vanishing gradients) et leurs remèdes (Wasserstein GAN, gradient penalty WGAN-GP, spectral
+> normalization), les architectures marquantes (DCGAN, conditional GAN, StyleGAN, CycleGAN), et
+> l'évaluation (FID, Inception Score). Positionnement : paradigme génératif historique majeur,
+> contrepoint de la diffusion. Public : ingénieur ML. Délimitations : diffusion-models couvre le
+> génératif par score/diffusion (FID/IS) — se centrer sur l'entraînement adversarial et ses
+> pathologies. Domaine : deep-learning-foundations.
+
+### Régression régularisée & GLM — `regression-reguliere` → `classical-ml-time-series`
+**Verdict : nouveau gap.** Éparpillé (lasso/elastic net dans Sparse PCA, biais-variance dans
+ensemble-learning, régression logistique/BIM dans bm25).
+
+> Régression régularisée et modèles linéaires généralisés (GLM) : la brique de base du ML
+> supervisé. Couvrir la régression linéaire (moindres carrés, hypothèses) et logistique, la
+> régularisation (ridge/L2, lasso/L1 et la parcimonie, elastic net), le compromis biais-variance et
+> la sélection de variables, le cadre GLM (familles exponentielles, fonction de lien, déviance), et
+> l'optimisation (équations normales, descente de coordonnées, IRLS). Positionnement : socle du ML
+> classique, actuellement éparpillé. Public : ingénieur ML/data. Délimitations :
+> clustering-dimensionality-reduction utilise lasso/elastic net (Sparse PCA) et ensemble-learning le
+> biais-variance (les citer sans re-dériver) ; bm25-inverted-index mentionne la régression
+> logistique (BIM) en contexte IR — se centrer sur la régression supervisée et la régularisation en
+> propre. Domaine : classical-ml-time-series.
+
+### Sécurité LLM & jailbreaks — `llm-safety-jailbreaks` → `llm-agents-generation`
+**Verdict : nouveau gap.** Attaques ponctuelles dispersées (MCP/tool poisoning, MINJA,
+PoisonedRAG/BadRAG, refus).
+
+> Sécurité des LLM : jailbreaks, prompt injection et garde-fous. Couvrir la taxonomie des attaques
+> au niveau du modèle (jailbreaks par rôle/encodage/optimisation type GCG, prompt injection directe
+> et indirecte, extraction de prompt système et de données d'entraînement, attaques multi-tours), le
+> red-teaming (manuel et automatisé), et les défenses (alignement par refus, classificateurs
+> d'entrée/sortie, guardrails, durcissement du system prompt, détection de PII) avec leurs limites
+> (course à l'armement, transférabilité). Positionnement : très demandé, aujourd'hui dispersé.
+> Public : ingénieur ML / sécurité. Délimitations : agentic-ai couvre la surface agentique (MCP,
+> tool poisoning), agentic-memory le MINJA, RAG le PoisonedRAG/BadRAG — se centrer sur la taxonomie
+> attaques/défenses au niveau du MODÈLE, pas sur l'infrastructure agentique ni le RAG. Domaine :
+> llm-agents-generation.
+
+### Vision-Language Models (VLM) — `multimodal-vlm` → `llm-agents-generation`
+**Verdict : nouveau gap.** ViT (transformer-attention) et conditionnement cross-attention
+(diffusion) seulement.
+
+> Vision-Language Models (VLM) et fusion multimodale : aligner image et texte dans un même modèle.
+> Couvrir l'alignement contrastif (CLIP en rappel), les architectures de fusion (encodeur visuel +
+> LLM via projection/Q-Former — BLIP-2 ; cross-attention — Flamingo ; tokens visuels en entrée —
+> LLaVA), l'instruction-tuning multimodal, le traitement de la résolution/des patchs, et les
+> benchmarks (VQA, captioning, hallucination visuelle). Positionnement : pertinence croissante,
+> absent en tant que thème cohérent. Public : ingénieur ML. Délimitations : transformer-attention
+> couvre le ViT, diffusion-models le conditionnement (génération d'images), agentic-ai l'agent
+> incarné (PaLM-E) — se centrer sur l'architecture VLM et l'alignement vision→langage pour la
+> compréhension ; le contrastif/CLIP est approfondi par contrastive-self-supervised (le citer).
+> Domaine : llm-agents-generation.
+
+### SVM / méthodes à noyau — `svm-kernel-methods` → `classical-ml-time-series`
+**Verdict : gap réel.** Le kernel trick n'est effleuré que via Kernel PCA et les noyaux GP.
+
+> Machines à vecteurs de support (SVM) et méthodes à noyau : classer par marge maximale. Couvrir le
+> classifieur à marge maximale (hyperplan séparateur, vecteurs de support), la formulation duale et
+> le kernel trick (noyaux linéaire, polynomial, RBF/gaussien, théorème de Mercer, RKHS), le
+> soft-margin et la hinge loss (paramètre C), l'optimisation (SMO), la régression (SVR) et le
+> panorama des méthodes à noyau. Positionnement : pilier du ML classique. Public : ingénieur ML.
+> Délimitations : clustering-dimensionality-reduction couvre le kernel trick côté Kernel PCA
+> (noyaux RBF/poly, matrice de Gram) et time-series-forecasting les noyaux GP (les citer sans
+> re-dériver) — se centrer sur la marge maximale, la dualité, la hinge loss et SMO. Domaine :
+> classical-ml-time-series.
+
+### Graph neural networks (GNN) — `graph-neural-networks` → `deep-learning-foundations`
+**Verdict : gap réel.** ⚠️ `knowledge-graph-construction` traite l'*extraction* de graphes (≠
+apprendre dessus) ; GraphRAG/agentic-memory utilisent des graphes sans message passing.
+
+> Graph neural networks (GNN) : apprendre sur des données structurées en graphe. Couvrir le cadre du
+> message passing (agrégation de voisinage, mise à jour, lecture), les architectures de référence
+> (GCN spectral/spatial, GraphSAGE et l'échantillonnage de voisinage, GAT et l'attention sur arêtes,
+> GIN et le pouvoir expressif lié au test de Weisfeiler-Lehman), le pooling de graphes, les tâches
+> (classification de nœuds/graphes, prédiction de liens), et les pièges (oversmoothing,
+> oversquashing, passage à l'échelle). Positionnement : famille d'architectures absente d'un corpus
+> 100 % séquence/transformer. Public : ingénieur ML. Délimitations : ⚠️ knowledge-graph-construction
+> traite l'EXTRACTION de graphes depuis le texte ; GraphRAG (RAG) et les knowledge graphs
+> (agentic-memory) utilisent des graphes sans message passing — se centrer sur l'apprentissage de
+> représentations sur graphes. Domaine : deep-learning-foundations.
+
+### Sketches en flux : quantiles & échantillonnage — `streaming-quantiles-sampling` → `probabilistic-structures-hashing`
+**Verdict : gap réel.** Complète `count-min-sketch` (fréquences) et `hyperloglog` (cardinalité).
+
+> Sketches de flux pour quantiles et échantillonnage : résumer un flux de données en mémoire bornée.
+> Couvrir l'estimation de quantiles approchés (Greenwald-Khanna et la garantie ε, t-digest et les
+> centroïdes à compression variable, KLL et son optimalité), et l'échantillonnage en flux (reservoir
+> sampling : Algorithm R, échantillonnage pondéré A-Res, échantillonnage distribué), avec les
+> garanties d'erreur et la fusionnabilité (mergeable summaries) pour le calcul distribué.
+> Positionnement : complète la famille des sketches de flux du domaine. Public : ingénieur ML/data.
+> Délimitations : count-min-sketch et hyperloglog couvrent d'autres sketches en flux (fréquences,
+> cardinalité) — les citer comme voisins ; se centrer sur quantiles et échantillonnage. Domaine :
+> probabilistic-structures-hashing.
 
 ---
 
 ## Priorité basse / marginale
 
-| Sujet | slug | Domaine | Verdict | Note |
-|---|---|---|---|---|
-| MinHash & déduplication | `minhash-dedup` | probabilistic-structures-hashing | partiel | ⚠️ LSH a déjà une section dédiée dans `approximate-nearest-neighbor` ; recibler sur MinHash/Jaccard, min-wise independence, amplification par bandes pour similarity-join et **dédup de corpus**, SimHash |
-| Cuckoo filter | `cuckoo-filter` | probabilistic-structures-hashing | partiel (marginal) | déjà traité en plusieurs claims dans `bloom-filters` (Fan et al. 2014, seuils Bloom/cuckoo/xor) ; ne reste que partial-key cuckoo hashing, semi-sorting, vs quotient/xor filter |
-| Gaussian processes (général) | `gaussian-processes` | classical-ml-time-series | partiel | `time-series-forecasting` a une section GP orientée prévision ; angle neuf = régression/classification bayésienne + optimisation bayésienne |
-| Calibration des classifieurs | `calibration-classifieurs` | classical-ml-time-series | nouveau gap | Platt/isotonic/temperature scaling, reliability diagrams, ECE/MCE, conformal prediction comme pont |
+### MinHash & déduplication — `minhash-dedup` → `probabilistic-structures-hashing`
+**Verdict : partiel.** ⚠️ La théorie LSH a déjà une section dédiée dans
+`approximate-nearest-neighbor` (et ALSH/MIPS dans `text-embeddings`) → recibler sur MinHash/dedup.
+
+> MinHash et déduplication par similarité d'ensembles : estimer la similarité de Jaccard et trouver
+> les quasi-doublons à grande échelle. Couvrir le MinHash (min-wise independent permutations,
+> estimateur non biaisé de Jaccard et sa variance, b-bit minwise), l'amplification par bandes (LSH
+> banding pour le similarity-join, courbe en S, réglage bandes×lignes), SimHash pour le cosinus, et
+> l'application phare : la déduplication de gros corpus (dont les jeux d'entraînement LLM, MinHash-LSH
+> à l'échelle). Public : ingénieur ML/data. ⚠️ Délimitations strictes : la THÉORIE LSH a déjà une
+> section dédiée dans approximate-nearest-neighbor (familles (r,cr,p1,p2), E2LSH, exposant ρ) et
+> text-embeddings traite l'ALSH pour le MIPS — NE PAS re-dériver le cadre LSH générique ; se centrer
+> sur MinHash/Jaccard, la min-wise independence et la déduplication comme killer app. Domaine :
+> probabilistic-structures-hashing.
+
+### Cuckoo filter — `cuckoo-filter` → `probabilistic-structures-hashing`
+**Verdict : partiel (marginal).** ⚠️ `bloom-filters` traite **déjà** le Cuckoo filter (Fan et al.
+2014) en plusieurs claims — ce thème n'a de sens que s'il va nettement plus loin, sinon enrichir
+`bloom-filters` plutôt qu'un thème séparé.
+
+> Le Cuckoo filter : test d'appartenance approximatif avec suppression. Couvrir le cuckoo hashing
+> (deux fonctions de hachage, relocalisation, facteur de charge), le partial-key cuckoo hashing qui
+> ne stocke que des empreintes (fingerprints), les opérations insert/lookup/delete, l'analyse du
+> taux de faux positifs et de l'occupation, l'optimisation semi-sorting, et la comparaison fine avec
+> les alternatives (counting Bloom, quotient filter, xor filter). Public : ingénieur ML/systèmes.
+> ⚠️ Délimitations : bloom-filters traite DÉJÀ le Cuckoo filter (suppression, seuils comparatifs
+> Bloom/cuckoo/xor) — ne lancer ce thème que s'il approfondit nettement (partial-key cuckoo hashing
+> détaillé, semi-sorting, analyse vs quotient/xor) ; sinon enrichir bloom-filters. Domaine :
+> probabilistic-structures-hashing.
+
+### Gaussian processes (général) — `gaussian-processes` → `classical-ml-time-series`
+**Verdict : partiel.** `time-series-forecasting` a une section GP orientée prévision ; l'angle neuf
+= régression/classification bayésienne générale + optimisation bayésienne.
+
+> Processus gaussiens (GP) : régression et classification bayésiennes non paramétriques avec
+> quantification d'incertitude. Couvrir la définition (distribution sur fonctions, moyenne + noyau de
+> covariance), la régression GP (postérieure analytique, choix/combinaison de noyaux
+> RBF/Matérn/périodique, apprentissage des hyperparamètres par vraisemblance marginale), le coût
+> O(n³) et les approximations (inducing points, SVGP), la classification GP (Laplace/EP), et
+> l'application phare : l'optimisation bayésienne (fonctions d'acquisition EI/UCB). Public : ingénieur
+> ML. Délimitations : time-series-forecasting a déjà une section GP orientée prévision (noyau
+> périodique/Matérn, O(n³), état-espace/SDE, inducing points/SVGP) — la citer ; l'angle neuf = la
+> régression/classification bayésienne générale et l'optimisation bayésienne. Domaine :
+> classical-ml-time-series.
+
+### Calibration des classifieurs — `calibration-classifieurs` → `classical-ml-time-series`
+**Verdict : nouveau gap.** Totalement absent (llm-evaluation traite l'accord juge/humain, pas la
+calibration probabiliste).
+
+> Calibration des classifieurs probabilistes : faire en sorte que les probabilités prédites reflètent
+> les fréquences réelles. Couvrir le diagnostic (reliability diagrams, ECE/MCE, Brier score), les
+> méthodes post-hoc (Platt scaling, isotonic regression, temperature scaling pour les réseaux
+> profonds), la mauvaise calibration des réseaux modernes, et la prédiction conforme (conformal
+> prediction) comme garantie de couverture distribution-free, en pont. Public : ingénieur ML.
+> Délimitations : llm-evaluation traite l'accord juge/humain au sens psychométrique (kappa, alt-test)
+> et C-RAG le conformal risk control en contexte RAG — se centrer sur la calibration de probabilités
+> de classification. Domaine : classical-ml-time-series.
 
 ---
 
