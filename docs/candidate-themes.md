@@ -16,22 +16,6 @@ en ERE, `\|` est un pipe *littéral* ; ne jamais l'utiliser.)
 
 ## Priorité haute — gaps réels, forte valeur de référence
 
-### Décodage & sampling — `decoding-sampling` → `llm-agents-generation`
-**Verdict : gap réel.** `transformer-attention` couvre la mécanique du KV cache (PagedAttention,
-GQA, MLA) mais **pas** les stratégies de décodage ; `diffusion-models` traite l'échantillonnage de
-diffusion (hors-sujet).
-
-> Décodage et sampling pour la génération de texte par LLM autoregressifs : comment, à
-> l'inférence, on transforme les logits en tokens. Couvrir les stratégies déterministes (greedy,
-> beam search) et stochastiques (température, top-k, top-p/nucleus, min-p, typical sampling), les
-> pénalités de répétition et le contrastive search/decoding ; le rôle du KV cache (et son coût
-> mémoire O(L·D)) ; et le décodage spéculatif (draft model + vérification, Medusa, EAGLE,
-> lookahead) comme principal levier de latence. Positionnement : l'étape de génération elle-même.
-> Public : ingénieur ML. Délimitations : la mécanique du KV cache et l'attention efficace sont déjà
-> dans transformer-attention (rappeler sans re-dériver) ; le décodage contraint est dans
-> structured-extraction-llm ; l'inférence récurrente des SSM dans state-space-models (contraste).
-> Domaine : llm-agents-generation.
-
 ### Scaling laws (Chinchilla, compute-optimal) — `scaling-laws` → `deep-learning-foundations`
 **Verdict : gap réel.** Seule mention : `ia-productivite-esn` cite Kaplan/Chinchilla dans un cadre
 de plafonds de productivité, pas la frontière compute-optimale.
