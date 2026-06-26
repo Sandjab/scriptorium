@@ -1,0 +1,37 @@
+[
+  {
+    "term": "Temperature",
+    "definition": "Température : facteur T qui rééchelonne les logits avant le softmax, softmax(z/T). T → 0 converge vers le greedy argmax (décodage déterministe), T = 1 laisse la distribution intacte, T > 1 l'aplatit vers l'uniforme. Conséquence directe et souvent négligée : monter T élargit le nucleus, ce qui érode l'efficacité du filtrage top-p — à p = 0,9, un même modèle peut passer de quelques dizaines de tokens éligibles (T = 0,7) à plusieurs milliers (T = 1,4), rendant la troncation quasi inopérante.",
+    "see_also": "Nucleus sampling (top-p), Min-p sampling"
+  },
+  {
+    "term": "Nucleus sampling (top-p)",
+    "definition": "Nucleus sampling (échantillonnage du noyau), aussi appelé top-p (Holtzman et al., ICLR 2020) : à chaque pas, on retient V^(p), le plus petit ensemble de tokens dont la probabilité cumulée atteint le seuil p, puis on échantillonne dedans après renormalisation. Sa taille s'adapte à la confiance du modèle — 3 tokens sur un pas concentré, des centaines sur un pas ambigu — sans figer le nombre de candidats comme le fait top-k sampling (qui, lui, est context-agnostic : k fixe injecte du bruit quand le modèle est sûr et restreint le pool quand il est incertain ; Fan et al. 2018). Sur les métriques de Holtzman (perplexity, self-BLEU, taux de répétition, coefficient de Zipf, HUSE), p = 0,95 produit un texte aussi diversifié que le texte humain ; les auteurs le qualifient de « meilleure stratégie de décodage actuellement disponible » pour la génération ouverte — verdict établi sur GPT-2 base non-RLHF, qui ne se transfère pas mécaniquement aux modèles instruction-tuned aux distributions plus piquées.",
+    "see_also": "Temperature, Min-p sampling, Beam search"
+  },
+  {
+    "term": "Min-p sampling",
+    "definition": "Min-p sampling (échantillonnage à seuil relatif minimal) : on fixe un plancher dynamique p_min = p_base × max_v p(v) qui suit la confiance du modèle, puis on garde tout token au-dessus. Pic à 0,9 et p_base = 0,1 → seuil à 9 % (pool resserré) ; pic à 0,05 → seuil à 0,5 % (pool élargi). Intégré sans modification de modèle à HuggingFace Transformers, vLLM et llama.cpp. Son avantage le plus net est documenté en régime de très haute température (GPQA T = 3 : 24,55 % vs 0,46 % pour top-p), mais aux températures opérationnelles (T ≈ 0,7–1,2) l'écart avec top-p est quasi nul et peut s'inverser ; une analyse critique indépendante (arXiv:2506.13681, 2025) conteste tout gain robuste de qualité ou de diversité.",
+    "see_also": "Nucleus sampling (top-p), Temperature"
+  },
+  {
+    "term": "Beam search",
+    "definition": "Beam search (recherche en faisceau) : décodage déterministe qui maintient B séquences candidates, notées par leur log-probabilité cumulée — normalisée par la longueur depuis Wu et al. 2016 (GNMT), via score / ((5+T)/(5+1))^α, α ≈ 0,6 — pour un coût O(B·|V|) par pas. C'est une heuristique sans garantie d'optimalité globale ; surtout, la séquence exacte de probabilité maximale est souvent dégénérée (chaîne vide, répétitions), ce qui invalide la cible même qu'elle est censée approcher. En génération ouverte, les méthodes par maximisation (dont le greedy decoding, équivalent à B = 1) dégénèrent en boucles répétitives à rétroaction positive : sur GPT-2 Large, B = 16 affiche 28,94 % de répétition contre 0,28 % pour le texte humain (Holtzman et al., 2019).",
+    "see_also": "Nucleus sampling (top-p), Contrastive search"
+  },
+  {
+    "term": "Contrastive search",
+    "definition": "Contrastive search (recherche contrastive ; Su et al., NeurIPS 2022) : à chaque pas, on choisit dans le top-k le token v maximisant (1−α)·p_θ(v) − α·max_{j<t} cos(h_v, h_{x_j}), ce qui pénalise les candidats dont la hidden-state representation est trop proche d'une représentation déjà émise (α ∈ [0,5 ; 0,8] en pratique). Motivation : l'anisotropie des représentations — hidden states tassés dans un cône étroit de l'espace — favorise la dégénérescence, profil depuis confirmé bien au-delà de GPT-2 (LLaMA-2, OPT, Falcon, Bloom). À distinguer de contrastive decoding (Li, Holtzman et al., ACL 2023), qui attribue à chaque token le score log p_expert − log p_amateur entre un grand et un petit modèle, sans entraînement additionnel.",
+    "see_also": "Nucleus sampling (top-p), Beam search"
+  },
+  {
+    "term": "KV cache",
+    "definition": "KV cache (cache clés-valeurs) : mémorisation des projections K et V de tous les tokens passés pour ne pas les recalculer à chaque pas — pierre angulaire de la génération autoregressive, dont la mécanique d'attention relève de transformer-attention. Son coût est 2·L·H_kv·D_head·B octets par token, soit O(L·D), linéaire en longueur de contexte : ≈ 0,50 Mo/token pour LLaMA-2-7B en fp16. À 128 K tokens, le seul cache atteint ≈ 64 Go et, avec les ≈ 14 Go de poids, sature un A100 de 80 Go. GQA divise ce coût par H_q/H_kv (8× sur LLaMA-2-70B, 64 têtes de requête pour 8 têtes KV) pour une qualité « proche de » MHA — proche, pas strictement identique.",
+    "see_also": "Speculative decoding"
+  },
+  {
+    "term": "Speculative decoding",
+    "definition": "Speculative decoding (décodage spéculatif ; Leviathan et al., Chen et al., 2022–2023) : un petit draft model propose γ tokens, vérifiés en un seul forward pass du target model ; un rejection sampling modifié rend le schéma provablement lossless — distribution de sortie identique à celle du target seul, sans toucher aux poids. Nombre attendu de tokens par passe : N(α, γ) = (1 − α^(γ+1)) / (1 − α), borné par 1/(1−α) ; pour α = 0,8 et γ = 4, N ≈ 3,36. Le speedup de 2–3× est fiable en régime latency-optimized (petit batch, modèle dense), fragile à fort batch ou avec un KV cache compressé (MLA). Variantes self-drafting sans modèle séparé : Medusa (têtes de décodage parallèles), EAGLE (token-shift au niveau features, acceptation ≈ 0,80 vs ≈ 0,60 pour Medusa ; EAGLE-3 jusqu'à 6,5×), lookahead decoding (itération de Jacobi + cache de n-grammes, 1,5–2,3×, exact).",
+    "see_also": "KV cache, Nucleus sampling (top-p)"
+  }
+]

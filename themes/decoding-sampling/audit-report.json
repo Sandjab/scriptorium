@@ -1,0 +1,948 @@
+{
+  "generator": "frugalmonograph",
+  "theme": {
+    "slug": "decoding-sampling",
+    "title": "Décodage et sampling : des logits aux tokens"
+  },
+  "summary": {
+    "sections_total": 9,
+    "sections_retained": 9,
+    "claims_total": 30,
+    "confirmed": 11,
+    "corrected": 19,
+    "rejected": 0,
+    "retained": 30
+  },
+  "claims": [
+    {
+      "id": "claim:1",
+      "section": "des-logits-aux-tokens",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Holtzman et al. (ICLR 2020) montrent que les méthodes de décodage par maximisation (greedy decoding, beam search) produisent des textes dégénérés, répétitifs et pauvres en diversité malgré une vraisemblance modèle élevée ; le texte humain réel présente une plus grande variance probabiliste et ne reste pas durablement dans les zones de haute probabilité (il n'y « demeure que rarement » selon les auteurs), contrairement au décodage par maximisation — ce qui rend la maximisation de vraisemblance inappropriée pour la génération ouverte.",
+      "original_statement": "Holtzman et al. (ICLR 2020) établissent que les méthodes de décodage par maximisation (greedy decoding, beam search) produisent des textes répétitifs et jugés inhumains malgré une vraisemblance modèle élevée : le texte humain réel évite systématiquement les tokens de haute probabilité, rendant la maximisation de vraisemblance inappropriée pour la génération ouverte.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Deux inexactitudes : (1) « jugés inhumains » n'est pas la terminologie du papier — Holtzman et al. utilisent « degenerate », « bland », « incoherent » et une métrique composite HUSE, pas un jugement humain/non-humain direct ; (2) « évite systématiquement les tokens de haute probabilité » est une surinterprétation — le papier dit que le texte humain « ne demeure que rarement dans une zone de haute probabilité pour des pas de temps consécutifs » et montre une plus grande variance, ce qui est différent d'un évitement systématique à chaque position."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "L'énoncé est substantiellement exact : Holtzman et al. (ICLR 2020, arXiv 1904.09751) établissent bien que le décodage par maximisation produit des textes répétitifs et dégénérés malgré une haute vraisemblance modèle, que la langue naturelle « évite rarement les zones de haute probabilité » (phrasing exact du papier), et que la maximisation est « inappropriate for open-ended text generation ». Seul bémol : « jugés inhumains » est une légère surinterprétation — l'évaluation humaine du papier (métrique HUSE) mesure la *typicité* des textes par rapport à l'écriture humaine, pas un jugement explicite « inhumain » ; les auteurs qualifient plutôt le texte de « bland », « incoherent » et « degenerate »."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « Holtzman et al. (ICLR 2020) établissent que les méthodes de décodage par maximisation (greedy decoding, beam search) produisent des textes répétitifs et jugés inhumains malgré une vraisemblance modèle élevée : le texte humain réel évite systématiquement les tokens de haute probabilité, rendant la maximisation de vraisemblance inappropriée pour la génération ouverte. »"
+    },
+    {
+      "id": "claim:2",
+      "section": "des-logits-aux-tokens",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "La génération autoregressive token par token est memory-bandwidth bound sur les accélérateurs modernes — contrairement à l'entraînement qui est compute-bound — ce qui implique que le levier principal de latence est la bande passante mémoire (et non les FLOPS) : optimisation du KV cache, quantisation des poids pour réduire le volume transféré, batching pour remonter l'intensité arithmétique, décodage spéculatif.",
+      "original_statement": "La génération autoregressive token par token est compute-bound sur les accélérateurs modernes — comme l'entraînement — ce qui implique que le levier principal de latence est la réduction du nombre de paramètres et l'augmentation des FLOPS disponibles.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 6,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 4,
+          "note": "L'erreur centrale est d'assimiler la génération à l'entraînement : la génération token par token traite un seul token à la fois (batch effectif ~1), d'où une intensité arithmétique très faible — mesurée empiriquement à 41–90 FLOPs/byte selon les modèles (Llama3-405B, DeepSeekV3, batch=32) — qui maintient les accélérateurs bien en-dessous du seuil machine et donc en régime memory-bound. L'utilisation tensorielle effective reste ≤1% dans les scénarios à faible batch, ce qui rend les FLOPS supplémentaires pratiquement sans effet sur la latence ; c'est la bande passante HBM et la taille du KV cache qui dominent, à l'opposé de l'entraînement (haute intensité arithmétique, compute-bound)."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Les deux sources vérifiées établissent explicitement et indépendamment que le décodage autoregressif est memory-bandwidth bound (et non compute-bound), alors que l'entraînement et la phase de prefill sont compute-bound. L'énoncé inverse la nature du bottleneck et en déduit à tort que les FLOPS supplémentaires sont le levier principal : augmenter les FLOPS n'améliore pas la latence d'un système limité par la bande passante mémoire."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (6 sources indépendantes). Origine : « La génération autoregressive token par token est compute-bound sur les accélérateurs modernes — comme l'entraînement — ce qui implique que le levier principal de latence est la réduction du nombre de paramètres et l'augmentation des FLOPS disponibles. »"
+    },
+    {
+      "id": "claim:3",
+      "section": "des-logits-aux-tokens",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "La factorisation autoregressive impose, dans sa mise en œuvre naïve, un forward pass complet par token généré, rendant la génération naïvement séquentielle : contrairement à l'entraînement où tous les tokens d'un exemple sont traités en parallèle via le masque causal, une inférence directe ne peut pas paralléliser la dimension temporelle. Cependant, cette contrainte n'est pas inhérente à la factorisation autoregressive elle-même : des techniques comme le speculative decoding (modèle draft + vérification en un seul forward pass du modèle cible, produisant K+1 tokens par passe) ou le lookahead decoding (algorithme parallèle et exact sans modèle auxiliaire) parallelisent effectivement la dimension temporelle tout en préservant exactement la distribution du modèle cible.",
+      "original_statement": "La factorisation autoregressive impose exactement un forward pass complet par token généré, rendant la génération intrinsèquement séquentielle : contrairement à l'entraînement où tous les tokens d'un exemple sont traités en parallèle via le masque causal, l'inférence ne peut pas paralléliser la dimension temporelle.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Le speculative decoding (arXiv 2211.17192 — la source candidate elle-même) réfute directement l'énoncé : le modèle cible traite K tokens candidats en un seul forward pass via masque causal, produisant K+1 tokens avec distribution identique à la génération séquentielle. Le lookahead decoding (arXiv 2402.02057) confirme qu'un algorithme exact et parallèle existe même sans modèle auxiliaire. L'énoncé décrit correctement la mise en œuvre naïve mais est faux dans ses affirmations absolues (« exactement un forward pass par token » et « ne peut pas paralléliser »)."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Les trois sources confirment indépendamment les deux volets de l'énoncé : (1) Leviathan et al. 2022 formule explicitement « decoding K tokens takes K serial runs of the model » ; (2) l'article arXiv 2601.15593 cite « the strictly sequential nature of AR decoding » comme limitation fondamentale ; (3) l'article Medium détaille comment le masque causal permet de traiter toute la séquence en parallèle à l'entraînement alors que l'inférence exige un pas par token. Note mineure : en pratique le KV-cache réduit le coût de chaque forward pass (seul le nouveau token est traité via les K/V mis en cache), mais la sérialisation temporelle — un appel du modèle par token — reste inchangée, ce qui ne contredit pas l'énoncé."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « La factorisation autoregressive impose exactement un forward pass complet par token généré, rendant la génération intrinsèquement séquentielle : contrairement à l'entraînement où tous les tokens d'un exemple sont traités en parallèle via le masque causal, l'inférence ne peut pas paralléliser la dimension temporelle. »"
+    },
+    {
+      "id": "claim:4",
+      "section": "greedy-et-beam-search",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Le greedy decoding sélectionne argmax à chaque pas et est strictement équivalent au beam search avec B=1 ; Holtzman et al. (arXiv 2019, ICLR 2020) montrent que les méthodes de décodage par maximisation en général (greedy et beam search) déclenchent une boucle de rétroaction positive — chaque répétition d'un segment augmentant la probabilité des répétitions suivantes (Figure 4) — produisant une dégénérescence répétitive pathologique. Le papier ne démontre toutefois pas explicitement que la sévérité croît avec la longueur de génération, et il cible les méthodes de maximisation dans leur ensemble plutôt que le greedy decoding en particulier (beam search b=16 étant l'exemple principal, avec 28,94 % de répétition contre 73,66 % pour greedy selon Table 1).",
+      "original_statement": "Le greedy decoding sélectionne argmax à chaque pas et est strictement équivalent au beam search avec B=1 ; Holtzman et al. (2019) montrent qu'il déclenche une boucle de dégénérescence à rétroaction positive produisant une répétition indéfinie et incohérente dont la sévérité croît avec la longueur de génération.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Deux défauts factuels : (1) l'énoncé attribue la dégénérescence au greedy decoding en particulier, alors que le papier cible les « maximization-based methods » en général et utilise beam search b=16 comme exemple principal ; (2) la claim « sévérité croît avec la longueur de génération » n'est pas démontrée explicitement dans le papier — seule la boucle de rétroaction positive (Figure 4) est établie, ce qui implique une accumulation mais sans en faire une conclusion formelle."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le terme « positive feedback loop » est bien présent verbatim dans la légende de la Figure 4 de Holtzman et al. : « The probability of a repeated phrase increases with each repetition, creating a positive feedback loop. » L'équivalence greedy = beam B=1 est confirmée par la documentation HuggingFace (« num_beams should be greater than 1, otherwise it's equivalent to greedy search »). Nuance : le papier attribue la boucle de dégénérescence aux méthodes de maximisation en général (« maximization-based decoding methods such as beam search »), dont greedy est un cas particulier ; la croissance de sévérité avec la longueur est une conséquence directe du mécanisme de boucle positive décrit, mais n'est pas quantifiée explicitement comme telle dans le texte."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « Le greedy decoding sélectionne argmax à chaque pas et est strictement équivalent au beam search avec B=1 ; Holtzman et al. (2019) montrent qu'il déclenche une boucle de dégénérescence à rétroaction positive produisant une répétition indéfinie et incohérente dont la sévérité croît avec la longueur de génération. »"
+    },
+    {
+      "id": "claim:5",
+      "section": "greedy-et-beam-search",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Le beam search maintient B séquences candidates scorées par leur log-probabilité cumulée (normalisée par la longueur dans la pratique standard depuis Wu et al. 2016), avec un coût O(B · |V|) par pas. L'espace de recherche est exponentiel (|V|^T), mais trouver la séquence de probabilité maximale n'est pas formellement NP-difficile : Stahlberg & Byrne (2019) ont montré qu'un DFS avec élagage agressif retrouve le mode exact d'un modèle NMT en pratique. Beam search reste une heuristique sans garantie d'optimalité globale — mais des travaux empiriques montrent que la séquence de probabilité maximale exacte est souvent dégénérée (chaîne vide, répétitions), ce qui invalide la prémisse implicite que beam search approxime une cible désirable.",
+      "original_statement": "Le beam search maintient B séquences candidates scorées par leur log-probabilité cumulée, avec un coût O(B · |V|) par pas ; trouver la séquence de probabilité maximale est computationnellement intractable, faisant du beam search une heuristique sans garantie d'optimalité globale.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 6,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 4,
+          "note": "Deux défauts majeurs. (1) L'affirmation d'intractabilité computationnelle est inexacte ou au minimum non démontrée formellement : Stahlberg & Byrne (2019) ont montré qu'un DFS avec élagage agressif retrouve le mode exact d'un transformer NMT en moins d'un million d'états ; Pimentel et al. (2020) requalifient beam search non pas comme approximation d'un problème intraitable, mais comme solution exacte d'un objectif de décodage différent du MAP pur. (2) La description du scoring par « log-probabilité cumulée » seule occulte la normalisation par la longueur (score/longueur^α), introduite comme standard par Wu et al. (2016) pour corriger le biais systématique en faveur des séquences courtes."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les deux sources confirment indépendamment les quatre points : (1) maintien de B séquences candidates scorées par log-probabilité cumulée (NewScore = OldScore + log P(token)) ; (2) coût O(T × B × |V|) soit O(B · |V|) par pas (expansion de B hypothèses sur |V| tokens) ; (3) intractabilité de la recherche exacte — l'espace est de taille |V|^T, «intractable (NP-complete) to search completely» (MLM) ; (4) beam search qualifié d'heuristique approchée sans garantie d'optimalité globale. La source candidate (arXiv 1904.09751, Holtzman et al.) porte sur la dégénérescence de texte et le nucleus sampling et ne couvre pas directement les propriétés de complexité vérifiées ici."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (6 sources indépendantes). Origine : « Le beam search maintient B séquences candidates scorées par leur log-probabilité cumulée, avec un coût O(B · |V|) par pas ; trouver la séquence de probabilité maximale est computationnellement intractable, faisant du beam search une heuristique sans garantie d'optimalité globale. »"
+    },
+    {
+      "id": "claim:6",
+      "section": "greedy-et-beam-search",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Le beam search curse recouvre deux phénomènes distincts qu'il ne faut pas confondre. (1) En traduction neuronale (génération dirigée), le score BLEU est non-monotone avec B : il culmine vers B ≈ 4–8 puis décline pour des B plus grands (Koehn & Knowles 2017, Yang et al. 2018). (2) En génération ouverte (Holtzman et al. 2019, GPT-2), le taux de répétition est catastrophique pour toute valeur de B — 73,66 % pour le glouton (B=1), 28,94 % pour B=16, contre 0,28 % pour le texte humain — mais augmenter B de 1 à 16 RÉDUIT effectivement le taux de répétition brut (parce que les textes produits sont plus courts). B=16 n'est donc pas au \"mauvais bout\" d'une courbe qui se dégraderait à partir de B≈5-10 : dans le cadre où le chiffre 28,94 % a été mesuré, B=16 est moins répétitif que B=1. La dégradation perçue n'est pas monotone au-delà d'un seuil : elle est présente pour toute valeur de B comparée au texte humain, quelle que soit la largeur du faisceau.",
+      "original_statement": "Augmenter la largeur de faisceau B améliore monotonement la qualité du texte généré — c'est l'affirmation courante, mais elle est contredite par le beam search curse : au-delà de B ≈ 5–10, la qualité perçue se dégrade, et à B=16 le taux de répétition atteint 28,94 % contre 0,28 % pour le texte humain.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Les chiffres 28,94 % (B=16) et 0,28 % (texte humain) sont réels et vérifiés dans Holtzman et al. 2019 (Tableau 1), mais l'énoncé les utilise de façon trompeuse : dans les données mêmes du papier, augmenter B de 1 (glouton, 73,66 %) à 16 (28,94 %) RÉDUIT la répétition, ce qui contredit directement l'implication que \"la qualité se dégrade au-delà de B≈5-10\". De plus, le seuil B≈5-10 est documenté pour la traduction neuronale (génération dirigée), non pour la génération ouverte d'où provient le chiffre 28,94 % — l'énoncé fusionne deux phénomènes distincts en une seule causalité incorrecte."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Les chiffres clés (28,94 % à b=16 et 0,28 % pour le texte humain) sont confirmés dans le Tableau 1 de Holtzman et al. 2020. Le seuil B≈5–10 provient de la littérature NMT (Koehn & Knowles 2017) où il varie fortement selon la paire de langues, et n'est pas établi dans Holtzman 2020 (génération ouverte) qui ne systématise pas les largeurs de faisceau : la déclaration est donc correcte sur les chiffres mais amalgame deux contextes distincts."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « Augmenter la largeur de faisceau B améliore monotonement la qualité du texte généré — c'est l'affirmation courante, mais elle est contredite par le beam search curse : au-delà de B ≈ 5–10, la qualité perçue se dégrade, et à B=16 le taux de répétition atteint 28,94 % contre 0,28 % pour le texte humain. »"
+    },
+    {
+      "id": "claim:7",
+      "section": "greedy-et-beam-search",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "La length penalty canonique de Wu et al. 2016 (GNMT) utilise la formule score / ((5+T)/(5+1))^α (avec α = 0,6 comme valeur de référence), et non la forme simplifiée T^α ; cette forme simplifiée (dite « average ») est une variante distincte. Par ailleurs, à B ≥ 64, ce sont spécifiquement GPT-2 Large (774M) et GPT-2 XL (1542M) — et non l'ensemble de la famille GPT-2 — qui préfèrent terminer la génération immédiatement après le contexte d'entrée.",
+      "original_statement": "La length penalty (score / T^α, α ≈ 0,6–0,7) compense le biais du beam search vers les séquences courtes ; à B ≥ 64, les modèles de la famille GPT-2 préfèrent terminer la génération immédiatement après le contexte d'entrée.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Deux défauts distincts : (1) la formule « score / T^α » décrit la variante « average », pas la length penalty canonique de Wu et al. 2016 qui est ((5+T)/6)^α — les deux sont implémentées séparément dans OpenNMT sous deux noms différents ; (2) Holtzman et al. attribuent le comportement de terminaison immédiate (B ≥ 64) uniquement à GPT-2 Large et XL, pas à l'ensemble de la famille."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Deux inexactitudes : (1) la formule « score / T^α » est une simplification — la formule canonique du papier Google NMT (1609.08144) utilise un offset de 5 : lp(Y) = (5+|Y|)^α / (5+1)^α ; (2) le papier Holtzman et al. (1904.09751) ne documente l'arrêt prématuré à B ≥ 64 que pour GPT-2 Large et XL (774M et 1542M paramètres), pas pour l'ensemble de la famille GPT-2 (Small/Medium inclus)."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « La length penalty (score / T^α, α ≈ 0,6–0,7) compense le biais du beam search vers les séquences courtes ; à B ≥ 64, les modèles de la famille GPT-2 préfèrent terminer la génération immédiatement après le contexte d'entrée. »"
+    },
+    {
+      "id": "claim:8",
+      "section": "sampling-tronque-temperature-top-k-top-p",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le nucleus sampling (Holtzman et al., ICLR 2020) définit V^(p) comme le plus petit ensemble de tokens dont la probabilité cumulée atteint p ; sa taille s'adapte dynamiquement à la confiance du modèle à chaque pas, sans fixer le nombre de candidats en dur.",
+      "original_statement": "Le nucleus sampling (Holtzman et al., ICLR 2020) définit V^(p) comme le plus petit ensemble de tokens dont la probabilité cumulée atteint p ; sa taille s'adapte dynamiquement à la confiance du modèle à chaque pas, sans fixer le nombre de candidats en dur.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le PDF de la source primaire (§3.1, Eq. 2) confirme V^(p) comme « the smallest set such that Σ P(x|x_{1:i-1}) ≥ p », et la prose p. 5 confirme l'ajustement dynamique de taille. « Atteint p » est un raccourci naturel pour la condition ≥ p ; la seule nuance est que la prose du papier dit « exceeds » (>p), mais la définition formelle est bien ≥ p, ce qui est cohérent avec « atteint ». Aucune erreur factuelle."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "La définition formelle V_p = arg min_{V' ⊆ V} {|V'| : ∑_{x ∈ V'} P(x) ≥ p} est bien celle du papier (confirmée depuis l'arXiv et reprise dans plusieurs sources secondaires). La taille du noyau varie effectivement à chaque pas selon la concentration de la distribution : petite quand le modèle est confiant, grande quand il est incertain — ce qui est le principe fondateur opposé au top-k fixe. L'énoncé est exact en tous ses points."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:9",
+      "section": "sampling-tronque-temperature-top-k-top-p",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "La temperature T rescale les logits avant le softmax selon softmax(z/T) : T → 0 converge vers le greedy argmax, T = 1 laisse la distribution intacte, T > 1 l'aplatit vers l'uniforme — avec pour conséquence directe que le nucleus s'étend quand T monte, réduisant l'efficacité du filtrage top-p.",
+      "original_statement": "La temperature T rescale les logits avant le softmax selon softmax(z/T) : T → 0 converge vers le greedy argmax, T = 1 laisse la distribution intacte, T > 1 l'aplatit vers l'uniforme — avec pour conséquence directe que le nucleus s'étend quand T monte, réduisant l'efficacité du filtrage top-p.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Tous les éléments de l'énoncé sont vérifiés : formule softmax(z/T), comportements limites T→0/T=1/T>1, expansion du nucleus à valeurs de p typiques (≥ 0,9), et inefficacité de top-p à haute température — point central du papier min-p (2407.01082). Un seul cas limite non couvert : pour des valeurs de p très faibles où le token de rang 1 dépasse à lui seul le seuil même après aplatissement, le nucleus reste à 1 et ne s'étend pas avec T ; cela ne contredit pas l'énoncé pour les usages courants."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Toutes les sous-affirmations sont correctes : softmax(z/T) est la formule standard ; T→0 converge bien vers le greedy argmax (distribution concentrée sur le token de logit maximal) ; T=1 laisse la distribution de sortie du modèle inchangée ; T>1 l'aplatit vers l'uniforme (T→∞ donne 1/n). La conséquence sur le nucleus est directe et vérifiée : une distribution plus plate oblige à inclure davantage de tokens pour atteindre le seuil cumulatif p, donc le nucleus s'étend et top-p laisse entrer des tokens de faible probabilité — ce que le papier min-p cite explicitement comme limitation de top-p à haute température."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:10",
+      "section": "sampling-tronque-temperature-top-k-top-p",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le top-k sampling (Fan et al., 2018) est context-agnostic : en fixant k indépendamment de l'incertitude du modèle, il injecte du bruit aléatoire quand le modèle est confiant et restreint artificiellement le pool quand il est incertain.",
+      "original_statement": "Le top-k sampling (Fan et al., 2018) est context-agnostic : en fixant k indépendamment de l'incertitude du modèle, il injecte du bruit aléatoire quand le modèle est confiant et restreint artificiellement le pool quand il est incertain.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "La caractérisation résiste à la réfutation : Fan et al. 2018 est l'attribution standard du top-k ; Holtzman et al. 2019 documente explicitement les deux modes d'échec (distribution plate → k trop petit → restriction ; distribution piquée → k trop grand → bruit). Le seul angle de réfutation trouvé — que les deux défauts ne co-existent que pour des valeurs \"modérées\" de k et pas pour des k extrêmes — ne suffit pas à invalider l'énoncé, qui décrit correctement le comportement pour tout k pratique (ex. k=40)."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "L'attribution à Fan et al. 2018 (arXiv:1805.04833, « Hierarchical Neural Story Generation ») pour l'introduction du top-k sampling est correcte. La critique « context-agnostic » est bien établie : Holtzman et al. 2019 ont motivé nucleus sampling précisément parce qu'un k fixe est « too restrictive or too broad depending on the context » ; le papier min-p 2024 (source indépendante) reformule identiquement : top-k « doesn't dynamically adapt to varying confidence levels across contexts ». Les deux effets décrits — bruit aléatoire sur distribution peakée, restriction du pool sur distribution plate — sont confirmés par ces deux sources indépendantes."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:11",
+      "section": "sampling-tronque-temperature-top-k-top-p",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Les quatre métriques de Holtzman et al. — perplexity, self-BLEU, taux de répétition et coefficient de Zipf (plus HUSE, évaluation humaine unifiée) — montrent que le nucleus sampling à p=0,95 (et non p≈0,9) produit un texte aussi diversifié que le texte humain et de haute qualité selon l'évaluation humaine ; les auteurs le qualifient de « meilleure stratégie de décodage actuellement disponible » pour la génération ouverte, sans employer les termes « reproduit fidèlement » ni « stratégie par défaut ».",
+      "original_statement": "Les trois métriques de Holtzman et al. — perplexity, self-BLEU et taux de répétition — établissent que le nucleus sampling à p≈0,9 reproduit fidèlement les propriétés du texte humain, conférant au nucleus sampling le statut de stratégie par défaut pour la génération ouverte.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "L'énoncé comporte trois inexactitudes factuelles : (1) le nombre de métriques est au moins quatre (perplexity, self-BLEU, repetition %, coefficient de Zipf), pas trois — le coefficient de Zipf est omis ; (2) la valeur de p recommandée dans le Tableau 1 du papier est p=0,95, pas p≈0,9 (p∈[0,9;1) est mentionné comme plage typique, mais la valeur explicitement évaluée et citée est 0,95) ; (3) les termes « reproduit fidèlement » et « stratégie par défaut » n'apparaissent pas dans le papier, qui dit seulement « currently the best available decoding strategy »."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Deux inexactitudes factuelles : (1) l'énoncé réduit l'évaluation à trois métriques alors que le papier en mobilise au moins quatre (Zipf coefficient absent, HUSE absent) ; (2) la valeur de p de référence dans les expériences est 0,95 et non ≈ 0,9. La fourchette [0,9 ; 1) figure bien dans la Figure 8, mais elle désigne une plage acceptable, pas la valeur recommandée."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « Les trois métriques de Holtzman et al. — perplexity, self-BLEU et taux de répétition — établissent que le nucleus sampling à p≈0,9 reproduit fidèlement les propriétés du texte humain, conférant au nucleus sampling le statut de stratégie par défaut pour la génération ouverte. »"
+    },
+    {
+      "id": "claim:12",
+      "section": "seuils-adaptatifs-min-p-typical",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Min-p sampling définit un seuil dynamique p_min = p_base × max_v p(v|x_{<t}) qui scale avec la confiance du modèle et a été intégré à HuggingFace Transformers, vLLM et llama.cpp sans modification de modèle.",
+      "original_statement": "Min-p sampling définit un seuil dynamique p_min = p_base × max_v p(v|x_{<t}) qui scale avec la confiance du modèle et a été intégré à HuggingFace Transformers, vLLM et llama.cpp sans modification de modèle.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 6,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": true,
+          "n_sources": 4,
+          "note": "La formule et le mécanisme de scaling sont exacts : le papier (2407.01082) définit bien p_scaled = p_base × p_max avec p_max = max_v P(v|x_{1:t-1}), ce qui correspond à l'énoncé. Les intégrations HuggingFace Transformers et vLLM sont explicitement citées par le papier ; llama.cpp est confirmé par sa propre documentation (paramètre min_p, défaut 0.05). Nuances importantes : (1) le papier cite SGLang plutôt que llama.cpp dans sa liste d'exemples ; (2) vLLM V1 avait un bug signalé (issue #12678) où min-p était entièrement ignoré, corrigé par PR #19912 ; (3) une analyse critique de juin 2026 (2506.13681) conteste les bénéfices empiriques de min-p mais ne remet pas en cause le mécanisme de scaling lui-même."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "La formule p_min = p_base × max_v p(v|x_{<t}) est confirmée par l'implémentation dans llama.cpp (log-space : min_logit = max_logit + log(p_base)) et par la discussion HuggingFace. Les trois intégrations sont vérifiées : HF Transformers et vLLM sont nommés dans l'abstract arxiv:2407.01082 ; llama.cpp est confirmé indépendamment via la PR #3841 (le papier ne le cite pas explicitement mais l'intégration est réelle et antérieure à la publication)."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 6 sources indépendantes."
+    },
+    {
+      "id": "claim:13",
+      "section": "seuils-adaptatifs-min-p-typical",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Locally typical sampling (Meister et al., TACL 2023) trie les tokens par ordre croissant de |−log p(x_t|x_{<t}) − H(p(·|x_{<t}))| et sélectionne greedy les plus typiques jusqu'à ce que leur masse de probabilité cumulée atteigne le seuil τ — où τ est un paramètre de masse (∈ (0,1), analogue au p de nucleus sampling), non un seuil de distance — réduisant les répétitions dégénérées par rapport à nucleus et top-k sampling.",
+      "original_statement": "Locally typical sampling (Meister et al., TACL 2023) retient uniquement les tokens dont la surprisal −log p(x_t|x_{<t}) est à moins de τ de l'entropie conditionnelle H(p(·|x_{<t})), réduisant les répétitions dégénérées par rapport à nucleus et top-k sampling.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "L'énoncé décrit τ comme un seuil de distance (« surprisal à moins de τ de l'entropie »), mais c'est faux : selon Algorithm 5.3 du papier, τ est un seuil de masse de probabilité cumulée (comme le p de nucleus sampling). L'algorithme trie les tokens par |surprisal − H| croissant et accumule greedy jusqu'à ce que ∑p ≥ τ — il n'existe pas de coupure fixe en distance. Les autres claims (formule de surprisal, entropie conditionnelle, TACL 2023, réduction des répétitions vs nucleus et top-k) sont exacts."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "La description conceptuelle est correcte (sélectionner les tokens les plus proches de l'entropie) et la date TACL 2023 est confirmée, mais le rôle de τ est erroné : dans l'Algorithm 5.3 du papier, τ est un seuil de masse de probabilité cumulée (comme le p de nucleus sampling), tandis que le seuil de distance à l'entropie est noté ε dans la Definition 3.5 théorique. Affirmer que les tokens retenus sont ceux dont la surprisal est « à moins de τ de l'entropie » confond les deux paramètres."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Locally typical sampling (Meister et al., TACL 2023) retient uniquement les tokens dont la surprisal −log p(x_t|x_{<t}) est à moins de τ de l'entropie conditionnelle H(p(·|x_{<t})), réduisant les répétitions dégénérées par rapport à nucleus et top-k sampling. »"
+    },
+    {
+      "id": "claim:14",
+      "section": "seuils-adaptatifs-min-p-typical",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Min-p maintient ses performances de façon spectaculairement supérieure à top-p en régime de très haute température (GPQA T=3 : 24,55 % vs 0,46 % confirmé), mais ce régime n'est pas qualifié d'« artificiellement extrême » par le papier source — qui recommande explicitement T=2–3 pour la génération créative. À des températures opérationnelles (T≈0,7–1,2), l'écart est quasi nul sur GPQA (0,16 pp à T=0,7 ; 0,89 pp à T=1,0) et peut s'inverser : top-p bat min-p sur GSM8K à T=0,7 (36,09 % vs 35,18 %) et sur GPQA Mistral Large à T=0,5 (40,18 % vs 38,17 %). L'avantage opérationnel de min-p n'est donc pas « significativement plus modeste » — il est quasi inexistant voire négatif selon le modèle et le benchmark. Une analyse critique indépendante (arXiv:2506.13681, 2025) conclut que min-p n'améliore pas de façon robuste la qualité ni la diversité par rapport à top-p à aucune température.",
+      "original_statement": "Min-p surpasse top-p à haute température de façon radicale (GPQA T=3 : 24,55 % vs 0,46 %), mais cet écart reflète en grande partie un régime de température artificiellement extrême ; aux températures opérationnelles habituelles (T ≈ 0,7–1,2), l'avantage de min-p est significativement plus modeste.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Deux défauts majeurs. (1) L'étiquette « régime artificiellement extrême » est un jugement éditorial externe que le papier source contredit explicitement : il recommande T=2–3 pour les cas d'usage créatifs. (2) Les données tabulaires montrent qu'à T=0,7–1,0, l'avantage de min-p sur GPQA est de 0,16 à 0,89 point de pourcentage (quasi nul), et que top-p surpasse min-p sur GSM8K à T=0,7 et sur GPQA avec Mistral Large à T=0,5 — l'« avantage significativement plus modeste » peut donc être négatif. Par ailleurs, une analyse critique indépendante de 2025 (arXiv:2506.13681) invalide les affirmations générales de supériorité de min-p à toute température."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Les chiffres GPQA T=3 Mistral 7B (min-p 24,55 % vs top-p 0,46 %) sont confirmés mot pour mot dans le papier source. À T=0,7 l'écart n'est que +0,16 % et à T=1,0 seulement +0,89 %, ce qui valide \"significativement plus modeste\" ; le papier énonce explicitement que les deux méthodes \"perform similarly\" pour τ<1,5, corroborant la qualification de régime de température \"artificiellement extrême\" pour T=3."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « Min-p surpasse top-p à haute température de façon radicale (GPQA T=3 : 24,55 % vs 0,46 %), mais cet écart reflète en grande partie un régime de température artificiellement extrême ; aux températures opérationnelles habituelles (T ≈ 0,7–1,2), l'avantage de min-p est significativement plus modeste. »"
+    },
+    {
+      "id": "claim:15",
+      "section": "penalites-de-repetition",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "L'implémentation de référence du repetition penalty (HuggingFace Transformers, RepetitionPenaltyLogitsProcessor) est sign-aware : pour un logit l > 0, l′ = l / θ ; pour l ≤ 0, l′ = l × θ. Cette asymétrie garantit une réduction de probabilité effective quel que soit le signe du logit de départ, corrigeant le biais de la formulation temperature-based originale de CTRL.",
+      "original_statement": "L'implémentation de référence du repetition penalty (HuggingFace Transformers, RepetitionPenaltyLogitsProcessor) est sign-aware : pour un logit l > 0, l′ = l / θ ; pour l ≤ 0, l′ = l × θ. Cette asymétrie garantit une réduction de probabilité effective quel que soit le signe du logit de départ, corrigeant le biais de la formulation temperature-based originale de CTRL.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Le code source vérifié confirme la logique sign-aware exacte (`torch.where(score < 0, score * self.penalty, score / self.penalty)`). L'unique imprecision de l'énoncé est la borne : il écrit « l ≤ 0 » alors que le code teste `l < 0` (borne stricte) ; en pratique, pour l = 0, les deux branches donnent 0, donc l'écart est mathématiquement nul. L'issue GitHub #2302 documente explicitement que l'implémentation originale (division uniforme par θ, copiée du comportement CTRL) augmentait la probabilité des logits négatifs, et que le correctif sign-aware a été introduit pour y remédier."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "L'implémentation est bien sign-aware : le code utilise `score < 0 → score * penalty` et `score >= 0 → score / penalty`. La partition formelle du claim (≤ 0 / > 0) diffère légèrement du code (< 0 / >= 0), mais au point frontière l=0 les deux branches donnent 0, sans aucun effet pratique. La correction du biais CTRL est confirmée par l'issue #2302 et la PR #2303 : la formulation originale du papier divisait inconditionnellement par θ, ce qui augmentait la probabilité des logits négatifs — le comportement inverse de celui attendu."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 5 sources indépendantes."
+    },
+    {
+      "id": "claim:16",
+      "section": "penalites-de-repetition",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "L'API OpenAI compose presence penalty et frequency penalty selon la formule : μ[j] → μ[j] − c[j] × α_frequency − 𝟙[c[j] > 0] × α_presence, où c[j] est le nombre d'occurrences du token j dans la séquence déjà émise. Les deux termes sont additifs et peuvent être appliqués simultanément.",
+      "original_statement": "L'API OpenAI compose presence penalty et frequency penalty selon la formule : μ[j] → μ[j] − c[j] × α_frequency − 𝟙[c[j] > 0] × α_presence, où c[j] est le nombre d'occurrences du token j dans la séquence déjà émise. Les deux termes sont additifs et peuvent être appliqués simultanément.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "La formule est confirmée verbatim par le guide officiel OpenAI Advanced Usage : mu[j] → mu[j] − c[j] × α_frequency − float(c[j]>0) × α_presence, où float(c[j]>0) est l'exact équivalent de 𝟙[c[j]>0]. Une ambiguïté subsiste sur le périmètre de c[j] : l'API reference emploie « text so far » (qui pourrait inclure les tokens du prompt), tandis que l'advanced-usage guide dit « sampled » (tokens générés uniquement), aligné sur « séquence déjà émise » de l'énoncé ; aucune source ne contredit la formule telle qu'elle est écrite."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "La formule de l'énoncé (μ[j] → μ[j] − c[j]×α_frequency − 𝟙[c[j]>0]×α_presence) est exactement celle publiée dans la documentation officielle OpenAI sous la notation Python `mu[j] -> mu[j] - c[j] * alpha_frequency - float(c[j] > 0) * alpha_presence` ; la fonction indicatrice 𝟙[c[j]>0] et `float(c[j]>0)` sont équivalentes. Les trois points de l'énoncé (formule, définition de c[j], additivité simultanée) sont tous confirmés."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:17",
+      "section": "penalites-de-repetition",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "La frequency penalty génère son propre degenerate cycle effect — un token accumule la pénalité jusqu'à ce que l'échantillonneur le rejette (à basse température ou en décodage glouton), un autre vierge le remplace et répète le même cycle ; aucune des deux pénalités n'élimine systématiquement les boucles dégénérées. En pratique, la frequency penalty peut échouer encore plus dramatiquement que la presence penalty — elle n'est pas établie comme plus efficace. La description « sortir du nucleus » est une extrapolation spécifique à l'échantillonnage top-p, non confirmée directement par les sources disponibles.",
+      "original_statement": "La frequency penalty, en pénalisant proportionnellement au nombre d'occurrences d'un token, prévient plus efficacement les boucles dégénérées que la presence penalty binaire. (Idée reçue : la frequency penalty génère son propre degenerate cycle effect — un token accumule la pénalité jusqu'à sortir du nucleus, un autre vierge le remplace et répète le même cycle ; aucune des deux pénalités n'élimine systématiquement les boucles.)",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Source 1 (LZ Penalty, 2504.20131) confirme le cycle effect de la frequency penalty avec un exemple concret (\"Non! Non!... This! This!...\") en régime basse température, mais classe les deux pénalités comme également « inefficaces » avec des taux de répétition dégénérée allant jusqu'à ~4 %, et qualifie la frequency penalty de « fails dramatically even for low values » — sans établir qu'elle est supérieure à la repetition/presence penalty. La claim initiale (frequency > presence) est donc non étayée, voire contredite. Source 2 (2512.04419) montre au contraire que la presence_penalty=1.2 élimine efficacement un type de répétition (BadCase 1), mais ne traite pas la frequency penalty."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "L'énoncé tient. Le papier LZ Penalty (arxiv 2504.20131v2) introduit explicitement le \"degenerate cycle effect\" attribué à la frequency penalty — \"a token repeats until it incurs too high a penalty, at which point the sampler picks a new token to repeat\" — et conclut : \"Both the industry-standard frequency penalty and repetition penalty are ineffective, incurring degenerate repetition rates of up to 4%\", ce qui confirme que ni l'une ni l'autre n'élimine systématiquement les boucles. Seul le détail \"jusqu'à sortir du nucleus\" est une inférence mécaniste plausible (le papier dit \"too high a penalty\" sans nommer explicitement le seuil top-p/nucleus) ; la troisième source candidate (openreview) a retourné un 404 et n'a pas pu être vérifiée."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « La frequency penalty, en pénalisant proportionnellement au nombre d'occurrences d'un token, prévient plus efficacement les boucles dégénérées que la presence penalty binaire. (Idée reçue : la frequency penalty génère son propre degenerate cycle effect — un token accumule la pénalité jusqu'à sortir du nucleus, un autre vierge le remplace et répète le même cycle ; aucune des deux pénalités n'élimine systématiquement les boucles.) »"
+    },
+    {
+      "id": "claim:18",
+      "section": "methodes-contrastives",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Contrastive search (Su et al., NeurIPS 2022) sélectionne à chaque pas de génération le token v du top-k maximisant (1−α)·p_θ(v|x_{<t}) − α·max_{j<t} cos(h(v, x_{<t}), h(x_j, x_{<j})), pénalisant les candidats dont la hidden-state representation est trop similaire à une représentation contextuelle antérieure ; les auteurs recommandent α∈[0,5 ; 0,8] comme plage pratique (α=0,6 étant la valeur utilisée dans leurs expériences principales, pas une valeur unique recommandée).",
+      "original_statement": "Contrastive search (Su et al., NeurIPS 2022) sélectionne à chaque pas de génération le token v du top-k maximisant (1−α)·p_θ(v|x_{<t}) − α·max_{j<t} cos(h(v, x_{<t}), h(x_j, x_{<j})), pénalisant les candidats dont la hidden-state representation est trop similaire à une représentation contextuelle antérieure ; α ≈ 0,6 est le poids recommandé par les auteurs.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "La formule et la venue (NeurIPS 2022) sont exactes. L'erreur porte sur α : l'Appendice E du papier original recommande explicitement la plage α∈[0,5 ; 0,8] et k∈[5,10] — α=0,6 est la valeur utilisée dans les expériences principales mais n'est jamais présentée comme la valeur optimale unique ; dire qu'elle est « le poids recommandé » est donc inexact."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Tous les éléments de l'énoncé sont conformes au papier primaire (NeurIPS 2022, Eq. 5) : formule à deux termes (1−α)·p_θ(v|x_{<t}) − α·max cosine, agrégation par maximum sur j∈[1,t−1], α=0,6 réglé dans les expériences principales (plage pratique [0,5 ; 0,8]), et la notation h(v, x_{<t}) / h(x_j, x_{<j}) correspond fidèlement à h_v (hidden state de v calculé à partir de la concaténation x_{<t}+v) et h_{x_j} (représentation du token x_j produite au pas j) tels que définis dans le papier."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « Contrastive search (Su et al., NeurIPS 2022) sélectionne à chaque pas de génération le token v du top-k maximisant (1−α)·p_θ(v|x_{<t}) − α·max_{j<t} cos(h(v, x_{<t}), h(x_j, x_{<j})), pénalisant les candidats dont la hidden-state representation est trop similaire à une représentation contextuelle antérieure ; α ≈ 0,6 est le poids recommandé par les auteurs. »"
+    },
+    {
+      "id": "claim:19",
+      "section": "methodes-contrastives",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "L'anisotropie des représentations, présentée dans SimCTG (2202.06417) comme un facteur sous-jacent (et non \"la cause racine universelle\") de la dégénérescence, est documentée dans ce papier initial sur GPT-2 incluant la variante large (774M) et sur deux langues (anglais et chinois). Sa généralité aux architectures plus récentes et plus larges a depuis été empiriquement établie : LLaMA-2 (7B–13B), OPT (jusqu'à 13B), Falcon-7B, Bloom et d'autres modèles autorégressifs présentent tous le même profil anisotropique, documenté par plusieurs travaux publiés en 2023–2024.",
+      "original_statement": "L'anisotropie de la distribution des représentations — hidden states concentrés dans un cône étroit de l'espace vectoriel — est présentée comme la cause racine universelle de la dégénérescence dans les LLM autorégressifs ; or cette observation est documentée sur GPT-2 small et medium en anglais seulement, et sa généralité aux modèles plus récents et plus larges (LLaMA, Mistral) reste à établir.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 6,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "L'énoncé comporte deux erreurs factuelles distinctes : (1) SimCTG couvre GPT-2-large (774M) et deux langues (anglais + chinois), pas \"GPT-2 small et medium en anglais seulement\" ; (2) la généralité aux grands modèles récents est établie depuis 2023–2024 par au moins deux papiers indépendants documentant l'anisotropie sur LLaMA-2, OPT-13B, Falcon-7B et Bloom — le \"reste à établir\" est donc obsolète et factuellement incorrect."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "L'énoncé comporte trois erreurs factuelles vérifiables dans la source primaire (2202.06417) : (1) « GPT-2 medium » est faux — le papier teste GPT-2-small (117M) et GPT-2-large (774M) ; (2) « en anglais seulement » est faux — un GPT-2 chinois sur LCCC est inclus ; (3) « cause racine universelle » surestime la portée revendiquée — les auteurs eux-mêmes observent que les grands modèles restent isotropes et réservent l'étude de généralité à de futurs travaux. La partie sur LLaMA/Mistral est juste dans son principe (le papier est antérieur à ces modèles), mais des publications postérieures (2401.12143, 2311.05928) ont depuis étendu l'observation d'anisotropie à des architectures plus larges."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (6 sources indépendantes). Origine : « L'anisotropie de la distribution des représentations — hidden states concentrés dans un cône étroit de l'espace vectoriel — est présentée comme la cause racine universelle de la dégénérescence dans les LLM autorégressifs ; or cette observation est documentée sur GPT-2 small et medium en anglais seulement, et sa généralité aux modèles plus récents et plus larges (LLaMA, Mistral) reste à établir. »"
+    },
+    {
+      "id": "claim:20",
+      "section": "methodes-contrastives",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Contrastive decoding (Li, Holtzman et al., ACL 2023) score les tokens candidats comme log p_expert(v|x_{<t}) − log p_amateur(v|x_{<t}) sous contrainte de plausibilité adaptative (𝒱_head = {v : p_expert(v|x_{<t}) ≥ α · max_w p_expert(w|x_{<t})}), sans entraînement additionnel, et surpasse nucleus sampling et top-k sampling sur la génération libre (Wikipedia, news, stories) ; mais le papier original n'évalue PAS les tâches de raisonnement — les améliorations sur le raisonnement ont été démontrées dans un travail ultérieur distinct (O'Brien & Lewis, 2023, arXiv:2309.09117).",
+      "original_statement": "Contrastive decoding (Li, Holtzman et al., ACL 2023) score les tokens candidats comme log p_expert(v|x_{<t}) − log p_amateur(v|x_{<t}) sous contrainte de plausibilité adaptative, sans entraînement additionnel, et surpasse nucleus sampling et top-k sampling sur la génération libre ainsi que sur des tâches de raisonnement.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "La formule (différence de log-probabilités), la contrainte de plausibilité adaptative (token-spécifique, α=0.1), l'absence d'entraînement additionnel et le venue ACL 2023 sont tous exacts. En revanche, le papier Li et al. ACL 2023 évalue exclusivement la génération libre (WikiText-103, Wikinews, BookCorpus) et sa section Limitations indique explicitement qu'il cible la génération ouverte, pas les tâches orientées-objectif ; les gains sur les tâches de raisonnement (GSM8K, HellaSwag…) sont démontrés dans un article séparé de O'Brien & Lewis (2023)."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Le paper Li et al. ACL 2023 (2210.15097) porte exclusivement sur la génération libre (Wikipedia/news/stories) et ne contient aucune évaluation sur des tâches de raisonnement. Les résultats sur le raisonnement viennent d'un article distinct d'O'Brien & Lewis (2309.09117) qui compare CD au décodage glouton (pas à nucleus/top-k) sur des benchmarks de raisonnement arithmétique et commonsense. L'énoncé fusionne donc deux contributions distinctes et attribue à tort les résultats de raisonnement à l'article original."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « Contrastive decoding (Li, Holtzman et al., ACL 2023) score les tokens candidats comme log p_expert(v|x_{<t}) − log p_amateur(v|x_{<t}) sous contrainte de plausibilité adaptative, sans entraînement additionnel, et surpasse nucleus sampling et top-k sampling sur la génération libre ainsi que sur des tâches de raisonnement. »"
+    },
+    {
+      "id": "claim:21",
+      "section": "kv-cache-cout-memoire",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le coût mémoire du KV cache par token est 2 × L × H_kv × D_head × B octets — O(L·D) par token — et croît linéairement avec la longueur de contexte. En fp16 : LLaMA-2-7B (32 couches, 32 têtes KV, D_head = 128) coûte ≈ 0,50 Mo/token ; LLaMA-2-13B (40 couches, 40 têtes KV) ≈ 0,78 Mo/token ; LLaMA-2-70B avec GQA (80 couches, 8 têtes KV) ≈ 0,31 Mo/token.",
+      "original_statement": "Le coût mémoire du KV cache par token est 2 × L × H_kv × D_head × B octets — O(L·D) par token — et croît linéairement avec la longueur de contexte. En fp16 : LLaMA-2-7B (32 couches, 32 têtes KV, D_head = 128) coûte ≈ 0,50 Mo/token ; LLaMA-2-13B (40 couches, 40 têtes KV) ≈ 0,78 Mo/token ; LLaMA-2-70B avec GQA (80 couches, 8 têtes KV) ≈ 0,31 Mo/token.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les trois chiffres Mo/token se vérifient exactement par le calcul avec les paramètres d'architecture confirmés (7B : 32L×32KV×128×2B=524 288 o=0,50 MiB ; 13B : 40L×40KV×128×2B=819 200 o=0,78 MiB ; 70B GQA : 80L×8KV×128×2B=327 680 o=0,31 MiB). La formule 2×L×H_kv×D_head×B est standard et confirmée par le survey arXiv:2603.20397 ; le Cursor Engineering Blog confirme indépendamment 320 KiB/token pour le 70B (=0,31 MiB en unités binaires). Aucune erreur décelée, y compris sur la notation O(L·D) et la croissance linéaire avec la longueur de contexte."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "La formule 2 × L × H_kv × D_head × B est correcte, les trois valeurs numériques fp16 sont arithmétiquement exactes (0,50 / 0,78 / 0,31 Mo/token) et les paramètres d'architecture LLaMA-2 (32/40/80 couches, 32/40/8 têtes KV, D_head = 128) sont conformes à la paper originale. La croissance linéaire avec la longueur de contexte est la propriété fondamentale du KV cache standard, confirmée par les deux sources."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:22",
+      "section": "kv-cache-cout-memoire",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "À 128 K tokens de contexte, le seul KV cache de LLaMA-2-7B occupe ≈ 64 Go ; ajouté aux poids du modèle en fp16 (≈ 14 Go), le besoin total (~78 Go) dépasse la capacité utilisable d'un A100-SXM4 de 80 Go dès que l'on compte les activations et le batch.",
+      "original_statement": "À 128 K tokens de contexte, le seul KV cache de LLaMA-2-7B occupe ≈ 64 Go ; ajouté aux poids du modèle en fp16 (≈ 14 Go), le besoin total (~78 Go) dépasse la capacité utilisable d'un A100-SXM4 de 80 Go dès que l'on compte les activations et le batch.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le calcul tient. LLaMA-2-7B (MHA, 32 couches, 32 KV heads, head_dim 128, fp16) produit exactement 0,5 MiB/token de cache KV ; à 128 K tokens cela donne ≈ 62,5–68,7 GiB selon la convention d'unité, raisonnablement arrondi à \"≈ 64 Go\". Ajouté aux poids (≈ 13,5 Go, légèrement surestimés à 14 Go dans l'énoncé), le total de ≈ 77,5 Go laisse moins de 2,5 Go de marge sur un A100-SXM4 de 80 Go — marge inférieure à l'overhead du runtime CUDA seul (~1–2 Go) ; en GiB binaires le seuil est même franchi sans compter les activations. La conclusion de l'énoncé est donc correcte, bien que conservatrice."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le calcul tient : LLaMA-2-7B (MHA, 32 couches × 32 têtes × dim 128, fp16) donne 512 Kio/token, soit exactement 64 Gio à 128 K = 2^17 tokens (convention binaire courante) ou 67 Go en décimal strict — le « ≈ 64 Go » de l'énoncé est la valeur binaire standard, couverte par le « ≈ ». Ajouté aux ~14 Go de poids fp16, le total (~78 Go) dépasse en effet la capacité utile d'un A100-SXM4 80 Go dès que l'on ajoute les activations et l'overhead CUDA (~1-2 Go). Seule réserve : LLaMA-2-7B supporte nativement 4 K tokens ; l'énoncé illustre un scénario théorique (ou modèle étendu), mais le raisonnement mémoire est arithmétiquement exact."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:23",
+      "section": "kv-cache-cout-memoire",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "GQA réduit le KV cache d'un facteur H_q/H_kv (8× pour LLaMA-2-70B, qui a 64 têtes de requête et 8 têtes KV), mais avec une qualité « proche de » celle du MHA classique selon les auteurs — et non sans aucune perte mesurable. Le papier GQA (2305.13245) emploie explicitement « quality close to multi-head attention », reconnaissant un écart mesurable, fût-il faible. De plus, l'évaluation du papier porte sur des modèles T5 (encodeur-décodeur) ; aucune ablation MHA vs GQA sur le 70B de LLaMA-2 lui-même n'est publiée.",
+      "original_statement": "GQA réduit le KV cache d'un facteur H_q/H_kv (8× pour LLaMA-2-70B) sans perte de qualité mesurable par rapport au MHA classique.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le facteur de réduction H_q/H_kv et le chiffre 8× pour LLaMA-2-70B sont exacts. En revanche, « sans perte de qualité mesurable » est une surestimation : les auteurs du papier GQA eux-mêmes parlent de qualité « close to » (proche de) MHA, termes qui impliquent un écart mesurable, même faible — et l'abstract original distingue explicitement GQA de MHA sur ce plan."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "La formule H_q/H_kv et le facteur 8× sont exacts (confirmés par le papier GQA et le config.json officiel LLaMA-2-70B). En revanche, le papier GQA (Ainslie et al., 2023) ne dit pas « sans perte mesurable » mais « quality close to multi-head attention » — les tables expérimentales montrent GQA-8-XXL à 47,1 vs MHA-XXL à 47,2 (ROUGE1 moyen), une différence petite mais numériquement tabulée et donc mesurable."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « GQA réduit le KV cache d'un facteur H_q/H_kv (8× pour LLaMA-2-70B) sans perte de qualité mesurable par rapport au MHA classique. »"
+    },
+    {
+      "id": "claim:24",
+      "section": "decodage-speculatif",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le rejection sampling modifié du speculative decoding garantit que la distribution des séquences produites est identique à celle du target model seul : le schéma est provablement lossless sans modification des poids.",
+      "original_statement": "Le rejection sampling modifié du speculative decoding garantit que la distribution des séquences produites est identique à celle du target model seul : le schéma est provablement lossless sans modification des poids.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Les deux papiers prouvent formellement la garantie de losslessness (Theorem 1 pour Leviathan et al., Section A.1 pour Chen et al.), sans modification des poids. Leviathan et al. (2302.01318) qualifient explicitement cette garantie de \"within hardware numerics\" dès l'abstract : les implémentations en virgule flottante introduisent des erreurs d'arrondi infimes, rendant l'équivalence strictement exacte uniquement en arithmétique exacte. L'énoncé omet cette nuance en disant \"identique\" sans qualification, mais la correction est mineure — cette caveat s'applique à tout procédé d'échantillonnage discret en virgule flottante, pas spécifiquement au speculative decoding."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les deux papiers établissent indépendamment (équipes Google et DeepMind distinctes, concurrent submissions) que le rejection sampling modifié produit exactement la distribution du modèle cible : Leviathan et al. (2211.17192) le prouvent en Section A.1 (P(x=x') = p(x')), Chen et al. (2302.01318) l'énoncent comme Theorem 1 (P(X=x) = q(x)), en qualifiant le résultat de « provably lossless within hardware numerics » — la précision flottante est la seule limite pratique, non une atteinte à la garantie théorique. Aucun poids n'est modifié dans les deux schémas."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:25",
+      "section": "decodage-speculatif",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Le nombre attendu de tokens produits par forward pass du target avec un taux d'acceptation moyen α et γ tokens draft est N(α, γ) = (1 − α^(γ+1)) / (1 − α) ; pour α = 0,8 et γ = 4, N = (1 − 0,8^5) / (1 − 0,8) ≈ 3,36 (et non 3,4), ce qui sature rapidement avec γ croissant (limite asymptotique 1/(1−α) = 5).",
+      "original_statement": "Le nombre attendu de tokens produits par forward pass du target avec un taux d'acceptation moyen α et γ tokens draft est N(α, γ) = (1 − α^(γ+1)) / (1 − α) ; pour α = 0,8 et γ = 4, N ≈ 3,4, ce qui sature rapidement avec γ croissant.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "La formule N(α, γ) = (1 − α^(γ+1)) / (1 − α) est mathématiquement exacte : elle découle de la somme géométrique finie Σ_{j=0}^{γ} α^j, chaque position i étant produite avec probabilité α^(i-1). Pour α=0,8 et γ=4, la valeur exacte est 3,3616 ≈ 3,4 ✓ ; la limite asymptotique vaut 1/(1−0,8) = 5, ce qui confirme la saturation rapide décrite. La formule est attribuée à Leviathan et al. (2023) et Chen et al. (2023) dans la littérature sur le speculative decoding, sous l'hypothèse simplificatrice d'un taux d'acceptation i.i.d. constant α."
+        },
+        {
+          "lens": "indépendance",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "La formule N(α, γ) = (1 − α^(γ+1)) / (1 − α) est exacte et attestée (Leviathan et al. 2022, confirmée indépendamment par Sequoia et le blog fergusfinn). Le calcul exact donne 3,3616, soit ≈ 3,36 — pas 3,4 : l'approximation de l'énoncé arrondit au-delà d'un chiffre significatif et surestime d'environ 1,1 %. L'affirmation de saturation rapide avec γ croissant est qualitativement juste (la limite asymptotique est 1/(1−α) = 5 pour α = 0,8)."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « Le nombre attendu de tokens produits par forward pass du target avec un taux d'acceptation moyen α et γ tokens draft est N(α, γ) = (1 − α^(γ+1)) / (1 − α) ; pour α = 0,8 et γ = 4, N ≈ 3,4, ce qui sature rapidement avec γ croissant. »"
+    },
+    {
+      "id": "claim:26",
+      "section": "decodage-speculatif",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Le speedup de 2–3× du speculative decoding est le plus fiable dans le régime latency-optimized (petit batch, modèle dense). À fort batch size, les implémentations standards en production (vLLM, SGLang non optimisé) sous-performent effectivement la baseline non-spéculative, voire affichent des speedups négatifs — mais des méthodes récentes (ICLR 2026) atteignent 2,37× à batch size 256 en maintenant la mémoire comme goulot d'étranglement. Avec les architectures à KV cache compressé (MLA/DeepSeek), la fenêtre utile se réduit fortement (même un token drafté peut faire basculer l'attention en compute-bound à certains contextes), mais des implémentations dédiées (FlashMLA + EAGLE sur DeepSeek-V4) préservent un gain mesurable (~2,5 tokens acceptés). L'affirmation « le bénéfice disparaît voire s'inverse » décrit bien les déploiements actuels non optimisés, mais est trop absolue comme limite physique fondamentale.",
+      "original_statement": "Le speculative decoding procure un speedup de 2–3× quelle que soit la configuration de déploiement : en réalité, ce chiffre est spécifique au régime latency-optimized (batch size unitaire, modèle dense) ; à fort batch size ou avec des architectures à KV cache compressé (MLA), le bénéfice disparaît voire s'inverse.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 6,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 4,
+          "note": "L'énoncé saisit une vraie tendance : en production standard (vLLM/SGLang), les speedups deviennent négatifs à grand batch, et MLA réduit fortement la fenêtre utile. Mais il exagère l'absolue en disant que le bénéfice « disparaît voire s'inverse » : un papier ICLR 2026 montre 2,37× à batch 256, et DeepSeek-V4 + EAGLE obtient ~2,5 tokens acceptés malgré MLA avec une infrastructure dédiée — ce sont des contre-exemples directs aux deux bras de la thèse."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "L'énoncé tient. Le chiffre 2–3× (ou 2,7–3,5× pour EAGLE) est mesuré exclusivement à batch size=1 sur des modèles denses ; le papier EAGLE le précise explicitement et documente la chute du speedup dès batch size=4. Pour les architectures MLA, fergusfinn.com confirme que la vérification devient compute-bound dès le premier token spéculatif, annulant le gain. La clause « voire s'inverse » est également étayée : à fort batch et séquences courtes/moyennes, l'inférence est compute-bound et la décoding spéculative devient plus lente que l'autorégressif standard."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (6 sources indépendantes). Origine : « Le speculative decoding procure un speedup de 2–3× quelle que soit la configuration de déploiement : en réalité, ce chiffre est spécifique au régime latency-optimized (batch size unitaire, modèle dense) ; à fort batch size ou avec des architectures à KV cache compressé (MLA), le bénéfice disparaît voire s'inverse. »"
+    },
+    {
+      "id": "claim:27",
+      "section": "medusa-eagle-lookahead",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Medusa propose deux schémas d'acceptation distincts : le rejection sampling, qui préserve exactement la distribution du modèle cible, et le typical acceptance, qui accepte un candidat dès que sa probabilité dépasse un seuil basé sur l'entropie locale, plus permissif mais légèrement hors-distribution.",
+      "original_statement": "Medusa propose deux schémas d'acceptation distincts : le rejection sampling, qui préserve exactement la distribution du modèle cible, et le typical acceptance, qui accepte un candidat dès que sa probabilité dépasse un seuil basé sur l'entropie locale, plus permissif mais légèrement hors-distribution.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les deux schémas et leurs propriétés sont confirmés par le papier Medusa (arXiv:2401.10774). La condition de typical acceptance est formellement p_original > min(ε, δ·exp(−H(p_original))) : le seuil dépend bien de l'entropie locale, mais deux hyperparamètres fixes ε et δ sont omis dans l'énoncé — simplification sans erreur factuelle. Le rejet exact de la distribution cible par rejection sampling et le caractère hors-distribution du typical acceptance sont tous deux explicitement posés dans le papier."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le papier Medusa (arxiv 2401.10774) confirme les deux schémas : le rejection sampling préserve exactement la distribution cible (propriété héritée du speculative decoding), tandis que le typical acceptance accepte un token si p_original > min(ε, δ·exp(-H(p_original))), seuil qui dépend de l'entropie locale H. Le papier déclare explicitement que typical acceptance ne cherche pas à reproduire la distribution du modèle cible — ce qui correspond au caractère « légèrement hors-distribution » mentionné dans l'énoncé. La précision mineure non fautive : le seuil est le minimum d'un seuil dur ε et d'un terme entropique, pas purement entropique, mais la simplification de l'énoncé est correcte dans son esprit."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:28",
+      "section": "medusa-eagle-lookahead",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "EAGLE résout l'incertitude de l'autorégression au niveau features par un token-shift : les tokens déjà échantillonnés, décalés d'un pas, sont injectés comme contexte supplémentaire dans le draft head, portant le taux d'acceptation à ~0.80 contre ~0.60 pour Medusa.",
+      "original_statement": "EAGLE résout l'incertitude de l'autorégression au niveau features par un token-shift : les tokens déjà échantillonnés, décalés d'un pas, sont injectés comme contexte supplémentaire dans le draft head, portant le taux d'acceptation à ~0.80 contre ~0.60 pour Medusa.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le papier EAGLE (arXiv:2401.15077v3) confirme tous les éléments : (1) l'incertitude du niveau features est levée en couplant f_i avec t_{i+1}, le token « avancé d'un pas » (déjà échantillonné) ; (2) la fusion est par concaténation+FC-layer, non une simple injection de contexte — nuance architecturale, mais fonctionnellement fidèle à l'énoncé ; (3) le papier dit explicitement « approximately 0.8 » pour EAGLE contre « about 0.6 » pour Medusa ; les valeurs de la Table 2 (température=0) sont 0.74–0.79, arrondies à ~0.80 par les auteurs eux-mêmes, donc l'énoncé reste dans les marges de la source primaire."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le papier EAGLE original confirme verbatim le mécanisme (« token sequence from one time step ahead, which includes the sampling outcomes, into the draft model ») et les taux (~0.8 pour EAGLE, ~0.6 pour Medusa). La seule imprécision est « draft head » : le papier nomme ce composant « Autoregression Head » (un décodeur transformer léger autorégressif, plus qu'une simple tête de prédiction), mais cela ne contredit pas la description fonctionnelle donnée dans l'énoncé."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:29",
+      "section": "medusa-eagle-lookahead",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "EAGLE-3 atteint jusqu'à 6.5× de speedup (sur HumanEval avec Vicuna 13B à temperature=0), surpassant EAGLE-2 d'un facteur ~1.4×, et découvre une loi d'échelle pour le speculative decoding : augmenter le volume de données d'entraînement du draft model améliore proportionnellement le speedup — un comportement absent dans l'architecture EAGLE originale (et non observé dans les travaux précédents), mais non testé spécifiquement sur EAGLE-2.",
+      "original_statement": "EAGLE-3 atteint jusqu'à 6.5× de speedup, surpassant EAGLE-2 d'un facteur ~1.4×, et découvre une loi d'échelle pour le speculative decoding : augmenter le volume de données d'entraînement du draft head améliore proportionnellement le speedup — un comportement absent dans EAGLE-2.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Deux inexactitudes factuelles : (1) l'énoncé dit « draft head » mais le paper utilise systématiquement « draft model » — « draft head » désigne un composant distinct (Medusa/Hydra) non concerné ici ; (2) l'énoncé dit « absent dans EAGLE-2 » alors que le paper écrit explicitement « not observed in the original EAGLE architecture » et n'a testé le scaling de données que sur l'architecture EAGLE originale, pas sur EAGLE-2 spécifiquement. Les chiffres 6.5× et ~1.4× sont corrects mais le 6.5× est conditionné à HumanEval / Vicuna 13B."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Le papier EAGLE-3 (arXiv 2503.01840) confirme verbatim les trois sous-claims : speedup jusqu'à 6.5×, amélioration ~1.4× sur EAGLE-2, et loi d'échelle sur le volume de données d'entraînement du draft model (terme exact du papier ; « draft head » dans l'énoncé est une simplification sans effet sur le fond). Le papier précise explicitement que ce comportement d'échelle « was not observed in the original EAGLE architecture » et que « scaling up data provides limited improvements for EAGLE », ce qui correspond à « absent dans EAGLE-2 »."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « EAGLE-3 atteint jusqu'à 6.5× de speedup, surpassant EAGLE-2 d'un facteur ~1.4×, et découvre une loi d'échelle pour le speculative decoding : augmenter le volume de données d'entraînement du draft head améliore proportionnellement le speedup — un comportement absent dans EAGLE-2. »"
+    },
+    {
+      "id": "claim:30",
+      "section": "medusa-eagle-lookahead",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Lookahead decoding s'appuie sur une reformulation du décodage autorégressif comme itération de Jacobi sur un système non-linéaire (que les auteurs nomment « Jacobi decoding »), mais dépasse cette formulation pure — dont ils montrent qu'elle « ne réduit guère les étapes de décodage » — en ajoutant une fenêtre de trajectoire 2D et un cache de n-grammes ; l'algorithme résultant atteint 1.5–2.3× de speedup sur GPU unique (A100) sans composant appris ni modification de l'architecture du modèle cible.",
+      "original_statement": "Lookahead decoding reformule le décodage autorégressif comme une itération de Jacobi sur un système non-linéaire et atteint 1.5–2.3× de speedup sur GPU unique sans aucun composant appris ni modification de l'architecture du modèle cible.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Le papier distingue explicitement « Jacobi decoding » (la reformulation théorique directe, qui « ne réduit guère les étapes de décodage ») et « Lookahead decoding » (l'algorithme pratique qui ajoute fenêtre 2D + cache n-grammes pour rendre le gain réel). L'énoncé attribue la reformulation jacobienne à Lookahead decoding lui-même, confondant les deux ; les chiffres de speedup (1.5–2.3× sur A100 single GPU) et l'absence de composant appris/modification architecturale sont en revanche confirmés."
+        },
+        {
+          "lens": "indépendance",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le speedup 1.5–2.3× sur GPU unique sans composant appris ni modification d'architecture est confirmé par plusieurs sources indépendantes. La reformulation en itération de Jacobi sur système non-linéaire est exacte : Lookahead decoding hérite directement de cette formalisation (n-grammes extraits des trajectoires de Jacobi) et ne requiert ni fine-tuning ni modèle auxiliaire. Nuance mineure : la reformulation en itération de Jacobi est conceptuellement issue du \"Jacobi decoding\" antérieur que Lookahead decoding étend, mais l'énoncé est correct dans son usage habituel."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Lookahead decoding reformule le décodage autorégressif comme une itération de Jacobi sur un système non-linéaire et atteint 1.5–2.3× de speedup sur GPU unique sans aucun composant appris ni modification de l'architecture du modèle cible. »"
+    }
+  ]
+}

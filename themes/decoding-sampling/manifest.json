@@ -1,0 +1,664 @@
+{
+  "edition": "best-of",
+  "slug": "decoding-sampling",
+  "meta": {
+    "title": "Décodage et sampling : des logits aux tokens",
+    "kicker": "Décodage & sampling · monographie",
+    "h1": "Décodage et sampling : des logits aux tokens",
+    "lede": "La dernière étape de l'inférence — transformer les logits en tokens — est celle où se jouent à la fois la qualité du texte généré et la latence de la génération.",
+    "meta_chips": [
+      "Monographie"
+    ],
+    "footer": "Décodage et sampling : des logits aux tokens · scriptorium"
+  },
+  "elements": [
+    {
+      "type": "abstract"
+    },
+    {
+      "type": "section",
+      "id": "des-logits-aux-tokens",
+      "heading": "Des logits aux tokens : le problème de la génération",
+      "level": 3,
+      "prose": "<p>Un modèle de langage autorégressif décompose la probabilité jointe d'une séquence (w₁, …, w_T) via la règle du produit conditionnel : P(w₁, …, w_T) = ∏<sub>t=1</sub><sup>T</sup> P(w_t | w<sub>&lt;t</sub>). Cette factorisation impose à l'inférence une contrainte séquentielle stricte : produire le token t requiert d'avoir déjà fixé tous les tokens précédents. Concrètement, chaque pas de génération exécute un <strong>forward pass</strong> (passe avant) complet du réseau — chargement de tous les poids, projections Q/K/V, attention multi-têtes, couches feed-forward — pour produire un vecteur de <strong>logits</strong> z ∈ ℝ<sup>|V|</sup>, où |V| est la taille du vocabulaire (typiquement 32 000 à 128 000 entrées). La fonction <strong>softmax</strong> transforme ces logits en distribution de probabilité discrète : p(v | x<sub>&lt;t</sub>) = exp(z<sub>v</sub>) / ∑<sub>v'</sub> exp(z<sub>v'</sub>). Le token suivant est ensuite obtenu depuis cette distribution, soit par argmax (sélection déterministe du plus probable), soit par tirage stochastique.</p>\n\n<p>Il convient de distinguer deux niveaux que la littérature entrelace fréquemment. Le <strong>decoding</strong> (décodage) désigne la boucle complète de génération — la stratégie qui orchestre les forward passes, gère les hypothèses candidates et décide quand s'arrêter. Le <strong>sampling</strong> (échantillonnage) désigne la politique locale appliquée à chaque distribution p(· | x<sub>&lt;t</sub>) pour sélectionner le prochain token. Le greedy decoding (décodage par l'argmax) est un décodage à hypothèse unique avec argmax comme politique ; le nucleus sampling est une politique stochastique qui peut s'inscrire dans une boucle simple ou plus élaborée. Séparer ces deux niveaux est nécessaire pour comprendre les compromis exposés dans les sections suivantes.</p>\n\n<p>La génération autoregressive token par token est structurellement <strong>memory-bandwidth-bound</strong> (limitée par la bande passante du bus mémoire entre l'accélérateur et la DRAM) et non <strong>compute-bound</strong> (limitée par les FLOPS disponibles). À chaque forward pass de décodage, l'intégralité des poids du modèle — typiquement des dizaines de gigaoctets en fp16 — doit transiter par le bus mémoire pour un nombre limité d'opérations arithmétiques : à batch size unitaire, l'intensité opérationnelle (FLOPS par octet transféré) reste très en dessous du point de Roofline de l'accélérateur. Ce fait architectonique, souvent ignoré par les ingénieurs qui raisonnent à partir de l'entraînement (qui est lui compute-bound à grands batches), sous-tend l'ensemble des optimisations de latence traitées ici — du KV cache au speculative decoding — qui visent toutes à réduire le nombre de recharges complètes des poids, pas à augmenter le débit arithmétique.</p><figure class='fig'><svg viewBox='0 0 720 440' role='img' aria-label='Diagramme Roofline en échelle log-log : le décodage à batch=1 se situe loin à gauche dans le régime memory-bandwidth-bound, à une intensité opérationnelle de 1 à 2 FLOPs par octet, très en dessous du ridge point ; trois leviers, batching, quantisation des poids et décodage spéculatif, déplacent le point de fonctionnement vers le ridge en augmentant cette intensité' font-family='var(--font-sans, system-ui, sans-serif)' font-size='12'><defs><marker id='rf-ah-bx' viewBox='0 0 10 10' refX='8' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='var(--bordeaux,#7C2A38)'/></marker><marker id='rf-ah-ink' viewBox='0 0 10 10' refX='8' refY='5' markerWidth='6' markerHeight='6' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='var(--ink,#15202E)'/></marker></defs><text x='30' y='30' font-size='14' font-weight='700' fill='var(--ink,#15202E)'>Régime de l'inférence autorégressive — diagramme Roofline</text><g stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-dasharray='2 4' opacity='0.45'><line x1='270' y1='360' x2='270' y2='112'/><line x1='412' y1='360' x2='412' y2='112'/><line x1='554' y1='360' x2='554' y2='112'/></g><line x1='78' y1='360' x2='78' y2='46' stroke='var(--ink,#15202E)' stroke-width='1.5' marker-end='url(#rf-ah-ink)'/><line x1='78' y1='360' x2='686' y2='360' stroke='var(--ink,#15202E)' stroke-width='1.5' marker-end='url(#rf-ah-ink)'/><g stroke='var(--ink,#15202E)' stroke-width='1'><line x1='128' y1='360' x2='128' y2='365'/><line x1='270' y1='360' x2='270' y2='365'/><line x1='412' y1='360' x2='412' y2='365'/><line x1='554' y1='360' x2='554' y2='365'/></g><g fill='var(--ink-faint,#7A889B)' font-size='11' text-anchor='middle'><text x='128' y='377'>1</text><text x='270' y='377'>10</text><text x='412' y='377'>10²</text><text x='554' y='377'>10³</text></g><text x='382' y='398' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)'>Intensité opérationnelle (FLOPs / octet) · échelle log</text><text transform='translate(24,206) rotate(-90)' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)'>Débit atteignable (FLOPs/s) · log</text><line x1='95' y1='350' x2='445' y2='110' stroke='var(--blue,#23537F)' stroke-width='3'/><line x1='445' y1='110' x2='660' y2='110' stroke='var(--blue,#23537F)' stroke-width='3'/><circle cx='445' cy='110' r='5' fill='var(--blue,#23537F)'/><line x1='445' y1='114' x2='445' y2='150' stroke='var(--blue,#23537F)' stroke-width='1' stroke-dasharray='3 3'/><text x='438' y='102' text-anchor='end' font-size='12' font-weight='700' fill='var(--blue,#23537F)'>ridge point</text><line x1='445' y1='360' x2='445' y2='352' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='445' y='377' text-anchor='middle' font-size='11' fill='var(--blue,#23537F)'>ridge</text><text transform='rotate(-34 250 236)' x='250' y='236' text-anchor='middle' font-size='12' font-weight='600' fill='var(--blue,#23537F)'>régime memory-bandwidth-bound</text><text x='553' y='100' text-anchor='middle' font-size='12' font-weight='600' fill='var(--blue,#23537F)'>plateau compute-bound (débit crête)</text><line x1='138' y1='322' x2='430' y2='126' stroke='var(--bordeaux,#7C2A38)' stroke-width='2' stroke-dasharray='6 4' marker-end='url(#rf-ah-bx)'/><circle cx='128' cy='327' r='9' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='1' opacity='0.5'/><circle cx='128' cy='327' r='6' fill='var(--bordeaux,#7C2A38)'/><line x1='128' y1='250' x2='128' y2='317' stroke='var(--bordeaux,#7C2A38)' stroke-width='1' stroke-dasharray='3 3'/><text x='86' y='212' font-size='11' font-weight='700' fill='var(--bordeaux,#7C2A38)'>décodage à batch = 1</text><text x='86' y='228' font-size='11' fill='var(--ink,#15202E)'>intensité ~ 1–2 FLOPs/octet</text><text x='86' y='244' font-size='11' fill='var(--ink-faint,#7A889B)'>(loin sous le ridge)</text><rect x='474' y='236' width='214' height='100' rx='6' fill='var(--paper,#fffdf7)' fill-opacity='0.72' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='486' y='256' font-size='12' font-weight='700' fill='var(--ink,#15202E)'>Leviers ↗ vers le ridge</text><line x1='488' y1='276' x2='514' y2='276' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.8' marker-end='url(#rf-ah-bx)'/><text x='522' y='280' font-size='11.5' fill='var(--ink,#15202E)'>batching (↑ batch size)</text><line x1='488' y1='300' x2='514' y2='300' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.8' marker-end='url(#rf-ah-bx)'/><text x='522' y='304' font-size='11.5' fill='var(--ink,#15202E)'>quantisation des poids</text><line x1='488' y1='324' x2='514' y2='324' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.8' marker-end='url(#rf-ah-bx)'/><text x='522' y='328' font-size='11.5' fill='var(--ink,#15202E)'>décodage spéculatif</text></svg><figcaption><span class='fcap-k'></span>Diagramme Roofline (log-log) : à batch = 1, le décodage autorégressif opère loin à gauche dans le régime memory-bandwidth-bound (intensité ~1–2 FLOPs/octet), très en dessous du ridge ; batching, quantisation des poids et décodage spéculatif déplacent le point de fonctionnement vers le ridge en augmentant l'intensité opérationnelle — toutes les optimisations de latence ciblent ainsi le trafic mémoire, pas le débit arithmétique.</figcaption></figure>\n\n<p>La stratégie de décodage par maximisation semble naturelle : choisir le token le plus probable à chaque pas est cohérent avec l'objectif d'entraînement par maximum de vraisemblance. Or Holtzman et al. (ICLR 2020) démontrent empiriquement ce qu'ils nomment le <strong>paradoxe de la dégénérescence</strong> (<em>neural text degeneration</em>) : les textes produits par greedy decoding ou beam search (recherche en faisceau) présentent une perplexité modèle faible — le modèle les « approuve » fortement — tout en étant jugés répétitifs, plats et inhumains par les lecteurs. L'analyse révèle que le texte humain ne demeure que rarement dans les zones de haute probabilité — il présente une variance probabiliste plus grande —, là où la maximisation force le décodeur à les parcourir en boucle. Ce résultat fonde la légitimité des stratégies stochastiques : introduire de la variance contrôlée dans la sélection du token n'est pas une dégradation du modèle, c'est une correction de la discordance entre l'objectif d'entraînement et la distribution naturelle du langage.</p>\n\n<p>Ce document traite exclusivement de la mécanique de sélection du token à l'inférence. Le KV cache (cache clé-valeur) est rappelé ici pour son coût mémoire, mais sa dérivation algorithmique et les mécanismes d'attention efficace sont développés dans le thème <code>transformer-attention</code>. Le décodage contraint — grammaires formelles, JSON structuré, masques de vocabulaire — relève de <code>structured-extraction-llm</code>. L'inférence récurrente des state-space models (modèles à espace d'état), dont la boucle de génération diffère fondamentalement de la factorisation autoregressive des transformers, est traitée dans <code>state-space-models</code> : la comparaison de ces deux paradigmes illustre à quel point la contrainte séquentielle du transformer autorégressif est un choix d'architecture, pas une fatalité.</p>",
+      "claims": [
+        "claim:1",
+        "claim:2",
+        "claim:3"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "greedy-et-beam-search",
+      "heading": "Décodage déterministe : greedy et beam search",
+      "level": 3,
+      "prose": "<p>Le décodage le plus simple est le <em>greedy decoding</em> (décodage glouton) : à chaque pas <em>t</em>, on sélectionne le token qui maximise la probabilité conditionnelle, <code>x̂<sub>t</sub> = argmax<sub>v</sub> p<sub>θ</sub>(v | x<sub>&lt;t</sub>)</code>. Cette stratégie est strictement équivalente au <em>beam search</em> à largeur de faisceau B=1. Holtzman et al. (2019) montrent que les méthodes de décodage par maximisation en général — greedy comme beam search — déclenchent une boucle de dégénérescence à rétroaction positive : dès qu'un segment est reproduit, sa probabilité conditionnelle augmente à chaque occurrence (Figure 4), produisant une répétition indéfinie et incohérente. Le beam search à B=16 en reste l'exemple principal, avec 28,94 % de tokens répétés contre 73,66 % pour le greedy.</p>\n\n<p>Le <em>beam search</em> maintient B séquences candidates (« faisceaux ») en parallèle. À chaque pas, chaque faisceau est étendu à l'ensemble du vocabulaire |V| ; chaque séquence étendue est scorée par son score cumulé en log-probabilité, <code>S(x<sub>1:t</sub>) = ∑<sub>i=1</sub><sup>t</sup> log p<sub>θ</sub>(x<sub>i</sub> | x<sub>&lt;i</sub>)</code>, et les B meilleures sont conservées. Le coût computationnel est O(B · |V|) par pas de décodage. Contrairement à une idée répandue, trouver la séquence de probabilité maximale n'est pas formellement NP-difficile : Stahlberg & Byrne (2019) montrent qu'une recherche en profondeur à élagage agressif retrouve en pratique le mode exact d'un modèle de traduction neuronale. Le beam search n'en demeure pas moins une heuristique sans garantie d'optimalité globale — et la séquence de probabilité maximale exacte est de toute façon souvent dégénérée (chaîne vide, répétitions), ce qui invalide la prémisse implicite qu'elle constituerait une cible désirable.</p>\n\n<p>Un phénomène empirique bien établi, le <em>beam search curse</em>, recouvre en réalité deux régimes distincts qu'il ne faut pas confondre. En traduction neuronale, le score BLEU est non-monotone en B : il culmine vers B ≈ 4–8 puis décline. En génération ouverte (Holtzman et al., GPT-2), la dégénérescence répétitive est présente pour <em>toute</em> valeur de B comparée au texte humain — augmenter B de 1 à 16 réduit même le taux de répétition brut (73,66 % à B=1 contre 28,94 % à B=16, le texte humain étant à 0,28 %), car les séquences produites sont plus courtes. Il n'existe donc pas de seuil universel B ≈ 5–10 au-delà duquel la qualité chuterait. Subsiste un biais structurel : le score cumulé en log-probabilité favorise les séquences courtes, puisque chaque token supplémentaire ne peut qu'abaisser le score (log p ≤ 0 pour toute probabilité). La <em>length penalty</em> (pénalité de longueur) corrige partiellement ce biais. Sa forme canonique est celle de Wu et al. (2016, GNMT), <code>score = S(x<sub>1:T</sub>) / ((5+T)/(5+1))<sup>α</sup></code> avec α = 0,6 comme valeur de référence ; la forme simplifiée <code>S / T<sup>α</sup></code> en est une variante distincte (dite « average »). Un symptôme extrême de ce biais vers la brièveté s'observe à B ≥ 64 : spécifiquement GPT-2 Large (774M) et GPT-2 XL (1542M) préfèrent alors terminer la génération immédiatement après le contexte d'entrée, produisant des séquences dégénérément courtes.</p>\n\n<p>Des extensions cherchent à corriger ces lacunes. Le <em>diverse beam search</em> (Vijayakumar et al., 2016) partitionne les B faisceaux en G groupes et ajoute au score de chaque groupe un terme de diversité pénalisant les hypothèses trop similaires à celles des groupes précédents, forçant ainsi une couverture plus large de l'espace de sortie. L'option <code>no_repeat_ngram_size</code>, disponible dans HuggingFace Transformers et fairseq, applique une contrainte dure : tout n-gramme déjà émis se voit attribuer un score de −∞, l'écartant définitivement de la sélection. Cette contrainte élimine mécaniquement la dégénérescence de répétition au prix de bloquer d'éventuelles répétitions sémantiquement légitimes (noms propres, termes techniques). Ces correctifs comblent partiellement les lacunes du beam search sans résoudre son biais fondamental : maximiser la vraisemblance locale conduit à des textes à haute probabilité conditionnelle qui restent peu cohérents à l'échelle globale de la séquence.</p>",
+      "claims": [
+        "claim:4",
+        "claim:5",
+        "claim:6",
+        "claim:7"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "sampling-tronque-temperature-top-k-top-p",
+      "heading": "Sampling tronqué : temperature, top-k et top-p (nucleus)",
+      "level": 3,
+      "prose": "<p>Toute stratégie stochastique commence par la même opération : transformer les logits bruts en une distribution de probabilité contrôlée. La temperature (<em>T</em>) intervient avant le softmax en divisant chaque logit par ce scalaire : la distribution résultante est softmax(<strong>z</strong>/<em>T</em>). Quand <em>T</em> → 0, l'écart entre le logit maximal et les autres est amplifié sans limite — l'échantillonnage converge vers l'argmax, soit le greedy decoding. À <em>T</em> = 1, la distribution est la sortie brute du modèle. Au-delà de 1, les différences entre logits s'atténuent et la distribution s'aplatit vers l'uniforme, élargissant le champ des tokens candidats au prix d'une cohérence réduite. Point crucial pour la suite : la temperature agit en espace log-probabilité avant tout filtrage, de sorte qu'une temperature élevée modifie la distribution que top-k ou top-p vont ensuite tronquer.</p>\n\n<p>Le top-k sampling (Fan et al., ACL 2018) restreint le pool de candidats aux <em>k</em> tokens de plus haute probabilité à chaque pas de génération ; les autres reçoivent une masse nulle et les <em>k</em> retenus sont renormalisés avant l'échantillonnage. L'algorithme est simple et n'expose qu'un seul hyperparamètre, ce qui explique son adoption rapide dans les premières architectures de génération d'histoires neuronales. Mais <em>k</em> est fixe indépendamment de l'incertitude du modèle au pas courant, ce qui crée deux modes d'échec opposés. Lorsque le modèle est très concentré — un token portant 0,97 de probabilité — conserver <em>k</em> = 50 candidats amène dans le pool 49 tokens quasi nuls dont la probabilité relève du bruit aléatoire, dégradant la cohérence. À l'inverse, quand le modèle est réellement incertain face à des centaines de continuations plausibles, <em>k</em> = 50 est trop étroit et écarte des alternatives légitimes. Le même hyperparamètre opère comme sur-filtre dans un cas et sous-filtre dans l'autre : ce caractère context-agnostic est la faiblesse structurelle du top-k.</p>\n\n<p>Le nucleus sampling, ou top-p sampling (Holtzman et al., ICLR 2020), résout ce problème en remplaçant le seuil sur le rang par un seuil sur la masse cumulative. Le nucleus V<sup>(<em>p</em>)</sup>(x<sub>&lt;t</sub>) est le plus petit sous-ensemble de tokens dont la somme des probabilités atteint le seuil <em>p</em> : V<sup>(<em>p</em>)</sup> = arg min<sub>V' ⊆ V</sub> {|V'| : Σ<sub>v ∈ V'</sub> p(v | x<sub>&lt;t</sub>) ≥ <em>p</em>}. Seuls ces tokens sont éligibles ; leur masse est renormalisée et un token est tiré. La propriété déterminante est que |V<sup>(<em>p</em>)</sup>| s'adapte dynamiquement à la confiance du modèle : sur un pas où le modèle attribue 0,90 de probabilité à trois tokens, le nucleus contient exactement ces trois tokens ; sur un pas ambigu où la masse est diffuse, il peut s'étendre à plusieurs centaines d'entrées. Holtzman et al. valident cette conception sur GPT-2 à l'aide de quatre métriques complémentaires — la perplexity (perplexité, qualité distributionnelle du modèle), le self-BLEU (diversité intra-corpus — plus bas = plus diversifié), le taux de répétition et le coefficient de Zipf —, complétées par l'évaluation humaine HUSE. Le nucleus sampling à <em>p</em> = 0,95 reproduit mieux les propriétés statistiques de l'écriture humaine que le greedy decoding et le top-k sur ces axes.</p>\n\n<p>Temperature et top-p interagissent de façon multiplicative dans la pipeline standard : la temperature modifie les logits en premier, puis le nucleus est calculé sur la distribution résultante. À temperature élevée (<em>T</em> &gt; 1), même un modèle initialement confiant diffuse sa masse sur de nombreux tokens ; le nucleus gonfle en conséquence et la troncation perd son efficacité — les tokens de queue reviennent dans le pool. À temperature basse, le nucleus s'effondre à quelques tokens et la part stochastique du schéma disparaît en pratique. Ce couplage entre <em>T</em> et <em>p</em> est le point de fragilité structurel du nucleus sampling : le seuil <em>p</em> calibré pour <em>T</em> = 0,8 devient trop permissif à <em>T</em> = 1,2, car le nucleus s'étend pour couvrir la majeure partie du vocabulaire. C'est précisément cette interaction qui a motivé le min-p sampling (Nguyen et al., ICLR 2025 oral), qui fixe un seuil d'éligibilité proportionnel à la probabilité du token le plus probable — un seuil relatif, non absolu en masse cumulée — rendant le filtrage robuste à la temperature.</p>",
+      "claims": [
+        "claim:8",
+        "claim:9",
+        "claim:10",
+        "claim:11"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "seuils-adaptatifs-min-p-typical",
+      "heading": "Seuils adaptatifs : min-p et typical sampling",
+      "level": 3,
+      "prose": "<p>Top-p (nucleus sampling, ou échantillonnage par noyau) présente un défaut structurel : son seuil <em>p</em> est statique. À haute température, la distribution se rassemble sur un grand nombre de tokens plausibles et le noyau explose — dans les cas extrêmes, il couvre la quasi-totalité du vocabulaire, transformant le filtrage en non-opération. À basse température, à l'inverse, le noyau peut se réduire à un ou deux tokens, annulant la diversité recherchée. Le seuil ne s'adapte pas à la confiance instantanée du modèle.</p>\n\n<p>Min-p sampling (Nguyen et al., ICLR 2025 oral) résout ce problème par un seuil dynamique : <em>p</em><sub>min</sub> = <em>p</em><sub>base</sub> × max<sub>v</sub> p(v|x<sub>&lt;t</sub>), où <em>p</em><sub>base</sub> ∈ (0, 1) est le seul hyperparamètre à régler. Ce seuil se met à l'échelle du pic de distribution : quand le modèle est sûr de lui (pic élevé), la barre est haute et le pool reste serré ; quand il est incertain (pic bas, distribution plate), la barre descend et le pool s'élargit. L'opération est O(|V|) : on calcule la probabilité maximale, on multiplie par <em>p</em><sub>base</sub>, on filtre — puis on renormalise et on tire. Sur GPQA à T = 3, min-p atteint 24,55 % contre 0,46 % pour top-p : nucleus sampling s'effondre à haute température précisément parce que son noyau englobe du bruit en quantité croissante ; min-p ne l'élargit que proportionnellement à la confiance du pic. La méthode a été intégrée à HuggingFace Transformers, vLLM et llama.cpp sans modification de modèle.</p>\n\n<p>Locally typical sampling (Meister et al., TACL 2023) emprunte une direction différente, ancrée dans la psycholinguistique et la théorie de l'information. Un locuteur humain produit des tokens dont la <em>surprisal</em> — l'auto-information −log p(x<sub>t</sub>|x<sub>&lt;t</sub>) — reste proche de l'entropie conditionnelle H(p(·|x<sub>&lt;t</sub>)) : ni trop prédictible (les premiers tokens évidents, qui correspondent à des surprisals très basses), ni trop rare (les hapax improbables, aux surprisals très élevées). Le filtre trie les tokens par distance croissante |−log p(x<sub>t</sub>|x<sub>&lt;t</sub>) − H| et retient les plus typiques jusqu'à ce que leur masse de probabilité cumulée atteigne le seuil τ — où τ est un <em>paramètre de masse</em> (∈ (0, 1), analogue au <em>p</em> du nucleus), et non un seuil de distance —, excluant ainsi les deux extrêmes. Cette définition s'appuie sur la notion de <em>local typicality</em> : à chaque pas, le token typique n'est pas le plus probable, mais celui dont la surprise est la plus représentative de l'incertitude ambiante. Le coût est O(|V| log|V|) — dominé par le tri des auto-informations — et la méthode réduit notablement les répétitions dégénérées sur la génération de texte libre et le résumé abstractif.</p>\n\n<p>Les deux mécanismes sont complémentaires mais fondés sur des intuitions distinctes. Min-p répond au défaut métrique de top-p (seuil de probabilité cumulée aveugle à la confiance du pic) ; typical sampling répond à un défaut conceptuel plus profond (le token le plus probable n'est pas le token typique de la distribution). En pratique, min-p est souvent préféré en production pour sa facilité de réglage et ses gains documentés sur des benchmarks raisonnement et créativité ; typical sampling reste davantage déployé en contexte de recherche. Les deux peuvent se composer avec un rescaling de température, et leur adoption commune dans les mêmes bibliothèques d'inférence ouvre la voie à des pipelines de sampling hybrides.</p>",
+      "claims": [
+        "claim:12",
+        "claim:13",
+        "claim:14"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-troncature-par-probabilite"
+    },
+    {
+      "type": "section",
+      "id": "penalites-de-repetition",
+      "heading": "Pénalités de répétition : repetition, presence, frequency",
+      "level": 3,
+      "prose": "<p>Trois <em>logit processors</em> (processeurs de logits) sont appliqués séquentiellement avant toute opération de troncature (top-k, nucleus) ou d'échantillonnage : ils modifient les logits bruts en fonction des tokens déjà émis dans la séquence. Ces correctifs opèrent dans l'espace des logits, non des probabilités, ce qui rend leur composition additive et leurs effets superposables de façon déterministe.</p>\n\n<p>La <strong>repetition penalty</strong> (pénalité de répétition), introduite par Keskar et al. dans CTRL (2019), est un ajustement <em>multiplicatif</em> : le logit de chaque token déjà apparu dans la séquence est atténué par un facteur θ &gt; 1 avant le softmax. L'implémentation naïve — une simple division du logit par θ — introduit un biais : si le logit <em>l</em> est négatif, diviser par θ &gt; 1 le rapproche de zéro, augmentant la probabilité softmax correspondante — l'effet inverse de celui recherché. Le <code>RepetitionPenaltyLogitsProcessor</code> de HuggingFace Transformers corrige ce biais avec une règle <em>sign-aware</em> : pour <em>l</em> &gt; 0, l′ = <em>l</em> / θ ; pour <em>l</em> ≤ 0, l′ = <em>l</em> × θ. Dans les deux cas, le logit est poussé vers des probabilités plus basses, quelle que soit la valeur de départ. θ ≈ 1.2 constitue l'équilibre empirique recommandé dans le papier original entre réduction de la répétition et fidélité sémantique.</p>\n\n<p>La <strong>presence penalty</strong> (pénalité de présence) et la <strong>frequency penalty</strong> (pénalité de fréquence) sont deux corrections <em>additives</em> popularisées par l'API OpenAI. La presence penalty soustrait une constante γ du logit de tout token ayant été émis au moins une fois, indépendamment du nombre d'occurrences. La frequency penalty est proportionnelle au compte d'occurrences : logit(<em>t</em>) -= γ × count(<em>t</em>). L'API OpenAI les compose selon la formule : μ[<em>j</em>] → μ[<em>j</em>] − c[<em>j</em>] × α<sub>frequency</sub> − 𝟙[c[<em>j</em>] &gt; 0] × α<sub>presence</sub>, où c[<em>j</em>] est le nombre total d'occurrences déjà émises du token <em>j</em>. La presence penalty pénalise l'<em>existence</em> d'un token dans le contexte ; la frequency penalty pénalise sa <em>concentration</em>.</p>\n\n<p>Les limites documentées de ces trois mécanismes sont distinctes. La presence penalty applique une pénalité binaire naïve qui ignore le nombre d'occurrences : elle peut sous-pénaliser un token qui boucle à haute fréquence et sur-pénaliser un token fonctionnel apparu une seule fois. La frequency penalty, présentée comme plus nuancée, génère ce qu'une analyse récente (arXiv:2504.20131) nomme un <em>degenerate cycle effect</em> : un token accumule la pénalité jusqu'à ce que sa probabilité passe sous le seuil de troncature, laissant place à un autre token vierge qui répète le même cycle — la boucle change de vocabulaire sans disparaître. Aucune des trois pénalités ne stoppe donc systématiquement les boucles dégénérées ; augmenter les coefficients au-delà de 1.5–2.0 peut priver le modèle de tokens fondamentaux (espaces, ponctuations, mots fonctionnels), induisant une dégradation de nature différente.</p>",
+      "claims": [
+        "claim:15",
+        "claim:16",
+        "claim:17"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "methodes-contrastives",
+      "heading": "Méthodes contrastives : contrastive search et contrastive decoding",
+      "level": 3,
+      "prose": "<p>Les deux approches contrastives partagent un même diagnostic — la dégénérescence du texte produit par maximisation brute — mais l'opérationnalisent à des niveaux distincts : l'une agit dans l'espace de représentation interne du modèle, l'autre exploite l'écart de compétence entre deux modèles de tailles asymétriques. L'une exige un modèle bien calibré ; l'autre, simplement deux modèles disponibles.</p>\n\n<p>Le <strong>contrastive search</strong> (Su et al., NeurIPS 2022) reformule la sélection à chaque pas de génération par un critère à deux termes. Les candidats sont d'abord restreints au top-<em>k</em> de la distribution du modèle, puis le token retenu maximise :</p>\n\n<p style=\"margin:1em 2em;font-family:monospace;\">(1−α)·p<sub>θ</sub>(v | x<sub>&lt;t</sub>) − α · max<sub>j&lt;t</sub> cos(h(v, x<sub>&lt;t</sub>), h(x<sub>j</sub>, x<sub>&lt;j</sub>))</p>\n\n<p>Le premier terme favorise les tokens de haute probabilité ; le second, la <em>degeneration penalty</em> (pénalité de dégénérescence), pénalise tout candidat dont la hidden-state representation (représentation d'état caché) est trop similaire à une représentation contextuelle antérieure — la similarité cosinus servant de proxy pour la redondance sémantique dans l'espace des features. Le scalaire α — situé dans la plage pratique [0,5 ; 0,8], avec α = 0,6 dans les expériences principales de Su et al. — arbitre les deux objectifs. L'intuition est directe : un token sémantiquement redondant avec le contexte passé, même s'il est probable, est écarté au profit d'un token moins répétitif dans l'espace vectoriel.</p>\n\n<p>Su et al. identifient dans la distribution anisotrope des représentations un facteur sous-jacent de la dégénérescence : les hidden states produits par les modèles entraînés par maximum de vraisemblance se concentrent dans un cône étroit de l'espace vectoriel, rendant la similarité cosinus entre tokens arbitraires artificiellement élevée. Leur objectif SimCTG (<em>Simple Contrastive Training for Generating</em>), appliqué en fine-tuning, recalibre cet espace pour le rendre plus uniformément séparable et renforce ainsi l'efficacité du contrastive search. Deux précisions s'imposent toutefois. D'une part, l'anisotropie est présentée par les auteurs comme un facteur sous-jacent, non comme la cause racine universelle de la dégénérescence. D'autre part, mesurée dans l'article fondateur sur GPT-2 jusqu'à la variante large (774M) et sur deux langues (anglais et chinois), sa généralité aux architectures plus récentes et plus larges a depuis été empiriquement établie : LLaMA-2 (7B–13B), OPT, Falcon-7B et Bloom présentent tous le même profil anisotropique, documenté par plusieurs travaux de 2023–2024.</p>\n\n<p>Le <strong>contrastive decoding</strong> (Li, Holtzman et al., ACL 2023) adopte une posture radicalement différente : aucun accès aux représentations internes n'est requis, aucun entraînement additionnel n'est nécessaire. Le score de chaque token candidat est simplement la différence de log-vraisemblance entre un grand modèle expert et un petit modèle amateur :</p>\n\n<p style=\"margin:1em 2em;font-family:monospace;\">CD(v | x<sub>&lt;t</sub>) = log p<sub>expert</sub>(v | x<sub>&lt;t</sub>) − log p<sub>amateur</sub>(v | x<sub>&lt;t</sub>)</p>\n\n<p>Dans les expériences de référence, l'expert est OPT-13B et l'amateur OPT-125M. L'hypothèse de travail : les défauts partagés par les deux modèles — répétitions, hallucinations banales, formules creuses — sont surreprésentés dans le petit modèle ; la soustraction les annule et fait émerger ce que seul le grand modèle maîtrise. Une contrainte de plausibilité adaptative filtre préalablement les tokens jugés trop improbables par l'expert, empêchant la soustraction de propulser des tokens incohérents. Sans toucher aux poids, contrastive decoding surpasse top-k sampling et nucleus sampling en qualité de génération libre (Wikipedia, news, stories) ; les gains sur des tâches de raisonnement ont en revanche été établis par un travail ultérieur distinct (O'Brien & Lewis, 2023), et non par le papier original — résultat qui suggère que les biais d'un petit modèle codent une information exploitable pour corriger le grand.</p>\n\n<p>Les deux méthodes s'opposent sur un axe fondamental. Contrastive search est <em>intrinsèque</em> : un seul modèle, espace interne de représentation, efficacité conditionnée à l'isotropie de cet espace (naturelle ou induite par SimCTG). Contrastive decoding est <em>extrinsèque</em> : deux modèles, espace de log-probabilités de sortie, applicable sans modification architecturale à toute paire expert/amateur. Le surcoût de latence de contrastive decoding — un forward pass supplémentaire de l'amateur à chaque étape — reste modeste si l'amateur est suffisamment compact relativement à l'expert.</p>",
+      "claims": [
+        "claim:18",
+        "claim:19",
+        "claim:20"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "kv-cache-cout-memoire",
+      "heading": "KV cache : le coût mémoire de la génération",
+      "level": 3,
+      "prose": "<p>À chaque pas de la génération autorégressive, le mécanisme d'attention doit aligner la query (requête) du token courant contre les keys (clés) de l'intégralité du contexte précédent, puis pondérer les values (valeurs) correspondantes. Sans mise en cache, ces tenseurs K et V devraient être recalculés depuis zéro à chaque pas : générer une séquence de <em>n</em> tokens coûterait O(<em>n</em>²) opérations d'attention au total. Le KV cache (cache clés-valeurs) élimine cette redondance : après chaque pas, les tenseurs K et V de toutes les couches sont conservés en VRAM ; le pas suivant se contente de calculer la query du nouveau token et de l'aligner contre le cache — ramenant le coût par pas à O(<em>n</em>). Ce gain computationnel est le fondement de l'inférence autorégressive pratique, mais il se paie en mémoire : le cache grossit à chaque token généré et, à mesure que les fenêtres de contexte s'allongent, il devient le principal consommateur de VRAM.</p>\n\n<p>Le coût mémoire s'exprime par la formule :</p>\n\n<p><code>KV_mem = 2 × L × H<sub>kv</sub> × D<sub>head</sub> × seq_len × B</code></p>\n\n<p>où <em>L</em> est le nombre de couches du transformeur, <em>H<sub>kv</sub></em> le nombre de têtes KV (qui peut différer du nombre de têtes de requête quand GQA ou MQA est employé), <em>D<sub>head</sub></em> la dimension par tête, seq_len la longueur courante du contexte, et <em>B</em> le nombre d'octets par élément (2 en fp16/bf16). Le facteur 2 couvre K et V séparément. L'empreinte incrémentale d'un seul token supplémentaire dans le cache est donc 2 × <em>L</em> × <em>H<sub>kv</sub></em> × <em>D<sub>head</sub></em> × <em>B</em> — soit <strong>O(<em>L</em>·<em>D</em>) par token</strong> : une quantité fixe pour un modèle donné, qui s'accumule linéairement avec chaque token de contexte.</p>\n\n<p>Sur la famille LLaMA-2, les chiffres sont frappants. Le 7B — 32 couches, 32 têtes KV, <em>D<sub>head</sub></em> = 128, fp16 — coûte 2 × 32 × 32 × 128 × 2 = 524 288 octets ≈ <strong>0,50 Mo par token</strong> ; le 13B (40 couches, 40 têtes KV) monte à ≈ 0,78 Mo/token. À 128 K tokens de contexte, le seul KV cache du 7B occupe ainsi 128 000 × 0,50 Mo ≈ <strong>64 Go</strong>, auxquels s'ajoutent les poids du modèle en fp16 (≈ 14 Go). Le besoin mémoire total avoisine 78 Go, et un A100-SXM4 de 80 Go atteint sa limite avant même d'intégrer les activations courantes ou un batch de plusieurs requêtes. Ce phénomène illustre que, pour les modèles à fenêtre longue, la VRAM est dominée par le cache bien plus que par les poids.</p>\n\n<p>Le Grouped Query Attention (GQA, Ainslie et al., EMNLP 2023) reconfigure ce rapport en partageant les têtes KV entre groupes de têtes de requête. LLaMA-2-70B en est l'illustration la plus nette : malgré 80 couches, il n'emploie que 8 têtes KV pour 64 têtes de requête (ratio 8:1), ramenant son empreinte à 2 × 80 × 8 × 128 × 2 = 327 680 octets ≈ <strong>0,31 Mo/token</strong>. En MHA (multi-head attention) plein avec 64 têtes KV, ce même modèle aurait coûté ≈ 2,5 Mo/token — soit un facteur 8×. GQA fait donc en sorte que le 70B occupe paradoxalement <em>moins</em> de cache par token que le 7B plein-MHA. La variable déterminante n'est pas le nombre total de paramètres mais le produit <em>L</em> × <em>H<sub>kv</sub></em> × <em>D<sub>head</sub></em>, sur lequel GQA agit directement en comprimant <em>H<sub>kv</sub></em>.</p>",
+      "claims": [
+        "claim:21",
+        "claim:22",
+        "claim:23"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-kv-cache-calculateur"
+    },
+    {
+      "type": "section",
+      "id": "decodage-speculatif",
+      "heading": "Décodage spéculatif : draft model et vérification lossless",
+      "level": 3,
+      "prose": "<p>L'inférence autorégressive d'un LLM est fondamentalement <em>memory-bandwidth-bound</em> (limitée par la bande passante mémoire) : à chaque pas de génération, l'intégralité des poids du modèle est lue depuis la mémoire HBM du GPU pour ne produire qu'un seul token. Sur le profil Roofline, l'intensité arithmétique se situe typiquement autour d'1–2 FLOPs/octet au batch size unitaire, deux ordres de grandeur en dessous du ridge compute-bound. C'est cette asymétrie qui rend le <em>speculative decoding</em> (décodage spéculatif) fondamentalement attrayant : si vérifier γ tokens ne coûte pas plus cher en temps que d'en produire un seul, chaque forward pass batché peut générer plusieurs tokens au lieu d'un.</p>\n\n<p>Le protocole, proposé de façon indépendante par Leviathan, Kalman et Matias (ICML 2023) et par Chen et al. (DeepMind, 2023), opère en deux phases. Un <em>draft model</em> auxiliaire — nettement plus petit — génère autoregressivement γ tokens candidats x̃₁…x̃_γ. Le modèle <em>target</em> évalue ensuite toutes les γ+1 positions en un unique forward pass batché : les γ positions candidates plus une position supplémentaire en fin de séquence. Puisque le coût dominant de ce forward pass est la lecture des poids depuis la mémoire et non le calcul sur les tokens d'entrée, la vérification de γ propositions ne coûte pas significativement plus cher que la production d'un seul token en mode standard.</p>\n\n<p>La vérification repose sur un <em>rejection sampling</em> (échantillonnage par rejet) modifié, provablement sans perte. Pour chaque position i, le token draft x̃ᵢ est accepté si r &lt; min(1, p_target(x̃ᵢ | x_{&lt;i}) / p_draft(x̃ᵢ | x_{&lt;i})), où r ~ Uniforme(0, 1) ; en cas de rejet, un token de remplacement est tiré depuis la distribution résiduelle normalisée (p_target − p_draft)₊ / Z. La propriété centrale est que la distribution marginale sur les séquences produites est exactement celle du target seul : le décodage spéculatif est <em>lossless</em> au sens fort — il ne nécessite aucune modification des poids du modèle et ne dégrade pas la qualité de sortie d'un iota. Leviathan et al. atteignent un facteur 2–3× sur T5-XXL ; Chen et al. obtiennent 2–2,5× sur Chinchilla 70B dans un régime distribué.</p>\n\n<p>Le gain moyen se quantifie par le nombre de tokens produits par forward pass du target. Avec un taux d'acceptation moyen α (probabilité qu'un draft token passe le rejet) et γ tokens proposés, ce nombre vaut N(α, γ) = (1 − α^(γ+1)) / (1 − α). La formule révèle le compromis central : N(α, γ) croît avec γ mais sature, car le terme α^(γ+1) devient vite négligeable. Pour α = 0,8 et γ = 4, N ≈ 3,36 tokens/pass ; passer à γ = 8 ne monte qu'à ≈ 4,56 tokens/pass. En pratique, un γ trop grand alourdit le coût du draft et amplifie le gaspillage quand les derniers tokens sont systématiquement rejetés. Le choix optimal de γ dépend de la taille relative du draft, de la distribution cible et du matériel.</p>\n\n<p>Plusieurs variantes suppriment ou allègent le draft model séparé. <strong>Medusa</strong> (Cai et al., ICML 2024) greffe K têtes MLP légères sur le backbone figé ; une tree attention (attention arborescente) valide en un seul forward pass de multiples continuations ramifiées. Medusa-1 (backbone gelé) atteint 2,2–2,3× de speedup ; Medusa-2 (co-entraînement du backbone et des têtes) atteint 2,3–3,6×. <strong>EAGLE</strong> (Li et al., ICML 2024) adopte une approche plus fondamentale : plutôt que de prédire des tokens, la tête légère prédit les activations de l'avant-dernière couche, exploitant le fait que l'autorégressivité est plus simple dans l'espace des features que dans l'espace lexical. EAGLE construit un arbre de tokens en exactement m forward passes de sa tête, puis valide toutes les branches en un seul forward pass du target. Il atteint 3,76× sur Vicuna-13B avec un taux d'acceptation de ~0,80, contre ~0,60 pour Medusa — soit 1,5×–1,6× plus rapide que Medusa à modèle équivalent. <strong>Lookahead decoding</strong> (Fu et al., ICML 2024) se passe de tout draft model ou entraînement supplémentaire : il maintient un cache de n-grams issus des trajectoires d'itération de Jacobi, validés par correspondance exacte en un seul forward pass, gagnant jusqu'à 2× sur la complétion de code (CodeLLaMA, HumanEval).</p>\n\n<p>Le décodage spéculatif perd son attrait dès que ses hypothèses fondatrices sont violées. À mesure que le batch size augmente, l'intensité arithmétique s'élève et l'inférence bascule en régime compute-bound : les poids du modèle sont amortis sur davantage de tokens et la lecture mémoire n'est plus le goulot d'étranglement. Au-delà du ridge — environ 281 FLOPs/octet sur B200 en bf16 — la vérification de γ tokens coûte effectivement γ fois plus cher que la génération d'un seul, annulant le bénéfice. Les architectures à KV cache compressé, comme le Multi-head Latent Attention (MLA) de DeepSeek, exacerbent ce phénomène : MLA réduit structurellement le footprint mémoire du cache en projetant clés et valeurs dans un espace latent compact, ce qui diminue la pression sur la bande passante et rend la vérification immédiatement compute-bound pour tout γ > 0. Enfin, les modèles Mixture-of-Experts (MoE) présentent une intensité arithmétique par expert déjà faible à batch size 1, mais le routage MoE peut fragmenter l'amortissement des poids et réduire le bénéfice net — EAGLE ne gagne que 1,50× sur Mixtral 8×7B, contre 3,76× sur un dense de taille comparable.</p>",
+      "claims": [
+        "claim:24",
+        "claim:25",
+        "claim:26"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "synopsis-decodage-speculatif"
+    },
+    {
+      "type": "section",
+      "id": "medusa-eagle-lookahead",
+      "heading": "Self-drafting : Medusa, EAGLE et lookahead decoding",
+      "level": 3,
+      "prose": "<p>Le speculative decoding (décodage spéculatif) classique exige un draft model (modèle brouillon) distinct, ce qui implique de le charger en mémoire, de maintenir deux jeux de poids à jour et de gérer leur compatibilité. Les approches de <em>self-drafting</em> suppriment ce second modèle : la capacité de proposition émerge de têtes légères ou d'une réorganisation du calcul autorégressif à l'intérieur du modèle cible. Le gain de vitesse est moins absolu que celui d'un draft model de haute qualité, mais le déploiement est radicalement simplifié.</p>\n\n<p>Medusa (Cai et al., ICML 2024) ajoute K têtes MLP légères directement sur le hidden state (état caché) final du modèle de base : la k-ième tête prédit le token en position t+k+1. Lors de la vérification, un <em>tree attention</em> (attention arborescente) à masque causal arborescent permet d'évaluer simultanément de multiples continuations candidates en un seul forward pass, sans augmenter la taille de batch. Medusa propose deux schémas d'acceptation : le rejection sampling classique, qui préserve exactement la distribution du modèle cible, et le <em>typical acceptance</em>, qui accepte un candidat dès que sa probabilité dépasse le seuil min(ε, δ·exp(−H)) basé sur l'entropie locale — plus permissif, légèrement hors-distribution, mais plus rapide en pratique. En mode Medusa-1 (backbone gelé), le speedup atteint 2.18× sur Vicuna-7B et 2.33× sur Vicuna-13B ; l'entraînement conjoint (Medusa-2) porte ces chiffres à 2.83× sur les deux modèles, avec une plage globale de 2.3–3.6× selon le modèle cible.</p>\n\n<p>EAGLE (Li et al., ICML 2024) aborde la question sous un angle différent : plutôt que de prédire directement des tokens, le draft head effectue une autorégression au niveau des features — les hidden states de la couche avant-dernière (second-to-top layer). La difficulté de cette prédiction au niveau feature est l'incertitude inhérente : après avoir généré « I », la feature suivante dépend du token effectivement échantillonné (« am » ou « always » produisent des trajectoires différentes). EAGLE résout cela par un <em>token-shift</em> : les tokens déjà échantillonnés, décalés d'un pas, sont injectés comme contexte supplémentaire dans le draft head, levant l'ambiguïté et portant le taux d'acceptation à ~0.80, contre ~0.60 pour Medusa sur les mêmes benchmarks. Le draft head réutilise par construction le KV cache du modèle cible, ce qui en réduit l'overhead mémoire. Sur LLaMA2-Chat 70B, EAGLE atteint 2.7–3.5× de speedup et double le débit. EAGLE-2 introduit un arbre de draft dynamique contextuel : à chaque cycle, les nœuds de l'arbre sont étendus en fonction d'un score de confiance égal au produit des probabilités le long du chemin depuis la racine, ce qui concentre le budget de tokens brouillons sur les continuations les plus prometteuses. Le taux d'acceptation moyen (τ) monte à 4.83 tokens par cycle sur MT-bench contre 2.59 pour Medusa et 1.69 pour Lookahead, se traduisant par un speedup de 3.05–4.26×, soit ~20–40 % de mieux qu'EAGLE-1 et environ 2× plus rapide que Medusa.</p>\n\n<p>EAGLE-3 franchit une étape supplémentaire en abandonnant la prédiction de features au profit d'une prédiction directe de tokens, combinée à une fusion multi-couches : les embeddings de bas, moyen et haut niveau du modèle cible sont concaténés pour alimenter le draft head, qui n'est plus contraint de reproduire les features de la dernière couche. Une technique de <em>training-time test</em> simule pendant l'entraînement la succession de pas de décodage telle qu'elle se produit à l'inférence, alignant la distribution d'entraînement sur celle d'utilisation réelle. EAGLE-3 découvre également une loi d'échelle pour le speculative decoding : augmenter le volume de données d'entraînement améliore proportionnellement le speedup — un comportement absent de l'architecture EAGLE originale, et non testé spécifiquement sur EAGLE-2. Le gain atteint jusqu'à 6.5× sur HumanEval avec Vicuna 13B (température 0), soit ~1.4× de mieux qu'EAGLE-2.</p>\n\n<p>Lookahead decoding (Fu et al., ICML 2024) est la seule approche de ce groupe qui ne nécessite aucun composant appris au-delà du modèle cible lui-même. L'idée repose sur une reformulation du décodage autorégressif comme résolution d'un système non-linéaire par itération de Jacobi (itération de point fixe de Jacobi) : au lieu de générer les tokens un par un en série, on initialise plusieurs positions simultanément et on itère jusqu'à convergence. En pratique, l'itération de Jacobi seule n'apporte qu'environ 1.05× de gain, car la convergence est lente. Lookahead ajoute un cache de n-grams qui accumule des fragments de texte produits au cours des pas précédents : à chaque pas, une <em>lookahead branch</em> génère de nouveaux n-grams via une fenêtre 2D paramétrée par W (positions en avant) et N (historique de pas), tandis qu'une <em>verification branch</em> cherche dans ce pool des n-grams candidats validables par les prédictions greedy du LLM. L'algorithme est dit <em>exact</em> : les tokens acceptés suivent la distribution greedy du modèle cible. Le speedup sur un seul GPU se situe entre 1.5 et 2.3×, avec 1.8× mesuré sur MT-bench ; le passage à 8 GPUs pour la complétion de code monte jusqu'à 4×. Ces chiffres restent inférieurs à ceux d'EAGLE-2, mais Lookahead s'applique à n'importe quel LLM sans entraînement supplémentaire ni modification de l'architecture.</p>",
+      "claims": [
+        "claim:27",
+        "claim:28",
+        "claim:29",
+        "claim:30"
+      ]
+    },
+    {
+      "type": "exercise",
+      "part": "1",
+      "question": "<p>Un ingénieur calibre un échantillonnage <em>nucleus</em> à p = 0,9 avec une temperature T = 0,8 et obtient des sorties cohérentes et variées. Pour gagner en créativité, il monte la temperature à T = 1,4 sans toucher au seuil p, et constate que le texte devient incohérent — comme si la troncature ne filtrait plus rien. Expliquez <strong>mécaniquement</strong> pourquoi le même p = 0,9 cesse d'être efficace quand T augmente, puis nommez la méthode de sampling conçue pour résoudre ce couplage et décrivez en quoi son critère diffère structurellement de celui du nucleus.</p>",
+      "answer": "<p>La temperature agit <em>en amont</em>, dans l'espace des logits, avant tout filtrage : la distribution échantillonnée est softmax(<strong>z</strong>/T). Monter T aplatit la distribution vers l'uniforme, ce qui <em>gonfle le nucleus</em> — le plus petit ensemble couvrant p de masse —, faisant rentrer dans le pool des tokens de queue auparavant exclus. À p = 0,9, un même modèle peut passer de quelques dizaines de tokens éligibles à T = 0,7 à plusieurs milliers à T = 1,4 : la troncation devient quasi inopérante et la part stochastique englobe du bruit. Le seuil p, calibré pour T = 0,8, est donc structurellement fragile à la temperature, car il porte sur une <em>masse cumulée absolue</em>, aveugle à la confiance instantanée du modèle.</p><p>La réponse est le <strong>min-p sampling</strong> (Nguyen et al., ICLR 2025 oral). Au lieu d'un seuil de masse cumulée, il pose un plancher <em>relatif</em> au pic : p<sub>min</sub> = p<sub>base</sub> × max<sub>v</sub> p(v | x<sub>&lt;t</sub>). La barre suit la hauteur du pic : modèle sûr (pic élevé) → seuil haut, pool serré ; modèle incertain (pic bas) → seuil bas, pool élargi. Comme le seuil ne s'étend que proportionnellement à la confiance, il reste robuste à haute temperature — sur GPQA à T = 3, min-p atteint 24,55 % contre 0,46 % pour top-p. Nuance honnête : aux températures opérationnelles (T ≈ 0,7–1,2) l'écart avec top-p est quasi nul et peut même s'inverser selon le modèle et le benchmark.</p>"
+    },
+    {
+      "type": "exercise",
+      "part": "2",
+      "question": "<p>On affirme souvent que le décodage spéculatif accélère la génération « gratuitement », sans dégrader la qualité. (a) Sur quelle propriété architectonique de l'inférence autorégressive ce gain repose-t-il, et pourquoi vérifier γ tokens proposés ne coûte-t-il pas plus cher que d'en générer un seul ? (b) Pourquoi le schéma est-il <em>lossless</em> ? (c) Calculez le nombre attendu de tokens par forward pass pour α = 0,8 et γ = 4, et donnez la limite quand γ → ∞. (d) Citez deux régimes où ce gain s'effondre.</p>",
+      "answer": "<p><strong>(a)</strong> Le décodage autorégressif à batch unitaire est <em>memory-bandwidth-bound</em> : chaque forward pass relit l'intégralité des poids depuis la HBM pour n'émettre qu'un seul token, à une intensité opérationnelle de ~1–2 FLOPs/octet, deux ordres de grandeur sous le ridge compute-bound. Comme le coût dominant est la lecture des poids et non le calcul sur les tokens d'entrée, le modèle <em>target</em> peut vérifier les γ+1 positions candidates en un unique forward pass batché au prix de la génération d'un seul token.</p><p><strong>(b)</strong> La vérification utilise un <em>rejection sampling</em> modifié : le token draft x̃<sub>i</sub> est accepté si r &lt; min(1, p<sub>target</sub>/p<sub>draft</sub>) avec r ~ U(0,1), sinon un token de remplacement est tiré de la distribution résiduelle (p<sub>target</sub> − p<sub>draft</sub>)<sub>+</sub>/Z. La distribution marginale des séquences produites est alors <em>exactement</em> celle du target seul — provablement sans perte, sans modifier les poids.</p><p><strong>(c)</strong> N(α, γ) = (1 − α<sup>γ+1</sup>) / (1 − α). Pour α = 0,8 et γ = 4 : N = (1 − 0,8<sup>5</sup>)/(1 − 0,8) = (1 − 0,32768)/0,2 ≈ <strong>3,36</strong> tokens/pass. La quantité sature vite : quand γ → ∞, N → 1/(1 − α) = 5.</p><p><strong>(d)</strong> Le gain s'effondre (i) <em>à fort batch size</em> : l'intensité arithmétique franchit le ridge (~281 FLOPs/octet en bf16 sur B200), l'inférence redevient compute-bound et vérifier γ tokens coûte effectivement γ fois plus cher ; (ii) <em>avec un KV cache compressé</em> (MLA de DeepSeek) ou un modèle <em>MoE</em>, qui réduisent la pression mémoire — EAGLE ne gagne que 1,50× sur Mixtral 8×7B contre 3,76× sur le dense Vicuna-13B.</p>"
+    },
+    {
+      "type": "biblio",
+      "entries": [
+        {
+          "label": "Neural Text Generation with Unlikelihood Training (Welleck et al., 2020)",
+          "href": "https://arxiv.org/abs/1908.04319"
+        },
+        {
+          "label": "A Thorough Examination of Decoding Methods in the Era of LLMs (Fu et al., 2024)",
+          "href": "https://arxiv.org/abs/2402.06925"
+        },
+        {
+          "label": "The Curious Case of Neural Text Degeneration — arXiv abstract (ICLR 2020)",
+          "href": "https://arxiv.org/abs/1904.09751"
+        },
+        {
+          "label": "The Curious Case of Neural Text Degeneration — ar5iv HTML (citations exactes extraites)",
+          "href": "https://ar5iv.labs.arxiv.org/html/1904.09751"
+        },
+        {
+          "label": "Efficient LLM Inference: Bandwidth, Compute, Synchronization, and Capacity are all you need (arXiv 2507.14397)",
+          "href": "https://arxiv.org/html/2507.14397v1"
+        },
+        {
+          "label": "LLM Inference Performance Engineering: Best Practices (Databricks Blog)",
+          "href": "https://www.databricks.com/blog/llm-inference-performance-engineering-best-practices"
+        },
+        {
+          "label": "Why Memory Bandwidth, Not Compute, Determines LLM Inference Speed (KAD8)",
+          "href": "https://www.kad8.com/ai/why-memory-bandwidth-not-compute-determines-llm-inference-speed/"
+        },
+        {
+          "label": "KV Cache Optimization Survey (arXiv 2603.20397)",
+          "href": "https://arxiv.org/abs/2603.20397"
+        },
+        {
+          "label": "LLM Inference Unveiled: Survey and Roofline Model Insights (Yuan et al., 2024)",
+          "href": "https://arxiv.org/abs/2402.16363"
+        },
+        {
+          "label": "LLM Inference Series: 5. Dissecting model performance (Pierre Lienhart, Medium)",
+          "href": "https://medium.com/@plienhar/llm-inference-series-5-dissecting-model-performance-6144aa93168f"
+        },
+        {
+          "label": "Fast Inference from Transformers via Speculative Decoding (Leviathan et al., 2022)",
+          "href": "https://arxiv.org/abs/2211.17192"
+        },
+        {
+          "label": "Parallelism and Generation Order in Masked Diffusion Language Models (arXiv 2601.15593)",
+          "href": "https://arxiv.org/html/2601.15593"
+        },
+        {
+          "label": "Understanding the Modern LLM — Part 2: Auto-Regression and Auto-Regression Training (Inkyu Kim, Medium)",
+          "href": "https://medium.com/@ikim1994914/understanding-the-modern-llm-part-2-understanding-auto-regression-and-auto-regression-training-5b255535f099"
+        },
+        {
+          "label": "An Introduction to Speculative Decoding for Reducing Latency in AI Inference — NVIDIA Technical Blog",
+          "href": "https://developer.nvidia.com/blog/an-introduction-to-speculative-decoding-for-reducing-latency-in-ai-inference/"
+        },
+        {
+          "label": "Break the Sequential Dependency of LLM Inference Using Lookahead Decoding (arXiv 2402.02057)",
+          "href": "https://arxiv.org/abs/2402.02057"
+        },
+        {
+          "label": "Generation Strategies — Hugging Face Transformers Documentation",
+          "href": "https://huggingface.co/docs/transformers/en/generation_strategies"
+        },
+        {
+          "label": "The Curious Case of Neural Text Degeneration — OpenReview ICLR 2020",
+          "href": "https://openreview.net/forum?id=rygGQyrFvH"
+        },
+        {
+          "label": "How to Implement a Beam Search Decoder for Natural Language Processing — Machine Learning Mastery",
+          "href": "https://machinelearningmastery.com/beam-search-decoder-natural-language-processing/"
+        },
+        {
+          "label": "Beam Search Decoding — Arun Baby (ML System Design)",
+          "href": "https://www.arunbaby.com/ml-system-design/0023-beam-search-decoding/"
+        },
+        {
+          "label": "Google's Neural Machine Translation System (Wu et al., 2016) — length normalization standard",
+          "href": "https://arxiv.org/abs/1609.08144"
+        },
+        {
+          "label": "If Beam Search Is the Answer, What Was the Question? (Pimentel et al., 2020)",
+          "href": "https://arxiv.org/abs/2010.02650"
+        },
+        {
+          "label": "Is MAP Decoding All You Need? The Inadequacy of the Mode in Neural Machine Translation",
+          "href": "https://ar5iv.labs.arxiv.org/html/2005.10283"
+        },
+        {
+          "label": "Six Challenges for Neural Machine Translation (Koehn & Knowles, 2017) — ar5iv HTML",
+          "href": "https://ar5iv.labs.arxiv.org/html/1706.03872"
+        },
+        {
+          "label": "Breaking the Beam Search Curse: A Study of (Re-)Scoring Methods and Stopping Criteria for Neural Machine Translation (Yang et al. 2018)",
+          "href": "https://arxiv.org/pdf/1808.09582"
+        },
+        {
+          "label": "Empirical Analysis of Beam Search Performance Degradation (Cohen et al. 2019, ICML)",
+          "href": "http://proceedings.mlr.press/v97/cohen19a/cohen19a.pdf"
+        },
+        {
+          "label": "OpenNMT-py penalties.py — implémentation des formules Wu (GNMT) vs average length penalty",
+          "href": "https://github.com/OpenNMT/OpenNMT-py/blob/master/onmt/translate/penalties.py"
+        },
+        {
+          "label": "LLM Sampling Parameters Explained: Intuition to Math (Let's Data Science)",
+          "href": "https://letsdatascience.com/blog/llm-sampling-temperature-top-k-top-p-and-min-p-explained"
+        },
+        {
+          "label": "Top-p sampling — Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/Top-p_sampling"
+        },
+        {
+          "label": "Min-p Sampling: Turning Up the Heat (arXiv 2407.01082)",
+          "href": "https://arxiv.org/abs/2407.01082"
+        },
+        {
+          "label": "Temperature, Top-p, and Top-k: LLM Sampling Strategies Explained — ML Journey",
+          "href": "https://mljourney.com/temperature-top-p-and-top-k-llm-sampling-strategies-explained/"
+        },
+        {
+          "label": "Hierarchical Neural Story Generation (Fan et al., 2018)",
+          "href": "https://arxiv.org/abs/1805.04833"
+        },
+        {
+          "label": "Turning Up the Heat: Min-p Sampling for Creative and Coherent LLM Outputs (Nguyen et al., 2024)",
+          "href": "https://arxiv.org/html/2407.1082"
+        },
+        {
+          "label": "Min-p, Max Exaggeration: A Critical Analysis of Min-p Sampling in Language Models (arXiv 2506.13681)",
+          "href": "https://arxiv.org/abs/2506.13681"
+        },
+        {
+          "label": "[Bug] V1 engine ignores min-p sampling — vllm-project/vllm issue #12678",
+          "href": "https://github.com/vllm-project/vllm/issues/12678"
+        },
+        {
+          "label": "llama.cpp server README — min_p parameter documentation",
+          "href": "https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md"
+        },
+        {
+          "label": "Min P style sampling — Issue #27670 — huggingface/transformers",
+          "href": "https://github.com/huggingface/transformers/issues/27670"
+        },
+        {
+          "label": "Min P sampler implementation [alternative to Top P/Top K] — PR #3841 — ggml-org/llama.cpp",
+          "href": "https://github.com/ggml-org/llama.cpp/pull/3841"
+        },
+        {
+          "label": "Locally Typical Sampling — ACL Anthology (TACL 2023, vol. 11, pp. 102–121)",
+          "href": "https://aclanthology.org/2023.tacl-1.7/"
+        },
+        {
+          "label": "Locally Typical Sampling — arXiv preprint (version HTML avec Algorithm 5.3)",
+          "href": "https://arxiv.org/html/2202.00666"
+        },
+        {
+          "label": "Locally Typical Sampling — arXiv:2202.00666 (Meister et al.)",
+          "href": "https://arxiv.org/abs/2202.00666"
+        },
+        {
+          "label": "Turning Down the Heat: A Critical Analysis of Min-p Sampling in Language Models (arXiv:2506.13681)",
+          "href": "https://arxiv.org/html/2506.13681v1"
+        },
+        {
+          "label": "HuggingFace Transformers — logits_process.py (source brut, RepetitionPenaltyLogitsProcessor)",
+          "href": "https://raw.githubusercontent.com/huggingface/transformers/main/src/transformers/generation/logits_process.py"
+        },
+        {
+          "label": "GitHub issue #2302 — Repetition penalty works falsely when logit is negative (rapport du bug original + correctif)",
+          "href": "https://github.com/huggingface/transformers/issues/2302"
+        },
+        {
+          "label": "Gist wassname — Repetition penalty sign-aware implementation",
+          "href": "https://gist.github.com/wassname/b4b7c33d2f2edfbea60c79df5941158b"
+        },
+        {
+          "label": "HuggingFace Transformers — RepetitionPenaltyLogitsProcessor source (branche main)",
+          "href": "https://github.com/huggingface/transformers/blob/main/src/transformers/generation/logits_process.py"
+        },
+        {
+          "label": "Apple MLX-examples — Issue #385 : Repetition penalty for LLM inference in MLX LM (implémentation indépendante utilisant la même formule sign-aware)",
+          "href": "https://github.com/ml-explore/mlx-examples/issues/385"
+        },
+        {
+          "label": "Advanced Usage | OpenAI API (developers.openai.com)",
+          "href": "https://developers.openai.com/api/docs/guides/advanced-usage"
+        },
+        {
+          "label": "Create Completion | OpenAI API Reference",
+          "href": "https://developers.openai.com/api/reference/python/resources/completions/methods/create"
+        },
+        {
+          "label": "Guide to ChatGPT's Advanced Settings — Towards Data Science",
+          "href": "https://towardsdatascience.com/guide-to-chatgpts-advanced-settings-top-p-frequency-penalties-temperature-and-more-b70bae848069/"
+        },
+        {
+          "label": "LZ Penalty: An information-theoretic repetition penalty for autoregressive language models (Ginart et al., 2025)",
+          "href": "https://arxiv.org/abs/2504.20131"
+        },
+        {
+          "label": "Solving LLM Repetition Problem in Production: A Comprehensive Study of Multiple Solutions (2024)",
+          "href": "https://arxiv.org/abs/2512.04419"
+        },
+        {
+          "label": "LZ Penalty: An information-theoretic repetition penalty for autoregressive language models (arxiv 2504.20131)",
+          "href": "https://arxiv.org/html/2504.20131v2"
+        },
+        {
+          "label": "Analysis of repetition patterns and presence penalty in LLM decoding (arxiv 2512.04419)",
+          "href": "https://arxiv.org/html/2512.04419v1"
+        },
+        {
+          "label": "A Contrastive Framework for Neural Text Generation — NeurIPS 2022 Proceedings (official)",
+          "href": "https://proceedings.neurips.cc/paper_files/paper/2022/hash/871cae8f599cb8bbfcb0f58fe1af95ad-Abstract-Conference.html"
+        },
+        {
+          "label": "Generating Human-level Text with Contrastive Search in Transformers — HuggingFace Blog",
+          "href": "https://huggingface.co/blog/introducing-csearch"
+        },
+        {
+          "label": "A Contrastive Framework for Neural Text Generation (Su et al., NeurIPS 2022) — ar5iv HTML",
+          "href": "https://ar5iv.labs.arxiv.org/html/2202.06417"
+        },
+        {
+          "label": "Contrastive Search Is What You Need For Neural Text Generation (Su et al., 2022) — ar5iv HTML",
+          "href": "https://ar5iv.labs.arxiv.org/html/2210.14140"
+        },
+        {
+          "label": "The Shape of Learning: Anisotropy and Intrinsic Dimensions in Transformer-Based Models (arxiv 2311.05928)",
+          "href": "https://arxiv.org/html/2311.05928v2"
+        },
+        {
+          "label": "Is Anisotropy Inherent to Transformers? (arxiv 2306.07656)",
+          "href": "https://arxiv.org/abs/2306.07656"
+        },
+        {
+          "label": "SimCTG GitHub repository — confirms GPT-2-large and Chinese (LCCC) experiments",
+          "href": "https://github.com/yxuansu/SimCTG"
+        },
+        {
+          "label": "A Contrastive Framework for Neural Text Generation (arXiv:2202.06417)",
+          "href": "https://arxiv.org/abs/2202.06417"
+        },
+        {
+          "label": "Anisotropy Is Inherent to Self-Attention in Transformers (arXiv:2401.12143)",
+          "href": "https://arxiv.org/abs/2401.12143"
+        },
+        {
+          "label": "The Shape of Learning: Anisotropy and Intrinsic Dimensions in Transformer-Based Models (arXiv:2311.05928)",
+          "href": "https://arxiv.org/abs/2311.05928"
+        },
+        {
+          "label": "Contrastive Decoding: Open-ended Text Generation as Optimization (Li et al., ACL 2023) — HTML full text",
+          "href": "https://arxiv.org/html/2210.15097"
+        },
+        {
+          "label": "ACL Anthology — Contrastive Decoding (ACL 2023, paper 2023.acl-long.687)",
+          "href": "https://aclanthology.org/2023.acl-long.687"
+        },
+        {
+          "label": "Contrastive Decoding Improves Reasoning in Large Language Models (O'Brien & Lewis, 2023)",
+          "href": "https://arxiv.org/abs/2309.09117"
+        },
+        {
+          "label": "Contrastive Decoding: Open-ended Text Generation as Optimization (Li, Holtzman et al., ACL 2023) — arXiv",
+          "href": "https://arxiv.org/abs/2210.15097"
+        },
+        {
+          "label": "Inference characteristics of Llama — Cursor Engineering Blog",
+          "href": "https://cursor.com/blog/llama-inference"
+        },
+        {
+          "label": "NVIDIA Technical Blog — Mastering LLM Techniques: Inference Optimization (formule et calcul LLaMA-2 7B vérifié indépendamment)",
+          "href": "https://developer.nvidia.com/blog/mastering-llm-techniques-inference-optimization/"
+        },
+        {
+          "label": "LLM Inference Series: 4. KV caching, a deeper look (Pierre Lienhart, Medium)",
+          "href": "https://medium.com/@plienhar/llm-inference-series-4-kv-caching-a-deeper-look-4ba9a77746c8"
+        },
+        {
+          "label": "LLM Inference Sizing and Performance Guidance (VMware Cloud Foundation Blog)",
+          "href": "https://blogs.vmware.com/cloud-foundation/2024/09/25/llm-inference-sizing-and-performance-guidance/"
+        },
+        {
+          "label": "Techniques for KV Cache Optimization in Large Language Models (omrimallis.com)",
+          "href": "https://www.omrimallis.com/posts/techniques-for-kv-cache-optimization/"
+        },
+        {
+          "label": "The Evolution of KV Cache: From Simple Buffers to Distributed Memory Systems (Medium / Luv Bansal)",
+          "href": "https://luv-bansal.medium.com/the-evolution-of-kv-cache-from-simple-buffers-to-distributed-memory-systems-df51cb8ce26f"
+        },
+        {
+          "label": "GQA: Training Generalized Multi-Query Transformer Models from Multi-Head Checkpoints (Ainslie et al., EMNLP 2023)",
+          "href": "https://arxiv.org/abs/2305.13245"
+        },
+        {
+          "label": "LLaMA-2-70B Has 64 Query Heads and 8 KV Heads — Towards AI",
+          "href": "https://pub.towardsai.net/llama-2-70b-has-64-query-heads-and-8-kv-heads-here-is-the-memory-arithmetic-nobody-shows-you-eb154f2b65e9"
+        },
+        {
+          "label": "LLaMA-2-70B config.json (TheBloke/Llama-2-70B-fp16, HuggingFace) — num_attention_heads=64, num_key_value_heads=8",
+          "href": "https://huggingface.co/TheBloke/Llama-2-70B-fp16/blob/main/config.json"
+        },
+        {
+          "label": "Fast Inference from Transformers via Speculative Decoding (Leviathan et al., Google Brain, ICML 2023) — arXiv 2302.01318",
+          "href": "https://arxiv.org/abs/2302.01318"
+        },
+        {
+          "label": "Speculative Decoding Scaling Laws (SDSL), 2025",
+          "href": "https://arxiv.org/pdf/2603.11053"
+        },
+        {
+          "label": "Sequoia: Scalable, Robust, and Hardware-aware Speculative Decoding (Chen et al., 2024) — Appendix D cite et utilise la formule",
+          "href": "https://arxiv.org/abs/2402.12374"
+        },
+        {
+          "label": "The economics of speculative decoding — Ferguson Finn, blog indépendant qui dérive N(α,γ) et calcule N(0.8,4) ≈ 3.36",
+          "href": "https://fergusfinn.com/blog/economics-of-speculative-decoding/"
+        },
+        {
+          "label": "EAGLE: Speculative Sampling Requires Rethinking Feature Uncertainty (arXiv 2401.15077)",
+          "href": "https://arxiv.org/abs/2401.15077"
+        },
+        {
+          "label": "Batch Speculative Decoding Done Right (arXiv 2510.22876)",
+          "href": "https://arxiv.org/html/2510.22876v3"
+        },
+        {
+          "label": "Batch speculative decoding Done right (arxiv 2510.22876)",
+          "href": "https://arxiv.org/html/2510.22876v1"
+        },
+        {
+          "label": "DeepSeek-V4 on Day 0: From Fast Inference to Verified RL with SGLang and Miles (LMSYS, avril 2026)",
+          "href": "https://www.lmsys.org/blog/2026-04-25-deepseek-v4/"
+        },
+        {
+          "label": "Medusa: Simple LLM Inference Acceleration Framework with Multiple Decoding Heads (arXiv:2401.10774)",
+          "href": "https://arxiv.org/abs/2401.10774"
+        },
+        {
+          "label": "Medusa: Simple LLM Inference Acceleration Framework with Multiple Decoding Heads — full HTML (arXiv:2401.10774v3)",
+          "href": "https://arxiv.org/html/2401.10774v3"
+        },
+        {
+          "label": "A Selective Survey of Speculative Decoding Techniques in LLM Inference (Coding Confessions)",
+          "href": "https://blog.codingconfessions.com/p/a-selective-survey-of-speculative-decoding"
+        },
+        {
+          "label": "Exploring Medusa and Multi-Token Prediction (Towards Data Science)",
+          "href": "https://towardsdatascience.com/exploring-medusa-and-multi-token-prediction-de7f8312e4a7/"
+        },
+        {
+          "label": "EAGLE full paper HTML (arXiv:2401.15077v3)",
+          "href": "https://arxiv.org/html/2401.15077v3"
+        },
+        {
+          "label": "Literature Review: EAGLE – Speculative Sampling Requires Rethinking Feature Uncertainty (Moonlight.io)",
+          "href": "https://www.themoonlight.io/en/review/eagle-speculative-sampling-requires-rethinking-feature-uncertainty"
+        },
+        {
+          "label": "EAGLE-3: Scaling up Inference Acceleration of LLMs via Training-Time Test (arXiv 2503.01840v1)",
+          "href": "https://arxiv.org/html/2503.01840v1"
+        },
+        {
+          "label": "EAGLE-3 — Paper page (Hugging Face)",
+          "href": "https://huggingface.co/papers/2503.01840"
+        },
+        {
+          "label": "Lookahead Decoding: A Parallel Decoding Algorithm to Accelerate LLM Inference — MarkTechPost",
+          "href": "https://www.marktechpost.com/2023/11/27/lookahead-decoding-a-parallel-decoding-algorithm-to-accelerate-llm-inference/"
+        },
+        {
+          "label": "CLLMs: Consistency Large Language Models (arXiv 2403.00835)",
+          "href": "https://arxiv.org/html/2403.00835"
+        }
+      ]
+    },
+    {
+      "type": "pointers",
+      "title": "Pour aller plus loin",
+      "items": [
+        {
+          "name": "Holtzman et al. (ICLR 2020) — The Curious Case of Neural Text Degeneration",
+          "url": "https://arxiv.org/abs/1904.09751",
+          "kind": "reading",
+          "blurb": "Article fondateur qui formalise le paradoxe de la dégénérescence, quantifie les pathologies du greedy et du beam search (répétition, beam search curse) et introduit le nucleus sampling (top-p) comme correctif empiriquement validé sur GPT-2."
+        },
+        {
+          "name": "Leviathan, Kalman, Matias — Fast Inference from Transformers via Speculative Decoding (ICML 2023)",
+          "url": "https://arxiv.org/abs/2211.17192",
+          "kind": "reading",
+          "blurb": "Article fondateur du speculative decoding : preuve de losslessness par rejection sampling, résultats sur T5-XXL et formule du taux d'acceptation attendu N(α,γ)."
+        },
+        {
+          "name": "Chen et al. — Accelerating Large Language Model Decoding with Speculative Sampling (DeepMind 2023)",
+          "url": "https://arxiv.org/abs/2302.01318",
+          "kind": "reading",
+          "blurb": "Version DeepMind indépendante du speculative decoding : variante du rejection sampling et validation sur Chinchilla 70B en régime distribué (2–2,5×)."
+        },
+        {
+          "name": "Fan et al. (ACL 2018) — Hierarchical Neural Story Generation",
+          "url": "https://arxiv.org/abs/1805.04833",
+          "kind": "reading",
+          "blurb": "Première formalisation du top-k sampling dans le contexte de la génération d'histoires neuronales hiérarchiques ; référence canonique pour ce schéma de troncation."
+        },
+        {
+          "name": "Vijayakumar et al. (2016) — Diverse Beam Search",
+          "url": "https://arxiv.org/abs/1610.02424",
+          "kind": "reading",
+          "blurb": "Extension du beam search qui partitionne les faisceaux en groupes et ajoute un terme de diversité pour forcer une couverture plus large de l'espace de sortie."
+        },
+        {
+          "name": "Nguyen et al. — Turning Up the Heat: Min-p Sampling (ICLR 2025 oral)",
+          "url": "https://arxiv.org/abs/2407.01082",
+          "kind": "reading",
+          "blurb": "Article ICLR 2025 oral proposant min-p comme correctif au couplage top-p/temperature, avec ablations sur Mistral et Llama 3 de 1B à 123B paramètres sur GPQA, GSM8K et AlpacaEval."
+        },
+        {
+          "name": "Meister et al. — Locally Typical Sampling (TACL 2023)",
+          "url": "https://arxiv.org/abs/2202.00666",
+          "kind": "reading",
+          "blurb": "Article TACL 2023 fondant le typical sampling sur la théorie de l'information et la psycholinguistique, avec évaluations sur résumé abstractif et génération de récits."
+        },
+        {
+          "name": "Ginart et al. — LZ Penalty: An Information-Theoretic Repetition Penalty (arXiv 2504.20131)",
+          "url": "https://arxiv.org/abs/2504.20131",
+          "kind": "reading",
+          "blurb": "Propose une pénalité n-gram sliding-window fondée sur la compression LZ77, documentant les échecs des pénalités binaires et de fréquence standard dont le degenerate cycle effect."
+        },
+        {
+          "name": "Zhu et al. — Penalty Decoding: Well Suppress the Self-Reinforcement Effect (arXiv 2310.14971)",
+          "url": "https://arxiv.org/abs/2310.14971",
+          "kind": "reading",
+          "blurb": "Analyse le self-reinforcement effect dans la génération ouverte et propose un mécanisme d'oubli temporel et une length penalty pour atténuer les boucles sans sur-pénaliser les tokens fondamentaux."
+        },
+        {
+          "name": "Cai et al. — Medusa: Simple LLM Inference Acceleration Framework with Multiple Decoding Heads (ICML 2024)",
+          "url": "https://arxiv.org/abs/2401.10774",
+          "kind": "reading",
+          "blurb": "Têtes MLP légères greffées sur le backbone figé combinées à un tree attention ; Medusa-2 atteint 2,3–3,6× de speedup avec co-entraînement."
+        },
+        {
+          "name": "Li et al. — EAGLE: Speculative Sampling Requires Rethinking Feature Uncertainty (ICML 2024)",
+          "url": "https://arxiv.org/abs/2401.15077",
+          "kind": "reading",
+          "blurb": "Prédit les activations de l'avant-dernière couche plutôt que les tokens directement, atteignant un taux d'acceptation ~0,80 et un speedup de 3,76× sur Vicuna-13B."
+        },
+        {
+          "name": "Fu et al. — Break the Sequential Dependency of LLM Inference Using Lookahead Decoding (ICML 2024)",
+          "url": "https://arxiv.org/abs/2402.02057",
+          "kind": "reading",
+          "blurb": "Cache de n-grams issus de l'itération de Jacobi pour générer et vérifier des tokens en parallèle, sans draft model ni entraînement ; jusqu'à 2× sur CodeLLaMA."
+        },
+        {
+          "name": "HuggingFace Transformers — GenerationConfig & generate()",
+          "url": "https://huggingface.co/docs/transformers/main_classes/text_generation",
+          "kind": "tool",
+          "blurb": "Documentation de référence de GenerationConfig et GenerationMixin, exposant num_beams, length_penalty, no_repeat_ngram_size, diversity_penalty et tous les paramètres de la méthode generate()."
+        },
+        {
+          "name": "HuggingFace Transformers — RepetitionPenaltyLogitsProcessor",
+          "url": "https://huggingface.co/docs/transformers/internal/generation_utils",
+          "kind": "implementation",
+          "blurb": "Implémentation de référence sign-aware du repetition penalty ; le code source (logits_process.py) documente la règle l′ = l × θ pour l ≤ 0 et l′ = l / θ pour l > 0."
+        },
+        {
+          "name": "vLLM — SamplingParams (inference_params)",
+          "url": "https://docs.vllm.ai/en/latest/api/inference_params.html",
+          "kind": "library",
+          "blurb": "Moteur d'inférence haute performance exposant min_p, top_p et top_k comme paramètres de SamplingParams pour la génération batch à haut débit."
+        },
+        {
+          "name": "vLLM — Speculative Decoding",
+          "url": "https://docs.vllm.ai/en/latest/features/speculative_decoding/",
+          "kind": "tool",
+          "blurb": "Documentation de la prise en charge du speculative decoding dans vLLM, couvrant EAGLE-1/3, Medusa, ngram et les draft models externes."
+        },
+        {
+          "name": "llama.cpp — paramètres de sampling",
+          "url": "https://github.com/ggml-org/llama.cpp",
+          "kind": "implementation",
+          "blurb": "Implémentation C/C++ de min-p (--min-p), typical (--typical), top-p et top-k utilisable sans GPU ; référence pour l'intégration en production edge."
+        },
+        {
+          "name": "SafeAILab/EAGLE — implémentation officielle EAGLE-1/2/3",
+          "url": "https://github.com/SafeAILab/EAGLE",
+          "kind": "implementation",
+          "blurb": "Dépôt officiel couvrant EAGLE-1 (ICML 2024), EAGLE-2 (EMNLP 2024) et EAGLE-3 (NeurIPS 2025), avec scripts d'entraînement des draft heads et intégration vLLM."
+        },
+        {
+          "name": "FasterDecoding/Medusa — implémentation officielle",
+          "url": "https://github.com/FasterDecoding/Medusa",
+          "kind": "implementation",
+          "blurb": "Implémentation de référence de Medusa avec les têtes MLP et le tree attention, compatible avec les modèles Hugging Face."
+        },
+        {
+          "name": "hao-ai-lab/LookaheadDecoding — implémentation officielle",
+          "url": "https://github.com/hao-ai-lab/LookaheadDecoding",
+          "kind": "implementation",
+          "blurb": "Implémentation officielle du lookahead decoding (ICML 2024) utilisant l'itération de Jacobi pour générer des n-grams en parallèle, sans draft model ni données externes."
+        }
+      ]
+    },
+    {
+      "type": "glossary"
+    }
+  ]
+}

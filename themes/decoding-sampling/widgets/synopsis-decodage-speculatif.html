@@ -1,0 +1,721 @@
+<div class="widget sdl-root" id="sdl-root">
+  <style>
+    .sdl-root{--sdl-ink:var(--ink,#15202E);--sdl-soft:var(--ink-soft,#43536A);
+      --sdl-faint:var(--ink-faint,#7A889B);--sdl-card:var(--card,#fff);
+      --sdl-line:var(--line,#D7DFE9);--sdl-line-soft:var(--line-soft,#E7ECF3);
+      --sdl-blue:var(--blue,#23537F);--sdl-deep:var(--blue-deep,#142E49);
+      --sdl-bright:var(--blue-bright,#2C77B6);--sdl-wash:var(--blue-wash,#E7EEF6);
+      --sdl-gold:var(--gold,#C68A2E);--sdl-gold-wash:#FBF3E3;--sdl-gold-ink:#8A5E16;
+      --sdl-bord:var(--bordeaux,#7C2A38);--sdl-bord-br:var(--bordeaux-bright,#9B3443);
+      --sdl-bord-wash:var(--bordeaux-wash,#F3E3E6);
+      --sdl-green:#2F7D5B;--sdl-green-wash:#EAF4EE;--sdl-green-line:#C3E0D0;
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--sdl-ink);
+      border:1px solid var(--sdl-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--sdl-card);max-width:860px}
+    .sdl-root *{box-sizing:border-box}
+    .sdl-k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;color:var(--sdl-faint);font-weight:600;margin:0 0 2px}
+    .sdl-title{font-weight:700;font-size:1.05rem;margin:0 0 4px;line-height:1.3}
+    .sdl-sub{font-size:.84rem;color:var(--sdl-soft);margin:0 0 12px;line-height:1.45}
+    .sdl-sub b{color:var(--sdl-ink)}.sdl-sub code{font-family:ui-monospace,monospace;font-size:.92em}
+    .sdl-q{margin:0 0 12px;padding:9px 12px;border-radius:8px;border:1px dashed var(--sdl-line);
+      background:#FBFCFE;font-size:.82rem;line-height:1.5}
+    .sdl-q b{color:var(--sdl-deep)}.sdl-q code{font-family:ui-monospace,monospace;font-size:.9em}
+
+    /* phase rail (within one cycle) */
+    .sdl-rail{display:flex;gap:5px;margin:0 0 6px;align-items:stretch}
+    .sdl-ph{flex:1 1 0;min-width:0;border:1px solid var(--sdl-line);border-radius:8px;
+      padding:6px 6px;background:var(--sdl-card);text-align:center;transition:.15s;cursor:pointer}
+    .sdl-ph .sdl-pn{font-size:.58rem;letter-spacing:.03em;color:var(--sdl-faint);font-weight:700}
+    .sdl-ph .sdl-pl{font-size:.76rem;font-weight:800;color:var(--sdl-soft);margin-top:1px;font-family:ui-monospace,monospace}
+    .sdl-ph .sdl-pm{font-size:.55rem;color:var(--sdl-faint);margin-top:1px;line-height:1.2}
+    .sdl-ph.sdl-on{box-shadow:0 0 0 1px var(--sdl-bright) inset;border-color:var(--sdl-bright);background:var(--sdl-wash)}
+    .sdl-ph.sdl-on .sdl-pl{color:var(--sdl-blue)}.sdl-ph.sdl-on .sdl-pn{color:var(--sdl-blue)}
+    .sdl-ph.sdl-done{border-color:var(--sdl-green-line);background:var(--sdl-green-wash)}
+    .sdl-ph.sdl-done .sdl-pl{color:var(--sdl-green)}
+    .sdl-loopback{text-align:center;font-size:.62rem;color:var(--sdl-faint);margin:0 0 12px;font-style:italic}
+    .sdl-loopback b{color:var(--sdl-bright);font-style:normal}
+
+    /* sequence strip (progress) */
+    .sdl-seqwrap{border:1px solid var(--sdl-line-soft);border-radius:9px;background:#FBFCFE;padding:9px 10px;margin:0 0 10px}
+    .sdl-seqh{display:flex;align-items:baseline;gap:8px;margin:0 0 7px}
+    .sdl-seqh .sdl-sh{font-size:.62rem;letter-spacing:.05em;text-transform:uppercase;color:var(--sdl-faint);font-weight:700}
+    .sdl-seqh .sdl-sprompt{font-size:.72rem;color:var(--sdl-faint);font-family:ui-monospace,monospace}
+    .sdl-strip{display:flex;flex-wrap:wrap;gap:5px;align-items:center;min-height:30px}
+    .sdl-chip{font:600 .78rem/1 ui-monospace,monospace;border-radius:6px;padding:5px 8px;border:1px solid var(--sdl-line);
+      background:var(--sdl-card);color:var(--sdl-soft);position:relative;white-space:nowrap}
+    .sdl-chip.sdl-accept{background:var(--sdl-wash);border-color:#CFE0EF;color:var(--sdl-blue)}
+    .sdl-chip.sdl-resample{background:var(--sdl-gold-wash);border-color:#EAD9B4;color:var(--sdl-gold-ink)}
+    .sdl-chip.sdl-bonus{background:var(--sdl-green-wash);border-color:var(--sdl-green-line);color:var(--sdl-green)}
+    .sdl-chip.sdl-eos{background:var(--sdl-deep);border-color:var(--sdl-deep);color:#fff}
+    .sdl-chip.sdl-draft{border-style:dashed;color:var(--sdl-faint);background:#fff}
+    .sdl-chip.sdl-reject{border-color:#E3C6CC;background:var(--sdl-bord-wash);color:var(--sdl-bord-br);text-decoration:line-through}
+    .sdl-chip .sdl-cmark{position:absolute;top:-7px;right:-5px;font:800 .5rem/1 ui-monospace,monospace;border-radius:4px;padding:1px 3px}
+    .sdl-cur{display:inline-block;width:2px;height:18px;background:var(--sdl-bright);border-radius:2px;animation:sdl-blink 1s steps(2) infinite}
+    @keyframes sdl-blink{50%{opacity:.25}}
+    .sdl-fut{font:600 .78rem/1 ui-monospace,monospace;color:var(--sdl-line);border:1px dashed var(--sdl-line-soft);border-radius:6px;padding:5px 7px}
+    .sdl-progbar{margin:8px 0 0;height:7px;border-radius:5px;background:var(--sdl-line-soft);overflow:hidden}
+    .sdl-progfill{height:100%;background:var(--sdl-bright);width:0;transition:width .2s}
+    .sdl-progcap{font-size:.64rem;color:var(--sdl-faint);margin:4px 0 0;display:flex;justify-content:space-between}
+
+    /* readout */
+    .sdl-read{margin:0 0 11px;padding:10px 12px;border-radius:8px;border:1px solid var(--sdl-line);
+      background:var(--sdl-wash);font-size:.83rem;line-height:1.5;color:var(--sdl-ink);min-height:3.4em}
+    .sdl-read b{font-weight:700}.sdl-read code{font-family:ui-monospace,monospace;font-size:.92em}.sdl-read i{color:var(--sdl-soft)}
+    .sdl-read.sdl-c-prm{background:var(--sdl-wash);border-color:#CFE0EF}
+    .sdl-read.sdl-c-warn{background:var(--sdl-gold-wash);border-color:#EAD9B4}
+    .sdl-read.sdl-c-bad{background:var(--sdl-bord-wash);border-color:#E3C6CC}
+    .sdl-read.sdl-c-ok{background:var(--sdl-green-wash);border-color:var(--sdl-green-line)}
+
+    /* verification workspace (the batched target pass) */
+    .sdl-ws{border:1px solid var(--sdl-line);border-radius:9px;overflow:hidden;margin:0 0 11px}
+    .sdl-ws-h{font-size:.66rem;letter-spacing:.05em;text-transform:uppercase;font-weight:700;color:var(--sdl-faint);
+      padding:7px 11px;background:#F6F9FC;border-bottom:1px solid var(--sdl-line-soft);display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+    .sdl-ws-h .sdl-batch{color:var(--sdl-blue);font-weight:800}
+    .sdl-tab{width:100%;border-collapse:collapse;font-size:.76rem}
+    .sdl-tab th,.sdl-tab td{padding:5px 8px;text-align:right;border-bottom:1px solid var(--sdl-line-soft);white-space:nowrap}
+    .sdl-tab th:first-child,.sdl-tab td:first-child{text-align:left}
+    .sdl-tab th{font:700 .58rem/1.3 inherit;text-transform:uppercase;letter-spacing:.02em;color:var(--sdl-faint)}
+    .sdl-tab td{font-family:ui-monospace,monospace;color:var(--sdl-soft)}
+    .sdl-tab td .sdl-tk{font-weight:800;color:var(--sdl-ink)}
+    .sdl-tab tr.sdl-r-acc td{background:var(--sdl-green-wash)}
+    .sdl-tab tr.sdl-r-acc td .sdl-tk{color:var(--sdl-green)}
+    .sdl-tab tr.sdl-r-rej td{background:var(--sdl-bord-wash)}
+    .sdl-tab tr.sdl-r-rej td .sdl-tk{color:var(--sdl-bord-br)}
+    .sdl-tab tr.sdl-r-skip td{opacity:.5}
+    .sdl-tab tr.sdl-r-plus td{background:#FBFCFE;color:var(--sdl-faint)}
+    .sdl-tab tr.sdl-r-plus.sdl-r-bonus td{background:var(--sdl-green-wash)}
+    .sdl-vd{font:800 .6rem/1 ui-monospace,monospace;border-radius:5px;padding:2px 6px}
+    .sdl-vd.sdl-a{background:var(--sdl-green);color:#fff}
+    .sdl-vd.sdl-x{background:var(--sdl-bord);color:#fff}
+    .sdl-vd.sdl-w{background:var(--sdl-line-soft);color:var(--sdl-faint)}
+    .sdl-vd.sdl-b{background:var(--sdl-green-line);color:var(--sdl-green)}
+    .sdl-cmp{font-weight:700}
+    .sdl-cmp.sdl-lt{color:var(--sdl-green)}.sdl-cmp.sdl-ge{color:var(--sdl-bord-br)}
+
+    /* residual resample panel */
+    .sdl-resid{border:1px solid var(--sdl-gold);border-radius:9px;background:var(--sdl-gold-wash);padding:10px 12px;margin:0 0 11px;display:none}
+    .sdl-resid.sdl-show{display:block}
+    .sdl-resid-h{font-size:.66rem;letter-spacing:.04em;text-transform:uppercase;font-weight:800;color:var(--sdl-gold-ink);margin:0 0 7px}
+    .sdl-resid-sub{font-size:.74rem;color:var(--sdl-soft);line-height:1.45;margin:0 0 8px}
+    .sdl-resid-sub code{font-family:ui-monospace,monospace}
+    .sdl-bars{display:flex;flex-direction:column;gap:5px}
+    .sdl-bar{display:flex;align-items:center;gap:8px;font:700 .72rem/1 ui-monospace,monospace}
+    .sdl-bar .sdl-bk{width:62px;text-align:right;color:var(--sdl-soft)}
+    .sdl-bar .sdl-btrack{flex:1;height:15px;background:#fff;border:1px solid #EAD9B4;border-radius:4px;position:relative;overflow:hidden}
+    .sdl-bar .sdl-bfill{height:100%;background:var(--sdl-gold)}
+    .sdl-bar .sdl-bfill.sdl-bzero{background:repeating-linear-gradient(45deg,#F0E2C4,#F0E2C4 3px,#fff 3px,#fff 6px)}
+    .sdl-bar .sdl-bv{width:118px;text-align:left;color:var(--sdl-faint);font-weight:600;font-size:.66rem}
+    .sdl-bar.sdl-pick .sdl-bk{color:var(--sdl-gold-ink)}
+    .sdl-bar.sdl-pick .sdl-btrack{box-shadow:0 0 0 2px var(--sdl-gold)}
+
+    /* throughput model */
+    .sdl-thr{display:flex;gap:12px;flex-wrap:wrap;margin:0 0 11px;align-items:stretch}
+    .sdl-thr-main{flex:1 1 360px;min-width:300px;border:1px solid var(--sdl-line-soft);border-radius:9px;background:#FBFCFE;padding:8px 10px 6px}
+    .sdl-thr-h{font-size:.62rem;letter-spacing:.05em;text-transform:uppercase;color:var(--sdl-faint);font-weight:700;margin:0 0 3px}
+    .sdl-csvg{width:100%;height:auto;display:block}
+    .sdl-csvg text{font:9px/1 ui-monospace,monospace}
+    .sdl-ctrl{flex:1 1 220px;min-width:210px;border:1px solid var(--sdl-line-soft);border-radius:9px;background:#FBFCFE;padding:10px 11px}
+    .sdl-slabel{display:flex;justify-content:space-between;font-size:.72rem;color:var(--sdl-soft);font-weight:600;margin:8px 0 2px}
+    .sdl-slabel:first-child{margin-top:0}
+    .sdl-slabel b{font-family:ui-monospace,monospace;color:var(--sdl-blue)}
+    .sdl-root input[type=range]{width:100%;accent-color:var(--sdl-bright);margin:0}
+    .sdl-formula{font:700 .72rem/1.4 ui-monospace,monospace;color:var(--sdl-soft);margin:9px 0 0;padding:7px 8px;border-radius:6px;background:#fff;border:1px solid var(--sdl-line-soft)}
+    .sdl-formula b{color:var(--sdl-blue)}
+    .sdl-formula .sdl-asym{color:var(--sdl-faint)}
+
+    .sdl-banner{margin:0 0 11px;padding:9px 12px;border-radius:8px;font-size:.82rem;font-weight:600;line-height:1.45;
+      border:1px solid var(--sdl-green-line);background:var(--sdl-green-wash);color:var(--sdl-green);display:none}
+    .sdl-banner.sdl-show{display:block}
+
+    .sdl-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+    .sdl-btns button{border:1px solid var(--sdl-bright);border-radius:7px;background:transparent;color:var(--sdl-bright);
+      font:600 13px/1 inherit;padding:8px 13px;cursor:pointer}
+    .sdl-btns button:hover{background:var(--sdl-wash)}
+    .sdl-btns button.sdl-primary{background:var(--sdl-blue);color:#fff;border-color:var(--sdl-blue)}
+    .sdl-btns button.sdl-primary:hover{background:var(--sdl-bright)}
+    .sdl-btns button:disabled{opacity:.42;cursor:default}
+    .sdl-btns button:disabled:hover{background:transparent}
+    .sdl-btns button.sdl-primary:disabled{background:var(--sdl-blue)}
+
+    .sdl-stats{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}
+    .sdl-stat{flex:1 1 78px;border:1px solid var(--sdl-line);border-radius:9px;padding:7px 10px;background:var(--sdl-card)}
+    .sdl-stat .sdl-sk{font-size:.55rem;letter-spacing:.02em;text-transform:uppercase;color:var(--sdl-faint);font-weight:700;line-height:1.2}
+    .sdl-stat .sdl-sv{font:800 1rem/1.1 ui-monospace,monospace;color:var(--sdl-blue);margin:3px 0 0}
+    .sdl-stat.sdl-hot .sdl-sv{color:var(--sdl-gold-ink)}
+    .sdl-stat.sdl-good .sdl-sv{color:var(--sdl-green)}
+
+    .sdl-note{margin:13px 0 0;font-size:.72rem;color:var(--sdl-faint);line-height:1.55}
+    .sdl-note code{font-family:ui-monospace,monospace}.sdl-note b{color:var(--sdl-soft)}
+    @media(max-width:560px){.sdl-tab{font-size:.68rem}.sdl-tab th,.sdl-tab td{padding:4px 5px}}
+  </style>
+
+  <p class="sdl-k">Vue d'ensemble · super-widget</p>
+  <p class="sdl-title">Décodage spéculatif de bout en bout : proposer · vérifier · tester · valider, puis boucler</p>
+  <p class="sdl-sub">Un cycle spéculatif <b>complet</b> sur une <b>séquence jouet</b>, entièrement déterministe. Un petit
+    <b>modèle brouillon</b> propose <code>γ</code> tokens d'un coup, le grand <b>modèle cible</b> les vérifie en <b>une seule
+    passe batchée</b>, et un <b>test de rejet par position</b> ne garde que ce que la cible aurait elle-même produit — c'est
+    <b>sans perte</b>. Avancez <b>pas-à-pas</b>, <b>cycle par cycle</b>, ou lancez la lecture continue <b>« jusqu'à
+    convergence »</b> (token de fin). Réglez <code>γ</code> et le taux d'acceptation <code>α</code> pour voir la courbe de
+    débit <code>N(α,γ)</code> <b>saturer</b>. Tous les nombres sont fixés et calculés exactement, sans aléa.</p>
+
+  <div class="sdl-q">
+    <b>Instance jouet.</b> Prompt&nbsp;: <code>« Dans la clairière, ___ »</code>. La cible produirait la suite
+    <code>le renard roux saute par-dessus la barrière puis file vers le bois .</code> (13 tokens, dernier&nbsp;=
+    <code>.</code> tenant lieu de <code>&lt;/s&gt;</code>). Le brouillon devine juste la plupart du temps, mais propose
+    parfois un mauvais token (<code>bondit</code> au lieu de <code>saute</code>, <code>du</code> au lieu de <code>le</code>)&nbsp;:
+    ces positions sont <b>rejetées puis rééchantillonnées</b>. La séquence finale ne dépend <i>pas</i> de <code>γ</code> —
+    seul le nombre de passes cible change.
+  </div>
+
+  <div class="sdl-rail" id="sdl-rail" role="group" aria-label="phases d'un cycle spéculatif">
+    <div class="sdl-ph" data-ph="0" id="sdl-ph-0"><div class="sdl-pn">①</div><div class="sdl-pl">PROPOSER</div><div class="sdl-pm">brouillon · γ tokens</div></div>
+    <div class="sdl-ph" data-ph="1" id="sdl-ph-1"><div class="sdl-pn">②</div><div class="sdl-pl">VÉRIFIER</div><div class="sdl-pm">cible · 1 passe γ+1</div></div>
+    <div class="sdl-ph" data-ph="2" id="sdl-ph-2"><div class="sdl-pn">③</div><div class="sdl-pl">TESTER</div><div class="sdl-pm">rejet par position</div></div>
+    <div class="sdl-ph" data-ph="3" id="sdl-ph-3"><div class="sdl-pn">④</div><div class="sdl-pl">VALIDER</div><div class="sdl-pm">préfixe + rééch.</div></div>
+  </div>
+  <p class="sdl-loopback">↳ puis on <b>boucle</b> au cycle suivant à partir du nouveau préfixe, jusqu'au token de fin</p>
+
+  <div class="sdl-seqwrap">
+    <div class="sdl-seqh">
+      <span class="sdl-sh">Séquence produite</span>
+      <span class="sdl-sprompt">« Dans la clairière, »</span>
+    </div>
+    <div class="sdl-strip" id="sdl-strip"></div>
+    <div class="sdl-progbar"><div class="sdl-progfill" id="sdl-progfill"></div></div>
+    <div class="sdl-progcap"><span id="sdl-progL">0 / 13 tokens validés</span><span id="sdl-progR">cycle — / —</span></div>
+  </div>
+
+  <div class="sdl-read" id="sdl-read"></div>
+
+  <div class="sdl-ws" id="sdl-ws" style="display:none">
+    <div class="sdl-ws-h"><span id="sdl-ws-title">Passe de vérification — modèle cible</span><span class="sdl-batch" id="sdl-ws-batch"></span></div>
+    <table class="sdl-tab"><thead><tr>
+      <th>pos · jeton brouillon</th><th>q&nbsp;(brouillon)</th><th>p&nbsp;(cible)</th><th>p/q</th><th>seuil</th><th>tirage r</th><th>verdict</th>
+    </tr></thead><tbody id="sdl-ws-body"></tbody></table>
+  </div>
+
+  <div class="sdl-resid" id="sdl-resid">
+    <p class="sdl-resid-h" id="sdl-resid-h">Rééchantillonnage depuis la distribution résiduelle</p>
+    <p class="sdl-resid-sub" id="sdl-resid-sub"></p>
+    <div class="sdl-bars" id="sdl-resid-bars"></div>
+  </div>
+
+  <div class="sdl-banner" id="sdl-banner"></div>
+
+  <div class="sdl-thr">
+    <div class="sdl-thr-main">
+      <p class="sdl-thr-h">Débit théorique N(α, γ) = tokens espérés par passe cible</p>
+      <svg class="sdl-csvg" id="sdl-curve" viewBox="0 0 380 175" role="img"
+        aria-label="courbe du débit N en fonction de γ pour le taux d'acceptation α courant ; elle croît puis sature vers l'asymptote 1/(1−α) ; le point γ courant est mis en évidence"></svg>
+    </div>
+    <div class="sdl-ctrl">
+      <div class="sdl-slabel"><span>γ — tokens proposés / cycle</span><b id="sdl-gamma-v">4</b></div>
+      <input type="range" id="sdl-gamma" min="1" max="8" step="1" value="4" aria-label="gamma : tokens proposés par cycle">
+      <div class="sdl-slabel"><span>α — taux d'acceptation (modèle)</span><b id="sdl-alpha-v">0.83</b></div>
+      <input type="range" id="sdl-alpha" min="0.50" max="0.98" step="0.01" value="0.83" aria-label="alpha : taux d'acceptation moyen">
+      <div class="sdl-formula" id="sdl-formula"></div>
+    </div>
+  </div>
+
+  <div class="sdl-btns">
+    <button type="button" class="sdl-primary" id="sdl-play">▶ Jusqu'à convergence</button>
+    <button type="button" id="sdl-prev">◂ Étape préc.</button>
+    <button type="button" id="sdl-step">Étape suivante ▸</button>
+    <button type="button" id="sdl-cycle">Cycle entier ▸▸</button>
+    <button type="button" id="sdl-reset">Réinitialiser</button>
+  </div>
+
+  <div class="sdl-stats">
+    <div class="sdl-stat"><div class="sdl-sk">Cycle</div><div class="sdl-sv" id="sdl-vcycle">— / —</div></div>
+    <div class="sdl-stat"><div class="sdl-sk">Phase</div><div class="sdl-sv" id="sdl-vphase">—</div></div>
+    <div class="sdl-stat sdl-hot"><div class="sdl-sk">Tokens cette passe</div><div class="sdl-sv" id="sdl-vpass">—</div></div>
+    <div class="sdl-stat"><div class="sdl-sk">Passes cible</div><div class="sdl-sv" id="sdl-vtarget">0</div></div>
+    <div class="sdl-stat sdl-good"><div class="sdl-sk">Tokens / passe (mesuré)</div><div class="sdl-sv" id="sdl-vthr">—</div></div>
+    <div class="sdl-stat"><div class="sdl-sk">α mesuré (γ courant)</div><div class="sdl-sv" id="sdl-valpha">—</div></div>
+  </div>
+
+  <p class="sdl-note">
+    <b>Pourquoi ça marche (sans perte).</b> Pour chaque position, accepter avec probabilité <code>min(1, p/q)</code> puis,
+    en cas de rejet, rééchantillonner depuis le résiduel normalisé <code>(p − q)₊</code> redonne <b>exactement</b> la
+    distribution cible <code>p</code> — la masse acceptée plus la masse résiduelle reconstituent <code>p</code>. La sortie
+    est donc <i>distribuée comme</i> celle de la cible seule. Le token rejeté du brouillon a une masse résiduelle <b>nulle</b>
+    (il a déjà été «&nbsp;consommé&nbsp;» par le test) — il ne peut pas être ré-tiré.
+    <b>Le levier de latence.</b> Un cycle = <code>1</code> passe cible (batchée sur <code>γ+1</code> positions, coût proche
+    d'une seule décode) contre <code>γ</code> passes brouillon bon marché ; il produit entre <code>1</code> et
+    <code>γ+1</code> tokens. Le débit espéré <code>N(α,γ) = (1−α^{γ+1})/(1−α)</code> <b>sature</b> vers
+    <code>1/(1−α)</code> quand <code>γ→∞</code>&nbsp;: au-delà d'un certain <code>γ</code>, proposer plus ne sert plus à
+    rien si le brouillon n'est pas meilleur (α plus haut). <b>Liens.</b> Le <i>KV cache</i> (coût <code>O(L·D)</code>, vu
+    dans transformer-attention) est maintenu par les deux modèles&nbsp;; la passe batchée réutilise celui de la cible. Le
+    résiduel se branche sur <i>n'importe quelle</i> distribution de sampling (température, top-p, min-p)&nbsp;: spéculer ne
+    change pas la stratégie de décodage, seulement sa <i>vitesse</i>. <b>Medusa, EAGLE, lookahead</b> sont le même squelette
+    avec des têtes de draft intégrées ou un arbre de candidats au lieu d'un modèle brouillon séparé.
+    <b>Simplifications jouet</b>&nbsp;: 13 tokens, <code>γ+1</code> distributions cible fixées, tirages <code>r</code> figés
+    (le ruban d'aléa est fixé&nbsp;: c'est ce qui rend la démo déterministe sans la fausser). Aucun aléa libre, aucune
+    ressource externe.
+  </p>
+
+  <script>
+  (function(){
+    var root=document.getElementById("sdl-root");
+    if(!root||root.dataset.sdlInit)return; root.dataset.sdlInit="1";
+    var NS="http://www.w3.org/2000/svg";
+    function svg(t,a){var e=document.createElementNS(NS,t);for(var k in a)e.setAttribute(k,a[k]);return e;}
+    function mk(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e;}
+    function f2(v){return v.toFixed(2);}
+
+    /* ===== instance jouet déterministe =====
+       Chaque position du préfixe canonique tok[0..M-1] porte :
+         tok    = token finalement émis (sortie de la cible, invariante)
+         draft  = token proposé par le brouillon (= tok si bien deviné)
+         q      = p_brouillon(draft) ; p = p_cible(draft)
+         r      = tirage U(0,1) figé pour le test d'acceptation
+       Verdict DÉRIVÉ : accept = r < min(1, p/q). Invariant par rapport à γ.
+       cands (positions rejetées) : distributions complètes -> résiduel exact + tirage rp. */
+    var D=[
+      {tok:"le",         draft:"le",         q:.80,p:.85,r:.40},
+      {tok:"renard",     draft:"renard",     q:.60,p:.65,r:.30},
+      {tok:"roux",       draft:"roux",       q:.55,p:.50,r:.20},
+      {tok:"saute",      draft:"bondit",     q:.50,p:.20,r:.70,
+        cands:{target:{saute:.45,bondit:.20,file:.20,court:.15},
+               draft:{bondit:.50,saute:.25,file:.10,court:.15}, rp:.30}},
+      {tok:"par-dessus", draft:"par-dessus", q:.70,p:.78,r:.50},
+      {tok:"la",         draft:"la",         q:.65,p:.60,r:.30},
+      {tok:"barrière",   draft:"barrière",   q:.45,p:.55,r:.60},
+      {tok:"puis",       draft:"puis",       q:.50,p:.52,r:.55},
+      {tok:"file",       draft:"file",       q:.60,p:.66,r:.25},
+      {tok:"vers",       draft:"vers",       q:.72,p:.80,r:.45},
+      {tok:"le",         draft:"du",         q:.55,p:.18,r:.85,
+        cands:{target:{le:.50,du:.18,"à":.20,vers:.12},
+               draft:{du:.55,le:.25,"à":.12,vers:.08}, rp:.30}},
+      {tok:"bois",       draft:"bois",       q:.58,p:.62,r:.35},
+      {tok:".",          draft:".",          q:.70,p:.90,r:.20, eos:true}
+    ];
+    var M=D.length;
+    /* dérivations exactes */
+    D.forEach(function(d){ d.ratio=d.p/d.q; d.thr=Math.min(1,d.ratio); d.accept=(d.r<d.thr); });
+
+    /* résiduel normalisé + token rééchantillonné (inverse-CDF, tirage rp figé) */
+    function residual(pos){
+      var c=D[pos].cands, keys=Object.keys(c.target), res={}, sum=0;
+      keys.forEach(function(k){ var v=Math.max(0,(c.target[k]||0)-(c.draft[k]||0)); res[k]=v; sum+=v; });
+      var norm={}; keys.forEach(function(k){ norm[k]= sum>0? res[k]/sum : 0; });
+      var cum=0, pick=null;
+      for(var i=0;i<keys.length;i++){ cum+=norm[keys[i]]; if(c.rp<cum){ pick=keys[i]; break; } }
+      if(pick==null) pick=keys[keys.length-1];
+      return {keys:keys,target:c.target,draft:c.draft,res:res,norm:norm,sum:sum,rp:c.rp,pick:pick};
+    }
+
+    /* ===== construction des cycles pour un γ donné (déterministe) ===== */
+    function buildCycles(g){
+      var cy=[], s=0, guard=0;
+      while(s<M && guard++<200){
+        var dp=[]; for(var k=0;k<g && s+k<M;k++) dp.push(s+k);
+        var walk=[], acc=[], firstRej=-1, eos=false, kk;
+        for(kk=0;kk<dp.length;kk++){
+          var pos=dp[kk]; walk.push(pos);
+          if(D[pos].accept){ acc.push(pos); if(D[pos].eos){ eos=true; break; } }
+          else { firstRej=kk; break; }
+        }
+        var emit=[], kind, next, bonusPos=-1, rejPos=-1, plusOne=(dp.length===g && s+g<M)? s+g : -1;
+        if(eos){
+          kind="eos";
+          emit=acc.map(function(p){return {pos:p,type:D[p].eos?"eos":"accept"};});
+          next=M;
+        } else if(firstRej>=0){
+          rejPos=dp[firstRej]; kind="resample";
+          emit=acc.map(function(p){return {pos:p,type:"accept"};});
+          emit.push({pos:rejPos,type:"resample"});
+          next=rejPos+1;
+        } else if(dp.length===g && s+g<M){
+          bonusPos=s+g; var be=D[bonusPos].eos;
+          kind=be?"bonus-eos":"bonus";
+          emit=acc.map(function(p){return {pos:p,type:"accept"};});
+          emit.push({pos:bonusPos,type:be?"eos":"bonus"});
+          next=be?M:bonusPos+1;
+        } else {
+          kind="tail";
+          emit=acc.map(function(p){return {pos:p,type:"accept"};});
+          next=s+dp.length;
+        }
+        cy.push({start:s,dp:dp,walk:walk,acc:acc,firstRej:firstRej,rejPos:rejPos,
+                 bonusPos:bonusPos,plusOne:plusOne,kind:kind,emit:emit});
+        if(kind==="eos"||kind==="bonus-eos") break;
+        s=next;
+      }
+      /* α mesuré + débit observé sur l'instance */
+      var tested=0, accs=0, tot=0;
+      cy.forEach(function(c){ tested+=c.walk.length; accs+=c.acc.length; tot+=c.emit.length; });
+      return {cy:cy, alpha: tested? accs/tested : 0, observed: cy.length? tot/cy.length : 0, total:tot};
+    }
+
+    /* ===== état ===== */
+    var GAMMA=4, plan=buildCycles(GAMMA);
+    var PHN=["PROPOSER","VÉRIFIER","TESTER","VALIDER"];
+    var cur=-1, playing=false, timer=null;
+    function nSteps(){ return plan.cy.length*4; }
+    function clamp(x){ return Math.max(-1, Math.min(nSteps()-1, x)); }
+    function deco(){ /* décode cur -> {idle,ci,ph,cy} */
+      if(cur<0) return {idle:true};
+      var ci=Math.floor(cur/4), ph=cur%4;
+      return {idle:false, ci:ci, ph:ph, cy:plan.cy[ci]};
+    }
+
+    /* tokens validés (committed) à l'étape courante */
+    function committed(){
+      var d=deco(), out=[], upto, i;
+      if(d.idle) return out;
+      upto = d.ci + (d.ph===3?1:0); /* cycle courant compté seulement après VALIDER */
+      for(i=0;i<upto;i++){ plan.cy[i].emit.forEach(function(e){ out.push(e); }); }
+      return out;
+    }
+
+    /* ===== éléments ===== */
+    var phEls=[0,1,2,3].map(function(i){return document.getElementById("sdl-ph-"+i);});
+    var stripEl=document.getElementById("sdl-strip");
+    var progFill=document.getElementById("sdl-progfill"),
+        progL=document.getElementById("sdl-progL"), progR=document.getElementById("sdl-progR");
+    var readEl=document.getElementById("sdl-read");
+    var wsEl=document.getElementById("sdl-ws"), wsBody=document.getElementById("sdl-ws-body"),
+        wsTitle=document.getElementById("sdl-ws-title"), wsBatch=document.getElementById("sdl-ws-batch");
+    var residEl=document.getElementById("sdl-resid"), residSub=document.getElementById("sdl-resid-sub"),
+        residBars=document.getElementById("sdl-resid-bars"), residH=document.getElementById("sdl-resid-h");
+    var banner=document.getElementById("sdl-banner");
+    var curveEl=document.getElementById("sdl-curve");
+    var gammaIn=document.getElementById("sdl-gamma"), alphaIn=document.getElementById("sdl-alpha"),
+        gammaV=document.getElementById("sdl-gamma-v"), alphaV=document.getElementById("sdl-alpha-v"),
+        formulaEl=document.getElementById("sdl-formula");
+    var vCycle=document.getElementById("sdl-vcycle"), vPhase=document.getElementById("sdl-vphase"),
+        vPass=document.getElementById("sdl-vpass"), vTarget=document.getElementById("sdl-vtarget"),
+        vThr=document.getElementById("sdl-vthr"), vAlpha=document.getElementById("sdl-valpha");
+    var playBtn=document.getElementById("sdl-play"), prevBtn=document.getElementById("sdl-prev"),
+        stepBtn=document.getElementById("sdl-step"), cycleBtn=document.getElementById("sdl-cycle"),
+        resetBtn=document.getElementById("sdl-reset");
+
+    /* readout sécurisé : <b> <code> <i> uniquement */
+    function setRead(markup,cls){
+      readEl.className="sdl-read"+(cls?" "+cls:""); readEl.textContent="";
+      var parts=markup.split(/(<\/?(?:b|code|i)>)/), stack=[readEl], p, tok;
+      for(p=0;p<parts.length;p++){tok=parts[p]; if(tok==="")continue;
+        if(tok==="<b>"){var b=document.createElement("b");stack[stack.length-1].appendChild(b);stack.push(b);}
+        else if(tok==="<code>"){var c=document.createElement("code");stack[stack.length-1].appendChild(c);stack.push(c);}
+        else if(tok==="<i>"){var it=document.createElement("i");stack[stack.length-1].appendChild(it);stack.push(it);}
+        else if(tok==="</b>"||tok==="</code>"||tok==="</i>"){if(stack.length>1)stack.pop();}
+        else stack[stack.length-1].appendChild(document.createTextNode(tok));}
+    }
+
+    /* ===== rail ===== */
+    function renderRail(d){
+      phEls.forEach(function(e,i){
+        e.classList.toggle("sdl-on", !d.idle && d.ph===i);
+        e.classList.toggle("sdl-done", !d.idle && d.ph>i);
+      });
+    }
+
+    /* ===== sequence strip (progress) ===== */
+    function renderStrip(d){
+      stripEl.textContent="";
+      var com=committed(), i;
+      for(i=0;i<com.length;i++){
+        var e=com[i], cls="sdl-chip sdl-"+e.type;
+        var chip=mk("span",cls,D[e.pos].tok);
+        if(e.type==="resample"){var m=mk("span","sdl-cmark");m.style.background="var(--sdl-gold)";m.style.color="#fff";m.textContent="↻";chip.appendChild(m);}
+        if(e.type==="bonus"){var m2=mk("span","sdl-cmark");m2.style.background="var(--sdl-green)";m2.style.color="#fff";m2.textContent="+";chip.appendChild(m2);}
+        stripEl.appendChild(chip);
+      }
+      /* fenêtre du cycle courant (avant VALIDER) : montrer les propositions brouillon avec leur état */
+      if(!d.idle && d.ph<3){
+        var c=d.cy, k;
+        for(k=0;k<c.dp.length;k++){
+          var pos=c.dp[k], st="sdl-draft", lbl=D[pos].draft;
+          if(d.ph>=2){ /* après le TEST : verdicts révélés sur la fenêtre marchée */
+            var inWalk=c.walk.indexOf(pos)>=0;
+            if(inWalk){
+              if(D[pos].accept) st="sdl-accept";
+              else st="sdl-reject";
+            } else { st="sdl-draft"; } /* tokens jetés (après le 1er rejet) restent en pointillé */
+          }
+          stripEl.appendChild(mk("span","sdl-chip "+st,lbl));
+        }
+        stripEl.appendChild(mk("span","sdl-cur"));
+      } else if(!d.idle){
+        stripEl.appendChild(mk("span","sdl-cur"));
+      }
+      /* positions futures restantes (non révélées) */
+      var done = committed().length;
+      if(!d.idle && d.ph<3) done = (function(){var cc=0,j;for(j=0;j<d.ci;j++)cc+=plan.cy[j].emit.length;return cc;})() ;
+      var remaining = M - done - ((!d.idle&&d.ph<3)? d.cy.dp.length : 0);
+      if(remaining>0) stripEl.appendChild(mk("span","sdl-fut","+"+remaining+" à venir"));
+
+      var cdone=committed().length, frac=cdone/M;
+      progFill.style.width=(frac*100).toFixed(1)+"%";
+      progL.textContent=cdone+" / "+M+" tokens validés";
+      progR.textContent = d.idle? "cycle — / "+plan.cy.length : ("cycle "+(d.ci+1)+" / "+plan.cy.length+" · "+PHN[d.ph]);
+    }
+
+    /* ===== verification workspace ===== */
+    function cmp(d){ /* r vs seuil */
+      var lt = d.r < d.thr;
+      var span=mk("span","sdl-cmp "+(lt?"sdl-lt":"sdl-ge"), f2(d.r)+(lt?" < ":" ≥ ")+f2(d.thr));
+      return span;
+    }
+    function renderWS(d){
+      if(d.idle || d.ph<1){ wsEl.style.display="none"; wsBody.textContent=""; return; }
+      var c=d.cy; wsEl.style.display="block"; wsBody.textContent="";
+      wsTitle.textContent="Passe de vérification — cycle "+(d.ci+1)+" (à partir de la position "+c.start+")";
+      var nPlus=(c.plusOne>=0?1:0);
+      wsBatch.textContent="1 passe cible · "+(c.dp.length+nPlus)+" positions batchées (γ"+(nPlus?"+1":"")+")";
+      /* lignes des positions brouillon */
+      c.dp.forEach(function(pos,k){
+        var dd=D[pos], tr=mk("tr");
+        var inWalk=c.walk.indexOf(pos)>=0;
+        var rev = d.ph>=2 && inWalk;          /* verdict révélé au TEST */
+        var skipped = d.ph>=2 && !inWalk;     /* jeté (rejet en amont) */
+        if(rev){ tr.className = dd.accept? "sdl-r-acc":"sdl-r-rej"; }
+        else if(skipped){ tr.className="sdl-r-skip"; }
+        var c0=mk("td"); c0.appendChild(mk("span",null,(pos)+" · "));
+        c0.appendChild(mk("span","sdl-tk",dd.draft)); tr.appendChild(c0);
+        tr.appendChild(mk("td",null,f2(dd.q)));
+        tr.appendChild(mk("td",null, d.ph>=1? f2(dd.p):"…"));   /* p apparaît à la passe cible */
+        tr.appendChild(mk("td",null, d.ph>=1? f2(dd.ratio):"…"));
+        tr.appendChild(mk("td",null, d.ph>=1? f2(dd.thr):"…"));
+        var rc=mk("td"); if(rev||skipped){ rc.appendChild(cmp(dd)); } else { rc.textContent=f2(dd.r); } tr.appendChild(rc);
+        var vc=mk("td");
+        if(rev){ vc.appendChild(mk("span","sdl-vd "+(dd.accept?"sdl-a":"sdl-x"), dd.accept?"accept":"REJET")); }
+        else if(skipped){ vc.appendChild(mk("span","sdl-vd sdl-w","jeté")); }
+        else { vc.appendChild(mk("span","sdl-vd sdl-w","—")); }
+        tr.appendChild(vc);
+        wsBody.appendChild(tr);
+      });
+      /* ligne γ+1 (position de vérification supplémentaire, calculée dans la même passe) */
+      if(c.plusOne>=0){
+        var bp=c.plusOne, dd2=D[bp], tr2=mk("tr","sdl-r-plus");
+        var usedBonus = d.ph>=2 && c.kind.indexOf("bonus")===0;
+        if(usedBonus) tr2.className="sdl-r-plus sdl-r-bonus";
+        var t0=mk("td"); t0.appendChild(mk("span",null,bp+" · "));
+        t0.appendChild(mk("span","sdl-tk","γ+1")); tr2.appendChild(t0);
+        tr2.appendChild(mk("td",null,"—"));
+        tr2.appendChild(mk("td",null, d.ph>=1? f2(dd2.p):"…"));
+        tr2.appendChild(mk("td",null,"—")); tr2.appendChild(mk("td",null,"—")); tr2.appendChild(mk("td",null,"—"));
+        var v2=mk("td");
+        if(d.ph>=2){
+          if(usedBonus) v2.appendChild(mk("span","sdl-vd sdl-b","bonus → "+dd2.tok));
+          else v2.appendChild(mk("span","sdl-vd sdl-w","calculé, jeté"));
+        } else v2.appendChild(mk("span","sdl-vd sdl-w","—"));
+        tr2.appendChild(v2);
+        wsBody.appendChild(tr2);
+      }
+    }
+
+    /* ===== residual panel (VALIDER, cas rejet) ===== */
+    function renderResid(d){
+      var show = !d.idle && d.ph===3 && d.cy.kind==="resample";
+      residEl.classList.toggle("sdl-show", show);
+      if(!show){ residBars.textContent=""; return; }
+      var c=d.cy, rp=residual(c.rejPos);
+      residH.textContent="Rééchantillonnage — position "+c.rejPos+" (résiduel normalisé (p − q)₊)";
+      residSub.textContent="";
+      residSub.appendChild(document.createTextNode("Le brouillon « "+D[c.rejPos].draft+" » est rejeté. On tire le token de remplacement dans p′(x) = norm((p−q)₊). Tirage figé r′ = "+f2(rp.rp)+" → "));
+      var b=mk("b",null,"« "+rp.pick+" »"); residSub.appendChild(b);
+      residSub.appendChild(document.createTextNode(". Noter : le token rejeté a une masse résiduelle nulle."));
+      residBars.textContent="";
+      rp.keys.forEach(function(k){
+        var v=rp.norm[k], isZero=(rp.res[k]<=1e-9), pick=(k===rp.pick);
+        var row=mk("div","sdl-bar"+(pick?" sdl-pick":""));
+        row.appendChild(mk("span","sdl-bk",k));
+        var track=mk("span","sdl-btrack");
+        var fill=mk("span","sdl-bfill"+(isZero?" sdl-bzero":""));
+        fill.style.width=(isZero?100:(v*100)).toFixed(1)+"%";
+        if(isZero) fill.style.opacity=".6";
+        track.appendChild(fill); row.appendChild(track);
+        var lab = "p="+f2(rp.target[k])+"  q="+f2(rp.draft[k])+"  →  "+(isZero?"0":f2(v));
+        row.appendChild(mk("span","sdl-bv",lab));
+        residBars.appendChild(row);
+      });
+    }
+
+    /* ===== readouts ===== */
+    function describe(d){
+      if(d.idle) return ["<b>Prêt.</b> Une séquence de 13 tokens va être générée par décodage spéculatif. Déroulez un cycle "+
+        "<b>PROPOSER → VÉRIFIER → TESTER → VALIDER</b> pas-à-pas, sautez un <b>cycle entier</b>, ou lancez la lecture continue "+
+        "<b>« jusqu'à convergence »</b>. Réglez <code>γ</code> pour voir la <i>structure des cycles</i> changer — la séquence "+
+        "finale, elle, reste identique (sans perte).",""];
+      var c=d.cy, g=GAMMA;
+      if(d.ph===0){
+        var dts=c.dp.map(function(p){return D[p].draft;}).join(" ");
+        return ["<b>① PROPOSER.</b> Le modèle brouillon (petit, rapide) génère <code>γ="+g+"</code> tokens de façon "+
+          "<i>autorégressive</i> — "+c.dp.length+" passes brouillon bon marché — depuis le préfixe courant (position "+c.start+"). "+
+          "Candidats&nbsp;: <code>"+dts+"</code>. À ce stade rien n'est validé.",""];
+      }
+      if(d.ph===1){
+        var np=(c.plusOne>=0?1:0);
+        return ["<b>② VÉRIFIER.</b> Le modèle cible (grand) traite les <code>γ+1 = "+(c.dp.length+np)+"</code> positions en "+
+          "<b>une seule passe avant batchée</b> : les "+c.dp.length+" positions brouillon plus 1 position de vérification "+
+          "supplémentaire. Il en sort, pour chaque position, <code>p_cible</code>. <b>Coût&nbsp;: 1 passe cible</b>, quel que "+
+          "soit le nombre de tokens qui seront validés — c'est là qu'est le gain de latence.","sdl-c-prm"];
+      }
+      if(d.ph===2){
+        if(c.firstRej>=0){
+          var nacc=c.acc.length, rp=c.rejPos;
+          return ["<b>③ TESTER (rejet modifié par position).</b> On marche de gauche à droite&nbsp;: accepter le token "+
+            "brouillon si <code>r &lt; min(1, p/q)</code>. Positions "+(nacc?c.acc.join(", "):"(aucune"+")")+" acceptées, "+
+            "puis <b>rejet en position "+rp+"</b> (<code>r="+f2(D[rp].r)+" ≥ seuil "+f2(D[rp].thr)+"</code>). On <b>s'arrête au "+
+            "premier rejet</b>&nbsp;: les propositions suivantes sont jetées (elles seront re-proposées au prochain cycle).","sdl-c-warn"];
+        }
+        if(c.kind.indexOf("bonus")===0){
+          return ["<b>③ TESTER.</b> Les <code>"+g+"</code> positions sont <b>toutes acceptées</b> (<code>r &lt; seuil</code> "+
+            "partout). Comme aucune n'est rejetée, le token de la <b>position γ+1</b> — déjà calculé dans la même passe — devient "+
+            "un <b>bonus gratuit</b> échantillonné directement de <code>p_cible</code>. C'est le meilleur cas&nbsp;: "+(g+1)+" "+
+            "tokens pour 1 passe cible.","sdl-c-ok"];
+        }
+        return ["<b>③ TESTER.</b> Toutes les positions proposées sont acceptées et l'une d'elles est le token de fin "+
+          "<code>&lt;/s&gt;</code> — la génération va s'arrêter.","sdl-c-ok"];
+      }
+      /* ph===3 VALIDER */
+      if(c.kind==="resample"){
+        return ["<b>④ VALIDER.</b> On conserve le <b>plus long préfixe accepté</b> ("+c.acc.length+" token"+
+          (c.acc.length>1?"s":"")+") puis on <b>rééchantillonne</b> le token rejeté depuis le résiduel normalisé "+
+          "<code>(p−q)₊</code> → « <b>"+D[c.rejPos].tok+"</b> ». Cette passe a produit <code>"+c.emit.length+"</code> tokens. "+
+          "On boucle au cycle suivant.","sdl-c-warn"];
+      }
+      if(c.kind.indexOf("bonus")===0){
+        var bp=c.bonusPos;
+        return ["<b>④ VALIDER.</b> Les "+g+" tokens proposés sont acceptés ; on ajoute en prime le <b>bonus</b> « "+D[bp].tok+
+          " » (position γ+1, déjà calculée). <code>"+c.emit.length+"</code> tokens en <b>une</b> passe cible — le cas le plus "+
+          "rentable. On boucle.","sdl-c-ok"];
+      }
+      /* eos */
+      return ["<b>④ VALIDER — fin.</b> Le token de fin <code>.</code> (<code>&lt;/s&gt;</code>) est accepté → génération "+
+        "terminée. La séquence produite est <b>identique</b> à ce qu'aurait émis le modèle cible seul&nbsp;: le décodage "+
+        "spéculatif est <b>sans perte</b> par construction. Changez <code>γ</code> et relancez&nbsp;: même séquence, "+
+        "nombre de passes différent.","sdl-c-ok"];
+    }
+
+    /* ===== stats + banner ===== */
+    function renderStats(d){
+      vCycle.textContent = d.idle? "— / "+plan.cy.length : (d.ci+1)+" / "+plan.cy.length;
+      vPhase.textContent = d.idle? "—" : PHN[d.ph];
+      var passStat=vPass.parentNode;
+      if(d.idle){ vPass.textContent="—"; }
+      else if(d.ph<2){ vPass.textContent="γ="+GAMMA+" proposés"; }
+      else { vPass.textContent=d.cy.emit.length+" tokens"; }
+      /* passes cible = cycles entamés (la passe a lieu en phase VÉRIFIER) */
+      var targets = d.idle? 0 : (d.ci + (d.ph>=1?1:0));
+      vTarget.textContent=String(targets);
+      var com=committed().length;
+      if(com>0 && targets>0){
+        var doneCycles = d.ci + (d.ph===3?1:0);
+        vThr.textContent = doneCycles>0 ? (com/doneCycles).toFixed(2) : "—";
+      } else vThr.textContent="—";
+      vAlpha.textContent = plan.alpha.toFixed(2);
+    }
+    function renderBanner(d){
+      var atEnd = !d.idle && d.ci===plan.cy.length-1 && d.ph===3;
+      if(atEnd){
+        banner.className="sdl-banner sdl-show";
+        banner.textContent="✓ Convergence. 13 tokens en "+plan.cy.length+" passes cible (γ="+GAMMA+
+          ") → "+plan.observed.toFixed(2)+" tokens/passe, α mesuré "+plan.alpha.toFixed(2)+
+          ". Séquence identique à un décodage cible pur : sans perte. Augmentez γ pour grouper plus de tokens par passe, "+
+          "jusqu'à saturation de N(α,γ).";
+      } else banner.className="sdl-banner";
+    }
+
+    /* ===== throughput curve ===== */
+    function Nfun(a,g){ return a>=1 ? (g+1) : (1-Math.pow(a,g+1))/(1-a); }
+    function drawCurve(){
+      var a=parseFloat(alphaIn.value), gSel=GAMMA;
+      curveEl.textContent="";
+      var g=svg("g",{}), W=380,H=175, L=34,R=12,T=12,B=26, FAINT="#7A889B", LINE="#D7DFE9";
+      var gx0=1, gx1=8, asym=Nfun(a,99), ymax=Math.max(asym*1.08, Nfun(a,gx1)*1.05, 2.2);
+      function X(gg){ return L + (gg-gx0)/(gx1-gx0)*(W-L-R); }
+      function Y(n){ return (H-B) - (n/ymax)*(H-B-T); }
+      /* axes */
+      g.appendChild(svg("line",{x1:L,y1:H-B,x2:W-R,y2:H-B,stroke:LINE,"stroke-width":1}));
+      g.appendChild(svg("line",{x1:L,y1:T,x2:L,y2:H-B,stroke:LINE,"stroke-width":1}));
+      var gg,tx;
+      for(gg=1;gg<=8;gg++){ tx=svg("text",{x:X(gg),y:H-B+12,"text-anchor":"middle",fill:FAINT,"font-size":"8"}); tx.textContent=gg; g.appendChild(tx); }
+      var xlab=svg("text",{x:(L+W-R)/2,y:H-4,"text-anchor":"middle",fill:FAINT,"font-size":"8.5"}); xlab.textContent="γ (tokens proposés / cycle)"; g.appendChild(xlab);
+      var yl=svg("text",{x:L-4,y:Y(asym)+3,"text-anchor":"end",fill:FAINT,"font-size":"8"}); yl.textContent="N"; g.appendChild(yl);
+      /* asymptote 1/(1-a) */
+      g.appendChild(svg("line",{x1:L,y1:Y(asym),x2:W-R,y2:Y(asym),stroke:"#C68A2E","stroke-width":1,"stroke-dasharray":"4 3"}));
+      var al=svg("text",{x:W-R,y:Y(asym)-3,"text-anchor":"end",fill:"#8A5E16","font-size":"8"}); al.textContent="saturation 1/(1−α) = "+asym.toFixed(2); g.appendChild(al);
+      /* courbe */
+      var pts=[]; for(gg=1;gg<=8;gg++){ pts.push(X(gg)+","+Y(Nfun(a,gg))); }
+      g.appendChild(svg("polyline",{points:pts.join(" "),fill:"none",stroke:"#2C77B6","stroke-width":2}));
+      for(gg=1;gg<=8;gg++){ var on=(gg===gSel);
+        g.appendChild(svg("circle",{cx:X(gg),cy:Y(Nfun(a,gg)),r:on?4.5:2.4,fill:on?"#23537F":"#2C77B6",stroke:on?"#fff":"none","stroke-width":on?1.5:0})); }
+      /* étiquette point courant */
+      var ncur=Nfun(a,gSel);
+      var cl=svg("text",{x:X(gSel),y:Y(ncur)-8,"text-anchor":"middle",fill:"#23537F","font-size":"9","font-weight":"700"});
+      cl.textContent="N("+a.toFixed(2)+","+gSel+")="+ncur.toFixed(2);
+      /* éviter le débordement à droite */
+      if(X(gSel)>W-70) cl.setAttribute("text-anchor","end"), cl.setAttribute("x", W-R);
+      g.appendChild(cl);
+      curveEl.appendChild(g);
+      /* formule */
+      formulaEl.textContent="";
+      formulaEl.appendChild(document.createTextNode("N(α,γ) = (1 − α^(γ+1)) / (1 − α)"));
+      formulaEl.appendChild(document.createElement("br"));
+      var bN=mk("b",null,"= "+ncur.toFixed(2)+" tokens/passe"); formulaEl.appendChild(bN);
+      formulaEl.appendChild(document.createTextNode("   "));
+      var as=mk("span","sdl-asym","→ "+asym.toFixed(2)+" quand γ→∞"); formulaEl.appendChild(as);
+    }
+
+    /* ===== rendu global ===== */
+    function render(){
+      var d=deco();
+      renderRail(d); renderStrip(d);
+      var t=describe(d); setRead(t[0],t[1]);
+      renderWS(d); renderResid(d); renderStats(d); renderBanner(d);
+      var last=nSteps()-1;
+      stepBtn.disabled=playing||cur>=last;
+      cycleBtn.disabled=playing||cur>=last;
+      prevBtn.disabled=playing||cur<0;
+    }
+
+    /* ===== navigation ===== */
+    function stepOnce(){ if(cur<nSteps()-1){ cur++; render(); } }
+    function prevOnce(){ if(cur>=0){ cur--; render(); } }
+    function nextCycle(){
+      if(cur>=nSteps()-1) return;
+      var d=deco();
+      var targetStep = d.idle ? 3 : (d.ci*4+3 > cur ? d.ci*4+3 : (d.ci+1)*4+3);
+      cur=clamp(targetStep); render();
+    }
+    function play(){
+      if(playing)return;
+      if(cur>=nSteps()-1) cur=-1;
+      playing=true; playBtn.textContent="⏸ Pause"; render();
+      timer=setInterval(function(){
+        if(cur>=nSteps()-1){ stopPlay(); return; }
+        cur++; render();
+        if(cur>=nSteps()-1){ stopPlay(); }
+      },820);
+    }
+    function stopPlay(){ playing=false; if(timer){clearInterval(timer);timer=null;}
+      playBtn.textContent="▶ Jusqu'à convergence"; render(); }
+
+    /* ===== contrôles ===== */
+    playBtn.addEventListener("click",function(){ playing?stopPlay():play(); });
+    stepBtn.addEventListener("click",function(){ if(!playing)stepOnce(); });
+    prevBtn.addEventListener("click",function(){ if(!playing)prevOnce(); });
+    cycleBtn.addEventListener("click",function(){ if(!playing)nextCycle(); });
+    resetBtn.addEventListener("click",function(){ stopPlay(); cur=-1; render(); });
+    document.getElementById("sdl-rail").addEventListener("click",function(ev){
+      var t=ev.target.closest?ev.target.closest(".sdl-ph"):null; if(!t||playing)return;
+      var ph=parseInt(t.getAttribute("data-ph"),10);
+      var d=deco(); var ci=d.idle?0:d.ci;
+      cur=clamp(ci*4+ph); render();
+    });
+    gammaIn.addEventListener("input",function(){
+      GAMMA=parseInt(gammaIn.value,10); gammaV.textContent=GAMMA;
+      plan=buildCycles(GAMMA); stopPlay(); cur=-1; drawCurve(); render();
+    });
+    alphaIn.addEventListener("input",function(){
+      alphaV.textContent=parseFloat(alphaIn.value).toFixed(2); drawCurve();
+    });
+
+    /* ===== init ===== */
+    drawCurve(); render();
+  })();
+  </script>
+</div>
