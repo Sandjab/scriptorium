@@ -1,0 +1,37 @@
+[
+  {
+    "term": "Test-time compute",
+    "definition": "Compute à l'inférence (aussi inference-time compute) : famille de méthodes qui améliorent la qualité d'un LLM en dépensant davantage de calcul au moment de répondre — chaînes de raisonnement plus longues, échantillons multiples, recherche guidée par un vérificateur — plutôt qu'en augmentant le nombre de paramètres. À FLOPs totaux égaux, allouer le budget à l'inférence peut surpasser un préentraînement plus lourd : un petit modèle bien exploité bat un modèle 14× plus grand, mais seulement sur les questions de difficulté facile à intermédiaire (et, sous faible ratio R = tokens d'inférence / tokens de préentraînement, jusque sur certaines difficiles) ; sur les questions les plus dures, les paramètres supplémentaires reprennent l'avantage (Snell et al., ICLR 2025).",
+    "see_also": "Chain-of-thought (CoT), Test-time scaling law, Best-of-N sampling"
+  },
+  {
+    "term": "Chain-of-thought (CoT)",
+    "definition": "Chaîne de raisonnement : amener le modèle à produire des étapes intermédiaires explicites avant la réponse finale. En few-shot, 8 démonstrations CoT hissent PaLM 540 B à l'état de l'art sur GSM8K, au-dessus de GPT-3 175 B fine-tuné accompagné d'un vérificateur (Wei et al., NeurIPS 2022) ; en zero-shot, le seul suffixe « Let's think step by step » fait passer InstructGPT (text-davinci-002) de 17,7 % à 78,7 % sur MultiArith et de 10,4 % à 40,7 % sur GSM8K (Kojima et al., NeurIPS 2022). En prompting sans fine-tuning, le gain n'émerge nettement qu'au-delà d'environ 100 B paramètres — seuil en partie artefact des métriques discontinues ; via fine-tuning sur des rationales, des modèles jusqu'à 3 B en profitent aussi.",
+    "see_also": "Test-time compute, Self-consistency"
+  },
+  {
+    "term": "Self-consistency",
+    "definition": "Cohérence interne : échantillonner N chaînes CoT indépendantes puis retenir la réponse majoritaire, sans modèle auxiliaire ni réentraînement (+17,9 points absolus sur GSM8K avec PaLM-540B, 56,5 % → 74,4 % ; Wang et al., ICLR 2023). C'est un raffinement du vote majoritaire : il n'aide que si la majorité des traces est correcte et les erreurs peu corrélées, et peut au contraire dégrader en contexte long (biais positionnel amplifié), en domaine non vérifiable (erreurs corrélées) ou quand le succès par trace tombe sous 50 %. Tree of Thoughts (recherche arborescente avec auto-évaluation, 74 % vs 4 % pour le CoT standard sur Game of 24) et Graph of Thoughts (agrégation inter-branches) en sont les généralisations structurées.",
+    "see_also": "Chain-of-thought (CoT), Best-of-N sampling"
+  },
+  {
+    "term": "Best-of-N sampling",
+    "definition": "Échantillonnage best-of-N : générer N réponses candidates et n'en garder qu'une, sélectionnée par un vérificateur (verifier) ou par vote. La coverage (taux de couverture, pass@N) croît souvent de façon quasi log-linéaire avec N — modélisable par une exponentiated power law — mais pas inconditionnellement (couverture qui reste nulle pour Pythia sur CodeContests même à 10 000 échantillons). Pousser N expose au reward hacking : pour les lois d'échantillonnage strictement TP2 à score-function croissante (ce qui inclut best-of-N), la vraie récompense attendue est soit monotone, soit montante puis descendante avec un extremum intérieur unique (2506.19248), formalisant la sur-optimisation de Goodhart déjà mesurée par Gao et al. (2022).",
+    "see_also": "Process Reward Model (PRM), Self-consistency, Test-time scaling law"
+  },
+  {
+    "term": "Process Reward Model (PRM)",
+    "definition": "Modèle de récompense de processus : vérificateur qui note chaque étape intermédiaire d'une solution, par opposition à l'outcome reward model (ORM) qui ne juge que la réponse finale. La supervision par processus surpasse celle par résultat sur MATH, le meilleur PRM étant entraîné sur les 800 000 annotations humaines au niveau de l'étape de PRM800K (Lightman et al., 2023). Math-Shepherd génère ces labels d'étape automatiquement (estimation inspirée du Monte Carlo Tree Search, sans annotation humaine), et les generative verifiers (GenRM) reformulent la vérification en prédiction du prochain token avec raisonnement explicite (+16 à +40 % de problèmes résolus en best-of-N sur le maths). L'avantage des PRM sur les ORM n'est pas systématique : il dépend du domaine et de la difficulté ; hors distribution les ORM généralisent mieux et résistent mieux au reward hacking. Les PRM souffrent en outre de biais directionnels extrêmes (jusqu'à 90,8 % de précision sur les étapes correctes mais 42,9 % sur les erronées, sous le hasard ; Socratic-PRMBench).",
+    "see_also": "Best-of-N sampling, Reasoning model"
+  },
+  {
+    "term": "Test-time scaling law",
+    "definition": "Loi d'échelle du test-time compute : relation entre la qualité et le budget de calcul dépensé à l'inférence. L'allocation compute-optimal — adapter N à la difficulté estimée du prompt — atteint la performance du best-of-N uniforme avec jusqu'à 4× moins de calcul (64 échantillons adaptatifs rivalisent avec 256 uniformes ; Snell et al., ICLR 2025), l'arbitrage préentraînement / inférence étant gouverné par le ratio R = D_inference / D_pretrain. Mais le levier sature : le scaling séquentiel par traces plus longues bute sur l'overthinking, et sur des puzzles NP-complets (ZebraLogic) ni la montée en paramètres (jusqu'à 405 B) ni le best-of-N ne franchissent les niveaux de difficulté les plus élevés.",
+    "see_also": "Test-time compute, Best-of-N sampling"
+  },
+  {
+    "term": "Reasoning model",
+    "definition": "Modèle de raisonnement (o1, o3, DeepSeek-R1, QwQ, s1) : modèle entraîné à émettre de longues traces internes (reasoning tokens) avant la réponse. Sur AIME 2024, o1 progresse de 74 % (pass@1) à 83 % (consensus@64) puis 93 % (re-classement de 1 000 échantillons par une scoring function entraînée) — progression ni monotone ni gratuite, le saut final exigeant un modèle de récompense séparé. Le budget forcing (injection répétée du token « Wait ») fait gagner s1-32B, fine-tuné sur seulement 1 000 exemples, de 50 % à environ 57 % sur AIME24. Revers documenté, l'overthinking : sur ces modèles les solutions correctes tendent à être plus courtes que les incorrectes et l'auto-révision interne convertit moins de 10 % des erreurs ; à quoi s'ajoute l'écart annonce / déploiement (o3 : plus de 25 % annoncé sur FrontierMath en décembre 2024 contre environ 10 % mesuré sur le modèle commercial en avril 2025).",
+    "see_also": "Test-time compute, Test-time scaling law"
+  }
+]
