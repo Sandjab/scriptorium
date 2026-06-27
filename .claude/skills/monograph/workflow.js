@@ -7,6 +7,7 @@ export const meta = {
     { title: 'Plan',    detail: 'plan du document depuis les sources' },
     { title: 'Extract', detail: 'claims candidats + prose par section' },
     { title: 'Verify',  detail: 'council adversarial par claim ; ≥2 sources indépendantes' },
+    { title: 'Réconcilie', detail: 'aligne la prose des sections sur les claims corrigés' },
     { title: 'Author',  detail: 'écrit knowledge/glossary/tldr' },
     { title: 'Widgets', detail: 'sélection des concepts (planner) puis fan-out codeurs + critic' },
     { title: 'Compose', detail: 'écrit le manifeste unique (best-of)' },
@@ -743,6 +744,66 @@ const auditReportMd = [
   }),
 ].join('\n');
 
+// ── Réconcilie : aligner la PROSE des sections sur les claims CORRIGÉS par le council ──────────
+// La prose est rédigée à Extract (AVANT le council) ; Verify corrige les CLAIMS (knowledge.json) mais
+// jamais la prose, et Compose la réutilise telle quelle → le corps restait « pré-council » pendant que
+// tldr/glossaire (écrits depuis knowledge.json corrigé) étaient à jour. Ici, par section vivante ayant
+// ≥1 claim corrigé, on réécrit les SEULES phrases dont un fait contredit l'énoncé corrigé (deltas
+// original→corrigé fournis explicitement). Frontière jugement : le modèle décide si une phrase contredit
+// un fait vérifié ; il ne réinvente rien. Run FRAIS uniquement (sur reprise, sections_draft.json existe
+// déjà — prose réconciliée + figures —, donc on n'y retouche pas, comme l'écriture plus bas).
+const S_RECONCILE = { type:'object', additionalProperties:false, required:['prose','n_fixes'],
+  properties:{ prose:{type:'string'}, n_fixes:{type:'integer'}, note:{type:'string'} } };
+const reconcilePrompt = (heading, prose, corrections) => [
+  `La PROSE ci-dessous (section « ${heading} », sujet « ${subject} ») a été rédigée AVANT le fact-check du council.`,
+  `Le council a depuis CORRIGÉ certains faits. Pour chacun : l'énoncé d'ORIGINE (ce que la prose croit) puis l'énoncé CORRIGÉ (vérifié ≥2 sources, FAISANT AUTORITÉ).`,
+  `Corrections (original → corrigé) :\n${JSON.stringify(corrections)}`,
+  ``,
+  `PROSE (HTML) à réconcilier :\n${prose}`,
+  ``,
+  `Ta tâche : réécris la prose pour qu'AUCUNE affirmation factuelle ne contredise un énoncé corrigé.`,
+  `- Corrige TOUTE mention du fait concerné — chiffre, valeur, nom propre, citation/année, mécanisme, formule —, même formulée autrement que l'énoncé d'origine. Énumère mentalement CHAQUE mention de l'entité dans la prose (une dérive se cache souvent dans une 2e mention).`,
+  `- Édition MINIMALE : ne touche QUE les phrases qui contredisent un fait corrigé ; laisse tout le reste mot pour mot (ton, structure, exemples non concernés).`,
+  `- N'invente RIEN, n'ajoute aucun fait, ne supprime aucune information correcte. Le corrigé prime ; si la prose dit déjà juste, ne change rien.`,
+  `- Conserve un HTML valide et inchangé hors corrections (<p>…</p>, <em>, <sub>, <figure>, etc.).`,
+  TERMINO,
+  STYLE,
+  `Rends : prose (le HTML COMPLET réconcilié de la section), n_fixes (nombre de faits alignés), note (1 phrase ; "déjà cohérent" si 0).`,
+].join('\n');
+
+// reconciledProseById : prose corrigée par id de section (vide si run repris ou aucune correction).
+const reconciledProseById = {};
+if (!Array.isArray(loadedWidgets)) {
+  phase('Réconcilie');
+  const toReconcile = liveSections.map(s => ({
+    s,
+    corr: (s.claims || [])
+      .filter(c => c.audit === 'corrected' && c.original_statement && c.statement
+                   && c.original_statement.trim() !== c.statement.trim())
+      .map(c => ({ original: c.original_statement, corrected: c.statement, note: c.note || '' })),
+  })).filter(x => x.corr.length > 0);
+  if (toReconcile.length === 0) {
+    log('[réconcilie] aucune section avec claim corrigé — prose inchangée.');
+  } else {
+    const results = (await parallel(toReconcile.map(({ s, corr }) => () =>
+      A(reconcilePrompt(s.section.heading, s.section.prose, corr),
+        { schema: S_RECONCILE, phase: 'Réconcilie', label: `reconcile:${s.section.id}` })
+        .then(r => ({ id: s.section.id, r, origLen: (s.section.prose || '').length }))
+    ))).filter(Boolean);
+    let totalFixes = 0;
+    for (const x of results) {
+      const np = (x.r && typeof x.r.prose === 'string') ? x.r.prose.trim() : '';
+      if (np && np.length >= 0.6 * x.origLen) {        // garde-fou déterministe : rejette une sortie anormalement tronquée
+        reconciledProseById[x.id] = np;
+        totalFixes += (x.r.n_fixes || 0);
+      } else if (np) {
+        log(`[réconcilie] section ${x.id} : sortie suspecte (${np.length}/${x.origLen} c.) → prose d'origine conservée.`);
+      }
+    }
+    log(`[réconcilie] ${totalFixes} fait(s) aligné(s) sur ${Object.keys(reconciledProseById).length}/${toReconcile.length} section(s) corrigée(s).`);
+  }
+}
+
 phase('Author');
 // Écriture de knowledge.json via un agent dédié (le script workflow n'a pas d'accès disque)
 await A(
@@ -770,7 +831,7 @@ log(`Author : ${authored.files_written.length} fichiers écrits`);
 // les figures → NE PAS l'écraser.
 if (!Array.isArray(loadedWidgets)) {
   const proseById = {};
-  sectionData.forEach(r => { proseById[r.section.id] = r.section.prose; });
+  sectionData.forEach(r => { proseById[r.section.id] = reconciledProseById[r.section.id] || r.section.prose; });
   const liveOutline = arch.outline.filter(o => liveOutlineIds.has(o.id));
   const sectionsForCompose = liveOutline.map(o => ({
     id: o.id, heading: o.heading, prose: proseById[o.id] || '', claims: sectionClaims[o.id] || [],
