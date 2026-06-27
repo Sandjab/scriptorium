@@ -43,6 +43,11 @@ const WEB = 'Utilise WebSearch et WebFetch (charge-les via ToolSearch "select:We
 // anglaise fait référence. Injectée dans les prompts qui RÉDIGENT (Plan, Extract, Author).
 const TERMINO = `TERMINOLOGIE (anglais en tête) : pour tout concept dont la littérature emploie une forme anglaise de référence — Y COMPRIS quand un calque français circule — mets le TERME ANGLAIS EN TÊTE et donne la forme française en glose à la 1re occurrence SEULEMENT, puis emploie l'anglais seul. Ex. : « chain rule (dérivation des fonctions composées) », « backpropagation (rétropropagation) », « forward pass / backward pass », « learning rate », « vanishing / exploding gradient », « gradient clipping ». NUANCE GRAMMATICALE : seul le NOM bascule en anglais ; garde les formes VERBALES/participes françaises (« rétropropagé », « rétropropage ») — n'anglicise jamais un verbe au milieu d'une phrase. BANNIS les calques (ni vrai français ni anglais : « règle de la chaîne », « écrêtage de gradient »…). N'anglicise PAS le vocabulaire français naturalisé et non-calque (descente de gradient, couche, poids, perte, dérivée, fonction d'activation, connexions résiduelles, graphe de calcul). Les termes déjà anglais (ReLU, Adam, ResNet, batch normalization, internal covariate shift…) restent tels quels. Glossaire : le champ "term" = la forme anglaise canonique (glose française dans la définition).`;
 
+// Consigne STYLE — complète TERMINO sur 3 axes que la rédaction laisse parfois passer : accents du
+// texte visible, lisibilité (lourdeurs), faux-amis. Injectée dans les prompts qui RÉDIGENT
+// (Plan/Extract/Author + widget-code) pour produire une prose propre dès le premier jet.
+const STYLE = `STYLE FRANÇAIS (complète TERMINOLOGIE) : (1) ACCENTS — tout texte français visible PORTE ses diacritiques (é è ê à â î ï ô û ù ç œ…) ; n'écris JAMAIS en ASCII dé-accentué, y compris dans les libellés/légendes/boutons/messages et le texte SVG affiché des widgets, et dans les blurbs de pointeurs. (2) LISIBILITÉ — phrases fluides : sujet et verbe rapprochés, pas de ponctuation cassée (« — : »), pas d'apposition non liée par deux-points, pas de participes empilés ; allège plutôt que de délayer. (3) FAUX-AMIS à proscrire : « library »→bibliothèque (jamais « librairie ») ; « to attend to »→prêter attention / regarder (jamais « attendre ») ; « consistent »→régulier / cohérent (jamais « consistant ») ; « to support (une fonctionnalité) »→prendre en charge ; « to address (un problème) »→traiter / aborder ; « paper »→article. Ne dé-accentue JAMAIS un nom propre ni un mot français pour « faire simple ».`;
+
 // Tous les agents tournent en general-purpose (Tools: *) → WebSearch/WebFetch/Write/Bash garantis.
 const A = (prompt, opts) => agent(prompt, { agentType: 'general-purpose', ...opts });
 
@@ -190,6 +195,7 @@ const sweepPrompt = a => [
 const archPrompt = (findings, sources) => [
   `Sujet : « ${subject} ». Tu conçois le PLAN d'un document de référence à partir des données de recherche.`,
   TERMINO,
+  STYLE,
   `Findings (point → url, champ _angle = angle de sweep d'origine) :\n${JSON.stringify(findings)}`,
   `Sources :\n${JSON.stringify(sources.map(s => ({ title:s.title, url:s.url, kind:s.kind })))}`,
   `Rends : title (titre du document, sans suffixe d'édition), kicker (sur-titre court), et outline = AUTANT de sections que la matière trouvée le justifie (typiquement 4 à 9). Propose LARGE : une section par sous-thème réellement documenté. Les sections sans matière vérifiable seront élaguées automatiquement — ne t'autocensure pas, mais n'invente pas de section creuse.`,
@@ -202,6 +208,7 @@ const extractPrompt = (sec, findings) => [
   `Findings disponibles (point → url) :\n${JSON.stringify(findings)}`,
   WEB + ' (autorisé pour compléter/préciser une source.)',
   TERMINO,
+  STYLE,
   `Produis pour CETTE section :`,
   `- prose : autant de paragraphes HTML (<p>…</p>) que la matière de la section l'exige, sans délayer. Prose d'auteur, claire, sans inventer. Pas de titre (le heading est ajouté à l'assemblage).`,
   `- claims : 2 à 4 énoncés factuels vérifiables portés par la section. Pour CHAQUE claim : statement (une phrase nette), candidate_sources (urls qui l'étayent), examples (0-2 exemples concrets), kind.`,
@@ -236,6 +243,7 @@ const pointersPrompt = (candidates) => [
 const authorPrompt = (sectionsBrief) => [
   `Tu es l'auteur. Tu ÉCRIS des fichiers dans le dossier de thème : ${themeDir}`,
   TERMINO,
+  STYLE,
   `${themeDir}/knowledge.json a été écrit par l'étape précédente — lis-le pour connaître les claims vérifiés avant de rédiger le glossaire et le tldr.`,
   `Assure-toi que le dossier existe (mkdir -p si besoin), puis ÉCRIS exactement ces fichiers :`,
   ``,
@@ -270,6 +278,7 @@ const widgetCodePrompt = (w) => [
   `Écris le fichier ${themeDir}/widgets/<ref>.html (mkdir -p ${themeDir}/widgets si besoin). Choisis un <ref> kebab-case ascii unique (probe-… pour un mécanisme ; synopsis-… pour un process).`,
   `CONTRAINTES STRICTES (sinon le build échoue bruyamment) : un seul bloc <div class="widget">…</div> + <style>…</style> + <script>…</script> ; AUCUNE ressource externe, AUCUN file:///, AUCUN alert/confirm/prompt ; balises <section>/<details>/<script> ÉQUILIBRÉES ; préfixe TOUS les id/classes par le ref pour éviter les collisions avec la charte.`,
   `Le widget doit VRAIMENT démontrer le mécanisme : interactif et manipulable, pas décoratif ni statique. Aussi complexe que nécessaire, mais pas au-delà de sa valeur explicative.`,
+  STYLE + ' WIDGET : tout le texte VISIBLE (libellés, boutons, légendes, messages, texte SVG affiché) est en français correctement ACCENTUÉ — jamais en ASCII ; applique aussi la règle TERMINOLOGIE.',
   `Rends : ref (sans .html), title (titre court du widget), after_section_id = "${w.after_section_id}", kind = "${w.kind || 'probe'}".`,
 ].filter(Boolean).join('\n');
 

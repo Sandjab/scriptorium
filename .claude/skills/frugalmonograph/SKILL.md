@@ -67,11 +67,17 @@ Nombre d'agents :
 
 ```
 6 (Sweep) + 1 (Plan) + N≤9 (Extract) + Σ_sections(claims≤4 × 2 jurés) + ~1 (pointeurs)
-  + 1 (Author) + 1 (widget-plan) + Σ_widgets(1 codeur + 1 critic [+1 re-code]) + 2 (Compose/Build)
+  + 1 (Author) + 1 (widget-plan) + Σ_widgets(1 codeur + 1 critic [+1 re-code])
+  + (3 + Σ_widgets) (Style, Sonnet) + 2 (Compose/Build)
 ```
 
 - **Juge la conso aux TOKENS par agent, pas au nombre de fichiers/journaux.** (Pas de chiffre
   absolu garanti ici : le coût par agent web varie selon les fetch.)
+- **Phase `Style` (relecture)** : entre Compose et Build, un fan-out **Sonnet** (édition de surface,
+  pas de jugement structurant) relit le **texte visible** (manifest/tldr/glossary + chaque widget)
+  pour les calques résiduels, lourdeurs et **accents manquants**, puis le build réassemble. Elle ne
+  touche jamais `knowledge.json` ni un fait. En prévention, la consigne `STYLE` (accents/lisibilité/
+  faux-amis) est aussi injectée dans Plan/Extract/Author **et le codage des widgets**.
 - Les phases **Widgets / Author / Compose / Build restent en Opus** : coder/critiquer du HTML
   interactif et rédiger glossaire/manifeste n'est pas dégradé pour économiser.
 - Après une interruption (rate-limit), **NE relance JAMAIS un run frais** (re-paie tout) :

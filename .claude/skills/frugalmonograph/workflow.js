@@ -10,6 +10,7 @@ export const meta = {
     { title: 'Author',  detail: 'écrit knowledge/glossary/tldr' },
     { title: 'Widgets', detail: 'sélection des concepts (planner) puis fan-out codeurs + critic' },
     { title: 'Compose', detail: 'écrit le manifeste unique (best-of)' },
+    { title: 'Style',   detail: 'relecture : calques résiduels, lourdeurs, accents du texte visible', model: 'sonnet' },
     { title: 'Build',   detail: 'python3 build.py → 1 HTML + auto-vérifs' },
   ],
 };
@@ -42,6 +43,11 @@ const WEB = 'Utilise WebSearch et WebFetch (charge-les via ToolSearch "select:We
 // Politique terminologique : éviter la francisation systématique des termes dont la forme
 // anglaise fait référence. Injectée dans les prompts qui RÉDIGENT (Plan, Extract, Author).
 const TERMINO = `TERMINOLOGIE (anglais en tête) : pour tout concept dont la littérature emploie une forme anglaise de référence — Y COMPRIS quand un calque français circule — mets le TERME ANGLAIS EN TÊTE et donne la forme française en glose à la 1re occurrence SEULEMENT, puis emploie l'anglais seul. Ex. : « chain rule (dérivation des fonctions composées) », « backpropagation (rétropropagation) », « forward pass / backward pass », « learning rate », « vanishing / exploding gradient », « gradient clipping ». NUANCE GRAMMATICALE : seul le NOM bascule en anglais ; garde les formes VERBALES/participes françaises (« rétropropagé », « rétropropage ») — n'anglicise jamais un verbe au milieu d'une phrase. BANNIS les calques (ni vrai français ni anglais : « règle de la chaîne », « écrêtage de gradient »…). N'anglicise PAS le vocabulaire français naturalisé et non-calque (descente de gradient, couche, poids, perte, dérivée, fonction d'activation, connexions résiduelles, graphe de calcul). Les termes déjà anglais (ReLU, Adam, ResNet, batch normalization, internal covariate shift…) restent tels quels. Glossaire : le champ "term" = la forme anglaise canonique (glose française dans la définition).`;
+
+// Passe de RELECTURE STYLE (lever A) — complète TERMINO sur 3 axes que la rédaction laisse parfois
+// passer : accents du texte visible, lisibilité (lourdeurs), faux-amis. Injectée dans les prompts qui
+// RÉDIGENT (Plan/Extract/Author + widget-code) ; un correctif final (phase Style) l'applique avant build.
+const STYLE = `STYLE FRANÇAIS (complète TERMINOLOGIE) : (1) ACCENTS — tout texte français visible PORTE ses diacritiques (é è ê à â î ï ô û ù ç œ…) ; n'écris JAMAIS en ASCII dé-accentué, y compris dans les libellés/légendes/boutons/messages et le texte SVG affiché des widgets, et dans les blurbs de pointeurs. (2) LISIBILITÉ — phrases fluides : sujet et verbe rapprochés, pas de ponctuation cassée (« — : »), pas d'apposition non liée par deux-points, pas de participes empilés ; allège plutôt que de délayer. (3) FAUX-AMIS à proscrire : « library »→bibliothèque (jamais « librairie ») ; « to attend to »→prêter attention / regarder (jamais « attendre ») ; « consistent »→régulier / cohérent (jamais « consistant ») ; « to support (une fonctionnalité) »→prendre en charge ; « to address (un problème) »→traiter / aborder ; « paper »→article. Ne dé-accentue JAMAIS un nom propre ni un mot français pour « faire simple ».`;
 
 // Tous les agents tournent en general-purpose (Tools: *) → WebSearch/WebFetch/Write/Bash garantis.
 const A = (prompt, opts) => agent(prompt, { agentType: 'general-purpose', ...opts });
@@ -204,6 +210,7 @@ const sweepPrompt = a => [
 const archPrompt = (findings, sources) => [
   `Sujet : « ${subject} ». Tu conçois le PLAN d'un document de référence à partir des données de recherche.`,
   TERMINO,
+  STYLE,
   `Findings (point → url, champ _angle = angle de sweep d'origine) :\n${JSON.stringify(findings)}`,
   `Sources :\n${JSON.stringify(sources.map(s => ({ title:s.title, url:s.url, kind:s.kind })))}`,
   `Rends : title (titre du document, sans suffixe d'édition), kicker (sur-titre court), et outline = AUTANT de sections que la matière trouvée le justifie (typiquement 4 à 9). Propose LARGE : une section par sous-thème réellement documenté. Les sections sans matière vérifiable seront élaguées automatiquement — ne t'autocensure pas, mais n'invente pas de section creuse.`,
@@ -216,6 +223,7 @@ const extractPrompt = (sec, findings) => [
   `Findings disponibles (point → url) :\n${JSON.stringify(findings)}`,
   WEB + ' (autorisé pour compléter/préciser une source.)',
   TERMINO,
+  STYLE,
   `Produis pour CETTE section :`,
   `- prose : autant de paragraphes HTML (<p>…</p>) que la matière de la section l'exige, sans délayer. Prose d'auteur, claire, sans inventer. Pas de titre (le heading est ajouté à l'assemblage).`,
   `- claims : 2 à 4 énoncés factuels vérifiables portés par la section. Pour CHAQUE claim : statement (une phrase nette), candidate_sources (urls qui l'étayent), examples (0-2 exemples concrets), kind.`,
@@ -250,6 +258,7 @@ const pointersPrompt = (candidates) => [
 const authorPrompt = (sectionsBrief) => [
   `Tu es l'auteur. Tu ÉCRIS des fichiers dans le dossier de thème : ${themeDir}`,
   TERMINO,
+  STYLE,
   `${themeDir}/knowledge.json a été écrit par l'étape précédente — lis-le pour connaître les claims vérifiés avant de rédiger le glossaire et le tldr.`,
   `Assure-toi que le dossier existe (mkdir -p si besoin), puis ÉCRIS exactement ces fichiers :`,
   ``,
@@ -284,6 +293,7 @@ const widgetCodePrompt = (w) => [
   `Écris le fichier ${themeDir}/widgets/<ref>.html (mkdir -p ${themeDir}/widgets si besoin). Choisis un <ref> kebab-case ascii unique (probe-… pour un mécanisme ; synopsis-… pour un process).`,
   `CONTRAINTES STRICTES (sinon le build échoue bruyamment) : un seul bloc <div class="widget">…</div> + <style>…</style> + <script>…</script> ; AUCUNE ressource externe, AUCUN file:///, AUCUN alert/confirm/prompt ; balises <section>/<details>/<script> ÉQUILIBRÉES ; préfixe TOUS les id/classes par le ref pour éviter les collisions avec la charte.`,
   `Le widget doit VRAIMENT démontrer le mécanisme : interactif et manipulable, pas décoratif ni statique. Aussi complexe que nécessaire, mais pas au-delà de sa valeur explicative.`,
+  STYLE + ' WIDGET : tout le texte VISIBLE (libellés, boutons, légendes, messages, texte SVG affiché) est en français correctement ACCENTUÉ — jamais en ASCII ; applique aussi la règle TERMINOLOGIE.',
   `Rends : ref (sans .html), title (titre court du widget), after_section_id = "${w.after_section_id}", kind = "${w.kind || 'probe'}".`,
 ].filter(Boolean).join('\n');
 
@@ -407,6 +417,20 @@ const buildPrompt = () => [
   `   - quelles catégories d'audit sont présentes parmi confirmed/corrected/rejected → audit_categories_present ;`,
   `   - confirmed_claims = nombre de claims confirmés.`,
   `Rends : success (build OK et acceptation OK), files (fichiers de dist/), build_output (sortie de build.py), acceptance{…}, errors[] (vide si tout va bien).`,
+].join('\n');
+
+// ── Relecture style (lever B) : schéma + prompt par fichier ───────────────────
+const S_STYLE = { type:'object', additionalProperties:false, required:['file','n_changes'],
+  properties:{ file:{type:'string'}, n_changes:{type:'integer'}, note:{type:'string'} } };
+const stylePassPrompt = (path, isWidget) => [
+  `PASSE DE RELECTURE STYLE sur UN fichier : ${path}. Fais Read d'abord, puis applique des éditions CHIRURGICALES (Edit). Le SENS est préservé partout.`,
+  `Trois axes : (1) calques / faux-amis ; (2) formulations lourdes (sujet-verbe rapprochés, ponctuation « — : » cassée, appositions non liées, participes empilés) ; (3) accents manquants dans le TEXTE VISIBLE (element→élément, modele→modèle, reponse→réponse, methode→méthode…).`,
+  STYLE,
+  isWidget
+    ? `WIDGET HTML : édite UNIQUEMENT le texte VISIBLE (libellés, légendes, boutons, messages, texte SVG <text>/<tspan> affiché). NE TOUCHE PAS les aria-label/alt (accessibilité), ni les identifiants/variables/commentaires JS, ni les id/classes/sélecteurs. Le <script> doit rester syntaxiquement valide.`
+    : `Fichier de PROSE (JSON manifest/tldr/glossary) : édite la prose des sections, les blurbs de pointeurs, le glossaire, le tldr, les meta (title/kicker/lede) et le texte VISIBLE des figures SVG inline. Garde un JSON VALIDE.`,
+  `CONTRAINTES DURES : NE modifie JAMAIS un chiffre, une date, un nom propre, une citation, un id arXiv, une référence claim:N, une URL, un slug/id/ref. Ne touche PAS ${themeDir}/knowledge.json. ⚠ Homographes : n'accentue « a/à », « ou/où », « des/dès », « la/là » que si le contexte l'impose — le VERBE « a » (avoir) reste « a ». Dans le doute, ne change pas.`,
+  `Rends : file="${path}", n_changes (entier = nombre d'éditions faites), note (résumé court ; "déjà propre" si rien).`,
 ].join('\n');
 
 // ── Orchestration ────────────────────────────────────────────────────────────
@@ -872,6 +896,21 @@ const _wroteManifest = (composed.files_written || []).some(p => /(^|\/)manifest\
 if (!_wroteManifest) throw new Error(
   `Compose n'a pas (ré)écrit ${themeDir}/manifest.json. files_written=${JSON.stringify(composed.files_written)}. ` +
   `Abandon AVANT build pour ne pas assembler un manifeste périmé sur le knowledge.json courant.`);
+
+// ── Style (lever B) : relecture finale du TEXTE VISIBLE (calques résiduels, lourdeurs, accents
+// manquants) AVANT le build, qui réassemble les fichiers stylés. Édite manifest/tldr/glossary + chaque
+// widget ; JAMAIS knowledge.json ni un fait. Sonnet (édition de surface) → reste dans le profil frugal.
+phase('Style');
+const styleTargets = [
+  { path: `${themeDir}/manifest.json`, widget: false },
+  { path: `${themeDir}/tldr.json`,     widget: false },
+  { path: `${themeDir}/glossary.json`, widget: false },
+  ...widgets.map(w => ({ path: `${themeDir}/widgets/${w.ref}.html`, widget: true })),
+];
+const styleRes = (await parallel(styleTargets.map(t => () =>
+  A(stylePassPrompt(t.path, t.widget), { schema: S_STYLE, model: M_RESEARCH, phase: 'Style', label: `style:${t.path.split('/').pop()}` })
+))).filter(Boolean);
+log(`Style : ${styleRes.reduce((n, r) => n + (r.n_changes || 0), 0)} correction(s) sur ${styleRes.length} fichier(s).`);
 
 phase('Build');
 const built = await A(buildPrompt(), { schema: S_BUILD, phase: 'Build', label: 'build' });
