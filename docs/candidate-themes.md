@@ -79,6 +79,48 @@ passant (InfoNCE/CLIP dans text-embeddings, CLIP comme conditionneur en diffusio
 > ensemble-learning couvre les arbres boostés (socle de LambdaMART) — se centrer sur les algorithmes
 > LTR et les métriques de rang. Domaine : information-retrieval-representation.
 
+### NER par sequence labeling & architectures d'empans — `named-entity-recognition-sequence-labeling` → `information-retrieval-representation`
+**Verdict : gap réel (haute) — le cœur architectural du NER.** `structured-extraction-llm` possède le
+NER *génératif par LLM* (GPT-NER, PromptNER, décodage contraint, familles tagging/indexing/matching —
+claims 1/3/14/29/31) mais n'explique jamais l'architecture discriminative : il *concède* seulement que
+les modèles discriminatifs « restent compétitifs » (claim:3) et n'abstrait le BIO qu'en « posture de
+tagging » (claim:14). HMM/MEMM/CRF, BiLSTM-CRF, span-based/biaffine, nested & discontinuous NER =
+**0 occurrence** dans tout le corpus.
+
+> Reconnaissance d'entités nommées (NER) par étiquetage de séquences et architectures d'empans :
+> détecter et typer les entités d'un texte. Couvrir les schémas d'étiquetage (BIO, BIOES et leurs
+> pièges), la lignée discriminative (HMM/MEMM → CRF, fonction de coût et inférence de Viterbi), le NER
+> neuronal classique (BiLSTM-CRF, features char-CNN + word embeddings), le passage aux encodeurs (BERT
+> token classification), puis les architectures d'empans (span-based, biaffine, MRC-as-NER) et les cas
+> durs (entités imbriquées / nested NER, entités discontinues / discontinuous NER), avec l'évaluation
+> (F1 par entité, CoNLL-2003, OntoNotes, GENIA). Public : ingénieur ML/NLP. Délimitations : le NER
+> *génératif par LLM* et le décodage contraint sont couverts par structured-extraction-llm (ne pas
+> re-traiter GPT-NER/PromptNER/LangExtract) ; l'entity linking (mention → base de connaissances) est le
+> thème entity-linking-disambiguation ; la relation extraction et la canonicalisation OpenIE relèvent de
+> knowledge-graph-construction ; l'entraînement d'embeddings de text-embeddings. Se centrer sur le
+> versant DISCRIMINATIF (détection + typage d'empans). Domaine : information-retrieval-representation
+> (angle architectural : deep-learning-foundations envisageable — à trancher par /arrange).
+
+### Entity linking & désambiguïsation d'entités — `entity-linking-disambiguation` → `information-retrieval-representation`
+**Verdict : gap réel (haute) — le plus propre, ~0 chevauchement.** `structured-extraction-llm` ne cite
+l'entity linking qu'une fois comme tâche « que certains ajoutent » (claim:1), sans aucune méthode ;
+`knowledge-graph-construction` traite la *canonicalisation de sorties OpenIE* et l'identité RDF
+(`owl:sameAs`, CESI/Galárraga) mais **jamais** le pipeline supervisé mention → entrée de KB.
+
+> Entity linking (liage d'entités) et désambiguïsation : relier une mention textuelle à l'entrée
+> canonique d'une base de connaissances (Wikidata/DBpedia). Couvrir le pipeline (détection de mentions,
+> génération de candidats, désambiguïsation), l'opposition désambiguïsation *locale* (contexte de la
+> mention) vs *collective/globale* (cohérence par graphe entre les mentions d'un document), les
+> approches modernes — bi-encodeur + cross-encodeur (BLINK), liage *génératif* autorégressif (GENRE),
+> zero-shot / entités émergentes et le cas NIL (mention sans entrée) —, l'évaluation (AIDA-CoNLL,
+> TAC-KBP) et l'usage en *grounding* pour le RAG et la construction de KG. Public : ingénieur NLP/IR.
+> Délimitations : la détection + typage d'entités (NER) relève de
+> named-entity-recognition-sequence-labeling et du NER par LLM de structured-extraction-llm ; la
+> canonicalisation OpenIE et l'identité RDF (`owl:sameAs`) sont couvertes par
+> knowledge-graph-construction ; l'entraînement d'embeddings par text-embeddings ; la recherche
+> vectorielle par approximate-nearest-neighbor. Se centrer sur mention → KB. Domaine :
+> information-retrieval-representation.
+
 ---
 
 ## Priorité moyenne
@@ -237,6 +279,22 @@ apprendre dessus) ; GraphRAG/agentic-memory utilisent des graphes sans message p
 > Délimitations : count-min-sketch et hyperloglog couvrent d'autres sketches en flux (fréquences,
 > cardinalité) — les citer comme voisins ; se centrer sur quantiles et échantillonnage. Domaine :
 > probabilistic-structures-hashing.
+
+### Résolution de coréférence — `coreference-resolution` → `information-retrieval-representation`
+**Verdict : gap réel mais plus étroit / moindre valeur de référence.** Cité une seule fois
+(`structured-extraction-llm` claim:1, « la résolution de coréférence »), traité nulle part ailleurs.
+Sujet net mais moins central pour l'audience ML-engineering du corpus que le NER discriminatif ou
+l'entity linking.
+
+> Résolution de coréférence (coreference resolution) : regrouper les mentions d'un texte qui désignent
+> la même entité (« Marie… elle… la directrice »). Couvrir la formulation par paires puis par rang de
+> mention (mention-pair, mention-ranking), le modèle end-to-end neuronal à scoring d'empans (Lee et al.
+> 2017) et l'inférence d'ordre supérieur (higher-order), le clustering de mentions, la coréférence par
+> LLM, et l'évaluation (MUC, B³, CEAF, score CoNLL-2012 sur OntoNotes ; cas Winograd). Public :
+> ingénieur NLP. Délimitations : distinct de l'entity linking (coréférence = clustering intra-document
+> de mentions ; EL = mention → base de connaissances) et du NER (détection + typage) ;
+> structured-extraction-llm ne fait que nommer la coréférence. Domaine :
+> information-retrieval-representation (angle architectural : deep-learning-foundations envisageable).
 
 ---
 
