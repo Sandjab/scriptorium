@@ -1,0 +1,730 @@
+<div class="widget spt-root" id="spt-root">
+  <style>
+    .spt-root{--spt-ink:var(--ink,#15202E);--spt-soft:var(--ink-soft,#43536A);
+      --spt-faint:var(--ink-faint,#7A889B);--spt-card:var(--card,#fff);
+      --spt-line:var(--line,#D7DFE9);--spt-line-soft:var(--line-soft,#E7ECF3);
+      --spt-blue:var(--blue,#23537F);--spt-deep:var(--blue-deep,#142E49);
+      --spt-bright:var(--blue-bright,#2C77B6);--spt-wash:var(--blue-wash,#E7EEF6);
+      --spt-gold:var(--gold,#C68A2E);--spt-gold-wash:#FBF3E3;--spt-gold-ink:#8A5E16;
+      --spt-bord:var(--bordeaux,#7C2A38);--spt-bord-br:var(--bordeaux-bright,#9B3443);
+      --spt-bord-wash:var(--bordeaux-wash,#F3E3E6);
+      --spt-green:#2F7D5B;--spt-green-wash:#EAF4EE;
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--spt-ink);
+      border:1px solid var(--spt-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--spt-card);max-width:860px}
+    .spt-root *{box-sizing:border-box}
+    .spt-k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;color:var(--spt-faint);font-weight:600;margin:0 0 2px}
+    .spt-title{font-weight:700;font-size:1.05rem;margin:0 0 4px;line-height:1.3}
+    .spt-sub{font-size:.84rem;color:var(--spt-soft);margin:0 0 12px;line-height:1.5}
+    .spt-sub b{color:var(--spt-ink)}.spt-sub code{font-family:ui-monospace,monospace;font-size:.92em}
+
+    /* levier NER */
+    .spt-ctrl{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 12px;
+      padding:9px 12px;border:1px solid var(--spt-line);border-radius:9px;background:#FBFCFE}
+    .spt-ctrl label{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:.8rem;font-weight:600;color:var(--spt-ink)}
+    .spt-ctrl input{accent-color:var(--spt-bord-br);width:16px;height:16px;cursor:pointer}
+    .spt-ctrl .spt-ctrlnote{font-size:.7rem;color:var(--spt-faint);line-height:1.4;flex:1 1 260px}
+    .spt-ctrl.spt-errOn{border-color:var(--spt-bord-br);background:var(--spt-bord-wash)}
+    .spt-ctrl.spt-errOn .spt-ctrlnote{color:var(--spt-bord)}
+
+    /* rail des phases */
+    .spt-rail{display:flex;gap:5px;margin:0 0 8px}
+    .spt-ph{flex:1 1 0;min-width:0;border:1px solid var(--spt-line);border-radius:8px;
+      padding:6px 4px;background:var(--spt-card);text-align:center;transition:.15s;cursor:pointer}
+    .spt-ph .spt-pn{font-size:.58rem;color:var(--spt-faint);font-weight:700}
+    .spt-ph .spt-pl{font-size:.66rem;font-weight:800;color:var(--spt-soft);margin-top:1px;font-family:ui-monospace,monospace}
+    .spt-ph .spt-pm{font-size:.53rem;color:var(--spt-faint);margin-top:1px;line-height:1.2}
+    .spt-ph.spt-on{box-shadow:0 0 0 1px var(--spt-bright) inset;border-color:var(--spt-bright);background:var(--spt-wash)}
+    .spt-ph.spt-on .spt-pl,.spt-ph.spt-on .spt-pn{color:var(--spt-blue)}
+    .spt-ph.spt-done{border-color:#C3E0D0;background:var(--spt-green-wash)}
+    .spt-ph.spt-done .spt-pl{color:var(--spt-green)}
+    @media(max-width:620px){.spt-ph .spt-pm{display:none}}
+
+    /* progression */
+    .spt-prog{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 10px}
+    .spt-ticks{display:flex;gap:3px;flex:1 1 300px;min-width:240px}
+    .spt-tick{flex:1 1 0;height:9px;border-radius:3px;background:var(--spt-line-soft);border:1px solid var(--spt-line);transition:.15s}
+    .spt-tick.spt-gap{margin-left:7px}
+    .spt-tick.spt-fill{background:var(--spt-bright);border-color:var(--spt-bright)}
+    .spt-tick.spt-cur{background:var(--spt-blue);border-color:var(--spt-deep);box-shadow:0 0 0 2px var(--spt-wash)}
+    .spt-progtxt{font:700 .72rem/1.3 ui-monospace,monospace;color:var(--spt-soft);white-space:nowrap}
+
+    .spt-btns{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+    .spt-btns button{border:1px solid var(--spt-bright);border-radius:7px;background:transparent;color:var(--spt-bright);
+      font:600 13px/1 inherit;padding:8px 13px;cursor:pointer}
+    .spt-btns button:hover{background:var(--spt-wash)}
+    .spt-btns button.spt-primary{background:var(--spt-blue);color:#fff;border-color:var(--spt-blue)}
+    .spt-btns button.spt-primary:hover{background:var(--spt-bright)}
+    .spt-btns button:disabled{opacity:.42;cursor:default}
+    .spt-btns button:disabled:hover{background:transparent}
+    .spt-btns button.spt-primary:disabled{background:var(--spt-blue)}
+
+    /* readout */
+    .spt-read{margin:0 0 12px;padding:10px 12px;border-radius:8px;border:1px solid #CFE0EF;
+      background:var(--spt-wash);font-size:.83rem;line-height:1.55;color:var(--spt-ink);min-height:3.4em}
+    .spt-read b{font-weight:700}.spt-read code{font-family:ui-monospace,monospace;font-size:.92em}
+    .spt-read.spt-c-warn{background:var(--spt-gold-wash);border-color:#EAD9B4}
+    .spt-read.spt-c-bad{background:var(--spt-bord-wash);border-color:#E3C3C9}
+    .spt-read.spt-c-ok{background:var(--spt-green-wash);border-color:#C3E0D0}
+
+    /* phrases jouet */
+    .spt-sents{margin:0 0 11px;display:grid;gap:7px}
+    .spt-sent{padding:9px 12px 11px;border-radius:8px;border:1px dashed var(--spt-line);
+      background:#FBFCFE;font-size:.95rem;line-height:2.3;transition:.18s}
+    .spt-sent.spt-dim{opacity:.42}
+    .spt-sent .spt-sid{font:700 .58rem/1 ui-monospace,monospace;color:var(--spt-faint);margin-right:7px}
+    .spt-tok{padding:1px 2px;border-radius:4px}
+    .spt-m{position:relative;padding:2px 4px;border-radius:5px;font-weight:700;white-space:nowrap}
+    .spt-m .spt-tag{font:800 .55rem/1 ui-monospace,monospace;margin-left:4px;padding:1px 4px;border-radius:4px;vertical-align:2px}
+    .spt-m .spt-role{position:absolute;top:-13px;left:0;font:800 .5rem/1 ui-monospace,monospace;letter-spacing:.04em}
+    .spt-t-PER{background:var(--spt-wash);color:var(--spt-blue)}
+    .spt-t-PER .spt-tag{background:var(--spt-blue);color:#fff}
+    .spt-t-ORG{background:var(--spt-gold-wash);color:var(--spt-gold-ink)}
+    .spt-t-ORG .spt-tag{background:var(--spt-gold);color:#fff}
+    .spt-t-LOC{background:var(--spt-green-wash);color:var(--spt-green)}
+    .spt-t-LOC .spt-tag{background:var(--spt-green);color:#fff}
+    .spt-t-MISC{background:var(--spt-bord-wash);color:var(--spt-bord)}
+    .spt-t-MISC .spt-tag{background:var(--spt-bord-br);color:#fff}
+    .spt-m.spt-subj{box-shadow:0 0 0 2px var(--spt-deep)}
+    .spt-m.spt-subj .spt-role{color:var(--spt-deep)}
+    .spt-m.spt-obj{box-shadow:0 0 0 2px var(--spt-bord-br)}
+    .spt-m.spt-obj .spt-role{color:var(--spt-bord-br)}
+    .spt-missed{border-bottom:2px dashed var(--spt-bord-br)}
+
+    /* paires */
+    .spt-pairs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 11px}
+    .spt-pchip{border:1px solid var(--spt-line);border-radius:7px;background:var(--spt-card);
+      padding:5px 9px;font:600 .68rem/1.4 ui-monospace,monospace;color:var(--spt-soft);cursor:pointer;transition:.14s;text-align:left}
+    .spt-pchip .spt-pv{font-weight:800}
+    .spt-pchip.spt-pcur{border-color:var(--spt-bright);background:var(--spt-wash);color:var(--spt-blue);box-shadow:0 0 0 1px var(--spt-bright) inset}
+    .spt-pchip.spt-ppos{border-color:#C3E0D0;background:var(--spt-green-wash)}
+    .spt-pchip.spt-ppos .spt-pv{color:var(--spt-green)}
+    .spt-pchip.spt-pna .spt-pv{color:var(--spt-faint)}
+    .spt-pchip.spt-todo{opacity:.55}
+
+    /* panneau de phase */
+    .spt-panel{border:1px solid var(--spt-line);border-radius:9px;overflow:hidden;margin:0 0 11px}
+    .spt-panel-h{font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:var(--spt-faint);
+      padding:7px 11px;background:#F6F9FC;border-bottom:1px solid var(--spt-line-soft);display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+    .spt-panel-h .spt-hr{margin-left:auto;font-family:ui-monospace,monospace;color:var(--spt-soft);font-weight:800;text-transform:none;letter-spacing:0}
+    .spt-panel-b{padding:10px 12px}
+    .spt-panel-b p{margin:0 0 8px;font-size:.78rem;line-height:1.5;color:var(--spt-soft)}
+    .spt-panel-b p b{color:var(--spt-ink)}
+    .spt-panel-b code{font-family:ui-monospace,monospace;font-size:.92em}
+
+    .spt-tbl{width:100%;border-collapse:collapse;font-size:.75rem}
+    .spt-tbl th,.spt-tbl td{padding:5px 7px;border-bottom:1px solid var(--spt-line-soft);text-align:left;white-space:nowrap}
+    .spt-tbl th{font-size:.58rem;text-transform:uppercase;letter-spacing:.03em;color:var(--spt-faint)}
+    .spt-tbl td.spt-num{text-align:right;font-family:ui-monospace,monospace;font-weight:700}
+    .spt-tblwrap{overflow-x:auto}
+    .spt-tbl tr.spt-win td{background:var(--spt-green-wash)}
+    .spt-tbl tr.spt-win td:first-child{color:var(--spt-green);font-weight:800}
+    .spt-tbl tr.spt-lose td{color:var(--spt-faint)}
+    .spt-tbl tr.spt-badrow td{background:var(--spt-bord-wash)}
+
+    .spt-pbar{position:relative;height:11px;border-radius:6px;background:var(--spt-line-soft);overflow:hidden;min-width:70px}
+    .spt-pfill{position:absolute;left:0;top:0;bottom:0;background:var(--spt-bright);border-radius:6px}
+    .spt-pfill.spt-pna{background:var(--spt-faint)}
+    .spt-pfill.spt-pwin{background:var(--spt-green)}
+    .spt-pcell{display:flex;align-items:center;gap:6px}
+    .spt-pcell .spt-pvv{font:800 .68rem/1 ui-monospace,monospace;color:var(--spt-soft);width:52px;text-align:right}
+
+    .spt-slider{display:flex;align-items:center;gap:10px;margin:10px 0 2px;flex-wrap:wrap}
+    .spt-slider label{font-size:.74rem;font-weight:700;color:var(--spt-ink)}
+    .spt-slider input{flex:1 1 160px;accent-color:var(--spt-bright);cursor:pointer}
+    .spt-slider .spt-thv{font:800 .8rem/1 ui-monospace,monospace;color:var(--spt-blue);width:44px}
+
+    .spt-decis{margin:9px 0 0;padding:8px 11px;border-radius:8px;font-size:.8rem;font-weight:700;line-height:1.45}
+    .spt-decis.spt-dpos{background:var(--spt-green-wash);border:1px solid #C3E0D0;color:var(--spt-green)}
+    .spt-decis.spt-dna{background:#F3F5F8;border:1px solid var(--spt-line);color:var(--spt-soft)}
+
+    .spt-verd{font:800 .62rem/1 ui-monospace,monospace;padding:2px 7px;border-radius:5px}
+    .spt-verd.spt-vtp{background:var(--spt-green-wash);color:var(--spt-green)}
+    .spt-verd.spt-vfp{background:var(--spt-bord-wash);color:var(--spt-bord-br)}
+    .spt-verd.spt-vfn{background:var(--spt-gold-wash);color:var(--spt-gold-ink)}
+    .spt-verd.spt-vok{background:#F3F5F8;color:var(--spt-faint)}
+
+    .spt-stats{display:flex;gap:8px;flex-wrap:wrap;margin:11px 0 0}
+    .spt-stat{flex:1 1 88px;border:1px solid var(--spt-line);border-radius:9px;padding:7px 10px;background:var(--spt-card)}
+    .spt-stat .spt-sk{font-size:.55rem;letter-spacing:.03em;text-transform:uppercase;color:var(--spt-faint);font-weight:700;line-height:1.2}
+    .spt-stat .spt-sv{font:800 1rem/1.1 ui-monospace,monospace;color:var(--spt-blue);margin:3px 0 0}
+    .spt-stat.spt-good .spt-sv{color:var(--spt-green)}
+    .spt-stat.spt-bad .spt-sv{color:var(--spt-bord-br)}
+
+    .spt-cmp{display:flex;gap:8px;flex-wrap:wrap;margin:11px 0 0}
+    .spt-cmpbox{flex:1 1 200px;border:1px solid var(--spt-line);border-radius:9px;padding:8px 11px;font-size:.74rem;color:var(--spt-soft);background:#FBFCFE}
+    .spt-cmpbox .spt-cmpv{font:800 1.05rem/1.2 ui-monospace,monospace;color:var(--spt-green)}
+    .spt-cmpbox.spt-cmpbad .spt-cmpv{color:var(--spt-bord-br)}
+    .spt-cmpbox.spt-cmpon{box-shadow:0 0 0 2px var(--spt-bright) inset;border-color:var(--spt-bright)}
+    .spt-banner{margin:11px 0 0;padding:9px 12px;border-radius:8px;font-size:.8rem;font-weight:600;line-height:1.5;
+      border:1px solid #E3C3C9;background:var(--spt-bord-wash);color:var(--spt-bord)}
+    .spt-banner b{font-weight:800}
+
+    /* marqueurs (phase 3) */
+    .spt-marked{display:flex;flex-wrap:wrap;gap:4px 5px;align-items:center;padding:10px 8px;border:1px dashed var(--spt-line);
+      border-radius:8px;background:#FBFCFE;font:700 .8rem/1.6 ui-monospace,monospace}
+    .spt-chip{padding:3px 7px;border-radius:6px;border:1px solid var(--spt-line-soft);background:var(--spt-card);color:var(--spt-soft)}
+    .spt-chip.spt-cm-s{background:var(--spt-deep);border-color:var(--spt-deep);color:#fff}
+    .spt-chip.spt-cm-st{background:var(--spt-wash);border-color:var(--spt-bright);color:var(--spt-blue)}
+    .spt-chip.spt-cm-sm{border-color:var(--spt-deep);color:var(--spt-deep)}
+    .spt-chip.spt-cm-o{background:var(--spt-bord-br);border-color:var(--spt-bord-br);color:#fff}
+    .spt-chip.spt-cm-ot{background:var(--spt-bord-wash);border-color:var(--spt-bord-br);color:var(--spt-bord)}
+    .spt-chip.spt-cm-om{border-color:var(--spt-bord-br);color:var(--spt-bord)}
+    .spt-mleg{display:flex;gap:12px;flex-wrap:wrap;font-size:.66rem;color:var(--spt-faint);margin:8px 2px 0;align-items:center}
+
+    .spt-svgwrap{border:1px solid var(--spt-line-soft);border-radius:8px;background:#FBFCFE;padding:6px;overflow-x:auto}
+    .spt-svg{width:100%;min-width:560px;height:auto;display:block}
+
+    .spt-growth td,.spt-growth th{text-align:right}
+    .spt-growth td:first-child,.spt-growth th:first-child{text-align:left}
+
+    .spt-note{margin:13px 0 0;font-size:.72rem;color:var(--spt-faint);line-height:1.55}
+    .spt-note code{font-family:ui-monospace,monospace}.spt-note b{color:var(--spt-soft)}
+  </style>
+
+  <p class="spt-k">Vue d'ensemble · super-widget</p>
+  <p class="spt-title">De la phrase brute au triplet évalué : le pipeline discriminatif complet</p>
+  <p class="spt-sub">Une instance jouet unique (2 phrases, 3 entités) traverse les <b>6 phases</b> du pipeline
+    d'extraction de relations : <b>NER amont</b> → <b>paires candidates dirigées</b> → <b>marqueurs d'entités typés</b>
+    (typed entity markers) → <b>encodage et lecture entity-start</b> → <b>classification vers le schéma fermé</b>
+    (2 relations + <code>no_relation</code>, seuil θ) → <b>agrégation et micro-F1 hors no_relation</b>.
+    Avancez <b>pas à pas</b> ou lancez la <b>lecture continue</b> jusqu'au score final. Tout est calculé exactement, sans aléa.</p>
+
+  <div class="spt-ctrl" id="spt-ctrl">
+    <label><input type="checkbox" id="spt-err">Injecter une erreur de NER (phase ①)</label>
+    <span class="spt-ctrlnote" id="spt-ctrlnote"></span>
+  </div>
+
+  <div class="spt-rail" id="spt-rail" role="group" aria-label="phases du pipeline">
+    <div class="spt-ph" data-ph="1"><div class="spt-pn">①</div><div class="spt-pl">NER</div><div class="spt-pm">mentions typées</div></div>
+    <div class="spt-ph" data-ph="2"><div class="spt-pn">②</div><div class="spt-pl">PAIRES</div><div class="spt-pm">n(n−1) dirigées</div></div>
+    <div class="spt-ph" data-ph="3"><div class="spt-pn">③</div><div class="spt-pl">MARQUEURS</div><div class="spt-pm">@…@ / #…#</div></div>
+    <div class="spt-ph" data-ph="4"><div class="spt-pn">④</div><div class="spt-pl">ENCODAGE</div><div class="spt-pm">entity-start</div></div>
+    <div class="spt-ph" data-ph="5"><div class="spt-pn">⑤</div><div class="spt-pl">CLASSIF.</div><div class="spt-pm">scores + θ</div></div>
+    <div class="spt-ph" data-ph="6"><div class="spt-pn">⑥</div><div class="spt-pl">ÉVAL.</div><div class="spt-pm">micro-F1</div></div>
+  </div>
+
+  <div class="spt-prog">
+    <div class="spt-ticks" id="spt-ticks" role="progressbar" aria-label="progression dans les 15 micro-étapes"></div>
+    <div class="spt-progtxt" id="spt-progtxt"></div>
+  </div>
+
+  <div class="spt-btns">
+    <button type="button" id="spt-reset">⟲ Réinitialiser</button>
+    <button type="button" id="spt-prev">◀ Précédent</button>
+    <button type="button" id="spt-next" class="spt-primary">Étape suivante ▶</button>
+    <button type="button" id="spt-play">▶ Lecture continue</button>
+  </div>
+
+  <div class="spt-read" id="spt-read" aria-live="polite"></div>
+
+  <div class="spt-sents" id="spt-sents"></div>
+
+  <div class="spt-pairs" id="spt-pairs" style="display:none"></div>
+
+  <div id="spt-stage"></div>
+
+  <p class="spt-note"><b>Mécanismes reliés.</b> Ce super-widget rejoue la chaîne en pipeline popularisée par PURE
+    (NER indépendante puis modèle de relation), avec les <b>marqueurs d'entités typés</b> de Zhou &amp; Chen (2022),
+    la lecture <b>entity-start</b> héritée de Matching the Blanks (Baldini Soares et al., 2019) et le protocole
+    d'évaluation de TACRED (<b>micro-F1 poolé hors <code>no_relation</code></b>). Le seuil θ tient le rôle du score de la
+    classe <code>no_relation</code> ; le classifieur jouet remplace l'encodeur appris par deux features explicites
+    (a priori de types + déclencheur lexical), ce qui rend chaque logit vérifiable à la main. La chute du F1 quand
+    l'erreur de NER est injectée illustre pourquoi un score mesuré avec mentions gold surestime la performance d'un
+    pipeline réel.</p>
+
+  <script>
+  (function(){
+    "use strict";
+    /* Widget entièrement déterministe : toutes les chaînes injectées viennent de constantes
+       locales et passent par esc() ; aucune entrée externe n'atteint le DOM. */
+
+    /* ===== données de l'instance jouet ===== */
+    var SENTS=[
+      {toks:["Marie","Curie","a","fondé","l'Institut","du","radium","."]},
+      {toks:["L'Institut","du","radium","est","situé","à","Paris","."]}
+    ];
+    var TRIG={0:{fondee:true,situee:false},1:{fondee:false,situee:true}};
+    var RELS=[
+      {id:"fondee",lab:"org:fondée_par",st:"ORG",ot:"PER",trigTxt:"fondé"},
+      {id:"situee",lab:"org:située_à",st:"ORG",ot:"LOC",trigTxt:"situé"}
+    ];
+    var W_OK=2.5, W_KO=-2.5, W_TRIG=1.5;
+
+    function mentions(errOn){
+      return [
+        {id:"m1",sent:0,a:0,b:1,type:"PER",text:"Marie Curie"},
+        errOn?{id:"m2x",sent:0,a:6,b:6,type:"MISC",text:"radium",bad:true}
+             :{id:"m2",sent:0,a:4,b:6,type:"ORG",text:"l'Institut du radium"},
+        {id:"m3",sent:1,a:0,b:2,type:"ORG",text:"L'Institut du radium"},
+        {id:"m4",sent:1,a:6,b:6,type:"LOC",text:"Paris"}
+      ];
+    }
+    function mkey(m){return m.sent+":"+m.a+"-"+m.b;}
+    /* gold : 2 triplets positifs sur mentions gold ; les autres paires valent no_relation */
+    var GOLD=[
+      {sk:"0:4-6",ok:"0:0-1",rel:"fondee"},
+      {sk:"1:0-2",ok:"1:6-6",rel:"situee"}
+    ];
+    function goldRelOf(p){
+      for(var i=0;i<GOLD.length;i++){
+        if(GOLD[i].sk===mkey(p.s)&&GOLD[i].ok===mkey(p.o))return GOLD[i].rel;
+      }
+      return null;
+    }
+
+    function pairsOf(ms){
+      var out=[];
+      for(var s=0;s<SENTS.length;s++){
+        var here=ms.filter(function(m){return m.sent===s;}).sort(function(a,b){return a.a-b.a;});
+        for(var i=0;i<here.length;i++)for(var j=0;j<here.length;j++){
+          if(i!==j)out.push({s:here[i],o:here[j],sent:s});
+        }
+      }
+      return out;
+    }
+
+    /* ===== scoring déterministe ===== */
+    function scorePair(p,th){
+      var det=RELS.map(function(r){
+        var okT=(p.s.type===r.st&&p.o.type===r.ot);
+        var prior=okT?W_OK:W_KO;
+        var hasTrig=!!TRIG[p.sent][r.id];
+        var trig=hasTrig?W_TRIG:0;
+        return {rel:r,okT:okT,prior:prior,hasTrig:hasTrig,trig:trig,logit:prior+trig};
+      });
+      var best=det[0].logit>=det[1].logit?det[0]:det[1];
+      var pred=best.logit>=th?best.rel.id:null;
+      var logits=[det[0].logit,det[1].logit,th];
+      var mx=Math.max.apply(null,logits);
+      var ex=logits.map(function(l){return Math.exp(l-mx);});
+      var Z=ex[0]+ex[1]+ex[2];
+      var probs=ex.map(function(e){return e/Z;});
+      return {det:det,best:best,pred:pred,probs:probs};
+    }
+
+    function evalAll(errOn,th){
+      var ps=pairsOf(mentions(errOn));
+      var rows=[],tp=0,fp=0,fn=0;
+      ps.forEach(function(p,i){
+        var sc=scorePair(p,th);
+        var g=goldRelOf(p);
+        var verdict;
+        if(sc.pred&&g===sc.pred){verdict="TP";tp++;}
+        else if(sc.pred&&g!==sc.pred){fp++;if(g){fn++;verdict="FP+FN";}else verdict="FP";}
+        else if(!sc.pred&&g){verdict="FN";fn++;}
+        else verdict="OK-NA";
+        rows.push({idx:i,p:p,sc:sc,gold:g,verdict:verdict,missing:false});
+      });
+      GOLD.forEach(function(g){
+        var covered=ps.some(function(p){return mkey(p.s)===g.sk&&mkey(p.o)===g.ok;});
+        if(!covered){fn++;rows.push({p:null,sc:null,gold:g.rel,verdict:"FN",missing:true});}
+      });
+      var P=(tp+fp)>0?tp/(tp+fp):0;
+      var R=(tp+fn)>0?tp/(tp+fn):0;
+      var F1=(P+R)>0?2*P*R/(P+R):0;
+      return {rows:rows,tp:tp,fp:fp,fn:fn,P:P,R:R,F1:F1};
+    }
+
+    /* ===== micro-étapes ===== */
+    var NPAIRS=4;
+    var STEPS=[{ph:1},{ph:2}];
+    for(var pi=0;pi<NPAIRS;pi++){STEPS.push({ph:3,p:pi});STEPS.push({ph:4,p:pi});STEPS.push({ph:5,p:pi});}
+    STEPS.push({ph:6});
+    var LAST=STEPS.length-1;
+
+    /* ===== état ===== */
+    var cur=0, theta=1.0, err=false, playing=false, timer=null;
+
+    /* ===== helpers ===== */
+    function $(id){return document.getElementById(id);}
+    function fmt(x){return x.toFixed(2).replace(".",",");}
+    function fmt1(x){return (x>=0?"+":"−")+Math.abs(x).toFixed(1).replace(".",",");}
+    function pct(x){return (x*100).toFixed(1).replace(".",",")+" %";}
+    function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+    function relLab(id){
+      if(!id)return "no_relation";
+      for(var i=0;i<RELS.length;i++)if(RELS[i].id===id)return RELS[i].lab;
+      return id;
+    }
+    function pairLab(p){return p.s.text+" → "+p.o.text;}
+    function pv8(seed){
+      var out=[],h,i,k,s;
+      for(i=0;i<8;i++){s=i+"$"+seed;h=7;for(k=0;k<s.length;k++)h=(h*31+s.charCodeAt(k))%997;out.push((h%181)/90-1);}
+      return out;
+    }
+
+    /* séquence marquée (marqueurs typés, variante ponctuation) */
+    function markedChips(p){
+      var chips=[],toks=SENTS[p.sent].toks,i=0,firstS=-1,firstO=-1;
+      function pushMention(m,role){
+        var t=m.type.toLowerCase();
+        if(role==="s"){
+          if(firstS<0)firstS=chips.length;
+          chips.push({t:"@",k:"cm-s"},{t:"* "+t+" *",k:"cm-st"},{t:m.text,k:"cm-sm"},{t:"@",k:"cm-s"});
+        }else{
+          if(firstO<0)firstO=chips.length;
+          chips.push({t:"#",k:"cm-o"},{t:"^ "+t+" ^",k:"cm-ot"},{t:m.text,k:"cm-om"},{t:"#",k:"cm-o"});
+        }
+      }
+      while(i<toks.length){
+        if(i===p.s.a){pushMention(p.s,"s");i=p.s.b+1;}
+        else if(i===p.o.a){pushMention(p.o,"o");i=p.o.b+1;}
+        else{chips.push({t:toks[i],k:"tok"});i++;}
+      }
+      return {chips:chips,firstS:firstS,firstO:firstO};
+    }
+
+    /* ===== rendus ===== */
+    function renderRail(st){
+      var kids=$("spt-rail").children;
+      for(var i=0;i<kids.length;i++){
+        var ph=parseInt(kids[i].getAttribute("data-ph"),10);
+        kids[i].classList.toggle("spt-on",ph===st.ph);
+        kids[i].classList.toggle("spt-done",ph<st.ph);
+      }
+    }
+
+    function renderTicks(st){
+      var h="";
+      for(var i=0;i<STEPS.length;i++){
+        var gap=(i>0&&STEPS[i].ph!==STEPS[i-1].ph)?" spt-gap":"";
+        var cls=i<cur?" spt-fill":(i===cur?" spt-cur":"");
+        h+='<div class="spt-tick'+gap+cls+'"></div>';
+      }
+      $("spt-ticks").innerHTML=h;
+      var t="micro-étape "+(cur+1)+"/"+STEPS.length+" · phase "+st.ph+"/6";
+      if(st.p!==undefined)t+=" · paire "+(st.p+1)+"/"+NPAIRS;
+      $("spt-progtxt").textContent=t;
+    }
+
+    function renderSents(st,ms,curPair){
+      var h="";
+      for(var s=0;s<SENTS.length;s++){
+        var dim=(st.ph>=3&&st.ph<=5&&curPair&&curPair.sent!==s)?" spt-dim":"";
+        h+='<div class="spt-sent'+dim+'"><span class="spt-sid">S'+(s+1)+'</span>';
+        var toks=SENTS[s].toks,i=0;
+        while(i<toks.length){
+          var m=null;
+          for(var k=0;k<ms.length;k++)if(ms[k].sent===s&&ms[k].a===i){m=ms[k];break;}
+          if(m){
+            var role="";
+            if(st.ph>=3&&st.ph<=5&&curPair){
+              if(curPair.s===m)role="subj";else if(curPair.o===m)role="obj";
+            }
+            h+='<span class="spt-m spt-t-'+m.type+(role?" spt-"+role:"")+'">';
+            if(role)h+='<span class="spt-role">'+(role==="subj"?"SUJET":"OBJET")+'</span>';
+            h+=esc(toks.slice(m.a,m.b+1).join(" "))+'<span class="spt-tag">'+m.type+(m.bad?" ⚠":"")+'</span></span> ';
+            i=m.b+1;
+          }else{
+            var missed=(err&&s===0&&i>=4&&i<=5)?" spt-missed":"";
+            h+='<span class="spt-tok'+missed+'">'+esc(toks[i])+'</span> ';
+            i++;
+          }
+        }
+        h+='</div>';
+      }
+      $("spt-sents").innerHTML=h;
+    }
+
+    function renderPairs(st,ps){
+      var box=$("spt-pairs");
+      if(st.ph<2){box.style.display="none";return;}
+      box.style.display="flex";
+      var h="";
+      for(var i=0;i<ps.length;i++){
+        var done=false,isCur=false;
+        if(st.ph===6)done=true;
+        else if(st.p!==undefined){done=i<st.p;isCur=i===st.p;}
+        var cls="",pv="";
+        if(isCur)cls=" spt-pcur";
+        else if(done){
+          var sc=scorePair(ps[i],theta);
+          cls=sc.pred?" spt-ppos":" spt-pna";
+          pv=relLab(sc.pred);
+        }else if(st.ph>2)cls=" spt-todo";
+        h+='<button type="button" class="spt-pchip'+cls+'" data-pi="'+i+'">P'+(i+1)+" : "+esc(pairLab(ps[i]))
+          +(done?'<br><span class="spt-pv">'+esc(pv)+'</span>':"")+'</button>';
+      }
+      box.innerHTML=h;
+    }
+
+    /* --- panneaux de phase --- */
+    function panel(title,right,body){
+      return '<div class="spt-panel"><div class="spt-panel-h">'+title
+        +(right?'<span class="spt-hr">'+right+'</span>':"")+'</div><div class="spt-panel-b">'+body+'</div></div>';
+    }
+
+    function stage1(ms){
+      var rows=ms.map(function(m){
+        var bad=m.bad?' class="spt-badrow"':"";
+        return "<tr"+bad+"><td>S"+(m.sent+1)+"</td><td><b>"+esc(m.text)+"</b></td><td>"+m.type
+          +(m.bad?"&nbsp;⚠":"")+"</td><td>"+(m.bad?"frontière tronquée + type erroné":"correcte (gold)")+"</td></tr>";
+      }).join("");
+      var note=err
+        ?"<p>Le repérage amont a <b>tronqué la frontière</b> de «&nbsp;l'Institut du radium&nbsp;» (souligné en pointillé) : "
+         +"seul «&nbsp;radium&nbsp;» est détecté, typé <code>MISC</code>. Tout l'aval consommera cette mention fautive.</p>"
+        :"<p>Ici les mentions sont <b>gold</b> : frontières et types exacts, comme dans l'évaluation standard de TACRED. "
+         +"Dans un pipeline réel, la NER amont fournit ces mentions et ses erreurs se propagent — activez le levier ci-dessus pour le voir.</p>";
+      return panel("Phase ① · NER amont, mentions typées","4 mentions · 3 entités",
+        note+'<div class="spt-tblwrap"><table class="spt-tbl"><tr><th>Phrase</th><th>Mention</th><th>Type</th><th>État</th></tr>'+rows+"</table></div>");
+    }
+
+    function stage2(ps){
+      var rows=ps.map(function(p,i){
+        return "<tr><td>P"+(i+1)+"</td><td>S"+(p.sent+1)+"</td><td><b>"+esc(p.s.text)+"</b> ("+p.s.type
+          +")</td><td>→</td><td><b>"+esc(p.o.text)+"</b> ("+p.o.type+")</td></tr>";
+      }).join("");
+      var growth=[[2,2],[5,20],[10,90],[25,600],[100,9900]].map(function(r){
+        return "<tr><td>"+r[0]+"</td><td>"+r[1].toLocaleString("fr-FR")+"</td></tr>";
+      }).join("");
+      return panel("Phase ② · Génération des paires candidates dirigées","n(n−1) par contexte",
+        "<p>Chaque paire <b>ordonnée</b> de mentions d'une même phrase devient une instance à classer : "
+        +"2 mentions par phrase → 2 paires dirigées chacune, soit <b>4 instances</b>. "
+        +"Au niveau document (toutes phrases croisées, comme dans DocRED), les 4 mentions donneraient déjà 4 × 3 = <b>12 paires</b>.</p>"
+        +'<div class="spt-tblwrap"><table class="spt-tbl"><tr><th>Paire</th><th>Phrase</th><th>Sujet</th><th></th><th>Objet</th></tr>'+rows+"</table></div>"
+        +"<p style=\"margin-top:10px\"><b>L'explosion combinatoire</b> explique la domination de la classe <code>no_relation</code> : "
+        +"la grande majorité des paires générées ne porte aucune relation du schéma.</p>"
+        +'<div class="spt-tblwrap"><table class="spt-tbl spt-growth"><tr><th>n mentions</th><th>n(n−1) paires dirigées</th></tr>'+growth+"</table></div>");
+    }
+
+    function stage3(p,idx){
+      var mk=markedChips(p);
+      var chips=mk.chips.map(function(c){return '<span class="spt-chip spt-'+c.k+'">'+esc(c.t)+'</span>';}).join("");
+      return panel("Phase ③ · Marqueurs d'entités typés autour de la paire courante","paire "+(idx+1)+"/"+NPAIRS,
+        "<p>L'entrée de l'encodeur est la phrase où la paire (sujet, objet) est délimitée par des <b>marqueurs typés</b> "
+        +"(variante ponctuation de Zhou &amp; Chen) : <code>@ * type * sujet @</code> et <code># ^ type ^ objet #</code>. "
+        +"Le type prédit par la NER entre ainsi <b>littéralement</b> dans le texte encodé"
+        +(p.s.bad||p.o.bad?" — l'erreur de NER contamine donc l'entrée elle-même.":".")+"</p>"
+        +'<div class="spt-marked">'+chips+'</div>'
+        +'<div class="spt-mleg"><span><span class="spt-chip spt-cm-s" style="padding:1px 6px">@</span>&nbsp;sujet</span>'
+        +'<span><span class="spt-chip spt-cm-o" style="padding:1px 6px">#</span>&nbsp;objet</span>'
+        +'<span>la même phrase est ré-encodée pour chaque paire candidate</span></div>');
+    }
+
+    function encSVG(p){
+      var mk=markedChips(p),chips=mk.chips;
+      var W=660,x=8,pos=[],widths=[],i;
+      for(i=0;i<chips.length;i++){var w=14+6.4*chips[i].t.length;if(w>110)w=110;widths.push(w);}
+      var tot=widths.reduce(function(a,b){return a+b;},0)+4*(chips.length-1);
+      var sc=tot>(W-16)?(W-16)/tot:1;
+      for(i=0;i<chips.length;i++){widths[i]*=sc;pos.push(x);x+=widths[i]+4*sc;}
+      var s='<svg class="spt-svg" viewBox="0 0 660 252" role="img" aria-label="schéma de l\'encodeur : tokens marqués en entrée, lecture des états aux positions @ et #, concaténation vers le classifieur">';
+      for(i=0;i<chips.length;i++){
+        var k=chips[i].k,fill="#fff",stroke="#D7DFE9",txt="#43536A";
+        if(k==="cm-s"){fill="#142E49";stroke="#142E49";txt="#fff";}
+        if(k==="cm-st"){fill="#E7EEF6";stroke="#2C77B6";txt="#23537F";}
+        if(k==="cm-sm"){stroke="#142E49";txt="#142E49";}
+        if(k==="cm-o"){fill="#9B3443";stroke="#9B3443";txt="#fff";}
+        if(k==="cm-ot"){fill="#F3E3E6";stroke="#9B3443";txt="#7C2A38";}
+        if(k==="cm-om"){stroke="#9B3443";txt="#7C2A38";}
+        s+='<rect x="'+pos[i].toFixed(1)+'" y="8" width="'+widths[i].toFixed(1)+'" height="20" rx="5" fill="'+fill+'" stroke="'+stroke+'"/>';
+        var label=chips[i].t.length>14?chips[i].t.slice(0,13)+"…":chips[i].t;
+        s+='<text x="'+(pos[i]+widths[i]/2).toFixed(1)+'" y="22" font-size="9" font-weight="700" text-anchor="middle" fill="'+txt+'" font-family="ui-monospace,monospace">'+esc(label)+'</text>';
+      }
+      s+='<rect x="8" y="46" width="644" height="40" rx="9" fill="#E7EEF6" stroke="#2C77B6"/>'
+        +'<text x="330" y="70" font-size="13" font-weight="800" text-anchor="middle" fill="#23537F" font-family="ui-monospace,monospace">Encodeur Transformer (type BERT)</text>';
+      var cs=pos[mk.firstS]+widths[mk.firstS]/2, co=pos[mk.firstO]+widths[mk.firstO]/2;
+      for(i=0;i<chips.length;i++){
+        var cx=pos[i]+widths[i]/2,hot=(i===mk.firstS||i===mk.firstO);
+        s+='<circle cx="'+cx.toFixed(1)+'" cy="100" r="'+(hot?7:4)+'" fill="'
+          +(i===mk.firstS?"#142E49":(i===mk.firstO?"#9B3443":"#D7DFE9"))+'"/>';
+      }
+      var bx1=140,bx2=380;
+      s+='<path d="M'+cs.toFixed(1)+' 108 C '+cs.toFixed(1)+' 128 '+(bx1+65)+' 118 '+(bx1+65)+' 136" fill="none" stroke="#142E49" stroke-width="1.6"/>'
+        +'<path d="M'+co.toFixed(1)+' 108 C '+co.toFixed(1)+' 128 '+(bx2+65)+' 118 '+(bx2+65)+' 136" fill="none" stroke="#9B3443" stroke-width="1.6"/>';
+      function bars(bx,vec,col,lab){
+        var out='<rect x="'+bx+'" y="136" width="130" height="66" rx="8" fill="#fff" stroke="'+col+'"/>'
+          +'<text x="'+(bx+65)+'" y="150" font-size="9.5" font-weight="800" text-anchor="middle" fill="'+col+'" font-family="ui-monospace,monospace">'+lab+'</text>';
+        for(var j=0;j<8;j++){
+          var v=vec[j],bh=3+Math.abs(v)*17,by=v>=0?176-bh:176;
+          out+='<rect x="'+(bx+14+j*13)+'" y="'+by.toFixed(1)+'" width="9" height="'+bh.toFixed(1)+'" rx="2" fill="'+col+'" opacity="'+(0.45+0.55*Math.abs(v)).toFixed(2)+'"/>';
+        }
+        out+='<line x1="'+(bx+10)+'" y1="176" x2="'+(bx+120)+'" y2="176" stroke="#E7ECF3"/>';
+        return out;
+      }
+      s+=bars(bx1,pv8(p.s.text+"|"+p.s.type+"|S"),"#142E49","h@ (début du sujet)");
+      s+=bars(bx2,pv8(p.o.text+"|"+p.o.type+"|O"),"#9B3443","h# (début de l'objet)");
+      s+='<text x="330" y="176" font-size="16" font-weight="800" text-anchor="middle" fill="#43536A">;</text>'
+        +'<rect x="140" y="216" width="380" height="28" rx="8" fill="#FBF3E3" stroke="#C68A2E"/>'
+        +'<text x="330" y="234" font-size="11" font-weight="700" text-anchor="middle" fill="#8A5E16" font-family="ui-monospace,monospace">[ h@ ; h# ] → couche linéaire + seuil θ</text>'
+        +'<path d="M215 202 C 215 210 240 208 245 216" fill="none" stroke="#142E49" stroke-width="1.4"/>'
+        +'<path d="M445 202 C 445 210 420 208 415 216" fill="none" stroke="#9B3443" stroke-width="1.4"/>';
+      s+='</svg>';
+      return s;
+    }
+
+    function stage4(p,idx){
+      return panel("Phase ④ · Encodage et lecture entity-start","paire "+(idx+1)+"/"+NPAIRS,
+        "<p>L'encodeur produit un état contextuel par token. On ne garde que <b>deux vecteurs</b> : l'état du "
+        +"<b>premier marqueur du sujet</b> (<code>@</code>) et celui du <b>premier marqueur de l'objet</b> (<code>#</code>) "
+        +"— c'est la lecture <b>entity-start</b> retenue par l'ablation de Matching the Blanks. Leur concaténation "
+        +"<code>[h@&nbsp;;&nbsp;h#]</code> représente la paire (vecteurs stylisés, déterministes).</p>"
+        +'<div class="spt-svgwrap">'+encSVG(p)+'</div>');
+    }
+
+    function stage5(p,idx){
+      var sc=scorePair(p,theta);
+      var rows="";
+      sc.det.forEach(function(d,i){
+        var win=sc.pred===d.rel.id;
+        rows+="<tr"+(win?' class="spt-win"':(sc.pred&&!win?' class="spt-lose"':""))+"><td>"+d.rel.lab+"</td>"
+          +"<td>"+(d.okT?"types attendus ("+d.rel.st+"&nbsp;→&nbsp;"+d.rel.ot+")":"types inattendus ("+p.s.type+"&nbsp;→&nbsp;"+p.o.type+")")
+          +" : <b>"+fmt1(d.prior)+"</b></td>"
+          +"<td>"+(d.hasTrig?"«&nbsp;"+d.rel.trigTxt+"&nbsp;» présent : <b>"+fmt1(d.trig)+"</b>":"absent : <b>+0,0</b>")+"</td>"
+          +'<td class="spt-num">'+fmt1(d.logit)+"</td>"
+          +'<td><div class="spt-pcell"><div class="spt-pbar"><div class="spt-pfill'+(win?" spt-pwin":"")+'" style="width:'+(sc.probs[i]*100).toFixed(1)+'%"></div></div>'
+          +'<span class="spt-pvv">'+pct(sc.probs[i])+'</span></div></td></tr>';
+      });
+      var naWin=!sc.pred;
+      rows+="<tr"+(naWin?' class="spt-win"':' class="spt-lose"')+'><td>no_relation</td><td colspan="2">score fixé au seuil θ (une relation n\'est retenue que si son logit&nbsp;≥&nbsp;θ)</td>'
+        +'<td class="spt-num">'+fmt1(theta)+"</td>"
+        +'<td><div class="spt-pcell"><div class="spt-pbar"><div class="spt-pfill'+(naWin?" spt-pwin":" spt-pna")+'" style="width:'+(sc.probs[2]*100).toFixed(1)+'%"></div></div>'
+        +'<span class="spt-pvv">'+pct(sc.probs[2])+'</span></div></td></tr>';
+      var dec=sc.pred
+        ?'<div class="spt-decis spt-dpos">Prédiction : ('+esc(p.s.text)+", <b>"+relLab(sc.pred)+"</b>, "+esc(p.o.text)+") — logit "+fmt1(sc.best.logit)+"&nbsp;≥&nbsp;θ&nbsp;=&nbsp;"+fmt1(theta)+'</div>'
+        :'<div class="spt-decis spt-dna">Prédiction : <b>no_relation</b> — meilleur logit '+fmt1(sc.best.logit)+"&nbsp;&lt;&nbsp;θ&nbsp;=&nbsp;"+fmt1(theta)+'</div>';
+      return panel("Phase ⑤ · Classification vers le schéma fermé","paire "+(idx+1)+"/"+NPAIRS,
+        "<p>Le classifieur jouet décompose chaque logit en deux features lisibles : un <b>a priori de types</b> "
+        +"(±2,5) et un <b>déclencheur lexical</b> (+1,5). La classe <code>no_relation</code> agit comme un seuil θ ajustable.</p>"
+        +'<div class="spt-tblwrap"><table class="spt-tbl"><tr><th>Relation</th><th>A priori de types</th><th>Déclencheur</th><th>Logit</th><th>Softmax</th></tr>'+rows+"</table></div>"
+        +'<div class="spt-slider"><label for="spt-theta">Seuil θ</label><input type="range" id="spt-theta" min="-2" max="5" step="0.5" value="'+theta+'" aria-label="seuil de décision thêta"><span class="spt-thv">'+fmt1(theta)+'</span></div>'
+        +'<p style="margin:4px 0 0">Baissez θ sous −1,0 : les paires inverses passent le seuil et la précision chute. Montez-le au-dessus de +4,0 : plus rien ne sort et le rappel s\'effondre.</p>'
+        +dec);
+    }
+
+    function stage6(){
+      var evCur=evalAll(err,theta);
+      var evGold=evalAll(false,theta), evErr=evalAll(true,theta);
+      var rows=evCur.rows.map(function(r){
+        var v=r.verdict,cls=v==="TP"?"spt-vtp":(v.indexOf("FP")===0?"spt-vfp":(v==="FN"?"spt-vfn":"spt-vok"));
+        var lab=v==="OK-NA"?"— (hors micro-F1)":v;
+        if(r.missing){
+          return '<tr class="spt-badrow"><td colspan="2">paire gold absente : la NER a manqué la mention sujet</td>'
+            +"<td>"+relLab(r.gold)+'</td><td>—</td><td><span class="spt-verd '+cls+'">'+lab+"</span></td></tr>";
+        }
+        return "<tr><td>P"+(r.idx+1)+"</td><td>"+esc(pairLab(r.p))+"</td><td>"+relLab(r.gold)
+          +"</td><td>"+relLab(r.sc.pred)+'</td><td><span class="spt-verd '+cls+'">'+lab+"</span></td></tr>";
+      }).join("");
+      var stats='<div class="spt-stats">'
+        +'<div class="spt-stat"><div class="spt-sk">TP</div><div class="spt-sv">'+evCur.tp+'</div></div>'
+        +'<div class="spt-stat'+(evCur.fp?" spt-bad":"")+'"><div class="spt-sk">FP</div><div class="spt-sv">'+evCur.fp+'</div></div>'
+        +'<div class="spt-stat'+(evCur.fn?" spt-bad":"")+'"><div class="spt-sk">FN</div><div class="spt-sv">'+evCur.fn+'</div></div>'
+        +'<div class="spt-stat"><div class="spt-sk">Précision</div><div class="spt-sv">'+fmt(evCur.P)+'</div></div>'
+        +'<div class="spt-stat"><div class="spt-sk">Rappel</div><div class="spt-sv">'+fmt(evCur.R)+'</div></div>'
+        +'<div class="spt-stat spt-good"><div class="spt-sk">micro-F1 hors no_relation</div><div class="spt-sv">'+fmt(evCur.F1)+'</div></div>'
+        +'</div>';
+      var cmp='<div class="spt-cmp">'
+        +'<div class="spt-cmpbox'+(!err?" spt-cmpon":"")+'">Mentions gold (θ = '+fmt1(theta)+')<br><span class="spt-cmpv">F1 = '+fmt(evGold.F1)+'</span></div>'
+        +'<div class="spt-cmpbox spt-cmpbad'+(err?" spt-cmpon":"")+'">Avec l\'erreur de NER injectée<br><span class="spt-cmpv">F1 = '+fmt(evErr.F1)+'</span></div>'
+        +'</div>';
+      var banner="";
+      if(err){
+        banner='<div class="spt-banner">L\'erreur injectée à la phase ① coûte <b>'+fmt(evGold.F1-evErr.F1)
+          +'</b> de F1 sans que le classifieur ait changé : la mention tronquée ne peut ni produire le bon triplet '
+          +'(frontières fausses) ni activer l\'a priori de types (MISC au lieu de ORG). '
+          +'C\'est l\'écart entre une évaluation «&nbsp;mentions gold&nbsp;» et un pipeline réel.</div>';
+      }
+      return panel("Phase ⑥ · Agrégation des paires et micro-F1 hors no_relation","θ = "+fmt1(theta),
+        "<p>Les prédictions positives sont confrontées aux triplets gold par <b>correspondance exacte</b> (sujet, relation, objet). "
+        +"Les paires correctement classées <code>no_relation</code> ne comptent ni au numérateur ni au dénominateur : "
+        +"c'est le micro-F1 <b>poolé hors no_relation</b> du protocole TACRED.</p>"
+        +'<div class="spt-tblwrap"><table class="spt-tbl"><tr><th>Paire</th><th>Sujet → objet</th><th>Gold</th><th>Prédiction</th><th>Verdict</th></tr>'+rows+"</table></div>"
+        +stats+cmp+banner);
+    }
+
+    /* ===== readout ===== */
+    function readout(st,ps){
+      var el=$("spt-read");el.className="spt-read";
+      if(st.ph===1){
+        if(err){el.classList.add("spt-c-bad");
+          el.innerHTML="<b>Phase ① — NER amont.</b> Erreur injectée : «&nbsp;l'Institut du radium&nbsp;» devient «&nbsp;radium&nbsp;», typé <code>MISC</code>. Observez sa propagation jusqu'au F1 de la phase ⑥.";
+        }else el.innerHTML="<b>Phase ① — NER amont.</b> Les 4 mentions sont repérées et typées (ici en mode <b>gold</b>). Le levier ci-dessus injecte une erreur amont réaliste.";
+      }else if(st.ph===2){
+        el.innerHTML="<b>Phase ② — Paires candidates.</b> "+ps.length+" paires dirigées à classer, énumérées phrase par phrase. C'est la formulation standard : une classification par paire ordonnée, classe <code>no_relation</code> incluse.";
+      }else if(st.ph===3){
+        el.innerHTML="<b>Phase ③ — Paire "+(st.p+1)+"/"+NPAIRS+".</b> Insertion des marqueurs typés autour de <b>"+esc(ps[st.p].s.text)+"</b> (sujet) et de <b>"+esc(ps[st.p].o.text)+"</b> (objet).";
+      }else if(st.ph===4){
+        el.innerHTML="<b>Phase ④ — Paire "+(st.p+1)+"/"+NPAIRS+".</b> Encodage de la séquence marquée puis lecture des états aux positions <code>@</code> et <code>#</code> (entity-start), concaténés en <code>[h@&nbsp;;&nbsp;h#]</code>.";
+      }else if(st.ph===5){
+        var sc=scorePair(ps[st.p],theta);
+        if(sc.pred){el.classList.add("spt-c-ok");
+          el.innerHTML="<b>Phase ⑤ — Paire "+(st.p+1)+"/"+NPAIRS+".</b> Logit max "+fmt1(sc.best.logit)+" ≥ θ : prédiction <b>"+relLab(sc.pred)+"</b>.";
+        }else{el.classList.add("spt-c-warn");
+          el.innerHTML="<b>Phase ⑤ — Paire "+(st.p+1)+"/"+NPAIRS+".</b> Logit max "+fmt1(sc.best.logit)+" &lt; θ : prédiction <b>no_relation</b>.";
+        }
+      }else{
+        var ev=evalAll(err,theta);
+        el.classList.add(err&&ev.F1<0.995?"spt-c-bad":"spt-c-ok");
+        el.innerHTML="<b>Phase ⑥ — Évaluation.</b> TP = "+ev.tp+", FP = "+ev.fp+", FN = "+ev.fn
+          +" → micro-F1 hors no_relation = <b>"+fmt(ev.F1)+"</b>."
+          +(err?" Décochez le levier de NER pour retrouver le score «&nbsp;mentions gold&nbsp;».":"");
+      }
+    }
+
+    /* ===== rendu global ===== */
+    function render(){
+      var st=STEPS[cur];
+      var ms=mentions(err), ps=pairsOf(ms);
+      var curPair=(st.p!==undefined)?ps[st.p]:null;
+      renderRail(st);renderTicks(st);
+      renderSents(st,ms,curPair);
+      renderPairs(st,ps);
+      readout(st,ps);
+      var stage=$("spt-stage");
+      if(st.ph===1)stage.innerHTML=stage1(ms);
+      else if(st.ph===2)stage.innerHTML=stage2(ps);
+      else if(st.ph===3)stage.innerHTML=stage3(curPair,st.p);
+      else if(st.ph===4)stage.innerHTML=stage4(curPair,st.p);
+      else if(st.ph===5)stage.innerHTML=stage5(curPair,st.p);
+      else stage.innerHTML=stage6();
+      $("spt-prev").disabled=playing||cur===0;
+      $("spt-next").disabled=playing||cur===LAST;
+      $("spt-play").textContent=playing?"⏸ Pause":(cur>=LAST?"▶ Rejouer en continu":"▶ Lecture continue");
+      var ctrl=$("spt-ctrl");
+      ctrl.classList.toggle("spt-errOn",err);
+      $("spt-ctrlnote").textContent=err
+        ?"Erreur active : « l'Institut du radium » (S1) est tronqué en « radium », typé MISC. Suivez la dégradation jusqu'à la phase ⑥."
+        :"Mentions gold. Cochez pour tronquer une frontière de mention et voir l'erreur se propager jusqu'au micro-F1.";
+    }
+
+    /* ===== pilotage ===== */
+    function go(i){cur=Math.max(0,Math.min(LAST,i));render();}
+    function stopPlay(){playing=false;if(timer){clearInterval(timer);timer=null;}render();}
+    function play(){
+      if(cur>=LAST)cur=0;
+      playing=true;render();
+      timer=setInterval(function(){
+        if(cur>=LAST){stopPlay();return;}
+        cur++;render();
+        if(cur>=LAST)stopPlay();
+      },1150);
+    }
+
+    $("spt-next").addEventListener("click",function(){if(!playing)go(cur+1);});
+    $("spt-prev").addEventListener("click",function(){if(!playing)go(cur-1);});
+    $("spt-reset").addEventListener("click",function(){
+      stopPlay();theta=1.0;err=false;$("spt-err").checked=false;go(0);
+    });
+    $("spt-play").addEventListener("click",function(){playing?stopPlay():play();});
+    $("spt-err").addEventListener("change",function(ev){err=ev.target.checked;render();});
+    $("spt-rail").addEventListener("click",function(ev){
+      var t=ev.target.closest?ev.target.closest(".spt-ph"):null;if(!t||playing)return;
+      var ph=parseInt(t.getAttribute("data-ph"),10);
+      if(ph===1)go(0);else if(ph===2)go(1);else if(ph===6)go(LAST);
+      else{var p=STEPS[cur].p||0;go(2+p*3+(ph-3));}
+    });
+    $("spt-pairs").addEventListener("click",function(ev){
+      var t=ev.target.closest?ev.target.closest(".spt-pchip"):null;if(!t||playing)return;
+      var pIdx=parseInt(t.getAttribute("data-pi"),10);
+      var ph=STEPS[cur].ph;if(ph<3||ph>5)ph=3;
+      go(2+pIdx*3+(ph-3));
+    });
+    $("spt-stage").addEventListener("input",function(ev){
+      if(ev.target&&ev.target.id==="spt-theta"){theta=parseFloat(ev.target.value);render();}
+    });
+
+    render();
+  })();
+  </script>
+</div>
