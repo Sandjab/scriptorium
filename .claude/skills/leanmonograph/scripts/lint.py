@@ -145,7 +145,14 @@ def main():
         for fname, path, text in corpus:
             hits, positions = [], []
             for p in pivots:
-                m = re.search(r"(?<![\w,.])" + re.escape(p) + r"(?![\w])", text)
+                if any(ch.isdigit() for ch in p):
+                    # Matching CANONIQUE : un pivot « 5.1 » (statement en anglais)
+                    # doit matcher « 5,1 » dans la prose française, et inversement.
+                    target = canon_num(p)
+                    m = next((mm for mm in NUM_RE.finditer(text)
+                              if canon_num(mm.group(0)) == target), None)
+                else:
+                    m = re.search(r"(?<![\w,.])" + re.escape(p) + r"(?![\w])", text)
                 if m:
                     hits.append(p)
                     positions.append(m.start())
