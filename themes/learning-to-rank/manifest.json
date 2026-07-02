@@ -1,0 +1,513 @@
+{
+  "edition": 1,
+  "slug": "learning-to-rank",
+  "meta": {
+    "title": "Learning to rank : apprendre à ordonner pour la recherche et la recommandation",
+    "kicker": "Learning to rank · monographie",
+    "h1": "Learning to rank : apprendre à ordonner pour la recherche et la recommandation",
+    "lede": "Comment apprendre une fonction qui trie — quand la métrique visée est plate presque partout : de RankNet à LambdaMART, des benchmarks LETOR aux clics débiaisés de la production.",
+    "meta_chips": [
+      "Monographie"
+    ],
+    "footer": "Learning to rank : apprendre à ordonner pour la recherche et la recommandation · scriptorium"
+  },
+  "elements": [
+    {
+      "type": "abstract"
+    },
+    {
+      "type": "section",
+      "id": "probleme-et-familles",
+      "heading": "Ordonner n'est pas classifier : le problème learning to rank et ses trois familles",
+      "level": 3,
+      "prose": "<p>Un moteur de recherche ne rend pas une valeur : il rend un ordre. Pour chaque requête, le système récupère des candidats, attribue un score à chacun, puis trie — et c'est la liste triée, pas les scores, que l'utilisateur juge. Le learning to rank (LTR, apprentissage de fonctions d'ordonnancement) est la discipline qui apprend cette fonction de score à partir d'exemples. De loin, le problème ressemble à une régression ou à une classification ; il s'en distingue par sa vérité terrain, qui n'est ni une valeur à reproduire ni une classe à prédire, mais un ordre relatif entre les documents d'une même requête. Un modèle peut se tromper sur tous les scores absolus et produire un classement parfait. Il peut aussi être précis en moyenne et rendre une liste inutilisable.</p>\n<p>La recherche a précédé le déploiement commercial d'environ une décennie. Norbert Fuhr formule le cadre général — le ranking comme fonction apprise, généralisation de l'estimation de paramètres en recherche d'information — dès 1992, après une première variante par régression polynomiale en 1989 ; à la même période, Bill Cooper propose la régression logistique pour le même usage, appliquée ensuite avec son groupe de Berkeley à la construction d'une fonction de ranking pour TREC. Côté production, l'un des tout premiers moteurs à franchir le pas est AltaVista, qui déploie en avril 2003 une fonction de ranking entraînée par gradient boosting (assemblage additif d'arbres de décision) — deux ans avant RankNet, six ans avant Bing.</p>\n<p>La lignée qui structure ce document naît chez Microsoft. RankNet, développé à Microsoft Research à partir de 2004 avec l'équipe de recherche web de l'entreprise, fait passer l'entraînement de plusieurs jours sur un cluster à quelques heures sur une seule machine ; publié à ICML 2005 par Burges et ses coauteurs, l'article recevra en 2015 le prix « Test of Time » de la conférence. C'est la technologie de ranking derrière le lancement de Bing, début juin 2009 — l'année même où Yandex annonce, en novembre, sa ligne industrielle indépendante MatrixNet, du gradient boosting sur des arbres de décision dits oblivious. La suite est déjà en germe : le gradient « factorisé » par paires de RankNet engendrera LambdaRank, dont le descendant à arbres boostés, LambdaMART, remportera le Track 1 du Yahoo! Learning to Rank Challenge de 2010 ; d'après la rétrospective de Microsoft Research, des ensembles d'arbres issus de cette lignée servent encore Bing aujourd'hui.</p>\n<p>Le paysage ainsi ouvert, il fallait une carte. C'est l'article de synthèse de Tie-Yan Liu, « Learning to Rank for Information Retrieval » (Foundations and Trends in Information Retrieval, 2009), qui la fixe : trois familles d'algorithmes, distinguées non par leur modèle mais par l'unité de signal d'entraînement qu'elles consomment. L'approche pointwise (par document) ne voit qu'un couple requête-document à la fois : McRank, par exemple, score chaque document isolément. L'approche pairwise (par paire) voit deux documents et apprend lequel doit précéder l'autre : c'est le cadre de RankNet. L'approche listwise (par liste) définit sa perte sur la liste entière d'une requête : ListNet calcule la sienne sur la distribution de probabilité top-one — la probabilité, pour chaque document, d'être classé premier — de toute la liste. Cette taxonomie est restée le langage commun du domaine ; et chaque famille, on va le voir, est un compromis distinct face au même fait têtu : la vérité terrain est un ordre, pas une valeur.</p>\n<p>Une simplification courante mérite d'être défaite avant d'aller plus loin. RankNet étant l'ancêtre direct de LambdaRank, lui-même piloté par le NDCG (Normalized Discounted Cumulative Gain), on lui prête volontiers d'optimiser déjà une métrique de qualité de classement. Il n'en est rien. Le coût réel de RankNet est une entropie croisée sur les paires — lequel de deux documents doit dominer l'autre —, un substitut qui ne dit rien de la position dans la liste ni des degrés de pertinence : sa probabilité de préférence ne fait intervenir que la différence des deux scores, sans rang ni gain. Et c'est précisément parce que des métriques comme le NDCG, vues comme fonctions des scores, sont plates ou discontinues presque partout que LambdaRank devra renoncer à dériver un coût, quel qu'il soit, et écrire directement les gradients désirés — en injectant dans celui de RankNet le terme métrique qui lui manquait.</p>\n<p>Cette carte à trois familles n'est pas un simple artefact d'historien. Les architectures de production à deux étages — une récupération large et bon marché, puis un reranking (reclassement) du sous-ensemble retenu à l'aide de features (attributs) plus riches — rejouent le même menu pointwise, pairwise ou listwise au second étage ; le choix de famille se repose à chaque fois. Mais avant de suivre les réponses de chacune, il faut mesurer l'obstacle qu'elles contournent toutes : les métriques de rang elles-mêmes, et la raison précise pour laquelle la descente de gradient s'y brise.</p>",
+      "claims": [
+        "claim:1",
+        "claim:2",
+        "claim:3",
+        "claim:4"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "metriques-de-rang",
+      "heading": "NDCG, MAP, MRR, ERR : des métriques plates presque partout",
+      "level": 3,
+      "prose": "<p>Mesurer l'obstacle commence par définir ce que l'on évalue. La métrique de référence du domaine est le DCG (Discounted Cumulative Gain) : DCG@T = Σ<sub>i=1…T</sub> (2<sup>l<sub>i</sub></sup> − 1)/log(1 + i), où l<sub>i</sub> est le label de pertinence gradué — typiquement cinq niveaux, de 0 à 4 — du document classé en position i. Le gain exponentiel 2<sup>l</sup> − 1 récompense fortement les documents très pertinents ; le discount (l'atténuation du gain avec le rang) en 1/log(1 + i) acte qu'un bon document relégué en bas de liste vaut moins que le même document en tête. Le NDCG@T normalise ce score dans [0, 1] en le rapportant au DCG du classement idéal de la requête — les documents triés par pertinence décroissante.</p>\n<p>Deux métriques classiques travaillent, elles, sur des jugements binaires. La MAP (Mean Average Precision) moyenne sur l'ensemble des requêtes la précision moyenne de chaque liste, c'est-à-dire la précision relevée à chaque rang où apparaît un document pertinent. La MRR (Mean Reciprocal Rank) est plus expéditive encore : elle ne retient que le rang réciproque du premier résultat pertinent — 1 pour le rang 1, 1/2 pour le rang 2, 1/3 pour le rang 3 — et ignore tout le reste de la liste.</p>\n<p>Le DCG repose par ailleurs sur une hypothèse discutable : à un rang donné, gain et discount sont fixes, quel que soit ce qui est affiché au-dessus. L'ERR (Expected Reciprocal Rank), introduite par Chapelle, Metzler, Zhang et Grinspan à CIKM 2009, remplace cette indépendance de position par un modèle en cascade explicite. L'utilisateur y parcourt la liste de haut en bas et s'arrête dès qu'il est satisfait : chaque document au rang i le satisfait avec une probabilité R<sub>i</sub> = (2<sup>l<sub>i</sub></sup> − 1)/2<sup>l<sub>m</sub></sup> dérivée de son label (l<sub>m</sub> désignant le label maximal), et la probabilité d'atteindre le rang r est le produit des probabilités de ne pas avoir été satisfait par chacun des documents classés au-dessus.</p>\n<p>Voilà pour les définitions ; voici le problème. Toutes ces métriques ne dépendent des scores du modèle qu'à travers une seule opération : le tri. Or le rang d'un document est une fonction en escalier des scores — il ne change que lorsque deux scores se croisent, ou se retrouvent à égalité. NDCG, MAP et MRR héritent de cette structure : leur gradient par rapport aux scores est nul presque partout, et indéfini exactement aux points de croisement. Concrètement, un ajustement continu des poids du modèle laisse le NDCG parfaitement inchangé tant qu'aucune paire de documents ne change d'ordre relatif — puis la métrique saute, d'un coup, dès qu'un croisement se produit. L'équipe de SoftRank à Microsoft Research Cambridge (Taylor, Guiver, Robertson et Minka, WSDM 2008) l'énonce sans détour : les métriques IR sont « innately non-smooth with respect to the scores, due to the sort » — intrinsèquement non lisses par rapport aux scores, à cause du tri. Leur réponse fut un proxy lisse, SoftNDCG, construit précisément pour rendre la descente de gradient applicable.</p>\n<p>La théorie réserve une seconde surprise. Wang et ses coauteurs démontrent (COLT 2013) que le NDCG standard, à discount logarithmique, converge vers 1 quand le nombre d'items à classer tend vers l'infini — et ce pour n'importe quelle fonction de ranking. Sur de grandes listes, un ranker quasi aléatoire et un ranker quasi optimal affichent donc tous deux un NDCG proche de 1 : la métrique semble ne plus rien départager. Le paradoxe se résout avec la notion que les mêmes auteurs introduisent, la consistent distinguishability (distinguabilité cohérente) : une métrique la possède si elle sait décider, de façon stable sur presque tous les jeux de données, laquelle de deux fonctions de ranking substantiellement différentes est la meilleure. Le NDCG logarithmique la possède — les deux rankers convergent vers la même limite, mais leur ordre relatif reste correct et stable.</p>\n<p>Le choix du discount n'est donc pas un réglage interchangeable, contrairement à une intuition répandue. Les mêmes travaux établissent un seuil mathématique dur, situé en 1/r : le discount logarithmique standard et les discounts polynomiaux r<sup>−β</sup> avec β &lt; 1 conservent la distinguabilité cohérente, tandis qu'un discount décroissant plus vite que r<sup>−(1+ε)</sup> — un r<sup>−2</sup>, par exemple — la perd à grande échelle, deux rankers substantiellement différents devenant indiscernables. Ces résultats, validés expérimentalement sur des jeux de données réels de recherche web et étendus à la version tronquée NDCG@k, achèvent de cerner l'obstacle : une métrique fiable dans sa manière de départager les rankers, mais plate ou discontinue presque partout dès qu'on la regarde comme fonction des scores. Tout le reste du document raconte les contournements de cette platitude — et le premier, historiquement, remplace la métrique par un substitut différentiable.</p>",
+      "claims": [
+        "claim:5",
+        "claim:6",
+        "claim:7",
+        "claim:8"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-ndcg-escalier"
+    },
+    {
+      "type": "section",
+      "id": "pointwise-pairwise-ranknet",
+      "heading": "Du pointwise au pairwise : RankNet et la perte d'entropie croisée sur les paires",
+      "level": 3,
+      "prose": "<p>Le premier contournement est aussi le plus direct : ignorer la structure d'ordre et prédire les labels. Si la vérité terrain attache à chaque document un grade de pertinence, autant l'apprendre document par document. Pranking (Crammer et Singer, NIPS 2001) traite ainsi le ranking comme une régression ordinale : une projection unique, assortie de seuils appris, affecte chaque item à un grade. Le subset ranking de Cossock et Zhang (COLT 2006) régresse chaque document sur une cible réelle de pertinence, et borne l'erreur d'approximation du DCG par l'erreur de régression par document. McRank (Li, Burges et Wu, NIPS 2007) reformule le ranking en classifications ordinales multiples, résolues par arbres boostés, avant de convertir les probabilités de classes prédites en un score par document. Trois constructions différentes, un trait commun : aucune paire, aucune liste n'entre jamais dans l'objectif d'entraînement. Le pointwise apprend des valeurs ; il ne voit jamais un ordre.</p>\n<p>RankNet déplace l'objectif d'un cran. Plutôt que le grade d'un document isolé, il apprend la préférence entre deux : le modèle produit toujours un score s<sub>i</sub> par document, mais la perte n'est définie que sur des différences de scores au sein d'une même requête. La probabilité modélisée que le document i doive précéder j est une sigmoïde de cette différence, P<sub>ij</sub> = 1/(1 + e<sup>−σ(s<sub>i</sub> − s<sub>j</sub>)</sup>). En face, la préférence de vérité terrain est codée S<sub>ij</sub> ∈ {+1, 0, −1} — i plus pertinent, égalité, j plus pertinent — puis convertie en probabilité cible P̄<sub>ij</sub> = ½(1 + S<sub>ij</sub>). Le coût minimisé est l'entropie croisée entre la probabilité modélisée et cette cible. Deux situations s'y confondent : une vraie égalité de labels (P̄<sub>ij</sub> = ½) et une paire pourtant ordonnée que le modèle score à marge nulle (s<sub>i</sub> = s<sub>j</sub>) coûtent le même log 2 — le plancher sans information de la perte.</p>\n<p>L'astuce qui a rendu RankNet industrialisable est computationnelle, et elle porte plus loin qu'il n'y paraît. Naïvement, rétropropager la perte paire par paire touche O(n²) paires pour une requête à n documents. Le « factoring » (factorisation des gradients par paire) observe que le gradient élémentaire λ<sub>ij</sub> = ∂C/∂s<sub>i</sub> peut être accumulé : on somme, pour chaque document, les λ<sub>ij</sub> de toutes les paires où il apparaît, ce qui donne un unique λ<sub>i</sub> par document — puis une seule mise à jour des poids, au lieu d'une par paire. L'entraînement passe ainsi du quasi-quadratique au quasi-linéaire en nombre de documents par requête. Ce détail d'implémentation est le germe de la suite du document : LambdaRank reprendra tel quel ce gabarit — accumuler un λ par document — en multipliant chaque λ<sub>ij</sub> par |ΔNDCG|, la variation de NDCG qu'induirait l'échange des rangs des deux documents, laissant la métrique elle-même orienter le gradient de chacun.</p>\n<p>La mise au point amorcée en ouverture prend ici sa forme précise. Le coût de RankNet est agnostique à la métrique : il ne consomme qu'une différence de scores et un label de préférence — jamais un rang, jamais un gain gradué. La conséquence est tangible : échanger deux documents peu pertinents aux rangs 9 999 et 10 000 encourt exactement la même pénalité d'entropie croisée qu'échanger les deux premiers résultats de la page, alors que la pondération par |ΔNDCG| de LambdaRank rendra le second échange autrement plus coûteux. C'est LambdaRank, et non RankNet, qui le premier a injecté une métrique dans le gradient pairwise ; le rapport technique de Microsoft Research résume d'ailleurs sa contribution comme le fait d'« écrire les gradients directement », pour contourner un NDCG plat ou discontinu presque partout — signe, en creux, que le gradient de RankNet ne s'en chargeait pas.</p>\n<p>Un substitut pairwise reste donc un substitut : bien ordonner des paires n'est pas encore juger une liste. Les baselines (systèmes de référence) pairwise de l'époque — RankSVM (Herbrich et al., 1999), RankBoost (Freund et al., 1998), RankNet — vont bientôt servir de point de comparaison à une troisième famille, qui définit sa perte sur la liste entière et affichera contre elles une supériorité empirique mesurée. C'est l'approche listwise ; on y découvrira aussi que voir toute la liste ne suffit pas encore à optimiser la métrique de rang.</p>",
+      "claims": [
+        "claim:9",
+        "claim:10",
+        "claim:11",
+        "claim:12"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "listwise-listnet-listmle",
+      "heading": "L'approche listwise : ListNet, ListMLE et la question de la consistance",
+      "level": 3,
+      "prose": "<p>Voir toute la liste, donc — et la voir comme un objet probabiliste. ListNet (Cao, Qin, Liu, Tsai et Li, ICML 2007) prend la promesse listwise au pied de la lettre : au lieu de scorer un document isolé ou de comparer une paire, il définit une distribution de probabilité sur les permutations entières de la liste. Pour toute fonction φ croissante et strictement positive appliquée aux scores, la probabilité d'une permutation se construit séquentiellement — la chance de placer un document en tête est proportionnelle à φ de son score parmi les candidats restants, et l'on recommence sur le reste de la liste. C'est un modèle génératif de type Plackett-Luce, et la perte idéale comparerait la distribution induite par les labels à celle induite par les scores prédits.</p>\n<p>Comparer deux distributions sur les n! permutations est intraitable dès que la liste s'allonge. Le contournement est la top-one probability : P<sub>s</sub>(j) = φ(s<sub>j</sub>) / Σ<sub>k</sub> φ(s<sub>k</sub>), la probabilité que le document j sorte premier. Le théorème 6 de Cao et al. montre qu'elle égale exactement la somme des probabilités de toutes les permutations classant j en tête, tout en se calculant en O(n) — et avec φ = exp, elle n'est rien d'autre qu'un softmax des scores. La perte de ListNet est alors l'entropie croisée entre les deux distributions top-one, celle des labels et celle du modèle. L'économie est aussi algorithmique : là où RankNet énumère des paires, en O(m·n²) pour m requêtes de n documents au plus, ListNet reste linéaire en la longueur des listes.</p>\n<p>Le pari paye. Sur TREC, ListNet atteint 0,216 de MAP quand les trois baselines pairwise — RankNet, RankSVM, RankBoost — restent entre 0,174 et 0,197 ; en NDCG@1 et NDCG@2, l'avance dépasse quatre points, soit environ 10 % en relatif. Sur OHSUMED, collection de 106 requêtes aux jugements de pertinence à trois niveaux, l'écart se resserre — 0,305 contre 0,303 pour RankNet — mais le sens ne s'inverse pas. Un fait structurel éclaire d'ailleurs la comparaison : quand chaque requête ne compte que deux documents, la perte de ListNet coïncide exactement avec celle de RankNet. Le pairwise n'était pas un paradigme rival ; c'est le cas dégénéré du listwise.</p>\n<p>Restait à donner au listwise sa théorie. Xia, Liu, Wang, Zhang et Li (ICML 2008) posent quatre exigences pour une <em>surrogate loss</em> (perte de substitution) listwise. La consistance : minimiser le substitut doit, asymptotiquement, produire le bon classement — leur théorème 5 en donne une condition suffisante, qui exige notamment que la perte soit <em>order sensitive</em> : échanger deux objets correctement ordonnés doit strictement l'augmenter. La <em>soundness</em> : un classement incorrect doit coûter strictement plus cher qu'un classement correct, avec une pénalité qui reflète la confiance du classement — propriété surtout critique quand les données d'entraînement sont rares. Puis la continuité, la différentiabilité, si possible la convexité ; et l'efficacité de calcul.</p>\n<p>Passées à ce crible, les pertes listwise existantes se répartissent les défauts. ListMLE, que l'article introduit, définit sa perte comme la log-vraisemblance négative du modèle Plackett-Luce : elle est consistante, sound, continue, différentiable, convexe et se calcule en O(n) — la seule à tout cocher. La perte cosinus de RankCosine, qui compare les vecteurs de scores, est consistante mais ni sound ni convexe. Quant à l'entropie croisée de ListNet dans sa forme complète — celle définie sur les probabilités de permutation entières —, elle est consistante et convexe mais non sound, et coûte O(n!·n). Ce dernier verdict appelle une précision que Xia et al. glissent en note de bas de page : l'algorithme ListNet réellement implémenté par Cao et al. n'utilise que l'approximation top-1 en O(n) ; la perte de forme complète, celle qu'analyse la théorie, n'est jamais celle qu'on optimise en pratique.</p>\n<p>Les expériences tranchent dans le même sens. Sur données synthétiques, ListMLE atteint 0,920 ± 0,011 d'accuracy, quand RankCosine oscille entre 0,047 et 0,917 selon la fonction de mapping appliquée aux scores : la non-convexité rend le résultat aussi dépendant de ce choix que de l'algorithme lui-même. Sur OHSUMED, ListMLE bat ListNet et RankCosine sur toutes les métriques, avec plus de cinq points de NDCG@1 d'avance sur RankCosine et des gains statistiquement significatifs (test t, p < 0,05) sur NDCG@5 puis de NDCG@7 à NDCG@10.</p>\n<p>Avant de poursuivre, dissipons une idée reçue. Parce que ces pertes sont définies sur la liste entière, on croirait volontiers qu'elles optimisent les métriques de rang évaluées en production. Là encore, il n'en est rien : l'entropie croisée de ListNet comme la vraisemblance de ListMLE sont des substituts probabilistes sur les permutations, sans le moindre terme de gain NDCG dans leurs formules. « Listwise » décrit ce que la perte voit, pas ce qu'elle vise. L'optimisation directe — et approchée — de la métrique existe pourtant, et elle n'est pas venue après ce cadre théorique mais avant lui : LambdaRank (Burges, Ragno et Le, « Learning to Rank with Nonsmooth Cost Functions », NIPS 2006) précède ListNet d'un an et ListMLE de deux. C'est ce coup d'avance qu'il faut maintenant raconter.</p>",
+      "claims": [
+        "claim:13",
+        "claim:14",
+        "claim:15",
+        "claim:16"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "lambdarank",
+      "heading": "LambdaRank : écrire le gradient au lieu de dériver le coût",
+      "level": 3,
+      "prose": "<p>LambdaRank tient en une inversion. Toutes les approches précédentes écrivent d'abord une fonction de coût différentiable, la dérivent, puis espèrent que descendre ce gradient améliore la métrique. Burges, Ragno et Le renversent l'ordre : la descente de gradient ne consomme que des gradients — écrivons donc directement le gradient désiré, et dispensons-nous du coût. Concrètement, le λ de RankNet pour une paire est multiplié par |ΔNDCG| — l'échange étant évalué dans la liste triée courante et la variation prise en valeur absolue : λ<sub>ij</sub> = N · (1/(1+e<sup>s<sub>i</sub>−s<sub>j</sub></sup>)) · (2<sup>l<sub>i</sub></sup>−2<sup>l<sub>j</sub></sup>) · (1/log(1+i) − 1/log(1+j)), où N est la constante de normalisation du NDCG. La paire mal ordonnée aux rangs 9 999 et 10 000, que RankNet pénalisait autant qu'une erreur en tête de liste, ne pèse plus presque rien ; la même erreur en top-2, où le discount est faible et l'enjeu maximal, tire de toutes ses forces.</p>\n<p>On optimise ainsi NDCG sans jamais l'écrire ni le dériver. Et la recette est générique — Burges l'énonce explicitement : viser une autre mesure ne demande aucune nouvelle dérivation, « le seul changement est que |ΔNDCG| est remplacé par la variation correspondante de la mesure choisie ». Donmez, Svore et Burges construiront sur ce gabarit exact des gradients λ pour MAP et pour MRR. Même ERR se plie au moule : le calcul naïf de son gain d'échange paraît cubique en nombre de documents par requête, mais un algorithme récursif le ramène au quadratique, la classe de coût de ΔNDCG.</p>\n<p>Ces λ choisis à la main dérivent-ils de quelque chose ? La réponse est étonnamment nette. Un champ de λ est le gradient d'une authentique fonction de coût implicite si et seulement si son Jacobien — la matrice des ∂λ<sub>j</sub>/∂s<sub>k</sub> — est symétrique en tout point : c'est le lemme de Poincaré. Ce coût implicite est de plus convexe exactement quand ce Jacobien est partout semi-défini positif, une propriété qu'on peut forcer par une régularisation diagonale, λ<sub>j</sub> ↦ λ<sub>j</sub> + α<sub>j</sub>·s<sub>j</sub> avec α<sub>j</sub> > 0. L'existence d'un coût se garantit donc ; sa forme, elle, reste inconnue. On descend le gradient d'une fonction que personne ne sait écrire.</p>\n<p>Le factoring hérité de RankNet donne à l'heuristique son argument industriel — mesuré toutefois dans une seule expérience, celle du papier NIPS 2006, sans réplication indépendante connue. À NDCG de validation égal, LambdaRank s'y entraîne 5,1 fois plus vite qu'un RankNet ordinaire pour un réseau monocouche ; avec deux couches et dix neurones cachés, le facteur monte à 8. La mesure la plus parlante — issue de cette même expérience unique — est la pente de la régression log-log du temps d'entraînement, établie de 4 000 à 512 000 documents : 1,943 pour RankNet — quasi quadratique — contre 1,185 pour LambdaRank, quasi linéaire.</p>\n<p>Mais optimise-t-on vraiment la métrique qu'on ne dérive jamais ? Donmez, Svore et Burges (SIGIR 2009) apportent la validation la plus sérieuse disponible, et il faut la lire pour ce qu'elle est : deux vérifications empiriques distinctes, pas une preuve. La première est un test de Monte Carlo unilatéral dans l'espace des poids appris : pour certifier un optimum local avec 99 % de confiance (ε = δ = 0,01), il faut tirer K = ⌈ln(0,01)/ln(1−0,01)⌉ = 459 directions aléatoires sur la boule unité et vérifier que la précision d'entraînement décroît le long de chacune. C'est le cas des 459, pour NDCG moyen, NDCG@10, MAP et MRR, sur trois jeux de données et deux architectures de réseau. La seconde vérification, plus simple et séparée, perturbe les poids un à un et constate que le gradient s'annule au point appris — une condition que l'article qualifie lui-même de nécessaire mais non suffisante, en l'attribuant à des travaux antérieurs (Yue et Burges, atelier NIPS 2007). Ni l'une ni l'autre ne dit quoi que ce soit de l'optimalité globale.</p>\n<p>Le même article éclaire la genèse de la recette. Parmi treize constructions candidates de gradients λ mises à l'épreuve, celle de LambdaRank — gradient RankNet multiplié par le gain de métrique — surclasse toutes les autres avec significativité statistique sur la MAP et le MRR de validation (0,462 ± 0,005 de MAP, contre 0,401 à 0,435 pour les concurrentes) : la construction a été retenue sur sa précision en validation, pas dérivée analytiquement. L'étude quantifie aussi un paramètre caché, le nombre de paires « effectives » — celles dont le λ n'est pas nul — que chaque métrique fournit à l'entraînement. Sur leur jeu web « 10K », une mesure multi-niveaux comme NDCG en génère jusqu'à environ 73 millions par epoch, contre environ 27 millions pour une mesure binaire comme MAP, et bien moins encore pour MRR. Faire coïncider métrique d'entraînement et métrique cible n'est donc payant qu'à condition de disposer d'assez de paires effectives de ce type ; sinon, une mesure plus fine comme NDCG l'emporte même quand la cible est MRR. Le tournant de l'arc est là : une heuristique assumée — coût implicite jamais écrit, construction choisie empiriquement, optimalité seulement locale et seulement constatée — qui marche. Il ne lui manque plus que son meilleur véhicule.</p>",
+      "claims": [
+        "claim:17",
+        "claim:18",
+        "claim:19"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-lambda-swap-ndcg"
+    },
+    {
+      "type": "section",
+      "id": "lambdamart-lambdaloss",
+      "heading": "LambdaMART et LambdaLoss : les arbres boostés rencontrent les gradients λ",
+      "level": 3,
+      "prose": "<p>Ce véhicule est MART (Multiple Additive Regression Trees), des arbres de régression assemblés par gradient boosting. LambdaMART, leur mariage avec les gradients λ, repose sur une propriété précise : pour ajuster l'arbre suivant, MART n'a besoin que de la dérivée du coût par rapport aux scores en chaque point — jamais du coût lui-même. Un algorithme qui ne consomme que des gradients rencontre une méthode qui ne produit que des gradients. Les λ, accumulés par document (par URL, dans le vocabulaire du web), servent de pseudo-réponses sur lesquelles chaque arbre est ajusté, et les valeurs de feuilles sont fixées par une approximation de Newton en un pas. Que la cible soit non lisse, non différentiable, ou ne soit la dérivée analytique d'aucune fonction connue n'arrête plus rien : les deux algorithmes sont, selon le mot de Burges, bien assortis.</p>\n<p>La recette garde toute sa généralité : pour une mesure cible Z quelconque, λ<sub>ij</sub> = −σ|ΔZ<sub>ij</sub>| / (1+e<sup>σ(s<sub>i</sub>−s<sub>j</sub>)</sup>) — il suffit de savoir chiffrer la variation de Z qu'induit l'échange de deux documents, que Z soit NDCG, MAP, MRR ou ERR. Le socle, lui, n'appartient pas à ce document : la mécanique des arbres boostés relève d'ensemble-learning. Ce qui est propre au ranking tient tout entier dans la pseudo-réponse.</p>\n<p>La victoire au Track 1 du Yahoo! Learning to Rank Challenge, déjà croisée, mérite le détail. Le 25 juin 2010, à l'atelier ICML de Haïfa, l'équipe gagnante — Ca3Si2O7, soit Burges, Svore, Bennett, Pastusiak et Wu, de Microsoft Research — présente une combinaison linéaire de douze modèles : huit LambdaMART, deux réseaux LambdaRank et deux modèles de régression logistique, entraînés à parts à peu près égales sur ERR et sur NDCG — quatre rankers LambdaMART et un réseau pour chaque métrique. L'article de synthèse du challenge, signé Chapelle et Chang, souligne une convergence frappante chez les finalistes : tous utilisaient des arbres de décision et des méthodes d'ensemble.</p>\n<p>Pendant que les arbres gagnent, le vide théorique demeure — et Burges est le premier à le nommer. Sa synthèse de 2010 pose la question en toutes lettres : existe-t-il un coût dont ces λ soient les gradients, et sous quelles conditions générales un tel coût existe-t-il ? La seule validation disponible reste le test de Monte Carlo de la section précédente : un constat d'optimum local à 99 % de confiance, pas une démonstration. Huit ans durant, l'algorithme de référence des compétitions et des moteurs de production descend le gradient d'une fonction que personne n'a écrite.</p>\n<p>La clôture vient de Google : LambdaLoss (Wang, Li, Golbandi, Bendersky et Najork, CIKM 2018). L'article s'ouvre sur l'aveu du domaine — « the underlying loss that LambdaRank optimizes for remains unknown until now », la perte sous-jacente restait inconnue jusqu'ici, et sans elle « there is no principled way to advance the LambdaRank algorithm further ». Il recense les contournements antérieurs de la non-différentiabilité en trois familles — les approximations lissées (SoftRank, SmoothRank, ApproxNDCG), la prédiction structurée aux contraintes exponentielles, la repondération itérative (AdaRank, et LambdaRank lui-même) — puis construit un cadre probabiliste où le gradient λ reçoit enfin une perte bien définie. Elle s'écrit l(y,s) = Σ<sub>y<sub>i</sub>>y<sub>j</sub></sub> ΔNDCG(i,j) · log<sub>2</sub>(1+e<sup>−σ(s<sub>i</sub>−s<sub>j</sub>)</sup>), avec ΔNDCG(i,j) = |G<sub>i</sub>−G<sub>j</sub>|·|1/D<sub>i</sub>−1/D<sub>j</sub>|, et son gradient retrouve exactement les λ de LambdaRank : l'heuristique de 2006 était le cas particulier d'une famille de pertes qu'on peut désormais faire varier en connaissance de cause. Les variantes que le cadre autorise améliorent d'ailleurs significativement l'état de l'art sur trois jeux publics de référence.</p>\n<p>Le diagnostic qui accompagne cette clôture est moins flatteur que le folklore. La Proposition 5.1 de LambdaLoss établit que ce que LambdaRank et LambdaMART optimisent est une borne grossière — littéralement un « coarse upper bound », écrit l'article — et non la métrique elle-même : une borne de la métrique de rang visée, pas NDCG directement. « LambdaMART optimise directement NDCG » est donc une simplification répandue mais imprécise : de 2006 à 2018, aucune démonstration ne reliait les λ au gradient d'un coût bien défini, la seule validation était statistique, et quand la perte a enfin été écrite, elle s'est révélée être une borne. Cela n'a rien ôté à la domination. Une synthèse de 2023 (Bruch, Lucchese et Nardini) confronte encore la décennie des rankers en forêts de décision héritiers de LambdaMART à leurs successeurs neuronaux, et l'algorithme survit au cœur des bibliothèques de gradient boosting — l'objectif lambdarank natif de LightGBM, le rank:ndcg de XGBoost, après RankLib (projet Lemur) qui fut l'implémentation de référence des benchmarks historiques. Reste une question que ni les gradients ni les arbres ne règlent : sur quoi ces modèles apprennent-ils ? Des vecteurs de features et des labels de pertinence — une matière première qui a ses formats, ses jeux de référence et ses pièges.</p>",
+      "claims": [
+        "claim:21",
+        "claim:22",
+        "claim:23",
+        "claim:24"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "synopsis-boucle-lambdamart"
+    },
+    {
+      "type": "section",
+      "id": "features-et-benchmarks",
+      "heading": "Features de ranking et jeux LETOR/MSLR : sur quoi on apprend",
+      "level": 3,
+      "prose": "<p>Tout l'édifice qui précède — pertes de substitution, gradients λ, arbres boostés — consomme le même matériau : des paires requête-document réduites à un vecteur de features et à un label de pertinence. Les jeux MSLR-WEB10K et MSLR-WEB30K, publiés par Microsoft Research en juin 2010, en donnent la forme canonique. Chaque paire requête-URL y est décrite par 136 features qui balayent les familles classiques de la recherche d'information (RI) — couverture des termes de la requête, TF (term frequency, fréquence du terme), IDF (inverse document frequency, rareté du terme dans le corpus), BM25 (la fonction d'appariement lexical classique), scores LMIR (modèles de langue appliqués à la recherche documentaire) — complétées par des signaux de graphe et d'URL, PageRank et longueur d'URL en tête, et par des signaux comportementaux de clic et de temps de lecture. Le label est gradué sur cinq niveaux, de 0 (non pertinent) à 4 (parfaitement pertinent), et provient d'un jeu d'étiquetage de Bing retiré du service. Le tout est découpé en cinq folds (partitions de validation croisée) : Fold1 entraîne sur trois partitions, valide sur la quatrième, teste sur la cinquième. MSLR-WEB30K dépasse les 30 000 requêtes ; MSLR-WEB10K en est un sous-échantillon uniforme.</p>\n<p>Ces jeux succèdent aux collections LETOR de Microsoft Research Asia, qui ont structuré le domaine. LETOR 3.0 (Qin, Liu, Xu et Li, décembre 2008) assemble deux corpus de nature opposée. Le corpus Gov — environ un million de pages issues d'un crawl de janvier 2002, interrogées par les requêtes des TREC Web tracks 2003 et 2004 — décrit chaque paire par 64 features réparties en trois familles : comptages de termes, IDF et BM25 déclinés par zone du document (corps, ancre, titre, URL, document entier) ; scores LMIR sous trois lissages, discount absolu, Dirichlet et Jelinek-Mercer ; features de graphe de liens enfin — PageRank, scores d'autorité et de hub HITS, HostRank, propagation par sitemap et hyperliens. L'ambition était double : couvrir les features classiques de la RI et reproduire celles des articles SIGIR de l'époque. OHSUMED — le sous-ensemble de la base médicale MEDLINE déjà rencontré avec ListNet et ListMLE — se contente de 45 features calculées sur le titre, le résumé et leur concaténation, et ne mobilise que les deux premières familles — aucune feature de graphe de liens, ce qui se comprend : les notices médicales ne se citent pas par hyperliens.</p>\n<p>LETOR 4.0 renouvelle le socle : la collection Gov2, environ 25 millions de pages, interrogée par les requêtes du Million Query Track de TREC — MQ2007 (environ 1 700 requêtes étiquetées) et MQ2008 (environ 800) —, chaque paire étant réduite à 46 features contre 64 pour le corpus Gov. La pertinence y est graduée sur trois niveaux, ce qui n'est pas un appauvrissement : OHSUMED jugeait déjà sur trois niveaux. Le jeu du Yahoo! Challenge, enfin, pousse l'échelle : environ 36 000 requêtes au total, décrites par 700 features anonymisées.</p>\n<p>Reste la question que ces inventaires masquent : d'où viennent les labels ? Pour le corpus Gov, LETOR classe tous les documents par BM25, ne retient que le top 1000 par requête, et traite comme non pertinents les documents jamais jugés par le pooling de TREC — la procédure qui ne soumet aux juges que les documents remontés par les systèmes participants. Minka et Robertson (atelier LR4IR de SIGIR, 2008) montrent que cette convention n'est pas une simplification neutre. Les documents à haut score BM25 entrent dans le jeu quelle que soit leur pertinence ; ceux à bas score n'y entrent que s'ils sont pertinents. À l'intérieur de l'échantillon extrait, BM25 devient donc négativement corrélé à la pertinence — au point que, sur TDT2003, classer en ordre inverse de BM25 bat BM25 lui-même en précision au premier rang (P@1 de 0,52 contre 0,12) et dépasse même RankBoost aux premiers rangs. L'artefact tient au seuillage : jusqu'à 52 % des sujets de test de TDT2003 ont au moins un document pertinent au-delà du top 1000 BM25. Un tel jeu favorise structurellement tout algorithme dont les sorties sont corrélées au score de pooling, et fausse l'utilité relative mesurée des features qui lui ressemblent. OHSUMED n'est pas épargné, mais le biais y joue en sens inverse : seuls les documents jugés sont conservés — environ 152 par requête, tous ayant bien répondu à la requête booléenne —, si bien que la diversité des documents réellement non pertinents, ceux qu'un ranker doit écarter en production, y est sous-représentée.</p>\n<figure class='fig'><svg viewBox='0 0 780 400' role='img' aria-label='Deux panneaux : à gauche, le corpus complet avec la coupure top 1000 BM25 — au-dessus tout document entre dans le jeu, en dessous seuls les pertinents jugés via pooling entrent ; à droite, l’échantillon résultant où la corrélation entre score BM25 et pertinence est négative'><text x='200' y='20' text-anchor='middle' font-size='13' font-weight='700' fill='var(--ink,#15202E)'>Corpus complet</text><text x='595' y='20' text-anchor='middle' font-size='13' font-weight='700' fill='var(--ink,#15202E)'>Échantillon LETOR résultant</text><line x1='60' y1='36' x2='60' y2='316' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><line x1='60' y1='316' x2='340' y2='316' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><path d='M60 28 L56 38 L64 38 Z' fill='var(--ink-faint,#7A889B)'/><text transform='rotate(-90 46 176)' x='46' y='176' text-anchor='middle' font-size='11' fill='var(--ink-faint,#7A889B)'>score BM25</text><line x1='450' y1='36' x2='450' y2='316' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><line x1='450' y1='316' x2='740' y2='316' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><path d='M450 28 L446 38 L454 38 Z' fill='var(--ink-faint,#7A889B)'/><text transform='rotate(-90 436 176)' x='436' y='176' text-anchor='middle' font-size='11' fill='var(--ink-faint,#7A889B)'>score BM25</text><line x1='60' y1='150' x2='340' y2='150' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.5' stroke-dasharray='5 3'/><text x='64' y='145' font-size='10' fill='var(--bordeaux,#7C2A38)'>coupure top 1000 BM25</text><g fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1.4'><circle cx='95' cy='60' r='4'/><circle cx='140' cy='52' r='4'/><circle cx='185' cy='70' r='4'/><circle cx='230' cy='56' r='4'/><circle cx='275' cy='78' r='4'/><circle cx='315' cy='62' r='4'/><circle cx='110' cy='96' r='4'/><circle cx='160' cy='108' r='4'/><circle cx='210' cy='90' r='4'/><circle cx='255' cy='112' r='4'/><circle cx='300' cy='98' r='4'/><circle cx='130' cy='126' r='4'/><circle cx='180' cy='120' r='4'/><circle cx='235' cy='134' r='4'/><circle cx='285' cy='124' r='4'/></g><g fill='var(--blue,#23537F)'><circle cx='120' cy='74' r='4.2'/><circle cx='250' cy='64' r='4.2'/><circle cx='200' cy='116' r='4.2'/><circle cx='320' cy='136' r='4.2'/><circle cx='100' cy='185' r='4.2'/><circle cx='165' cy='205' r='4.2'/><circle cx='225' cy='178' r='4.2'/><circle cx='290' cy='225' r='4.2'/><circle cx='130' cy='255' r='4.2'/><circle cx='250' cy='268' r='4.2'/><circle cx='190' cy='295' r='4.2'/><circle cx='310' cy='300' r='4.2'/></g><path d='M81 166 l8 8 m-8 0 l8 -8 M146 164 l8 8 m-8 0 l8 -8 M211 188 l8 8 m-8 0 l8 -8 M271 176 l8 8 m-8 0 l8 -8 M321 192 l8 8 m-8 0 l8 -8 M106 216 l8 8 m-8 0 l8 -8 M171 234 l8 8 m-8 0 l8 -8 M236 211 l8 8 m-8 0 l8 -8 M301 246 l8 8 m-8 0 l8 -8 M86 266 l8 8 m-8 0 l8 -8 M151 281 l8 8 m-8 0 l8 -8 M216 301 l8 8 m-8 0 l8 -8 M276 286 l8 8 m-8 0 l8 -8 M66 301 l8 8 m-8 0 l8 -8' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1.3' opacity='0.75'/><g fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1.4'><circle cx='485' cy='60' r='4'/><circle cx='530' cy='52' r='4'/><circle cx='575' cy='70' r='4'/><circle cx='620' cy='56' r='4'/><circle cx='665' cy='78' r='4'/><circle cx='705' cy='62' r='4'/><circle cx='500' cy='96' r='4'/><circle cx='550' cy='108' r='4'/><circle cx='600' cy='90' r='4'/><circle cx='645' cy='112' r='4'/><circle cx='690' cy='98' r='4'/><circle cx='520' cy='126' r='4'/><circle cx='570' cy='120' r='4'/><circle cx='625' cy='134' r='4'/><circle cx='675' cy='124' r='4'/></g><g fill='var(--blue,#23537F)'><circle cx='510' cy='74' r='4.2'/><circle cx='640' cy='64' r='4.2'/><circle cx='590' cy='116' r='4.2'/><circle cx='710' cy='136' r='4.2'/><circle cx='490' cy='185' r='4.2'/><circle cx='555' cy='205' r='4.2'/><circle cx='615' cy='178' r='4.2'/><circle cx='680' cy='225' r='4.2'/><circle cx='520' cy='255' r='4.2'/><circle cx='640' cy='268' r='4.2'/><circle cx='580' cy='295' r='4.2'/><circle cx='700' cy='300' r='4.2'/></g><text x='595' y='155' text-anchor='middle' font-size='10' fill='var(--bordeaux,#7C2A38)'>↑ surtout des non-pertinents · ↓ uniquement des pertinents</text><g text-anchor='middle' font-size='11' fill='var(--ink,#15202E)'><text x='200' y='336'>au-dessus de la coupure : tout document entre</text><text x='200' y='352'>en dessous : seuls les pertinents (pooling) entrent, × exclus</text><text x='595' y='336'>corrélation BM25–pertinence négative dans le jeu</text><text x='595' y='352'>P@1 TDT2003 : ordre inverse de BM25 = 0,52 ; BM25 = 0,12</text></g><circle cx='120' cy='381' r='4.2' fill='var(--blue,#23537F)'/><text x='129' y='385' font-size='11' fill='var(--ink,#15202E)'>pertinent</text><circle cx='210' cy='381' r='4' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1.4'/><text x='219' y='385' font-size='11' fill='var(--ink,#15202E)'>non pertinent</text><path d='M326 377 l8 8 m-8 0 l8 -8' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1.3'/><text x='339' y='385' font-size='11' fill='var(--ink,#15202E)'>non pertinent exclu du jeu</text><line x1='520' y1='381' x2='552' y2='381' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.5' stroke-dasharray='5 3'/><text x='558' y='385' font-size='11' fill='var(--ink,#15202E)'>coupure top 1000 BM25</text></svg><figcaption><span class='fcap-k'></span>Biais de sélection du pooling dans LETOR-Gov (Minka et Robertson, 2008) : au-dessus de la coupure « top 1000 BM25 » tout document entre dans le jeu, en dessous seuls les pertinents y entrent — dans l’échantillon la corrélation BM25–pertinence devient négative, au point que l’ordre inverse de BM25 atteint P@1 = 0,52 contre 0,12 pour BM25 sur TDT2003.</figcaption></figure>\n<p>La leçon déborde LETOR : la qualité d'un ranker est bornée par ce que ses features capturent et par ce que valent ses labels — et les labels, on vient de le voir, valent ce que vaut leur procédure de collecte. Les benchmarks reposent sur des jugements éditoriaux ; la production, elle, dispose d'un signal autrement abondant, le clic. Il arrive avec ses propres biais.</p>",
+      "claims": [
+        "claim:25",
+        "claim:26",
+        "claim:27",
+        "claim:28"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "reranking-production",
+      "heading": "En production : reranking à deux étages et apprentissage sur les clics",
+      "level": 3,
+      "prose": "<p>Personne ne fait tourner LambdaMART sur un index entier. Le motif dominant en production est l'architecture à deux étages esquissée en ouverture : un premier étage de récupération large et bon marché — typiquement BM25 — extrait un grand ensemble de candidats, puis le modèle LTR reranke le seul top-N avec des features plus riches et plus coûteuses. Le partage est économique : les signaux de la section précédente, graphe de liens, clics, scores multipliés par zone, se calculent sur quelques centaines de candidats, pas sur des millions de documents.</p>\n<p>Ce schéma est câblé dans l'outillage standard. XGBoost expose trois objectifs de ranking — <code>rank:pairwise</code>, la perte RankNet/LambdaMART d'origine ; <code>rank:ndcg</code>, au gradient de substitution dérivé de NDCG ; <code>rank:map</code> pour la pertinence binaire — les groupes de requêtes étant déclarés par une colonne <code>qid</code>. Elasticsearch intègre depuis sa version 8.13 (en technical preview) un rescorer <code>learning_to_rank</code> : la requête de premier passage reste rapide et large, et le modèle — typiquement un LambdaMART XGBoost entraîné et déployé via la bibliothèque Python Eland — n'affine qu'une fenêtre de reranking configurable. Apache Solr suit la même logique avec son module LTR, intégré depuis Solr 6.4 et ouvert à la communauté en 2017 : des modèles linéaires type RankSVM, à arbres additifs type LambdaMART ou neuronaux type RankNet, entraînés hors de Solr, téléversés en JSON, puis appliqués via <code>rq={!ltr model=... reRankDocs=N}</code> pour ne rescorer que les N premiers candidats.</p>\n<p>Encore faut-il nourrir ces modèles. Aux jugements éditoriaux des benchmarks, la production substitue son signal de masse, le clic — et le clic est biaisé par la position. Joachims, Swaminathan et Schnabel (WSDM 2017) formalisent le problème par un modèle d'examen : un clic n'advient que si le résultat est à la fois examiné, avec une probabilité qui dépend du rang présenté, et jugé pertinent. Un ranker entraîné directement sur les clics bruts hérite donc du placement décidé par le ranker qui a servi les pages. Leur correction passe par l'inverse propensity scoring (IPS, repondération de chaque observation par l'inverse de sa probabilité d'être observée) : le risque empirique ainsi pondéré est prouvé non biaisé, alors même que la plupart des signaux de pertinence restent inobservés. Les propensions elles-mêmes s'estiment à moindre coût par une intervention de type swap — déplacer aléatoirement le résultat de tête vers un autre rang pour une petite fraction du trafic — bien moins lourde qu'une randomisation de pages entières.</p>\n<p>La validation ne s'est pas arrêtée au papier. Déployé sur le moteur de recherche plein texte d'arXiv — sept jours d'intervention swap pour estimer les propensions, puis 21 jours de logs pour entraîner —, leur Propensity SVM-Rank, un RankSVM dont la variable de relâchement (slack) de chaque exemple de clic est repondérée par l'inverse de sa propension, a été évalué en interleaving, la comparaison en ligne qui entrelace deux classements face aux mêmes utilisateurs. Verdict : il bat le ranker de production fait main (87 victoires contre 48, p = 0,001) comme le SVM-Rank entraîné naïvement sur les mêmes clics. XGBoost a depuis absorbé l'idée : son paramètre <code>lambdarank_unbiased</code> débiaise les clics dépendants de la position, au lieu d'exiger des jugements de pertinence gradués.</p>\n<p>Quand les industriels publient, les gains se mesurent en A/B test. LiRank, la plateforme de ranking de LinkedIn (Borisyuk et al., KDD 2024), sert à la fois le fil d'actualité, les recommandations d'emploi et la publicité ; les gains rapportés couvrent les trois surfaces — sessions membres, candidatures qualifiées, clics publicitaires — le plus net étant +4,3 % de CTR (click-through rate, taux de clic) sur la publicité. Chez Airbnb, le ranker de recherche est un réseau de neurones pairwise entraîné sur des comparaisons réservé/non-réservé tirées des logs ; il favorisait mécaniquement le plus grand segment de voyageurs à chaque position, travers corrigé par un second réseau qui estime la similarité entre annonces et décote le score d'un candidat selon sa ressemblance aux annonces déjà placées — avec, à la clé, +0,29 % de réservations non annulées et un gain de valeur de réservation. Le motif ne date pas d'hier : Bing, rappelons-le, tournait sur RankNet dès son lancement.</p>\n<p>Tranchons ici une idée reçue : non, le reranking de production n'est pas synonyme de LambdaMART. Les briques d'infrastructure généralistes en font leur défaut, c'est vrai — XGBoost, le rescorer d'Elasticsearch et le module de Solr gravitent tous autour de MART et LambdaMART — mais plusieurs des plus gros rerankers industriels sont passés à des architectures neuronales : LiRank combine Residual DCN, une architecture à connexions résiduelles et attention, avec des composants Transformer ; le ranker d'Airbnb est un réseau de neurones ; Etsy a remplacé sa pile LTR à base d'arbres par TF-Ranking (TensorFlow Ranking), la bibliothèque open source de Google, en rapportant un temps d'entraînement réduit. Quant aux cross-encoders neuronaux et à la fusion RRF (Reciprocal Rank Fusion), ils relèvent d'<em>hybrid-search-reranking</em> — la frontière du présent document passe ici.</p>\n<p>Deux étages, des clics débiaisés, des gains mesurés au dixième de point : le tableau est flatteur. Reste à le regarder en face — dire ce que cette réussite garantit, et ce qu'elle ne garantit pas.</p>",
+      "claims": [
+        "claim:29",
+        "claim:30",
+        "claim:31",
+        "claim:32"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "limites-et-idees-recues",
+      "heading": "Limites et idées reçues : ce que les gradients λ ne garantissent pas",
+      "level": 3,
+      "prose": "<p>Des benchmarks aux moteurs de production, le lecteur a vu des outils qui marchent. L'inventaire honnête commence par la plus ancienne des idées reçues : minimiser les erreurs de paires maximiserait NDCG. C'est faux, et Burges lui-même en a donné l'illustration : dans sa synthèse, une figure montre un cas où réduire le total d'erreurs de paires de 13 à 11 — en descendant de trois rangs le document pertinent de tête et en remontant de cinq le pertinent de queue — va exactement à l'inverse de ce que veulent des métriques top-heavy (concentrées sur la tête de liste) comme NDCG ou ERR. LambdaRank est né de ce constat, et son succès le confirme en retour : si pondérer chaque paire par |ΔNDCG| améliore les résultats, c'est que le compte d'erreurs de paires et la métrique cible divergent.</p>\n<figure class='fig'><svg viewBox='0 0 700 446' role='img' aria-label='Deux classements de seize documents dont deux pertinents, reproduisant la figure 1 de Burges 2010 : à gauche, pertinents aux rangs 1 et 15, treize erreurs de paires, NDCG environ 0,77 ; à droite, le pertinent de tête descend de trois rangs et celui de queue remonte de cinq, onze erreurs de paires mais NDCG environ 0,44 — moins d’erreurs de paires, pire NDCG.'><defs><marker id='ltr-burges-arrx' viewBox='0 0 8 8' refX='7' refY='4' markerWidth='7' markerHeight='7' orient='auto'><path d='M0 0 L8 4 L0 8 Z' fill='var(--bordeaux,#7C2A38)'/></marker><marker id='ltr-burges-arrb' viewBox='0 0 8 8' refX='7' refY='4' markerWidth='7' markerHeight='7' orient='auto'><path d='M0 0 L8 4 L0 8 Z' fill='var(--blue,#23537F)'/></marker></defs><g font-size='11' fill='var(--ink,#15202E)'><rect x='215' y='14' width='16' height='9' fill='var(--blue,#23537F)'/><text x='237' y='23'>pertinent</text><rect x='330' y='14' width='16' height='9' fill='var(--ink-faint,#7A889B)' fill-opacity='0.35'/><text x='352' y='23'>non pertinent</text></g><text x='205' y='48' text-anchor='middle' font-size='13' font-weight='700' fill='var(--ink,#15202E)'>Classement initial</text><text x='495' y='48' text-anchor='middle' font-size='13' font-weight='700' fill='var(--ink,#15202E)'>Après déplacements</text><g fill='var(--ink-faint,#7A889B)' fill-opacity='0.35'><rect x='140' y='84' width='130' height='13'/><rect x='140' y='104' width='130' height='13'/><rect x='140' y='124' width='130' height='13'/><rect x='140' y='144' width='130' height='13'/><rect x='140' y='164' width='130' height='13'/><rect x='140' y='184' width='130' height='13'/><rect x='140' y='204' width='130' height='13'/><rect x='140' y='224' width='130' height='13'/><rect x='140' y='244' width='130' height='13'/><rect x='140' y='264' width='130' height='13'/><rect x='140' y='284' width='130' height='13'/><rect x='140' y='304' width='130' height='13'/><rect x='140' y='324' width='130' height='13'/><rect x='140' y='364' width='130' height='13'/><rect x='430' y='64' width='130' height='13'/><rect x='430' y='84' width='130' height='13'/><rect x='430' y='104' width='130' height='13'/><rect x='430' y='144' width='130' height='13'/><rect x='430' y='164' width='130' height='13'/><rect x='430' y='184' width='130' height='13'/><rect x='430' y='204' width='130' height='13'/><rect x='430' y='224' width='130' height='13'/><rect x='430' y='264' width='130' height='13'/><rect x='430' y='284' width='130' height='13'/><rect x='430' y='304' width='130' height='13'/><rect x='430' y='324' width='130' height='13'/><rect x='430' y='344' width='130' height='13'/><rect x='430' y='364' width='130' height='13'/></g><g fill='var(--blue,#23537F)'><rect x='140' y='64' width='130' height='13'/><rect x='140' y='344' width='130' height='13'/><rect x='430' y='124' width='130' height='13'/><rect x='430' y='244' width='130' height='13'/></g><g font-size='10' fill='var(--ink-faint,#7A889B)' text-anchor='end'><text x='133' y='74'>1</text><text x='133' y='354'>15</text><text x='133' y='374'>16</text><text x='423' y='74'>1</text><text x='423' y='134'>4</text><text x='423' y='254'>10</text><text x='423' y='374'>16</text></g><path d='M276 70.5 C330 74 372 127 416 130.5' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.8' marker-end='url(#ltr-burges-arrx)'/><path d='M276 350.5 C330 347 372 254 416 250.5' fill='none' stroke='var(--blue,#23537F)' stroke-width='1.8' marker-end='url(#ltr-burges-arrb)'/><g text-anchor='middle' font-size='11'><text x='346' y='168' fill='var(--bordeaux,#7C2A38)' font-weight='700'>pertinent : rang 1 → 4</text><text x='346' y='184' fill='var(--bordeaux,#7C2A38)'>+3 erreurs de paires</text><text x='346' y='199' fill='var(--bordeaux,#7C2A38)'>ΔNDCG = −0,35</text><text x='346' y='240' fill='var(--blue,#23537F)' font-weight='700'>pertinent : rang 15 → 10</text><text x='346' y='256' fill='var(--blue,#23537F)'>−5 erreurs de paires</text><text x='346' y='271' fill='var(--blue,#23537F)'>ΔNDCG = +0,02</text></g><g text-anchor='middle' font-size='12.5'><text x='205' y='404' fill='var(--ink,#15202E)' font-weight='700'>13 erreurs de paires</text><text x='205' y='422' fill='var(--ink,#15202E)'>NDCG ≈ 0,77</text><text x='495' y='404' fill='var(--ink,#15202E)' font-weight='700'>11 erreurs de paires (−2)</text><text x='495' y='422' fill='var(--bordeaux,#7C2A38)' font-weight='700'>NDCG ≈ 0,44 (en baisse)</text></g><text x='350' y='440' text-anchor='middle' font-size='9.5' fill='var(--ink-faint,#7A889B)'>NDCG sur la liste entière, gains binaires, discount 1/log₂(1+rang)</text></svg><figcaption><span class='fcap-k'></span>Moins d’erreurs de paires (13 → 11) mais NDCG en baisse (≈ 0,77 → 0,44) : la remontée de cinq rangs en queue de liste ne compense pas, pour une métrique top-heavy, la descente de trois rangs en tête — minimiser les inversions de paires n’est pas maximiser la métrique (d’après Burges, 2010, fig. 1).</figcaption></figure>\n<p>Deuxième vérité inconfortable, assumée par son auteur : les gradients λ ne dérivent d'aucune fonction de coût explicite valable globalement. Le Jacobien symétrique garantit, on l'a vu, l'existence d'un coût implicite ; Burges en précise la portée. Pour un ordre de tri <em>fixé</em>, il existe bien un coût — C = Σ |ΔZ<sub>ij</sub>| log(1 + e<sup>−σ(s<sub>i</sub>−s<sub>j</sub>)</sup>) — dont les λ sont les dérivées. Mais le modèle génère les scores qui servent à trier, et les λ sont calculés après le tri : l'expression générale dépend des paramètres « de façon compliquée », et aucune fonction lisse unique ne vaut pendant tout l'entraînement. Les λ ont été écrits directement, pas dérivés d'un coût. LambdaLoss a comblé une partie de cette lacune en exhibant une perte bien définie dont LambdaRank est un cas particulier — mais ce qu'elle établit pour LambdaMART reste une borne de la métrique visée, pas la métrique elle-même.</p>\n<p>Troisième limite : l'optimalité démontrée est locale, et elle ne l'est que pour LambdaRank. Le test directionnel de Donmez, Svore et Burges établit à 99 % de confiance que les poids appris sont des optima locaux pour NDCG, NDCG@10, MAP et MRR ; l'approche directionnelle était nécessaire, précisément parce qu'un gradient qui s'annule est une condition nécessaire mais pas suffisante d'optimalité locale. Rien d'équivalent n'a été publié pour LambdaMART, et aucune source ne teste ni ne discute d'optimum global. Le même article nuance au passage un précepte répandu — entraîner sur la métrique qu'on évalue. Sur le grand jeu de 22 000 requêtes, l'appariement des métriques d'entraînement et d'évaluation donne bien la meilleure précision de test, avec significativité statistique ; mais pas pour MRR ni NDCG@10, mesures binaires ou tronquées qui génèrent beaucoup moins de paires effectives. Le précepte est conditionné au volume de signal disponible, il n'est pas universel. On se souvient d'ailleurs que l'ensemble vainqueur du Yahoo! Challenge entraînait la moitié de ses modèles à gradients λ sur ERR et l'autre moitié sur NDCG : même l'équipe gagnante n'a pas tranché.</p>\n<p>Quatrième limite, la plus récente : les gradients λ peuvent être incohérents avec la métrique qu'ils prétendent servir. Marcuzzi, Lucchese et Orlando (« LambdaRank Gradients are Incoherent », CIKM 2023) montrent qu'un document de forte pertinence en vérité terrain peut recevoir un gradient plus faible qu'un document moins pertinent — un écart qui va, selon leurs termes, « bien au-delà du degré d'approximation attendu » ; un défaut structurel, donc, pas un bruit numérique. Leur correctif Lambda-eX élargit la stratégie de sélection des paires : implémenté sur LightGBM, compatible avec LambdaMART comme avec les variantes de LambdaLoss (NDCG-Loss2, NDCG-Loss2++), il obtient des gains de NDCG statistiquement significatifs sans surcoût d'entraînement notable. Une réserve s'impose : le résultat est réel et bien défini, mais il n'a pas encore été corroboré par une source indépendante de ses auteurs.</p>\n<p>Il faut verser au même inventaire des limites déjà entrevues. Le qualificatif « listwise » de ListNet promet plus qu'il ne tient : la top-one probability jette par construction toute l'information d'ordre sous la tête de liste — l'approximation qui rend la perte calculable en O(n) est aussi celle qui appauvrit le signal. Les données transmettent leurs biais, sélection dans les benchmarks, position dans les clics. Et l'architecture à deux étages impose son plafond : un reranker ne peut pas repêcher un document que le premier étage n'a jamais fait remonter, si bien que le rappel de bout en bout du pipeline est borné par celui du premier étage, quelle que soit la sophistication du modèle aval.</p>\n<p>Le bilan de l'arc tient en peu de mots. L'obstacle posé au départ — des métriques partout plates ou discontinues — n'a jamais été levé de front ; il a été contourné. Le contournement fonctionne : benchmarks gagnés, moteurs de production, gains d'A/B test mesurés. Mais ses garanties sont partielles — un coût implicite local plutôt qu'une perte globale, une optimalité locale vérifiée plutôt qu'un optimum global démontré, des gradients parfois incohérents avec leur cible, des données et un premier étage qui bornent tout le reste. C'est la posture juste face à ces outils : éprouvés, pas garantis — une confiance calibrée.</p>",
+      "claims": [
+        "claim:33",
+        "claim:34",
+        "claim:35",
+        "claim:36"
+      ]
+    },
+    {
+      "type": "exercise",
+      "part": "Métriques et gradients",
+      "question": "<p>Le NDCG, vu comme fonction des scores produits par le modèle, a un gradient nul presque partout. Expliquez pourquoi, puis décrivez comment LambdaRank contourne cet obstacle sans jamais écrire ni dériver de fonction de coût — et ce qui distingue son gradient de celui de RankNet sur une paire mal ordonnée en queue de liste (rangs 9 999 et 10 000) par rapport à la même erreur en tête de liste.</p>",
+      "answer": "<p>Le NDCG ne dépend des scores qu'à travers le tri : le rang d'un document est une fonction en escalier des scores, qui ne change qu'aux points où deux scores se croisent ou sont à égalité. Le gradient est donc nul presque partout et indéfini aux croisements — un ajustement continu des poids laisse la métrique inchangée jusqu'au saut. LambdaRank renverse la démarche : au lieu de dériver un coût, il écrit directement le gradient désiré, en multipliant le gradient pairwise de RankNet par |ΔNDCG|, la variation absolue de NDCG qu'induirait l'échange des rangs des deux documents (l'échange étant évalué dans la liste triée courante). Le coût de RankNet, une entropie croisée sur la différence des deux scores, ne fait intervenir ni rang ni gain : la paire mal ordonnée aux rangs 9 999 et 10 000 y coûte exactement autant qu'une erreur entre les deux premiers résultats. Avec la pondération par |ΔNDCG|, l'erreur en queue de liste ne pèse presque rien (discount fort, variation de NDCG minuscule) tandis que l'erreur en tête tire de toutes ses forces. La même recette se généralise à MAP, MRR ou ERR : il suffit de remplacer |ΔNDCG| par la variation correspondante de la mesure choisie.</p>"
+    },
+    {
+      "type": "exercise",
+      "part": "LambdaMART et ses garanties",
+      "question": "<p>« LambdaMART optimise directement NDCG. » Cette affirmation courante est imprécise. En vous appuyant sur le parcours 2006–2018 (gradients λ, test de Monte Carlo de Donmez, Svore et Burges, puis LambdaLoss), dites ce qui a réellement été démontré, quand, et ce que la Proposition 5.1 de LambdaLoss établit finalement sur la relation entre l'objectif optimisé et la métrique visée.</p>",
+      "answer": "<p>De 2006 à 2018, les λ de LambdaRank/LambdaMART n'étaient reliés au gradient d'aucun coût explicite connu : le lemme de Poincaré (Jacobien symétrique) garantissait seulement l'existence d'un coût implicite, sans en donner la forme. La seule validation était empirique : le test de Monte Carlo de Donmez, Svore et Burges (SIGIR 2009), qui tire 459 directions aléatoires pour certifier avec 99 % de confiance un optimum <em>local</em> — pour LambdaRank uniquement (rien d'équivalent publié pour LambdaMART), et sans rien dire de l'optimum global. LambdaLoss (Wang et al., CIKM 2018) a enfin exhibé une perte bien définie — l(y,s) = Σ ΔNDCG(i,j)·log₂(1+e^(−σ(sᵢ−sⱼ))) sur les paires y_i&gt;y_j — dont le gradient retrouve exactement les λ de LambdaRank ; l'article admet d'ailleurs que « the underlying loss that LambdaRank optimizes for remains unknown until now ». Mais sa Proposition 5.1 établit que ce que LambdaRank et LambdaMART optimisent est une borne supérieure grossière (« coarse upper bound ») de la métrique de rang visée, pas NDCG lui-même. L'affirmation correcte est donc : LambdaMART optimise une borne de la métrique, via des gradients écrits à la main dont la perte sous-jacente n'a été identifiée qu'en 2018.</p>"
+    },
+    {
+      "type": "biblio",
+      "entries": [
+        {
+          "label": "Tie-Yan Liu, \"Learning to Rank for Information Retrieval\" (2009)",
+          "href": "https://dmice.ohsu.edu/bedricks/courses/cs635_spring_2017/pdf/liu_2009.pdf"
+        },
+        {
+          "label": "Wikipedia, \"Learning to rank\"",
+          "href": "https://en.wikipedia.org/wiki/Learning_to_rank"
+        },
+        {
+          "label": "Learning to Rank Tutorial (Northeastern course slides, based on Liu 2009)",
+          "href": "https://www.khoury.northeastern.edu/home/vip/teach/IRcourse/6_ML/slides/T7A-LEARNING%20TO%20RANK%20TUTORIAL.pdf"
+        },
+        {
+          "label": "Pointwise, Pairwise and Listwise Learning to Rank (cites Liu 2009 taxonomy)",
+          "href": "https://medium.com/@mayurbhangale/pointwise-pairwise-and-listwise-learning-to-rank-baf0ad76203e"
+        },
+        {
+          "label": "Norbert Fuhr, \"Probabilistic Models in Information Retrieval\" (1992)",
+          "href": "https://wiki.eecs.yorku.ca/course_archive/2014-15/W/6339/_media/fuhr_92.pdf"
+        },
+        {
+          "label": "US Patent 7,197,497 (Cossock, assignee Overture Services Inc., formerly AltaVista Company)",
+          "href": "https://patents.google.com/patent/US7197497B2/en"
+        },
+        {
+          "label": "Fuhr, \"Probabilistic Models in Information Retrieval,\" The Computer Journal 35(3), 1992",
+          "href": "https://academic.oup.com/comjnl/article/35/3/243/525633"
+        },
+        {
+          "label": "Bing Search Blog, \"User Needs, Features and the Science behind Bing\" (June 2009)",
+          "href": "https://blogs.bing.com/search/June-2009/User-Needs,-Features-and-the-Science-behind-Bing"
+        },
+        {
+          "label": "Christopher J.C. Burges, \"From RankNet to LambdaRank to LambdaMART: An Overview\", MSR-TR-2010-82",
+          "href": "https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/MSR-TR-2010-82.pdf"
+        },
+        {
+          "label": "RankNet: A ranking retrospective — Microsoft Research",
+          "href": "https://www.microsoft.com/en-us/research/blog/ranknet-a-ranking-retrospective/"
+        },
+        {
+          "label": "Wang, Wang, Long, Wang, Chen — A Theoretical Analysis of NDCG Type Ranking Measures (COLT 2013), arXiv:1304.6480",
+          "href": "https://arxiv.org/abs/1304.6480"
+        },
+        {
+          "label": "NDCG-Based Objectives — synthèse tierce (emergentmind.com)",
+          "href": "https://www.emergentmind.com/topics/ndcg-based-objectives"
+        },
+        {
+          "label": "Wang, Wang, Li, He, Chen, Liu — A Theoretical Analysis of NDCG Ranking Measures (COLT/JMLR W&CP 2013), published proceedings PDF",
+          "href": "https://proceedings.mlr.press/v30/Wang13.pdf"
+        },
+        {
+          "label": "A Theoretical Analysis of NDCG Ranking Measures (arXiv preprint 1304.6480, ar5iv render)",
+          "href": "https://ar5iv.labs.arxiv.org/html/1304.6480"
+        },
+        {
+          "label": "Taylor, Guiver, Robertson, Minka — SoftRank: Optimizing Non-Smooth Rank Metrics (WSDM 2008)",
+          "href": "https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/SoftRankWsdm08Submitted.pdf"
+        },
+        {
+          "label": "A Theoretical Analysis of NDCG Type Ranking Measures — page PMLR (volume/venue COLT 2013)",
+          "href": "https://proceedings.mlr.press/v30/Wang13.html"
+        },
+        {
+          "label": "dblp — A Theoretical Analysis of NDCG Type Ranking Measures. (confirme la conférence COLT 2013)",
+          "href": "https://dblp.org/rec/conf/colt/WangWLHL13.html"
+        },
+        {
+          "label": "Azzopardi, Mackenzie, Moffat — ERR is not C/W/L: Exploring the Relationship Between Expected Reciprocal Rank and Other Metrics (ICTIR/SIGIR 2021)",
+          "href": "https://strathprints.strath.ac.uk/76897/1/Azzopardi_etal_SIGIR_2021_Exploring_the_relationship_between_expected_reciprocal_rank_and_other_metrics.pdf"
+        },
+        {
+          "label": "Expected Reciprocal Rank for Graded Relevance — Google Research publication page (auteurs/venue CIKM'09)",
+          "href": "https://research.google/pubs/expected-reciprocal-rank-for-graded-relevance/"
+        },
+        {
+          "label": "Paras Dahal, \"RankNet\" (notes, independent derivation)",
+          "href": "https://parasdahal.com/notes/ranknet/"
+        },
+        {
+          "label": "Louis Kit Lung Law, \"RankNet, Factorised RankNet, LambdaRank Explained & Implementation\" (Medium, part III)",
+          "href": "https://medium.com/swlh/ranknet-factorised-ranknet-lambdarank-explained-implementation-via-tensorflow-2-part-iii-b916f849a4bd"
+        },
+        {
+          "label": "\"McRank: Learning to Rank Using Multiple Classification and Gradient Boosting\" — official NeurIPS 2007 proceedings",
+          "href": "https://proceedings.neurips.cc/paper/2007/hash/b86e8d03fe992d1b0e19656875ee557c-Abstract.html"
+        },
+        {
+          "label": "Crammer & Singer, \"Pranking with Ranking\" — course slides/notes (Northeastern)",
+          "href": "https://www.khoury.northeastern.edu/home/vip/teach/IRcourse/6_ML/slides/prank_sept28.pdf"
+        },
+        {
+          "label": "Li, Burges & Wu, \"McRank: Learning to Rank Using Multiple Classification and Gradient Boosting\" (NIPS 2007)",
+          "href": "https://www.cse.iitb.ac.in/~soumen/readings/papers/LiBW2007McRank.PDF"
+        },
+        {
+          "label": "Cossock & Zhang, \"Statistical Analysis of Bayes Optimal Subset Ranking\"",
+          "href": "https://faculty.cc.gatech.edu/~zha/CS8803WST/ranking.pdf"
+        },
+        {
+          "label": "Crammer & Singer, \"Pranking with Ranking\" (NIPS 2001)",
+          "href": "https://papers.nips.cc/paper/2023-pranking-with-ranking"
+        },
+        {
+          "label": "\"Introduction to Learning-to-Rank\" (independent tutorial notes)",
+          "href": "https://everdark.github.io/k9/notebooks/ml/learning_to_rank/learning_to_rank.html"
+        },
+        {
+          "label": "Shaped.ai, \"LambdaMART Explained: The Workhorse of Learning-to-Rank\"",
+          "href": "https://www.shaped.ai/blog/lambdamart-explained-the-workhorse-of-learning-to-rank"
+        },
+        {
+          "label": "Learning to Rank with Nonsmooth Cost Functions (Burges, Ragno, Le — NIPS 2006, the original LambdaRank paper)",
+          "href": "https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/lambdarank.pdf"
+        },
+        {
+          "label": "Cao, Qin, Liu, Tsai, Li — Learning to Rank: From Pairwise Approach to Listwise Approach (Microsoft Research technical report, extended version of ICML 2007 paper)",
+          "href": "https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tr-2007-40.pdf"
+        },
+        {
+          "label": "Listwise Approach to Learning to Rank – Theory and Algorithms (slides de cours, Univ. Cambridge, présentés par Jay Shah)",
+          "href": "https://www.cl.cam.ac.uk/teaching/1516/R222/ranking-listwise.pdf"
+        },
+        {
+          "label": "Xia, Liu, Wang, Zhang, Li — Listwise Approach to Learning to Rank: Theory and Algorithm (ICML 2008)",
+          "href": "https://icml.cc/Conferences/2008/papers/167.pdf"
+        },
+        {
+          "label": "dblp: Learning to Rank with Nonsmooth Cost Functions (Burges, Ragno, Le)",
+          "href": "https://dblp.org/rec/conf/nips/BurgesRL06.html"
+        },
+        {
+          "label": "Learning to Rank in Web Search (hav4ik.github.io)",
+          "href": "https://hav4ik.github.io/learning-to-rank/"
+        },
+        {
+          "label": "Donmez, Svore, Burges — On the Local Optimality of LambdaRank (SIGIR 2009)",
+          "href": "https://www.cs.cmu.edu/~pinard/Papers/sigirfp092-donmez.pdf"
+        },
+        {
+          "label": "On the local optimality of LambdaRank | Proceedings of the 32nd ACM SIGIR Conference (ACM Digital Library record, confirms venue/pages/authors)",
+          "href": "https://dl.acm.org/doi/10.1145/1571941.1572021"
+        },
+        {
+          "label": "Marek Modrý and Michal Ferov, \"Enhancing LambdaMART Using Oblivious Trees,\" arXiv:1609.05610 (Seznam.cz)",
+          "href": "https://arxiv.org/pdf/1609.05610"
+        },
+        {
+          "label": "C.J.C. Burges, K.M. Svore, P.N. Bennett, A. Pastusiak, Q. Wu, \"Learning to Rank Using an Ensemble of Lambda-Gradient Models,\" JMLR Workshop and Conference Proceedings 14:25-35, 2011",
+          "href": "https://proceedings.mlr.press/v14/burges11a.html"
+        },
+        {
+          "label": "Olivier Chapelle, Yi Chang, \"Yahoo! Learning to Rank Challenge Overview,\" JMLR Workshop and Conference Proceedings 14:1-24, 2011",
+          "href": "https://proceedings.mlr.press/v14/chapelle11a.html"
+        },
+        {
+          "label": "Xuanhui Wang, Cheng Li, Nadav Golbandi, Michael Bendersky, Marc Najork, \"The LambdaLoss Framework for Ranking Metric Optimization,\" CIKM 2018, Google",
+          "href": "https://marc.najork.org/papers/cikm2018.pdf"
+        },
+        {
+          "label": "Harrie Oosterhuis, \"Learning from User Interactions with Rankings: A Unification of the Field,\" PhD thesis, arXiv:2012.06576",
+          "href": "https://arxiv.org/pdf/2012.06576"
+        },
+        {
+          "label": "Feature Selection and Model Comparison on Microsoft Learning-to-Rank Data Sets (Lei & Han, UCSB PSTAT 231 report, arXiv:1803.05127)",
+          "href": "https://arxiv.org/pdf/1803.05127"
+        },
+        {
+          "label": "MSLR: Microsoft Learning to Rank Datasets — Microsoft Research",
+          "href": "https://www.microsoft.com/en-us/research/project/mslr/"
+        },
+        {
+          "label": "LETOR: A benchmark collection for research on learning to rank for information retrieval (letor3.pdf)",
+          "href": "https://www.microsoft.com/en-us/research/wp-content/uploads/2016/08/letor3.pdf"
+        },
+        {
+          "label": "Features in the LETOR TD2003 and TD2004 datasets (table, ResearchGate)",
+          "href": "https://www.researchgate.net/figure/Features-in-the-LETOR-TD2003-and-TD2004-datasets_tbl1_220740514"
+        },
+        {
+          "label": "Introducing LETOR 4.0 Datasets (arXiv:1306.2597)",
+          "href": "https://arxiv.org/abs/1306.2597"
+        },
+        {
+          "label": "Modeling Diverse Relevance Patterns in Ad-hoc Retrieval (Fan, Guo, Lan, Xu, Zhai, Cheng — SIGIR 2018, arXiv:1805.05737)",
+          "href": "https://arxiv.org/pdf/1805.05737"
+        },
+        {
+          "label": "Selection bias in the LETOR datasets (Minka & Robertson)",
+          "href": "https://tminka.github.io/papers/minka-letor-datasets.pdf"
+        },
+        {
+          "label": "Hard Negatives or False Negatives: Correcting Pooling Bias in Training Neural Ranking Models (arXiv:2209.05072)",
+          "href": "https://arxiv.org/pdf/2209.05072"
+        },
+        {
+          "label": "XGBoost Docs — Learning to Rank (qid grouping, rank:pairwise/ndcg/map)",
+          "href": "https://github.com/dmlc/xgboost/blob/master/doc/tutorials/learning_to_rank.rst"
+        },
+        {
+          "label": "Elastic Search Labs — Elasticsearch Learning to Rank (native rescorer since 8.13, window_size)",
+          "href": "https://www.elastic.co/search-labs/blog/elasticsearch-learning-to-rank-introduction"
+        },
+        {
+          "label": "Apache Solr Reference Guide — Learning To Rank (reRankDocs)",
+          "href": "https://solr.apache.org/guide/solr/latest/query-guide/learning-to-rank.html"
+        },
+        {
+          "label": "XGBoost — Learning to Rank tutorial",
+          "href": "https://xgboost.readthedocs.io/en/stable/tutorials/learning_to_rank.html"
+        },
+        {
+          "label": "Joachims, Swaminathan & Schnabel — Unbiased Learning-to-Rank with Biased Feedback (WSDM 2017), texte intégral",
+          "href": "https://ar5iv.labs.arxiv.org/html/1608.04468"
+        },
+        {
+          "label": "Joachims, Swaminathan, Schnabel — Unbiased Learning-to-Rank with Biased Feedback (WSDM 2017)",
+          "href": "https://www.cs.cornell.edu/people/tj/publications/joachims_etal_17a.pdf"
+        },
+        {
+          "label": "arXiv:1608.04468 — Unbiased Learning-to-Rank with Biased Feedback",
+          "href": "https://arxiv.org/abs/1608.04468"
+        },
+        {
+          "label": "Borisyuk et al. — LiRank: Industrial Large Scale Ranking Models at LinkedIn (KDD 2024, arXiv)",
+          "href": "https://arxiv.org/abs/2402.06859"
+        },
+        {
+          "label": "Airbnb Engineering (Medium) — Learning To Rank Diversely",
+          "href": "https://medium.com/airbnb-engineering/learning-to-rank-diversely-add6b1929621"
+        },
+        {
+          "label": "Deep Learning for Search Ranking at Etsy — Etsy Engineering",
+          "href": "https://www.etsy.com/codeascraft/deep-learning-for-search-ranking-at-etsy"
+        },
+        {
+          "label": "XGBoost Learning to Rank (mirror confirming rank:pairwise/rank:ndcg/rank:map and LambdaMART)",
+          "href": "https://www.tutorialspoint.com/xgboost/xgboost-learning-to-rank.htm"
+        },
+        {
+          "label": "Applying Deep Learning To Airbnb Search (arXiv:1810.09591)",
+          "href": "https://arxiv.org/abs/1810.09591"
+        },
+        {
+          "label": "Learning to Rank by Optimizing NDCG Measure (Hamed Valizadegan, Rong Jin, Ruofei Zhang, Jianchang Mao, NIPS 2009) — motivates the paper by noting most pairwise/pointwise learning-to-rank losses are not directly related to rank-dependent evaluation measures like NDCG, which is why direct/approximate NDCG optimization methods were developed",
+          "href": "https://proceedings.neurips.cc/paper_files/paper/2009/file/b3967a0e938dc2a6340e258630febd5a-Paper.pdf"
+        },
+        {
+          "label": "Marcuzzi, Lucchese, Orlando, \"LambdaRank Gradients are Incoherent\" (CIKM 2023) — page ACM/DOI",
+          "href": "https://dl.acm.org/doi/10.1145/3583780.3614948"
+        },
+        {
+          "label": "Dépôt de code source de l'article, avec description du résultat",
+          "href": "https://github.com/FedericoMarcuzzi/LambdaRank-Gradients-are-Incoherent"
+        }
+      ]
+    },
+    {
+      "type": "pointers",
+      "title": "Pour aller plus loin",
+      "items": [
+        {
+          "name": "LightGBM — objectif lambdarank (LGBMRanker)",
+          "url": "https://lightgbm.readthedocs.io/en/latest/Parameters.html",
+          "kind": "library",
+          "blurb": "Page officielle des paramètres LightGBM confirmant l'objectif 'lambdarank' (défaut de LGBMRanker) et le paramètre lambdarank_truncation_level."
+        },
+        {
+          "name": "XGBoost — Learning to Rank (rank:ndcg)",
+          "url": "https://xgboost.readthedocs.io/en/stable/tutorials/learning_to_rank.html",
+          "kind": "library",
+          "blurb": "Tutoriel officiel confirmant l'objectif rank:ndcg, basé sur LambdaMART, avec un mode non-biaisé (lambdarank_unbiased) pour le clic."
+        },
+        {
+          "name": "RankLib (Lemur Project, Van Dang)",
+          "url": "https://sourceforge.net/p/lemur/wiki/RankLib/",
+          "kind": "tool",
+          "blurb": "Bibliothèque du Lemur Project listant 8 algorithmes LTR dont LambdaMART, maintenue par Van Dang et Michael Zarozinski."
+        },
+        {
+          "name": "Burges — From RankNet to LambdaRank to LambdaMART: An Overview (MSR-TR-2010-82)",
+          "url": "https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/MSR-TR-2010-82.pdf",
+          "kind": "reading",
+          "blurb": "Rapport technique de Christopher J.C. Burges (Microsoft Research) qui introduit RankNet, LambdaRank et LambdaMART, confirmé en page de titre."
+        },
+        {
+          "name": "Wang, Li, Golbandi, Bendersky, Najork — The LambdaLoss Framework for Ranking Metric Optimization (CIKM 2018)",
+          "url": "https://marc.najork.org/papers/cikm2018.pdf",
+          "kind": "reading",
+          "blurb": "Article Google (CIKM 2018) qui donne un fondement théorique au gradient λ, montrant que LambdaRank est une configuration particulière du framework LambdaLoss."
+        },
+        {
+          "name": "LETOR: Learning to Rank for Information Retrieval (Microsoft Research)",
+          "url": "https://www.microsoft.com/en-us/research/project/letor-learning-rank-information-retrieval/",
+          "kind": "reading",
+          "blurb": "Page officielle du projet LETOR (versions jusqu'à 4.0, Qin & Liu) : jeux de benchmark, features, partitions et outils d'évaluation pour le LTR."
+        },
+        {
+          "name": "MSLR-WEB10K / MSLR-WEB30K (Microsoft Research)",
+          "url": "https://www.microsoft.com/en-us/research/project/mslr/",
+          "kind": "reading",
+          "blurb": "Page officielle confirmant les jeux Microsoft Learning to Rank : vecteurs à 136 features, étiquetage Bing 0-4, partition en 5 folds."
+        },
+        {
+          "name": "Yahoo! Learning to Rank Challenge Overview (Chapelle & Chang, PMLR 2011)",
+          "url": "https://proceedings.mlr.press/v14/chapelle11a.html",
+          "kind": "reading",
+          "blurb": "Article de synthèse du challenge Yahoo LTR (PMLR vol. 14) par Olivier Chapelle et Yi Chang — deux auteurs seulement, pas de troisième co-auteur 'Liu'."
+        },
+        {
+          "name": "Selection bias in the LETOR datasets (Minka & Robertson, Microsoft Research)",
+          "url": "https://tminka.github.io/papers/minka-letor-datasets.pdf",
+          "kind": "reading",
+          "blurb": "Analyse de Tom Minka et Stephen Robertson (Microsoft Research) sur le biais de sélection des documents dans les jeux LETOR et ses effets sur l'évaluation."
+        },
+        {
+          "name": "Elasticsearch Learning to Rank",
+          "url": "https://www.elastic.co/search-labs/blog/elasticsearch-learning-to-rank-introduction",
+          "kind": "tool",
+          "blurb": "Article Elastic confirmant l'intégration native du rescorer LTR dans Elasticsearch à partir de la version 8.13."
+        },
+        {
+          "name": "Eland",
+          "url": "https://github.com/elastic/eland",
+          "kind": "tool",
+          "blurb": "Toolkit Python d'Elastic qui importe/déploie des modèles ML entraînés (dont XGBRanker via MLModel.import_ltr_model) comme modèles LTR dans Elasticsearch."
+        },
+        {
+          "name": "Apache Solr — Learning To Rank",
+          "url": "https://solr.apache.org/guide/solr/latest/query-guide/learning-to-rank.html",
+          "kind": "tool",
+          "blurb": "Documentation officielle confirmant le module de reranking Solr (RankSVM, LambdaMART/GBRT, RankNet) via la syntaxe rq={!ltr...}."
+        },
+        {
+          "name": "TensorFlow Ranking (TF-Ranking)",
+          "url": "https://github.com/tensorflow/ranking",
+          "kind": "library",
+          "blurb": "Bibliothèque LTR open-source de Google ; adoption par Etsy confirmée sur son blog d'ingénierie (« Deep Learning for Search Ranking at Etsy »)."
+        },
+        {
+          "name": "Propensity SVM-Rank (svm_proprank)",
+          "url": "https://www.cs.cornell.edu/people/tj/svm_light/svm_proprank.html",
+          "kind": "implementation",
+          "blurb": "Implémentation de Thorsten Joachims (Cornell) d'un SVM-Rank pondéré par propension inverse, basée sur son article 2017 « Unbiased Learning-to-Rank with Biased Feedback »."
+        }
+      ]
+    },
+    {
+      "type": "glossary"
+    }
+  ]
+}
