@@ -11,7 +11,7 @@ en ERE, `\|` est un pipe *littéral* ; ne jamais l'utiliser.)
 devenus FAITS depuis la refonte (scaling-laws, named-entity-recognition-sequence-labeling,
 entity-linking-disambiguation, coreference-resolution, calibration-classifieurs ;
 knowledge-distillation déjà retiré) et ajout de 15 candidats, dont 3 issus d'un audit ciblé de la
-chaîne d'extraction d'information (le « pôle NER » : 4 maillons FAITS, mais RE discriminative,
+chaîne d'extraction d'information (le « pôle NER » : 5 maillons FAITS depuis relation-extraction, mais
 événements/temporel et supervision faible absents). Vérification de couverture par greps
 ciblés (frontières de mots, casse respectée pour les sigles) sur les `knowledge.json`/`manifest.json`
 publiés, puis lecture du contexte de chaque mention — méthode plus légère que la passe initiale par
@@ -63,27 +63,6 @@ passant (InfoNCE/CLIP dans text-embeddings, CLIP comme conditionneur en diffusio
 > hybrid-search-reranking compare RRF aux LTR et traite les cross-encoders neuronaux ;
 > ensemble-learning couvre les arbres boostés (socle de LambdaMART) — se centrer sur les algorithmes
 > LTR et les métriques de rang. Domaine : information-retrieval-representation.
-
-### Extraction de relations — `relation-extraction` → `information-retrieval-representation`
-**Verdict : partiel (~70 % neuf) — le chaînon manquant de la chaîne d'extraction d'information**
-(NER → coréférence → entity linking → **RE** → knowledge graph : les 4 autres maillons sont FAITS).
-`knowledge-graph-construction` couvre la supervision distante (Mintz 2009, bruit Freebase-NYT
-~70 %), OpenIE et la RE générative (REBEL) ; `structured-extraction-llm` la RE par LLM (KnowCoder
-93,7 % sur NYT). Le versant supervisé discriminatif = 0 occurrence (TACRED, DocRED, PCNN, R-BERT,
-matching-the-blanks, extraction jointe) — même situation que le NER avant sa monographie.
-
-> Extraction de relations (relation extraction) : identifier les relations typées entre entités
-> d'un texte. Couvrir la formulation (classification de paires de mentions, schémas de relations,
-> classe no-relation), la lignée supervisée (features et chemins de dépendance, CNN/PCNN, marqueurs
-> d'entités et R-BERT, matching-the-blanks et le pré-entraînement relationnel), les benchmarks et
-> leurs pièges (SemEval-2010 Task 8, TACRED et ses ré-annotations TACREV/Re-TACRED), le passage au
-> niveau document (DocRED, raisonnement multi-phrases, preuves/evidence), l'extraction jointe
-> entités+relations (table-filling, span pairs, TPLinker) et l'évaluation (micro-F1, biais des
-> classes fréquentes). Public : ingénieur NLP/IR. Délimitations : knowledge-graph-construction
-> couvre la supervision distante, OpenIE et REBEL (les citer sans re-dériver) ;
-> structured-extraction-llm la RE générative par LLM ; named-entity-recognition-sequence-labeling
-> fournit les mentions — se centrer sur le versant discriminatif supervisé et le niveau document.
-> Domaine : information-retrieval-representation.
 
 ### Apprentissage par renforcement : fondamentaux — `reinforcement-learning-fundamentals` → `deep-learning-foundations`
 **Verdict : partiel (~75 % neuf), forte valeur de socle.** Le corpus *utilise* le RL sans jamais le
@@ -369,7 +348,7 @@ NER. Triggers/arguments, coréférence d'événements, TimeML = 0 occurrence.
 > avec les benchmarks (ACE 2005, MAVEN, TimeBank). Public : ingénieur NLP. Délimitations :
 > structured-extraction-llm cite l'event extraction comme benchmark des LLM extracteurs (le
 > citer) ; named-entity-recognition-sequence-labeling détecte les entités qui servent d'arguments ;
-> la RE binaire entité-entité relève du candidat relation-extraction — se centrer sur les
+> la RE binaire entité-entité relève de la monographie relation-extraction (FAITE) — se centrer sur les
 > structures événementielles et le temps. Domaine : information-retrieval-representation.
 
 ### Supervision faible & apprentissage actif — `weak-supervision-active-learning` → `classical-ml-time-series`
