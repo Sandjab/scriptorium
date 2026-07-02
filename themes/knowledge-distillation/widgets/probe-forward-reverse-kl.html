@@ -1,0 +1,436 @@
+<div class="widget pfrk-root" id="pfrk-root">
+  <style>
+    .pfrk-root{--pfrk-ink:var(--ink,#15202E);--pfrk-soft:var(--ink-soft,#43536A);
+      --pfrk-faint:var(--ink-faint,#7A889B);--pfrk-card:var(--card,#fff);
+      --pfrk-line:var(--line,#D7DFE9);--pfrk-blue:var(--blue,#23537F);
+      --pfrk-bright:var(--blue-bright,#2C77B6);--pfrk-hot:var(--bordeaux-bright,#9B3443);
+      --pfrk-ok:#3F8E66;--pfrk-warm:#E0A33A;
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--pfrk-ink);
+      border:1px solid var(--pfrk-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--pfrk-card);max-width:780px}
+    .pfrk-root *{box-sizing:border-box}
+    .pfrk-k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;
+      color:var(--pfrk-faint);font-weight:600;margin:0 0 2px}
+    .pfrk-title{font-weight:700;font-size:1.05rem;margin:0 0 4px}
+    .pfrk-sub{font-size:.86rem;color:var(--pfrk-soft);margin:0 0 14px}
+    .pfrk-sub code,.pfrk-verdict code,.pfrk-foot code{font:600 .9em ui-monospace,monospace;
+      background:var(--pfrk-line);padding:1px 5px;border-radius:4px}
+    .pfrk-presets{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+    .pfrk-preset{padding:6px 11px;border:1px solid var(--pfrk-line);border-radius:999px;
+      background:var(--pfrk-card);color:var(--pfrk-blue);font:600 12px/1 inherit;cursor:pointer;
+      white-space:nowrap}
+    .pfrk-preset:hover{border-color:var(--pfrk-bright);background:rgba(44,119,182,.06)}
+    .pfrk-preset.pfrk-on{background:var(--pfrk-bright);border-color:var(--pfrk-bright);color:#fff}
+    .pfrk-ctl{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:flex-start;
+      padding:12px 14px;border:1px solid var(--pfrk-line);border-radius:8px;margin:0 0 12px}
+    .pfrk-field{display:flex;flex-direction:column;gap:5px;flex:1 1 200px;min-width:180px}
+    .pfrk-field>label{font-size:.74rem;color:var(--pfrk-faint);font-weight:600;
+      letter-spacing:.04em;display:flex;justify-content:space-between;gap:8px}
+    .pfrk-field>label b{color:var(--pfrk-ink);font-variant-numeric:tabular-nums}
+    .pfrk-field input[type=range]{width:100%;accent-color:var(--pfrk-bright);cursor:pointer}
+    .pfrk-ticks{display:flex;justify-content:space-between;font-size:.68rem;color:var(--pfrk-faint)}
+    .pfrk-betafield{flex:2 1 300px}
+    .pfrk-chartwrap{border:1px solid var(--pfrk-line);border-radius:8px;padding:8px 8px 4px;
+      margin:0 0 12px}
+    .pfrk-chartwrap svg{display:block;width:100%;height:auto}
+    .pfrk-legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.76rem;
+      color:var(--pfrk-soft);padding:6px 4px 4px}
+    .pfrk-legend span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+    .pfrk-sw{display:inline-block;width:14px;height:9px;border-radius:2px}
+    .pfrk-dot{display:inline-block;width:9px;height:9px;border-radius:50%}
+    .pfrk-draws{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 12px}
+    .pfrk-btn{padding:7px 12px;border:1px solid var(--pfrk-line);border-radius:8px;
+      background:transparent;color:var(--pfrk-blue);font:600 13px/1 inherit;cursor:pointer;
+      white-space:nowrap}
+    .pfrk-btn:hover{border-color:var(--pfrk-bright);background:rgba(44,119,182,.06)}
+    .pfrk-drawinfo{font-size:.8rem;color:var(--pfrk-soft)}
+    .pfrk-drawinfo b{font-variant-numeric:tabular-nums}
+    .pfrk-bad{color:var(--pfrk-hot);font-weight:700}
+    .pfrk-stats{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+    .pfrk-chip{border:1px solid var(--pfrk-line);border-radius:8px;padding:6px 10px;
+      font-size:.76rem;color:var(--pfrk-soft);line-height:1.3}
+    .pfrk-chip b{display:block;font-size:.95rem;color:var(--pfrk-ink);
+      font-variant-numeric:tabular-nums;font-family:ui-monospace,monospace}
+    .pfrk-verdict{padding:12px 13px;border-radius:8px;border:1px solid var(--pfrk-line);
+      background:var(--pfrk-card);margin:0 0 10px;font-size:.86rem;line-height:1.5}
+    .pfrk-verdict.pfrk-vavg{border-color:var(--pfrk-warm);background:rgba(224,163,58,.08)}
+    .pfrk-verdict.pfrk-vseek{border-color:var(--pfrk-ok);background:rgba(63,142,102,.07)}
+    .pfrk-foot{font-size:.76rem;color:var(--pfrk-faint);margin:0;line-height:1.5}
+  </style>
+
+  <p class="pfrk-k">Distillation au niveau séquence · choix de la divergence</p>
+  <p class="pfrk-title">Forward KL ou reverse KL : que fait un élève trop petit face à un enseignant bimodal ?</p>
+  <p class="pfrk-sub">L'enseignant <code>p</code> est un mélange de deux gaussiennes ; l'élève <code>q</code> n'a
+    qu'une seule gaussienne, donc il ne peut pas tout couvrir. Le widget ajuste <code>q</code> pour
+    minimiser la divergence choisie : déplacez β et observez l'optimum basculer entre
+    mode-averaging (étalement entre les modes) et mode-seeking (verrouillage sur un seul mode).</p>
+
+  <div class="pfrk-presets">
+    <button type="button" class="pfrk-preset" id="pfrk-preset-fwd">Forward KL (β = 0)</button>
+    <button type="button" class="pfrk-preset" id="pfrk-preset-jsd">JSD équilibrée (β = 0,5)</button>
+    <button type="button" class="pfrk-preset" id="pfrk-preset-rev">Reverse KL (β = 1)</button>
+  </div>
+
+  <div class="pfrk-ctl">
+    <div class="pfrk-field pfrk-betafield">
+      <label>Divergence minimisée — β de la JSD généralisée (GKD)<b id="pfrk-beta-val">β = 0,00</b></label>
+      <input type="range" id="pfrk-beta" min="0" max="1" step="0.01" value="0">
+      <div class="pfrk-ticks"><span>0 : forward KL (mode-averaging)</span><span>1 : reverse KL (mode-seeking)</span></div>
+    </div>
+    <div class="pfrk-field">
+      <label>Écart entre les modes de l'enseignant<b id="pfrk-d-val">±2,2</b></label>
+      <input type="range" id="pfrk-d" min="0.8" max="3.4" step="0.1" value="2.2">
+      <div class="pfrk-ticks"><span>modes fusionnés</span><span>bien séparés</span></div>
+    </div>
+    <div class="pfrk-field">
+      <label>Poids du mode gauche<b id="pfrk-w-val">65 %</b></label>
+      <input type="range" id="pfrk-w" min="0.5" max="0.85" step="0.01" value="0.65">
+      <div class="pfrk-ticks"><span>50 %</span><span>85 %</span></div>
+    </div>
+  </div>
+
+  <div class="pfrk-chartwrap">
+    <svg id="pfrk-svg" viewBox="0 0 720 296" role="img"
+      aria-label="Densités de l'enseignant bimodal et de l'élève unimodal ajusté">
+      <g id="pfrk-g-valley"></g>
+      <path id="pfrk-p-teacher" fill="rgba(44,119,182,.18)" stroke="#23537F" stroke-width="1.6"></path>
+      <path id="pfrk-p-student" fill="none" stroke="#9B3443" stroke-width="2.6"></path>
+      <g id="pfrk-g-modes"></g>
+      <g id="pfrk-g-rug"></g>
+      <g id="pfrk-g-axis"></g>
+    </svg>
+    <div class="pfrk-legend">
+      <span><span class="pfrk-sw" style="background:rgba(44,119,182,.35);border:1px solid #23537F"></span>enseignant p (bimodal)</span>
+      <span><span class="pfrk-sw" style="background:#9B3443;height:3px"></span>élève q (une gaussienne, optimisé)</span>
+      <span><span class="pfrk-sw" style="background:rgba(122,136,155,.18)"></span>creux : densité de p &lt; 10 % de son pic</span>
+      <span><span class="pfrk-dot" style="background:#3F8E66"></span>tirage plausible</span>
+      <span><span class="pfrk-dot" style="background:#9B3443"></span>tirage dans un creux</span>
+    </div>
+  </div>
+
+  <div class="pfrk-draws">
+    <button type="button" class="pfrk-btn" id="pfrk-sample">Échantillonner l'élève (250 tirages)</button>
+    <button type="button" class="pfrk-btn" id="pfrk-clear">Effacer</button>
+    <span class="pfrk-drawinfo" id="pfrk-drawinfo">Aucun tirage : cliquez pour matérialiser ce que l'élève générerait.</span>
+  </div>
+
+  <div class="pfrk-stats">
+    <div class="pfrk-chip">élève μ*<b id="pfrk-s-mu">—</b></div>
+    <div class="pfrk-chip">élève σ*<b id="pfrk-s-sig">—</b></div>
+    <div class="pfrk-chip">KL(p‖q) forward<b id="pfrk-s-fwd">—</b></div>
+    <div class="pfrk-chip">KL(q‖p) reverse<b id="pfrk-s-rev">—</b></div>
+    <div class="pfrk-chip">masse de q dans les creux de p<b id="pfrk-s-valley">—</b></div>
+  </div>
+
+  <div class="pfrk-verdict" id="pfrk-verdict"></div>
+
+  <p class="pfrk-foot">Lecture : le forward KL <code>Σ p·log(p/q)</code> punit q ≈ 0 là où p &gt; 0,
+    donc l'élève couvre tout — quitte à mettre de la masse dans les creux, ce qui donne en génération
+    des suites de tokens que l'enseignant juge improbables. Le reverse KL <code>Σ q·log(q/p)</code>
+    punit q &gt; 0 là où p ≈ 0 : l'élève renonce à un mode plutôt que d'inventer. La JSD généralisée
+    interpole entre les deux via β — c'est exactement le levier étudié par MiniLLM (reverse KL),
+    GKD (JSD généralisée) et DistiLLM pour distiller des modèles génératifs. Remarquez que β ne
+    déforme pas l'élève continûment : il déplace un point de bascule entre les deux régimes,
+    d'autant plus précoce que les modes de l'enseignant sont déséquilibrés.</p>
+
+  <script>
+  (function(){
+    "use strict";
+    var $ = function(id){ return document.getElementById(id); };
+    var SVGNS="http://www.w3.org/2000/svg";
+    var XMIN=-6.5, XMAX=6.5, N=261, DX=(XMAX-XMIN)/(N-1);
+    var XS=new Array(N); for(var i0=0;i0<N;i0++) XS[i0]=XMIN+i0*DX;
+    var S0=0.7, EPS=1e-12, VALLEY_FRAC=0.10, NSAMPLES=250;
+    var W=720, PL=14, PR=14, PT=14, Y0=206, RUG_TOP=220, RUG_H=26, AXY=268;
+    var SQ2PI=Math.sqrt(2*Math.PI);
+
+    var st={beta:0, d:2.2, w:0.65, mu:0, sig:1, samples:[]};
+
+    function fmt(x,dec){ return x.toFixed(dec).replace(".",","); }
+    function xpix(x){ return PL+(x-XMIN)/(XMAX-XMIN)*(W-PL-PR); }
+    function clear(el){ while(el.firstChild) el.removeChild(el.firstChild); }
+    function svgEl(parent,tag,attrs,text){
+      var e=document.createElementNS(SVGNS,tag);
+      for(var k in attrs) e.setAttribute(k,attrs[k]);
+      if(text!==undefined) e.textContent=text;
+      parent.appendChild(e);
+      return e;
+    }
+    function htmlEl(parent,tag,cls,text){
+      var e=document.createElement(tag);
+      if(cls) e.className=cls;
+      if(text!==undefined) e.textContent=text;
+      parent.appendChild(e);
+      return e;
+    }
+    function txt(parent,s){ parent.appendChild(document.createTextNode(s)); }
+
+    function gauss(x,mu,s){ var z=(x-mu)/s; return Math.exp(-0.5*z*z)/(s*SQ2PI); }
+    function teacherDens(x){ return st.w*gauss(x,-st.d,S0)+(1-st.w)*gauss(x,st.d,S0); }
+
+    function teacherPmf(){
+      var a=new Array(N), s=0, i;
+      for(i=0;i<N;i++){ a[i]=teacherDens(XS[i]); s+=a[i]; }
+      for(i=0;i<N;i++) a[i]/=s;
+      return a;
+    }
+    function studentPmf(mu,sg){
+      var a=new Array(N), s=0, i;
+      for(i=0;i<N;i++){ a[i]=gauss(XS[i],mu,sg); s+=a[i]; }
+      for(i=0;i<N;i++) a[i]/=s;
+      return a;
+    }
+
+    function klForward(P,Q){ // KL(P||Q)
+      var s=0; for(var i=0;i<N;i++) if(P[i]>EPS) s+=P[i]*Math.log(P[i]/Math.max(Q[i],EPS));
+      return s;
+    }
+    function klReverse(P,Q){ // KL(Q||P)
+      var s=0; for(var i=0;i<N;i++) if(Q[i]>EPS) s+=Q[i]*Math.log(Q[i]/Math.max(P[i],EPS));
+      return s;
+    }
+    // JSD généralisée (GKD) : β·KL(P||M) + (1−β)·KL(Q||M), avec M = β·P + (1−β)·Q.
+    // Normalisée par β(1−β) : elle tend vers le forward KL en β→0 et le reverse KL en β→1.
+    function divergence(P,Q,beta){
+      if(beta<=0.005) return klForward(P,Q);
+      if(beta>=0.995) return klReverse(P,Q);
+      var s=0, i, m;
+      for(i=0;i<N;i++){
+        m=beta*P[i]+(1-beta)*Q[i];
+        if(P[i]>EPS) s+=beta*P[i]*Math.log(P[i]/m);
+        if(Q[i]>EPS) s+=(1-beta)*Q[i]*Math.log(Q[i]/m);
+      }
+      return s/(beta*(1-beta));
+    }
+
+    function linspace(a,b,n){
+      var r=new Array(n); for(var i=0;i<n;i++) r[i]=a+(b-a)*i/(n-1); return r;
+    }
+    function logspace(a,b,n){
+      var la=Math.log(a), lb=Math.log(b), r=new Array(n);
+      for(var i=0;i<n;i++) r[i]=Math.exp(la+(lb-la)*i/(n-1)); return r;
+    }
+
+    function optimize(P,beta){
+      var best={dv:Infinity,mu:0,sig:1};
+      function scan(mus,sigs){
+        for(var a=0;a<mus.length;a++) for(var b=0;b<sigs.length;b++){
+          var Q=studentPmf(mus[a],sigs[b]);
+          var dv=divergence(P,Q,beta);
+          if(dv<best.dv){ best.dv=dv; best.mu=mus[a]; best.sig=sigs[b]; }
+        }
+      }
+      scan(linspace(-5,5,61), logspace(0.3,4.6,33));
+      scan(linspace(best.mu-0.25,best.mu+0.25,17),
+           logspace(Math.max(0.28,best.sig*0.82),best.sig*1.22,13));
+      return best;
+    }
+
+    // ---------- rendu SVG ----------
+    function areaPath(densFn,scale){
+      var p="M"+xpix(XS[0]).toFixed(1)+" "+Y0;
+      for(var i=0;i<N;i++)
+        p+="L"+xpix(XS[i]).toFixed(1)+" "+(Y0-densFn(XS[i])*scale).toFixed(1);
+      return p+"L"+xpix(XS[N-1]).toFixed(1)+" "+Y0+"Z";
+    }
+    function linePath(densFn,scale){
+      var p="";
+      for(var i=0;i<N;i++)
+        p+=(i?"L":"M")+xpix(XS[i]).toFixed(1)+" "+(Y0-densFn(XS[i])*scale).toFixed(1);
+      return p;
+    }
+
+    function valleyRuns(tau){
+      var runs=[], start=null, i;
+      for(i=0;i<N;i++){
+        var inV=teacherDens(XS[i])<tau;
+        if(inV&&start===null) start=XS[i];
+        if(!inV&&start!==null){ runs.push([start,XS[i]]); start=null; }
+      }
+      if(start!==null) runs.push([start,XS[N-1]]);
+      return runs;
+    }
+
+    function redraw(){
+      var P=teacherPmf(), i;
+      var qd=function(x){ return gauss(x,st.mu,st.sig); };
+      var pmax=0;
+      for(i=0;i<N;i++) pmax=Math.max(pmax,teacherDens(XS[i]));
+      var qmax=gauss(st.mu,st.mu,st.sig);
+      var scale=(Y0-PT-8)/Math.max(pmax,qmax);
+      var tau=VALLEY_FRAC*pmax;
+
+      // creux (zones où l'enseignant est quasi muet)
+      var gValley=$("pfrk-g-valley"); clear(gValley);
+      var runs=valleyRuns(tau);
+      for(i=0;i<runs.length;i++){
+        var x1=xpix(runs[i][0]), x2=xpix(runs[i][1]);
+        svgEl(gValley,"rect",{x:x1.toFixed(1),y:PT,width:(x2-x1).toFixed(1),
+          height:Y0-PT,fill:"rgba(122,136,155,.14)"});
+      }
+
+      // courbes
+      $("pfrk-p-teacher").setAttribute("d",areaPath(teacherDens,scale));
+      $("pfrk-p-student").setAttribute("d",linePath(qd,scale));
+
+      // repères des modes
+      var gModes=$("pfrk-g-modes"); clear(gModes);
+      var wl=Math.round(st.w*100);
+      var modes=[[-st.d,"mode gauche "+wl+" %"],[st.d,"mode droit "+(100-wl)+" %"]];
+      for(i=0;i<modes.length;i++){
+        var mx=xpix(modes[i][0]);
+        svgEl(gModes,"line",{x1:mx.toFixed(1),y1:PT,x2:mx.toFixed(1),y2:Y0,
+          stroke:"#23537F","stroke-width":1,"stroke-dasharray":"3 4",opacity:".55"});
+        svgEl(gModes,"text",{x:(mx+(modes[i][0]<0?-5:5)).toFixed(1),y:PT+11,
+          "text-anchor":modes[i][0]<0?"end":"start","font-size":"10.5",
+          "font-weight":"600",fill:"#43536A"},modes[i][1]);
+      }
+
+      // axe
+      var gAxis=$("pfrk-g-axis"); clear(gAxis);
+      svgEl(gAxis,"line",{x1:PL,y1:Y0,x2:W-PR,y2:Y0,stroke:"#7A889B","stroke-width":1});
+      for(var t=-6;t<=6;t+=2){
+        var tx=xpix(t);
+        svgEl(gAxis,"line",{x1:tx.toFixed(1),y1:Y0,x2:tx.toFixed(1),y2:Y0+5,
+          stroke:"#7A889B","stroke-width":1});
+        svgEl(gAxis,"text",{x:tx.toFixed(1),y:Y0+18,"text-anchor":"middle",
+          "font-size":"10",fill:"#7A889B"},String(t));
+      }
+      svgEl(gAxis,"text",{x:W-PR,y:AXY,"text-anchor":"end","font-size":"10.5",
+        fill:"#7A889B"},"axe des sorties possibles (1D — pensez : « suites de tokens »)");
+
+      // tirages
+      var gRug=$("pfrk-g-rug"); clear(gRug);
+      var nBad=0;
+      for(i=0;i<st.samples.length;i++){
+        var sx=st.samples[i];
+        if(sx<XMIN||sx>XMAX) continue;
+        var bad=teacherDens(sx)<tau;
+        if(bad) nBad++;
+        var jy=RUG_TOP+3+((i*2654435761)%1000)/1000*(RUG_H-6);
+        svgEl(gRug,"circle",{cx:xpix(sx).toFixed(1),cy:jy.toFixed(1),r:3,
+          fill:bad?"#9B3443":"#3F8E66",opacity:".72"});
+      }
+
+      // stats
+      var Q=studentPmf(st.mu,st.sig);
+      var kf=klForward(P,Q), kr=klReverse(P,Q);
+      var vmass=0;
+      for(i=0;i<N;i++) if(teacherDens(XS[i])<tau) vmass+=Q[i];
+      $("pfrk-s-mu").textContent=fmt(st.mu,2);
+      $("pfrk-s-sig").textContent=fmt(st.sig,2);
+      $("pfrk-s-fwd").textContent=fmt(kf,3)+" nat";
+      $("pfrk-s-rev").textContent=fmt(kr,3)+" nat";
+      $("pfrk-s-valley").textContent=fmt(vmass*100,1)+" %";
+
+      // info tirages
+      var di=$("pfrk-drawinfo"); clear(di);
+      if(st.samples.length){
+        var pct=Math.round(100*nBad/st.samples.length);
+        htmlEl(di,"b","",String(st.samples.length));
+        txt(di," tirages de q : ");
+        htmlEl(di,"span","pfrk-bad",nBad+" ("+pct+" %)");
+        txt(di," tombent dans les creux de p — en génération, ce sont les sorties incohérentes.");
+      }else{
+        txt(di,"Aucun tirage : cliquez pour matérialiser ce que l'élève générerait.");
+      }
+
+      // verdict
+      var rel=teacherDens(st.mu)/pmax;
+      var vb=$("pfrk-verdict"); clear(vb);
+      var cls="pfrk-verdict";
+      var noInnerValley=runs.every(function(r){ return r[1]<=-st.d||r[0]>=st.d; });
+      if(noInnerValley){
+        htmlEl(vb,"b","","Modes fusionnés : ");
+        txt(vb,"l'enseignant est presque unimodal, il n'y a plus de creux entre les modes, et "+
+          "forward et reverse KL donnent quasiment le même élève. Le choix de divergence ne compte "+
+          "que si l'élève est trop petit pour une cible réellement multimodale : écartez les modes "+
+          "pour voir la divergence trancher.");
+      }else if(rel<0.3){
+        cls+=" pfrk-vavg";
+        htmlEl(vb,"b","","Mode-averaging : ");
+        txt(vb,"l'élève s'étale entre les modes — sa moyenne μ* = "+fmt(st.mu,2)+" tombe dans une "+
+          "zone où l'enseignant ne met que "+fmt(rel*100,0)+" % de sa densité de pic, et "+
+          fmt(vmass*100,1)+" % de la masse de q gît dans les creux. Le forward KL exige q > 0 "+
+          "partout où p > 0 : couvrir les deux modes coûte moins cher que d'en abandonner un, même "+
+          "au prix de masse placée là où l'enseignant ne génère jamais. Échantillonnez pour voir "+
+          "ces sorties improbables.");
+      }else if(rel>0.55&&st.sig<1.35){
+        cls+=" pfrk-vseek";
+        var lost=st.mu<0?(100-wl):wl;
+        htmlEl(vb,"b","","Mode-seeking : ");
+        txt(vb,"l'élève se verrouille sur le mode "+(st.mu<0?"gauche":"droit")+" (μ* = "+
+          fmt(st.mu,2)+", σ* = "+fmt(st.sig,2)+") et abandonne l'autre — soit ~"+lost+
+          " % de ce que l'enseignant sait générer. Le reverse KL punit q > 0 là où p ≈ 0 : "+
+          "l'élève préfère se taire sur l'improbable, quitte à perdre en diversité. Seulement "+
+          fmt(vmass*100,1)+" % de sa masse traîne dans les creux.");
+      }else{
+        htmlEl(vb,"b","","Régime intermédiaire (β = "+fmt(st.beta,2)+") : ");
+        txt(vb,"la JSD généralisée fait le compromis — l'élève penche vers un mode (μ* = "+
+          fmt(st.mu,2)+") tout en gardant une variance élargie (σ* = "+fmt(st.sig,2)+") ; "+
+          fmt(vmass*100,1)+" % de sa masse reste dans les creux. Déplacez β pour trouver le "+
+          "point de bascule entre couverture et verrouillage : il dépend du poids des modes.");
+      }
+      vb.className=cls;
+    }
+
+    // ---------- interactions ----------
+    var pending=false;
+    function refit(){
+      if(pending) return;
+      pending=true;
+      requestAnimationFrame(function(){
+        pending=false;
+        var best=optimize(teacherPmf(),st.beta);
+        st.mu=best.mu; st.sig=best.sig;
+        redraw();
+      });
+    }
+
+    function syncLabels(){
+      $("pfrk-beta-val").textContent="β = "+fmt(st.beta,2);
+      $("pfrk-d-val").textContent="±"+fmt(st.d,1);
+      $("pfrk-w-val").textContent=Math.round(st.w*100)+" %";
+      $("pfrk-preset-fwd").classList.toggle("pfrk-on",st.beta===0);
+      $("pfrk-preset-jsd").classList.toggle("pfrk-on",st.beta===0.5);
+      $("pfrk-preset-rev").classList.toggle("pfrk-on",st.beta===1);
+    }
+
+    function onParam(){
+      st.beta=parseFloat($("pfrk-beta").value);
+      st.d=parseFloat($("pfrk-d").value);
+      st.w=parseFloat($("pfrk-w").value);
+      st.samples=[];
+      syncLabels();
+      refit();
+    }
+    $("pfrk-beta").addEventListener("input",onParam);
+    $("pfrk-d").addEventListener("input",onParam);
+    $("pfrk-w").addEventListener("input",onParam);
+
+    function preset(b){ $("pfrk-beta").value=String(b); onParam(); }
+    $("pfrk-preset-fwd").addEventListener("click",function(){ preset(0); });
+    $("pfrk-preset-jsd").addEventListener("click",function(){ preset(0.5); });
+    $("pfrk-preset-rev").addEventListener("click",function(){ preset(1); });
+
+    $("pfrk-sample").addEventListener("click",function(){
+      var s=[];
+      while(s.length<NSAMPLES){
+        var u1=Math.random()||1e-9, u2=Math.random();
+        var r=Math.sqrt(-2*Math.log(u1));
+        s.push(st.mu+st.sig*r*Math.cos(2*Math.PI*u2));
+        if(s.length<NSAMPLES) s.push(st.mu+st.sig*r*Math.sin(2*Math.PI*u2));
+      }
+      st.samples=s;
+      redraw();
+    });
+    $("pfrk-clear").addEventListener("click",function(){ st.samples=[]; redraw(); });
+
+    // init
+    syncLabels();
+    var best0=optimize(teacherPmf(),st.beta);
+    st.mu=best0.mu; st.sig=best0.sig;
+    redraw();
+  })();
+  </script>
+</div>
