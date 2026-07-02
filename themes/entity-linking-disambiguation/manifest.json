@@ -1,0 +1,749 @@
+{
+  "edition": "best-of",
+  "slug": "entity-linking-disambiguation",
+  "meta": {
+    "title": "Entity linking : de la mention textuelle à l'entrée canonique de la base de connaissances",
+    "kicker": "Entity linking · monographie",
+    "h1": "Entity linking : de la mention textuelle à l'entrée canonique de la base de connaissances",
+    "lede": "Ancrer chaque mention ambiguë d'un texte sur son entrée canonique parmi des millions d'entités — du pipeline détection-candidats-désambiguïsation aux bi-encodeurs denses, au liage génératif contraint et au cas NIL — et pourquoi le rappel des candidats, la cohérence collective et les biais des benchmarks décident de tout.",
+    "meta_chips": [
+      "Monographie"
+    ],
+    "footer": "Entity linking : de la mention textuelle à l'entrée canonique de la base de connaissances · scriptorium"
+  },
+  "elements": [
+    {
+      "type": "abstract"
+    },
+    {
+      "type": "section",
+      "id": "fondations-tache",
+      "heading": "La tâche : désambiguïser « Paris » parmi des millions d'entités",
+      "level": 3,
+      "prose": "<p>L'entity linking (liage d'entités) désigne la tâche qui consiste à assigner une identité unique aux entités mentionnées dans un texte — personnes célèbres, lieux, organisations — en les reliant à l'entrée canonique d'une base de connaissances (knowledge base, ou KB) telle que Wikidata ou DBpedia. La littérature emploie plusieurs synonymes qui recouvrent des nuances d'école plutôt que des tâches distinctes : NED (named-entity disambiguation, désambiguïsation d'entités nommées), NERD (named-entity recognition and disambiguation), NEN (named-entity normalization, normalisation d'entités nommées), ou encore concept recognition. Tous désignent la même intuition : la mention textuelle brute ne suffit pas, il faut la faire correspondre à un identifiant stable et univoque.</p><p>L'exemple canonique du domaine tient en une phrase : « Paris is the capital of France ». Une fois détectées comme entités nommées, les mentions « Paris » et « France » restent ambiguës tant qu'aucune résolution n'a eu lieu : « Paris » peut désigner la ville-capitale française, mais aussi Paris Hilton, l'une des nombreuses villes homonymes des États-Unis, ou l'un des multiples autres sens répertoriés dans la base. Désambiguïser consiste à choisir, parmi des millions d'entrées candidates, celle que le contexte de la phrase rend la plus plausible ; ici, la coprésence de « France » et « capital » oriente sans ambiguïté vers la ville.</p><p>Le champ émerge au milieu puis à la fin des années 2000 avec l'idée de relier automatiquement les mentions d'un texte à leur article Wikipédia correspondant. Bunescu et Pașca (« Using Encyclopedic Knowledge for Named Entity Disambiguation », EACL 2006, Trento) posent une des premières formulations du problème via un noyau SVM de désambiguïsation exploitant la structure de l'encyclopédie. Cucerzan (« Large-Scale Named Entity Disambiguation Based on Wikipedia Data », EMNLP-CoNLL 2007) livre l'un des tout premiers systèmes complets d'entity linking, encore cité comme référence de comparaison dans des travaux récents. La même année, Mihalcea et Csomai publient Wikify! (CIKM 2007), qui relie des documents entiers à la connaissance encyclopédique de Wikipédia plutôt que des mentions isolées. Milne et Witten (CIKM 2008) les rejoignent peu après ; leur travail est lui aussi qualifié de « seminal » dans la littérature du domaine. Ces travaux fondent ensemble l'usage de Wikipédia comme base de connaissances de référence pour la désambiguïsation.</p><p>Une distinction structure le champ depuis son origine : certains auteurs réservent le terme NED au cas particulier où l'entité mentionnée est supposée présente dans la base de connaissances, et parlent d'entity linking pour la tâche générale, qui doit aussi gérer le cas où elle n'y figure pas — le cas NIL (mention sans entrée correspondante), traité plus loin dans le document. Cette distinction n'est pas purement académique : un système qui suppose systématiquement l'exhaustivité de la base commettra une erreur à chaque mention d'une entité émergente ou trop obscure pour y figurer, alors qu'un système d'entity linking complet doit savoir la reconnaître comme telle plutôt que la forcer vers le candidat le plus proche.</p><p>L'échelle du problème explique la difficulté : l'article Wikipédia « Entity linking » avance, sans citation externe, que Wikipédia compte près de 9 millions d'entités reliées par plus de 170 millions de relations, et Wikidata, la base structurée qui en dérive largement, en dénombre aujourd'hui (statistiques officielles Wikidata, consultées en 2026) environ 122 millions d'items. Désambiguïser une mention revient donc, dans le pire cas, à choisir la bonne réponse parmi des dizaines, voire des centaines de millions de candidats, ce qui impose dès la conception du pipeline une étape de génération de candidats réduisant drastiquement l'espace de recherche avant toute désambiguïsation fine.</p><p>Cette section se centre volontairement sur l'étape mention → KB. La détection et le typage des mentions elles-mêmes — reconnaissance d'entités nommées au sens classique, ou son pendant par grands modèles de langage — sont traités ailleurs et ne sont pas repris ici : l'entity linking prend en entrée des spans déjà repérés, ou les détecte lui-même dans une étape jointe amont, et se concentre sur la résolution de leur référent au sein de la base de connaissances.</p>",
+      "claims": [
+        "claim:1",
+        "claim:2",
+        "claim:3",
+        "claim:4"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "pipeline-candidats",
+      "heading": "Le pipeline : mention detection, candidate generation, ranking",
+      "level": 3,
+      "prose": "<p>La littérature découpe classiquement l'entity linking en trois étages successifs. La détection de mention (<em>mention detection</em>) repère, dans le texte, les segments susceptibles de désigner une entité. La génération de candidats (<em>candidate generation</em>) présélectionne ensuite, pour chaque mention détectée, un petit sous-ensemble d'entités candidates puisées dans la base de connaissances. La désambiguïsation choisit enfin, parmi ces candidats, celle qui correspond réellement à la mention. Cette décomposition en pipeline traverse la quasi-totalité des systèmes, qu'ils reposent sur des règles, des classifieurs supervisés ou des réseaux neuronaux.</p><p>La génération de candidats joue un rôle disproportionné dans la performance finale, parce que son rappel — la proportion des mentions pour lesquelles la bonne entité figure bien dans la liste retenue — constitue une borne supérieure dure sur l'exactitude de tout le pipeline. Si l'entité correcte est absente des candidats, aucun mécanisme de désambiguïsation en aval ne peut la retrouver, aussi raffiné soit-il : l'erreur devient irrécupérable. C'est pourquoi la littérature évalue systématiquement ce rappel indépendamment de la précision finale ; certains ensembles de candidats plafonnent autour de 90 % de rappel sur l'entité correcte, ce qui condamne d'emblée une fraction non négligeable des mentions à ne jamais être résolues correctement, quelle que soit la qualité du classement en aval.</p><p>Trois signaux classiques alimentent la génération et le classement des candidats. Le premier est le prior de popularité, la probabilité a priori qu'une mention donnée désigne telle entité plutôt qu'une autre, estimée indépendamment de tout contexte et calculée le plus souvent sur les ancres Wikipédia : pour chaque expression utilisée comme texte de lien, on compte la fréquence avec laquelle elle pointe vers chacun des articles possibles. Milne et Witten illustrent ce phénomène avec l'ancre « tree » : 92,82 % des liens Wikipédia qui l'utilisent pointent vers l'article sur l'arbre (la plante ligneuse), 2,94 % vers le sens de la théorie des graphes et 2,57 % vers la structure de données homonyme, la distribution suivant une loi de puissance dont la longue traîne descend jusqu'à des sens rarissimes, jusqu'à <em>The Trees</em>, une chanson du groupe britannique Pulp. Le deuxième signal est la table d'alias, qui recense les variantes orthographiques, sigles, surnoms et traductions par lesquelles une même entité peut être désignée, et sert à élargir la liste de candidats au-delà de la correspondance exacte de chaîne. Le troisième est la similarité contextuelle, qui compare le contexte de la mention à la description de chaque candidat pour départager les cas où le prior seul ne suffit pas.</p><p>Une idée reçue traverse pourtant une bonne partie des travaux qui se réclament de l'entity linking : la majorité d'entre eux, sous ce nom, ne réalisent en réalité que la désambiguïsation à partir de mentions dorées déjà repérées, sans jamais exercer l'étage de détection de mention. La tâche Entity Linking de TAC-KBP en est l'illustration la plus nette : chaque requête fournie au système consiste en une chaîne de nom, un identifiant de document et une paire de décalages de caractères qui localisent précisément la mention dans le texte ; le système n'a plus qu'à renvoyer l'identifiant de base de connaissances correspondant, ou un NIL. Le cadre d'évaluation GERBIL formalise cette distinction en séparant la tâche D2KB (<em>disambiguate to knowledge base</em>, mentions données en entrée) de la tâche A2KB (<em>annotate to knowledge base</em>, qui exige aussi la détection) ; des travaux comme GENRE reprennent eux-mêmes cette séparation en rapportant des résultats distincts pour la désambiguïsation d'entités et pour l'entity linking end-to-end. L'appellation « EL » recouvre donc, en pratique, des difficultés très inégales d'un article à l'autre.</p>",
+      "claims": [
+        "claim:5",
+        "claim:6",
+        "claim:7",
+        "claim:8"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "synopsis-pipeline-el-jouet"
+    },
+    {
+      "type": "section",
+      "id": "local-vs-global",
+      "heading": "Local vs global : la cohérence collective et son prix computationnel",
+      "level": 3,
+      "prose": "<p>La désambiguïsation locale traite chaque mention indépendamment des autres : elle compare le contexte immédiat de la mention aux descriptions des entités candidates, en s'appuyant typiquement sur un prior (probabilité a priori de popularité) mention-entité et une mesure de similarité contexte-entité. La désambiguïsation collective, ou globale, part d'un postulat différent : les entités mentionnées dans un même document ne sont pas choisies au hasard, elles appartiennent en général à un même thème, et ce choix conjoint devrait donc permettre de lever les ambiguïtés individuelles. Ratinov, Roth, Downey et Anderson (ACL 2011) opposent frontalement les deux familles et montrent qu'une désambiguïsation purement locale, correctement outillée, constitue une baseline très difficile à battre. Leur système GLOW ne s'architecture pourtant pas comme une succession local puis global : le seul processus en deux temps que l'article nomme explicitement est un Ranker, qui choisit la meilleure désambiguïsation non nulle en combinant d'emblée des caractéristiques locales et un terme de cohérence globale, suivi d'un Linker, qui décide de lier la mention ou de renvoyer un résultat nul. Un premier passage purement local sert bien à construire un contexte de désambiguïsation restreint avant de calculer ce terme de cohérence, mais les auteurs le justifient par la tractabilité du problème — NP-difficile en toute généralité — et par la réduction du bruit de contexte par rapport aux approches antérieures de Cucerzan (2007) et de Milne & Witten (2008), non par la volonté de démontrer que l'essentiel du signal serait local.</p>\n\n<p>Kulkarni et al. (KDD 2009) sont les premiers à formaliser rigoureusement le prix de cette cohérence collective. Leur objectif combine, pour chaque page, une somme de potentiels locaux (l'accord mention-entité, ou l'option de ne relier la mention à aucune entité) et une moyenne de potentiels de cohérence calculés sur toutes les paires de mentions liées. Ils démontrent ensuite (Proposition 1) que résoudre cet objectif de façon exacte est NP-difficile, par réduction depuis le problème de la clique maximale, et que cette difficulté persiste même quand on retire l'option de non-attachement. Une seconde preuve (Proposition 2) montre que le résultat ne dépend pas d'un choix particulier de fonction de cohérence : il tient aussi bien pour un potentiel fondé sur une distance euclidienne au carré (réduction depuis le recouvrement exact par triplets) que pour un potentiel fondé sur une distance de Chebyshev (réduction depuis 3-SAT). Kulkarni et al. relâchent alors le programme en nombres entiers en un programme linéaire (LP) continu, mais cette relaxation a un coût propre : l'integrality gap (écart d'intégralité) entre la solution entière optimale et la solution fractionnaire peut être arbitrairement grand, comme le montre leur exemple du butterfly graph (graphe en forme de papillon) à deux mentions et deux candidats chacune, où l'optimum entier vaut 1 mais la relaxation LP vaut 2, un écart qui croît avec la taille des cliques bipartites en jeu. En pratique, ce pire cas mord rarement : environ 70 % des pages produisent une solution LP entièrement entière, donc provablement optimale, et une simple heuristique de hill-climbing (montée gloutonne) atteint, une fois la solution LP arrondie, un F1 quasi identique.</p>\n\n<p>AIDA (Hoffart et al., EMNLP 2011) reformule le même problème en termes graphiques plutôt qu'algébriques : on construit un graphe pondéré mention-entité, et la désambiguïsation collective revient à y chercher le sous-graphe le plus dense. La densité y est définie non comme le poids total des arêtes, mais comme le degré pondéré minimum parmi les nœuds du sous-graphe, un choix délibéré pour empêcher qu'une poignée d'entités à très haut degré ne gonflent artificiellement le score sans que l'ensemble soit réellement cohérent. Ce problème de sous-graphe dense généralise l'arbre de Steiner et se révèle, selon les auteurs, « presque inévitablement » NP-difficile ; AIDA le résout par une heuristique adaptée de la recherche de communautés de Sozio & Gionis (2010) : à chaque étape, on retire le nœud-entité non protégé de plus faible degré pondéré, en conservant en mémoire le meilleur sous-graphe observé au cours du processus, sans aucune garantie d'approximation formelle, seulement une validation empirique. Le score final combine trois termes pondérés par α, β et γ (appris à α=0,43, β=0,47, γ=0,10) : le prior de popularité mention-entité, la similarité de contexte, et la cohérence collective mesurée par la formule de Milne-Witten, une variante de similarité de Jaccard entre les ensembles de pages Wikipedia pointant vers chaque entité, normalisée par la rareté du couple. Le poids γ, le plus faible des trois et attribué précisément à la cohérence collective, confirme la thèse de Ratinov et al. : sur le jeu de données CoNLL, la meilleure configuration d'AIDA atteint 81,91 % de macro-précision@1, contre 76,74 % pour la ré-implémentation de la méthode collective de Kulkarni et al., un progrès net mais porté pour l'essentiel par les deux premiers termes.</p>\n\n<p>Ganea & Hofmann (EMNLP 2017) déplacent le même arbitrage dans un cadre neuronal différentiable en modélisant la cohérence collective comme un champ aléatoire conditionnel (CRF) par paires, entièrement connecté sur toutes les mentions du document. Le prix computationnel n'a pas disparu pour autant : l'inférence du maximum a posteriori (MAP) exacte est intraitable sur un graphe aussi dense, si bien que les auteurs recourent à la loopy belief propagation (propagation de croyance sur un graphe cyclique) pour approcher les probabilités max-marginales, une approximation qui, sur un graphe non arborescent, n'offre elle non plus aucune garantie d'exactitude.</p>\n\n<p>C'est précisément ce postulat de connexion totale, que toute paire de mentions d'un document mérite d'être confrontée, comme l'implique la clique de Kulkarni et al., le sous-graphe dense d'AIDA ou le CRF entièrement connecté de Ganea & Hofmann, que Phan, Sun, Tay, Han et Li (Pair-Linking, 2018) remettent en cause empiriquement. En mesurant la densité de cohérence sur huit jeux de données de référence avec trois mesures de relation différentes, ils montrent que les valeurs observées se rapprochent bien davantage d'une structure en arbre, voire en chaîne, que d'une structure dense : sur des documents longs comme MSNBC ou AQUAINT, qui comptent en moyenne plus de treize entités, seules trois à cinq connexions fortes apparaissent réellement. Leur objectif MINTREE remplace donc la somme de toutes les cohérences par paire par le poids de l'arbre couvrant minimal reliant les entités choisies, et leur algorithme Pair-Linking le résout en sélectionnant itérativement la paire de mentions la plus confiante plutôt qu'en optimisant sur l'ensemble complet des paires. Le résultat valide la critique : la corrélation de rang entre l'objectif MINTREE et la qualité de désambiguïsation (-0,927) égale celle de l'objectif ALL-Link (-0,924), pour une fraction du coût, 28,7 ms par document sur MSNBC contre 1 584,5 ms pour une résolution par loopy belief propagation et 4 293,7 ms pour une résolution par PageRank, un facteur 50 à 150.</p>",
+      "claims": [
+        "claim:9",
+        "claim:10",
+        "claim:11"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-coherence-collective"
+    },
+    {
+      "type": "section",
+      "id": "blink-bi-cross-encodeur",
+      "heading": "Retrieval dense : bi-encodeur + cross-encodeur (BLINK)",
+      "level": 3,
+      "prose": "<p>BLINK (Wu et al., 2019/2020) formalise le liage dense en deux étages complémentaires. Le premier étage, un bi-encoder (deux encodeurs indépendants), embarque séparément le contexte de la mention et la description textuelle de chaque entité candidate dans un même espace vectoriel dense ; cette indépendance permet de précalculer et d'indexer une fois pour toutes les embeddings de la base, puis d'interroger cet index par similarité au moment du liage. Le second étage, un cross-encoder (encodeur appliqué au texte concaténé), reprend chaque candidat retenu et concatène le texte de la mention et celui de l'entité en une seule séquence, laissant l'attention croiser librement les deux : plus coûteux car non précalculable, il reclasse finement une liste déjà restreinte plutôt que de balayer toute la base.</p>\n<figure class='fig'><svg viewBox='0 0 940 460' role='img' font-family='system-ui,sans-serif' aria-label='Schéma en deux volets des deux étages de BLINK. Volet gauche, bi-encoder : deux tours indépendantes encodent séparément la mention en contexte et la description de chaque entité ; leurs vecteurs u et v ne se rencontrent que par produit scalaire ; les embeddings des 5,9 millions d’entités sont précalculés une fois dans un index ANN HNSW interrogé en environ 2 ms par requête. Volet droit, cross-encoder : mention et description concaténées en une seule séquence traversent un encodeur unique où l’attention croise librement les deux textes, soit un forward pass complet par candidat, non précalculable, donc réservé au reclassement du top-k transmis par le volet gauche. Une flèche pointillée de retour indique la knowledge distillation du cross-encoder vers le bi-encoder.'><defs><marker id='elkfig-ai' viewBox='0 0 10 10' refX='8' refY='5' markerWidth='9' markerHeight='9' orient='auto' markerUnits='userSpaceOnUse'><path d='M0 0 L10 5 L0 10 Z' fill='var(--ink,#15202E)'/></marker><marker id='elkfig-af' viewBox='0 0 10 10' refX='8' refY='5' markerWidth='9' markerHeight='9' orient='auto' markerUnits='userSpaceOnUse'><path d='M0 0 L10 5 L0 10 Z' fill='var(--ink-faint,#7A889B)'/></marker><marker id='elkfig-ab' viewBox='0 0 10 10' refX='8' refY='5' markerWidth='10' markerHeight='10' orient='auto' markerUnits='userSpaceOnUse'><path d='M0 0 L10 5 L0 10 Z' fill='var(--blue,#23537F)'/></marker><marker id='elkfig-ar' viewBox='0 0 10 10' refX='8' refY='5' markerWidth='9' markerHeight='9' orient='auto' markerUnits='userSpaceOnUse'><path d='M0 0 L10 5 L0 10 Z' fill='var(--bordeaux,#7C2A38)'/></marker></defs><rect x='12' y='46' width='425' height='356' rx='10' fill='var(--blue-wash,#E7EEF6)' fill-opacity='0.35' stroke='var(--blue,#23537F)' stroke-opacity='0.45'/><rect x='503' y='46' width='425' height='356' rx='10' fill='var(--bordeaux-wash,#F3E3E6)' fill-opacity='0.35' stroke='var(--bordeaux,#7C2A38)' stroke-opacity='0.45'/><text x='224' y='34' text-anchor='middle' font-size='14' font-weight='700' fill='var(--blue,#23537F)'>Étage 1 — bi-encoder · récupération</text><text x='715' y='34' text-anchor='middle' font-size='14' font-weight='700' fill='var(--bordeaux,#7C2A38)'>Étage 2 — cross-encoder · reclassement</text><rect x='32' y='340' width='175' height='36' rx='6' fill='var(--card,#FFFFFF)' stroke='var(--line,#D7DFE9)'/><text x='119' y='362' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)'>mention + contexte</text><rect x='237' y='340' width='185' height='36' rx='6' fill='var(--card,#FFFFFF)' stroke='var(--line,#D7DFE9)'/><text x='329' y='362' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)'>description d’entité</text><line x1='119' y1='340' x2='119' y2='318' stroke='var(--ink-faint,#7A889B)' stroke-width='1.6' marker-end='url(#elkfig-af)'/><line x1='329' y1='340' x2='329' y2='318' stroke='var(--ink-faint,#7A889B)' stroke-width='1.6' marker-end='url(#elkfig-af)'/><rect x='52' y='244' width='135' height='70' rx='8' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='119' y='274' text-anchor='middle' font-size='13' font-weight='600' fill='var(--ink,#15202E)'>Encodeur</text><text x='119' y='291' text-anchor='middle' font-size='12' fill='var(--ink-soft,#43536A)'>contexte</text><rect x='262' y='244' width='135' height='70' rx='8' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='329' y='274' text-anchor='middle' font-size='13' font-weight='600' fill='var(--ink,#15202E)'>Encodeur</text><text x='329' y='291' text-anchor='middle' font-size='12' fill='var(--ink-soft,#43536A)'>entités</text><line x1='119' y1='244' x2='119' y2='220' stroke='var(--ink-faint,#7A889B)' stroke-width='1.6' marker-end='url(#elkfig-af)'/><line x1='329' y1='244' x2='329' y2='220' stroke='var(--ink-faint,#7A889B)' stroke-width='1.6' marker-end='url(#elkfig-af)'/><rect x='89' y='200' width='60' height='14' fill='var(--card,#FFFFFF)' stroke='var(--blue,#23537F)'/><path d='M101 200 V214 M113 200 V214 M125 200 V214 M137 200 V214' stroke='var(--blue,#23537F)' stroke-width='0.8'/><text x='81' y='212' text-anchor='end' font-size='12' font-style='italic' fill='var(--blue,#23537F)'>u</text><rect x='299' y='200' width='60' height='14' fill='var(--card,#FFFFFF)' stroke='var(--blue,#23537F)'/><path d='M311 200 V214 M323 200 V214 M335 200 V214 M347 200 V214' stroke='var(--blue,#23537F)' stroke-width='0.8'/><text x='369' y='212' text-anchor='start' font-size='12' font-style='italic' fill='var(--blue,#23537F)'>v</text><path d='M119 200 L213 167 M329 200 L235 167' stroke='var(--ink-faint,#7A889B)' stroke-width='1.3' fill='none'/><circle cx='224' cy='160' r='13' fill='var(--card,#FFFFFF)' stroke='var(--ink,#15202E)' stroke-width='1.5'/><text x='224' y='166' text-anchor='middle' font-size='16' font-weight='700' fill='var(--ink,#15202E)'>·</text><text x='34' y='156' font-size='10.5' fill='var(--ink-soft,#43536A)'>seule rencontre :</text><text x='34' y='170' font-size='10.5' fill='var(--ink-soft,#43536A)'>produit scalaire u·v</text><line x1='224' y1='146' x2='224' y2='122' stroke='var(--ink,#15202E)' stroke-width='1.6' marker-end='url(#elkfig-ai)'/><text x='232' y='138' font-size='11' fill='var(--ink-soft,#43536A)'>≈ 2 ms / requête</text><rect x='129' y='62' width='190' height='56' rx='8' fill='var(--card,#FFFFFF)' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='224' y='80' text-anchor='middle' font-size='13' font-weight='600' fill='var(--ink,#15202E)'>Index ANN (HNSW)</text><text x='224' y='96' text-anchor='middle' font-size='10' fill='var(--ink-soft,#43536A)'>embeddings des 5,9 M d’entités</text><text x='224' y='110' text-anchor='middle' font-size='10' fill='var(--ink-soft,#43536A)'>précalculés une fois (hors-ligne)</text><path d='M335 200 L335 104 L323 104' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1.4' stroke-dasharray='5 4' marker-end='url(#elkfig-af)'/><text x='341' y='152' font-size='10' fill='var(--ink-faint,#7A889B)'>indexation</text><text x='224' y='392' text-anchor='middle' font-size='11.5' fill='var(--ink-soft,#43536A)'>Coût en ligne : minime · précision : grossière (vise le rappel)</text><text x='715' y='84' text-anchor='middle' font-size='12' font-weight='600' fill='var(--ink,#15202E)'>1 forward pass complet par candidat</text><text x='715' y='102' text-anchor='middle' font-size='11' fill='var(--ink-soft,#43536A)'>non précalculable → cantonné au reclassement du top-k</text><rect x='630' y='144' width='170' height='38' rx='6' fill='var(--card,#FFFFFF)' stroke='var(--bordeaux,#7C2A38)'/><text x='715' y='167' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)'>score(mention, candidat i)</text><line x1='715' y1='214' x2='715' y2='188' stroke='var(--ink,#15202E)' stroke-width='1.6' marker-end='url(#elkfig-ai)'/><rect x='560' y='214' width='310' height='100' rx='8' fill='var(--bordeaux-wash,#F3E3E6)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.5'/><text x='715' y='238' text-anchor='middle' font-size='13.5' font-weight='600' fill='var(--ink,#15202E)'>Encodeur unique</text><text x='715' y='255' text-anchor='middle' font-size='10.5' fill='var(--ink-soft,#43536A)'>l’attention croise librement les deux séquences</text><path d='M584 302 Q672 262 760 302 M628 302 Q716 258 804 302 M672 302 Q760 262 848 302 M584 302 Q716 246 848 302' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.1' stroke-opacity='0.55'/><rect x='522' y='332' width='190' height='36' rx='6' fill='var(--card,#FFFFFF)' stroke='var(--line,#D7DFE9)'/><rect x='526' y='336' width='190' height='36' rx='6' fill='var(--card,#FFFFFF)' stroke='var(--line,#D7DFE9)'/><rect x='530' y='340' width='190' height='36' rx='6' fill='var(--bordeaux-wash,#F3E3E6)' stroke='var(--bordeaux,#7C2A38)'/><text x='625' y='362' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)'>description candidat i</text><rect x='720' y='340' width='150' height='36' rx='6' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)'/><text x='795' y='362' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)'>mention + contexte</text><text x='524' y='326' text-anchor='start' font-size='11' font-weight='600' fill='var(--bordeaux,#7C2A38)'>×k</text><text x='710' y='330' text-anchor='middle' font-size='10' fill='var(--ink-faint,#7A889B)'>concaténation en une séquence</text><line x1='625' y1='340' x2='625' y2='318' stroke='var(--ink-faint,#7A889B)' stroke-width='1.6' marker-end='url(#elkfig-af)'/><line x1='795' y1='340' x2='795' y2='318' stroke='var(--ink-faint,#7A889B)' stroke-width='1.6' marker-end='url(#elkfig-af)'/><text x='715' y='392' text-anchor='middle' font-size='11.5' fill='var(--ink-soft,#43536A)'>Coût : élevé (k forward passes) · précision : fine</text><path d='M319 76 C440 70 480 340 522 356' fill='none' stroke='var(--blue,#23537F)' stroke-width='2' marker-end='url(#elkfig-ab)'/><text transform='rotate(-90 489 232)' x='489' y='232' text-anchor='middle' font-size='12' font-weight='600' fill='var(--blue,#23537F)'>top-k candidats</text><path d='M715 404 L715 430 L226 430 L226 408' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.6' stroke-dasharray='6 4' marker-end='url(#elkfig-ar)'/><text x='470' y='448' text-anchor='middle' font-size='11.5' fill='var(--ink-soft,#43536A)'>knowledge distillation : le bi-encoder apprend à imiter les scores du cross-encoder</text></svg><figcaption><span class='fcap-k'></span>Les deux étages de BLINK : le bi-encoder (deux tours indépendantes, produit scalaire, index ANN précalculé sur 5,9 M d’entités, ≈2 ms par requête) remonte un top-k que le cross-encoder — un forward pass complet par candidat — reclasse finement, la knowledge distillation reportant une part de sa précision vers l’étage rapide.</figcaption></figure>\n<p>Cette séparation en deux étages encode directement un compromis précision-coût. Le bi-encoder passe à l'échelle : il retrouve des candidats parmi 5,9 millions d'entités en environ 2 millisecondes grâce à une recherche approximative du plus proche voisin — un index HNSW (Hierarchical Navigable Small World) — plutôt qu'une recherche exhaustive, un choix qui échange une petite perte de rappel contre un facteur d'accélération considérable. Le cross-encoder, lui, exécute un forward pass complet par paire mention-candidat : son coût croît linéairement avec le nombre de candidats examinés, ce qui interdit de l'appliquer à l'ensemble de la base et le cantonne au reclassement du court top-k remonté par le bi-encoder. La knowledge distillation (distillation de connaissance) atténue partiellement ce compromis : le bi-encoder est entraîné à reproduire une partie des scores du cross-encoder, plus précis, ce qui reporte une fraction du gain de précision vers l'étage rapide sans en payer le coût à l'inférence.</p>\n<p>Sur TACKBP-2010, BLINK réduit l'erreur relative de plus de 30 % par rapport à l'état de l'art antérieur en ne s'appuyant que sur les descriptions textuelles des entités — sans dictionnaire de noms ni signal de popularité des liens entrants —, pour une exactitude de l'ordre de 94,5 %. Sur les benchmarks zero-shot, où les mentions doivent être liées à des entités jamais vues en entraînement et décrites par un texte court (tâche formalisée par Logeswaran et al., ACL 2019, via le corpus zeshel construit à partir de wikis Fandom indépendants), BLINK obtient un gain absolu de près de 6 points sur zeshel/Wikia et de plus de 7 points sur WikilinksNED Unseen-Mentions (Onoe &amp; Durrett, 2020).</p>\n<p>BLINK délimite volontairement son périmètre au seul classement mention → candidats. Il suppose les mentions déjà repérées (la détection de mention est hors périmètre), suppose que l'entité correcte figure toujours dans la base (aucun mécanisme NIL pour les mentions sans entrée correspondante) et traite chaque mention indépendamment des autres, sans le raisonnement collectif/global qui, chez Hoffart et al. (2011), impose la cohérence entre toutes les entités candidates d'un même document via un graphe. Ce sont trois briques que tout pipeline de production doit ajouter séparément.</p>\n<p>ReFinED (Ayoola et al., NAACL 2022) propose une alternative « une-passe » à cette architecture à deux étages : détection de mention, typage fin (types Wikidata) et désambiguïsation s'exécutent en un seul forward pass sur l'ensemble du document, ce qui le rend plus de 60 fois plus rapide que des approches concurrentes compétitives tout en dépassant l'état de l'art de +3,7 points de F1 en moyenne sur 8 jeux de données. Ce gain de vitesse s'accompagne d'une généralisation zero-shot à Wikidata (plus de 90 millions d'entités, 15 fois plus que Wikipédia) — un passage à l'échelle que motive un constat simple : le plus grand jeu public de liage, construit à partir des hyperliens internes de Wikipédia, n'en couvre qu'environ 3 à 7 % des entités selon la façon de compter de ce même article, ce qui pousse les approches récentes à s'appuyer sur des descriptions et des types plutôt que sur des embeddings d'entités mémorisés un par un.</p>",
+      "claims": [
+        "claim:13",
+        "claim:14",
+        "claim:15",
+        "claim:16"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "genre-liage-generatif",
+      "heading": "Le liage génératif autorégressif : GENRE et le decoding contraint",
+      "level": 3,
+      "prose": "<p>BLINK traite le liage comme un problème de similarité vectorielle : le bi-encodeur puis le cross-encodeur comparent des représentations denses de la mention et de l'entité. GENRE (Generative ENtity REtrieval, De Cao et al., ICLR 2021) change de paradigme et reformule la désambiguïsation comme un problème de génération de séquence : au lieu de récupérer un vecteur d'entité, le modèle génère directement, token par token, le nom canonique de l'entité cible (par exemple le titre exact de la page Wikipédia). L'architecture est un encodeur-décodeur initialisé depuis les poids de BART puis affiné sur des paires mention-entité. Pour garantir que la séquence produite corresponde toujours à une entité réellement présente dans la base, le beam search est contraint par un trie (arbre préfixe) construit sur l'ensemble des noms d'entités valides : à chaque pas de décodage, les probabilités des tokens qui ne prolongent aucun chemin valide du trie sont masquées avant le softmax. Ce trie couvre environ 6 millions de feuilles (une par entité Wikipédia) et 17 millions de nœuds internes, pour un poids sur disque d'environ 600 Mo avec le tokeniseur de BART.</p>\n<p>Les auteurs revendiquent trois avantages structurels à cette formulation. Premièrement, un cross-encodage implicite : parce que le décodeur produit chaque token de l'identifiant en conditionnant sur l'intégralité du contexte de la mention (via l'attention croisée encodeur-décodeur), le modèle capture des interactions fines entre contexte et nom d'entité sans jamais calculer explicitement un produit scalaire entre deux vecteurs figés, contrairement au bi-encodeur. Deuxièmement, une empreinte mémoire drastiquement réduite : les paramètres du modèle seq2seq croissent avec la taille du vocabulaire de sous-mots, pas avec le nombre d'entités de la base, et l'index se réduit au trie des titres — alors que BLINK ou DPR (Dense Passage Retrieval) doivent stocker un vecteur dense par entité, et c'est cet index dense qui domine leur empreinte. Selon la Table 4 de l'article — des chiffres auto-rapportés, non reproduits par une source indépendante à ce jour —, l'empreinte totale (index + paramètres) est de 2,1 Go pour GENRE contre 30,1 Go pour BLINK et 70,9 Go pour DPR, soit un facteur d'environ 14x et 34x. Troisièmement, une fonction de perte softmax exacte : la vraisemblance autorégressive se calcule sur l'ensemble du vocabulaire de sous-mots sans sous-échantillonner des négatifs difficiles, un travail de curation coûteux et fragile pour les architectures à base de similarité.</p>\n<p>Cette conception a un revers directement lié à sa force. Étendre la base de connaissances est en théorie trivial : il suffit d'ajouter le nom non ambigu de la nouvelle entité au trie, sans ré-entraîner le modèle — les auteurs illustrent ce scénario cold-start sur 50 articles Wikipédia créés après la date d'entraînement, où 19 des 50 mentions sont liées avec une correspondance exacte — un exercice auto-rapporté, non corroboré par une source indépendante à ce jour. Mais le trie reste construit sur des noms courts et relativement peu ambigus (typiquement des titres de page) : la précision se dégrade pour les entités dont le nom canonique dépasse une dizaine de sous-mots (par exemple des titres longs ou des noms techniques rallongés), et si la base grossit fortement ou change de nature (identifiants non lexicaux, forte homonymie de noms courts), une repasse d'entraînement redevient nécessaire pour que le modèle apprenne à discriminer les nouveaux embranchements du trie. mGENRE (De Cao et al., TACL 2022) étend l'approche au multilingue : le décodeur produit le nom de l'entité langue par langue de façon autorégressive et cible directement des identifiants Wikidata plutôt que des titres Wikipédia dans une seule langue, ce qui lui permet de couvrir plus de 100 langues et d'obtenir un gain relatif supérieur à 50% en précision moyenne en réglage zero-shot sur des langues sans données d'entraînement.</p>\n<p>Le decoding contraint par trie éclaire par contraste ce qui se passe quand on prompte un grand modèle de langage nu, sans cette structure de garde-fou, pour faire du liage d'entités : rien n'empêche le modèle de produire un nom d'entité plausible mais inexistant dans la base cible — une hallucination d'identifiant. EntGPT (2024) quantifie cet écart sur AIDA : un GPT-3.5 prompté de façon vanille atteint seulement 0,746 de micro-F1, contre 0,920 pour EntGPT-I, la même famille de modèle affinée par instruction-tuning pour ancrer sa génération sur un ensemble d'entités candidates, entraînée sur AIDA. L'article n'attribue cependant pas cet écart mesuré à des identifiants hallucinés hors base de connaissances ni à une absence de contrainte de décodage — ces mécanismes n'y sont jamais mentionnés : une étude d'ablation montre que retirer l'ancrage sur les entités candidates (entity-grounding) fait chuter nettement le micro-F1, et l'analyse d'erreurs (section 5) impute la majorité des fautes restantes à l'étape de sélection multi-choix (Step 3), pas à des identifiants hors base de connaissances. L'écart illustre néanmoins, par un mécanisme différent de celui du trie de GENRE, la même intuition générale : contraindre l'espace de sortie du modèle — que ce soit par un arbre préfixe explicite ou par un entraînement au grounding sur des candidats — améliore la fiabilité du liage par rapport à une génération totalement libre.</p>",
+      "claims": [
+        "claim:17",
+        "claim:20"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-decodage-contraint-trie"
+    },
+    {
+      "type": "section",
+      "id": "zero-shot-nil",
+      "heading": "Zero-shot, entités émergentes et le cas NIL",
+      "level": 3,
+      "prose": "<p>Les benchmarks classiques de désambiguïsation supposent une couverture quasi totale de la base : chaque mention a de bonnes chances de trouver son entrée parmi des candidats déjà vus à l'entraînement, souvent via une table d'alias ou une probabilité a priori de lien. Cette hypothèse s'effondre à l'échelle d'une base comme Wikidata : selon le résumé de l'article ReFinED (Ayoola et al., NAACL 2022), le plus grand jeu de données public pour le liage d'entités, construit à partir des hyperliens internes de Wikipédia, ne couvrirait qu'environ 3 % des entités de Wikidata — mais ce même article indique par ailleurs que Wikidata compte quinze fois plus d'entités que Wikipédia, soit une couverture plus proche de 7 %. La couverture réelle se situe donc quelque part entre ces deux estimations. La grande majorité des entités d'une base moderne n'apparaît donc jamais dans les données d'entraînement, ce qui interdit de mémoriser un vecteur ou un a priori par entité et impose de raisonner à partir de leur seule description.</p><p>Le zero-shot entity linking, défini par Logeswaran et al. (ACL 2019), formalise ce régime : les mentions doivent être liées à des entités jamais rencontrées à l'entraînement, décrites uniquement par un court texte, sans table d'alias, sans probabilité a priori de mention ni fréquence de lien entrant. Les auteurs construisent le jeu de données zeshel à partir de seize wikis Fandom (ex-Wikia) couvrant des univers indépendants — Star Wars, l'armée, Coronation Street, Forgotten Realms — chaque wiki formant sa propre base de connaissances fermée ; huit mondes servent à l'entraînement, quatre à la validation et quatre au test, garantissant qu'aucune entité de test n'a été vue pendant l'entraînement. Les candidats par mention sont pré-générés par recherche BM25/TF-IDF (les soixante-quatre mieux classés), et le modèle doit ensuite les reclasser à partir de leur seule description. Pour combler l'écart de domaine entre les mondes d'entraînement et de test, les auteurs proposent le domain-adaptive pre-training (DAP, pré-entraînement adaptatif au domaine), qui poursuit le pré-entraînement du modèle de langage sur le texte cible avant le fine-tuning de désambiguïsation.</p><p>Un sous-problème distinct, mais lié, concerne les mentions qui n'ont tout simplement pas d'entrée correspondante dans la base : le cas NIL (de l'anglais nil, « nul » — aucune entrée de la base ne correspond à la mention). Deux familles de solutions coexistent. La première relève de la détection open-set (reconnaissance en monde ouvert, qui accepte l'absence de réponse) : si le score de confiance du meilleur candidat d'un système de liage classique n'atteint pas un seuil calibré sur un jeu de validation contenant des mentions NIL, la mention est déclarée hors base plutôt que liée à ce candidat. Cette heuristique de seuillage, simple et répandue, reste toutefois peu fiable : un candidat incorrect mais proche du bon peut obtenir un score proche de 100 %, ce qui produit des faux négatifs, et sa fiabilité dépend fortement du type de mention NIL (Missing Entity ou Non-Entity Phrase). La seconde, illustrée par BLINKout (Dong et al., CIKM 2023), introduit une entité NIL explicite dans l'espace de représentation : le modèle, une adaptation de BLINK fondée sur BERT, apprend une représentation dédiée à « aucune entité » et classe chaque mention contre elle au même titre que contre les candidats réels, enrichie de synonymes ; pour construire automatiquement des jeux d'évaluation hors base à partir de jeux de désambiguïsation existants, les auteurs retirent artificiellement des entités d'une base (KB Pruning) ou comparent deux versions successives d'une même base (KB Versioning). BLINKout est évalué sur cinq jeux de données — notes cliniques, publications biomédicales, articles Wikipédia — contre les bases UMLS, SNOMED CT et Wikidata, et surpasse nettement le simple seuillage de confiance : jusqu'à environ 40 points de F1 sur MM-2014AB, et 89,9 % contre 67,8 % de F1 NIL sur ShARe/CLEF 2013.</p><p>Toutes les mentions NIL ne se valent pas. L'article Learn to Not Link (ACL Findings 2023) distingue deux catégories qu'un système doit traiter différemment : la Missing Entity, une entité réelle et nommable mais simplement absente de la base cible, et la Non-Entity Phrase, une expression qui ne désigne aucune entité nommable au sens du schéma d'annotation. À partir du jeu de données NEL, les auteurs montrent que la composition de l'entraînement en ces deux types influence significativement la précision de la prédiction NIL, aussi bien pour des architectures bi-encodeur que cross-encodeur : un système entraîné surtout sur des Non-Entity Phrase généralise mal aux Missing Entity, et réciproquement.</p><p>Enfin, au niveau d'un document entier, une entité absente de la base peut être mentionnée plusieurs fois sous des formes de surface différentes. Regrouper ces mentions co-référentes sous un identifiant commun, plutôt que de les traiter comme des NIL isolés, constitue le NIL clustering, introduit comme sous-tâche du track Entity Linking de TAC KBP dès 2011 : pour chaque mention jugée hors base, le système doit lui attribuer un identifiant NIL partagé par toutes les mentions qui réfèrent à la même entité absente au sein d'un document. Sans ce regroupement, un pipeline créerait un nœud NIL isolé par mention de surface au lieu d'une entité émergente unique et cohérente.</p>",
+      "claims": [
+        "claim:21",
+        "claim:22",
+        "claim:23",
+        "claim:24"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "evaluation-pieges",
+      "heading": "Évaluation : AIDA-CoNLL, TAC-KBP et les pièges des benchmarks",
+      "level": 3,
+      "prose": "<p>L'évaluation de la désambiguïsation d'entités s'appuie historiquement sur deux benchmarks de référence, aux logiques distinctes. AIDA-CoNLL, introduit par Hoffart et al. (2011), annote 1 393 articles de dépêches Reuters (RCV-1) : pour chaque mention, il fournit l'entrée YAGO2 correspondante ou l'étiquette NIL si aucune entrée ne convient. Sur environ 34 950 mentions, près de 20 % sont NIL, ce qui en fait déjà un banc d'essai partiel pour la détection du hors-KB (l'ensemble des mentions sans entrée dans la base de connaissances). TAC-KBP, formalisé par le NIST depuis 2011 sous le nom d'Entity Discovery and Linking, part d'une logique différente : au lieu d'une simple accuracy micro-moyennée sur les liens vers la KB, il évalue le NIL clustering (le regroupement des mentions hors-KB co-référentes sous un identifiant commun) — pour chaque mention, décider d'abord si elle réfère à une entrée de la KB ou si elle est NIL, puis, dans ce dernier cas, regrouper les autres mentions qui désignent la même entité inconnue. La métrique B-cubed+ (B³⁺) qui en résulte étend le B-cubed classique (qui ne juge que la qualité du clustering NIL) en y intégrant aussi l'exactitude des liens non-NIL, ce qui pénalise les systèmes qui se contentent d'une prédiction binaire KB / hors-KB sans réellement regrouper les entités émergentes.</p><p>Comparer des systèmes hétérogènes suppose d'abord de s'accorder sur ce qu'on évalue exactement. La taxonomie proposée par Cornolti, Ferragina et Ciaramita (WWW 2013) distingue plusieurs tâches : D2W (Disambiguate-to-Wikipedia, désambiguïsation pure à partir de mentions déjà repérées), A2W (Annotate-to-Wikipedia, détection et désambiguïsation combinées de bout en bout) et C2W (Concept-to-Wikipedia, extraction d'un ensemble d'entités sans ancrage à une position textuelle précise) — une distinction reprise ensuite par le framework GERBIL pour standardiser les comparaisons entre systèmes. À cela s'ajoute l'opposition entre strong matching (position et longueur exactement identiques entre mention prédite et mention annotée) et weak matching (un simple chevauchement de positions suffit) : deux systèmes peuvent afficher des scores très différents sur le même jeu de données selon la convention retenue, ce qui explique une partie des écarts non reproductibles entre articles qui omettent de préciser leur protocole.</p><p>AIDA-CoNLL, malgré son statut de référence quasi obligée, porte des biais aujourd'hui bien documentés. Bast, Hertel et Prange (2023) relèvent que 44 % de ses articles sont liés au sport et que seulement 5,5 % des mentions comptent plus de deux mots — un corpus peu représentatif qui rend la détection de mention artificiellement facile et surestime la performance des systèmes sur des textes plus divers. Le benchmark ne donne pourtant pas les signes de plafonnement qu'on lui prête souvent : GENRE, malgré un changement complet de paradigme (génération autorégressive contre classification ou recherche dense), affiche certes 93,3 F1 en test-b sur AIDA-CoNLL, mais ce score reste inférieur à ceux de systèmes antérieurs comme Yang et al. (2018, 95,9) ou Fang et al. (2019, 94,3) sur ce même jeu de données — le « +0,8 point » que revendique l'article GENRE désigne en réalité l'écart de la moyenne sur six jeux de données (88,8 contre 88,0 pour le meilleur concurrent), pas un gain sur AIDA-CoNLL. Un score proche entre systèmes sur un seul benchmark ne prouve d'ailleurs rien quant à la résolution du problème : ces scores sont gonflés par un biais de fréquence a priori (les systèmes « devinent » l'entité la plus fréquente), la performance chute nettement sur les entités rares ou ambiguës partageant un nom avec une entité populaire, et des systèmes postérieurs à GENRE, comme SpEL (2023), l'ont depuis dépassé : il n'y a pas de plafond atteint, et la désambiguïsation d'entités reste un problème ouvert, en particulier hors distribution et pour les entités peu fréquentes. Une part de l'écart au F1 parfait tient d'ailleurs au gold standard (l'annotation de référence) lui-même : une étude de cas sur les erreurs de GPT-3.5 instruction-tuné pour le liage (EntGPT) estime qu'environ un tiers des erreurs apparentes provenaient en réalité d'étiquettes de référence incorrectes plutôt que d'un échec réel du système — un rappel que l'écart au F1 parfait ne mesure pas seulement la faiblesse des modèles.</p><p>Les scores agrégés sur AIDA-CoNLL masquent en outre un point faible systématique : l'entity overshadowing (l'occultation d'un sens rare par un sens dominant qui partage la même forme de surface, comme Michael Jordan le basketteur qui éclipse Michael Jordan le chercheur en apprentissage automatique). Le jeu de données ShadowLink isole ce cas en appariant chaque entité rare à une entité fréquente de forme de surface identique : sur son sous-ensemble Shadow, les F-scores s'effondrent pour tous les systèmes testés — AIDA 0,35, TagMe2 0,29, WAT 0,26, GENRE 0,26, REL 0,21 — contre 0,42 à 0,57 sur le sous-ensemble Top (sens fréquent), alors que des annotateurs humains restent à 0,95–0,96 dans les deux cas. Le même biais de popularité est quantifié à plus grande échelle par les AmbER sets (80 000 requêtes de fact-checking, remplissage de slots et question-réponse) : la performance d'un retriever TF-IDF chute de 28,5 % sur les entités fréquentes à 8,2 % sur les entités de queue, et même le meilleur système testé (Bootleg) régresse de 77,1 % à 59,1 %, alors que l'évaluation humaine reste à 97–100 % sur les mêmes requêtes.</p><figure class='fig'><svg viewBox='0 0 740 400' role='img' aria-label='Diagramme à barres appariées : F-scores de cinq systèmes de liage sur les sous-ensembles Top et Shadow de ShadowLink, effondrés sur Shadow, contre des annotateurs humains quasi constants à 0,95 et 0,96' font-family='inherit'><line x1='52' y1='318' x2='708' y2='318' stroke='var(--ink-faint,#7A889B)' stroke-opacity='0.35' stroke-width='1'/><text x='44' y='322' text-anchor='end' font-size='12' fill='var(--ink-faint,#7A889B)'>0</text><line x1='52' y1='250.0' x2='708' y2='250.0' stroke='var(--ink-faint,#7A889B)' stroke-opacity='0.35' stroke-width='1'/><text x='44' y='254.0' text-anchor='end' font-size='12' fill='var(--ink-faint,#7A889B)'>0,25</text><line x1='52' y1='182.0' x2='708' y2='182.0' stroke='var(--ink-faint,#7A889B)' stroke-opacity='0.35' stroke-width='1'/><text x='44' y='186.0' text-anchor='end' font-size='12' fill='var(--ink-faint,#7A889B)'>0,50</text><line x1='52' y1='114.0' x2='708' y2='114.0' stroke='var(--ink-faint,#7A889B)' stroke-opacity='0.35' stroke-width='1'/><text x='44' y='118.0' text-anchor='end' font-size='12' fill='var(--ink-faint,#7A889B)'>0,75</text><line x1='52' y1='46.0' x2='708' y2='46.0' stroke='var(--ink-faint,#7A889B)' stroke-opacity='0.35' stroke-width='1'/><text x='44' y='50.0' text-anchor='end' font-size='12' fill='var(--ink-faint,#7A889B)'>1,0</text><text x='14' y='182.0' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)' transform='rotate(-90 14 182.0)'>F-score</text><rect x='68.7' y='165.7' width='34' height='152.3' fill='var(--blue,#23537F)' rx='2'/><text x='85.7' y='159.7' text-anchor='middle' font-size='12' font-weight='bold' fill='var(--ink,#15202E)'>0,56</text><rect x='110.7' y='222.8' width='34' height='95.2' fill='var(--bordeaux,#7C2A38)' rx='2'/><text x='127.7' y='216.8' text-anchor='middle' font-size='12' font-weight='bold' fill='var(--ink,#15202E)'>0,35</text><text x='106.7' y='338' text-anchor='middle' font-size='13' fill='var(--ink,#15202E)'>AIDA</text><rect x='178.0' y='163.0' width='34' height='155.0' fill='var(--blue,#23537F)' rx='2'/><text x='195.0' y='157.0' text-anchor='middle' font-size='12' font-weight='bold' fill='var(--ink,#15202E)'>0,57</text><rect x='220.0' y='239.1' width='34' height='78.9' fill='var(--bordeaux,#7C2A38)' rx='2'/><text x='237.0' y='233.1' text-anchor='middle' font-size='12' font-weight='bold' fill='var(--ink,#15202E)'>0,29</text><text x='216.0' y='338' text-anchor='middle' font-size='13' fill='var(--ink,#15202E)'>TagMe2</text><rect x='287.3' y='179.3' width='34' height='138.7' fill='var(--blue,#23537F)' rx='2'/><text x='304.3' y='173.3' text-anchor='middle' font-size='12' font-weight='bold' fill='var(--ink,#15202E)'>0,51</text><rect x='329.3' y='247.3' width='34' height='70.7' fill='var(--bordeaux,#7C2A38)' rx='2'/><text x='346.3' y='241.3' text-anchor='middle' font-size='12' font-weight='bold' fill='var(--ink,#15202E)'>0,26</text><text x='325.3' y='338' text-anchor='middle' font-size='13' fill='var(--ink,#15202E)'>WAT</text><rect x='396.7' y='203.8' width='34' height='114.2' fill='var(--blue,#23537F)' rx='2'/><text x='413.7' y='197.8' text-anchor='middle' font-size='12' font-weight='bold' fill='var(--ink,#15202E)'>0,42</text><rect x='438.7' y='247.3' width='34' height='70.7' fill='var(--bordeaux,#7C2A38)' rx='2'/><text x='455.7' y='241.3' text-anchor='middle' font-size='12' font-weight='bold' fill='var(--ink,#15202E)'>0,26</text><text x='434.7' y='338' text-anchor='middle' font-size='13' fill='var(--ink,#15202E)'>GENRE</text><rect x='506.0' y='171.1' width='34' height='146.9' fill='var(--blue,#23537F)' rx='2'/><text x='523.0' y='165.1' text-anchor='middle' font-size='12' font-weight='bold' fill='var(--ink,#15202E)'>0,54</text><rect x='548.0' y='260.9' width='34' height='57.1' fill='var(--bordeaux,#7C2A38)' rx='2'/><text x='565.0' y='254.9' text-anchor='middle' font-size='12' font-weight='bold' fill='var(--ink,#15202E)'>0,21</text><text x='544.0' y='338' text-anchor='middle' font-size='13' fill='var(--ink,#15202E)'>REL</text><line x1='598.7' y1='46' x2='598.7' y2='318' stroke='var(--ink-faint,#7A889B)' stroke-dasharray='4 4' stroke-width='1'/><rect x='615.3' y='59.6' width='34' height='258.4' fill='var(--ink-faint,#7A889B)' rx='2'/><text x='632.3' y='53.6' text-anchor='middle' font-size='12' font-weight='bold' fill='var(--ink,#15202E)'>0,95</text><rect x='657.3' y='56.9' width='34' height='261.1' fill='var(--ink-faint,#7A889B)' rx='2'/><text x='674.3' y='50.9' text-anchor='middle' font-size='12' font-weight='bold' fill='var(--ink,#15202E)'>0,96</text><text x='653.3' y='338' text-anchor='middle' font-size='13' fill='var(--ink,#15202E)'>Humain</text><line x1='52' y1='318' x2='708' y2='318' stroke='var(--ink,#15202E)' stroke-width='1.5'/><rect x='58' y='8' width='14' height='14' fill='var(--blue,#23537F)' rx='2'/><text x='78' y='20' font-size='12' fill='var(--ink,#15202E)'>Top (sens fréquent)</text><rect x='238' y='8' width='14' height='14' fill='var(--bordeaux,#7C2A38)' rx='2'/><text x='258' y='20' font-size='12' fill='var(--ink,#15202E)'>Shadow (sens rare occulté)</text><rect x='478' y='8' width='14' height='14' fill='var(--ink-faint,#7A889B)' rx='2'/><text x='498' y='20' font-size='12' fill='var(--ink,#15202E)'>Humain (référence)</text></svg><figcaption><span class='fcap-k'></span>Entity overshadowing sur ShadowLink (Provatorova et al., 2021) : le F-score de chaque système s'effondre du sous-ensemble Top (sens fréquent) au sous-ensemble Shadow (sens rare occulté par un homonyme populaire), alors que les annotateurs humains restent quasi constants à 0,95–0,96.</figcaption></figure><p>La métonymie constitue un autre angle mort largement absent des benchmarks agrégés : lorsqu'une mention désigne une entité par métonymie (un lieu pour l'organisation qui y siège, par exemple), le taux d'erreur de désambiguïsation grimpe de 27,1 % pour le meilleur système testé (REL) jusqu'à 100 % pour la baseline la plus simple. Enfin, selon l'unique étude qui s'y penche à ce jour — Bast, Hertel et Prange (EMNLP 2023, arXiv:2305.14937) —, l'évaluation de bout en bout (end-to-end, détection et désambiguïsation évaluées ensemble plutôt que la seule désambiguïsation sur des mentions déjà données) rebat le classement habituel des systèmes : sur cinq benchmarks combinés, ReFinED atteint 73,3 % de F1 moyen (82,7 % en détection de mention, 89,2 % en désambiguïsation), REL 67,7 %, et GENRE seulement 64,6 % — ce dernier sacrifiant le rappel de la détection de mention à la précision de sa désambiguïsation générative. Les mêmes systèmes restent par ailleurs peu fiables sur le NIL : REL et ReFinED génèrent en moyenne, respectivement, 115,4 et 121,2 faux positifs sur des mentions qui auraient dû être annotées NIL — des chiffres non corroborés par une source indépendante à ce jour, mais qui confirment, pour cette étude, que traiter le hors-KB reste le maillon faible de l'évaluation autant que des systèmes eux-mêmes.</p>",
+      "claims": [
+        "claim:25",
+        "claim:26",
+        "claim:27",
+        "claim:28"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "grounding-production",
+      "heading": "Grounding en production : RAG, construction de KG et déploiements",
+      "level": 3,
+      "prose": "<p>Le liage d'entités sert de brique de grounding (ancrage) à deux usages de production distincts : ancrer les mentions d'un corpus RAG sur une base externe pour désambiguïser la récupération et enrichir le contexte fourni au modèle, et ancrer les nœuds d'un graphe de connaissances (KG) en construction sur les mêmes identifiants pour le rendre interopérable avec d'autres graphes. Cette seconde étape manque cependant souvent dans les pipelines dits « KG-RAG » : l'extraction d'entités par un LLM y est suivie d'une résolution purement interne, qui fusionne les variantes de surface d'un même nom sans jamais associer les nœuds à un identifiant externe stable de type Wikidata ou DBpedia. Le graphe obtenu reste alors un artefact propre au corpus, sans URI partageable ni accès aux attributs (dates, coordonnées, relations tierces) qu'apporterait un ancrage réel sur une base de connaissances publique.</p>\n<p>Chez Amazon, ReFinED illustre le passage à l'échelle : détection de mention, typage fin et désambiguïsation en une seule passe, plus de 60 fois plus rapide que les systèmes concurrents comparables, ce qui rend praticable l'extraction d'entités sur des jeux de données à l'échelle du web plutôt que sur des corpus de taille académique. Le système généralise à Wikidata, quinze fois plus grande que Wikipedia, et traite le cas NIL (mention sans entrée correspondante dans la base) via un candidat spécial dont le score signale explicitement l'absence de candidat correct, plutôt que de forcer une prédiction erronée.</p>\n<p>Selon le retour d'expérience publié par les ingénieurs de Dialpad — source unique, auto-rapportée —, BLINK a été repris en production pour lier, dans des conversations d'affaires, les mentions de produits et d'organisations vers Wikipedia et Wikidata ; l'adaptation notable porte sur la génération de candidats, confiée à Elasticsearch plutôt qu'à la recherche dense d'origine, pour tenir l'inférence sur des machines cloud aux ressources limitées. Pour le cas particulier des questions, où mention et texte de la requête se confondent presque, ELQ (Meta AI, EMNLP 2020) fusionne détection de mention et désambiguïsation en une seule passe de bi-encodeur ; il gagne jusqu'à 19,6 points de F1 sur des variantes multi-entités de WebQSP et GraphQuestions et améliore mesurablement les réponses d'un système de question-réponse en aval lorsqu'il sert de couche de grounding.</p>\n<p>DBpedia Spotlight expose son pipeline complet (repérage, génération de candidats, désambiguïsation, filtrage) comme service REST public, avec des seuils de confiance réglables et des sorties XML, JSON ou RDF directement injectables dans un triplestore. La BBC a bâti son architecture de Dynamic Semantic Publishing (publication sémantique pilotée par les données ; ontologie de domaine propre, triple store BigOWLIM, SPARQL) dès le Mondial de football 2010, pour générer automatiquement plus de 700 pages équipe/groupe/joueur du site sans qu'un rédacteur code chaque page à la main ; à ce stade, les entités éditoriales, comme les équipes de club, n'étaient toutefois pas encore liées à des ressources DBpedia — l'exposition des données en RDF/Linked Data ouvert vers des jeux de données externes comme DBpedia restait un objectif annoncé, concrétisé seulement plus tard.</p>\n<p>Deux usages illustrent enfin le liage d'entités comme service géré plutôt que composant à opérer soi-même. L'API Google Cloud Natural Language retourne, pour la plupart des types d'entités qu'elle détecte, une URL Wikipedia et un identifiant Knowledge Graph (MID) directement exploitables comme clé de grounding. Dans le secteur GLAM (galeries, bibliothèques, archives, musées), le service de réconciliation Wikidata d'OpenRefine relie des colonnes entières de données tabulaires — noms d'auteurs, d'artistes, d'œuvres — à des entités Wikidata, dans un sens complémentaire du RAG textuel : on y ancre des données déjà structurées plutôt que des mentions en texte libre.</p>",
+      "claims": [
+        "claim:29",
+        "claim:30",
+        "claim:32"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "ecosysteme",
+      "heading": "Écosystème & pour aller plus loin",
+      "level": 3,
+      "prose": "<p>L'écosystème du liage d'entités s'organise en deux familles d'outils qui se combinent rarement dans un même projet : les systèmes de recherche, ouverts par de grands laboratoires et taillés pour la performance brute sur des benchmarks académiques, et les annotateurs légers, pensés pour tourner en production sans réentraînement. Une couche transversale — la plateforme de benchmarking GERBIL — permet de comparer les deux familles sur des jeux et des mesures uniformes, indépendamment de la base de connaissances visée.</p>\n<p>BLINK (Wu et al. 2020, Meta AI) reste la référence pour l'architecture bi-encoder + cross-encoder : un bi-encoder (double encodeur qui embarque indépendamment la mention et la description de chaque entité) sert à la récupération dense — jusqu'à 5,9 millions de candidats interrogés en 2 millisecondes — puis un cross-encoder (encodeur unique qui concatène mention et texte d'entité) réordonne les candidats retenus, faisant passer l'exactitude de 81,45 % à 87,00 % sur AIDA-YAGO2 testA. Sa variante ELQ, logée dans le même dépôt, fusionne détection de mention et liage en un seul passage bi-encoder, ce qui la rend directement utilisable pour le grounding (ancrage des réponses dans des entités vérifiées d'une base de connaissances) de systèmes de question-réponse ou de RAG. Le dépôt facebookresearch/BLINK a toutefois été archivé en lecture seule le 1er mars 2024 (licence MIT, base d'entités figée sur un dump Wikipedia du 1er août 2019) : il reste consultable et réutilisable, mais ne recevra plus de correctif. GENRE (De Cao et al., ICLR 2021) prend le problème à l'envers : plutôt que de retrouver un candidat par similarité vectorielle, un BART finement ajusté génère directement, token par token, le nom canonique de l'entité, en contraignant la génération par un beam search (recherche en faisceau) restreint, via un trie, aux seuls identifiants valides — ce qui fait passer à l'échelle du vocabulaire plutôt que du nombre d'entités, pour une empreinte mémoire très réduite face aux systèmes concurrents. Sa variante mGENRE étend l'approche à plus de 100 langues via mBART. GENRE est distribué sous licence CC-BY-NC 4.0, qui interdit tout usage commercial — une contrainte à peser face à la licence MIT de BLINK.</p>\n<p>Côté production, REL (Radboud Entity Linker, van Hulst et al., SIGIR 2020) et ReFinED (Ayoola et al., Amazon Alexa AI, 2022) répondent chacun à un besoin de débit différent. REL conserve un pipeline en trois étapes bien séparées — détection de mention via les embeddings contextuels de Flair, génération de candidats, désambiguïsation — pour rester modulaire et permettre de remplacer un composant sans toucher aux autres. ReFinED prend le parti inverse : détection, typage fin et désambiguïsation de toutes les mentions d'un document tiennent dans un seul passage réseau, ce qui le rend plus de 60 fois plus rapide que des approches concurrentes comparables tout en gagnant 3,7 points de F1 en moyenne sur les benchmarks standards (F1 = 87,4 % sur AIDA, 94,5 % sur MSNBC ; les 231 articles d'AIDA-CoNLL sont traités en une quinzaine de secondes sur un GPU V100). ReFinED expose deux jeux d'entités au choix, Wikipedia (environ 6 millions d'entités) ou Wikidata (environ 33 millions, plus gourmand en mémoire) — un arbitrage couverture/ressources à faire explicitement selon le déploiement visé.</p>\n<p>L'évaluation du liage vers des entités absentes de l'entraînement dispose de son propre benchmark, ZESHEL (Logeswaran et al., ACL 2019) : construit à partir de mini-encyclopédies thématiques Wikia, il répartit 8 domaines pour l'entraînement, 4 pour la validation et 4 pour le test, et a introduit le pré-entraînement adaptatif au domaine (DAP, une phase d'adaptation du modèle au vocabulaire et au style du domaine cible avant liage) pour absorber le déplacement de distribution entre domaine source et domaine cible.</p>\n<p>Une troisième famille d'annotateurs vise la mise en service immédiate, sans phase d'entraînement. DBpedia Spotlight règle ses annotations par quatre leviers — prominence, pertinence topique, ambiguïté contextuelle et confiance — et peut restreindre ses sorties à des classes de l'ontologie DBpedia. spaCy-entity-linker lie vers Wikidata par simple appariement d'alias, au prix d'un téléchargement initial d'environ 1,3 Go de données prétraitées. OpenTapioca cible spécifiquement Wikidata et se distingue par une synchronisation quasi temps réel avec les éditions de la base collaborative, plutôt que par l'agrégation de sources externes propre à DBpedia ou YAGO. Falcon 2.0 (Sakor et al., CIKM 2020) est le premier outil à lier conjointement entités et relations vers Wikidata pour du texte court ou des questions, en s'appuyant sur une analyse morphologique de l'anglais plutôt que sur un modèle neuronal entraîné de bout en bout. TagMe, doyen de cette famille (2011), reste optimisé pour l'annotation de textes très courts et s'expose en API REST via l'infrastructure D4Science.</p>\n<p>GERBIL (Röder, Usbeck & Ngonga Ngomo, Semantic Web 2018) fédère ces outils hétérogènes sous une même plateforme web de benchmarking, agnostique de la base de connaissances visée : il suffit d'exposer une interface REST conforme à sa spécification pour qu'un système rejoigne les jeux et mesures déjà en place. Wikipedia2Vec (Yamada et al.) complète l'outillage en amont : il apprend conjointement des embeddings de mots et d'entités à partir de Wikipedia et sert de brique dans plusieurs systèmes de liage, dont REL, avec des modèles pré-entraînés disponibles pour 12 langues.</p>\n<p>Pour aller plus loin, la survey de Sevgili et al. (Semantic Web, 2022) distille une architecture générique des systèmes de liage neuronaux — génération de candidats, encodage mention-contexte, ranking — et les compare aux méthodes classiques sur les benchmarks communs ; une revue plus récente centrée sur Wikidata comme base cible (ACM Computing Surveys, 2026) structure le champ en huit dimensions. Côté historique, le chapitre de Rao, McNamee & Dredze (2012) pose le cadre du problème avant l'ère du deep learning, tandis que Ganea & Hofmann (EMNLP 2017) et Kolitsas, Ganea & Hofmann (CoNLL 2018) marquent la transition : le premier relie embeddings d'entités, attention neuronale locale et inférence jointe différentiable aux modèles graphiques classiques de désambiguïsation collective ; le second livre le premier système neuronal bout-en-bout qui découvre et lie les entités conjointement, sans traits d'ingénierie manuelle.</p>",
+      "claims": [
+        "claim:33",
+        "claim:34",
+        "claim:36"
+      ]
+    },
+    {
+      "type": "exercise",
+      "part": "1 — Pipeline et désambiguïsation collective",
+      "question": "<p>(a) Pourquoi le rappel de la génération de candidats constitue-t-il une <em>borne supérieure dure</em> sur l'exactitude de tout le pipeline d'entity linking, et quel signal a priori, calculé sur les ancres Wikipédia, alimente classiquement cette étape ? (b) Que gagne-t-on en passant d'une désambiguïsation locale à une désambiguïsation collective (globale), quel en est le prix computationnel formel établi par Kulkarni et al. (KDD 2009), et que montrent Ratinov et al. (ACL 2011) sur la valeur d'une baseline purement locale ?</p>",
+      "answer": "<p>(a) Si l'entité correcte est absente de la liste de candidats présélectionnés, aucun mécanisme de désambiguïsation en aval ne peut la retrouver : l'erreur est irrécupérable, donc le rappel des candidats plafonne mécaniquement l'exactitude finale (certains ensembles de candidats plafonnent autour de 90 % de rappel, condamnant d'emblée une fraction des mentions). Le signal classique est le <strong>prior de popularité</strong> (commonness) : la probabilité a priori qu'une mention désigne telle entité, estimée en comptant, pour chaque texte d'ancre de Wikipédia, la fréquence avec laquelle il pointe vers chaque article — Milne &amp; Witten illustrent avec « tree » (92,82 % vers la plante). (b) La désambiguïsation collective exploite le fait que les entités d'un même document appartiennent en général à un même thème : un terme de cohérence entre entités liées permet de lever des ambiguïtés que le contexte immédiat ne tranche pas. Son prix : Kulkarni et al. démontrent que l'optimisation exacte de l'objectif combinant potentiels locaux et cohérence par paires est <strong>NP-difficile</strong> (réduction depuis la clique maximale), d'où des approximations (relaxations, heuristiques, contexte restreint). Ratinov et al. montrent qu'une désambiguïsation purement locale correctement outillée (prior + similarité contexte-entité) reste une <strong>baseline très difficile à battre</strong> — le gain du global est réel mais marginal au regard de son coût.</p>"
+    },
+    {
+      "type": "exercise",
+      "part": "2 — Retrieval dense, liage génératif et zero-shot",
+      "question": "<p>(a) Dans BLINK, quel compromis précision-coût la séparation bi-encodeur / cross-encodeur encode-t-elle, et pourquoi seul le premier étage peut-il passer à l'échelle de millions d'entités ? (b) Par quel mécanisme GENRE garantit-il que la séquence générée correspond toujours à une entité réellement présente dans la base, et quel avantage d'empreinte mémoire les auteurs chiffrent-ils face à BLINK et DPR ? (c) Qu'impose le régime <em>zero-shot</em> défini par Logeswaran et al. (ACL 2019), et en quoi le jeu de données zeshel le matérialise-t-il ?</p>",
+      "answer": "<p>(a) Le bi-encodeur embarque séparément contexte de mention et description d'entité : les embeddings des entités se précalculent hors-ligne et s'indexent (recherche approximative HNSW), d'où une récupération parmi 5,9 millions d'entités en ≈2 ms — coût en ligne minime, précision grossière visant le rappel. Le cross-encodeur concatène mention et candidat en une seule séquence et laisse l'attention les croiser : plus précis mais non précalculable (un forward pass complet par candidat), il est cantonné au reclassement du top-k. La knowledge distillation reporte une part de sa précision vers l'étage rapide. (b) GENRE contraint le beam search par un <strong>trie</strong> (arbre préfixe) construit sur l'ensemble des noms canoniques valides : à chaque pas de décodage, les tokens qui ne prolongent aucun chemin du trie sont masqués avant le softmax — le modèle ne peut générer que des titres existants (~6 M de feuilles, ~17 M de nœuds, ≈600 Mo). Les paramètres croissent avec le vocabulaire de sous-mots, pas avec le nombre d'entités : Table 4 (chiffres auto-rapportés, non reproduits indépendamment), <strong>2,1 Go</strong> au total contre 30,1 Go pour BLINK et 70,9 Go pour DPR (≈14× et 34×). (c) Le zero-shot impose de lier des mentions à des entités <strong>jamais vues à l'entraînement</strong>, décrites uniquement par un court texte — sans table d'alias, sans prior de mention ni fréquence de lien. zeshel le matérialise avec seize wikis Fandom formant chacun une base fermée (8 mondes d'entraînement, 4 de validation, 4 de test), candidats pré-générés par BM25/TF-IDF (top-64) que le modèle reclasse à partir de la seule description, le domain-adaptive pre-training comblant l'écart de domaine.</p>"
+    },
+    {
+      "type": "biblio",
+      "entries": [
+        {
+          "label": "Entity linking — Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/Entity_linking"
+        },
+        {
+          "label": "Khalid, Jijkoun & de Rijke (2008) — The impact of named entity normalization on information retrieval for question answering (ECIR)",
+          "href": "https://link.springer.com/chapter/10.1007/978-3-540-78646-7_83"
+        },
+        {
+          "label": "Ferré & Langlais (2023) — An analysis of entity normalization evaluation biases in specialized domains (BMC Bioinformatics)",
+          "href": "https://link.springer.com/article/10.1186/s12859-023-05350-9"
+        },
+        {
+          "label": "NLP-progress — Entity Linking",
+          "href": "http://nlpprogress.com/english/entity_linking.html"
+        },
+        {
+          "label": "An overview of Biomedical Entity Linking throughout the years (PMC9845184)",
+          "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC9845184/"
+        },
+        {
+          "label": "Neural Entity Linking: A Survey of Models Based on Deep Learning (arXiv:2006.00575)",
+          "href": "https://arxiv.org/abs/2006.00575"
+        },
+        {
+          "label": "NOBLE — Flexible concept recognition for large-scale biomedical natural language processing (PMC4712516)",
+          "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC4712516/"
+        },
+        {
+          "label": "Entity Linking — Devopedia (section Milestones)",
+          "href": "https://devopedia.org/entity-linking"
+        },
+        {
+          "label": "Using Encyclopedic Knowledge for Named Entity Disambiguation — ACL Anthology (Bunescu & Paşca, EACL 2006, Trento, avril 2006)",
+          "href": "https://aclanthology.org/E06-1002/"
+        },
+        {
+          "label": "Large-Scale Named Entity Disambiguation Based on Wikipedia Data (Cucerzan, EMNLP-CoNLL 2007) — ACL Anthology",
+          "href": "https://aclanthology.org/D07-1074/"
+        },
+        {
+          "label": "Wikify!: linking documents to encyclopedic knowledge (Mihalcea & Csomai, CIKM 2007) — DBLP",
+          "href": "https://dblp.org/rec/conf/cikm/MihalceaC07.html"
+        },
+        {
+          "label": "Local and Global Algorithms for Disambiguation to Wikipedia (Ratinov, Roth, Downey & Anderson, ACL 2011) — ACL Anthology",
+          "href": "https://aclanthology.org/P11-1138/"
+        },
+        {
+          "label": "Graph Ranking for Collective Named Entity Disambiguation (Alhelbawy & Gaizauskas, ACL 2014, P14-2013) — primary source",
+          "href": "https://aclanthology.org/P14-2013"
+        },
+        {
+          "label": "Alhelbawy & Gaizauskas, \"Collective Named Entity Disambiguation using Graph Ranking and Clique Partitioning Approaches\", COLING 2014 (primary source, verified verbatim via PDF)",
+          "href": "https://aclanthology.org/C14-1147.pdf"
+        },
+        {
+          "label": "Ji & Grishman, \"Knowledge Base Population: Successful Approaches and Challenges\", ACL 2011 (defines NIL as the entity-linking task's designated output when no KB entry matches)",
+          "href": "https://blender.cs.illinois.edu/paper/kbp_acl11.pdf"
+        },
+        {
+          "label": "Wikidata:Statistics",
+          "href": "https://www.wikidata.org/wiki/Wikidata:Statistics"
+        },
+        {
+          "label": "Wikidata — Meta-Wiki",
+          "href": "https://meta.wikimedia.org/wiki/Wikidata"
+        },
+        {
+          "label": "High Quality Candidate Generation and Sequential Graph Attention Network for Entity Linking (Fang, Zheng et al., WWW'20)",
+          "href": "https://ictkc.github.io/publication/WWW-20-FangZheng"
+        },
+        {
+          "label": "Zero-Shot Entity Linking by Reading Entity Descriptions (Logeswaran et al., NAACL 2019, arXiv:1906.07348)",
+          "href": "https://ar5iv.labs.arxiv.org/html/1906.07348"
+        },
+        {
+          "label": "Ling, Singh, Weld — 'Design Challenges for Entity Linking' (TACL 2015) — verbatim: 'the recall of mention extraction is an upper bound of the recall of end-to-end predictions'",
+          "href": "https://aclanthology.org/Q15-1023/"
+        },
+        {
+          "label": "García-Durán, Arora, West — 'Efficient Entity Candidate Generation for Low-Resource Languages' (LREC 2022, EPFL) — defines/uses 'ceiling recall' of candidate generation as the binding constraint on downstream linking",
+          "href": "https://aclanthology.org/2022.lrec-1.690.pdf"
+        },
+        {
+          "label": "Milne & Witten, \"Learning to Link with Wikipedia\", CIKM'08 (University of Waikato)",
+          "href": "https://complexevents.com/wp-content/uploads/2008/12/cikm08-learningtolinkwithwikipedia.pdf"
+        },
+        {
+          "label": "Shen, Wang & Han, \"Entity Linking with a Knowledge Base: Issues, Techniques, and Solutions\", IEEE TKDE 2015 (Tsinghua/UIUC/Illinois)",
+          "href": "https://dbgroup.cs.tsinghua.edu.cn/wangjy/papers/TKDE14-entitylinking.pdf"
+        },
+        {
+          "label": "Hoffart et al. (2011), \"Robust Disambiguation of Named Entities in Text\", EMNLP 2011 (Max Planck Institute for Informatics / Yahoo Research / Saarland University — independent research group from Milne & Witten's Waikato team)",
+          "href": "https://aclanthology.org/D11-1072/"
+        },
+        {
+          "label": "Entity Linking at TAC 2013 — Task Description v1.0 (NIST)",
+          "href": "https://tac.nist.gov/2013/KBP/EntityLinking/guidelines/KBP2013_EntityLinkingTaskDescription_1.0.pdf"
+        },
+        {
+          "label": "Ji, Nothman, Hachey — Overview of TAC-KBP2014 Entity Discovery and Linking Tasks",
+          "href": "https://blender.cs.illinois.edu/paper/edl2014overview.pdf"
+        },
+        {
+          "label": "CUNY-UIUC-SRI TAC-KBP2011 Entity Linking System Description (Cassidy, Chen, Artiles, Ji, Deng, Ratinov, Zheng, Han, Roth)",
+          "href": "https://tac.nist.gov/publications/2011/participant.papers/CUNY_UIUC_SRI.proceedings.pdf"
+        },
+        {
+          "label": "UMass CIIR at TAC KBP 2013 Entity Linking: Query Expansion using Urban Dictionary (Dalton & Dietz, UMass Amherst)",
+          "href": "https://maroo.cs.umass.edu/getpdf.php?id=1136"
+        },
+        {
+          "label": "End-to-End Neural Entity Linking (Kolitsas, Ganea, Hofmann; CoNLL 2018)",
+          "href": "https://arxiv.org/abs/1808.07699"
+        },
+        {
+          "label": "GERBIL: General Entity Annotator Benchmarking Framework (Usbeck et al., WWW 2015) — formalizes D2KB (disambiguation given gold mentions) vs A2KB (full pipeline) as separate standard experiment types",
+          "href": "https://svn.aksw.org/papers/2015/WWW_GERBIL/public.pdf"
+        },
+        {
+          "label": "Kulkarni, Singh, Ramakrishnan, Chakrabarti — \"Collective Annotation of Wikipedia Entities in Web Text\" (CSAW), KDD 2009, PDF primaire (auteur)",
+          "href": "https://www.cse.iitb.ac.in/~soumen/doc/sigkdd2009c/CSAW.pdf"
+        },
+        {
+          "label": "dblp: Collective annotation of Wikipedia entities in web text (KDD 2009, pp. 457-466)",
+          "href": "https://dblp.org/rec/conf/kdd/KulkarniSRC09.html"
+        },
+        {
+          "label": "Robust Disambiguation of Named Entities in Text (Hoffart, Yosef, Bordino, Fürstenau, Pinkal, Spaniol, Taneva, Thater, Weikum — EMNLP 2011, ACL Anthology D11-1072)",
+          "href": "https://aclanthology.org/D11-1072.pdf"
+        },
+        {
+          "label": "Ratinov, Roth, Downey, Anderson — \"Local and Global Algorithms for Disambiguation to Wikipedia\", ACL 2011, pages 1375-1384 (PDF, texte intégral vérifié)",
+          "href": "https://aclanthology.org/P11-1138.pdf"
+        },
+        {
+          "label": "Named Entity Disambiguation for Noisy Text (Eshel, Cohen, Radinsky, Markovitch, Yamada, Levy — CoNLL 2017) — cite explicitement : « local approaches provide a hard-to-beat baseline (Ratinov et al., 2011) »",
+          "href": "https://aclanthology.org/K17-1008.pdf"
+        },
+        {
+          "label": "Entities of Interest: Discovery in Digital Traces (David Graus, thèse de doctorat, Universiteit van Amsterdam, arXiv:2102.10962) — confirme indépendamment : « Ratinov et al. train a local approach to resolve individual entity mentions, before applying the global approach for coherence », et que le local combine commonness (popularité) + contexte",
+          "href": "https://arxiv.org/pdf/2102.10962"
+        },
+        {
+          "label": "Pair-Linking for Collective Entity Disambiguation: Two Could Be Better Than All (Phan, Sun, Tay, Han, Li, arXiv:1802.01074)",
+          "href": "https://arxiv.org/abs/1802.01074"
+        },
+        {
+          "label": "Scalable Zero-shot Entity Linking with Dense Entity Retrieval (ar5iv full-text render)",
+          "href": "https://ar5iv.labs.arxiv.org/html/1911.03814"
+        },
+        {
+          "label": "Neural Collective Entity Linking (Cao et al., 2018) — source du chiffre 91.0% cité comme état de l'art antérieur",
+          "href": "https://arxiv.org/abs/1811.08603"
+        },
+        {
+          "label": "Trusted Knowledge Extraction for Operations and Maintenance Intelligence (Mealey, Karr Jr., Moreira, Brenner, Vardeman II — Univ. of Notre Dame, arXiv 2507.22935)",
+          "href": "https://arxiv.org/html/2507.22935v3"
+        },
+        {
+          "label": "Scalable Zero-shot Entity Linking with Dense Entity Retrieval (Wu et al., 2020) — arXiv:1911.03814",
+          "href": "https://arxiv.org/abs/1911.03814"
+        },
+        {
+          "label": "facebookresearch/BLINK — GitHub repository (FAISS index options: flat / hnsw)",
+          "href": "https://github.com/facebookresearch/BLINK"
+        },
+        {
+          "label": "Scalable Zero-shot Entity Linking with Dense Entity Retrieval — ACL Anthology (EMNLP 2020 published version)",
+          "href": "https://aclanthology.org/2020.emnlp-main.519/"
+        },
+        {
+          "label": "Evaluating Design Decisions for Dual Encoder-based Entity Disambiguation (Rücker & Akbik, 2025)",
+          "href": "https://arxiv.org/abs/2505.11683"
+        },
+        {
+          "label": "Knowledge Graphs in NLP @ EMNLP 2020 (Michael Galkin, Medium)",
+          "href": "https://mgalkin.medium.com/knowledge-graphs-in-nlp-emnlp-2020-2f98ec527738"
+        },
+        {
+          "label": "MuVER: Improving First-Stage Entity Retrieval with Multi-View Entity Representations (Ma et al., EMNLP 2021)",
+          "href": "https://arxiv.org/abs/2109.05716"
+        },
+        {
+          "label": "ReFinED: An Efficient Zero-shot-capable Approach to End-to-End Entity Linking (ACL Anthology, NAACL 2022 Industry Track)",
+          "href": "https://aclanthology.org/2022.naacl-industry.24/"
+        },
+        {
+          "label": "ReFinED: An Efficient Zero-shot-capable Approach to End-to-End Entity Linking (PDF, Ayoola et al. 2022)",
+          "href": "https://christos-c.com/papers/ayoola_22_refined.pdf"
+        },
+        {
+          "label": "Amazon AI Researchers Introduce ReFinED: A Novel Entity Linking (EL) System That Improves Entity Linking Between Texts And Knowledge Bases — MarkTechPost",
+          "href": "https://www.marktechpost.com/2022/07/13/amazon-ai-researchers-introduces-refined-a-novel-entity-linking-el-system-that-improves-entity-linking-between-texts-and-knowledge-bases/"
+        },
+        {
+          "label": "A Fair and In-Depth Evaluation of Existing End-to-End Entity Linking Systems (Bast, Hertel, Prange — Univ. of Freiburg, EMNLP 2023)",
+          "href": "https://arxiv.org/pdf/2305.14937"
+        },
+        {
+          "label": "Autoregressive Entity Retrieval (De Cao et al., ICLR 2021) — PDF officiel arXiv",
+          "href": "https://arxiv.org/pdf/2010.00904"
+        },
+        {
+          "label": "Autoregressive Entity Retrieval — ar5iv HTML mirror",
+          "href": "https://ar5iv.labs.arxiv.org/html/2010.00904"
+        },
+        {
+          "label": "dblp: Autoregressive Entity Retrieval (De Cao, Izacard, Riedel, Petroni)",
+          "href": "https://dblp.org/rec/conf/iclr/CaoI0P21.html"
+        },
+        {
+          "label": "Sevgili, Shelmanov, Arkhipov, Panchenko, Biemann — Neural Entity Linking: A Survey of Models Based on Deep Learning",
+          "href": "https://ar5iv.labs.arxiv.org/html/2006.00575"
+        },
+        {
+          "label": "Autoregressive Entity Retrieval (De Cao, Izacard, Riedel, Petroni — ICLR 2021)",
+          "href": "https://arxiv.org/abs/2010.00904"
+        },
+        {
+          "label": "EntGPT: Linking Generative Large Language Models with Knowledge Bases (arXiv:2402.06738)",
+          "href": "https://arxiv.org/abs/2402.06738"
+        },
+        {
+          "label": "Literature Review — EntGPT: Linking Generative Large Language Models with Knowledge Bases (themoonlight.io)",
+          "href": "https://www.themoonlight.io/en/review/entgpt-linking-generative-large-language-models-with-knowledge-bases"
+        },
+        {
+          "label": "A Read-and-Select Framework for Zero-shot Entity Linking (Xu, Chen, Hu, Zhang)",
+          "href": "https://arxiv.org/abs/2310.12450"
+        },
+        {
+          "label": "Improving Zero-Shot Entity Retrieval through Effective Dense Representations (Partalidou, Christou, Tsoumakas)",
+          "href": "https://arxiv.org/abs/2103.04156"
+        },
+        {
+          "label": "ACL 2019 | Best Papers Announced — Synced Review",
+          "href": "https://syncedreview.com/2019/08/01/acl-2019-best-papers-announced/"
+        },
+        {
+          "label": "Outstanding Papers Reading (ACL 2019) — Thinkwee's Blog",
+          "href": "https://thinkwee.top/2019/07/28/acl2019/"
+        },
+        {
+          "label": "Winners of ACL 2019 Best Paper Awards (page officielle de la conférence)",
+          "href": "https://acl2019.org/EN/winners-of-acl-2019-best-paper-awards.xhtml.html"
+        },
+        {
+          "label": "CSA IISc Bangalore — annonce indépendante confirmant que le prix « Outstanding Paper » zero-shot est allé au papier de Kumar et al. (WSD), pas à celui de Logeswaran et al.",
+          "href": "https://www.csa.iisc.ac.in/events/the-paper-titled-zero-shot-word-sense-disambiguation-using-sense-definition-embeddings-by-sawan-kumar-sharmistha-jat-karan-saxena-and-partha-talukdar-received-an-outstanding-paper-award/"
+        },
+        {
+          "label": "lajanugen/zeshel — dépôt officiel du dataset (source primaire)",
+          "href": "https://github.com/lajanugen/zeshel"
+        },
+        {
+          "label": "Zero-Shot Entity Linking by Reading Entity Descriptions - ACL Anthology (montre l'étiquette « Outstanding Paper » probablement erronée)",
+          "href": "https://aclanthology.org/P19-1335/"
+        },
+        {
+          "label": "Reveal the Unknown: Out-of-Knowledge-Base Mention Discovery with Entity Linking (BLINKout, Dong, Chen, He, Liu, Horrocks — Oxford, CIKM 2023)",
+          "href": "https://arxiv.org/abs/2302.07189"
+        },
+        {
+          "label": "Learn to Not Link: Exploring NIL Prediction in Entity Linking (Zhu, Yu, Jin, Li, Hou, Sui — Tsinghua)",
+          "href": "https://arxiv.org/abs/2305.15725"
+        },
+        {
+          "label": "Overview of the TAC2011 Knowledge Base Population Track (Ji, Grishman, Dang — organisateurs officiels du track)",
+          "href": "https://blender.cs.illinois.edu/paper/kbp2011.pdf"
+        },
+        {
+          "label": "Task Description for Knowledge-Base Population at TAC 2010 (NIST, définition officielle de la tâche)",
+          "href": "https://tac.nist.gov/2010/KBP/KBP2010_TaskDefinition.pdf"
+        },
+        {
+          "label": "Task Description for Knowledge-Base Population at TAC 2009 (P. McNamee et al., guidelines officiels)",
+          "href": "http://pmcnamee.net/kbp/090601-KBPTaskGuidelines.pdf"
+        },
+        {
+          "label": "Chang, Spitkovsky, Agirre & Manning — \"Stanford-UBC Entity Linking at TAC-KBP, Again\" (équipe participante indépendante, Stanford/UBC)",
+          "href": "https://nlp.stanford.edu/pubs/kbp2011-entitylinking.pdf"
+        },
+        {
+          "label": "Introduction to the CoNLL-2003 Shared Task: Language-Independent Named Entity Recognition (Tjong Kim Sang & De Meulder, 2003)",
+          "href": "https://arxiv.org/abs/cs/0306050"
+        },
+        {
+          "label": "Xu et al., \"Learn to Not Link: Exploring NIL Prediction in Entity Linking\", ACL Findings 2023 — Table 2 : AIDA = 34 956 mentions, NIL percentage = 20.41%",
+          "href": "https://aclanthology.org/2023.findings-acl.690.pdf"
+        },
+        {
+          "label": "Guo & Barbosa, \"Robust Named Entity Disambiguation with Random Walks\", Semantic Web Journal 2018 — Table 5 (stats GERBIL/Usbeck et al. 2015) : AIDA/CoNLL, #docs = 1393",
+          "href": "https://www.semantic-web-journal.net/system/files/swj1511.pdf"
+        },
+        {
+          "label": "M. Cornolti, P. Ferragina, M. Ciaramita — A Framework for Benchmarking Entity-Annotation Systems (WWW 2013)",
+          "href": "https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/40749.pdf"
+        },
+        {
+          "label": "Cornolti, Ferragina, Ciaramita — A Framework for Benchmarking Entity-Annotation Systems (WWW 2013)",
+          "href": "https://research.google.com/pubs/archive/40749.pdf"
+        },
+        {
+          "label": "Robustness Evaluation of Entity Disambiguation Using Prior Probes: the Case of Entity Overshadowing (ShadowLink), Provatorova, Vakulenko, Bhargav & Kanoulas, EMNLP 2021",
+          "href": "https://arxiv.org/abs/2108.10949"
+        },
+        {
+          "label": "Evaluating Entity Disambiguation and the Role of Popularity in Retrieval-Based NLP (AmbER sets), Chen, Gudipati, Longpre, Ling & Singh, 2021",
+          "href": "https://arxiv.org/abs/2106.06830"
+        },
+        {
+          "label": "A Fair and In-Depth Evaluation of Existing End-to-End Entity Linking Systems, Bast, Hertel & Prange, EMNLP 2023",
+          "href": "https://arxiv.org/abs/2305.14937"
+        },
+        {
+          "label": "A Fair and In-Depth Evaluation of Existing End-to-End Entity Linking Systems (ACL Anthology, EMNLP 2023, pp. 6659-6672)",
+          "href": "https://aclanthology.org/2023.emnlp-main.411/"
+        },
+        {
+          "label": "GraphRAG for Enterprise Applications (SAP) — EntityRelationNormalizer fait une déduplication interne des variantes de surface, sans mention d'aucune base externe",
+          "href": "https://arxiv.org/html/2507.03226v2"
+        },
+        {
+          "label": "neo4j-graphrag-python — User Guide: Knowledge Graph Builder (résolution d'entités = exact/sémantique spaCy/fuzzy RapidFuzz, toutes internes au graphe construit, aucune mention de Wikidata/DBpedia)",
+          "href": "https://neo4j.com/docs/neo4j-graphrag-python/current/user_guide_kg_builder.html"
+        },
+        {
+          "label": "microsoft/graphrag GitHub Issue #1718 — dédup par (title, type) uniquement, entités homonymes de type différent écrasées, aucune désambiguïsation externe",
+          "href": "https://github.com/microsoft/graphrag/issues/1718"
+        },
+        {
+          "label": "GraphRAG.com — Preparation: Named Entity Recognition (distingue explicitement le linking vers des bases externes comme une 'solution de haut niveau' séparée du pipeline NER+dédup de base)",
+          "href": "https://graphrag.com/reference/preparation/ner/"
+        },
+        {
+          "label": "Methods - GraphRAG (documentation officielle Microsoft de l'implémentation de référence)",
+          "href": "https://microsoft.github.io/graphrag/index/methods/"
+        },
+        {
+          "label": "How Microsoft GraphRAG Works Step-By-Step (Part 1/2)",
+          "href": "https://tech.bertelsmann.com/en/blog/articles/how-microsoft-graphrag-works-step-by-step-part-12"
+        },
+        {
+          "label": "[2010.02413] Efficient One-Pass End-to-End Entity Linking for Questions (arXiv abstract)",
+          "href": "https://arxiv.org/abs/2010.02413"
+        },
+        {
+          "label": "Efficient One-Pass End-to-End Entity Linking for Questions - ACL Anthology (2020.emnlp-main.522)",
+          "href": "https://aclanthology.org/2020.emnlp-main.522/"
+        },
+        {
+          "label": "Efficient One-Pass End-to-End Entity Linking for Questions - Meta Research publication page",
+          "href": "https://ai.meta.com/research/publications/efficient-one-pass-end-to-end-entity-linking-for-questions/"
+        },
+        {
+          "label": "ReFinED: An Efficient Zero-shot-capable Approach to End-to-End Entity Linking (Ayoola et al., NAACL 2022, Amazon Alexa AI) — confirme l'architecture bi-encoder d'ELQ (BERT-large, un seul passage) et reprend ses résultats WebQSP dans son propre tableau comparatif",
+          "href": "https://arxiv.org/abs/2207.04108"
+        },
+        {
+          "label": "RnG-KBQA: Generation Augmented Iterative Ranking for Knowledge Base Question Answering (Ye et al., ACL 2022, Salesforce Research) — utilise ELQ comme entity linker pour WebQSP et rapporte, indépendamment, une amélioration du F1 de QA en aval (75,6 vs 74,0 pour la méthode antérieure QGG) attribuée à la précision d'ELQ",
+          "href": "https://arxiv.org/abs/2109.08678"
+        },
+        {
+          "label": "An Entity Linking Agent for Question Answering (arXiv 2508.03865, 2025) — restate indépendamment la description architecturale d'ELQ (\"adopted a bi-encoder architecture to jointly perform mention detection and linking in one pass\") et inclut ELQ dans ses tableaux de comparaison WebQSP/CWQ",
+          "href": "https://arxiv.org/abs/2508.03865"
+        },
+        {
+          "label": "BLINK with Elasticsearch for Efficient Entity Linking in Business Conversations (Laskar, Chen, Martsinovich, Johnston, Fu, Bhushan Tn, Corston-Oliver — NAACL 2022 Industry Track, Dialpad Canada Inc.)",
+          "href": "https://aclanthology.org/2022.naacl-industry.38/"
+        },
+        {
+          "label": "BBC World Cup 2010 dynamic semantic publishing (Jem Rayfield, BBC Internet Blog, 12 July 2010, via Wayback Machine)",
+          "href": "http://web.archive.org/web/20100715074314/http://www.bbc.co.uk:80/blogs/bbcinternet/2010/07/bbc_world_cup_2010_dynamic_sem.html"
+        },
+        {
+          "label": "The World Cup and a call to action around Linked Data (John O'Donovan, BBC Internet Blog, 9 July 2010, via Wayback Machine)",
+          "href": "http://web.archive.org/web/20100712083153/http://www.bbc.co.uk:80/blogs/bbcinternet/2010/07/the_world_cup_and_a_call_to_ac.html"
+        },
+        {
+          "label": "The Features of BigOWLIM that Enabled the BBC's World Cup Website (Kiryakov et al., SemData@VLDB 2010, CEUR-WS Vol-637)",
+          "href": "https://ceur-ws.org/Vol-637/paper6.pdf"
+        },
+        {
+          "label": "Case Study: BBC Boosted Efficiency and Reduced Cost by Using Semantic Publishing to Power the FIFA World Cup Website (Ontotext)",
+          "href": "https://www.ontotext.com/knowledgehub/case-studies/bbc-boosted-efficiency-reduced-cost-using-semantic-publishing-to-power-the-fifa-world-cup-web-site/"
+        },
+        {
+          "label": "Sport Ontology - BBC case study (Epimorphics)",
+          "href": "https://www.epimorphics.com/casestudy/bbc-sport/"
+        },
+        {
+          "label": "DBpedia (Wikipedia article, citant Kobilarov et al. ESWC 2009)",
+          "href": "https://en.wikipedia.org/wiki/DBpedia"
+        },
+        {
+          "label": "GitHub REST API — facebookresearch/BLINK repo metadata (archived: true, license: MIT)",
+          "href": "https://api.github.com/repos/facebookresearch/BLINK"
+        },
+        {
+          "label": "facebookresearch/GENRE — GitHub repository page (README license statement)",
+          "href": "https://github.com/facebookresearch/GENRE"
+        },
+        {
+          "label": "facebookresearch/GENRE — raw LICENSE file (Attribution-NonCommercial 4.0 International text)",
+          "href": "https://raw.githubusercontent.com/facebookresearch/GENRE/main/LICENSE"
+        },
+        {
+          "label": "ReFinED/README.md at main · amazon-science/ReFinED (GitHub)",
+          "href": "https://github.com/amazon-science/ReFinED/blob/main/README.md"
+        },
+        {
+          "label": "GERBIL – Benchmarking Named Entity Recognition and Linking consistently (Röder, Usbeck, Ngonga Ngomo, Semantic Web journal, DOI 10.3233/SW-170286 — version PDF en accès libre)",
+          "href": "https://www.semantic-web-journal.net/system/files/swj1671.pdf"
+        },
+        {
+          "label": "Entity Linking Meets Deep Learning: Techniques and Solutions (Sevgili et al., survey indépendant citant GERBIL comme plateforme de benchmarking EL unifiée)",
+          "href": "https://arxiv.org/pdf/2109.12520"
+        },
+        {
+          "label": "Falcon 2.0: An Entity and Relation Linking Tool over Wikidata (arXiv:1912.11270, version CIKM 2020)",
+          "href": "https://arxiv.org/abs/1912.11270"
+        },
+        {
+          "label": "GitHub - SDM-TIB/falcon2.0: Falcon 2.0 is a joint entity and relation linking tool over Wikidata",
+          "href": "https://github.com/SDM-TIB/falcon2.0"
+        },
+        {
+          "label": "C. Möller, J. Lehmann, R. Usbeck — Survey on English Entity Linking on Wikidata (Semantic Web Journal, 2022)",
+          "href": "https://www.semantic-web-journal.net/system/files/swj2670.pdf"
+        },
+        {
+          "label": "P. Scharpf, C. Breitinger, A. Spitz, N. Meuschke, A. Greiner-Petter, M. Schubotz, B. Gipp — Entity Linking with Wikidata: A Systematic Literature Review (ACM Computing Surveys, vol. 58, no. 9, art. 227, 2026)",
+          "href": "https://gipplab.uni-goettingen.de/wp-content/papercite-data/pdf/scharpf2026.pdf"
+        }
+      ]
+    },
+    {
+      "type": "pointers",
+      "title": "Pour aller plus loin",
+      "items": [
+        {
+          "name": "BLINK",
+          "url": "https://github.com/facebookresearch/BLINK",
+          "kind": "implementation",
+          "blurb": "Bibliothèque Meta AI de liage d'entités par bi-encodeur + cross-encodeur BERT vers Wikipédia (Wu et al. 2020) ; dépôt archivé en lecture seule depuis mars 2024, licence MIT."
+        },
+        {
+          "name": "ELQ (BLINK/elq)",
+          "url": "https://github.com/facebookresearch/BLINK/tree/main/elq",
+          "kind": "implementation",
+          "blurb": "Sous-module de BLINK qui lie les mentions dans des questions à Wikipédia en une seule passe (EMNLP 2020)."
+        },
+        {
+          "name": "ReFinED",
+          "url": "https://github.com/amazon-science/ReFinED",
+          "kind": "implementation",
+          "blurb": "Système de liage d'entités d'Amazon Science : détection, typage fin (>1000 classes) et désambiguïsation en une seule passe transformer, vers Wikipedia (~6M) ou Wikidata (~33M entités), licence Apache-2.0."
+        },
+        {
+          "name": "GENRE (facebookresearch)",
+          "url": "https://github.com/facebookresearch/GENRE",
+          "kind": "implementation",
+          "blurb": "Liage génératif autorégressif (BART + beam search contraint) de Meta AI, avec variante multilingue mGENRE (100+ langues) ; dépôt archivé en lecture seule depuis juillet 2025."
+        },
+        {
+          "name": "zeshel (dataset)",
+          "url": "https://github.com/lajanugen/zeshel",
+          "kind": "implementation",
+          "blurb": "Jeu de données et code du liage d'entités zero-shot de Logeswaran et al. (ACL 2019), basé sur des mini-encyclopédies Wikia."
+        },
+        {
+          "name": "BLINKout",
+          "url": "https://github.com/KRR-Oxford/BLINKout",
+          "kind": "implementation",
+          "blurb": "Extension de BLINK pour détecter les mentions hors base via une entité NIL explicite (Dong et al., CIKM 2023), licence MIT."
+        },
+        {
+          "name": "GERBIL",
+          "url": "http://gerbil.aksw.org/gerbil/",
+          "kind": "tool",
+          "blurb": "Plateforme web qui exécute et compare des annotateurs d'entités sur de multiples jeux de données avec des métriques uniformisées."
+        },
+        {
+          "name": "AIDA CoNLL-YAGO2 Dataset",
+          "url": "https://www.mpi-inf.mpg.de/departments/databases-and-information-systems/research/ambiverse-nlu/aida/downloads",
+          "kind": "reading",
+          "blurb": "Page de téléchargement officielle du corpus AIDA-CoNLL-YAGO (Hoffart et al., EMNLP 2011), Max Planck Institute for Informatics, licence CC-BY-SA 3.0."
+        },
+        {
+          "name": "TAC KBP Entity Discovery and Linking (LDC)",
+          "url": "https://catalog.ldc.upenn.edu/LDC2019T02",
+          "kind": "reading",
+          "blurb": "Catalogue LDC (LDC2019T02) des données d'entraînement et d'évaluation TAC-KBP Entity Discovery and Linking 2014-2015 (anglais, chinois, espagnol)."
+        },
+        {
+          "name": "ShadowLink",
+          "url": "https://zenodo.org/records/5196175",
+          "kind": "reading",
+          "blurb": "Jeu de données (Univ. Amsterdam, DOI 10.5281/zenodo.5196175) isolant l'entity overshadowing via des sous-ensembles Top/Shadow/Tail/Neutral, licence CC-BY 4.0."
+        },
+        {
+          "name": "AmbER-Sets",
+          "url": "https://github.com/anthonywchen/AmbER-Sets",
+          "kind": "reading",
+          "blurb": "Dépôt officiel des AmbER sets (ACL-IJCNLP 2021) pour mesurer le biais de popularité dans la désambiguïsation d'entités et le retrieval."
+        },
+        {
+          "name": "DBpedia Spotlight",
+          "url": "https://www.dbpedia-spotlight.org/",
+          "kind": "tool",
+          "blurb": "Service REST public (et projet open source) exécutant le pipeline spotting → sélection de candidats → désambiguïsation → filtrage, sortie XML/JSON/RDF."
+        },
+        {
+          "name": "OpenRefine — service de réconciliation Wikidata",
+          "url": "https://openrefine.org/",
+          "kind": "tool",
+          "blurb": "Outil open source de nettoyage de données tabulaires dont le service de réconciliation ancre des colonnes sur des entités Wikidata."
+        },
+        {
+          "name": "Google Cloud Natural Language API",
+          "url": "https://cloud.google.com/natural-language/docs/reference/rest/v1/Entity",
+          "kind": "tool",
+          "blurb": "API managée dont la ressource Entity (méthode analyzeEntities) renvoie une URL Wikipédia (wikipedia_url) et un identifiant Knowledge Graph (mid)."
+        },
+        {
+          "name": "REL (Radboud Entity Linker)",
+          "url": "https://github.com/informagi/REL",
+          "kind": "library",
+          "blurb": "Pipeline modulaire en trois étapes (détection via Flair, génération de candidats, désambiguïsation), disponible en package Python et API web."
+        },
+        {
+          "name": "spaCy-entity-linker",
+          "url": "https://github.com/egerber/spaCy-entity-linker",
+          "kind": "package",
+          "blurb": "Extension spaCy sans entraînement qui lie vers Wikidata par appariement d'alias, au prix d'un téléchargement initial d'environ 1,3 Go ; expérimental."
+        },
+        {
+          "name": "OpenTapioca",
+          "url": "https://github.com/wetneb/opentapioca",
+          "kind": "tool",
+          "blurb": "Liage léger vers Wikidata synchronisé quasi en temps réel avec les éditions de la base (licence Apache-2.0, instance publique sur opentapioca.org)."
+        },
+        {
+          "name": "Falcon 2.0",
+          "url": "https://github.com/SDM-TIB/falcon2.0",
+          "kind": "tool",
+          "blurb": "Outil de liage conjoint entités+relations vers Wikidata pour texte court/questions, via une analyse morphologique de l'anglais (accepté CIKM 2020)."
+        },
+        {
+          "name": "TagMe",
+          "url": "https://sobigdata.d4science.org/web/tagme/tagme-help",
+          "kind": "tool",
+          "blurb": "Annotateur historique (2011) optimisé pour les textes courts, exposé en API REST (anglais/italien/allemand) via l'infrastructure D4Science."
+        },
+        {
+          "name": "Wikipedia2Vec",
+          "url": "https://wikipedia2vec.github.io/wikipedia2vec/",
+          "kind": "library",
+          "blurb": "Apprentissage conjoint d'embeddings de mots et d'entités à partir de Wikipedia (Studio Ousia), modèles pré-entraînés pour 12 langues, licence Apache-2.0."
+        },
+        {
+          "name": "Zero-Shot Entity Linking by Reading Entity Descriptions (Logeswaran et al., ACL 2019)",
+          "url": "https://aclanthology.org/P19-1335/",
+          "kind": "reading",
+          "blurb": "Article fondateur (ACL 2019) définissant la tâche et le benchmark ZESHEL de liage d'entités zero-shot."
+        },
+        {
+          "name": "Neural Entity Linking: A Survey of Models Based on Deep Learning (Sevgili et al., 2022)",
+          "url": "https://journals.sagepub.com/doi/10.3233/SW-222986",
+          "kind": "reading",
+          "blurb": "Survey de référence (Semantic Web journal, 2022) qui systématise l'architecture générique des systèmes de liage neuronaux depuis 2015."
+        },
+        {
+          "name": "Entity Linking with Wikidata: A Systematic Literature Review (2026)",
+          "url": "https://dl.acm.org/doi/10.1145/3795134",
+          "kind": "reading",
+          "blurb": "Revue systématique (ACM Computing Surveys, publiée février 2026) centrée sur Wikidata, structurée en huit dimensions du liage d'entités."
+        },
+        {
+          "name": "Entity Linking: Finding Extracted Entities in a Knowledge Base (Rao, McNamee & Dredze, 2012)",
+          "url": "https://link.springer.com/chapter/10.1007/978-3-642-28569-1_5",
+          "kind": "reading",
+          "blurb": "Chapitre pré-neuronal classique (pp. 93-115) qui pose le cadre du problème de liage d'entités avant l'ère du deep learning."
+        }
+      ]
+    },
+    {
+      "type": "glossary"
+    }
+  ]
+}
