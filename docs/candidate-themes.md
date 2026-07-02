@@ -7,7 +7,18 @@ traités ; un agent de synthèse en a dérivé la carte de couverture, un verdic
 gaps réels. (Cette passe corrige une analyse antérieure faussée par un `grep -E 'a\|b\|c'` —
 en ERE, `\|` est un pipe *littéral* ; ne jamais l'utiliser.)
 
-- **Fabrication** : `/frugalmonograph « <prompt riche> »` puis `/arrange <slug>`.
+**Passe d'enrichissement du 2026-07-02** (corpus à 41 monographies) : retrait des 5 candidats
+devenus FAITS depuis la refonte (scaling-laws, named-entity-recognition-sequence-labeling,
+entity-linking-disambiguation, coreference-resolution, calibration-classifieurs ;
+knowledge-distillation déjà retiré) et ajout de 15 candidats, dont 3 issus d'un audit ciblé de la
+chaîne d'extraction d'information (le « pôle NER » : 4 maillons FAITS, mais RE discriminative,
+événements/temporel et supervision faible absents). Vérification de couverture par greps
+ciblés (frontières de mots, casse respectée pour les sigles) sur les `knowledge.json`/`manifest.json`
+publiés, puis lecture du contexte de chaque mention — méthode plus légère que la passe initiale par
+agents-lecteurs, suffisante pour trancher gap/partiel/écarté.
+
+- **Fabrication** : `/leanmonograph « <prompt riche> »` (défaut depuis le test GREEN du 2026-07-02 ;
+  `/frugalmonograph` en repli) puis `/arrange <slug>`.
 - **Domaine** = celui de `tools/taxonomy.json` (source de vérité). Un thème = un seul domaine.
 - **Verdicts** : `gap réel` (rien de substantiel) · `partiel` (effleuré/adjacent ailleurs, angle
   neuf à cibler) · `écarté` (déjà couvert en profondeur).
@@ -15,19 +26,6 @@ en ERE, `\|` est un pipe *littéral* ; ne jamais l'utiliser.)
 ---
 
 ## Priorité haute — gaps réels, forte valeur de référence
-
-### Scaling laws (Chinchilla, compute-optimal) — `scaling-laws` → `deep-learning-foundations`
-**Verdict : gap réel.** Seule mention : `ia-productivite-esn` cite Kaplan/Chinchilla dans un cadre
-de plafonds de productivité, pas la frontière compute-optimale.
-
-> Lois d'échelle (scaling laws) du deep learning : comment la perte décroît avec les paramètres,
-> les données et le compute, et comment allouer un budget de calcul de façon compute-optimale.
-> Couvrir les lois en loi de puissance (Kaplan et al. 2020), la révision Chinchilla (Hoffmann et
-> al. 2022 : ~20 tokens/paramètre), le compromis taille-modèle vs données à budget FLOPs fixe, les
-> lois aval (transfert, inférence) et leurs limites (qualité des données, plafonds, émergence
-> contestée). Public : ingénieur ML / décideur technique. Délimitations : ne pas re-dériver
-> l'architecture transformer ni l'optimisation ; rester sur la relation empirique perte↔(N, D, C).
-> Domaine : deep-learning-foundations.
 
 ### Réseaux convolutifs : de LeNet à ConvNeXt — `convolutional-networks` → `deep-learning-foundations`
 **Verdict : nouveau gap (haute).** Pilier toujours dominant en vision ; aucun thème dédié.
@@ -66,54 +64,82 @@ passant (InfoNCE/CLIP dans text-embeddings, CLIP comme conditionneur en diffusio
 > ensemble-learning couvre les arbres boostés (socle de LambdaMART) — se centrer sur les algorithmes
 > LTR et les métriques de rang. Domaine : information-retrieval-representation.
 
-### NER par sequence labeling & architectures d'empans — `named-entity-recognition-sequence-labeling` → `information-retrieval-representation`
-**Verdict : gap réel (haute) — le cœur architectural du NER.** `structured-extraction-llm` possède le
-NER *génératif par LLM* (GPT-NER, PromptNER, décodage contraint, familles tagging/indexing/matching —
-claims 1/3/14/29/31) mais n'explique jamais l'architecture discriminative : il *concède* seulement que
-les modèles discriminatifs « restent compétitifs » (claim:3) et n'abstrait le BIO qu'en « posture de
-tagging » (claim:14). HMM/MEMM/CRF, BiLSTM-CRF, span-based/biaffine, nested & discontinuous NER =
-**0 occurrence** dans tout le corpus.
+### Extraction de relations — `relation-extraction` → `information-retrieval-representation`
+**Verdict : partiel (~70 % neuf) — le chaînon manquant de la chaîne d'extraction d'information**
+(NER → coréférence → entity linking → **RE** → knowledge graph : les 4 autres maillons sont FAITS).
+`knowledge-graph-construction` couvre la supervision distante (Mintz 2009, bruit Freebase-NYT
+~70 %), OpenIE et la RE générative (REBEL) ; `structured-extraction-llm` la RE par LLM (KnowCoder
+93,7 % sur NYT). Le versant supervisé discriminatif = 0 occurrence (TACRED, DocRED, PCNN, R-BERT,
+matching-the-blanks, extraction jointe) — même situation que le NER avant sa monographie.
 
-> Reconnaissance d'entités nommées (NER) par étiquetage de séquences et architectures d'empans :
-> détecter et typer les entités d'un texte. Couvrir les schémas d'étiquetage (BIO, BIOES et leurs
-> pièges), la lignée discriminative (HMM/MEMM → CRF, fonction de coût et inférence de Viterbi), le NER
-> neuronal classique (BiLSTM-CRF, features char-CNN + word embeddings), le passage aux encodeurs (BERT
-> token classification), puis les architectures d'empans (span-based, biaffine, MRC-as-NER) et les cas
-> durs (entités imbriquées / nested NER, entités discontinues / discontinuous NER), avec l'évaluation
-> (F1 par entité, CoNLL-2003, OntoNotes, GENIA). Public : ingénieur ML/NLP. Délimitations : le NER
-> *génératif par LLM* et le décodage contraint sont couverts par structured-extraction-llm (ne pas
-> re-traiter GPT-NER/PromptNER/LangExtract) ; l'entity linking (mention → base de connaissances) est le
-> thème entity-linking-disambiguation ; la relation extraction et la canonicalisation OpenIE relèvent de
-> knowledge-graph-construction ; l'entraînement d'embeddings de text-embeddings. Se centrer sur le
-> versant DISCRIMINATIF (détection + typage d'empans). Domaine : information-retrieval-representation
-> (angle architectural : deep-learning-foundations envisageable — à trancher par /arrange).
+> Extraction de relations (relation extraction) : identifier les relations typées entre entités
+> d'un texte. Couvrir la formulation (classification de paires de mentions, schémas de relations,
+> classe no-relation), la lignée supervisée (features et chemins de dépendance, CNN/PCNN, marqueurs
+> d'entités et R-BERT, matching-the-blanks et le pré-entraînement relationnel), les benchmarks et
+> leurs pièges (SemEval-2010 Task 8, TACRED et ses ré-annotations TACREV/Re-TACRED), le passage au
+> niveau document (DocRED, raisonnement multi-phrases, preuves/evidence), l'extraction jointe
+> entités+relations (table-filling, span pairs, TPLinker) et l'évaluation (micro-F1, biais des
+> classes fréquentes). Public : ingénieur NLP/IR. Délimitations : knowledge-graph-construction
+> couvre la supervision distante, OpenIE et REBEL (les citer sans re-dériver) ;
+> structured-extraction-llm la RE générative par LLM ; named-entity-recognition-sequence-labeling
+> fournit les mentions — se centrer sur le versant discriminatif supervisé et le niveau document.
+> Domaine : information-retrieval-representation.
 
-### Entity linking & désambiguïsation d'entités — `entity-linking-disambiguation` → `information-retrieval-representation`
-**Verdict : gap réel (haute) — le plus propre, ~0 chevauchement.** `structured-extraction-llm` ne cite
-l'entity linking qu'une fois comme tâche « que certains ajoutent » (claim:1), sans aucune méthode ;
-`knowledge-graph-construction` traite la *canonicalisation de sorties OpenIE* et l'identité RDF
-(`owl:sameAs`, CESI/Galárraga) mais **jamais** le pipeline supervisé mention → entrée de KB.
+### Apprentissage par renforcement : fondamentaux — `reinforcement-learning-fundamentals` → `deep-learning-foundations`
+**Verdict : partiel (~75 % neuf), forte valeur de socle.** Le corpus *utilise* le RL sans jamais le
+poser : `rlhf-dpo` traite PPO uniquement dans le cadre RLHF (pénalité KL per-token, PPO-ptx, DPO vs
+PPO) et `reasoning-test-time-compute` le RL du raisonnement (GRPO, process advantage verifier).
+MDP, équation de Bellman, Q-learning, REINFORCE, acteur-critique = 0 occurrence.
 
-> Entity linking (liage d'entités) et désambiguïsation : relier une mention textuelle à l'entrée
-> canonique d'une base de connaissances (Wikidata/DBpedia). Couvrir le pipeline (détection de mentions,
-> génération de candidats, désambiguïsation), l'opposition désambiguïsation *locale* (contexte de la
-> mention) vs *collective/globale* (cohérence par graphe entre les mentions d'un document), les
-> approches modernes — bi-encodeur + cross-encodeur (BLINK), liage *génératif* autorégressif (GENRE),
-> zero-shot / entités émergentes et le cas NIL (mention sans entrée) —, l'évaluation (AIDA-CoNLL,
-> TAC-KBP) et l'usage en *grounding* pour le RAG et la construction de KG. Public : ingénieur NLP/IR.
-> Délimitations : la détection + typage d'entités (NER) relève de
-> named-entity-recognition-sequence-labeling et du NER par LLM de structured-extraction-llm ; la
-> canonicalisation OpenIE et l'identité RDF (`owl:sameAs`) sont couvertes par
-> knowledge-graph-construction ; l'entraînement d'embeddings par text-embeddings ; la recherche
-> vectorielle par approximate-nearest-neighbor. Se centrer sur mention → KB. Domaine :
-> information-retrieval-representation.
+> Apprentissage par renforcement (reinforcement learning) : les fondamentaux, du MDP à PPO. Couvrir
+> le cadre (processus de décision markovien, récompense et retour, politique, fonctions de valeur,
+> équations de Bellman), les méthodes par valeur (TD-learning, Q-learning, DQN et ses stabilisateurs
+> — replay buffer, target network), les méthodes par politique (REINFORCE, baseline et réduction de
+> variance, acteur-critique, avantage et GAE), les régions de confiance (TRPO → PPO et son clipping),
+> et le dilemme exploration/exploitation (on-policy vs off-policy). Public : ingénieur ML.
+> Délimitations : rlhf-dpo couvre PPO appliqué au RLHF (reward model, pénalité KL, DPO) et
+> reasoning-test-time-compute le RL du raisonnement (GRPO, PAV) — ce thème pose le socle que les deux
+> présupposent, les citer comme débouchés ; les bandits sans état relèvent du candidat
+> multi-armed-bandits (un pont suffit). Domaine : deep-learning-foundations.
+
+### Interprétabilité mécaniste — `mechanistic-interpretability` → `deep-learning-foundations`
+**Verdict : gap réel (haute) — 0 occurrence.** Superposition, sparse autoencoders, activation
+patching, logit lens, circuits : rien dans les 41 monographies ; sujet à forte demande de référence.
+
+> Interprétabilité mécaniste des transformers : ouvrir la boîte noire au niveau des circuits.
+> Couvrir le cadre features/circuits (le transformer vu comme flux résiduel que têtes et MLP lisent
+> et écrivent), les têtes d'induction et leur lien à l'in-context learning, la superposition et
+> l'hypothèse de représentation linéaire des features, les sparse autoencoders (SAE) pour extraire
+> des features monosémantiques et leurs limites, les techniques d'intervention causale (activation
+> patching, ablations, logit lens), et les critiques (illusions d'interprétabilité, fidélité des
+> explications, généralisation des circuits). Public : ingénieur ML / recherche appliquée.
+> Délimitations : transformer-attention couvre la mécanique de l'attention (s'y appuyer sans la
+> re-dériver) ; ensemble-learning effleure la feature importance du ML classique — ne pas traiter
+> SHAP/LIME ni l'explicabilité post-hoc classique ; se centrer sur les mécanismes internes des
+> transformers. Domaine : deep-learning-foundations.
+
+### Entraînement distribué & parallélisme — `distributed-training-parallelism` → `deep-learning-foundations`
+**Verdict : partiel (~80 % neuf).** `mixture-of-experts` traite l'expert parallelism en profondeur
+(deux all-to-all, DeepSeek-V2 EP sur 8 devices) ; data/tensor/pipeline parallelism, ZeRO/FSDP,
+Megatron ne sont que des mentions éparses (lora, scaling-laws, state-space-models, text-embeddings).
+
+> Entraînement distribué des réseaux profonds : faire tenir et accélérer l'entraînement sur une
+> grappe de GPU. Couvrir le data parallelism (all-reduce, gradient accumulation, ZeRO-1/2/3 et FSDP
+> — partitionnement des états d'optimiseur, gradients et paramètres), le tensor parallelism
+> (Megatron-LM, découpe des matmuls et communications associées), le pipeline parallelism
+> (micro-batches, bulles, schedules 1F1B), le sequence/context parallelism, la précision mixte
+> (FP16/BF16, loss scaling) et l'activation checkpointing, et la mesure d'efficacité (MFU, scaling
+> faible vs fort, choix d'une topologie 3D). Public : ingénieur ML/infra. Délimitations :
+> mixture-of-experts couvre l'expert parallelism (le citer), scaling-laws l'allocation
+> compute-optimale du budget, quantization les formats numériques à l'inférence, lora la mémoire du
+> fine-tuning — se centrer sur les stratégies de partitionnement et la mémoire d'entraînement.
+> Domaine : deep-learning-foundations.
 
 ---
 
 ## Priorité moyenne
 
-Candidats à angle neuf (les prompts riches des deux premiers existent ; les autres se rédigeront à
-la demande).
+Candidats à angle neuf ; chaque entrée porte son prompt riche, prêt à lancer.
 
 ### Optimiseurs (Adam / AdamW) — `optimizers-adam` → `deep-learning-foundations`
 **Verdict : partiel (~60 % neuf).** `backpropagation` traite Adam de base (Kingma & Ba) comme étape
@@ -267,21 +293,115 @@ apprendre dessus) ; GraphRAG/agentic-memory utilisent des graphes sans message p
 > cardinalité) — les citer comme voisins ; se centrer sur quantiles et échantillonnage. Domaine :
 > probabilistic-structures-hashing.
 
-### Résolution de coréférence — `coreference-resolution` → `information-retrieval-representation`
-**Verdict : gap réel mais plus étroit / moindre valeur de référence.** Cité une seule fois
-(`structured-extraction-llm` claim:1, « la résolution de coréférence »), traité nulle part ailleurs.
-Sujet net mais moins central pour l'audience ML-engineering du corpus que le NER discriminatif ou
-l'entity linking.
+### Serving d'inférence LLM — `llm-inference-serving` → `llm-agents-generation`
+**Verdict : partiel (~60 % neuf).** Les briques sont dispersées : `transformer-attention` couvre
+FlashAttention et le régime mémoire du KV cache (MQA/GQA, MLA à −93,3 %), `decoding-sampling` le
+speculative decoding et le Roofline, `quantization` la compression. Le SYSTÈME de serving
+(batching, ordonnancement, gestion mémoire, SLO) n'est traité nulle part.
 
-> Résolution de coréférence (coreference resolution) : regrouper les mentions d'un texte qui désignent
-> la même entité (« Marie… elle… la directrice »). Couvrir la formulation par paires puis par rang de
-> mention (mention-pair, mention-ranking), le modèle end-to-end neuronal à scoring d'empans (Lee et al.
-> 2017) et l'inférence d'ordre supérieur (higher-order), le clustering de mentions, la coréférence par
-> LLM, et l'évaluation (MUC, B³, CEAF, score CoNLL-2012 sur OntoNotes ; cas Winograd). Public :
-> ingénieur NLP. Délimitations : distinct de l'entity linking (coréférence = clustering intra-document
-> de mentions ; EL = mention → base de connaissances) et du NER (détection + typage) ;
-> structured-extraction-llm ne fait que nommer la coréférence. Domaine :
-> information-retrieval-representation (angle architectural : deep-learning-foundations envisageable).
+> Serving d'inférence LLM : servir des milliers de requêtes concurrentes sur un parc de GPU.
+> Couvrir les deux phases prefill/decode et leurs régimes (compute-bound vs memory-bound), le
+> continuous batching (Orca), PagedAttention et la gestion du KV cache comme mémoire paginée (vLLM),
+> le prefix/radix caching (SGLang), le chunked prefill et la désagrégation prefill/decode, les
+> métriques de service (TTFT, TPOT, goodput, SLO) et le routage/autoscaling multi-modèles. Public :
+> ingénieur ML/infra. Délimitations : transformer-attention couvre FlashAttention et MQA/GQA/MLA,
+> decoding-sampling le speculative decoding et l'échantillonnage, quantization la compression des
+> poids/activations — les citer sans re-dériver ; se centrer sur l'ordonnancement, la mémoire et
+> les SLO du système de serving. Domaine : llm-agents-generation.
+
+### Curation des données de pré-entraînement — `pretraining-data-curation` → `llm-agents-generation`
+**Verdict : gap réel (angle neuf net).** `scaling-laws` traite le régime data-constrained
+(Muennighoff) côté allocation ; le pipeline de données lui-même (filtrage, déduplication, mélanges)
+n'est traité nulle part.
+
+> Curation des données de pré-entraînement des LLM : ce qui entre dans le modèle. Couvrir le
+> pipeline (extraction depuis Common Crawl, détection de langue, filtres heuristiques puis filtres
+> par modèle), la déduplication exacte et approximative et ses effets (mémorisation, qualité), les
+> mélanges de domaines et leur optimisation (DoReMi, données synthétiques), la contamination des
+> benchmarks, la généalogie des corpus ouverts (C4, The Pile, RefinedWeb, FineWeb et sa démarche
+> d'ablations systématiques) et les questions de licence/PII. Public : ingénieur ML. Délimitations :
+> scaling-laws couvre le régime data-constrained et les lois d'échelle (le citer) ; la mécanique
+> MinHash/LSH de la déduplication relève du candidat minhash-dedup (un pont suffit) ;
+> text-embeddings couvre la tokenization — se centrer sur le pipeline de curation et ses ablations.
+> Domaine : llm-agents-generation.
+
+### Inférence causale — `causal-inference` → `classical-ml-time-series`
+**Verdict : gap réel.** `time-series-forecasting` cite CausalImpact (séries structurelles
+bayésiennes) ; `llm-evaluation` emploie « causal » au sens expérimental sans cadre formel ;
+potential outcomes, do-calculus, propensity scores = 0 occurrence.
+
+> Inférence causale pour l'ingénieur ML : estimer des effets, pas des corrélations. Couvrir le
+> cadre des résultats potentiels (Rubin : ATE/ATT, ignorabilité, SUTVA), les graphes causaux
+> (Pearl : DAG, confondants et colliders, critère backdoor, do-calcul), les méthodes d'estimation
+> (appariement et scores de propension, IPW, différence de différences, variables instrumentales,
+> régression sur discontinuité), le double/debiased machine learning et les méta-learners
+> (S/T/X-learner, modélisation d'uplift), et les pièges (biais de sélection, confondants non
+> observés, tests placebo et de robustesse). Public : ingénieur ML/data. Délimitations :
+> time-series-forecasting couvre CausalImpact (le citer en pont) ; ia-productivite-esn discute
+> d'effets de l'IA sans méthodologie causale — se centrer sur l'identification et l'estimation
+> d'effets. Domaine : classical-ml-time-series.
+
+### Bandits multi-bras — `multi-armed-bandits` → `classical-ml-time-series`
+**Verdict : gap réel.** Aucune occurrence substantielle (les matches « Thompson » du corpus sont
+des noms d'auteurs).
+
+> Bandits multi-bras (multi-armed bandits) : décider en ligne sous incertitude. Couvrir le cadre
+> (récompense, regret, exploration vs exploitation), les algorithmes de référence (ε-greedy, UCB1
+> et le principe d'optimisme face à l'incertitude, Thompson sampling et sa lecture bayésienne), les
+> garanties (bornes de regret logarithmiques, borne inférieure de Lai-Robbins), les bandits
+> contextuels (LinUCB, bandits neuronaux), les extensions pratiques (non-stationnarité, feedback
+> retardé, contraintes de budget) et les applications (A/B testing adaptatif, allocation de trafic,
+> recommandation, sélection de prompts ou de modèles). Public : ingénieur ML/data. Délimitations :
+> le RL complet (états et transitions) relève du candidat reinforcement-learning-fundamentals ;
+> recommender-systems (candidat) traite les modèles de préférence — se centrer sur le cadre sans
+> état et les garanties de regret. Domaine : classical-ml-time-series.
+
+### Extraction d'événements & information temporelle — `event-extraction-temporal` → `information-retrieval-representation`
+**Verdict : gap réel (audience plus étroite que la RE).** ACE 2005 n'est cité que comme benchmark
+ICL dans `structured-extraction-llm` ; TIMEX seulement comme catégorie MUC historique dans le thème
+NER. Triggers/arguments, coréférence d'événements, TimeML = 0 occurrence.
+
+> Extraction d'événements et d'information temporelle : qui a fait quoi, à qui, et quand. Couvrir
+> le schéma ACE (triggers, arguments, types d'événements), la détection de triggers et l'étiquetage
+> d'arguments (par classification, par question-réponse, par génération), la coréférence
+> d'événements, l'extraction temporelle (TimeML et TIMEX3, normalisation des expressions
+> temporelles, relations temporelles et TempEval) et la construction de chronologies (timelines),
+> avec les benchmarks (ACE 2005, MAVEN, TimeBank). Public : ingénieur NLP. Délimitations :
+> structured-extraction-llm cite l'event extraction comme benchmark des LLM extracteurs (le
+> citer) ; named-entity-recognition-sequence-labeling détecte les entités qui servent d'arguments ;
+> la RE binaire entité-entité relève du candidat relation-extraction — se centrer sur les
+> structures événementielles et le temps. Domaine : information-retrieval-representation.
+
+### Supervision faible & apprentissage actif — `weak-supervision-active-learning` → `classical-ml-time-series`
+**Verdict : gap réel.** Seule la supervision distante (cas particulier pour la RE) est traitée
+dans `knowledge-graph-construction` ; Snorkel, labeling functions, active learning = 0 occurrence
+dans le corpus alors que c'est le goulot pratique de tout projet supervisé.
+
+> Supervision faible et apprentissage actif : obtenir des jeux d'étiquettes quand l'annotation est
+> chère. Couvrir la supervision faible programmatique (labeling functions, agrégation de labels
+> bruités et modèle génératif de Snorkel, data programming), la supervision distante et son
+> débruitage, l'apprentissage actif (échantillonnage par incertitude, query-by-committee,
+> diversité/core-sets, le batch mode et ses pièges d'évaluation), la qualité d'annotation (accord
+> inter-annotateurs, gold vs silver) et l'annotation par LLM comme supervision faible moderne.
+> Public : ingénieur ML/data. Délimitations : knowledge-graph-construction couvre la supervision
+> distante pour la RE (la citer comme cas particulier) ; llm-evaluation couvre l'accord juge/humain
+> psychométrique (kappa) — se centrer sur la fabrication et l'économie des étiquettes. Domaine :
+> classical-ml-time-series (à trancher par /arrange).
+
+### Détection d'anomalies — `anomaly-detection` → `classical-ml-time-series`
+**Verdict : gap réel.** Seulement nommée comme cas d'usage (heavy hitters de `count-min-sketch`,
+contrainte applicative dans `time-series-forecasting`) ; aucune méthode traitée.
+
+> Détection d'anomalies : repérer le rare et l'aberrant, avec ou sans labels. Couvrir la typologie
+> (anomalies ponctuelles, contextuelles, collectives ; outlier vs novelty detection), les méthodes
+> statistiques robustes (z-score, MAD), par voisinage et densité (k-NN, LOF), par isolation
+> (Isolation Forest et sa variante étendue), à une classe (one-class SVM, SVDD), par reconstruction
+> (PCA, autoencodeurs), l'évaluation sans vérité terrain fiable (taux de contamination, PR-AUC vs
+> ROC-AUC, benchmarks ADBench) et un pont vers les séries temporelles. Public : ingénieur ML/data.
+> Délimitations : count-min-sketch couvre les heavy hitters en flux et time-series-forecasting
+> nomme la détection d'anomalies comme contrainte (les citer) ; clustering-dimensionality-reduction
+> couvre DBSCAN/HDBSCAN et PCA en propre (s'y référer sans re-dériver) — se centrer sur les modèles
+> de score d'anomalie et leur évaluation. Domaine : classical-ml-time-series.
 
 ---
 
@@ -332,18 +452,62 @@ l'entity linking.
 > régression/classification bayésienne générale et l'optimisation bayésienne. Domaine :
 > classical-ml-time-series.
 
-### Calibration des classifieurs — `calibration-classifieurs` → `classical-ml-time-series`
-**Verdict : nouveau gap.** Totalement absent (llm-evaluation traite l'accord juge/humain, pas la
-calibration probabiliste).
+### Topic modeling — `topic-modeling` → `information-retrieval-representation`
+**Verdict : gap réel (valeur de référence moindre en 2026).** LDA, Dirichlet, BERTopic :
+0 occurrence dans le corpus ; sujet net mais en retrait face aux embeddings pour l'audience visée.
 
-> Calibration des classifieurs probabilistes : faire en sorte que les probabilités prédites reflètent
-> les fréquences réelles. Couvrir le diagnostic (reliability diagrams, ECE/MCE, Brier score), les
-> méthodes post-hoc (Platt scaling, isotonic regression, temperature scaling pour les réseaux
-> profonds), la mauvaise calibration des réseaux modernes, et la prédiction conforme (conformal
-> prediction) comme garantie de couverture distribution-free, en pont. Public : ingénieur ML.
-> Délimitations : llm-evaluation traite l'accord juge/humain au sens psychométrique (kappa, alt-test)
-> et C-RAG le conformal risk control en contexte RAG — se centrer sur la calibration de probabilités
-> de classification. Domaine : classical-ml-time-series.
+> Topic modeling : découvrir les thèmes latents d'un corpus. Couvrir la lignée (LSA/pLSA → LDA), le
+> modèle génératif LDA et son inférence (variationnelle, Gibbs sampling effondré), le choix du
+> nombre de topics et les métriques de cohérence (C_v, NPMI, et leurs pièges), les variantes
+> (topics corrélés, dynamiques, supervisés), et les approches neuronales par embeddings (Top2Vec,
+> BERTopic : réduction + clustering + c-TF-IDF), avec un regard critique sur l'évaluation humaine
+> des topics. Public : ingénieur ML/data. Délimitations : clustering-dimensionality-reduction
+> couvre UMAP/HDBSCAN en propre et text-embeddings les représentations (les citer sans re-dériver)
+> — se centrer sur les modèles thématiques et leur évaluation. Domaine :
+> information-retrieval-representation.
+
+### Reconnaissance vocale (ASR) — `speech-recognition-asr` → `deep-learning-foundations`
+**Verdict : gap réel (modalité entièrement absente).** Whisper n'apparaît que comme cas d'usage de
+compression (`quantization`, WER PTQ 2 bits) ; CTC, wav2vec, Conformer = 0 occurrence. Adéquation à
+l'audience ML-engineering correcte mais moins centrale que les candidats texte/vision.
+
+> Reconnaissance vocale automatique (ASR) neuronale : du signal au texte. Couvrir le front-end
+> (spectrogrammes log-mel), l'alignement sans segmentation (CTC et son forward-backward,
+> RNN-Transducer pour le streaming), les encodeurs (Conformer), le pré-entraînement auto-supervisé
+> audio (wav2vec 2.0, HuBERT), l'approche weakly-supervised à grande échelle (Whisper), le décodage
+> (beam search, fusion avec un modèle de langue) et l'évaluation (WER et ses pièges, multilinguisme,
+> robustesse au bruit). Public : ingénieur ML. Délimitations : quantization cite Whisper comme cas
+> de compression (le citer) ; le self-supervised contrastif visuel relève du candidat
+> contrastive-self-supervised — se centrer sur la modalité parole. Domaine :
+> deep-learning-foundations.
+
+### Fusion de modèles — `model-merging` → `deep-learning-foundations`
+**Verdict : gap réel (étroit).** Seul `lora` mentionne une fusion — celle des adaptateurs dans les
+poids (merge_and_unload), qui n'est pas la fusion inter-modèles.
+
+> Fusion de modèles (model merging) : combiner plusieurs modèles entraînés sans ré-entraînement.
+> Couvrir les model soups (moyenne de poids de fine-tunings), l'arithmétique de tâches (task
+> vectors : addition, négation), les méthodes de résolution d'interférences (TIES, DARE), le SLERP,
+> la condition sous-jacente (connectivité de mode linéaire, alignement de permutations), les
+> applications (multi-tâche, désapprentissage, recyclage de checkpoints) et les limites (modèles de
+> bases différentes, échelle). Public : ingénieur ML. Délimitations : lora couvre la fusion
+> d'adaptateurs dans le modèle de base (la citer, c'est un cas dégénéré) ; ensemble-learning couvre
+> l'agrégation de PRÉDICTIONS, pas de poids — se centrer sur la fusion dans l'espace des paramètres.
+> Domaine : deep-learning-foundations.
+
+### ML préservant la confidentialité — `privacy-preserving-ml` → `deep-learning-foundations`
+**Verdict : gap réel (audience à confirmer).** `count-min-sketch` est le seul thème à effleurer la
+confidentialité ; DP-SGD, apprentissage fédéré, attaques par membership inference = 0 occurrence.
+
+> Machine learning préservant la confidentialité : entraîner sans exposer les données. Couvrir la
+> confidentialité différentielle (définition (ε, δ), mécanismes de base, composition), DP-SGD
+> (clipping par exemple, bruit, comptabilité des moments) et son coût en utilité, les attaques
+> (membership inference, extraction de données mémorisées), l'apprentissage fédéré (FedAvg,
+> hétérogénéité des clients, agrégation sécurisée) et sa combinaison avec la DP. Public : ingénieur
+> ML. Délimitations : count-min-sketch effleure les sketches privés (le citer) ; la mémorisation
+> des LLM croise le candidat pretraining-data-curation (déduplication) — se centrer sur les
+> mécanismes de protection et leurs garanties. Domaine : deep-learning-foundations (à trancher par
+> /arrange).
 
 ---
 
@@ -357,3 +521,9 @@ calibration probabiliste).
   régulariseur FLOPS) ; aussi dans `retrieval-augmented-generation` et `bm25-inverted-index`.
 - **ColBERT / late interaction** → `hybrid-search-reranking` (« Late interaction — ColBERT v2 et
   MaxSim ») et `retrieval-augmented-generation` (compression résiduelle PLAID).
+- **Attention efficace / FlashAttention / KV cache (MQA, GQA, MLA)** → `transformer-attention`
+  (FlashAttention traité comme attention EXACTE, FA-2/FA-3 sur H100 ; MQA/GQA en production,
+  MLA −93,3 % de KV cache) ; le speculative decoding est dans `decoding-sampling`. Le versant
+  SYSTÈME reste ouvert via le candidat `llm-inference-serving`.
+- **Embeddings statiques (word2vec, GloVe, fastText)** → `text-embeddings` (lignée historique
+  couverte au sein du thème embeddings).
