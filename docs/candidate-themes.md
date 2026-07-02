@@ -52,18 +52,6 @@ passant (InfoNCE/CLIP dans text-embeddings, CLIP comme conditionneur en diffusio
 > Délimitations : text-embeddings ne cite InfoNCE/CLIP qu'en passant ; se centrer sur l'objectif
 > contrastif et le self-supervised visuel/multimodal. Domaine : deep-learning-foundations.
 
-### Learning to rank — `learning-to-rank` → `information-retrieval-representation`
-**Verdict : nouveau gap (haute).** Cœur algorithmique de l'IR, seulement cité comme baseline.
-
-> Learning to rank (LTR) : apprendre à ordonner pour la recherche et la recommandation. Couvrir les
-> trois familles de pertes (pointwise ; pairwise — RankNet ; listwise — ListNet,
-> LambdaRank/LambdaMART), l'optimisation directe des métriques de rang (NDCG, MAP, MRR) malgré leur
-> non-différentiabilité (le gradient λ de LambdaRank), les features de ranking, les jeux
-> LETOR/MSLR, et l'usage en reranking. Public : ingénieur ML/IR. Délimitations :
-> hybrid-search-reranking compare RRF aux LTR et traite les cross-encoders neuronaux ;
-> ensemble-learning couvre les arbres boostés (socle de LambdaMART) — se centrer sur les algorithmes
-> LTR et les métriques de rang. Domaine : information-retrieval-representation.
-
 ### Apprentissage par renforcement : fondamentaux — `reinforcement-learning-fundamentals` → `deep-learning-foundations`
 **Verdict : partiel (~75 % neuf), forte valeur de socle.** Le corpus *utilise* le RL sans jamais le
 poser : `rlhf-dpo` traite PPO uniquement dans le cadre RLHF (pénalité KL per-token, PPO-ptx, DPO vs
@@ -170,7 +158,7 @@ l'indexation/similarité.
 > top-N (Recall@K, NDCG, hit rate, pièges de l'évaluation hors-ligne). Positionnement : grand
 > domaine applicatif absent. Public : ingénieur ML. Délimitations : ANN et text-embeddings
 > n'effleurent que l'indexation/similarité (Annoy/Voyager, arbitraire du cosinus de Steck et al.) —
-> se centrer sur les modèles de préférence et l'évaluation ; learning-to-rank (candidat distinct)
+> se centrer sur les modèles de préférence et l'évaluation ; learning-to-rank (FAIT)
 > traite l'ordonnancement supervisé générique. Domaine : information-retrieval-representation.
 
 ### Réseaux antagonistes génératifs (GAN) — `generative-adversarial-networks` → `deep-learning-foundations`
