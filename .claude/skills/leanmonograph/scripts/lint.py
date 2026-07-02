@@ -130,10 +130,11 @@ def main():
     kept_nums = {canon_num(m.group(0)) for m in NUM_RE.finditer(kept_text)}
     kept_caps = set(CAPS_RE.findall(kept_text))
 
-    # 1. Pivots des claims rejetés dans le corpus.
+    # 1. Pivots des claims rejetés dans le corpus. Comme pour kept_text, les `examples`
+    # comptent : les noms propres d'un claim vivent souvent là, pas dans le statement.
     rejected_flags = []
     for c in rejected:
-        stmt = norm_text(c.get("statement", ""))
+        stmt = norm_text(c.get("statement", "") + " " + " ".join(c.get("examples", [])))
         piv_nums = [m.group(0) for m in NUM_RE.finditer(stmt)
                     if canon_num(m.group(0)) not in kept_nums]
         piv_caps = [w for w in CAPS_RE.findall(stmt)
@@ -148,8 +149,15 @@ def main():
                 if m:
                     hits.append(p)
                     positions.append(m.start())
-            # ≥2 pivots distincts, ou 1 seul pivot déjà très distinctif (≥4 caractères).
-            if len(hits) >= 2 or any(len(h) >= 4 for h in hits):
+            # ≥2 pivots distincts, ou 1 seul pivot déjà très distinctif : nombre ≥4
+            # caractères (« 0,927 », « 2019 ») ou mot ≥6 (« Hariharan ») — les mots
+            # courts de titres (« Does », « REST »), fréquents dans les `examples`,
+            # et les petits entiers (« 34 ») ne suffisent pas seuls.
+            def alone(h):
+                if any(ch.isdigit() for ch in h):
+                    return len(h) >= 4
+                return len(h) >= 6
+            if len(hits) >= 2 or any(alone(h) for h in hits):
                 # Hedge requis PRÈS d'un hit (fenêtre ±350 c.) — un hedge ailleurs dans la
                 # même section (p. ex. celui d'un AUTRE claim rejeté) ne couvre pas celui-ci.
                 hedged = any(HEDGE_RE.search(text[max(0, i - 350):i + 350])
