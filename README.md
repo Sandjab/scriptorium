@@ -14,7 +14,9 @@ themes/<slug>/            un dossier par thème (slug kebab-case, sans accents)
   widgets/                widgets interactifs du thème
   manifest.json           manifeste-vue du document
   dist/                   le HTML généré
-.claude/skills/monograph/  le skill local qui produit une monographie
+.claude/skills/monograph/        le skill local qui produit une monographie (charte + build.py partagés)
+.claude/skills/frugalmonograph/  variante à coût réduit (mêmes garanties)
+.claude/skills/leanmonograph/    variante « vérifier d'abord, écrire une fois » (+ lint déterministe)
 ```
 
 ## Produire une monographie
@@ -41,6 +43,21 @@ recherche/vérification, council ramené à **2 jurés** dans tous les cas, et d
 (`MAX_SECTIONS=9`, `MAX_CLAIMS_PER_SECTION=4`). Le jugement structurant (Plan, Author, Widgets,
 Compose) reste sur Opus. Pour comparer les deux variantes sur un même sujet, utilise un slug
 distinct (ex. `bloom-filters-frugal`).
+
+**Variante « vérifier d'abord, écrire une fois » :**
+
+```
+/leanmonograph <sujet>
+```
+
+Même produit et mêmes garanties, avec deux renversements d'architecture : le **council audite
+par section** (2 jurés adversariaux sur tous les claims d'une section, fetchs amortis, + 1 juré
+dédié par claim « contestable ») et la **prose est rédigée après l'audit** par un auteur unique
+(charte de voix, fil rouge, relecture de continuité) — la dérive « prose pré-council » disparaît
+par construction. Un **lint déterministe** (`scripts/lint.py`) traque les pivots des claims
+rejetés et les chiffres absents de `knowledge.json`, vérifiés à la source avant l'assemblage.
+Cible : moins de tokens que `/frugalmonograph` et une prose plus homogène (en cours de
+validation comparative).
 
 > [!WARNING]
 > `/monograph` consomme **ÉNORMÉMENT de tokens** — de l'ordre de **plusieurs millions de
@@ -114,33 +131,13 @@ flowchart TD
 
 ## Thèmes
 
-Chaque document est sous `themes/<slug>/dist/`. Hors APO (construit à la main), tous sont
-générés par `/monograph` ou sa variante économe `/frugalmonograph` (les plus récents).
-
-- **automatic-prompt-optimization** — panorama des approches d'APO + contrat d'architecture.
-  Édition **construite à la main** (avant le skill), 3 documents ; le pipeline d'origine est
-  conservé, gelé, sous `themes/automatic-prompt-optimization/legacy/`.
-- **bloom-filters** — premier thème **généré par `/monograph`** : filtres de Bloom (principe,
-  garanties, variantes, limites).
-- **consistent-hashing** — hachage cohérent : anneau, nœuds virtuels, rééquilibrage.
-- **knowledge-graph-construction** — construction de graphes de connaissances.
-- **transformer-attention** — mécanisme d'attention des transformeurs.
-- **text-embeddings** — plongements lexicaux : tokenisation, similarité cosinus.
-- **prompt-optimization** — optimisation de prompts.
-- **ensemble-learning** — méthodes d'ensemble : bagging, boosting (25 faits confirmés, 15 corrigés).
-- **backpropagation** — rétropropagation du gradient (34 confirmés, 13 corrigés, 1 rejeté).
-- **time-series-forecasting** — prévision de séries temporelles : panorama des familles de
-  méthodes (statistiques, ML, modèles de fondation) (5 confirmés, 30 corrigés, 1 rejeté).
-- **minimal-perfect-hashing** — fonctions de hachage parfaites minimales (MPHF) : construction,
-  espace, état de l'art (12 confirmés, 18 corrigés, 1 rejeté).
-- **approximate-nearest-neighbor** — recherche approchée de plus proches voisins : HNSW, IVF,
-  PQ, LSH (12 confirmés, 22 corrigés).
-- **diffusion-models** — modèles de diffusion génératifs : DDPM, score matching, SDE/PF-ODE,
-  flow matching (7 confirmés, 25 corrigés).
-- **ia-productivite-esn** — IA et gains de productivité dans les ESN : annonces vs réalités
-  (3 confirmés, 32 corrigés).
-- **agentic-ai** — IA agentique : état de l'art, applications, projections (3 confirmés,
-  32 corrigés, 1 rejeté).
+Chaque document est sous `themes/<slug>/dist/`. Le corpus compte **40 thèmes** (42 documents),
+tous générés par `/monograph` ou `/frugalmonograph` — sauf **automatic-prompt-optimization**,
+construit à la main avant le skill et conservé gelé sous
+`themes/automatic-prompt-optimization/legacy/`. La liste complète, groupée par domaine
+(`tools/taxonomy.json`, skill `/arrange`), est publiée sur la
+[home GitHub Pages](https://sandjab.github.io/scriptorium/) régénérée à chaque push par
+`tools/build_site.py`.
 
 ## Statut
 
@@ -148,8 +145,10 @@ générés par `/monograph` ou sa variante économe `/frugalmonograph` (les plus
 - Phase 1 — générateur déterministe (`.claude/skills/monograph/` : charte + `build.py`, 16 tests) : ✅
 - Phase 2 — workflow multi-agents + `SKILL.md` des skills `monograph` et `frugalmonograph` : ✅
   Pipeline à **8 phases** (Sweep → Plan → Extract → Verify → Author → **Widgets** → Compose →
-  Build), document unique « best-of » + widgets pilotés par concept. Éprouvé sur **14 thèmes**
-  hors APO (voir ci-dessus) et publié via GitHub Pages.
+  Build), document unique « best-of » + widgets pilotés par concept. Éprouvé sur **39 thèmes**
+  hors APO et publié via GitHub Pages.
+- Skill `leanmonograph` (« vérifier d'abord, écrire une fois » + lint déterministe) : construit
+  et revu ; **pas encore éprouvé en réel** — validation comparative à venir sur un thème.
 
 ## Licence
 
