@@ -29,19 +29,6 @@ de plafonds de productivité, pas la frontière compute-optimale.
 > l'architecture transformer ni l'optimisation ; rester sur la relation empirique perte↔(N, D, C).
 > Domaine : deep-learning-foundations.
 
-### Knowledge distillation — `knowledge-distillation` → `deep-learning-foundations`
-**Verdict : gap réel.** Dispersée comme sous-élément (distillation Switch sparse→dense, consistency
-distillation en diffusion, R1→petits modèles…) mais **jamais traitée en propre**.
-
-> Distillation de connaissances : transférer la capacité d'un modèle enseignant (grand) vers un
-> élève (petit). Couvrir la formulation de Hinton (soft targets, température, KL sur les logits),
-> la distillation de features/attention (DistilBERT, TinyBERT), la distillation au niveau séquence
-> pour le génératif, la self-distillation et la born-again, et l'usage moderne pour fabriquer de
-> petits LLM (distillation de traces de raisonnement, données synthétiques). Positionnement :
-> complète le triptyque de compression avec quantization et lora. Public : ingénieur ML.
-> Délimitations : quantization et lora sont des thèmes distincts ; ne traiter que le transfert
-> enseignant→élève. Domaine : deep-learning-foundations.
-
 ### Réseaux convolutifs : de LeNet à ConvNeXt — `convolutional-networks` → `deep-learning-foundations`
 **Verdict : nouveau gap (haute).** Pilier toujours dominant en vision ; aucun thème dédié.
 
