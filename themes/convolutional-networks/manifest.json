@@ -1,0 +1,440 @@
+{
+  "edition": "monograph",
+  "slug": "convolutional-networks",
+  "meta": {
+    "title": "Réseaux de neurones convolutifs : de LeNet à ConvNeXt",
+    "kicker": "Vision par ordinateur · monographie",
+    "h1": "Réseaux de neurones convolutifs : de LeNet à ConvNeXt",
+    "lede": "Trente ans après le lecteur de chèques de LeNet, la convolution — localité, partage de poids, équivariance par translation — reste un biais inductif compétitif face aux Vision Transformers : cette monographie retrace la généalogie des architectures, démonte les idées reçues sur l'invariance, et montre pourquoi l'écart historique tenait aux recettes d'entraînement plus qu'à l'opération elle-même.",
+    "meta_chips": [
+      "Monographie"
+    ],
+    "footer": "Réseaux de neurones convolutifs : de LeNet à ConvNeXt · scriptorium"
+  },
+  "elements": [
+    {
+      "type": "abstract"
+    },
+    {
+      "type": "section",
+      "id": "mecanique-convolutive",
+      "heading": "La mécanique convolutive : localité, weight sharing, champ réceptif",
+      "level": 3,
+      "prose": "<p>Une opération de filtrage locale, décrite en 1998 dans un article consacré à la lecture automatique de chèques, domine encore la vision par ordinateur. Ce paradoxe apparent est le fil de ce document. Car la longévité des CNN (convolutional neural networks, réseaux de neurones convolutifs) ne doit rien au hasard : elle tient à deux contraintes d'architecture assez simples pour s'énoncer en une phrase chacune — ne regarder qu'un voisinage local, et regarder partout avec les mêmes poids. Toute la généalogie d'architectures qui suit déroule les conséquences de ces deux choix.</p>\n<p>Le geste élémentaire d'abord. Une couche convolutive construit des feature maps (cartes de caractéristiques) en balayant l'entrée avec un noyau, c'est-à-dire un petit bloc de poids appliqué à chaque position. L'article fondateur de LeNet-5 — le réseau de lecture de chèques de LeCun et ses coauteurs, en service dans plusieurs banques américaines dès juin 1996 — donne à l'opération sa définition princeps : ce balayage est équivalent à une convolution, suivie d'un biais additif et d'une fonction d'écrasement, d'où le nom de réseau convolutif. Le noyau n'est rien d'autre que l'ensemble des poids de connexion que partagent toutes les unités d'une même carte.</p>\n<p>Ce partage porte un nom, le weight sharing (partage de poids), et une hypothèse : un détecteur de motif utile à une position de l'image l'est aussi ailleurs. Concrètement, tous les neurones d'une même tranche de profondeur d'une couche convolutive sont contraints d'utiliser des poids et un biais identiques. L'effet comptable est immédiat. La première couche de LeNet-5 — six cartes obtenues en connectant chaque unité à un voisinage 5×5 de l'image — réalise 122 304 connexions avec seulement 156 paramètres entraînables. Le réseau complet, sept couches entraînables pour une entrée de 32×32 pixels, maintient l'écart : 345 308 connexions, 60 000 paramètres libres (chiffres de l'article fondateur, non corroborés par une source indépendante). La capacité de calcul croît avec les connexions ; le nombre de paramètres à apprendre, lui, reste sous contrôle.</p>\n<p>La seconde contrainte est la localité. Chaque neurone convolutif ne voit qu'un champ réceptif (receptive field) restreint de la couche précédente, typiquement une région carrée de 5×5 unités : aucune connexion ne traverse l'image de part en part. Deux réglages accompagnent ce choix. Le padding (remplissage des bords) ajoute des pixels, généralement à zéro, autour de l'image, afin que les pixels de bordure participent pleinement aux champs réceptifs. La dilatation, elle, élargit le champ réceptif sans coût supplémentaire : en espaçant les points échantillonnés à l'intérieur du noyau, une dilatation de 2 sur un noyau 3×3 couvre une zone équivalente à un 5×5 tout en ne traitant que neuf pixels — ni calcul ni paramètre de plus.</p>\n<p>Ces deux contraintes fondent le biais inductif des CNN, et l'article de 1998 en énonce déjà la propriété centrale : si l'image d'entrée est décalée, la sortie de la feature map est décalée d'autant, mais reste inchangée par ailleurs. C'est l'équivariance par translation — la transformation de l'entrée se retrouve, intacte, dans la représentation. Il faut la distinguer soigneusement de l'invariance, qui voudrait que la sortie ne change pas du tout.</p>\n<p>Car l'idée reçue — « les CNN sont invariants par translation » — ne résiste pas à l'examen. Seules les couches convolutives ou de pooling (agrégation locale qui réduit la résolution spatiale) à stride (pas de balayage) égal à 1 sont équivariantes par translation. Le réseau complet, lui, n'est en général pas invariant : les couches entièrement connectées de sortie ne préservent pas la propriété, et toute couche à stride supérieur à 1 peut violer le théorème d'échantillonnage, introduisant de l'aliasing (repliement spectral) dans le signal. Un CNN classique n'est donc invariant qu'approximativement, par l'effet du pooling — jamais par construction stricte. Cette nuance conditionne ce que le réseau garantit vraiment ; nous y reviendrons.</p>\n<p>Localité, weight sharing, équivariance : le socle conceptuel est posé. Reste l'intendance, celle qui décide de la taille de chaque feature map et fait tenir un réseau debout — l'arithmétique du stride, du padding et de la dilatation.</p>",
+      "claims": [
+        "claim:3",
+        "claim:4"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "arithmetique-convolution",
+      "heading": "Arithmétique de la convolution : stride, padding, dilatation",
+      "level": 3,
+      "prose": "<p>Avant de lire la moindre architecture, l'ingénieur doit savoir répondre à une question prosaïque : quelle taille de sortie produit cette couche ? Le guide d'arithmétique convolutive de Dumoulin et Visin fournit la réponse en forme close ; cette section en résume la boîte à outils, celle qui servira à chaque étape de la généalogie.</p>\n<p>Le cas de base se dérive à main levée. Sans padding et à stride unitaire, un noyau de taille <em>k</em> glissant sur une entrée de taille <em>i</em> occupe exactement <em>i</em> − <em>k</em> + 1 positions : c'est la taille de sortie. Le padding généralise ce compte en travaillant sur une entrée effective de taille <em>i</em> + 2<em>p</em> ; le stride <em>s</em>, en ne retenant qu'une position sur <em>s</em>. D'où la formule générale : <em>o</em> = ⌊(<em>i</em> + 2<em>p</em> − <em>k</em>)/<em>s</em>⌋ + 1. Un exemple la fixe : pour <em>i</em> = 5, <em>k</em> = 3, <em>s</em> = 2 et <em>p</em> = 1, la sortie vaut ⌊4/2⌋ + 1 = 3.</p>\n<p>Deux réglages de padding reviennent si souvent qu'ils ont reçu un nom. Le premier est le half padding, dit « same » dans les frameworks : avec un noyau impair <em>k</em> = 2<em>n</em> + 1, un padding <em>p</em> = <em>n</em> et un stride de 1, la sortie égale exactement l'entrée. Le second est le full padding : en poussant à <em>p</em> = <em>k</em> − 1, on compte toute superposition du noyau, même partielle, et la sortie atteint <em>i</em> + (<em>k</em> − 1). Quant à la partie entière de la formule générale, elle a deux conséquences qu'on oublie volontiers. Si <em>i</em> + 2<em>p</em> − <em>k</em> n'est pas multiple de <em>s</em>, des unités d'entrée du bord droit et du bas sont purement ignorées. S'il l'est, plusieurs tailles d'entrée voisines produisent la même taille de sortie — une non-injectivité qui compliquera la convolution transposée dans un instant.</p>\n<p>La dilatation s'insère dans la même formule par simple substitution. Un noyau de taille <em>k</em> dilaté d'un facteur <em>d</em> se comporte, pour le calcul de sortie, comme un noyau plein de taille effective <em>k̂</em> = <em>k</em> + (<em>k</em> − 1)(<em>d</em> − 1) : notre 3×3 dilaté de 2 redevient le 5×5 de la section précédente, et sur une entrée de 7 sans padding la sortie vaut 3. Poser <em>d</em> = 1 redonne mot pour mot la convolution standard. L'intérêt opérationnel est ailleurs : empilées, les convolutions dilatées font croître le champ réceptif sans ajouter ni taille de noyau ni paramètre — c'est ainsi que WaveNet (le modèle génératif audio d'Oord et al., 2016) conditionne chaque échantillon produit sur un long contexte passé.</p>\n<p>Vient enfin l'opération duale, la convolution transposée, définie en échangeant les passes : sa passe avant est la passe arrière de la convolution directe associée, et réciproquement. Les correspondances sont élégantes. La transposée d'une convolution sans padding à stride 1 est une convolution à full padding, de sortie <em>i</em>′ + (<em>k</em> − 1) ; plus généralement, un padding <em>p</em> côté direct devient <em>p</em>′ = <em>k</em> − <em>p</em> − 1 côté transposé. Le half padding est son propre dual ; le full padding a pour dual la convolution sans padding. Pour un stride supérieur à 1, la transposée équivaut à une convolution à stride unitaire sur une entrée « étirée », obtenue en insérant <em>s</em> − 1 zéros entre chaque unité — d'où l'autre nom de l'opération, fractionally strided convolution (convolution à stride fractionnaire). Un paramètre <em>a</em> = (<em>i</em> + 2<em>p</em> − <em>k</em>) mod <em>s</em> lève enfin l'ambiguïté héritée de la partie entière, et la taille de sortie s'écrit <em>o</em>′ = <em>s</em>(<em>i</em>′ − 1) + <em>a</em> + <em>k</em> − 2<em>p</em>.</p>\n<p>Un mot, pour finir, sur son surnom trompeur de « déconvolution ». La convolution transposée n'est pas l'inverse mathématique de la convolution : Dumoulin et Visin préviennent explicitement qu'elle ne garantit pas de retrouver l'entrée d'origine — elle rend seulement une carte de sortie de mêmes largeur et hauteur. La documentation de PyTorch enfonce le clou pour son module ConvTranspose2d, « pas une véritable opération de déconvolution » (not an actual deconvolution operation), mais le gradient de Conv2d par rapport à son entrée. L'outillage est complet ; il reste à examiner l'autre opérateur de réduction spatiale, le pooling, et surtout ce qu'il garantit — ou non.</p>",
+      "claims": [
+        "claim:5",
+        "claim:6",
+        "claim:8"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-arithmetique-convolution"
+    },
+    {
+      "type": "section",
+      "id": "pooling-invariance",
+      "heading": "Pooling et invariance par translation : ce que le réseau garantit vraiment",
+      "level": 3,
+      "prose": "<p>Le pooling obéit exactement à l'arithmétique qui précède : même formule de sortie, où <em>k</em> désigne cette fois la taille de la fenêtre — un pooling à stride 2 ou plus est donc un sous-échantillonnage spatial au même titre qu'une convolution à stride. Deux variantes dominent : le max-pooling retient la valeur maximale de chaque fenêtre locale, l'average-pooling en prend la moyenne. La comparaison systématique de Scherer, Müller et Behnke (2010) a tranché en faveur du maximum, qui surpasse nettement la moyenne et le sous-échantillonnage simple pour la reconnaissance d'objets — 4,57 % d'erreur sur le benchmark NORB en version normalized-uniform, par exemple. L'opération n'a pourtant rien d'indispensable : Springenberg et al. (2014) montrent qu'une couche convolutive à stride augmenté la remplace sans perte de précision sur CIFAR-10, CIFAR-100 et ImageNet.</p>\n<p>Que crédite-t-on au juste au pooling ? L'argument standard des manuels est celui de Goodfellow, Bengio et Courville dans Deep Learning : le pooling rend la représentation « approximativement invariante » aux petites translations de l'entrée — la plupart des sorties agrégées ne bougent pas quand l'image se décale légèrement —, ce qui est précieux lorsque la présence d'un motif importe plus que sa position exacte, la présence des yeux dans un visage plutôt que leurs coordonnées au pixel près. Tout le poids de la phrase repose sur l'adverbe.</p>\n<p>Cohen et Welling (2016) ont donné à cette discussion son cadre formel. Une couche Φ est équivariante sous une transformation T<sub>g</sub> lorsque Φ(T<sub>g</sub> x) = T′<sub>g</sub> Φ(x) : la transformation traverse la couche au lieu d'y disparaître. L'invariance stricte, Φ(T<sub>g</sub> x) = Φ(x), en est le cas particulier où elle s'efface. Leur résultat couche par couche est sans ambiguïté : la convolution, les non-linéarités ponctuelles et le pooling local commutent tous avec l'action du groupe des translations. Chaque étage transporte donc l'équivariance sans jamais la convertir en invariance, tant que la dimension spatiale n'est pas totalement effondrée par un pooling global. L'invariance des CNN n'est pas un théorème d'architecture ; au mieux une propriété émergente, et approchée.</p>\n<p>Approchée à quel point ? Azulay et Weiss (2019) apportent la mesure qui fâche : parce que le sous-échantillonnage par stride ignore le théorème d'échantillonnage classique, une petite translation ou un léger changement d'échelle de l'image peut changer radicalement la prédiction du réseau — même entraîné avec augmentation de données. Zhang (2019) identifie le mécanisme et le correctif. Max-pooling, average-pooling et convolution à stride commettent la même faute d'aliasing au moment de réduire la résolution ; il suffit d'insérer un filtre passe-bas avant chaque sous-échantillonnage — la méthode BlurPool — pour améliorer à la fois la cohérence aux translations et la précision ImageNet de ResNet, DenseNet et MobileNet. Le remède existe ; il n'est simplement pas dans les réglages par défaut.</p>\n<p>Dernière correction d'intuition : le champ réceptif que l'on calcule n'est pas celui que le réseau utilise. Le champ réceptif effectif (effective receptive field) d'un CNN profond ne croît pas linéairement avec le nombre de couches <em>n</em>, comme le suggère l'empilement théorique, mais proportionnellement à √<em>n</em> ; et il suit une distribution de type gaussienne, concentrée au centre, qui n'occupe qu'une fraction du champ réceptif théorique complet. Un réseau dont le champ réceptif nominal couvre toute l'image peut donc, en pratique, ne s'appuyer vraiment que sur une zone centrale nettement plus étroite.</p>\n<p>Équivariance transportée mais jamais convertie, invariance approximative et cassable, champ réceptif effectif plus modeste que le champ nominal : ces garanties réelles — et leurs limites — accompagneront chaque architecture de la généalogie. Celle-ci commence bien avant l'ère du deep learning, dans un laboratoire de neurophysiologie et un lecteur de chèques.</p>",
+      "claims": [
+        "claim:9",
+        "claim:10",
+        "claim:11"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-stride-aliasing-blurpool"
+    },
+    {
+      "type": "section",
+      "id": "lenet-origines",
+      "heading": "LeNet-5 et les origines : du Neocognitron au lecteur de chèques",
+      "level": 3,
+      "prose": "<p>Ces deux lieux, apparemment sans rapport, tiennent toute la préhistoire du réseau convolutif. Le premier fournit le principe, le second la preuve industrielle. Entre les deux court une filiation que LeCun et ses coauteurs revendiquent noir sur blanc, et qui interdit de dater la naissance du CNN de 2012.</p>\n<p>À la fin des années 1950, David Hubel et Torsten Wiesel enregistrent l'activité de neurones du cortex visuel du chat et découvrent que chacun ne s'active que pour son champ réceptif — une petite portion du champ visuel — organisé en sous-régions excitatrices et inhibitrices, sélectives à l'orientation d'un trait lumineux ; ces travaux leur vaudront le prix Nobel de physiologie ou médecine en 1981. Ils distinguent ensuite deux populations : les cellules simples, aux sous-régions juxtaposées, sensibles à l'orientation et à la position exacte du stimulus ; les cellules complexes, aux sous-régions recouvrantes, dont la réponse reste stable quand le motif se déplace. Détecter, puis tolérer le déplacement : ce patron biologique commande tout ce qui suit.</p>\n<p>Kunihiko Fukushima le transpose en machine. Son Neocognitron (1980) empile des couches de type S et de type C — décalque direct des cellules simples et complexes — et forme la première architecture convolutive profonde capable de reconnaître un motif indépendamment de sa position. Il lui manque cependant l'apprentissage supervisé de bout en bout.</p>\n<p>LeNet-5 apporte la pièce absente : entraîner ce même empilement par backpropagation (rétropropagation), les unités d'une carte partageant leurs poids. L'article de 1998 — celui-là même qui donne la définition princeps citée en ouverture — fait alterner convolution et sous-échantillonnage : une couche comme S2 moyenne quatre valeurs sur une fenêtre 2×2 disjointe, la multiplie par un coefficient appris, ajoute un biais, puis la fait passer dans une sigmoïde — loin du max-pooling nu qui s'imposera plus tard. LeCun et ses coauteurs citent nommément le Neocognitron et les cellules simples et complexes de Hubel et Wiesel comme inspiration de cette alternance.</p>\n<p>Reste le malentendu chronologique. On présente souvent AlexNet (2012) comme l'acte de naissance du réseau convolutif ; le lecteur de chèques le contredit de seize ans. Dès juin 1996, un système de lecture — le graph transformer HCAR de NCR, un LeNet précédé d'un prétraitement — équipe des agences bancaires américaines. En 2001, il traite quelque vingt millions de chèques par jour, environ un dixième de tous ceux émis aux États-Unis. Le CNN était déjà en production, et rentable, bien avant qu'ImageNet ne lui donne son théâtre de gloire.</p>",
+      "claims": [
+        "claim:12",
+        "claim:14"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "synopsis-lenet-passe-avant"
+    },
+    {
+      "type": "section",
+      "id": "genealogie-imagenet",
+      "heading": "L'ère ImageNet : AlexNet, VGG, Inception, ResNet, DenseNet",
+      "level": 3,
+      "prose": "<p>Le théâtre, justement. ImageNet et son concours annuel, l'ILSVRC (ImageNet Large Scale Visual Recognition Challenge), offrent à partir de 2010 un banc d'essai à grande échelle, mille classes, que les jeux de données antérieurs ne savaient plus stresser. C'est là que se joue, en cinq ans, l'essentiel de la généalogie moderne — et chaque architecture y répond à un goulot précis.</p><figure class='fig'><svg viewBox='0 0 760 864' role='img' aria-label='Frise généalogique des architectures CNN, de Hubel &amp; Wiesel (~1959) à NFNets (2023) ; chaque nœud porte sa signature technique et, dessous, le goulot qu’il adresse (paramètres, calcul, dégradation en profondeur, latence embarquée, recettes d’entraînement)' xmlns='http://www.w3.org/2000/svg' font-family='system-ui,-apple-system,sans-serif'><defs><marker id='cnngen-ar' markerWidth='9' markerHeight='9' refX='5' refY='3' orient='auto'><path d='M0,0 L7,3 L0,6 Z' fill='var(--ink-faint,#7A889B)'/></marker></defs><text x='30' y='30' font-size='15' font-weight='700' fill='var(--ink,#15202E)'>Généalogie des CNN : un goulot nommé par nœud</text><text x='30' y='48' font-size='11' fill='var(--ink-faint,#7A889B)'>le temps descend — sous chaque architecture, la contrainte qu’elle lève</text><path d='M40,84 h-6 v170 h6' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1.2' opacity='0.55'/><text x='28' y='169' font-size='10.5' font-weight='600' fill='var(--ink-faint,#7A889B)' opacity='0.9' text-anchor='middle' transform='rotate(-90 28 169)'>Racines</text><path d='M40,276 h-6 v298 h6' fill='none' stroke='var(--blue,#23537F)' stroke-width='1.2' opacity='0.55'/><text x='28' y='425' font-size='10.5' font-weight='600' fill='var(--blue,#23537F)' opacity='0.9' text-anchor='middle' transform='rotate(-90 28 425)'>Ère ImageNet</text><path d='M40,596 h-6 v234 h6' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2' opacity='0.55'/><text x='28' y='713' font-size='10.5' font-weight='600' fill='var(--bordeaux,#7C2A38)' opacity='0.9' text-anchor='middle' transform='rotate(-90 28 713)'>Efficacité &amp; modernisation</text><line x1='196' y1='88' x2='196' y2='842' stroke='var(--ink-faint,#7A889B)' stroke-width='2' marker-end='url(#cnngen-ar)'/><text x='150' y='108' font-size='11.5' font-weight='600' text-anchor='end' fill='var(--ink-faint,#7A889B)'>~1959</text><circle cx='196' cy='104' r='5.5' fill='var(--paper,#FFFFFF)' stroke='var(--ink-faint,#7A889B)' stroke-width='2.4'/><text x='214' y='102' font-size='13' font-weight='700' fill='var(--ink,#15202E)'>Hubel &amp; Wiesel · cellules simples/complexes</text><text x='214' y='119' font-size='11' fill='var(--ink-faint,#7A889B)'>goulot : décrire le cortex visuel — le modèle biologique</text><text x='150' y='172' font-size='11.5' font-weight='600' text-anchor='end' fill='var(--ink-faint,#7A889B)'>1980</text><circle cx='196' cy='168' r='5.5' fill='var(--paper,#FFFFFF)' stroke='var(--ink-faint,#7A889B)' stroke-width='2.4'/><text x='214' y='166' font-size='13' font-weight='700' fill='var(--ink,#15202E)'>Neocognitron · couches S/C</text><text x='214' y='183' font-size='11' fill='var(--ink-faint,#7A889B)'>goulot : hiérarchie de traits, mais sans apprentissage global</text><text x='150' y='236' font-size='11.5' font-weight='600' text-anchor='end' fill='var(--ink-faint,#7A889B)'>1998</text><circle cx='196' cy='232' r='5.5' fill='var(--paper,#FFFFFF)' stroke='var(--ink-faint,#7A889B)' stroke-width='2.4'/><text x='214' y='230' font-size='13' font-weight='700' fill='var(--ink,#15202E)'>LeNet-5 · backprop + partage de poids</text><text x='214' y='247' font-size='11' fill='var(--ink-faint,#7A889B)'>goulot : apprendre les filtres tout en bornant les paramètres</text><text x='150' y='300' font-size='11.5' font-weight='600' text-anchor='end' fill='var(--blue,#23537F)'>2012</text><circle cx='196' cy='296' r='5.5' fill='var(--paper,#FFFFFF)' stroke='var(--blue,#23537F)' stroke-width='2.4'/><text x='214' y='294' font-size='13' font-weight='700' fill='var(--ink,#15202E)'>AlexNet · ReLU + dropout — top-5 15,3 %</text><text x='214' y='311' font-size='11' fill='var(--ink-faint,#7A889B)'>goulot : entraîner profond à grande échelle (GPU)</text><text x='150' y='364' font-size='11.5' font-weight='600' text-anchor='end' fill='var(--blue,#23537F)'>2015</text><circle cx='196' cy='360' r='5.5' fill='var(--paper,#FFFFFF)' stroke='var(--blue,#23537F)' stroke-width='2.4'/><text x='214' y='358' font-size='13' font-weight='700' fill='var(--ink,#15202E)'>VGG · piles de 3×3</text><text x='214' y='375' font-size='11' fill='var(--ink-faint,#7A889B)'>goulot : profondeur régulière, au moindre noyau</text><text x='150' y='428' font-size='11.5' font-weight='600' text-anchor='end' fill='var(--blue,#23537F)'>2015</text><circle cx='196' cy='424' r='5.5' fill='var(--paper,#FFFFFF)' stroke='var(--blue,#23537F)' stroke-width='2.4'/><text x='214' y='422' font-size='13' font-weight='700' fill='var(--ink,#15202E)'>Inception / GoogLeNet · 1×1 réducteurs</text><text x='214' y='439' font-size='11' fill='var(--ink-faint,#7A889B)'>goulot : budget de calcul — source unique, non corroborée</text><text x='150' y='492' font-size='11.5' font-weight='600' text-anchor='end' fill='var(--blue,#23537F)'>2016</text><circle cx='196' cy='488' r='5.5' fill='var(--paper,#FFFFFF)' stroke='var(--blue,#23537F)' stroke-width='2.4'/><text x='214' y='486' font-size='13' font-weight='700' fill='var(--ink,#15202E)'>ResNet · raccourci identité — top-5 3,57 %</text><text x='214' y='503' font-size='11' fill='var(--ink-faint,#7A889B)'>goulot : dégradation en profondeur</text><text x='150' y='556' font-size='11.5' font-weight='600' text-anchor='end' fill='var(--blue,#23537F)'>2017</text><circle cx='196' cy='552' r='5.5' fill='var(--paper,#FFFFFF)' stroke='var(--blue,#23537F)' stroke-width='2.4'/><text x='214' y='550' font-size='13' font-weight='700' fill='var(--ink,#15202E)'>DenseNet · connectivité dense</text><text x='214' y='567' font-size='11' fill='var(--ink-faint,#7A889B)'>goulot : réutilisation des traits, paramètres</text><text x='150' y='620' font-size='11.5' font-weight='600' text-anchor='end' fill='var(--bordeaux,#7C2A38)'>2017</text><circle cx='196' cy='616' r='5.5' fill='var(--paper,#FFFFFF)' stroke='var(--bordeaux,#7C2A38)' stroke-width='2.4'/><text x='214' y='614' font-size='13' font-weight='700' fill='var(--ink,#15202E)'>MobileNet · séparable en profondeur</text><text x='214' y='631' font-size='11' fill='var(--ink-faint,#7A889B)'>goulot : latence embarquée</text><text x='150' y='684' font-size='11.5' font-weight='600' text-anchor='end' fill='var(--bordeaux,#7C2A38)'>2019</text><circle cx='196' cy='680' r='5.5' fill='var(--paper,#FFFFFF)' stroke='var(--bordeaux,#7C2A38)' stroke-width='2.4'/><text x='214' y='678' font-size='13' font-weight='700' fill='var(--ink,#15202E)'>EfficientNet · compound scaling</text><text x='214' y='695' font-size='11' fill='var(--ink-faint,#7A889B)'>goulot : équilibrer profondeur / largeur / résolution</text><text x='150' y='748' font-size='11.5' font-weight='600' text-anchor='end' fill='var(--bordeaux,#7C2A38)'>2022</text><circle cx='196' cy='744' r='5.5' fill='var(--paper,#FFFFFF)' stroke='var(--bordeaux,#7C2A38)' stroke-width='2.4'/><text x='214' y='742' font-size='13' font-weight='700' fill='var(--ink,#15202E)'>ConvNeXt · modernisation sans attention</text><text x='214' y='759' font-size='11' fill='var(--ink-faint,#7A889B)'>goulot : recettes d’entraînement (rivaliser avec les ViT)</text><text x='150' y='812' font-size='11.5' font-weight='600' text-anchor='end' fill='var(--bordeaux,#7C2A38)'>2023</text><circle cx='196' cy='808' r='5.5' fill='var(--paper,#FFFFFF)' stroke='var(--bordeaux,#7C2A38)' stroke-width='2.4'/><text x='214' y='806' font-size='13' font-weight='700' fill='var(--ink,#15202E)'>NFNets · sans normalisation</text><text x='214' y='823' font-size='11' fill='var(--ink-faint,#7A889B)'>goulot : entraînement à très grande échelle</text></svg><figcaption><span class='fcap-k'></span>Frise généalogique des CNN de Hubel &amp; Wiesel à NFNets : chaque nœud affiche sa signature technique et, dessous, le goulot qu’il lève.</figcaption></figure>\n<p>AlexNet (Krizhevsky, Sutskever et Hinton, 2012) frappe fort : cinq couches convolutives, trois couches entièrement connectées, un softmax à mille classes, soixante millions de paramètres. Deux ingrédients font la différence — la ReLU, non saturante, qui accélère l'entraînement, et le dropout (désactivation aléatoire d'unités à l'entraînement) dans les couches denses, qui bride le surapprentissage. L'erreur top-5 tombe à 15,3 % à l'ILSVRC-2012, quand le concurrent suivant plafonne à 26,2 %. Plus de dix points d'écart : la course à la profondeur est lancée.</p>\n<p>VGG (Simonyan et Zisserman, 2015) en tire un principe d'économie. Plutôt qu'un gros noyau, empiler des petits : trois convolutions 3×3 successives couvrent le même champ réceptif qu'une seule 7×7, mais ne pèsent que 27C² poids contre 49C² — près de moitié moins — et intercalent trois ReLU au lieu d'une, ce qui rend la fonction de décision plus discriminante. L'équipe décline ce parti pris en configurations de onze à dix-neuf couches, uniquement des filtres 3×3, et décroche la première place en localisation à l'ILSVRC 2014.</p>\n<p>Inception s'attaque au budget de calcul. Un module qui concatène des convolutions 1×1, 3×3, 5×5 et un pooling devient vite ruineux dès qu'on empile des 5×5 sur des couches épaisses. La parade de GoogLeNet (Szegedy et al., 2015) — dont le nom salue le LeNet de LeCun — insère des convolutions 1×1 avant les gros noyaux : elles réduisent la dimension et ajoutent une non-linéarité, pour des réseaux deux à trois fois plus rapides à performance égale (chiffre des auteurs, non corroboré indépendamment). Ses vingt-deux couches embarquent aussi des classificateurs auxiliaires, branchés sur des modules intermédiaires pendant l'entraînement puis jetés à l'inférence — une première réponse au problème de propagation du gradient dans les réseaux profonds.</p>\n<p>ResNet (He et al., 2016) l'attaque de front, mais commence par dissiper un malentendu tenace. Le vanishing gradient (atténuation du signal d'erreur à mesure qu'il se rétropropage sur de nombreuses couches) n'est pas, disent les auteurs, ce qui bloque : il « a été largement résolu » par l'initialisation normalisée et par les couches de batch normalization (BN), et les gradients de leurs réseaux profonds sans raccourci gardent des normes saines. Le vrai coupable est le problème de dégradation : passé un certain nombre de couches, la précision sature puis chute — et pas par surapprentissage, puisque l'erreur d'entraînement elle-même remonte.</p>\n<p>La démonstration tient en un tableau. Un réseau plain à trente-quatre couches fait pire que sa version à dix-huit ; ajoutez un raccourci identité — le bloc devient y = F(x, {Wᵢ}) + x — et le rapport s'inverse, le trente-quatre couches repasse devant. Le raccourci n'ajoute ni paramètre ni calcul. Cette frugalité a un corollaire : le ResNet à trente-quatre couches ne réclame que 18 % des FLOPs de VGG-19. L'ensemble vainqueur de l'ILSVRC 2015 descend à 3,57 % d'erreur top-5, huit fois plus profond que VGG pour une complexité moindre.</p>\n<p>DenseNet (Huang et al., 2017) pousse la logique du raccourci à son terme : chaque couche reçoit en entrée les sorties de toutes celles qui la précèdent, soit L(L+1)/2 connexions directes pour L couches. Cette connectivité dense atténue le vanishing gradient, propage et réutilise mieux les caractéristiques, et — à rebours de l'intuition — réduit le nombre de paramètres à capacité comparable. Chaque étape de cette lignée répond ainsi à une contrainte nommée : paramètres, calcul, profondeur. La suivante en désignera une autre, née hors du datacenter — le téléphone.</p>",
+      "claims": [
+        "claim:15",
+        "claim:17",
+        "claim:18"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "efficacite-mobile",
+      "heading": "L'efficacité comme contrainte : MobileNet et EfficientNet",
+      "level": 3,
+      "prose": "<p>Jusqu'ici, le juge de paix était le top-1 sur un serveur. Déployer un CNN sur un téléphone ou un capteur change la donne : il faut tenir dans un budget de calcul et de mémoire serré sans effondrer la précision. Deux familles répondent à cette contrainte par des leviers distincts — factoriser la convolution, puis mettre à l'échelle avec méthode.</p>\n<p>MobileNet (Howard et al., 2017) éclate la convolution standard en deux temps. Une convolution depthwise (en profondeur) filtre chaque canal isolément ; une convolution pointwise 1×1 (point par point) recombine ensuite les canaux. Le produit de ces deux opérations coûte une fraction de la convolution pleine — de l'ordre de huit à neuf fois moins pour un noyau 3×3. Deux hyperparamètres globaux règlent le curseur sans toucher à l'architecture : le width multiplier α (multiplicateur de largeur), qui amincit chaque couche, et le resolution multiplier ρ (multiplicateur de résolution), qui rétrécit l'image d'entrée. À pleine largeur, le réseau atteint 70,6 % de précision top-1 pour une poignée de millions de paramètres, dans le voisinage de VGG-16 mais à une infime part de son coût.</p><figure class='fig'><svg viewBox='0 0 940 400' role='img' aria-label='Comparaison entre la convolution standard, où N filtres k par k traversent les M canaux d’un coup, et la factorisation MobileNet en une étape depthwise par canal puis une étape pointwise 1 par 1, avec le coût de chaque étape et le ratio 1/N + 1/k²'><defs><marker id='fdw-arr' viewBox='0 0 8 8' refX='7' refY='4' markerWidth='7' markerHeight='7' orient='auto'><path d='M0 0L8 4L0 8Z' fill='var(--ink-faint,#7A889B)'/></marker></defs><text x='235' y='30' text-anchor='middle' font-size='15' font-weight='600' fill='var(--ink,#15202E)'>Convolution standard</text><text x='710' y='30' text-anchor='middle' font-size='15' font-weight='600' fill='var(--ink,#15202E)'>Factorisation MobileNet</text><line x1='470' y1='18' x2='470' y2='282' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-dasharray='4 4' opacity='.5'/><rect x='66' y='99' width='90' height='90' fill='var(--blue,#23537F)' fill-opacity='.08' stroke='var(--blue,#23537F)' stroke-width='1'/><rect x='59' y='106' width='90' height='90' fill='var(--blue,#23537F)' fill-opacity='.1' stroke='var(--blue,#23537F)' stroke-width='1'/><rect x='52' y='113' width='90' height='90' fill='var(--blue,#23537F)' fill-opacity='.12' stroke='var(--blue,#23537F)' stroke-width='1'/><rect x='45' y='120' width='90' height='90' fill='var(--blue,#23537F)' fill-opacity='.16' stroke='var(--blue,#23537F)' stroke-width='1'/><text x='100' y='232' text-anchor='middle' font-size='12' fill='var(--ink-faint,#7A889B)'>Entrée H×W×M</text><rect x='200' y='125' width='22' height='22' fill='var(--bordeaux,#7C2A38)' fill-opacity='.1' stroke='var(--bordeaux,#7C2A38)' stroke-width='1'/><rect x='195' y='130' width='22' height='22' fill='var(--bordeaux,#7C2A38)' fill-opacity='.12' stroke='var(--bordeaux,#7C2A38)' stroke-width='1'/><rect x='190' y='135' width='22' height='22' fill='var(--bordeaux,#7C2A38)' fill-opacity='.14' stroke='var(--bordeaux,#7C2A38)' stroke-width='1'/><rect x='185' y='140' width='22' height='22' fill='var(--bordeaux,#7C2A38)' fill-opacity='.18' stroke='var(--bordeaux,#7C2A38)' stroke-width='1'/><text x='201' y='185' text-anchor='middle' font-size='12' fill='var(--bordeaux,#7C2A38)'>k×k×M</text><text x='201' y='200' text-anchor='middle' font-size='11' fill='var(--ink-faint,#7A889B)'>tous les canaux à la fois</text><text x='201' y='216' text-anchor='middle' font-size='12' font-weight='600' fill='var(--bordeaux,#7C2A38)'>× N filtres</text><line x1='232' y1='150' x2='300' y2='150' stroke='var(--ink-faint,#7A889B)' stroke-width='1.5' marker-end='url(#fdw-arr)'/><rect x='339' y='101' width='80' height='80' fill='var(--ink,#15202E)' fill-opacity='.04' stroke='var(--ink,#15202E)' stroke-width='1'/><rect x='333' y='107' width='80' height='80' fill='var(--ink,#15202E)' fill-opacity='.05' stroke='var(--ink,#15202E)' stroke-width='1'/><rect x='327' y='113' width='80' height='80' fill='var(--ink,#15202E)' fill-opacity='.06' stroke='var(--ink,#15202E)' stroke-width='1'/><rect x='321' y='119' width='80' height='80' fill='var(--ink,#15202E)' fill-opacity='.07' stroke='var(--ink,#15202E)' stroke-width='1'/><rect x='315' y='125' width='80' height='80' fill='var(--ink,#15202E)' fill-opacity='.1' stroke='var(--ink,#15202E)' stroke-width='1'/><text x='367' y='232' text-anchor='middle' font-size='12' fill='var(--ink-faint,#7A889B)'>Sortie H×W×N</text><text x='235' y='266' text-anchor='middle' font-size='13' font-weight='600' fill='var(--bordeaux,#7C2A38)'>Coût : k²·M·N·H·W</text><text x='596' y='58' text-anchor='middle' font-size='13' font-weight='600' fill='var(--ink,#15202E)'>① depthwise</text><text x='596' y='74' text-anchor='middle' font-size='11' fill='var(--ink-faint,#7A889B)'>un filtre k×k par canal</text><text x='815' y='58' text-anchor='middle' font-size='13' font-weight='600' fill='var(--ink,#15202E)'>② pointwise 1×1</text><text x='815' y='74' text-anchor='middle' font-size='11' fill='var(--ink-faint,#7A889B)'>recombine les M canaux</text><rect x='505' y='85' width='44' height='30' fill='var(--blue,#23537F)' fill-opacity='.12' stroke='var(--blue,#23537F)' stroke-width='1'/><text x='558' y='105' text-anchor='middle' font-size='14' fill='var(--ink-faint,#7A889B)'>∗</text><rect x='566' y='89' width='22' height='22' fill='var(--bordeaux,#7C2A38)' fill-opacity='.15' stroke='var(--bordeaux,#7C2A38)' stroke-width='1'/><line x1='594' y1='100' x2='610' y2='100' stroke='var(--ink-faint,#7A889B)' stroke-width='1' marker-end='url(#fdw-arr)'/><rect x='615' y='85' width='44' height='30' fill='var(--blue,#23537F)' fill-opacity='.18' stroke='var(--blue,#23537F)' stroke-width='1'/><rect x='505' y='130' width='44' height='30' fill='var(--blue,#23537F)' fill-opacity='.12' stroke='var(--blue,#23537F)' stroke-width='1'/><text x='558' y='150' text-anchor='middle' font-size='14' fill='var(--ink-faint,#7A889B)'>∗</text><rect x='566' y='134' width='22' height='22' fill='var(--bordeaux,#7C2A38)' fill-opacity='.15' stroke='var(--bordeaux,#7C2A38)' stroke-width='1'/><line x1='594' y1='145' x2='610' y2='145' stroke='var(--ink-faint,#7A889B)' stroke-width='1' marker-end='url(#fdw-arr)'/><rect x='615' y='130' width='44' height='30' fill='var(--blue,#23537F)' fill-opacity='.18' stroke='var(--blue,#23537F)' stroke-width='1'/><rect x='505' y='175' width='44' height='30' fill='var(--blue,#23537F)' fill-opacity='.12' stroke='var(--blue,#23537F)' stroke-width='1'/><text x='558' y='195' text-anchor='middle' font-size='14' fill='var(--ink-faint,#7A889B)'>∗</text><rect x='566' y='179' width='22' height='22' fill='var(--bordeaux,#7C2A38)' fill-opacity='.15' stroke='var(--bordeaux,#7C2A38)' stroke-width='1'/><line x1='594' y1='190' x2='610' y2='190' stroke='var(--ink-faint,#7A889B)' stroke-width='1' marker-end='url(#fdw-arr)'/><rect x='615' y='175' width='44' height='30' fill='var(--blue,#23537F)' fill-opacity='.18' stroke='var(--blue,#23537F)' stroke-width='1'/><text x='527' y='224' text-anchor='middle' font-size='14' fill='var(--ink-faint,#7A889B)'>⋮</text><text x='637' y='224' text-anchor='middle' font-size='14' fill='var(--ink-faint,#7A889B)'>⋮</text><text x='527' y='243' text-anchor='middle' font-size='11' fill='var(--ink-faint,#7A889B)'>M canaux, chacun isolé</text><line x1='659' y1='100' x2='700' y2='141' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><line x1='659' y1='145' x2='700' y2='141' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><line x1='659' y1='190' x2='700' y2='141' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='700' y='131' width='20' height='20' fill='var(--bordeaux,#7C2A38)' fill-opacity='.18' stroke='var(--bordeaux,#7C2A38)' stroke-width='1'/><text x='710' y='168' text-anchor='middle' font-size='11' fill='var(--bordeaux,#7C2A38)'>1×1×M</text><text x='710' y='183' text-anchor='middle' font-size='11' font-weight='600' fill='var(--bordeaux,#7C2A38)'>× N filtres</text><line x1='722' y1='141' x2='748' y2='141' stroke='var(--ink-faint,#7A889B)' stroke-width='1.5' marker-end='url(#fdw-arr)'/><rect x='775' y='121' width='42' height='42' fill='var(--ink,#15202E)' fill-opacity='.04' stroke='var(--ink,#15202E)' stroke-width='1'/><rect x='770' y='126' width='42' height='42' fill='var(--ink,#15202E)' fill-opacity='.05' stroke='var(--ink,#15202E)' stroke-width='1'/><rect x='765' y='131' width='42' height='42' fill='var(--ink,#15202E)' fill-opacity='.06' stroke='var(--ink,#15202E)' stroke-width='1'/><rect x='760' y='136' width='42' height='42' fill='var(--ink,#15202E)' fill-opacity='.07' stroke='var(--ink,#15202E)' stroke-width='1'/><rect x='755' y='141' width='42' height='42' fill='var(--ink,#15202E)' fill-opacity='.1' stroke='var(--ink,#15202E)' stroke-width='1'/><text x='786' y='210' text-anchor='middle' font-size='12' fill='var(--ink-faint,#7A889B)'>Sortie H×W×N</text><text x='582' y='266' text-anchor='middle' font-size='13' font-weight='600' fill='var(--bordeaux,#7C2A38)'>Coût : k²·M·H·W</text><text x='700' y='266' text-anchor='middle' font-size='13' fill='var(--ink-faint,#7A889B)'>+</text><text x='815' y='266' text-anchor='middle' font-size='13' font-weight='600' fill='var(--bordeaux,#7C2A38)'>Coût : M·N·H·W</text><rect x='170' y='300' width='600' height='72' rx='8' fill='var(--bordeaux,#7C2A38)' fill-opacity='.05' stroke='var(--bordeaux,#7C2A38)' stroke-width='1'/><text x='470' y='330' text-anchor='middle' font-size='13' fill='var(--ink,#15202E)'>Ratio de coût = (k²·M·H·W + M·N·H·W) / (k²·M·N·H·W) = 1/N + 1/k²</text><text x='470' y='356' text-anchor='middle' font-size='14' font-weight='600' fill='var(--bordeaux,#7C2A38)'>≈ 8 à 9× moins de calcul pour k = 3</text></svg><figcaption><span class='fcap-k'></span>La convolution séparable en profondeur factorise la convolution standard en un filtrage depthwise canal par canal puis une recombinaison pointwise 1×1, ramenant le coût à la fraction 1/N + 1/k² — environ 8 à 9 fois moins pour un noyau 3×3.</figcaption></figure>\n<p>MobileNetV2 (Sandler et al., 2018) retourne le bloc résiduel classique. Là où celui-ci compresse, dilate, puis recompresse, le bloc inverted residual (bloc résiduel inversé) fait l'inverse : il part d'un goulot étroit, se dilate pour laisser la convolution depthwise travailler dans un espace large, puis revient à l'étroit. Détail décisif, les couches minces sont laissées linéaires — la ReLU y est retirée (linear bottleneck), car écraser un tenseur déjà comprimé détruit de l'information.</p>\n<p>EfficientNet (Tan et Le, 2019) déplace la question de la brique vers l'échelle. On agrandit d'ordinaire un réseau selon une seule dimension à la fois — plus profond, ou plus large, ou en plus haute résolution. Le compound scaling (mise à l'échelle composée) les augmente ensemble, selon un ratio fixe issu d'une recherche par grille, sous la contrainte α·β²·γ²≈2. Le gain est net : d'EfficientNet-B0 à B7, la précision grimpe à budget croissant tout en restant, à précision égale, plusieurs fois plus compacte et plus rapide que les meilleurs ConvNets antérieurs. Le rapport précision/coût est devenu, à part entière, un axe de conception.</p>\n<p>Une réserve, pourtant, que l'ingénieur paie cash. Moins de FLOPs ne veut pas dire plus rapide : la latence réelle dépend aussi du coût d'accès mémoire et du taux d'occupation du matériel, et les convolutions depthwise, à faible intensité arithmétique, sous-exploitent les GPU et TPU modernes. EfficientNetV2 (Tan et Le, 2021) en tire la leçon et réintroduit, dans les premiers étages du réseau, le bloc Fused-MBConv, qui refond la depthwise 3×3 et la pointwise 1×1 en une seule convolution standard — plus de FLOPs sur le papier, mais un entraînement nettement plus rapide en pratique. À ressources égales, il s'entraîne d'ailleurs plusieurs fois plus vite que les meilleures architectures fondées sur l'attention. Le décalage entre coût théorique et temps mesuré éclaire par avance le débat qui vient : face à ces nouvelles venues, le réseau convolutif n'a pas encore abattu ses cartes.</p>",
+      "claims": [
+        "claim:19",
+        "claim:20",
+        "claim:21",
+        "claim:22"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "convnext-vit",
+      "heading": "ConvNeXt face aux Vision Transformers : le match des biais inductifs",
+      "level": 3,
+      "prose": "<p>L'attention abat ses cartes en octobre 2020. Le ViT (Vision Transformer) de Dosovitskiy et ses collègues, soumis alors et publié à ICLR 2021, prend le contre-pied exact de tout ce que ce document a raconté : il retire les deux biais inductifs qui définissent le CNN, la localité et l'équivariance par translation. Les auteurs l'écrivent sans détour : privé de ces biais, le modèle « ne généralise pas bien quand il est entraîné sur des quantités de données insuffisantes ». Entraîné sur ImageNet seul, sans régularisation forte, le ViT reste d'ailleurs plusieurs points sous les ResNets comparables.</p>\n<p>Tout change avec l'échelle. Pré-entraîné sur JFT-300M, le corpus interne de Google, le plus gros modèle (ViT-H/14) atteint 88,55 % top-1 sur ImageNet — pour un budget de calcul nettement inférieur à celui des pipelines convolutifs auxquels l'article se compare. La bascule se situe, d'après les auteurs eux-mêmes, entre 14 et 300 millions d'images de pré-entraînement ; au-delà, « l'entraînement à grande échelle l'emporte sur le biais inductif ». Le volume n'est pourtant pas la seule monnaie d'échange : DeiT (Data-efficient image Transformers) montre ensuite qu'une recette d'entraînement soignée, avec distillation depuis un CNN (un modèle élève entraîné à imiter les sorties d'un maître), comble le même déficit sans un tel corpus.</p>\n<p>C'est ici que la question du fil rouge se retourne. Si les ViT prennent la tête des classements, est-ce parce que l'attention est intrinsèquement supérieure à la convolution — ou parce qu'ils arrivent avec des recettes d'entraînement et des choix de design plus récents ? Liu et ses collègues (FAIR et UC Berkeley) posent la question frontalement avec ConvNeXt (CVPR 2022) : l'efficacité des hybrides CNN-transformer était jusque-là créditée, écrivent-ils, à la « supériorité intrinsèque des Transformers » plutôt qu'aux biais inductifs des convolutions. Leur protocole : prendre un ResNet-50 vanille et le moderniser pas à pas vers les choix de design de Swin Transformer, la référence du camp adverse, sans ajouter une seule couche d'attention.</p>\n<p>La feuille de route est une leçon d'ingénierie expérimentale, chaque étape mesurée isolément. Le ResNet-50 de départ plafonne à 76,1 % top-1. Modernisez la seule recette d'entraînement — augmentation de données, schedule, régularisation — et il atteint déjà 78,8 %, avant la moindre retouche d'architecture. Viennent ensuite les étapes structurelles : le plus gros gain, +2,2 points, tient au passage en convolution depthwise avec élargissement des canaux ; le reste s'accumule par petites touches — nouveau ratio de blocs par étage, stem « patchify » (les couches d'entrée remplacées par un découpage en patchs), bottleneck inversé où le lecteur reconnaîtra l'inverted residual de MobileNetV2, noyau depthwise élargi à 7×7, une seule activation GELU par bloc, LayerNorm (normalisation par couche) à la place de la batch normalization, sous-échantillonnage séparé entre étages. Au total, la variante ConvNeXt-T atteint 82,1 % top-1 sur ImageNet-1K, soit +3,3 points cumulés, sans attention.</p><figure class='fig'><svg viewBox='0 0 720 412' role='img' aria-label='Diagramme en cascade des gains top-1 ImageNet-1K de ResNet-50 à ConvNeXt-T : 76,1 % au départ, +2,7 points par la seule recette d’entraînement, +2,2 points par la convolution depthwise avec canaux élargis, +1,1 point par sept retouches d’architecture, soit 82,1 % au total'><text x='70' y='24' font-family='Archivo,sans-serif' font-size='11' fill='var(--ink-faint,#7A889B)'>Précision top-1 ImageNet-1K (%)</text><line x1='70' y1='302.5' x2='700' y2='302.5' stroke='var(--ink-faint,#7A889B)' stroke-opacity='0.22'/><line x1='70' y1='227.5' x2='700' y2='227.5' stroke='var(--ink-faint,#7A889B)' stroke-opacity='0.22'/><line x1='70' y1='152.5' x2='700' y2='152.5' stroke='var(--ink-faint,#7A889B)' stroke-opacity='0.22'/><line x1='70' y1='77.5' x2='700' y2='77.5' stroke='var(--ink-faint,#7A889B)' stroke-opacity='0.22'/><text x='62' y='306.5' text-anchor='end' font-family='Archivo,sans-serif' font-size='10.5' fill='var(--ink-faint,#7A889B)'>76</text><text x='62' y='231.5' text-anchor='end' font-family='Archivo,sans-serif' font-size='10.5' fill='var(--ink-faint,#7A889B)'>78</text><text x='62' y='156.5' text-anchor='end' font-family='Archivo,sans-serif' font-size='10.5' fill='var(--ink-faint,#7A889B)'>80</text><text x='62' y='81.5' text-anchor='end' font-family='Archivo,sans-serif' font-size='10.5' fill='var(--ink-faint,#7A889B)'>82</text><text x='62' y='344' text-anchor='end' font-family='Archivo,sans-serif' font-size='10.5' fill='var(--ink-faint,#7A889B)'>75</text><line x1='70' y1='40' x2='70' y2='340' stroke='var(--ink-faint,#7A889B)'/><line x1='70' y1='340' x2='700' y2='340' stroke='var(--ink-soft,#43536A)'/><line x1='64' y1='328' x2='76' y2='322' stroke='var(--ink-soft,#43536A)'/><line x1='64' y1='334' x2='76' y2='328' stroke='var(--ink-soft,#43536A)'/><line x1='182' y1='298.75' x2='214' y2='298.75' stroke='var(--ink-faint,#7A889B)' stroke-dasharray='4 3'/><line x1='306' y1='197.5' x2='338' y2='197.5' stroke='var(--ink-faint,#7A889B)' stroke-dasharray='4 3'/><line x1='430' y1='115' x2='462' y2='115' stroke='var(--ink-faint,#7A889B)' stroke-dasharray='4 3'/><line x1='554' y1='73.75' x2='586' y2='73.75' stroke='var(--ink-faint,#7A889B)' stroke-dasharray='4 3'/><rect x='90' y='298.75' width='92' height='41.25' fill='var(--ink-faint,#7A889B)'/><rect x='214' y='197.5' width='92' height='101.25' fill='var(--bordeaux,#7C2A38)'/><rect x='338' y='115' width='92' height='82.5' fill='var(--blue,#23537F)'/><rect x='462' y='73.75' width='92' height='41.25' fill='var(--blue,#23537F)' fill-opacity='0.78'/><line x1='462' y1='79.6' x2='554' y2='79.6' stroke='var(--card,#FFFFFF)'/><line x1='462' y1='85.5' x2='554' y2='85.5' stroke='var(--card,#FFFFFF)'/><line x1='462' y1='91.4' x2='554' y2='91.4' stroke='var(--card,#FFFFFF)'/><line x1='462' y1='97.3' x2='554' y2='97.3' stroke='var(--card,#FFFFFF)'/><line x1='462' y1='103.2' x2='554' y2='103.2' stroke='var(--card,#FFFFFF)'/><line x1='462' y1='109.1' x2='554' y2='109.1' stroke='var(--card,#FFFFFF)'/><rect x='586' y='73.75' width='92' height='266.25' fill='var(--blue-deep,#142E49)'/><text x='136' y='291' text-anchor='middle' font-family='Archivo,sans-serif' font-size='12.5' font-weight='700' fill='var(--ink,#15202E)'>76,1</text><text x='260' y='190' text-anchor='middle' font-family='Archivo,sans-serif' font-size='12.5' font-weight='700' fill='var(--ink,#15202E)'>78,8</text><text x='384' y='107.5' text-anchor='middle' font-family='Archivo,sans-serif' font-size='12.5' font-weight='700' fill='var(--ink,#15202E)'>81,0</text><text x='632' y='66' text-anchor='middle' font-family='Archivo,sans-serif' font-size='12.5' font-weight='700' fill='var(--ink,#15202E)'>82,1</text><text x='260' y='252' text-anchor='middle' font-family='Archivo,sans-serif' font-size='13' font-weight='700' fill='var(--card,#FFFFFF)'>+2,7</text><text x='384' y='160.5' text-anchor='middle' font-family='Archivo,sans-serif' font-size='13' font-weight='700' fill='var(--card,#FFFFFF)'>+2,2</text><text x='508' y='66' text-anchor='middle' font-family='Archivo,sans-serif' font-size='13' font-weight='700' fill='var(--blue,#23537F)'>+1,1</text><text x='133' y='215' text-anchor='middle' font-family='Archivo,sans-serif' font-size='10.5' font-weight='700' fill='var(--bordeaux,#7C2A38)'>le plus gros saut :</text><text x='133' y='229' text-anchor='middle' font-family='Archivo,sans-serif' font-size='10.5' fill='var(--bordeaux,#7C2A38)'>recette d’entraînement</text><text x='133' y='243' text-anchor='middle' font-family='Archivo,sans-serif' font-size='10.5' fill='var(--bordeaux,#7C2A38)'>seule, zéro retouche</text><text x='133' y='257' text-anchor='middle' font-family='Archivo,sans-serif' font-size='10.5' fill='var(--bordeaux,#7C2A38)'>d’architecture</text><line x1='195' y1='224' x2='206' y2='224' stroke='var(--bordeaux,#7C2A38)'/><polygon points='213,224 205,220 205,228' fill='var(--bordeaux,#7C2A38)'/><text x='258' y='140' text-anchor='middle' font-family='Archivo,sans-serif' font-size='10.5' font-weight='700' fill='var(--blue,#23537F)'>plus gros gain</text><text x='258' y='154' text-anchor='middle' font-family='Archivo,sans-serif' font-size='10.5' fill='var(--blue,#23537F)'>structurel</text><line x1='300' y1='148' x2='328' y2='148' stroke='var(--blue,#23537F)'/><polygon points='336,148 328,144 328,152' fill='var(--blue,#23537F)'/><text x='136' y='358' text-anchor='middle' font-family='Archivo,sans-serif' font-size='11' fill='var(--ink-soft,#43536A)'>ResNet-50</text><text x='136' y='372' text-anchor='middle' font-family='Archivo,sans-serif' font-size='11' fill='var(--ink-soft,#43536A)'>vanille</text><text x='260' y='358' text-anchor='middle' font-family='Archivo,sans-serif' font-size='11' font-weight='700' fill='var(--bordeaux,#7C2A38)'>recette</text><text x='260' y='372' text-anchor='middle' font-family='Archivo,sans-serif' font-size='11' font-weight='700' fill='var(--bordeaux,#7C2A38)'>d’entraînement</text><text x='384' y='358' text-anchor='middle' font-family='Archivo,sans-serif' font-size='11' fill='var(--ink-soft,#43536A)'>depthwise +</text><text x='384' y='372' text-anchor='middle' font-family='Archivo,sans-serif' font-size='11' fill='var(--ink-soft,#43536A)'>canaux élargis</text><text x='508' y='358' text-anchor='middle' font-family='Archivo,sans-serif' font-size='11' fill='var(--ink-soft,#43536A)'>7 retouches</text><text x='508' y='372' text-anchor='middle' font-family='Archivo,sans-serif' font-size='11' fill='var(--ink-soft,#43536A)'>d’architecture</text><text x='632' y='358' text-anchor='middle' font-family='Archivo,sans-serif' font-size='11' fill='var(--ink-soft,#43536A)'>ConvNeXt-T</text><text x='385' y='398' text-anchor='middle' font-family='Archivo,sans-serif' font-size='10' fill='var(--ink-faint,#7A889B)'>7 retouches : ratio de blocs · stem patchify · bottleneck inversé · noyau 7×7 · GELU unique · LayerNorm · downsampling séparé</text></svg><figcaption><span class='fcap-k'></span>Modernisation pas à pas du ResNet-50 (76,1 %) en ConvNeXt-T (82,1 %) sur ImageNet-1K : le plus gros saut, +2,7 points, vient de la seule recette d’entraînement, avant toute retouche d’architecture.</figcaption></figure>\n<p>À taille comparable, le pur convolutif dépasse alors son modèle. ConvNeXt-B devance Swin-B sur les trois bancs : la classification ImageNet, la détection sur COCO — un point d'AP (average precision) gagné — et la segmentation sémantique sur ADE20K, avec plus d'un point de mIoU (la métrique de recouvrement de la segmentation) ; l'avantage se maintient à l'échelle supérieure, et aucun tableau de l'article ne montre un Swin devant le ConvNeXt de taille équivalente. Pré-entraînée sur ImageNet-22K, la plus grande variante monte à 87,8 % top-1.</p>\n<p>Restait l'objection de l'échelle : les transformers, disait-on, continueraient seuls de progresser avec plus de données et de calcul. Google DeepMind la teste directement en octobre 2023, dans un article au titre-programme — « ConvNets Match Vision Transformers at Scale ». Les NFNets (Normalizer-Free Networks), une famille purement convolutive sans attention, y sont entraînés sur JFT-4B avec des budgets de pré-entraînement allant jusqu'à 110 000 heures-cœur de TPU-v4. Résultat : après affinage sur ImageNet, ils égalent la performance rapportée des Vision Transformers à budget de calcul comparable, le meilleur modèle atteignant 90,4 % top-1. Surtout, la perte sur données réservées suit une scaling law (loi d'échelle) log-log nette : les ConvNets suivent la même dynamique que les transformers au lieu de plafonner.</p>\n<p>Le fil rouge trouve ici sa réponse. Ce n'était pas la convolution qui perdait le match : c'étaient des recettes d'entraînement datées et des choix de design figés — et les deux se transposent. Le biais convolutif reste compétitif jusqu'à l'échelle web, à une condition que la suite du document va détailler : savoir exactement ce qu'il garantit, et ce qu'il ne garantit pas.</p>",
+      "claims": [
+        "claim:23",
+        "claim:24",
+        "claim:25",
+        "claim:26"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "pieges-idees-recues",
+      "heading": "Pièges et idées reçues : ce que les CNN ne font pas",
+      "level": 3,
+      "prose": "<p>Compétitif, donc — mais pas magique. La première idée reçue à désapprendre a déjà été entamée plus haut : l'invariance par translation que le praticien prête à son réseau. Le sous-échantillonnage sans filtre passe-bas viole le théorème d'échantillonnage, et un décalage d'un seul pixel en entrée peut suffire à changer la classe prédite. Le correctif — BlurPool, déjà croisé — ne coûte rien, au contraire : aux gains de cohérence et de précision vus plus haut s'ajoute une robustesse renforcée aux corruptions d'entrée.</p>\n<p>Le deuxième mythe touche au cœur du biais inductif : la convolution serait équivariante partout dans l'image. Kayhan et van Gemert (CVPR 2020) montrent qu'il n'en est rien dès qu'on utilise du zero-padding : les filtres apprennent à exploiter les effets de bord pour répondre à des positions spatiales absolues. Et comme les architectures modernes ont de grands champs réceptifs, cet encodage de position ne reste pas cantonné aux bords — il s'étend à toute l'image. Leur correctif, qui supprime l'encodage de position absolue, renforce l'invariance par translation, avec un gain d'autant plus net que le jeu de données est petit.</p>\n<p>Troisième mythe, plus dérangeant : le CNN verrait les formes comme nous. Geirhos et ses coauteurs (ICLR 2019) construisent des images en protocole cue-conflict (conflit d'indices : la forme d'un objet, la texture d'un autre) et observent qu'un ResNet-50 entraîné sur ImageNet classe un chat à texture d'éléphant… comme un éléphant. Là où l'humain suit la forme, le réseau suit la texture — une préférence confirmée indépendamment par Baker et ses collègues. Réentraîné sur Stylized-ImageNet, une version stylisée du corpus, le même ResNet-50 bascule vers une représentation fondée sur la forme, et y gagne à la fois en détection d'objets et en robustesse à des distorsions jamais vues à l'entraînement.</p>\n<p>Ce biais texture est-il pour autant inscrit dans l'architecture ? Rien ne le prouve. Hermann, Chen et Kornblith (NeurIPS 2020) montrent qu'il provient surtout des données et de l'augmentation d'entraînement, pas de la convolution elle-même. Burgert et ses coauteurs (NeurIPS 2025) attaquent jusqu'au protocole : en supprimant les indices de façon contrôlée, sans le forced-choice (réponse à choix forcé) qui confond l'analyse, les mêmes CNN s'appuient principalement sur des indices de forme locale, et le biais observé dépend du domaine plutôt que de l'architecture. Le « biais texture universel » serait un artefact de la construction des stimuli — la controverse reste ouverte, et c'est son état exact aujourd'hui.</p>\n<p>D'autres pièges sont plus mécaniques. La convolution transposée, croisée plus haut, produit des checkerboard artifacts (artefacts en damier) dès que la taille du noyau n'est pas divisible par le stride : le chevauchement inégal des contributions, d'un facteur 2 en une dimension, se met au carré en 2D et devient un facteur 4. Odena, Dumoulin et Olah (Distill, 2016) précisent que même le cas divisible n'est pas sûr — le réseau peut apprendre des filtres qui recréent des artefacts semblables, plus discrets mais pas éliminés. Le correctif est un découplage : suréchantillonner d'abord par interpolation, plus proche voisin ou bilinéaire, puis apprendre les features par une convolution ordinaire. Cette séparation élimine le damier dans les GAN (generative adversarial networks) comme en transfert de style.</p>\n<p>La convolution dilatée a son équivalent : empilée naïvement, comme dans les architectures de segmentation sémantique, elle souffre du gridding (effet de grille) — le noyau dilaté échantillonne l'entrée de façon éparse et perd la cohérence locale, un défaut documenté par Wang et ses coauteurs. Leur correctif, la HDC (Hybrid Dilated Convolution), choisit les taux de dilatation successifs pour couvrir le champ réceptif sans trous ni chevauchement redondant ; le modèle corrigé atteint 80,1 % de mIoU sur le jeu de test Cityscapes.</p>\n<p>Même la batch normalization charrie son mythe d'origine. Ioffe et Szegedy l'avaient justifiée par la réduction de l'internal covariate shift — la dérive de la distribution des activations d'une couche au fil de l'entraînement. Santurkar et ses coauteurs (NeurIPS 2018) réfutent cette explication par une expérience directe : injecter délibérément du bruit après la couche de normalisation, donc augmenter ce covariate shift, n'empêche pas le réseau de bien s'entraîner. L'effet réel de la BN serait ailleurs : lisser le paysage d'optimisation — une perte plus lipschitzienne, des gradients plus prévisibles et stables — et permettre ainsi un entraînement plus rapide.</p>\n<p>Deux fragilités, enfin, qu'aucune couche ne corrige. Les adversarial examples (exemples adverses), d'abord : Szegedy et ses coauteurs montrent dès 2013 qu'une perturbation imperceptible, trouvée par une optimisation L-BFGS maximisant l'erreur de prédiction, fait basculer la classification — et que la même perturbation trompe souvent un second réseau entraîné sur un autre sous-ensemble des données. Goodfellow, Shlens et Szegedy avancent l'année suivante que la cause première n'est ni la non-linéarité ni le surapprentissage, mais la nature linéaire des réseaux ; ils en tirent la FGSM (Fast Gradient Sign Method) et proposent l'entraînement adverse comme défense.</p>\n<p>La généralisation, ensuite. Recht et ses coauteurs (ICML 2019) reconstruisent de nouveaux jeux de test en suivant fidèlement les protocoles d'origine : les modèles y perdent de 11 à 14 points de précision sur ImageNet — et jusqu'à 15 sur CIFAR-10. Le diagnostic est plus subtil qu'un surapprentissage adaptatif du jeu de test : la chute vient d'images légèrement plus difficiles, et les gains mesurés sur le jeu d'origine se traduisent par des gains encore plus grands sur les nouveaux. Les progrès d'architecture sont donc réels ; la précision affichée sur un benchmark, elle, ne se transporte pas telle quelle. C'est exactement la leçon qui attend l'ingénieur quand son CNN quitte le benchmark pour le terrain.</p>",
+      "claims": [
+        "claim:27",
+        "claim:28",
+        "claim:29",
+        "claim:30"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "applications-deploiement",
+      "heading": "Les CNN en production : du diagnostic médical à la conduite autonome",
+      "level": 3,
+      "prose": "<p>Le terrain, parlons-en. Trois décennies après le lecteur de chèques, où les CNN tiennent-ils leurs promesses, et à quelles conditions ? L'imagerie médicale offre le banc d'essai le plus documenté, parce qu'on y compare directement le réseau au praticien — avec tout ce que cette comparaison a de délicat.</p>\n<p>CheXNet (Rajpurkar et al., Stanford, 2017) affine un DenseNet-121 sur ChestX-ray14, un corpus de plus de 100 000 radiographies thoraciques couvrant quatorze pathologies. Sur un jeu de test de 420 clichés, il détecte la pneumonie avec un F1 de 0,435, contre 0,387 en moyenne pour quatre radiologues de Stanford. Le résultat a été lu comme « un CNN au niveau des radiologues » ; la comparaison, elle, est contestée. Oakden-Rayner relève dès 2018 que le gold standard (l'étiquette de référence) était construit par leave-one-out à partir de ces quatre mêmes radiologues : sur les cas de désaccord, la procédure pénalise mathématiquement les humains et gonfle la supériorité apparente du modèle. Quatre lecteurs et 420 images restent, de toute façon, loin de l'échelle et de la variabilité d'une pratique clinique.</p>\n<p>Le résultat dermatologique de la même année est plus solide. Esteva et ses coauteurs (Nature, 2017) repartent d'un Inception v3 pré-entraîné sur ImageNet et l'affinent sur 129 450 images cliniques — deux ordres de grandeur de plus que les corpus antérieurs — couvrant plus de deux mille maladies de peau. Face à 21 dermatologues certifiés, sur des images dont le diagnostic est confirmé par biopsie, le réseau atteint une performance comparable à la leur, pour distinguer mélanome et nævus bénin comme carcinome et kératose séborrhéique.</p>\n<p>Le vrai test commence pourtant après le benchmark. Le dépistage de la rétinopathie diabétique déployé dans le programme national thaïlandais en donne la mesure. Évalué en conditions réelles sur neuf sites de soins primaires, le système atteint une sensibilité de 91,4 % pour la rétinopathie menaçant la vue, comparable ou supérieure à celle des spécialistes de la rétine. Mais le terrain avait d'abord résisté : dans le déploiement initial, le système rejetait 21 % des images capturées par les infirmières comme étant de trop mauvaise qualité — l'éclairage des cliniques, principalement — et la connexion internet limitait le débit à une dizaine de patients par session de deux heures. La performance de laboratoire ne se maintient qu'à condition de traiter spécifiquement la qualité d'image, le workflow clinique, la connectivité et les facteurs socio-environnementaux. Google a depuis licencié le modèle à des partenaires en Thaïlande et en Inde, avec un objectif de six millions de dépistages gratuits sur dix ans.</p>\n<p>L'autre levier de production est l'échelle du pré-entraînement. En 2018, Meta pousse la logique du transfert avec des images Instagram annotées par leurs seuls hashtags publics — jusqu'à 3,5 milliards d'images dans leurs expériences les plus vastes. Le modèle le plus précis — un ResNeXt-101 32x48d de plus de 861 millions de paramètres, pré-entraîné sur 940 millions d'images et 1 500 hashtags — atteint 85,4 % top-1 sur ImageNet, meilleure précision rapportée à l'époque, sans autre supervision que ces labels faibles.</p>\n<p>La conduite autonome ajoute la contrainte que les benchmarks ignorent : la latence, multipliée par le nombre de caméras. Le système de perception d'Autopilot chez Tesla repose sur HydraNet : un unique backbone convolutif (le tronc partagé d'extraction de caractéristiques) — initialement de type ResNet-50, migré vers des RegNets d'après les présentations publiques de Karpathy — extrait des caractéristiques multi-échelles des flux des huit caméras et alimente des dizaines de têtes spécialisées : véhicules, piétons, lignes de voie, feux, panneaux. Jusqu'à 48 têtes partagent ainsi le même backbone, selon la présentation de Tesla AI Day d'août 2021, et le coût d'inférence du backbone s'amortit sur toutes les tâches à la fois. C'est la même arithmétique qui installe MobileNet dans les téléphones : la factorisation depthwise-pointwise y divise le calcul par un facteur huit à neuf, et ce facteur-là, en production, vaut souvent plus qu'un point de top-1.</p>\n<p>La boucle est bouclée. Du lecteur de chèques de 1996 — vingt millions de chèques par jour à son apogée — au backbone convolutif qui digère huit flux vidéo en parallèle, la réponse à la question d'ouverture tient en trois mots : biais inductifs, recettes, efficacité. La convolution n'a jamais été qu'un filtrage local à poids partagés ; c'est précisément pour cela qu'elle est restée — assez contrainte pour apprendre avec peu, assez souple pour se moderniser, assez économe pour tourner partout.</p>",
+      "claims": [
+        "claim:31",
+        "claim:32",
+        "claim:33"
+      ]
+    },
+    {
+      "type": "exercise",
+      "part": "Équivariance, invariance et aliasing",
+      "question": "<p>Un collègue affirme : « les CNN sont invariants par translation, c'est garanti par l'architecture ». Corrigez cette affirmation en trois points : (a) quelle propriété la convolution, les non-linéarités ponctuelles et le pooling local préservent-ils réellement couche après couche, selon Cohen et Welling (2016) ? (b) pourquoi un décalage d'un seul pixel peut-il malgré tout changer la prédiction d'un réseau comportant des couches à stride supérieur à 1 ? (c) quel correctif Zhang (2019) propose-t-il, et avec quel double effet mesuré ?</p>",
+      "answer": "<p>(a) L'<strong>équivariance</strong> par translation, pas l'invariance : chaque étage vérifie Φ(T<sub>g</sub> x) = T′<sub>g</sub> Φ(x) — la translation traverse la couche au lieu de s'y effacer — et aucun de ces opérateurs pris isolément ne produit l'invariance stricte tant que la dimension spatiale n'est pas totalement effondrée par un pooling global. (b) Parce que le sous-échantillonnage par stride (pooling ou convolution) ignore le théorème d'échantillonnage classique et introduit de l'aliasing : Azulay et Weiss (2019) montrent qu'une petite translation ou un léger changement d'échelle peut changer radicalement la prédiction, même après entraînement avec augmentation de données. (c) Insérer un filtre passe-bas avant chaque sous-échantillonnage — la méthode BlurPool — améliore à la fois la cohérence aux translations et la précision ImageNet de ResNet, DenseNet et MobileNet.</p>"
+    },
+    {
+      "type": "exercise",
+      "part": "Recettes d'entraînement vs architecture",
+      "question": "<p>Vrai ou faux ? Justifiez chaque réponse à partir des résultats vérifiés du document. (a) « ResNet a introduit les raccourcis identité principalement pour résoudre le vanishing gradient. » (b) « Si les Vision Transformers dominent les classements, c'est que l'attention est intrinsèquement supérieure à la convolution. » (c) « Moins de FLOPs garantit une latence plus faible en production. »</p>",
+      "answer": "<p>(a) <strong>Faux</strong> : le papier original affirme explicitement que le vanishing gradient « a été largement résolu » avant ResNet par l'initialisation normalisée et la batch normalization ; les raccourcis répondent au problème de <em>dégradation</em> — un réseau plain à 34 couches fait pire que sa version à 18, et le raccourci identité y = F(x) + x inverse le rapport, sans ajouter ni paramètre ni calcul. (b) <strong>Faux</strong> : ConvNeXt porte un ResNet-50 de 76,1 % à 82,1 % top-1 sur ImageNet-1K sans aucune couche d'attention — dont +2,7 points par la seule modernisation de la recette d'entraînement — et dépasse Swin Transformer à taille comparable ; les NFNets purement convolutifs égalent la performance rapportée des ViT à budget de pré-entraînement comparable sur JFT-4B. L'écart historique venait des recettes et des choix de design, pas de l'opération de convolution. (c) <strong>Faux</strong> : les convolutions depthwise, à faible intensité arithmétique, sous-exploitent les GPU et TPU modernes ; EfficientNetV2 réintroduit des blocs Fused-MBConv plus coûteux en FLOPs sur le papier mais nettement plus rapides à entraîner en pratique.</p>"
+    },
+    {
+      "type": "biblio",
+      "entries": [
+        {
+          "label": "LeCun, Bottou, Bengio, Haffner (1998), \"Gradient-Based Learning Applied to Document Recognition\", Proc. IEEE 86(11):2278-2324 (PDF)",
+          "href": "https://gwern.net/doc/ai/nn/cnn/1998-lecun.pdf"
+        },
+        {
+          "label": "Convolutional neural network — Wikipedia, section \"Translation equivariance and aliasing\"",
+          "href": "https://en.wikipedia.org/wiki/Convolutional_neural_network"
+        },
+        {
+          "label": "Stride and Translation Invariance in CNNs (Coenen et al., arXiv:2103.10097 / ICONIP 2020)",
+          "href": "https://arxiv.org/abs/2103.10097"
+        },
+        {
+          "label": "Azulay & Weiss (2019), \"Why do deep convolutional networks generalize so poorly to small image transformations?\", JMLR / arXiv:1805.12177",
+          "href": "https://arxiv.org/abs/1805.12177"
+        },
+        {
+          "label": "Zhang (2019), \"Making Convolutional Networks Shift-Invariant Again\", ICML / PMLR 97",
+          "href": "https://arxiv.org/abs/1904.11486"
+        },
+        {
+          "label": "Multi-Scale Context Aggregation by Dilated Convolutions (Yu & Koltun, arXiv:1511.07122, ICLR 2016)",
+          "href": "https://arxiv.org/abs/1511.07122"
+        },
+        {
+          "label": "torch.nn.Conv2d — PyTorch documentation",
+          "href": "https://docs.pytorch.org/docs/stable/generated/torch.nn.Conv2d.html"
+        },
+        {
+          "label": "Dumoulin & Visin, \"A guide to convolution arithmetic for deep learning\" (arXiv:1603.07285)",
+          "href": "https://arxiv.org/abs/1603.07285"
+        },
+        {
+          "label": "torch.nn.ConvTranspose2d — PyTorch documentation",
+          "href": "https://docs.pytorch.org/docs/stable/generated/torch.nn.ConvTranspose2d.html"
+        },
+        {
+          "label": "Cohen & Welling, \"Group Equivariant Convolutional Networks\" (arXiv preprint)",
+          "href": "https://arxiv.org/abs/1602.07576"
+        },
+        {
+          "label": "Cohen & Welling, \"Group Equivariant Convolutional Networks\", ICML 2016 / PMLR v48 (full text, same paper)",
+          "href": "https://proceedings.mlr.press/v48/cohenc16.pdf"
+        },
+        {
+          "label": "Azulay & Weiss, \"Why do deep convolutional networks generalize so poorly to small image transformations?\", JMLR 20 (2019)",
+          "href": "https://jmlr.org/papers/v20/19-519.html"
+        },
+        {
+          "label": "Luo, Li, Urtasun & Zemel, \"Understanding the Effective Receptive Field in Deep Convolutional Neural Networks\", NeurIPS 2016",
+          "href": "https://proceedings.neurips.cc/paper_files/paper/2016/file/c8067ad1937f728f51288b3eb986afaa-Paper.pdf"
+        },
+        {
+          "label": "Same paper, arXiv version",
+          "href": "https://arxiv.org/abs/1701.04128"
+        },
+        {
+          "label": "The Convolutional Neural Network — Computational Cognition Neuroscience book",
+          "href": "https://com-cog-book.github.io/com-cog-book/features/cov-net.html"
+        },
+        {
+          "label": "A Historical Investigation into the Beginning of Computer Vision (Medium, Data And Beyond)",
+          "href": "https://medium.com/data-and-beyond/a-historical-investigation-into-the-beginning-of-computer-vision-8e86858254bd"
+        },
+        {
+          "label": "Neocognitron — Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/Neocognitron"
+        },
+        {
+          "label": "Kunihiko Fukushima — Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/Kunihiko_Fukushima"
+        },
+        {
+          "label": "Complex cell — Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/Complex_cell"
+        },
+        {
+          "label": "LeNet — Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/LeNet"
+        },
+        {
+          "label": "LeNet — HandWiki",
+          "href": "https://handwiki.org/wiki/LeNet"
+        },
+        {
+          "label": "Simonyan & Zisserman, \"Very Deep Convolutional Networks for Large-Scale Image Recognition\" (arXiv:1409.1556, Section 2.3)",
+          "href": "https://arxiv.org/abs/1409.1556"
+        },
+        {
+          "label": "Daniel Paricio, \"Understanding VGGNet - Very Deep Convolutional Networks for Large-Scale Image Recognition\"",
+          "href": "https://danielparicio.com/posts/understanding-vggnet/"
+        },
+        {
+          "label": "Szegedy et al., \"Going Deeper with Convolutions\" (arXiv:1409.4842)",
+          "href": "https://arxiv.org/abs/1409.4842"
+        },
+        {
+          "label": "He, Zhang, Ren, Sun, \"Deep Residual Learning for Image Recognition\" (arXiv:1512.03385, Table 2)",
+          "href": "https://arxiv.org/abs/1512.03385"
+        },
+        {
+          "label": "\"Deep Residual Learning for Image Recognition\", CVPR 2016 official proceedings (Computer Vision Foundation open access)",
+          "href": "https://www.cv-foundation.org/openaccess/content_cvpr_2016/papers/He_Deep_Residual_Learning_CVPR_2016_paper.pdf"
+        },
+        {
+          "label": "Deep Residual Learning for Image Recognition — full text (ar5iv HTML render of arXiv:1512.03385)",
+          "href": "https://ar5iv.labs.arxiv.org/html/1512.03385"
+        },
+        {
+          "label": "Review: MobileNetV1 — Depthwise Separable Convolution (Light Weight Model) — Sik-Ho Tsang",
+          "href": "https://sh-tsang.medium.com/review-mobilenetv1-depthwise-separable-convolution-light-weight-model-a382df364b69"
+        },
+        {
+          "label": "Depthwise Separable Convolutions (DSCs) — EmergentMind",
+          "href": "https://www.emergentmind.com/topics/depthwise-separable-convolutions-dscs"
+        },
+        {
+          "label": "MobileNets: Efficient Convolutional Neural Networks for Mobile Vision Applications (Howard et al., 2017)",
+          "href": "https://arxiv.org/abs/1704.04861"
+        },
+        {
+          "label": "EfficientNet: Boost CNN Accuracy with Less Compute — viso.ai",
+          "href": "https://viso.ai/deep-learning/efficientnet/"
+        },
+        {
+          "label": "Review of EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks — Zhong Zhong",
+          "href": "https://zhongzz1029.github.io/cv_paper/review_EfficientNet/"
+        },
+        {
+          "label": "EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks (Tan & Le, 2019)",
+          "href": "https://arxiv.org/abs/1905.11946"
+        },
+        {
+          "label": "EfficientNetV2: Smaller Models and Faster Training (Tan & Le, Google)",
+          "href": "https://arxiv.org/abs/2104.00298"
+        },
+        {
+          "label": "ShuffleNet V2: Practical Guidelines for Efficient CNN Architecture Design (Ma et al., Megvii/Tsinghua)",
+          "href": "https://ar5iv.labs.arxiv.org/html/1807.11164"
+        },
+        {
+          "label": "ShuffleNet V2: Practical Guidelines for Efficient CNN Architecture Design (Ma et al., 2018)",
+          "href": "https://arxiv.org/abs/1807.11164"
+        },
+        {
+          "label": "EfficientNetV2: Smaller Models and Faster Training (Tan & Le, 2021)",
+          "href": "https://ar5iv.labs.arxiv.org/html/2104.00298"
+        },
+        {
+          "label": "A Full-Stack Search Technique for Domain Optimized Deep Learning Accelerators",
+          "href": "https://arxiv.org/pdf/2105.12842"
+        },
+        {
+          "label": "A Look at MobileNetV2: Inverted Residuals and Linear Bottlenecks — Luis Gonzales",
+          "href": "https://medium.com/@luis_gonzales/a-look-at-mobilenetv2-inverted-residuals-and-linear-bottlenecks-d49f85c12423"
+        },
+        {
+          "label": "PR-108: MobileNetV2: Inverted Residuals and Linear Bottlenecks — Jinwon Lee (Samsung Electronics, PR12 series)",
+          "href": "https://www.slideshare.net/slideshow/pr108-mobilenetv2-inverted-residuals-and-linear-bottlenecks/120563696"
+        },
+        {
+          "label": "MobileNetV2: Inverted Residuals and Linear Bottlenecks (Sandler et al., 2018)",
+          "href": "https://arxiv.org/abs/1801.04381"
+        },
+        {
+          "label": "An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale (Dosovitskiy et al., 2020) — ar5iv",
+          "href": "https://ar5iv.labs.arxiv.org/html/2010.11929"
+        },
+        {
+          "label": "Training data-efficient image transformers & distillation through attention (DeiT)",
+          "href": "https://arxiv.org/abs/2012.12877"
+        },
+        {
+          "label": "InceptionNeXt: When Inception Meets ConvNeXt",
+          "href": "https://arxiv.org/abs/2303.16900"
+        },
+        {
+          "label": "A ConvNet for the 2020s (Liu et al., 2022) — ar5iv",
+          "href": "https://ar5iv.labs.arxiv.org/html/2201.03545"
+        },
+        {
+          "label": "ConvNets Match Vision Transformers at Scale (Smith, Brock, Berrada, De — Google DeepMind, 2023)",
+          "href": "https://arxiv.org/abs/2310.16764"
+        },
+        {
+          "label": "DeepMind Verifies ConvNets Can Match Vision Transformers at Scale — Synced",
+          "href": "https://syncedreview.com/2023/10/26/deepmind-verifies-convnets-can-match-vision-transformers-at-scale/"
+        },
+        {
+          "label": "ConvNets Match Vision Transformers at Scale (full PDF)",
+          "href": "https://arxiv.org/pdf/2310.16764"
+        },
+        {
+          "label": "ConvNets Match Vision Transformers at Scale (Hugging Face paper page, confirms Google DeepMind affiliation)",
+          "href": "https://huggingface.co/papers/2310.16764"
+        },
+        {
+          "label": "ResNet strikes back: An improved training procedure in timm",
+          "href": "https://arxiv.org/abs/2110.00476"
+        },
+        {
+          "label": "Baker, Lu, Erlikhman & Kellman — Local features and global shape information in object classification by deep convolutional neural networks (Vision Research, 2020)",
+          "href": "https://sites.lifesci.ucla.edu/psych-cvl/wp-content/uploads/sites/162/2021/03/A103.Baker-et-al.-VR.pdf"
+        },
+        {
+          "label": "Hermann, Chen & Kornblith — The Origins and Prevalence of Texture Bias in Convolutional Neural Networks (NeurIPS 2020)",
+          "href": "https://proceedings.neurips.cc/paper/2020/hash/db5f9f42a7157abe65bb145000b5871a-Abstract.html"
+        },
+        {
+          "label": "Geirhos et al., ImageNet-trained CNNs are biased towards texture; increasing shape bias improves accuracy and robustness (ICLR 2019)",
+          "href": "https://arxiv.org/abs/1811.12231"
+        },
+        {
+          "label": "Burgert, Stoll, Rota, Demir — ImageNet-trained CNNs are not biased towards texture: Revisiting feature reliance through controlled suppression (NeurIPS 2025, Oral)",
+          "href": "https://arxiv.org/abs/2509.20234"
+        },
+        {
+          "label": "Chaman & Dokmanić — Truly Shift-Invariant Convolutional Neural Networks (arXiv 2011.14214)",
+          "href": "https://arxiv.org/abs/2011.14214"
+        },
+        {
+          "label": "Vasconcelos, Larochelle, Dumoulin, Le Roux & Goroshin — An Effective Anti-Aliasing Approach for Residual Networks (arXiv 2011.10675)",
+          "href": "https://arxiv.org/abs/2011.10675"
+        },
+        {
+          "label": "Islam, Jia & Bruce — How Much Position Information Do Convolutional Neural Networks Encode? (ICLR 2020, arXiv 2001.08248)",
+          "href": "https://arxiv.org/abs/2001.08248"
+        },
+        {
+          "label": "Kayhan & van Gemert, On Translation Invariance in CNNs: Convolutional Layers can Exploit Absolute Spatial Location (CVPR 2020)",
+          "href": "https://arxiv.org/abs/2003.07064"
+        },
+        {
+          "label": "Aitken, Ledig, Theis, Caballero, Wang & Shi — Checkerboard artifact free sub-pixel convolution (arXiv 1707.02937)",
+          "href": "https://arxiv.org/abs/1707.02937"
+        },
+        {
+          "label": "Odena, Dumoulin, Olah — Deconvolution and Checkerboard Artifacts (Distill, 2016)",
+          "href": "https://distill.pub/2016/deconv-checkerboard/"
+        },
+        {
+          "label": "CheXNet: Radiologist-Level Pneumonia Detection on Chest X-Rays with Deep Learning (Rajpurkar et al., arXiv:1711.05225)",
+          "href": "https://arxiv.org/abs/1711.05225"
+        },
+        {
+          "label": "Dermatologist-level classification of skin cancer with deep neural networks (Esteva et al., Nature 2017, doi:10.1038/nature21056) — project page",
+          "href": "https://cs.stanford.edu/people/esteva/nature/"
+        },
+        {
+          "label": "CheXNet: an in-depth review — Lauren Oakden-Rayner",
+          "href": "https://laurenoakdenrayner.com/2018/01/24/chexnet-an-in-depth-review/"
+        },
+        {
+          "label": "Tesla Autopilot Explained: HydraNet and Vision-Only Driving",
+          "href": "https://www.thinkautonomous.ai/blog/how-tesla-autopilot-works/"
+        },
+        {
+          "label": "Annotated: Karpathy's Autopilot Talk (David Silver)",
+          "href": "https://medium.com/self-driving-cars/annotated-karpathys-autopilot-talk-3e6270a21f8d"
+        },
+        {
+          "label": "Google's medical AI was super accurate in a lab. Real life was a different story. (MIT Technology Review, Karen Hao, 2020)",
+          "href": "https://www.technologyreview.com/2020/04/27/1000658/google-medical-ai-accurate-lab-real-life-clinic-covid-diabetes-retina-disease/"
+        },
+        {
+          "label": "Real-time diabetic retinopathy screening by deep learning in a multisite national screening programme: a prospective interventional cohort study (Lancet Digital Health, PMID 35272972)",
+          "href": "https://pubmed.ncbi.nlm.nih.gov/35272972/"
+        },
+        {
+          "label": "Google medical researchers humbled when AI screening tool falls short in real-life testing — TechCrunch",
+          "href": "https://techcrunch.com/2020/04/27/google-medical-researchers-humbled-when-ai-screening-tool-falls-short-in-real-life-testing/"
+        },
+        {
+          "label": "A Human-Centered Evaluation of a Deep Learning System Deployed in Clinics for the Detection of Diabetic Retinopathy (Beede et al., CHI 2020) — abstract, Google Research",
+          "href": "https://research.google/pubs/a-human-centered-evaluation-of-a-deep-learning-system-deployed-in-clinics-for-the-detection-of-diabetic-retinopathy/"
+        },
+        {
+          "label": "Stress testing reveals gaps in clinic readiness of image-based diagnostic artificial intelligence models (Young et al., npj Digital Medicine 2021)",
+          "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC7820258/"
+        }
+      ]
+    },
+    {
+      "type": "glossary"
+    }
+  ]
+}
