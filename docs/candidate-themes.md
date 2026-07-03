@@ -27,19 +27,6 @@ agents-lecteurs, suffisante pour trancher gap/partiel/écarté.
 
 ## Priorité haute — gaps réels, forte valeur de référence
 
-### Réseaux convolutifs : de LeNet à ConvNeXt — `convolutional-networks` → `deep-learning-foundations`
-**Verdict : nouveau gap (haute).** Pilier toujours dominant en vision ; aucun thème dédié.
-
-> Réseaux de neurones convolutifs (CNN), de LeNet à ConvNeXt : l'architecture qui domine encore la
-> vision. Couvrir la mécanique convolutive (convolution discrète, partage de poids, champ
-> réceptif, stride, padding, dilatation), le pooling et l'invariance par translation, la généalogie
-> des architectures (LeNet → AlexNet → VGG → Inception → ResNet/connexions résiduelles → DenseNet →
-> EfficientNet/compound scaling → ConvNeXt), les convolutions séparables en profondeur (MobileNet)
-> et la comparaison avec les Vision Transformers. Public : ingénieur ML. Délimitations :
-> backpropagation effleure LeNet (partage de poids), normalization-layers cite ResNet/ConvNeXt
-> comme cas d'usage de BN/LN, transformer-attention couvre les ViT — se centrer sur la mécanique
-> convolutive et l'évolution des architectures. Domaine : deep-learning-foundations.
-
 ### Apprentissage contrastif & auto-supervisé — `contrastive-self-supervised` → `deep-learning-foundations`
 **Verdict : nouveau gap (haute).** Socle du pré-entraînement sans labels ; seulement cité en
 passant (InfoNCE/CLIP dans text-embeddings, CLIP comme conditionneur en diffusion).
