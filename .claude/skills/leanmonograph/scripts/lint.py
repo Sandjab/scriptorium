@@ -5,8 +5,11 @@ le MODÈLE adjuge la posture (affirmé vs critiqué) des flags.
 Usage : lint.py <themeDir> [--pre]
 
 Corpus de texte visible :
-  - mode post (défaut) : manifest.json + tldr.json + glossary.json
+  - mode post (défaut) : manifest.json + tldr.json + glossary.json + widgets/*.html
+                         (texte visible seul, <script>/<style> retirés ; les widgets ne
+                         participent qu'au check rejected_flags, pas à novel_numbers)
   - mode --pre         : sections_draft.json + tldr.json + glossary.json
+                         (les widgets ne sont pas encore bâtis à ce stade)
 
 Vérifications :
   1. rejected_flags : pivots (chiffres + noms propres distinctifs) des claims REJETÉS
@@ -46,6 +49,9 @@ STOP_CAPS = {
 NUM_RE = re.compile(r"\d+(?:[   ]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?")
 CAPS_RE = re.compile(r"\b[A-Z][A-Za-zÀ-ÿ0-9&-]{3,}\b")
 TAG_RE = re.compile(r"<[^>]*>")
+# Blocs non visibles d'un widget HTML : JS/CSS bourrés de nombres (coords SVG, couleurs)
+# qui ne sont PAS du texte rendu — à retirer avant strip_tags.
+SCRIPT_STYLE_RE = re.compile(r"<(script|style)\b[^>]*>.*?</\1>", re.I | re.S)
 
 
 def norm_text(s):
@@ -106,13 +112,26 @@ def main():
 
     corpus_files = (["sections_draft.json"] if pre else ["manifest.json"]) + [
         "tldr.json", "glossary.json"]
-    corpus = []  # (fichier, chemin, texte nettoyé)
+    corpus = []  # (fichier, chemin, texte nettoyé) — alimente les DEUX checks
     for name in corpus_files:
         data = load(theme, name)
         if data is None:
             continue
         for path, s in walk_strings(data):
             corpus.append((name, path, norm_text(strip_tags(s))))
+
+    # Widgets (mode post seulement — ils n'existent pas encore au --pre). build.py inline
+    # leur HTML verbatim dans le dist ; leurs légendes/notes/labels SVG sont donc du texte
+    # VISIBLE, mais absents du manifeste (référencés par `ref`, une clé non-texte). On les
+    # scanne UNIQUEMENT pour rejected_flags — leurs nombres jouets (coords, ticks) ne sont
+    # pas des faits de prose et pollueraient novel_numbers.
+    widget_corpus = []
+    if not pre:
+        wdir = theme / "widgets"
+        if wdir.exists():
+            for wp in sorted(wdir.glob("*.html")):
+                visible = strip_tags(SCRIPT_STYLE_RE.sub(" ", wp.read_text(encoding="utf-8")))
+                widget_corpus.append((f"widgets/{wp.name}", "(texte visible)", norm_text(visible)))
 
     claims = kb.get("claims", [])
     kept = [c for c in claims if c.get("audit") in ("confirmed", "corrected")]
@@ -142,7 +161,7 @@ def main():
         pivots = list(dict.fromkeys(piv_nums + piv_caps))
         if not pivots:
             continue
-        for fname, path, text in corpus:
+        for fname, path, text in corpus + widget_corpus:
             hits, positions = [], []
             for p in pivots:
                 if any(ch.isdigit() for ch in p):

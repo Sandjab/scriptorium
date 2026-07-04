@@ -82,7 +82,9 @@ Un run **frais** (sans `resume`) ignore et réécrit tout checkpoint.
 Frontière code/jugement : le **code détecte**, le **modèle adjuge**.
 
 - `lint.py <themeDir> --pre` (avant Compose, corpus = sections_draft/tldr/glossary) et
-  `lint.py <themeDir>` (post, corpus = manifest/tldr/glossary).
+  `lint.py <themeDir>` (post, corpus = manifest/tldr/glossary **+ le texte visible des
+  `widgets/*.html`** — `<script>`/`<style>` retirés ; les widgets ne comptent que pour
+  `rejected_flags`, jamais pour `novel_numbers`, et ne sont vus qu'en mode post).
 - `rejected_flags` : pivots (chiffres + noms propres distinctifs) des claims **rejetés** trouvés
   dans le texte visible, avec `hedged` (marqueur de réserve à ±350 c. d'un hit). Exit 2 si ≥1
   non hedgé → l'agent (Audit-prose ou Build) lit le contexte et adjuge : affirmation → corriger ;
