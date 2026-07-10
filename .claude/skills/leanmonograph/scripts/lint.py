@@ -19,9 +19,15 @@ Vérifications :
      critique/réfutation du contenu rejeté → OK).
   2. novel_numbers : chiffres significatifs du corpus absents de knowledge.json
      (candidats « faits prose-only » à vérifier en source).
+  3. foreign_statements : claims REJETÉS dont le statement n'est pas en français
+     (heuristique de mots-outils). Leurs pivots textuels ne peuvent PAS matcher une
+     prose française (« universal solver » vs « agent universel ») : le mécanisme
+     rejected_flags est aveugle pour eux — l'agent doit adjuger MANUELLEMENT la
+     présence du contenu dans la prose (cas world-models claim:12, 4e trou).
 
-Sortie : JSON sur stdout. Exit 2 s'il existe ≥1 rejected_flag non hedgé, 0 sinon,
-1 sur erreur d'usage/fichier.
+Sortie : JSON sur stdout. Exit 2 s'il existe ≥1 rejected_flag non hedgé OU ≥1
+foreign_statement (les deux exigent une adjudication), 0 sinon, 1 sur erreur
+d'usage/fichier.
 """
 import json
 import pathlib
@@ -45,6 +51,31 @@ STOP_CAPS = {
     "Ainsi", "Alors", "Depuis", "Après", "Avant", "Deux", "Trois", "Quatre", "Leur",
     "Leurs", "Nous", "Vous", "Tout", "Toute", "Tous", "Toutes", "Rien", "Plus",
 }
+
+# Mots-outils pour l'heuristique de langue d'un statement (fréquences relatives ;
+# un titre anglais cité dans un statement français n'apporte que 2-3 mots-outils EN,
+# noyés sous les mots-outils FR de la phrase porteuse).
+EN_STOP_WORDS = {
+    "the", "of", "and", "with", "that", "this", "these", "those", "is", "are", "was",
+    "were", "be", "been", "can", "cannot", "could", "not", "no", "only", "from", "for",
+    "to", "in", "on", "by", "as", "an", "it", "its", "their", "which", "show", "shows",
+    "shown", "prove", "proves", "proven", "when", "where", "than", "into", "across",
+}
+FR_STOP_WORDS = {
+    "le", "la", "les", "de", "des", "du", "et", "que", "qui", "une", "un", "pour",
+    "dans", "sur", "est", "sont", "pas", "ne", "au", "aux", "par", "avec", "ce",
+    "cette", "ces", "se", "son", "sa", "ses", "plus", "comme", "entre", "leur",
+    "leurs", "vers", "sous", "sans", "dont", "où", "même", "selon", "être", "été",
+}
+
+
+def foreign_statement(stmt):
+    """(is_foreign, en, fr) — un statement est « étranger » si les mots-outils anglais
+    dominent nettement les français (≥3 EN et EN > FR). Déterministe, sans dépendance."""
+    words = re.findall(r"[a-zà-ÿ']+", stmt.lower())
+    en = sum(w in EN_STOP_WORDS for w in words)
+    fr = sum(w in FR_STOP_WORDS for w in words)
+    return (en >= 3 and en > fr, en, fr)
 
 NUM_RE = re.compile(r"\d+(?:[   ]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?")
 CAPS_RE = re.compile(r"\b[A-Z][A-Za-zÀ-ÿ0-9&-]{3,}\b")
@@ -195,6 +226,20 @@ def main():
                     "context": text[max(0, i - 120):i + 160].strip(),
                 })
 
+    # 3. Statements de claims rejetés non français : pivots textuels structurellement
+    # aveugles (aucun mot anglais ne matchera la prose française) — à adjuger à la main.
+    foreign = []
+    for c in rejected:
+        stmt = c.get("statement", "")
+        is_foreign, en, fr = foreign_statement(stmt)
+        if is_foreign:
+            foreign.append({
+                "claim": c.get("id"), "en_stopwords": en, "fr_stopwords": fr,
+                "statement_head": stmt[:140],
+                "note": "pivots textuels aveugles (statement non français) : vérifier "
+                        "manuellement que la prose n'affirme pas ce contenu sans hedge",
+            })
+
     # 2. Chiffres significatifs du corpus absents de knowledge.json.
     novel, seen = [], set()
     for fname, path, text in corpus:
@@ -212,9 +257,10 @@ def main():
         "mode": "pre" if pre else "post",
         "rejected_flags": rejected_flags,
         "unhedged_count": len(unhedged),
+        "foreign_statements": foreign,
         "novel_numbers": novel,
     }, ensure_ascii=False, indent=1))
-    return 2 if unhedged else 0
+    return 2 if (unhedged or foreign) else 0
 
 
 if __name__ == "__main__":

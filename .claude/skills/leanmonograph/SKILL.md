@@ -91,6 +91,10 @@ Frontière code/jugement : le **code détecte**, le **modèle adjuge**.
   critique/réfutation/biblio → OK.
 - `novel_numbers` : chiffres significatifs absents de `knowledge.json` = faits prose-only à
   vérifier à la source (l'Audit-prose les traite AVANT le build).
+- `foreign_statements` : claims **rejetés** au `statement` non français (heuristique
+  mots-outils, exit 2 comme les flags non hedgés) — leurs pivots textuels ne peuvent pas
+  matcher une prose française (« universal solver » vs « agent universel »), le mécanisme
+  `rejected_flags` est aveugle pour eux : l'agent adjuge en vérifiant MANUELLEMENT la prose.
 
 Testé sur le fixture réel `entity-linking-disambiguation` (5 rejets, hedges) : GREEN sur le
 thème corrigé, RED (exit 2) quand on retire un hedge.
