@@ -37,23 +37,7 @@ ces acquis. (`agent-harness-engineering` : FAIT le 2026-07-10, retiré du backlo
 
 (`contrastive-self-supervised` : FAIT le 2026-07-10, retiré du backlog.)
 (`agentic-rl-environments` : FAIT le 2026-07-10, retiré du backlog.)
-
-### Apprentissage par renforcement : fondamentaux — `reinforcement-learning-fundamentals` → `deep-learning-foundations`
-**Verdict : partiel (~75 % neuf), forte valeur de socle.** Le corpus *utilise* le RL sans jamais le
-poser : `rlhf-dpo` traite PPO uniquement dans le cadre RLHF (pénalité KL per-token, PPO-ptx, DPO vs
-PPO) et `reasoning-test-time-compute` le RL du raisonnement (GRPO, process advantage verifier).
-MDP, équation de Bellman, Q-learning, REINFORCE, acteur-critique = 0 occurrence.
-
-> Apprentissage par renforcement (reinforcement learning) : les fondamentaux, du MDP à PPO. Couvrir
-> le cadre (processus de décision markovien, récompense et retour, politique, fonctions de valeur,
-> équations de Bellman), les méthodes par valeur (TD-learning, Q-learning, DQN et ses stabilisateurs
-> — replay buffer, target network), les méthodes par politique (REINFORCE, baseline et réduction de
-> variance, acteur-critique, avantage et GAE), les régions de confiance (TRPO → PPO et son clipping),
-> et le dilemme exploration/exploitation (on-policy vs off-policy). Public : ingénieur ML.
-> Délimitations : rlhf-dpo couvre PPO appliqué au RLHF (reward model, pénalité KL, DPO) et
-> reasoning-test-time-compute le RL du raisonnement (GRPO, PAV) — ce thème pose le socle que les deux
-> présupposent, les citer comme débouchés ; les bandits sans état relèvent du candidat
-> multi-armed-bandits (un pont suffit). Domaine : deep-learning-foundations.
+(`reinforcement-learning-fundamentals` : FAIT le 2026-07-10, retiré du backlog.)
 
 ### Entraînement distribué & parallélisme — `distributed-training-parallelism` → `deep-learning-foundations`
 **Verdict : partiel (~80 % neuf).** `mixture-of-experts` traite l'expert parallelism en profondeur
@@ -309,7 +293,7 @@ des noms d'auteurs).
 > contextuels (LinUCB, bandits neuronaux), les extensions pratiques (non-stationnarité, feedback
 > retardé, contraintes de budget) et les applications (A/B testing adaptatif, allocation de trafic,
 > recommandation, sélection de prompts ou de modèles). Public : ingénieur ML/data. Délimitations :
-> le RL complet (états et transitions) relève du candidat reinforcement-learning-fundamentals ;
+> le RL complet (états et transitions) relève de la monographie reinforcement-learning-fundamentals (FAITE) ;
 > recommender-systems (candidat) traite les modèles de préférence — se centrer sur le cadre sans
 > état et les garanties de regret. Domaine : classical-ml-time-series.
 
@@ -387,8 +371,8 @@ recherche majeure 2026, contrepoint au paradigme LLM.
 > qu'en pixels), les modèles de monde génératifs interactifs (Genie : la vidéo comme environnement
 > jouable) et le débat pixels vs latents, avec le lien vers les agents incarnés. Public : ingénieur
 > ML. Délimitations : diffusion-models couvre la génération par diffusion (le citer) ; le VAE en
-> propre relève du candidat variational-autoencoders et le RL sans modèle du candidat
-> reinforcement-learning-fundamentals (des ponts suffisent) ; agentic-ai couvre les agents incarnés
+> propre relève du candidat variational-autoencoders et le RL sans modèle de la monographie
+> reinforcement-learning-fundamentals (FAITE — des ponts suffisent) ; agentic-ai couvre les agents incarnés
 > côté LLM — se centrer sur l'apprentissage du modèle de dynamique et son usage pour planifier et
 > générer. Domaine : deep-learning-foundations.
 
