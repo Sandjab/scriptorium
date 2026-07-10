@@ -38,6 +38,7 @@ ces acquis. (`agent-harness-engineering` : FAIT le 2026-07-10, retiré du backlo
 (`contrastive-self-supervised` : FAIT le 2026-07-10, retiré du backlog.)
 (`agentic-rl-environments` : FAIT le 2026-07-10, retiré du backlog.)
 (`reinforcement-learning-fundamentals` : FAIT le 2026-07-10, retiré du backlog.)
+(`context-engineering` : FAIT le 2026-07-11, retiré du backlog.)
 
 ### Entraînement distribué & parallélisme — `distributed-training-parallelism` → `deep-learning-foundations`
 **Verdict : partiel (~80 % neuf).** `mixture-of-experts` traite l'expert parallelism en profondeur
@@ -55,26 +56,6 @@ Megatron ne sont que des mentions éparses (lora, scaling-laws, state-space-mode
 > compute-optimale du budget, quantization les formats numériques à l'inférence, lora la mémoire du
 > fine-tuning — se centrer sur les stratégies de partitionnement et la mémoire d'entraînement.
 > Domaine : deep-learning-foundations.
-
-### Context engineering — `context-engineering` → `llm-agents-generation`
-**Verdict : partiel.** *Context rot* et compaction ne sont traités que dans
-`recursive-language-models` (angle RLM) ; `agentic-memory` couvre la mémoire persistante,
-`prompt-optimization` l'optimisation automatique des prompts. La discipline de composition du
-contexte n'est posée nulle part.
-
-> Context engineering : composer délibérément tout ce que le modèle voit à chaque appel. Couvrir la
-> fenêtre de contexte comme ressource rare (budget d'attention, context rot — dégradation mesurable
-> quand le contexte s'allonge), les composants du contexte (system prompt, définitions d'outils,
-> exemples, historique, données récupérées, mémoire), les stratégies de gestion (compaction/résumé,
-> prise de notes structurée, chargement juste-à-temps vs pré-chargement, masquage et chargement
-> dynamique d'outils), l'architecture des contextes multi-agents (isolation par sous-agent,
-> transfert de contexte) et l'évaluation (needle-in-a-haystack et ses limites, benchmarks long
-> contexte). Positionnement : successeur revendiqué du prompt engineering, discipline centrale
-> 2026. Public : ingénieur ML/agents. Délimitations : agentic-memory couvre la mémoire persistante
-> inter-sessions (la citer), prompt-optimization l'optimisation AUTOMATIQUE des prompts,
-> recursive-language-models le context rot et la compaction côté RLM (les citer sans re-dériver),
-> retrieval-augmented-generation la récupération — se centrer sur la composition et l'économie du
-> contexte à l'inférence. Domaine : llm-agents-generation.
 
 ---
 
