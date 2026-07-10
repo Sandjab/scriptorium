@@ -17,6 +17,14 @@ ciblés (frontières de mots, casse respectée pour les sigles) sur les `knowled
 publiés, puis lecture du contexte de chaque mention — méthode plus légère que la passe initiale par
 agents-lecteurs, suffisante pour trancher gap/partiel/écarté.
 
+**Passe d'enrichissement du 2026-07-09** (corpus à 45 monographies) : ajout de 5 candidats issus
+d'un balayage des tendances 2026 (harness/loop engineering, context engineering, RLVR et
+environnements d'agents, évaluation/observabilité des agents, world models), chacun vérifié par
+greps ciblés sur le corpus publié : `self-improving-harness` couvre déjà l'anatomie du harness et
+son auto-optimisation, `agentic-ai` la boucle ReAct/tool use et MCP/A2A, `recursive-language-models`
+le context rot et la compaction, `rlhf-dpo` pose RLVR — les nouveaux candidats se délimitent contre
+ces acquis.
+
 - **Fabrication** : `/leanmonograph « <prompt riche> »` (défaut depuis le test GREEN du 2026-07-02 ;
   `/frugalmonograph` en repli) puis `/arrange <slug>`.
 - **Domaine** = celui de `tools/taxonomy.json` (source de vérité). Un thème = un seul domaine.
@@ -72,6 +80,65 @@ Megatron ne sont que des mentions éparses (lora, scaling-laws, state-space-mode
 > compute-optimale du budget, quantization les formats numériques à l'inférence, lora la mémoire du
 > fine-tuning — se centrer sur les stratégies de partitionnement et la mémoire d'entraînement.
 > Domaine : deep-learning-foundations.
+
+### Ingénierie du harness & de la boucle agentique — `agent-harness-engineering` → `llm-agents-generation`
+**Verdict : partiel (angle neuf net), discipline émergente 2026.** `self-improving-harness` a une
+section « Anatomie d'un harness » mais traite l'AUTO-optimisation (RHO, Continual Harness, RSI) ;
+`agentic-ai` couvre la boucle ReAct, le tool use et MCP/A2A. L'ingénierie *manuelle* du harness et
+de la boucle (patterns d'itération, arrêt, vérification, sous-agents) n'est posée nulle part.
+
+> Ingénierie du harness et de la boucle agentique (harness & loop engineering) : construire le
+> runtime qui transforme un modèle en agent fiable. Couvrir l'équation agent = modèle + harness et
+> la répartition des responsabilités (ce que le harness retire au modèle : validation,
+> autorisation, exécution, journalisation), les patterns de boucle (ReAct de base, plan-execute,
+> réflexion/vérification, bounded execution, circuit breaker, conditions d'arrêt), la conception
+> d'outils (granularité, schémas, messages d'erreur actionnables), l'orchestration (sous-agents,
+> parallélisme, files de tâches), le contrôle d'exécution (sandboxing, permissions, déterminisme et
+> rejouabilité) et la boucle de feedback (tests, linters, vérificateurs comme signal de
+> correction). Positionnement : discipline émergente 2026 (harness engineering, loop engineering),
+> très demandée. Public : ingénieur ML/agents. Délimitations : self-improving-harness couvre
+> l'anatomie du harness et son AUTO-optimisation (citer, ne pas re-dériver) ; agentic-ai couvre
+> ReAct, le tool use et MCP/A2A (les citer) ; la composition du contexte relève du candidat
+> context-engineering (un pont suffit) — se centrer sur la conception délibérée du harness et de la
+> boucle par l'ingénieur. Domaine : llm-agents-generation.
+
+### Context engineering — `context-engineering` → `llm-agents-generation`
+**Verdict : partiel.** *Context rot* et compaction ne sont traités que dans
+`recursive-language-models` (angle RLM) ; `agentic-memory` couvre la mémoire persistante,
+`prompt-optimization` l'optimisation automatique des prompts. La discipline de composition du
+contexte n'est posée nulle part.
+
+> Context engineering : composer délibérément tout ce que le modèle voit à chaque appel. Couvrir la
+> fenêtre de contexte comme ressource rare (budget d'attention, context rot — dégradation mesurable
+> quand le contexte s'allonge), les composants du contexte (system prompt, définitions d'outils,
+> exemples, historique, données récupérées, mémoire), les stratégies de gestion (compaction/résumé,
+> prise de notes structurée, chargement juste-à-temps vs pré-chargement, masquage et chargement
+> dynamique d'outils), l'architecture des contextes multi-agents (isolation par sous-agent,
+> transfert de contexte) et l'évaluation (needle-in-a-haystack et ses limites, benchmarks long
+> contexte). Positionnement : successeur revendiqué du prompt engineering, discipline centrale
+> 2026. Public : ingénieur ML/agents. Délimitations : agentic-memory couvre la mémoire persistante
+> inter-sessions (la citer), prompt-optimization l'optimisation AUTOMATIQUE des prompts,
+> recursive-language-models le context rot et la compaction côté RLM (les citer sans re-dériver),
+> retrieval-augmented-generation la récupération — se centrer sur la composition et l'économie du
+> contexte à l'inférence. Domaine : llm-agents-generation.
+
+### RL agentique & environnements vérifiables — `agentic-rl-environments` → `llm-agents-generation`
+**Verdict : partiel.** `rlhf-dpo` pose RLVR (récompenses vérifiables) et
+`reasoning-test-time-compute` couvre GRPO et les process advantage verifiers ; la fabrication
+d'environnements d'entraînement (gyms, tâches vérifiables à l'échelle) n'est traitée nulle part.
+
+> Reinforcement learning agentique et environnements vérifiables : entraîner des agents LLM par
+> récompenses vérifiables à l'échelle. Couvrir le passage RLHF → RLVR (récompense binaire
+> vérifiable vs reward model appris, et pourquoi cela change l'échelle), la conception
+> d'environnements (gyms d'agents, tâches code/terminal/navigateur, génération de tâches
+> synthétiques et leur vérification, l'exemple des computer-use agents), le RL multi-tours
+> (attribution de crédit sur horizons longs, récompenses de processus vs de résultat), le reward
+> hacking en environnement et ses défenses, et l'infrastructure (rollouts asynchrones, sandboxes à
+> l'échelle). Positionnement : paradigme post-training dominant 2026. Public : ingénieur ML.
+> Délimitations : rlhf-dpo couvre PPO/DPO et pose RLVR (le citer), reasoning-test-time-compute le
+> RL du raisonnement — GRPO, PAV (le citer) ; le socle MDP/Bellman relève du candidat
+> reinforcement-learning-fundamentals (un pont suffit) — se centrer sur les environnements et
+> l'entraînement d'agents multi-tours. Domaine : llm-agents-generation.
 
 ---
 
@@ -340,6 +407,38 @@ contrainte applicative dans `time-series-forecasting`) ; aucune méthode traité
 > nomme la détection d'anomalies comme contrainte (les citer) ; clustering-dimensionality-reduction
 > couvre DBSCAN/HDBSCAN et PCA en propre (s'y référer sans re-dériver) — se centrer sur les modèles
 > de score d'anomalie et leur évaluation. Domaine : classical-ml-time-series.
+
+### Évaluation & observabilité des agents — `agent-evaluation-observability` → `llm-agents-generation`
+**Verdict : partiel.** `llm-evaluation` couvre l'évaluation des MODÈLES (benchmarks, juges LLM,
+psychométrie) ; SWE-bench/GAIA ne sont cités que comme résultats d'état de l'art (`agentic-ai`,
+`self-improving-harness`) ; τ-bench, traces, simulation d'utilisateur = 0 occurrence.
+
+> Évaluation et observabilité des agents LLM : mesurer et déboguer des systèmes multi-tours non
+> déterministes. Couvrir les benchmarks agentiques (SWE-bench et sa vérification, τ-bench et la
+> fiabilité pass^k, GAIA, WebArena/OSWorld) et leurs pièges (contamination, écarts de harness entre
+> laboratoires), l'évaluation de trajectoires (succès final vs qualité des étapes, juges de
+> trajectoire, simulation d'utilisateur), l'observabilité en production (traces structurées, spans,
+> coût/latence par étape, clustering d'échecs) et la boucle trace → dataset → éval (AgentOps).
+> Public : ingénieur ML/agents. Délimitations : llm-evaluation couvre l'évaluation des modèles, les
+> juges LLM et l'accord juge/humain (la citer, ne pas re-dériver le juge LLM) ; agentic-ai cite
+> SWE-bench/GAIA comme état de l'art mesuré (le citer) — se centrer sur l'évaluation des SYSTÈMES
+> agents et leur observabilité. Domaine : llm-agents-generation.
+
+### World models — `world-models` → `deep-learning-foundations`
+**Verdict : gap réel.** Dreamer, MuZero, JEPA, Genie : 0 occurrence dans le corpus ; direction de
+recherche majeure 2026, contrepoint au paradigme LLM.
+
+> World models : apprendre un modèle du monde pour prédire, planifier et générer. Couvrir la lignée
+> fondatrice (Ha & Schmidhuber 2018 : VAE + RNN + contrôleur, apprendre dans le rêve), le RL basé
+> modèle (Dreamer v1–v3 et l'imagination latente, MuZero et la planification avec modèle appris),
+> les architectures prédictives auto-supervisées (JEPA/V-JEPA : prédire en espace latent plutôt
+> qu'en pixels), les modèles de monde génératifs interactifs (Genie : la vidéo comme environnement
+> jouable) et le débat pixels vs latents, avec le lien vers les agents incarnés. Public : ingénieur
+> ML. Délimitations : diffusion-models couvre la génération par diffusion (le citer) ; le VAE en
+> propre relève du candidat variational-autoencoders et le RL sans modèle du candidat
+> reinforcement-learning-fundamentals (des ponts suffisent) ; agentic-ai couvre les agents incarnés
+> côté LLM — se centrer sur l'apprentissage du modèle de dynamique et son usage pour planifier et
+> générer. Domaine : deep-learning-foundations.
 
 ---
 
