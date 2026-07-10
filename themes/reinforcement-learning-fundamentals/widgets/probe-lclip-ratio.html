@@ -1,0 +1,353 @@
+<div class="widget lclip-root" id="lclip-root">
+  <style>
+    .lclip-root{--lclip-ink:var(--ink,#15202E);--lclip-soft:var(--ink-soft,#43536A);
+      --lclip-faint:var(--ink-faint,#7A889B);--lclip-card:var(--card,#fff);
+      --lclip-line:var(--line,#D7DFE9);--lclip-line-soft:var(--line-soft,#E7ECF3);
+      --lclip-blue:var(--blue,#23537F);--lclip-bright:var(--blue-bright,#2C77B6);
+      --lclip-wash:var(--blue-wash,#E7EEF6);--lclip-bord:var(--bordeaux,#7C2A38);
+      --lclip-bord-br:var(--bordeaux-bright,#9B3443);--lclip-gold:var(--gold,#C68A2E);
+      --lclip-green:#2F7D5B;
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--lclip-ink);
+      border:1px solid var(--lclip-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--lclip-card);max-width:680px}
+    .lclip-root *{box-sizing:border-box}
+    .lclip-k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;
+      color:var(--lclip-faint);font-weight:600;margin:0 0 2px}
+    .lclip-title{font-weight:700;font-size:1.05rem;margin:0 0 12px}
+    .lclip-ctl{margin:0 0 12px}
+    .lclip-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+    .lclip-row+.lclip-row{margin-top:10px}
+    .lclip-lab{flex:0 0 auto;font-weight:600;font-size:.85rem;color:var(--lclip-soft)}
+    .lclip-slider{flex:1 1 200px;min-width:150px;accent-color:var(--lclip-bright);height:22px}
+    .lclip-val{flex:0 0 auto;font:700 .98rem/1 ui-monospace,monospace;color:var(--lclip-blue);
+      min-width:3.6em;text-align:right}
+    .lclip-sign{display:flex;gap:6px;flex-wrap:wrap}
+    .lclip-sign button{border:1px solid var(--lclip-line);border-radius:7px;
+      background:var(--lclip-card);color:var(--lclip-soft);font:600 13px/1.2 inherit;
+      padding:7px 12px;cursor:pointer}
+    .lclip-sign button:hover{border-color:var(--lclip-bright);color:var(--lclip-bright)}
+    .lclip-sign button.lclip-on{background:var(--lclip-blue);color:#fff;border-color:var(--lclip-blue)}
+    .lclip-svg{width:100%;height:auto;display:block;margin:2px 0 0;
+      border:1px solid var(--lclip-line-soft);border-radius:9px;background:#FBFCFE;touch-action:none;
+      cursor:crosshair}
+    .lclip-svg text{font:11px/1 ui-monospace,monospace}
+    .lclip-hint{font-size:.74rem;color:var(--lclip-faint);margin:6px 0 0;text-align:center}
+    .lclip-stats{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 0}
+    .lclip-stat{flex:1 1 110px;border:1px solid var(--lclip-line);border-radius:9px;
+      padding:9px 11px;background:var(--lclip-card)}
+    .lclip-stat .lclip-sk{font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;
+      color:var(--lclip-faint);font-weight:600}
+    .lclip-stat .lclip-sv{font:800 1.25rem/1.1 ui-monospace,monospace;color:var(--lclip-blue);margin:3px 0 0}
+    .lclip-stat.lclip-flat .lclip-sv{color:var(--lclip-bord-br)}
+    .lclip-stat.lclip-live .lclip-sv{color:var(--lclip-green)}
+    .lclip-read{margin:14px 0 0;padding:11px 13px;border-radius:8px;border:1px solid var(--lclip-line);
+      background:var(--lclip-wash);font-size:.86rem;line-height:1.5;color:var(--lclip-ink)}
+    .lclip-read b{font-weight:700}
+    .lclip-read.lclip-r-flat{background:#FBEDEF;border-color:#E8C7CD}
+    .lclip-read.lclip-r-live{background:#EAF4EE;border-color:#C3E0D0}
+    .lclip-note{margin:10px 0 0;font-size:.74rem;color:var(--lclip-faint);line-height:1.45}
+    .lclip-note code{font-family:ui-monospace,monospace}
+  </style>
+
+  <p class="lclip-k">Démonstration interactive</p>
+  <p class="lclip-title">L'objectif clippé de PPO : le min ne coupe l'incitation que d'un seul côté</p>
+
+  <div class="lclip-ctl">
+    <div class="lclip-row">
+      <span class="lclip-lab">Signe de l'avantage Â</span>
+      <div class="lclip-sign" id="lclip-sign" role="group" aria-label="signe de l'avantage">
+        <button type="button" data-a="1" class="lclip-on">Â &gt; 0 — action meilleure que prévu</button>
+        <button type="button" data-a="-1">Â &lt; 0 — action pire que prévu</button>
+      </div>
+    </div>
+    <div class="lclip-row">
+      <span class="lclip-lab">Marge de clip ε</span>
+      <input class="lclip-slider" id="lclip-eps" type="range" min="5" max="50" value="20"
+             aria-label="marge de clip epsilon">
+      <span class="lclip-val" id="lclip-epsval">0,20</span>
+    </div>
+    <div class="lclip-row">
+      <span class="lclip-lab">Ratio r(θ)</span>
+      <input class="lclip-slider" id="lclip-r" type="range" min="0" max="220" value="100"
+             aria-label="ratio de probabilité r">
+      <span class="lclip-val" id="lclip-rval">1,00</span>
+    </div>
+  </div>
+
+  <svg class="lclip-svg" id="lclip-canvas" viewBox="0 0 640 340" role="img"
+       aria-label="courbe de l'objectif clippé de PPO en fonction du ratio de probabilité"></svg>
+  <p class="lclip-hint">Glissez le point sur le graphique (ou le curseur r) pour explorer les deux côtés du clip.</p>
+
+  <div class="lclip-stats">
+    <div class="lclip-stat">
+      <div class="lclip-sk">L^CPI = r·Â</div>
+      <div class="lclip-sv" id="lclip-vcpi">—</div>
+    </div>
+    <div class="lclip-stat">
+      <div class="lclip-sk">L^CLIP</div>
+      <div class="lclip-sv" id="lclip-vclip">—</div>
+    </div>
+    <div class="lclip-stat" id="lclip-st-slope">
+      <div class="lclip-sk">Pente ∂L^CLIP/∂r</div>
+      <div class="lclip-sv" id="lclip-vslope">—</div>
+    </div>
+  </div>
+
+  <div class="lclip-read" id="lclip-read"></div>
+
+  <p class="lclip-note">Objectif de PPO (Schulman et al., 2017) :
+    <code>L^CLIP = min(r·Â, clip(r, 1−ε, 1+ε)·Â)</code>, avec
+    <code>r(θ) = π_θ(a|s) / π_θ_old(a|s)</code> le ratio entre nouvelle et ancienne politique
+    (r = 1 : politique inchangée). Ici |Â| = 1 et tout est calculé exactement. La pente
+    affichée est celle que « voit » le gradient : là où elle vaut 0, pousser r plus loin
+    ne rapporte plus rien.</p>
+
+  <script>
+  (function(){
+    var root=document.getElementById("lclip-root");
+    if(!root||root.dataset.lclipInit)return; root.dataset.lclipInit="1";
+
+    var SVGNS="http://www.w3.org/2000/svg";
+    var svg=document.getElementById("lclip-canvas");
+    var epsEl=document.getElementById("lclip-eps");
+    var epsValEl=document.getElementById("lclip-epsval");
+    var rEl=document.getElementById("lclip-r");
+    var rValEl=document.getElementById("lclip-rval");
+    var signGrp=document.getElementById("lclip-sign");
+    var vCpi=document.getElementById("lclip-vcpi");
+    var vClip=document.getElementById("lclip-vclip");
+    var vSlope=document.getElementById("lclip-vslope");
+    var stSlope=document.getElementById("lclip-st-slope");
+    var readEl=document.getElementById("lclip-read");
+
+    // --- état ---
+    var A=1;        // avantage : +1 ou -1 (|Â|=1)
+    var eps=0.20;   // marge de clip
+    var r=1.00;     // ratio courant
+
+    // --- modèle exact ---
+    function clampv(v,lo,hi){return v<lo?lo:(v>hi?hi:v);}
+    function Lcpi(rr){return rr*A;}
+    function Lclip(rr){return Math.min(rr*A, clampv(rr,1-eps,1+eps)*A);}
+    // pente de L^CLIP en rr : Â si le terme actif dépend de r, 0 si plafonné/plancher
+    function slope(rr){
+      if(A>0) return rr>1+eps ? 0 : A;   // plafonné au-delà de 1+ε
+      return rr<1-eps ? 0 : A;           // plancher en deçà de 1−ε
+    }
+
+    // --- domaine logique <-> pixels (viewBox 640x340) ---
+    var RMIN=0, RMAX=2.2, YMAX=2.4;
+    var PAD_L=48, PAD_R=16, PAD_T=16, PAD_B=32;
+    var W=640, H=340;
+    var plotW=W-PAD_L-PAD_R, plotH=H-PAD_T-PAD_B;
+    function sx(rr){return PAD_L + (rr-RMIN)/(RMAX-RMIN)*plotW;}
+    function sy(v){return PAD_T + (1 - (clampv(v,-YMAX,YMAX)+YMAX)/(2*YMAX))*plotH;}
+    function px2r(px){return clampv(RMIN + (px-PAD_L)/plotW*(RMAX-RMIN), RMIN, RMAX);}
+
+    function fmt(v,d){
+      if(v===0)return (0).toFixed(d===undefined?2:d).replace(".",",");
+      return v.toFixed(d===undefined?2:d).replace(".",",").replace("-","−");
+    }
+
+    // --- helpers SVG ---
+    function el(name,attrs,parent){
+      var n=document.createElementNS(SVGNS,name);
+      for(var k in attrs)n.setAttribute(k,attrs[k]);
+      (parent||svg).appendChild(n);return n;
+    }
+    function txt(x,y,s,fill,anchor,parent){
+      var t=el("text",{x:x,y:y,fill:fill,"text-anchor":anchor||"middle"},parent);
+      t.textContent=s;return t;
+    }
+
+    // --- rendu complet (tout dépend de ε, Â, r : on redessine) ---
+    function draw(){
+      svg.textContent="";
+      var lo=1-eps, hi=1+eps;
+
+      // bande de confiance [1−ε, 1+ε]
+      el("rect",{x:sx(lo),y:PAD_T,width:sx(hi)-sx(lo),height:plotH,
+        fill:"var(--lclip-wash)",opacity:"0.75"});
+
+      // grille + graduations r
+      [0,0.5,1,1.5,2].forEach(function(g){
+        el("line",{x1:sx(g),y1:PAD_T,x2:sx(g),y2:H-PAD_B,
+          stroke:g===1?"#C7D2DF":"#EDF1F6","stroke-width":g===1?1.4:1});
+        txt(sx(g),H-PAD_B+15, g===1?"r=1":fmt(g,1), g===1?"var(--lclip-soft)":"var(--lclip-faint)");
+      });
+      // graduations verticales + ligne zéro
+      [-2,-1,1,2].forEach(function(g){
+        el("line",{x1:PAD_L,y1:sy(g),x2:W-PAD_R,y2:sy(g),stroke:"#EDF1F6","stroke-width":1});
+        txt(PAD_L-8,sy(g)+4,fmt(g,0),"var(--lclip-faint)","end");
+      });
+      el("line",{x1:PAD_L,y1:sy(0),x2:W-PAD_R,y2:sy(0),stroke:"#C7D2DF","stroke-width":1.2});
+      txt(PAD_L-8,sy(0)+4,"0","var(--lclip-faint)","end");
+      txt(PAD_L-8,PAD_T+10,"L","var(--lclip-faint)","end");
+
+      // bornes du clip
+      [[lo,"1−ε"],[hi,"1+ε"]].forEach(function(p){
+        el("line",{x1:sx(p[0]),y1:PAD_T,x2:sx(p[0]),y2:H-PAD_B,
+          stroke:"var(--lclip-bright)","stroke-width":1.2,"stroke-dasharray":"4 3",opacity:"0.8"});
+        txt(sx(p[0]),PAD_T-3,p[1],"var(--lclip-bright)");
+      });
+      txt((sx(lo)+sx(hi))/2,H-PAD_B-6,"zone de confiance","var(--lclip-bright)");
+
+      // L^CPI = r·Â en pointillés sur tout le domaine
+      el("line",{x1:sx(RMIN),y1:sy(Lcpi(RMIN)),x2:sx(RMAX),y2:sy(Lcpi(RMAX)),
+        stroke:"var(--lclip-gold)","stroke-width":2,"stroke-dasharray":"6 4"});
+
+      // L^CLIP : partie « libre » (pente = Â) en bleu, partie plate (pente 0) en bordeaux
+      var kink = A>0 ? hi : lo;                 // point où la courbe casse
+      var yFlat = Lclip(A>0 ? RMAX : RMIN);     // valeur du plateau
+      // segment libre
+      var freeA = A>0 ? RMIN : kink, freeB = A>0 ? kink : RMAX;
+      el("line",{x1:sx(freeA),y1:sy(Lcpi(freeA)),x2:sx(freeB),y2:sy(Lcpi(freeB)),
+        stroke:"var(--lclip-blue)","stroke-width":3});
+      // segment plat
+      var flatA = A>0 ? kink : RMIN, flatB = A>0 ? RMAX : kink;
+      el("line",{x1:sx(flatA),y1:sy(yFlat),x2:sx(flatB),y2:sy(yFlat),
+        stroke:"var(--lclip-bord-br)","stroke-width":3});
+      // étiquette du plateau
+      txt((sx(flatA)+sx(flatB))/2, sy(yFlat)+(A>0?-16:22),
+        "pente nulle : plus d'incitation","var(--lclip-bord-br)");
+      // étiquette du côté resté libre, hors bande
+      var farR = A>0 ? (RMIN+lo)/2 : (hi+RMAX)/2;
+      txt(sx(farR), sy(Lcpi(farR))+(A>0?-10:-10),
+        "le min garde r·Â","var(--lclip-blue)");
+
+      // point courant : fantôme sur L^CPI si les deux courbes divergent, point plein sur L^CLIP
+      var yC=Lclip(r), yU=Lcpi(r);
+      el("line",{x1:sx(r),y1:PAD_T,x2:sx(r),y2:H-PAD_B,
+        stroke:"var(--lclip-faint)","stroke-width":1,"stroke-dasharray":"2 3"});
+      if(Math.abs(yU-yC)>1e-9){
+        el("line",{x1:sx(r),y1:sy(yU),x2:sx(r),y2:sy(yC),
+          stroke:"var(--lclip-gold)","stroke-width":1.6,"stroke-dasharray":"2 2"});
+        el("circle",{cx:sx(r),cy:sy(yU),r:4,fill:"none",
+          stroke:"var(--lclip-gold)","stroke-width":1.8});
+      }
+      // flèche tangente : la direction que « voit » le gradient sur L^CLIP
+      var s=slope(r);
+      if(s!==0){
+        var dx=0.22*(s>0?1:1); // tangente vers la droite, pente s
+        var x2v=clampv(r+dx,RMIN,RMAX);
+        el("line",{x1:sx(r),y1:sy(yC),x2:sx(x2v),y2:sy(yC+s*(x2v-r)),
+          stroke:"var(--lclip-green)","stroke-width":2.2});
+      }
+      var dot=el("circle",{cx:sx(r),cy:sy(yC),r:8,
+        fill: s===0?"var(--lclip-bord-br)":"var(--lclip-blue)",
+        stroke:"#fff","stroke-width":2});
+      dot.style.cursor="grab";
+
+      // légende compacte
+      var lg=el("g",{});
+      el("line",{x1:PAD_L+10,y1:PAD_T+12,x2:PAD_L+36,y2:PAD_T+12,
+        stroke:"var(--lclip-blue)","stroke-width":3},lg);
+      txt(PAD_L+41,PAD_T+16,"L^CLIP","var(--lclip-soft)","start",lg);
+      el("line",{x1:PAD_L+105,y1:PAD_T+12,x2:PAD_L+131,y2:PAD_T+12,
+        stroke:"var(--lclip-gold)","stroke-width":2,"stroke-dasharray":"6 4"},lg);
+      txt(PAD_L+136,PAD_T+16,"L^CPI = r·Â","var(--lclip-soft)","start",lg);
+    }
+
+    // --- lecture pédagogique selon la région ---
+    function setRead(){
+      var lo=1-eps, hi=1+eps;
+      var msg, cls;
+      if(r>=lo && r<=hi){
+        cls="";
+        msg=[{b:"Dans la zone de confiance ("+fmt(lo)+" ≤ r ≤ "+fmt(hi)+")."},
+          " Le clip est inactif : L^CLIP = r·Â, identique au surrogate non clippé. "+
+          "Le gradient pousse librement — vers r plus grand si Â > 0, plus petit si Â < 0."];
+      }else if(A>0 && r>hi){
+        cls="lclip-r-flat";
+        msg=[{b:"Â > 0 et r > 1+ε : le côté « qui gagnerait » est coupé."},
+          " Monter encore la probabilité de cette bonne action augmenterait r·Â, mais le min "+
+          "plafonne L^CLIP à (1+ε)·Â = "+fmt(hi*A)+". Pente nulle : le gradient n'a plus "+
+          "aucune raison d'éloigner la politique davantage."];
+      }else if(A>0 && r<lo){
+        cls="lclip-r-live";
+        msg=[{b:"Â > 0 et r < 1−ε : le côté « qui a tort » reste libre."},
+          " Ici r·Â = "+fmt(r*A)+" est PIRE que la version clippée ("+fmt(lo*A)+"), donc le min "+
+          "garde r·Â. La pente vaut Â > 0 : le gradient continue de tirer r vers le haut, "+
+          "pour corriger une politique qui a trop baissé une bonne action."];
+      }else if(A<0 && r<lo){
+        cls="lclip-r-flat";
+        msg=[{b:"Â < 0 et r < 1−ε : le côté « qui gagnerait » est coupé."},
+          " Écraser encore la probabilité de cette mauvaise action rendrait r·Â moins négatif, "+
+          "mais le min fige L^CLIP au plancher (1−ε)·Â = "+fmt(lo*A)+". Pente nulle : plus "+
+          "rien à gagner à fuir davantage l'ancienne politique."];
+      }else{
+        cls="lclip-r-live";
+        msg=[{b:"Â < 0 et r > 1+ε : le côté « qui a tort » reste libre."},
+          " Ici r·Â = "+fmt(r*A)+" est PIRE (plus négatif) que la version clippée ("+fmt(hi*A)+"), "+
+          "donc le min garde r·Â. La pente vaut Â < 0 : la pénalité continue de croître et "+
+          "repousse r vers 1 — augmenter une mauvaise action reste toujours puni."];
+      }
+      readEl.className="lclip-read"+(cls?" "+cls:"");
+      readEl.textContent="";
+      msg.forEach(function(p){
+        if(typeof p==="string")readEl.appendChild(document.createTextNode(p));
+        else{var b=document.createElement("b");b.textContent=p.b;readEl.appendChild(b);}
+      });
+    }
+
+    function updateStats(){
+      vCpi.textContent=fmt(Lcpi(r));
+      vClip.textContent=fmt(Lclip(r));
+      var s=slope(r);
+      vSlope.textContent = s===0 ? "0 (clippée)" : (A>0?"+1":"−1");
+      stSlope.className="lclip-stat"+(s===0?" lclip-flat":" lclip-live");
+    }
+
+    function render(){
+      epsValEl.textContent=fmt(eps);
+      rValEl.textContent=fmt(r);
+      draw(); updateStats(); setRead();
+    }
+
+    // --- interactions ---
+    epsEl.addEventListener("input",function(){
+      eps=parseInt(epsEl.value,10)/100; render();
+    });
+    rEl.addEventListener("input",function(){
+      r=parseInt(rEl.value,10)/100; render();
+    });
+    signGrp.addEventListener("click",function(ev){
+      var t=ev.target.closest("button"); if(!t)return;
+      A=parseInt(t.getAttribute("data-a"),10);
+      var btns=signGrp.querySelectorAll("button");
+      for(var i=0;i<btns.length;i++)btns[i].classList.toggle("lclip-on",btns[i]===t);
+      render();
+    });
+
+    // glisser sur le SVG pour déplacer r
+    var dragging=false;
+    function evToR(ev){
+      var pt=svg.createSVGPoint();
+      var src=ev.touches?ev.touches[0]:ev;
+      pt.x=src.clientX; pt.y=src.clientY;
+      var m=svg.getScreenCTM();
+      if(!m)return r;
+      return px2r(pt.matrixTransform(m.inverse()).x);
+    }
+    function startDrag(ev){dragging=true; onDrag(ev); ev.preventDefault();}
+    function onDrag(ev){
+      if(!dragging)return;
+      r=Math.round(evToR(ev)*100)/100;
+      rEl.value=Math.round(r*100);
+      render();
+      ev.preventDefault();
+    }
+    function endDrag(){dragging=false;}
+    svg.addEventListener("mousedown",startDrag);
+    window.addEventListener("mousemove",onDrag);
+    window.addEventListener("mouseup",endDrag);
+    svg.addEventListener("touchstart",startDrag,{passive:false});
+    svg.addEventListener("touchmove",onDrag,{passive:false});
+    window.addEventListener("touchend",endDrag);
+
+    // --- init : on démarre au-delà de 1+ε pour montrer d'emblée le plateau ---
+    r=1.60; rEl.value=160;
+    render();
+  })();
+  </script>
+</div>
