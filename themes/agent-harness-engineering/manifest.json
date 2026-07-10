@@ -1,0 +1,463 @@
+{
+  "edition": "monograph",
+  "slug": "agent-harness-engineering",
+  "meta": {
+    "title": "Harness & loop engineering : construire le runtime qui transforme un modèle en agent fiable",
+    "kicker": "Harness & loop engineering · monographie",
+    "h1": "Harness & loop engineering : construire le runtime qui transforme un modèle en agent fiable",
+    "lede": "Un LLM brut ne fait pas un agent : c'est le harness — boucle bornée, outils poka-yoke, orchestration mesurée, vérification externe — qui convertit l'intelligence brute d'un modèle en travail exécutable fiable.",
+    "meta_chips": [
+      "Monographie"
+    ],
+    "footer": "Harness & loop engineering : construire le runtime qui transforme un modèle en agent fiable · scriptorium"
+  },
+  "elements": [
+    {
+      "type": "abstract"
+    },
+    {
+      "type": "section",
+      "id": "agent-modele-harness",
+      "heading": "Agent = modèle + harness : naissance d'une discipline",
+      "level": 3,
+      "prose": "<p>Un LLM brut ne fait pas un agent. Il génère du texte, parfois brillamment, mais il n'exécute rien, ne vérifie rien, ne garde pas trace de ses actes et n'a reçu aucune permission d'agir. L'agent — « le terme adopté par l'industrie pour un LLM capable de dialoguer et d'invoquer des comportements externes dans une boucle », selon Mitchell Hashimoto — n'existe que par le runtime délibérément construit autour du modèle. Ce runtime porte désormais un nom, le harness (harnais), et sa conception une discipline : le harness engineering.</p>\n<p>La chronologie du baptême tient en une semaine. Le 5 février 2026, Hashimoto publie sur son blog personnel « My AI Adoption Journey » et avoue chercher ses mots : « I don't know if there is a broad industry-accepted term for this yet, but I've grown to calling this \"harness engineering\" ». Sa définition est toute pragmatique : chaque fois que l'agent commet une erreur, prendre le temps d'ingénier une solution telle qu'il ne la commette plus jamais. Six jours plus tard, le 11 février, le blog d'ingénierie d'OpenAI reprend le terme et file la métaphore jusqu'au harnais de cheval — les rênes, la selle, le mors qui canalisent un animal puissant mais imprévisible dans une direction utile.</p>\n<p>OpenAI n'apporte pas que la métaphore : un retour d'expérience chiffré. Pendant cinq mois, à partir de fin août 2025, une équipe de trois à sept ingénieurs a fait merger environ 1 500 pull requests (PR) sur une base d'un million de lignes, sans écrire une seule ligne à la main. Le débit moyen — 3,5 PR par ingénieur et par jour — importe moins que le principe opérationnel énoncé, une boucle auto-renforçante : chaque amélioration du harness rend les runs suivants plus capables, ce qui permet de déléguer un travail plus complexe, ce qui fait émerger la lacune suivante, laquelle est encodée en retour dans le harness.</p>\n<p>La paternité du terme, elle, est déjà brouillée. Une partie de la littérature secondaire affirme sans nuance qu'OpenAI a forgé « harness engineering » — harnessengineering.academy ne mentionne même pas Hashimoto —, alors que la primauté de publication lui revient, six jours plus tôt ; d'autres sources, comme mindwiredai.com, rectifient et situent chez lui le « crystallizing moment ». Le détail paraît anecdotique ; il dit surtout la jeunesse d'un champ dont l'historiographie s'écrit plus vite qu'elle ne se vérifie.</p>\n<p>La formalisation de l'équation vient de LangChain. Vivek Trivedy y pose Agent = Model + Harness, et la maxime qui en découle : « If you're not the model, you're the harness ». Le harness est tout le code, la configuration et la logique d'exécution qui ne sont pas le modèle lui-même — prompts système, descriptions d'outils, infrastructure embarquée (système de fichiers, sandbox d'exécution — un environnement isolé), orchestration de sous-agents, hooks middleware. Dit autrement, le harness retire au modèle tout ce qu'un système fiable ne peut pas confier à un générateur stochastique : la tenue de l'état, l'exécution effective des actions, la validation de leurs résultats, l'autorisation de les entreprendre et la journalisation de ce qui s'est produit.</p>\n<p>Birgitta Böckeler, sur le site de Martin Fowler, donne au champ sa première grille d'analyse — source unique à ce jour, mais assumée comme telle. Les contrôles du harness se répartissent en guides feedforward, qui anticipent le comportement de l'agent pour le diriger avant qu'il n'agisse, et en sensors feedback, qui observent après l'action et l'aident à se corriger. Une seconde coupe distingue les contrôles computationnels — déterministes et rapides, exécutés par le CPU : tests, linters, vérificateurs de types, des millisecondes à quelques secondes, résultats fiables — des contrôles inférentiels : analyse sémantique, revue de code par IA, LLM as judge, plus lents, plus coûteux, plus non-déterministes. Cette double grille — avant/après, déterministe/inférentiel — servira de boussole dans les sections qui suivent.</p><figure class='fig'><svg viewBox='0 0 770 440' role='img' aria-label='Grille de Böckeler : quadrant 2×2 croisant le moment du contrôle, avant ou après l’action, et sa nature, computationnelle ou inférentielle, avec gradient de coût et de latence'><defs><linearGradient id='ghbq-cout' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='var(--bordeaux,#7C2A38)'/><stop offset='1' stop-color='var(--blue,#23537F)' stop-opacity='0.55'/></linearGradient></defs><text x='256' y='24' text-anchor='middle' font-size='14' font-weight='700' fill='var(--ink,#15202E)'>AVANT l’action</text><text x='256' y='40' text-anchor='middle' font-size='10.5' fill='var(--ink-faint,#7A889B)'>guides · feedforward</text><text x='554' y='24' text-anchor='middle' font-size='14' font-weight='700' fill='var(--ink,#15202E)'>APRÈS l’action</text><text x='554' y='40' text-anchor='middle' font-size='10.5' fill='var(--ink-faint,#7A889B)'>sensors · feedback</text><line x1='122' y1='47' x2='688' y2='47' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><polygon points='112,47 122,43 122,51' fill='var(--ink-faint,#7A889B)'/><polygon points='698,47 688,43 688,51' fill='var(--ink-faint,#7A889B)'/><text x='74' y='141' transform='rotate(-90 74 141)' text-anchor='middle' font-size='13' font-weight='700' letter-spacing='.05em' fill='var(--bordeaux,#7C2A38)'>INFÉRENTIEL</text><text x='92' y='141' transform='rotate(-90 92 141)' text-anchor='middle' font-size='10' fill='var(--ink-faint,#7A889B)'>lent · coûteux · non-déterministe</text><text x='74' y='323' transform='rotate(-90 74 323)' text-anchor='middle' font-size='13' font-weight='700' letter-spacing='.05em' fill='var(--blue,#23537F)'>COMPUTATIONNEL</text><text x='92' y='323' transform='rotate(-90 92 323)' text-anchor='middle' font-size='10' fill='var(--ink-faint,#7A889B)'>déterministe · rapide · fiable</text><rect x='112' y='54' width='289' height='174' rx='10' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.10' stroke='var(--bordeaux,#7C2A38)' stroke-opacity='0.5'/><rect x='409' y='54' width='289' height='174' rx='10' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.10' stroke='var(--bordeaux,#7C2A38)' stroke-opacity='0.5'/><rect x='112' y='236' width='289' height='174' rx='10' fill='var(--blue,#23537F)' fill-opacity='0.06' stroke='var(--blue,#23537F)' stroke-opacity='0.5'/><rect x='409' y='236' width='289' height='174' rx='10' fill='var(--blue,#23537F)' fill-opacity='0.06' stroke='var(--blue,#23537F)' stroke-opacity='0.5'/><circle cx='134' cy='124' r='3.5' fill='var(--bordeaux,#7C2A38)'/><text x='146' y='128' font-size='13' fill='var(--ink,#15202E)'>Prompt système &amp; règles</text><circle cx='134' cy='154' r='3.5' fill='var(--bordeaux,#7C2A38)'/><text x='146' y='158' font-size='13' fill='var(--ink,#15202E)'>Revue de plan par LLM</text><circle cx='431' cy='109' r='3.5' fill='var(--bordeaux,#7C2A38)'/><text x='443' y='113' font-size='13' fill='var(--ink,#15202E)'>LLM as judge</text><circle cx='431' cy='137' r='3.5' fill='var(--bordeaux,#7C2A38)'/><text x='443' y='141' font-size='13' fill='var(--ink,#15202E)'>Revue de code par IA</text><circle cx='431' cy='165' r='3.5' fill='var(--bordeaux,#7C2A38)'/><text x='443' y='169' font-size='13' fill='var(--ink,#15202E)'>Analyse sémantique des sorties</text><circle cx='134' cy='291' r='3.5' fill='var(--blue,#23537F)'/><text x='146' y='295' font-size='13' fill='var(--ink,#15202E)'>Schémas d’outils (validation)</text><circle cx='134' cy='319' r='3.5' fill='var(--blue,#23537F)'/><text x='146' y='323' font-size='13' fill='var(--ink,#15202E)'>Permissions &amp; allowlists</text><circle cx='134' cy='347' r='3.5' fill='var(--blue,#23537F)'/><text x='146' y='351' font-size='13' fill='var(--ink,#15202E)'>Sandbox d’exécution</text><circle cx='431' cy='291' r='3.5' fill='var(--blue,#23537F)'/><text x='443' y='295' font-size='13' fill='var(--ink,#15202E)'>Tests automatisés</text><circle cx='431' cy='319' r='3.5' fill='var(--blue,#23537F)'/><text x='443' y='323' font-size='13' fill='var(--ink,#15202E)'>Linters</text><circle cx='431' cy='347' r='3.5' fill='var(--blue,#23537F)'/><text x='443' y='351' font-size='13' fill='var(--ink,#15202E)'>Vérificateur de types</text><line x1='405' y1='54' x2='405' y2='410' stroke='var(--ink,#15202E)' stroke-opacity='0.35' stroke-dasharray='3 5'/><text x='405' y='428' text-anchor='middle' font-size='10.5' fill='var(--ink-faint,#7A889B)'>l’action de l’agent</text><rect x='712' y='54' width='12' height='356' rx='6' fill='url(#ghbq-cout)'/><polygon points='718,40 711,52 725,52' fill='var(--bordeaux,#7C2A38)'/><text x='718' y='30' text-anchor='middle' font-size='10' fill='var(--bordeaux,#7C2A38)'>s → min</text><text x='718' y='426' text-anchor='middle' font-size='10' fill='var(--blue,#23537F)'>ms → s</text><text x='745' y='232' transform='rotate(-90 745 232)' text-anchor='middle' font-size='10.5' fill='var(--ink-faint,#7A889B)'>coût · latence · non-déterminisme</text></svg><figcaption><span class='fcap-k'></span>La grille de Böckeler croise le moment du contrôle — guides avant l’action, sensors après — et sa nature, computationnelle (déterministe, rapide) ou inférentielle (lente, coûteuse, non-déterministe).</figcaption></figure>\n<p>La discipline a pourtant une préhistoire. Le 19 décembre 2024, plus d'un an avant le vocabulaire « harness », Anthropic posait la frontière que le champ formalisera : les workflows sont des systèmes où LLM et outils sont orchestrés par des chemins de code prédéfinis ; les agents, des systèmes où le LLM dirige dynamiquement son propre processus et son usage d'outils, en gardant le contrôle de la manière d'accomplir la tâche. Le même texte recommandait déjà des conditions d'arrêt explicites — comme un nombre maximum d'itérations — et des environnements sandboxés assortis de garde-fous. Le lien conceptuel entre cette frontière et le harness engineering est plausible, mais aucune source consultée de la littérature du champ ne l'établit explicitement : ni le billet fondateur de LangChain ni l'article publié chez Fowler ne citent le texte d'Anthropic comme antécédent.</p>\n<p>Reste à situer la discipline dans la maturation des pratiques. Addy Osmani situe le loop engineering « un étage au-dessus » du harness engineering — le harness fait de l'environnement le lieu où un agent unique s'exécute ; le loop engineering, lui, est un cran plus haut : le harness, mais qui tourne sur une horloge, engendre de petits assistants et s'alimente lui-même. Sa définition condense le déplacement de responsabilité en une phrase : le loop engineering consiste à se remplacer soi-même comme personne qui prompte l'agent — concevoir le système qui le fait à votre place. L'équation est posée ; les sections qui suivent la déclinent composant par composant, en commençant par la structure qui donne son nom à cette couche supérieure : la boucle.</p>",
+      "claims": [
+        "claim:1",
+        "claim:2",
+        "claim:3",
+        "claim:4"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "patterns-de-boucle",
+      "heading": "Patterns de boucle : de ReAct aux conditions d'arrêt",
+      "level": 3,
+      "prose": "<p>Si le harness est tout ce qui n'est pas le modèle, la boucle en est l'architecture centrale : la structure de contrôle qui enchaîne génération, action et observation jusqu'à un critère d'arrêt. Sa forme canonique reste ReAct, qui entrelace trois types de génération dans un même flux — pensée (raisonnement interne), action (appel d'outil), observation (résultat ajouté au contexte) — jusqu'à ce que le modèle juge disposer d'assez d'information. Ce pattern fondateur est détaillé dans la monographie sœur agentic-ai ; rappelons seulement ses gains d'origine, +34 points absolus sur ALFWorld et +10 sur WebShop face aux baselines par imitation ou apprentissage par renforcement. Toute la suite du champ peut se lire comme une série de réponses à une même question : que gagne-t-on à structurer cette boucle autrement ?</p>\n<p>Première réponse : découpler le plan de l'exécution. ReWOO (Reasoning WithOut Observation) génère le plan complet avant toute observation d'outil, au lieu d'entrelacer les deux à chaque pas — le pattern plan-execute. Le gain est double, en coût et en qualité : sur HotpotQA, environ cinq fois moins de tokens pour quatre points de précision gagnés ; en moyenne sur six benchmarks publics, 64 % de tokens en moins et 4,4 points absolus de mieux que le prompting entrelacé façon ReAct.</p>\n<p>Deuxième réponse : faire réfléchir l'agent sur ses échecs. Reflexion boucle en quatre temps — générer, évaluer, réfléchir verbalement sur l'échec, réessayer — et stocke chaque réflexion en langage naturel dans un buffer de mémoire épisodique. Aucune mise à jour de gradients : le modèle sous-jacent ne change pas, seul son contexte s'enrichit. À la publication, en mars 2023, le résultat parlait de lui-même : 91 % de pass@1 sur HumanEval, quand GPT-4 seul plafonnait à 80 %.</p>\n<p>Une formalisation publiée de la boucle agentique générique vient du cadre CoALA (Cognitive Architectures for Language Agents), qui décompose chaque cycle de décision en trois sous-étapes : proposal (échantillonner un ou plusieurs candidats d'action), evaluation (leur assigner une valeur — par heuristique, perplexité du LLM, valeur apprise ou raisonnement du modèle), selection (en exécuter un, ou tous les rejeter et reboucler vers la proposition). Le même cadre scinde l'espace d'action en actions externes de grounding, qui affectent l'environnement, et actions internes de trois types exactement : retrieval (lecture de la mémoire long terme), reasoning (mise à jour de la mémoire de travail), learning (écriture en mémoire long terme). Sur le terrain, la diversité réelle est plus pauvre que la théorie ne le laisse croire : un preprint mono-auteur d'avril 2026 — position paper non relu par les pairs, à prendre comme tel — analyse 70 projets d'agents open source et trouve que 60 % d'entre eux (42 sur 70) s'en tiennent au pattern « agent loop » le plus simple, formalisé comme un ordonnanceur à unité unique : une seule unité exécutable prête à la fois, la politique d'ordonnancement étant une inférence LLM opaque.</p>\n<p>Vient alors le versant contrôle — car une boucle qui ne s'arrête pas n'est pas un agent, c'est une facture. La bounded execution (exécution bornée) est la prescription la plus ancienne : le texte d'Anthropic de décembre 2024 recommandait déjà, on l'a vu, des conditions d'arrêt explicites, des points de contrôle humains et des tests en environnement sandboxé. Le circuit breaker (disjoncteur logiciel) de Nygard, popularisé par Fowler, y ajoute une mémoire des échecs : un automate à trois états passe de Closed à Open quand le compteur d'échecs atteint un seuil configuré — cinq échecs consécutifs, par exemple, ou un taux d'échec de 30 à 50 % —, puis de Open à Half-Open une fois un délai de reset écoulé, autorisant un appel d'essai qui referme le circuit s'il réussit et le rouvre sinon.</p>\n<p>Contre les doom loops (boucles de perdition) — l'agent qui réédite sans fin le même fichier —, le harness Deep Agents de LangChain embarque un LoopDetectionMiddleware : des hooks sur les appels d'outils comptent les modifications par fichier et, passé N éditions du même fichier, injectent un message invitant l'agent à reconsidérer son approche. Ses auteurs le disent sans détour : c'est une heuristique d'ingénierie temporaire, qui deviendra probablement inutile à mesure que les modèles progressent — l'aveu que chaque composant du harness encode une hypothèse datée sur ce que le modèle ne sait pas encore faire. Les conditions d'arrêt peuvent aussi être sémantiques. La commande /goal de Claude Code enveloppe un Stop hook : après chaque tour, un modèle évaluateur séparé et rapide (Haiku par défaut) reçoit la condition écrite par l'utilisateur et la transcription complète, puis répond oui ou non avec sa raison. Cet évaluateur n'appelle aucun outil — il ne juge que ce que l'agent a déjà fait apparaître dans la conversation —, et la condition, jusqu'à 4 000 caractères, peut inclure sa propre clause de bornage, du type « or stop after 20 turns ».</p>\n<p>L'arrêt a même sa théorie. Orseau et Armstrong définissent formellement l'interruptibilité sûre et prouvent, en exploitant la propriété off-policy, que le Q-learning est déjà sûrement interruptible tandis que Sarsa ne l'est pas — mais peut le devenir par une modification simple —, résultat étendu aux agents d'apprentissage par renforcement idéaux dans des environnements déterministes calculables. À l'autre extrémité du spectre, le Ralph Loop de Geoffrey Huntley est littéralement une boucle bash — <code>while :; do cat PROMPT.md | claude-code; done</code> — où chaque itération repart d'un contexte neuf, ne traite qu'une seule tâche, choisie comme la plus importante, et relit un bundle de contexte fixe. Huntley revendique un projet livré pour 297 dollars face à un devis de prestataire à 50 000 — affirmation de praticien isolé, non vérifiée indépendamment.</p>\n<p>Un dernier cas suggère combien la structure de la boucle peut peser plus lourd que le modèle — à condition de le lire avec les précautions qu'il exige. statewright restreint les outils accessibles selon la phase d'exécution, via une state machine (machine à états) : lecture seule pendant la planification, outils d'édition pendant l'implémentation, commandes de test uniquement pendant la vérification. Son auteur rapporte que, sur un sous-ensemble de cinq tâches SWE-bench, deux modèles locaux modestes — gpt-oss:20b et gemma — passent de 2 réussites sur 10 tentatives à 10 sur 10 une fois les contraintes de phase appliquées. Le chiffre est spectaculaire ; il reste une anecdote auto-rapportée par l'auteur de l'outil, sur cinq tâches, sans méthodologie publiée ni réplication indépendante — un indice que la structure de la boucle est parfois la contrainte liante, pas une preuve qu'elle l'est en général. La boucle bornée et instrumentée, il reste à concevoir ce qu'elle invoque à chaque tour : les outils.</p>",
+      "claims": [
+        "claim:5",
+        "claim:6",
+        "claim:7",
+        "claim:8"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-circuit-breaker"
+    },
+    {
+      "type": "section",
+      "id": "conception-des-outils",
+      "heading": "Tool design : l'interface agent-machine comme levier de fiabilité",
+      "level": 3,
+      "prose": "<p>Chaque tour de boucle se résout en un appel d'outil ; la qualité de cette interface pèse donc autant sur la fiabilité que la forme de la boucle elle-même. La démonstration chiffrée vient de SWE-agent (Yang et al., NeurIPS 2024), qui forge le terme ACI (agent-computer interface, interface agent-machine) et le valide par ablation — chiffre non corroboré par une seconde source indépendante : sur 300 instances de SWE-bench Lite, un agent réduit au shell Linux par défaut résout 10,7 points de pourcentage de moins qu'avec l'ACI sur-mesure ; l'interface ne raffine pas la performance, elle la conditionne. Elle se transporte en outre d'un modèle à l'autre : conçue pour GPT-4 Turbo, qui atteint 12,47 % du benchmark SWE-bench complet, la même ACI donne 10,5 % avec Claude 3 Opus (chiffres de la même source unique), signe que son effet se généralise au-delà du modèle qui a servi à la régler.</p>\n<p>Ce résultat contredit une intuition tenace : plus un outil serait granulaire — des primitives proches de l'API ou du shell brut, laissant l'agent composer lui-même les étapes —, plus l'agent serait flexible, donc performant. Les données empiriques disent l'inverse : l'ablation de SWE-agent comme le retour d'expérience d'Anthropic convergent vers des outils plus grossiers, orientés tâche, qui réduisent les erreurs de chaînage et améliorent le taux de succès. Anthropic recommande ainsi de consolider les primitives en un outil composite : schedule_event plutôt que la séquence list_users, list_events, create_event — un appel à réussir au lieu de trois à enchaîner sans erreur —, ou get_customer_context plutôt que trois lectures séparées. Le principe directeur est celui du poka-yoke, emprunté à l'ingénierie qualité : rendre l'outil difficile à mal utiliser, et investir autant d'effort dans l'interface agent-machine que dans une interface destinée aux humains.</p>\n<p>Les autres principes d'Anthropic travaillent la même veine — retirer de la charge cognitive au modèle. Le namespacing (organisation en espaces de noms) des outils par service et par ressource (asana_projects_search et asana_users_search plutôt qu'un asana_search générique) aide le modèle à sélectionner le bon outil parmi plusieurs ; le choix entre convention par préfixe et par suffixe produit des écarts non triviaux selon les évaluations, à trancher empiriquement plutôt qu'a priori. Résoudre les identifiants opaques — UUID alphanumériques arbitraires — vers un schéma sémantiquement clair, ou un simple ID indexé à partir de zéro, améliore la précision de récupération en réduisant les références hallucinées. L'économie de tokens, enfin, se joue dans le format de réponse : Claude Code plafonne par défaut les sorties d'outils MCP à 25 000 tokens — au-delà, le résultat est déposé sur disque et remplacé par une référence de fichier. En amont de ce plafond, un paramètre ResponseFormat laisse choisir, pour la même donnée, entre réponse détaillée et réponse concise — 206 tokens contre 72, presque un facteur trois (chiffre non corroboré par une seconde source indépendante).</p>\n<p>L'erreur elle-même est une interface. Un traceback brut ou un code d'erreur nu n'apprend rien au modèle ; Anthropic prescrit des messages « specific and actionable » — suggérer, par exemple, le paramètre de filtre ou de pagination à réessayer — afin que l'appel suivant corrige le tir. Et comme toute interface, l'outil s'évalue plutôt qu'il ne se décrète : générer des tâches multi-étapes réalistes, faire tourner une boucle agentique simple en appel API direct, mesurer au-delà de la seule précision (durée, nombre d'appels d'outils, tokens consommés), analyser les transcripts pour repérer les schémas de confusion du modèle, puis itérer sur la conception — Anthropic va jusqu'à faire collaborer Claude Code lui-même à l'affinage de ses outils contre un jeu de test.</p>\n<p>Reste le contrat formel. Le MCP (Model Context Protocol), couvert en détail dans la monographie agentic-ai, fixe au niveau protocole la forme des schémas d'outils ; sa révision de spécification 2025-11-25 — la précédente datait de 2025-06-18 — ajoute une prise en charge expérimentale des tasks pour le suivi de requêtes durables via polling, l'appel d'outils dans les requêtes de sampling et les documents de métadonnées OAuth Client ID. Surtout, par la proposition SEP-1613, elle adopte JSON Schema 2020-12 comme dialecte par défaut des schémas embarqués (inputSchema/outputSchema des outils) : « Embedded JSON schemas within MCP messages MUST conform to JSON Schema 2020-12 when no $schema field is present. » La décision met fin à une ambiguïté plus qu'elle ne remplace un standard : la spec ne fixait auparavant aucun défaut, les implémentations se partageaient entre draft-07 et 2020-12, et draft-07 reste utilisable via un champ $schema explicite — les SDK Python et Go, du reste, préféraient déjà 2020-12 avant la formalisation. Un outil bien découpé, bien nommé, bien contracté allège le modèle à chaque appel ; l'étape suivante multiplie les appelants — passer d'un agent à un système d'agents.</p>",
+      "claims": [
+        "claim:11",
+        "claim:12"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-effondrement-chainage"
+    },
+    {
+      "type": "section",
+      "id": "orchestration-sous-agents",
+      "heading": "Orchestration : sous-agents, parallélisme et files de tâches",
+      "level": 3,
+      "prose": "<p>Passer d'un agent à un système d'agents ne demande pas de nouvelles primitives. Le guide d'Anthropic qui posait la frontière workflow/agent, « Building Effective Agents », balise le chemin par cinq patterns composables, du plus contraint au plus autonome : prompt chaining (enchaînement d'appels LLM séquentiels, chacun traitant la sortie du précédent, avec des vérifications programmatiques entre les étapes), routing (un LLM classifie l'entrée et l'aiguille vers un traitement spécialisé), parallelization (des appels simultanés dont les résultats sont agrégés par du code), orchestrator-workers (un LLM central décompose la tâche, délègue à des LLM travailleurs, puis synthétise), evaluator-optimizer (un LLM génère, un autre évalue et renvoie du feedback en boucle). La distinction décisive sépare les deux patterns du milieu : dans parallelization, les sous-tâches sont fixées à l'avance ; dans orchestrator-workers, le LLM central les décide à l'exécution, au vu de l'entrée — la souplesse qu'exigent une modification multi-fichiers ou une recherche ouverte multi-source.</p><figure class='fig'><svg viewBox='0 0 840 615' role='img' aria-label='Cinq topologies d’orchestration alignées du plus contraint au plus autonome : prompt chaining séquentiel avec vérifications, routing par classifieur, parallelization à branches fixées agrégées par du code, orchestrator-workers où un LLM central délègue dynamiquement, evaluator-optimizer en boucle générateur-évaluateur'><defs><marker id='o5f' markerWidth='8' markerHeight='8' refX='7' refY='4' orient='auto'><path d='M0 0L8 4L0 8Z' fill='var(--ink,#15202E)'/></marker><marker id='o5b' markerWidth='8' markerHeight='8' refX='7' refY='4' orient='auto'><path d='M0 0L8 4L0 8Z' fill='var(--bordeaux,#7C2A38)'/></marker><marker id='o5g' markerWidth='8' markerHeight='8' refX='7' refY='4' orient='auto'><path d='M0 0L8 4L0 8Z' fill='var(--ink-faint,#7A889B)'/></marker></defs><rect x='230' y='17' width='26' height='14' rx='5' fill='var(--blue,#23537F)' fill-opacity='0.08' stroke='var(--blue,#23537F)' stroke-width='1.2'/><text x='262' y='28' font-size='9.5' fill='var(--ink-faint,#7A889B)'>appel LLM</text><rect x='340' y='17' width='26' height='14' rx='2' fill='var(--ink-faint,#7A889B)' fill-opacity='0.12' stroke='var(--ink-faint,#7A889B)' stroke-width='1.2'/><text x='372' y='28' font-size='9.5' fill='var(--ink-faint,#7A889B)'>code déterministe</text><polygon points='498,17 506,24 498,31 490,24' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.08' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2'/><text x='514' y='28' font-size='9.5' fill='var(--ink-faint,#7A889B)'>vérification</text><line x1='592' y1='24' x2='624' y2='24' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.4' stroke-dasharray='5 4'/><text x='632' y='28' font-size='9.5' fill='var(--ink-faint,#7A889B)'>flux décidé à l’exécution</text><line x1='26' y1='48' x2='26' y2='586' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><polygon points='26,596 21,585 31,585' fill='var(--ink-faint,#7A889B)'/><text x='14' y='95' transform='rotate(-90 14 95)' text-anchor='middle' font-size='9.5' fill='var(--ink-faint,#7A889B)'>plus contraint</text><text x='14' y='545' transform='rotate(-90 14 545)' text-anchor='middle' font-size='9.5' fill='var(--ink-faint,#7A889B)'>plus autonome</text><line x1='44' y1='140' x2='820' y2='140' stroke='var(--ink-faint,#7A889B)' stroke-opacity='0.3' stroke-width='0.7'/><line x1='44' y1='256' x2='820' y2='256' stroke='var(--ink-faint,#7A889B)' stroke-opacity='0.3' stroke-width='0.7'/><line x1='44' y1='380' x2='820' y2='380' stroke='var(--ink-faint,#7A889B)' stroke-opacity='0.3' stroke-width='0.7'/><line x1='44' y1='506' x2='820' y2='506' stroke='var(--ink-faint,#7A889B)' stroke-opacity='0.3' stroke-width='0.7'/><text x='46' y='82' font-size='12.5' font-weight='700' fill='var(--ink,#15202E)'>1 · Prompt chaining</text><text x='46' y='97' font-size='9.5' fill='var(--ink-faint,#7A889B)'>séquence + vérifications</text><text x='262' y='90' text-anchor='end' font-size='9.5' fill='var(--ink-faint,#7A889B)'>entrée</text><line x1='266' y1='86' x2='280' y2='86' stroke='var(--ink,#15202E)' stroke-width='1.2' marker-end='url(#o5f)'/><rect x='284' y='70' width='66' height='32' rx='8' fill='var(--blue,#23537F)' fill-opacity='0.08' stroke='var(--blue,#23537F)' stroke-width='1.3'/><text x='317' y='90' text-anchor='middle' font-size='10' fill='var(--ink,#15202E)'>LLM 1</text><line x1='350' y1='86' x2='364' y2='86' stroke='var(--ink,#15202E)' stroke-width='1.2' marker-end='url(#o5f)'/><polygon points='384,72 400,86 384,100 368,86' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.08' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2'/><text x='384' y='113' text-anchor='middle' font-size='8.5' fill='var(--bordeaux,#7C2A38)'>vérif</text><line x1='400' y1='86' x2='414' y2='86' stroke='var(--ink,#15202E)' stroke-width='1.2' marker-end='url(#o5f)'/><rect x='418' y='70' width='66' height='32' rx='8' fill='var(--blue,#23537F)' fill-opacity='0.08' stroke='var(--blue,#23537F)' stroke-width='1.3'/><text x='451' y='90' text-anchor='middle' font-size='10' fill='var(--ink,#15202E)'>LLM 2</text><line x1='484' y1='86' x2='498' y2='86' stroke='var(--ink,#15202E)' stroke-width='1.2' marker-end='url(#o5f)'/><polygon points='518,72 534,86 518,100 502,86' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.08' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2'/><text x='518' y='113' text-anchor='middle' font-size='8.5' fill='var(--bordeaux,#7C2A38)'>vérif</text><line x1='534' y1='86' x2='548' y2='86' stroke='var(--ink,#15202E)' stroke-width='1.2' marker-end='url(#o5f)'/><rect x='552' y='70' width='66' height='32' rx='8' fill='var(--blue,#23537F)' fill-opacity='0.08' stroke='var(--blue,#23537F)' stroke-width='1.3'/><text x='585' y='90' text-anchor='middle' font-size='10' fill='var(--ink,#15202E)'>LLM 3</text><line x1='618' y1='86' x2='632' y2='86' stroke='var(--ink,#15202E)' stroke-width='1.2' marker-end='url(#o5f)'/><text x='636' y='90' font-size='9.5' fill='var(--ink-faint,#7A889B)'>sortie</text><text x='46' y='194' font-size='12.5' font-weight='700' fill='var(--ink,#15202E)'>2 · Routing</text><text x='46' y='209' font-size='9.5' fill='var(--ink-faint,#7A889B)'>aiguillage par classifieur</text><text x='262' y='203' text-anchor='end' font-size='9.5' fill='var(--ink-faint,#7A889B)'>entrée</text><line x1='266' y1='199' x2='280' y2='199' stroke='var(--ink,#15202E)' stroke-width='1.2' marker-end='url(#o5f)'/><rect x='284' y='182' width='96' height='34' rx='8' fill='var(--blue,#23537F)' fill-opacity='0.08' stroke='var(--blue,#23537F)' stroke-width='1.3'/><text x='332' y='203' text-anchor='middle' font-size='10' fill='var(--ink,#15202E)'>LLM routeur</text><text x='332' y='231' text-anchor='middle' font-size='8.5' fill='var(--ink-faint,#7A889B)'>classifie l’entrée</text><line x1='380' y1='192' x2='464' y2='166' stroke='var(--ink-faint,#7A889B)' stroke-width='1.1' opacity='0.55' marker-end='url(#o5g)'/><line x1='380' y1='199' x2='464' y2='199' stroke='var(--ink,#15202E)' stroke-width='1.4' marker-end='url(#o5f)'/><line x1='380' y1='206' x2='464' y2='232' stroke='var(--ink-faint,#7A889B)' stroke-width='1.1' opacity='0.55' marker-end='url(#o5g)'/><rect x='468' y='154' width='104' height='24' rx='8' fill='var(--blue,#23537F)' fill-opacity='0.04' stroke='var(--blue,#23537F)' stroke-opacity='0.45' stroke-width='1.2'/><text x='520' y='170' text-anchor='middle' font-size='9.5' fill='var(--ink-faint,#7A889B)'>traitement A</text><rect x='468' y='187' width='104' height='24' rx='8' fill='var(--blue,#23537F)' fill-opacity='0.08' stroke='var(--blue,#23537F)' stroke-width='1.3'/><text x='520' y='203' text-anchor='middle' font-size='9.5' fill='var(--ink,#15202E)'>traitement B</text><rect x='468' y='220' width='104' height='24' rx='8' fill='var(--blue,#23537F)' fill-opacity='0.04' stroke='var(--blue,#23537F)' stroke-opacity='0.45' stroke-width='1.2'/><text x='520' y='236' text-anchor='middle' font-size='9.5' fill='var(--ink-faint,#7A889B)'>traitement C</text><line x1='572' y1='199' x2='586' y2='199' stroke='var(--ink,#15202E)' stroke-width='1.2' marker-end='url(#o5f)'/><text x='590' y='203' font-size='9.5' fill='var(--ink-faint,#7A889B)'>sortie</text><text x='46' y='307' font-size='12.5' font-weight='700' fill='var(--ink,#15202E)'>3 · Parallelization</text><text x='46' y='322' font-size='9.5' fill='var(--ink-faint,#7A889B)'>branches simultanées</text><text x='262' y='316' text-anchor='end' font-size='9.5' fill='var(--ink-faint,#7A889B)'>entrée</text><line x1='266' y1='312' x2='322' y2='278' stroke='var(--ink,#15202E)' stroke-width='1.6' marker-end='url(#o5f)'/><line x1='266' y1='312' x2='322' y2='312' stroke='var(--ink,#15202E)' stroke-width='1.6' marker-end='url(#o5f)'/><line x1='266' y1='312' x2='322' y2='346' stroke='var(--ink,#15202E)' stroke-width='1.6' marker-end='url(#o5f)'/><rect x='326' y='266' width='96' height='24' rx='8' fill='var(--blue,#23537F)' fill-opacity='0.08' stroke='var(--blue,#23537F)' stroke-width='1.3'/><text x='374' y='282' text-anchor='middle' font-size='9.5' fill='var(--ink,#15202E)'>LLM · tâche 1</text><rect x='326' y='300' width='96' height='24' rx='8' fill='var(--blue,#23537F)' fill-opacity='0.08' stroke='var(--blue,#23537F)' stroke-width='1.3'/><text x='374' y='316' text-anchor='middle' font-size='9.5' fill='var(--ink,#15202E)'>LLM · tâche 2</text><rect x='326' y='334' width='96' height='24' rx='8' fill='var(--blue,#23537F)' fill-opacity='0.08' stroke='var(--blue,#23537F)' stroke-width='1.3'/><text x='374' y='350' text-anchor='middle' font-size='9.5' fill='var(--ink,#15202E)'>LLM · tâche 3</text><line x1='422' y1='278' x2='492' y2='306' stroke='var(--ink,#15202E)' stroke-width='1.6' marker-end='url(#o5f)'/><line x1='422' y1='312' x2='492' y2='312' stroke='var(--ink,#15202E)' stroke-width='1.6' marker-end='url(#o5f)'/><line x1='422' y1='346' x2='492' y2='318' stroke='var(--ink,#15202E)' stroke-width='1.6' marker-end='url(#o5f)'/><rect x='496' y='295' width='104' height='34' rx='2' fill='var(--ink-faint,#7A889B)' fill-opacity='0.12' stroke='var(--ink-faint,#7A889B)' stroke-width='1.2'/><text x='548' y='309' text-anchor='middle' font-size='9.5' fill='var(--ink,#15202E)'>agrégation</text><text x='548' y='322' text-anchor='middle' font-size='8.5' fill='var(--ink-faint,#7A889B)'>(code)</text><line x1='600' y1='312' x2='614' y2='312' stroke='var(--ink,#15202E)' stroke-width='1.2' marker-end='url(#o5f)'/><text x='618' y='316' font-size='9.5' fill='var(--ink-faint,#7A889B)'>sortie</text><text x='326' y='372' font-size='9.5' font-weight='600' fill='var(--bordeaux,#7C2A38)'>sous-tâches fixées à l’avance — traits pleins</text><text x='46' y='429' font-size='12.5' font-weight='700' fill='var(--ink,#15202E)'>4 · Orchestrator-workers</text><text x='46' y='444' font-size='9.5' fill='var(--ink-faint,#7A889B)'>délégation décidée par le LLM</text><text x='262' y='438' text-anchor='end' font-size='9.5' fill='var(--ink-faint,#7A889B)'>entrée</text><line x1='266' y1='434' x2='280' y2='434' stroke='var(--ink,#15202E)' stroke-width='1.2' marker-end='url(#o5f)'/><rect x='284' y='414' width='118' height='40' rx='8' fill='var(--blue,#23537F)' fill-opacity='0.08' stroke='var(--blue,#23537F)' stroke-width='1.6'/><text x='343' y='431' text-anchor='middle' font-size='10' font-weight='700' fill='var(--ink,#15202E)'>LLM</text><text x='343' y='445' text-anchor='middle' font-size='9.5' fill='var(--ink,#15202E)'>orchestrateur</text><line x1='402' y1='424' x2='462' y2='400' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.4' stroke-dasharray='5 4' marker-end='url(#o5b)'/><line x1='402' y1='434' x2='462' y2='434' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.4' stroke-dasharray='5 4' marker-end='url(#o5b)'/><line x1='402' y1='444' x2='462' y2='468' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.4' stroke-dasharray='5 4' marker-end='url(#o5b)'/><rect x='466' y='388' width='92' height='24' rx='8' fill='var(--blue,#23537F)' fill-opacity='0.08' stroke='var(--blue,#23537F)' stroke-width='1.3'/><text x='512' y='404' text-anchor='middle' font-size='9.5' fill='var(--ink,#15202E)'>worker 1</text><rect x='466' y='422' width='92' height='24' rx='8' fill='var(--blue,#23537F)' fill-opacity='0.08' stroke='var(--blue,#23537F)' stroke-width='1.3'/><text x='512' y='438' text-anchor='middle' font-size='9.5' fill='var(--ink,#15202E)'>worker 2</text><rect x='466' y='456' width='92' height='24' rx='8' fill='var(--blue,#23537F)' fill-opacity='0.08' stroke='var(--blue,#23537F)' stroke-width='1.3'/><text x='512' y='472' text-anchor='middle' font-size='9.5' fill='var(--ink,#15202E)'>worker 3</text><line x1='558' y1='400' x2='630' y2='428' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.4' stroke-dasharray='5 4' marker-end='url(#o5b)'/><line x1='558' y1='434' x2='630' y2='434' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.4' stroke-dasharray='5 4' marker-end='url(#o5b)'/><line x1='558' y1='468' x2='630' y2='440' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.4' stroke-dasharray='5 4' marker-end='url(#o5b)'/><rect x='634' y='417' width='98' height='34' rx='8' fill='var(--blue,#23537F)' fill-opacity='0.08' stroke='var(--blue,#23537F)' stroke-width='1.3'/><text x='683' y='438' text-anchor='middle' font-size='9.5' fill='var(--ink,#15202E)'>synthèse (LLM)</text><line x1='732' y1='434' x2='746' y2='434' stroke='var(--ink,#15202E)' stroke-width='1.2' marker-end='url(#o5f)'/><text x='750' y='438' font-size='9.5' fill='var(--ink-faint,#7A889B)'>sortie</text><text x='326' y='498' font-size='9.5' font-weight='600' fill='var(--bordeaux,#7C2A38)'>sous-tâches décidées à l’exécution par l’orchestrateur — traits pointillés</text><text x='46' y='543' font-size='12.5' font-weight='700' fill='var(--ink,#15202E)'>5 · Evaluator-optimizer</text><text x='46' y='558' font-size='9.5' fill='var(--ink-faint,#7A889B)'>boucle générer–évaluer</text><text x='262' y='552' text-anchor='end' font-size='9.5' fill='var(--ink-faint,#7A889B)'>entrée</text><line x1='266' y1='548' x2='280' y2='548' stroke='var(--ink,#15202E)' stroke-width='1.2' marker-end='url(#o5f)'/><rect x='284' y='531' width='108' height='34' rx='8' fill='var(--blue,#23537F)' fill-opacity='0.08' stroke='var(--blue,#23537F)' stroke-width='1.3'/><text x='338' y='552' text-anchor='middle' font-size='9.5' fill='var(--ink,#15202E)'>LLM générateur</text><line x1='392' y1='548' x2='442' y2='548' stroke='var(--ink,#15202E)' stroke-width='1.2' marker-end='url(#o5f)'/><text x='418' y='541' text-anchor='middle' font-size='8.5' fill='var(--ink-faint,#7A889B)'>solution</text><rect x='446' y='531' width='108' height='34' rx='8' fill='var(--blue,#23537F)' fill-opacity='0.08' stroke='var(--blue,#23537F)' stroke-width='1.3'/><text x='500' y='552' text-anchor='middle' font-size='9.5' fill='var(--ink,#15202E)'>LLM évaluateur</text><line x1='554' y1='548' x2='596' y2='548' stroke='var(--ink,#15202E)' stroke-width='1.2' marker-end='url(#o5f)'/><text x='575' y='541' text-anchor='middle' font-size='8.5' fill='var(--ink-faint,#7A889B)'>accepté</text><text x='600' y='552' font-size='9.5' fill='var(--ink-faint,#7A889B)'>sortie</text><path d='M500 565 C 500 592 338 592 338 565' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.3' marker-end='url(#o5b)'/><text x='419' y='598' text-anchor='middle' font-size='8.5' fill='var(--bordeaux,#7C2A38)'>feedback si rejeté</text></svg><figcaption><span class='fcap-k'></span>Les cinq patterns composables d’Anthropic, du plus contraint au plus autonome ; la distinction décisive oppose parallelization, dont les sous-tâches sont fixées à l’avance (traits pleins), à orchestrator-workers, où le LLM central les décide à l’exécution (traits pointillés).</figcaption></figure>\n<p>Le cas de production le plus documenté applique le dernier pattern à la lettre. Le système de recherche multi-agent d'Anthropic, décrit en juin 2025, met un lead agent (agent de tête) aux commandes : il coordonne le processus et délègue à des sous-agents spécialisés qui s'exécutent en parallèle. Ce parallélisme joue à deux niveaux — trois à cinq sous-agents déployés simultanément plutôt qu'en séquence, chacun lançant lui-même au moins trois appels d'outils de front — et réduit jusqu'à 90 % le temps de recherche sur les requêtes complexes (mesure non corroborée par une seconde source indépendante).</p>\n<p>Le gain se paie en tokens. Un agent consomme typiquement quatre fois le volume d'une conversation classique ; un système multi-agent, environ quinze fois — chiffres auto-rapportés par Anthropic, non corroborés par une seconde source indépendante. Et ce volume ne serait pas un effet secondaire : sur l'évaluation BrowseComp, il expliquerait à lui seul 80 % de la variance de performance — 95 % une fois combiné au nombre d'appels d'outils et au choix du modèle. Le multi-agent achète de la performance en dépensant du calcul ; il ne la crée pas.</p>\n<p>Encore faut-il que la délégation tienne. Anthropic impose à chaque sous-agent un contrat à quatre éléments — un objectif, un format de sortie, une consigne sur les outils et les sources à utiliser, des limites de tâche claires — et rapporte qu'en production, l'absence d'un seul suffit à faire dériver le sous-agent (retour d'expérience auto-rapporté, non corroboré par une seconde source indépendante). Les prompts système encodent aussi des règles de dimensionnement dynamique : un agent et trois à dix appels d'outils pour une question factuelle simple, deux à quatre sous-agents pour une comparaison directe, plus de dix sous-agents aux responsabilités clairement divisées pour une recherche complexe. Le nombre d'agents cesse d'être un choix d'architecture figé ; il devient un paramètre, ajusté à la tâche.</p>\n<p>Cette mécanique ne se généralise pas. Anthropic le dit elle-même : les domaines qui exigent que tous les agents partagent le même contexte, ou qui comportent de nombreuses dépendances entre agents, « ne sont pas un bon candidat pour les systèmes multi-agents aujourd'hui ». La plupart des tâches de code offrent moins de sous-tâches réellement parallélisables que la recherche, et un test interne avec des agents spécialisés par rôle — planificateur, implémenteur, testeur, réviseur — a montré des sous-agents dépensant plus de tokens à se coordonner qu'à produire du travail. Une étude indépendante confirme le phénomène : au-delà d'une certaine échelle, le surcroît de coordination peut annuler le gain, voire l'inverser. OpenAI en tire une posture de départ opposée : maximiser d'abord les capacités d'un agent unique, souvent suffisant avec de bons outils, et ne diviser qu'en présence de nombreuses branches conditionnelles complexes ou d'outils très similaires entre eux.</p>\n<p>Entre l'orchestrateur central et l'agent unique, une troisième voie existe : la file de tâches sans coordinateur. Nicholas Carlini, de l'équipe Safeguards d'Anthropic, en a publié sur le blog d'ingénierie de l'entreprise la démonstration la plus poussée — présentée explicitement comme un « capability benchmark » personnel (un banc d'essai de capacités), pas comme un test à échelle de production ni une évaluation produit officielle. Seize agents Claude Code, chacun dans son conteneur Docker, travaillent en parallèle sur un même dépôt git partagé ; chacun revendique une tâche en écrivant un fichier de verrou dans un répertoire current_tasks/ (par exemple current_tasks/parse_if_statement.txt), et la synchronisation git force un second agent réclamant le même fichier à choisir une autre tâche. Le résultat : un compilateur C d'environ 100 000 lignes de Rust, capable de compiler — et de faire booter — le noyau Linux 6.9 sur x86, ARM et RISC-V, et de passer la suite de torture GCC. L'échelle donne la mesure de l'expérience : près de 2 000 sessions Claude Code sur environ deux semaines. Le coût aussi : quelque 20 000 dollars d'API, pour 2 milliards de tokens d'entrée.</p>\n<p>L'orchestration elle-même peut enfin passer dans le code. Avec les dynamic workflows de Claude Code (2026), Claude ne décide plus tour par tour quoi déléguer : il écrit un script d'orchestration JavaScript pour la tâche décrite, qu'un runtime séparé exécute en arrière-plan — le plan déménage dans le code, et les résultats intermédiaires vivent dans des variables de script plutôt que dans la fenêtre de contexte. Le runtime borne la concurrence à 16 agents simultanés, et à 1 000 agents par run. Mais même généré, le système distribué garde ses goulots — le lead agent du système de recherche doit attendre que tous ses sous-agents terminent avant de poursuivre — et ses modes de défaillance propres. C'est par eux qu'il faut continuer : le terrain a beaucoup corrigé ce que la discipline croyait savoir.</p>",
+      "claims": [
+        "claim:15",
+        "claim:16"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "idees-recues-defaillances",
+      "heading": "Idées reçues et modes de défaillance",
+      "level": 3,
+      "prose": "<p>Ces corrections, Anthropic les a cataloguées de première main. « Effective harnesses for long-running agents » (novembre 2025) recense explicitement quatre modes d'échec courants des agents lancés sans harness sur des tâches longues : la sur-ambition — l'agent tente de « one-shot the app », de produire l'application entière d'un coup —, la fausse complétion — une instance ultérieure de l'agent « would look around, see that progress had been made, and declare the job done », sans vérification de bout en bout —, l'environnement laissé dans un état buggé et non documenté, et l'incapacité à savoir comment lancer l'application. Réduire le diagnostic aux deux premiers serait déjà une idée reçue : la source les présente comme deux modes parmi quatre, d'un poids comparable dans son tableau récapitulatif. Le remède le plus net documenté dans ce billet est d'ailleurs un outil. Donner à l'agent des tests par automatisation de navigateur, plutôt que de simples tests unitaires ou des appels curl, a « dramatically improved performance » : l'agent modifiait du code sans détecter que la fonctionnalité ne marchait pas réellement.</p>\n<p>L'orchestration a ses pathologies symétriques. Les premières versions du système de recherche multi-agent lançaient 50 sous-agents pour des requêtes simples et écumaient le web sans fin à la recherche de sources inexistantes — la sur-orchestration est un mode d'échec au même titre que la sur-ambition. Plus structurel : les agents sont stateful (à état persistant) et leurs erreurs se composent. Ce constat a motivé des capacités de reprise après erreur, et le recours aux rainbow deployments (bascule progressive du trafic entre l'ancienne et la nouvelle version) pour ne pas interrompre les agents longs en cours d'exécution à chaque mise à jour du système.</p>\n<p>L'idée reçue la plus coûteuse touche à la mesure elle-même. Anthropic nomme grader brittleness (fragilité du correcteur) le piège qui consiste à sur-spécifier la séquence d'appels d'outils attendue, alors que les agents trouvent régulièrement des approches valides que les concepteurs d'evals (suites d'évaluation automatisées) n'avaient pas anticipées. Le cas emblématique vient de CORE-Bench : le score de Claude Opus 4.5 y est passé de 42 % à 95 % sans que le modèle change. Mais la décomposition compte. Le premier saut, de 42 % à 78 %, vient d'un changement de scaffold (l'échafaudage d'exécution autour du modèle) — remplacer CORE-Agent par Claude Code ; seul le second, de 78 % à 95 %, vient de la correction de bugs de notation et de tâches mal spécifiées, sur neuf tâches. Attribuer tout l'écart au vérificateur cassé serait une idée reçue au carré : le harness d'exécution et le harness de notation sont deux variables distinctes, et les deux pesaient.</p>\n<p>D'où le mythe à abattre : des evals exhaustifs, exécutés avant déploiement, suffiraient à prévenir les incidents. Le bug de notation de CORE-Bench montre justement qu'une suite d'évaluation peut être cassée sans que rien ne le signale. Anthropic recommande un Swiss Cheese Model (modèle des tranches de gruyère : plusieurs couches de défense imparfaites dont les trous ne s'alignent pas) combinant evals automatisés, monitoring de production, A/B testing et relecture humaine des transcriptions — parce qu'aucune couche seule ne capte tout.</p>\n<p>La boucle de réflexion elle-même n'échappe pas au tri. Reflexion a établi que l'auto-critique rejouée, ancrée par un feedback externe vérifiable, paie — au point, on l'a vu, de dépasser GPT-4 seul sur HumanEval. Mais l'effet n'est pas monotone : sans feedback externe fiable, l'auto-correction peut dégrader la performance, et des boucles mal conçues oscillent au lieu de converger. L'article CAAF (un cadre qui recense les modes d'échec de non-déterminisme qu'un harness doit contrer) en nomme trois : la sycophantic compliance (complaisance de l'agent, qui acquiesce au lieu de corriger), le context attention decay (érosion de l'attention portée au contexte) et la stochastic oscillation (oscillation stochastique pendant l'auto-correction). Ce dernier mode nuance Reflexion plus qu'il ne le contredit : la réflexion marche ancrée, elle dérive à vide.</p>\n<p>Une limite, enfin, qu'aucun harness ne franchira. Kalai et Vempala prouvent (STOC 2024) une borne statistique : un modèle de langage bien calibré doit halluciner les faits singletons — ceux qui apparaissent exactement une fois dans les données d'entraînement — à un taux proche de l'estimateur de Good-Turing de leur fraction. Ils notent en revanche qu'aucune raison statistique n'impose d'halluciner les faits vus plus d'une fois, ni les faits systématiques comme l'arithmétique. Pour l'ingénieur de harness, la conséquence est double : la vérification externe n'est pas un palliatif en attendant de meilleurs modèles mais une nécessité structurelle sur toute une classe de faits — et le harness, aussi soigné soit-il, ne rattrapera jamais tout ce que le modèle invente.</p>\n<p>Reste une confusion que le champ s'inflige à lui-même : son vocabulaire. Un article de juin 2026 diagnostique que « agent harness » désigne, selon les auteurs, un produit complet comme Claude Code, un scaffold d'évaluation comme SWE-bench, ou des systèmes adjacents mais distincts — frameworks, SDK, plugins, orchestrateurs — et propose des conditions nécessaires et suffisantes, testées sur six systèmes réels, de Claude Code et Codex CLI à Aider, Cline, OpenHands et SWE-agent. Böckeler pointe une immaturité parallèle côté contrôle : les sensors de maintenabilité — linters, tests — « catch the structural stuff reliably », mais échouent sur le mauvais diagnostic, la sur-ingénierie ou les instructions mal comprises, et des trois catégories de harness qu'elle distingue (maintenabilité, architecture, comportement), le Behaviour Harness reste la moins développée. Savoir ce que le harness ne garantit pas délimite la discipline ; il reste à outiller celui qui veut la pratiquer.</p>",
+      "claims": [
+        "claim:17",
+        "claim:18",
+        "claim:19",
+        "claim:20"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "ecosysteme",
+      "heading": "Écosystème & pour aller plus loin",
+      "level": 3,
+      "prose": "<p>Les points d'entrée pratiques déclinent tous la même définition, désormais stabilisée : le harness est l'ensemble du code, de la configuration et de la logique d'exécution hors du modèle — le modèle fournit l'intelligence brute, le harness la convertit en travail exécutable fiable. Concrètement : un système de fichiers comme état persistant et surface de collaboration multi-agent, un sandbox, une mémoire qui traverse les sessions, et une gestion de contexte contre le context rot (dégradation du contexte au fil des tours) — la composition fine du contexte relevant d'une discipline voisine, le context engineering, hors du périmètre de ce document. Chaque implémentation ci-dessous incarne ce contrat à sa manière.</p>\n<p>Claude Code est le harness le plus documenté du lot. Il expose 30 événements de hooks (scripts déclenchés aux étapes du cycle de vie : SessionStart, PreToolUse, PostToolUse, Stop, SubagentStop, PreCompact…), avec une convention de codes de sortie qui fait de chaque script un organe de contrôle : exit 0 signale le succès et son stdout JSON est traité ; exit 2 signale une erreur bloquante dont le stderr est renvoyé au modèle ; tout autre code laisse l'exécution continuer. Côté boucles, quatre régimes coexistent : turn-based (arrêt quand Claude juge la tâche terminée), goal-based via /goal, time-based via /loop en local et /schedule dans le cloud, et proactif — déclenché par un événement ou un planning, sans humain dans la boucle en temps réel. Son Auto Mode montre ce que devient l'autorisation une fois industrialisée : un classifieur de permissions à deux étages, dont le premier — un filtre rapide à un seul token, biaisé vers le blocage — affiche un taux de faux positifs de 8,5 %. Le pipeline complet, qui ne déclenche une passe de chain-of-thought (raisonnement déroulé pas à pas) qu'au second étage et seulement sur signalement du premier, les ramène à 0,4 % sur 10 000 appels de trafic interne réel. Le prix : 17 % de faux négatifs, mesurés sur un jeu de test d'actions trop zélées constitué à la main — mesures non corroborées par une seconde source indépendante.</p>\n<p>La démonstration chiffrée que le harness seul déplace la performance vient de LangChain : deepagents-cli passe de 52,8 à 66,5 sur Terminal-Bench 2.0 — de l'extérieur du top 30 jusqu'au top 5 — en ne modifiant que le harness, le modèle sous-jacent gpt-5.2-codex restant inchangé tout au long de l'expérience — chiffres non corroborés par une seconde source indépendante. Parmi les leviers, la stratégie reasoning sandwich (sandwich de raisonnement : effort xhigh pour planifier, high pour implémenter, xhigh pour vérifier) bat tous les réglages constants — 66,5 % de réussite, contre 63,6 % en high permanent. Le xhigh permanent, lui, tombe à 53,9 % : l'excès de raisonnement cause des timeouts. Le LoopDetectionMiddleware déjà décrit appartient à ce même harness — la sortie de secours des doom loops.</p>\n<p>Chez OpenAI, la boucle Codex se lit comme un condensé de la discipline : Read Context → Plan → Execute → Validate → Commit (ou Retry), le rôle du harness étant de rendre la lecture de contexte et la validation aussi riches en information que possible. Pour évaluer tout cela, le METR Task Standard définit un format commun de tâches — plus de 1 000 aujourd'hui, en R&D IA, cybersécurité et autonomie générale — que le UK AI Safety Institute a adopté pour échanger des tâches avec METR. Le contrôle d'exécution, lui, a ses briques spécialisées : E2B fournit des sandboxes sur microVM Firecracker, au démarrage à froid d'environ 150 ms ; Daytona, des sandboxes en conteneurs OCI/Docker qui démarrent en moins de 90 ms et persistent leur état indéfiniment. Et statewright reste l'indice minimal que la structure de la boucle, pas la taille du modèle, est parfois la contrainte liante.</p>\n<p>Trois textes structurent la littérature. CoALA, déjà croisé pour sa boucle proposal/evaluation/selection, organise plus largement les agents selon trois axes : la mémoire (de travail et de long terme — procédurale, sémantique, épisodique), l'espace d'action (interne ou externe) et une prise de décision en boucle de planification-exécution. « Code as Agent Harness » (Ning et al., mai 2026, 42 auteurs) renverse la perspective : le code n'y est plus seulement la sortie de l'agent mais son substrat opérationnel, organisé en trois couches — interface du harness, mécanismes (planification, mémoire, outils, contrôle piloté par le feedback) et mise à l'échelle multi-agent par artefacts de code partagés. Le survey de Guo et al. (juin 2026), « From Question Answering to Task Completion », cartographie enfin la conception conjointe des systèmes d'agents et de leurs harnesses.</p>\n<p>Un mot, pour finir, sur la paternité du terme qui ouvre ce document. Hashimoto a été l'un des premiers à employer publiquement « harness engineering », dans un billet du 5 février 2026 — sans rien revendiquer, comme en témoigne son aveu cité en ouverture. Une enquête indépendante (techchat.blog, juillet 2026) constate que le terme est apparu quasi simultanément dans plusieurs organisations — chez OpenAI le 11 février, chez LangChain le 17 — et qu'aucun inventeur unique n'est établi. La discipline s'est nommée en plusieurs endroits à la fois ; c'est le signe qu'elle répondait à un besoin déjà là. Pour la taxonomie, l'article de Böckeler publié chez Fowler en avril 2026 reste la porte d'entrée conceptuelle : guides et sensors, contrôles computationnels et inférentiels, trois catégories de harness de maturité inégale.</p>\n<p>Deux monographies sœurs prolongent celle-ci. agentic-ai détaille ReAct, le tool use (l'invocation d'outils par le modèle) et les protocoles MCP et A2A (Agent2Agent, protocole d'interopérabilité entre agents) ; self-improving-harness couvre l'anatomie du harness sous l'angle de son auto-optimisation — le moment où la boucle de feedback se referme sur le harness lui-même. Le lecteur qui les traverse retrouvera partout le principe directeur posé ici : chaque composant du harness encode une hypothèse testable sur ce que le modèle ne sait pas faire seul. Hypothèse à stress-tester — et à ré-évaluer à chaque génération de modèles.</p>",
+      "claims": [
+        "claim:21",
+        "claim:23"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "synopsis-boucle-agentique-harnessee"
+    },
+    {
+      "type": "exercise",
+      "part": "Mesure & modes de défaillance",
+      "question": "Sur CORE-Bench, le score de Claude Opus 4.5 est passé de 42 % à 95 % sans que le modèle change. Un collègue en conclut : « la suite d'évaluation était simplement cassée, il suffisait de corriger le correcteur ». Que montre réellement la décomposition de cet écart, et quelle pratique de défense en profondeur ce cas motive-t-il ?",
+      "answer": "<p>La conclusion du collègue confond deux variables. La décomposition vérifiée sépare deux sauts distincts : de 42 % à 78 %, le gain vient d'un changement de <em>scaffold</em> d'exécution — remplacer CORE-Agent par Claude Code —, le modèle restant identique ; seul le second saut, de 78 % à 95 %, vient de la correction de bugs de notation et de tâches mal spécifiées (neuf tâches). Le harness d'exécution et le harness de notation sont deux variables distinctes, et les deux pesaient — attribuer tout l'écart au vérificateur cassé serait une idée reçue au carré.</p><p>Ce cas illustre la <em>grader brittleness</em> nommée par Anthropic (sur-spécifier la séquence d'appels d'outils attendue alors que les agents trouvent des approches valides non anticipées) et démonte le mythe selon lequel des evals exhaustifs exécutés avant déploiement suffiraient : une suite d'évaluation peut être cassée sans que rien ne le signale. La pratique motivée est le <em>Swiss Cheese Model</em> — combiner evals automatisés, monitoring de production, A/B testing et relecture humaine des transcriptions, parce qu'aucune couche seule ne capte tout.</p>"
+    },
+    {
+      "type": "exercise",
+      "part": "Tool design & orchestration",
+      "question": "Une équipe conçoit son agent de code autour de deux intuitions : (1) exposer des primitives brutes proches du shell pour donner à l'agent « un maximum de flexibilité », (2) découper systématiquement chaque tâche entre de nombreux sous-agents parallèles pour aller plus vite. Que disent les données vérifiées du document sur chacune de ces deux intuitions ?",
+      "answer": "<p><strong>Sur la granularité des outils</strong>, les données empiriques disent l'inverse de l'intuition. L'ablation de SWE-agent (NeurIPS 2024) montre qu'un agent réduit au shell Linux par défaut résout 10,7 points de pourcentage de moins qu'avec l'ACI sur-mesure, sur 300 instances de SWE-bench Lite (source unique, non corroborée par une source indépendante) — l'interface conditionne la performance, et elle se transporte d'un modèle à l'autre (12,47 % avec GPT-4 Turbo, 10,5 % avec Claude 3 Opus sur SWE-bench complet). Anthropic converge : consolider les primitives en outils composites orientés tâche (<code>schedule_event</code> plutôt que trois appels à enchaîner sans erreur), au principe du poka-yoke — rendre l'outil difficile à mal utiliser.</p><p><strong>Sur le multi-agent systématique</strong>, le gain existe mais il est conditionnel et coûteux. Le système de recherche d'Anthropic (orchestrateur Opus 4 + sous-agents Sonnet 4) surpasse Opus 4 seul de 90,2 % sur des requêtes de recherche en largeur (chiffre auto-rapporté, non corroboré par une source indépendante) — mais consomme environ 15 fois les tokens d'une conversation classique, et l'ajout de sous-agents n'améliore la performance que pour les tâches largement parallélisables et peu couplées. Pour les tâches séquentielles ou à fortes dépendances partagées, le surcroît de coordination peut annuler le gain, voire l'inverser ; un test interne d'Anthropic avec des agents spécialisés par rôle a vu les sous-agents dépenser plus de tokens à se coordonner qu'à produire. D'où la posture d'OpenAI : maximiser d'abord un agent unique, et ne diviser qu'en présence de branches conditionnelles nombreuses ou d'outils très similaires.</p>"
+    },
+    {
+      "type": "biblio",
+      "entries": [
+        {
+          "label": "My AI Adoption Journey — Mitchell Hashimoto (personal blog, 2026-02-05)",
+          "href": "https://mitchellh.com/writing/my-ai-adoption-journey"
+        },
+        {
+          "label": "Harness engineering: leveraging Codex in an agent-first world | OpenAI (Ryan Lopopolo, 2026-02-11)",
+          "href": "https://openai.com/index/harness-engineering/"
+        },
+        {
+          "label": "Harness Engineering: The Complete Guide to Reliable AI Agents — MindWired AI",
+          "href": "https://mindwiredai.com/2026/03/30/harness-engineering-guide-reliable-ai-agents/"
+        },
+        {
+          "label": "InfoQ — OpenAI Introduces Harness Engineering: Codex Agents Power Large-Scale Software Development",
+          "href": "https://www.infoq.com/news/2026/02/openai-harness-engineering-codex/"
+        },
+        {
+          "label": "Commonplace — Harness Engineering: Leveraging Codex in an Agent-First World (mirror avec métadonnées de la source OpenAI)",
+          "href": "https://zby.github.io/commonplace/sources/harness-engineering-leveraging-codex-agent-first-world/"
+        },
+        {
+          "label": "What is Harness Engineering? — Harness Engineering Academy blog",
+          "href": "https://harnessengineering.academy/blog/what-is-harness-engineering-introduction-2026/"
+        },
+        {
+          "label": "When Did \"Harness\" Become an AI Term? — Andrew Blumhardt's Blog (Hashimoto crédité comme antériorité)",
+          "href": "https://www.techchat.blog/2026/07/02/when-did-harness-become-an-ai-term/"
+        },
+        {
+          "label": "What is Harness Engineering? Why the AI Industry's Newest Buzzword is an Old Idea — Haverin (dates exactes 5, 11, 17 février 2026)",
+          "href": "https://haverin.substack.com/p/what-is-harness-engineering-ai-hype"
+        },
+        {
+          "label": "Before I knew it, everyone was saying \"Harness Engineering\" — note.com/immmmmmmu (chronologie explicitement correctrice)",
+          "href": "https://note.com/immmmmmmu/n/ncf5b99223422?hl=en"
+        },
+        {
+          "label": "The Anatomy of an Agent Harness — LangChain Blog (Vivek Trivedy, 2026-03-10)",
+          "href": "https://www.langchain.com/blog/the-anatomy-of-an-agent-harness"
+        },
+        {
+          "label": "The Anatomy of an Agent Harness — Avi Chawla, Daily Dose of DS",
+          "href": "https://blog.dailydoseofds.com/p/the-anatomy-of-an-agent-harness"
+        },
+        {
+          "label": "Building Effective AI Agents — Anthropic Research (2024-12-19)",
+          "href": "https://www.anthropic.com/research/building-effective-agents"
+        },
+        {
+          "label": "ReWOO: Decoupling Reasoning from Observations for Efficient Augmented Language Models (arXiv:2305.18323)",
+          "href": "https://arxiv.org/abs/2305.18323"
+        },
+        {
+          "label": "ReWOO vs. ReAct: Choosing the right agent architecture for the job (Nutrient blog)",
+          "href": "https://www.nutrient.io/blog/rewoo-vs-react-choosing-right-agent-architecture/"
+        },
+        {
+          "label": "Reflexion: Language Agents with Verbal Reinforcement Learning (arXiv:2303.11366)",
+          "href": "https://arxiv.org/abs/2303.11366"
+        },
+        {
+          "label": "ReAct vs Plan-and-Execute vs ReWOO vs Reflexion (The AI Engineer, Substack)",
+          "href": "https://theaiengineer.substack.com/p/the-4-single-agent-patterns"
+        },
+        {
+          "label": "Cognitive Architectures for Language Agents (arXiv:2309.02427v3, HTML)",
+          "href": "https://arxiv.org/html/2309.02427v3"
+        },
+        {
+          "label": "Cognitive Architectures for Language Agents (CoALA): generalized decision-making process to choose actions (EvoAI Labs / Medium)",
+          "href": "https://evoailabs.medium.com/cognitive-architectures-for-language-agents-coala-generalized-decision-making-process-to-choose-a92d3860ace5"
+        },
+        {
+          "label": "GitHub — statewright/statewright: State machine guardrails for AI agents (README, section « Research results »)",
+          "href": "https://github.com/statewright/statewright"
+        },
+        {
+          "label": "Show HN: Statewright – Visual state machines that make AI agents reliable (discussion, y compris demande de reproductibilité non satisfaite)",
+          "href": "https://fresh-hacker-news.deno.dev/item?id=48108778"
+        },
+        {
+          "label": "SWE-agent: Agent-Computer Interfaces Enable Automated Software Engineering (Yang, Jimenez, Wettig, Lieret, Yao, Narasimhan, Press — NeurIPS 2024)",
+          "href": "https://arxiv.org/abs/2405.15793"
+        },
+        {
+          "label": "Writing effective tools for agents — with agents (Anthropic Engineering)",
+          "href": "https://www.anthropic.com/engineering/writing-tools-for-agents"
+        },
+        {
+          "label": "Model Context Protocol — Specification changelog (2025-11-25)",
+          "href": "https://modelcontextprotocol.io/specification/2025-11-25/changelog"
+        },
+        {
+          "label": "SEP-1613: Establish JSON Schema 2020-12 as Default Dialect for MCP",
+          "href": "https://github.com/modelcontextprotocol/modelcontextprotocol/issues/1613"
+        },
+        {
+          "label": "SWE-agent: Agent-Computer Interfaces Enable Automated Software Engineering (Yang, Jimenez et al., NeurIPS 2024) — full PDF",
+          "href": "https://proceedings.neurips.cc/paper_files/paper/2024/file/5a7c947568c1b1328ccc5230172e1e7c-Paper-Conference.pdf"
+        },
+        {
+          "label": "Agent-Computer Interface (ACI) — SWE-agent documentation",
+          "href": "https://swe-agent.com/1.0/background/aci/"
+        },
+        {
+          "label": "How we built our multi-agent research system — Anthropic Engineering",
+          "href": "https://www.anthropic.com/engineering/multi-agent-research-system"
+        },
+        {
+          "label": "Silo-Bench: A Scalable Environment for Evaluating Distributed Coordination in Multi-Agent LLM Systems",
+          "href": "https://arxiv.org/abs/2603.01045"
+        },
+        {
+          "label": "Building a Rust-based C compiler with 16 Claude Code agents — Anthropic Engineering",
+          "href": "https://www.anthropic.com/engineering/building-c-compiler"
+        },
+        {
+          "label": "A practical guide to building agents (OpenAI)",
+          "href": "https://cdn.openai.com/business-guides-and-resources/a-practical-guide-to-building-agents.pdf"
+        },
+        {
+          "label": "What 16 parallel agents building a C compiler teaches about coordination",
+          "href": "https://michaellivs.com/blog/agent-teams-built-a-c-compiler/"
+        },
+        {
+          "label": "What 16 Parallel Claude Agents Built Around Themselves: Deconstructing Anthropic's C Compiler Experiment",
+          "href": "https://medium.com/@vbcherepanov/what-16-parallel-claude-agents-built-around-themselves-deconstructing-anthropics-c-compiler-f2fa6335b1ca"
+        },
+        {
+          "label": "[Bug] Claude marks tasks complete without verifying implementation · Issue #14947 · anthropics/claude-code",
+          "href": "https://github.com/anthropics/claude-code/issues/14947"
+        },
+        {
+          "label": "Effective harnesses for long-running agents — Anthropic",
+          "href": "https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents"
+        },
+        {
+          "label": "Claude Opus 4.5 scored a massive 95% on CORE-Bench, a benchmark that tests agents on scientific reproducibility tasks",
+          "href": "https://www.rohan-paul.com/p/claude-opus-45-scored-a-massive-95"
+        },
+        {
+          "label": "Demystifying evals for AI agents — Anthropic",
+          "href": "https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents"
+        },
+        {
+          "label": "Why Your Agent's Eval Suite Won't Catch Production Failures",
+          "href": "https://dev.to/devonakelley/why-your-agents-eval-suite-wont-catch-production-failures-32ip"
+        },
+        {
+          "label": "Large Language Models Cannot Self-Correct Reasoning Yet",
+          "href": "https://arxiv.org/abs/2310.01798"
+        },
+        {
+          "label": "Harness as an Asset: Enforcing Determinism via the Convergent AI Agent Framework (CAAF)",
+          "href": "https://arxiv.org/abs/2604.17025"
+        },
+        {
+          "label": "What is harness engineering? - Software Improvement Group (SIG)",
+          "href": "https://www.softwareimprovementgroup.com/blog/what-is-harness-engineering/"
+        },
+        {
+          "label": "Harness Engineering (martinfowler.com, Birgitta Böckeler, 2 avril 2026)",
+          "href": "https://martinfowler.com/articles/harness-engineering.html"
+        },
+        {
+          "label": "Improving Deep Agents with Harness Engineering (LangChain)",
+          "href": "https://www.langchain.com/blog/improving-deep-agents-with-harness-engineering"
+        },
+        {
+          "label": "Claude Code Auto Mode (Anthropic Engineering)",
+          "href": "https://www.anthropic.com/engineering/claude-code-auto-mode"
+        }
+      ]
+    },
+    {
+      "type": "pointers",
+      "title": "Pour aller plus loin",
+      "items": [
+        {
+          "name": "Mitchell Hashimoto — My AI Adoption Journey",
+          "url": "https://mitchellh.com/writing/my-ai-adoption-journey",
+          "kind": "reading",
+          "blurb": "Billet du 5 février 2026 où Mitchell Hashimoto emploie le terme « harness engineering » en décrivant sa progression vers un usage productif des agents IA."
+        },
+        {
+          "name": "OpenAI — Harness engineering: leveraging Codex in an agent-first world",
+          "url": "https://openai.com/index/harness-engineering/",
+          "kind": "reading",
+          "blurb": "Post officiel OpenAI documentant une expérience interne de cinq mois : ~1M lignes de code et ~1 500 PR générées par des agents Codex, popularisant la métaphore du harnais de cheval."
+        },
+        {
+          "name": "LangChain — The Anatomy of an Agent Harness",
+          "url": "https://www.langchain.com/blog/the-anatomy-of-an-agent-harness",
+          "kind": "reading",
+          "blurb": "Article de Vivek Trivedy (10 mars 2026) formalisant l'équation « Agent = Model + Harness »."
+        },
+        {
+          "name": "Martin Fowler / Birgitta Böckeler — Harness Engineering",
+          "url": "https://martinfowler.com/articles/harness-engineering.html",
+          "kind": "reading",
+          "blurb": "Article de Birgitta Böckeler (Thoughtworks) distinguant guides/sensors (feedforward/feedback) et contrôles computationnels/inférentiels."
+        },
+        {
+          "name": "Anthropic — Building Effective Agents",
+          "url": "https://www.anthropic.com/research/building-effective-agents",
+          "kind": "reading",
+          "blurb": "Article du 19 décembre 2024 posant la frontière workflow/agent et cinq patterns composables (prompt chaining, routing, parallelization, orchestrator-workers, evaluator-optimizer)."
+        },
+        {
+          "name": "Addy Osmani — Loop Engineering (O'Reilly Radar)",
+          "url": "https://www.oreilly.com/radar/loop-engineering/",
+          "kind": "reading",
+          "blurb": "Republication O'Reilly d'un billet d'Addy Osmani décrivant cinq primitives (automations, worktrees, skills, plugins/connecteurs, subagents) pour construire des boucles agentiques autonomes."
+        },
+        {
+          "name": "Addy Osmani — Agent Harness Engineering (O'Reilly Radar)",
+          "url": "https://www.oreilly.com/radar/agent-harness-engineering/",
+          "kind": "reading",
+          "blurb": "Détaille la composition d'un harness de production (AGENTS.md, tools/skills/MCP, infrastructure, orchestration planner/generator/evaluator, hooks, observabilité)."
+        },
+        {
+          "name": "statewright",
+          "url": "https://github.com/statewright/statewright",
+          "kind": "tool",
+          "blurb": "Passerelle MCP en Rust qui restreint par état (planification/implémentation/test) les outils accessibles à un agent de code, avec allowlisting par phase."
+        },
+        {
+          "name": "Reflexion (implémentation de référence)",
+          "url": "https://github.com/noahshinn/reflexion",
+          "kind": "implementation",
+          "blurb": "Code, démos et datasets du papier NeurIPS 2023 Reflexion (boucle de réflexion verbale Actor/Evaluator/Self-Reflection sans mise à jour de gradients) ; URL corrigée (noahshinn024/reflexion renvoie 404)."
+        },
+        {
+          "name": "Ralph Wiggum as a \"software engineer\"",
+          "url": "https://ghuntley.com/ralph/",
+          "kind": "reading",
+          "blurb": "Billet de Geoffrey Huntley (14 juillet 2025) qui introduit et documente le « Ralph Loop » (boucle bash mono-tâche autour d'un agent de code)."
+        },
+        {
+          "name": "Keep Claude working toward a goal (/goal)",
+          "url": "https://code.claude.com/docs/en/goal",
+          "kind": "reading",
+          "blurb": "Documentation officielle Claude Code de la commande /goal : condition d'arrêt évaluée après chaque tour par un modèle rapide séparé (Haiku par défaut)."
+        },
+        {
+          "name": "LangChain — Improving Deep Agents with harness engineering",
+          "url": "https://www.langchain.com/blog/improving-deep-agents-with-harness-engineering",
+          "kind": "reading",
+          "blurb": "Étude de cas chiffrée auto-rapportée (non corroborée) : +13,7 points (52,8→66,5) sur Terminal-Bench 2.0 pour deepagents-cli en ne touchant que le harness (LoopDetectionMiddleware inclus), modèle inchangé."
+        },
+        {
+          "name": "CircuitBreaker (Martin Fowler)",
+          "url": "https://martinfowler.com/bliki/CircuitBreaker.html",
+          "kind": "reading",
+          "blurb": "Article de référence de Martin Fowler (6 mars 2014) sur le pattern Circuit Breaker à 3 états closed/open/half-open, popularisé par Michael Nygard."
+        },
+        {
+          "name": "SWE-agent",
+          "url": "https://github.com/SWE-agent/SWE-agent",
+          "kind": "implementation",
+          "blurb": "Implémentation de référence Princeton/Stanford de l'Agent-Computer Interface (ACI), gouvernée par un fichier YAML unique, pour la résolution autonome d'issues GitHub."
+        },
+        {
+          "name": "Writing tools for agents (Anthropic Engineering)",
+          "url": "https://www.anthropic.com/engineering/writing-tools-for-agents",
+          "kind": "reading",
+          "blurb": "Guide Anthropic sur la consolidation d'outils, le namespacing, le format de réponse (concise/detailed) et les messages d'erreur actionnables pour les outils d'agents."
+        },
+        {
+          "name": "Model Context Protocol — Specification 2025-11-25 (changelog)",
+          "url": "https://modelcontextprotocol.io/specification/2025-11-25/changelog",
+          "kind": "reading",
+          "blurb": "Changelog officiel de la révision MCP 2025-11-25, qui établit notamment JSON Schema 2020-12 comme dialecte par défaut des schémas MCP."
+        },
+        {
+          "name": "JSON Schema — Draft 2020-12",
+          "url": "https://json-schema.org/draft/2020-12",
+          "kind": "reading",
+          "blurb": "Page officielle de la spécification JSON Schema Draft 2020-12 (publiée le 16 juin 2022), dialecte retenu par le MCP pour décrire les paramètres d'un outil."
+        },
+        {
+          "name": "Anthropic — How we built our multi-agent research system",
+          "url": "https://www.anthropic.com/engineering/multi-agent-research-system",
+          "kind": "reading",
+          "blurb": "Étude de cas de production : orchestrateur Claude Opus 4 + subagents Claude Sonnet 4 surpassant Opus 4 seul de 90,2 % sur l'éval interne de recherche (chiffre auto-rapporté, non corroboré), au prix d'une conso token ~15× supérieure au chat."
+        },
+        {
+          "name": "Anthropic — Building a C compiler with a team of parallel Claudes",
+          "url": "https://www.anthropic.com/engineering/building-c-compiler",
+          "kind": "reading",
+          "blurb": "Capability benchmark personnel de Nicholas Carlini (Anthropic Safeguards) — explicitement pas un test à échelle de production : 16 agents Claude sans orchestrateur central, coordonnés par verrous git dans current_tasks/, produisant un compilateur C Rust de 100k lignes bootant Linux 6.9."
+        },
+        {
+          "name": "OpenAI — A practical guide to building agents (PDF)",
+          "url": "https://cdn.openai.com/business-guides-and-resources/a-practical-guide-to-building-agents.pdf",
+          "kind": "reading",
+          "blurb": "Guide officiel OpenAI recommandant de maximiser un agent unique avant d'orchestrer plusieurs agents en production."
+        },
+        {
+          "name": "Claude Code Docs — Orchestrate subagents at scale with dynamic workflows",
+          "url": "https://code.claude.com/docs/en/workflows",
+          "kind": "reading",
+          "blurb": "Documentation officielle des workflows dynamiques Claude Code : script JavaScript écrit par Claude, jusqu'à 1000 subagents et 16 agents concurrents par run."
+        },
+        {
+          "name": "Claude Code — Hooks reference",
+          "url": "https://code.claude.com/docs/en/hooks",
+          "kind": "tool",
+          "blurb": "Référence officielle des 30 événements de hooks Claude Code et de la convention de codes de sortie (2 = blocage, autre = non bloquant)."
+        },
+        {
+          "name": "LangGraph",
+          "url": "https://github.com/langchain-ai/langgraph",
+          "kind": "library",
+          "blurb": "Framework d'orchestration bas niveau (>36k étoiles) pour agents stateful à exécution longue et durable, sur lequel s'appuie deepagents-cli."
+        },
+        {
+          "name": "Anthropic — How we built Claude Code auto mode",
+          "url": "https://www.anthropic.com/engineering/claude-code-auto-mode",
+          "kind": "reading",
+          "blurb": "Détaille le classifieur de permissions à deux étages (filtre rapide puis raisonnement détaillé, faux positifs réduits de 8,5 % à 0,4 %, mesures auto-rapportées non corroborées) et le mécanisme de récupération deny-and-continue."
+        },
+        {
+          "name": "Anthropic — Effective harnesses for long-running agents",
+          "url": "https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents",
+          "kind": "reading",
+          "blurb": "Pattern agent-initialisateur (init.sh, suivi de progression) / agent-de-code pour tâches multi-sessions, avec vérification par automatisation navigateur (Puppeteer)."
+        },
+        {
+          "name": "Anthropic — Harness Design for Long-Running Application Development",
+          "url": "https://www.anthropic.com/engineering/harness-design-long-running-apps",
+          "kind": "reading",
+          "blurb": "Principe directeur explicite : « every component in a harness encodes an assumption about what the model can't do on its own », validé en retirant itérativement des composants avec Claude Opus 4.6."
+        },
+        {
+          "name": "OpenAI — Unrolling the Codex agent loop",
+          "url": "https://openai.com/index/unrolling-the-codex-agent-loop/",
+          "kind": "reading",
+          "blurb": "Billet de Michael Bolin (OpenAI, janvier 2026) détaillant la mécanique interne de la boucle d'agent du Codex CLI (assemblage d'inputs, inférence, exécution d'outils, réinjection en contexte)."
+        }
+      ]
+    },
+    {
+      "type": "glossary"
+    }
+  ]
+}
