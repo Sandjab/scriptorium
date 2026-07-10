@@ -36,6 +36,7 @@ ces acquis. (`agent-harness-engineering` : FAIT le 2026-07-10, retiré du backlo
 ## Priorité haute — gaps réels, forte valeur de référence
 
 (`contrastive-self-supervised` : FAIT le 2026-07-10, retiré du backlog.)
+(`agentic-rl-environments` : FAIT le 2026-07-10, retiré du backlog.)
 
 ### Apprentissage par renforcement : fondamentaux — `reinforcement-learning-fundamentals` → `deep-learning-foundations`
 **Verdict : partiel (~75 % neuf), forte valeur de socle.** Le corpus *utilise* le RL sans jamais le
@@ -90,24 +91,6 @@ contexte n'est posée nulle part.
 > recursive-language-models le context rot et la compaction côté RLM (les citer sans re-dériver),
 > retrieval-augmented-generation la récupération — se centrer sur la composition et l'économie du
 > contexte à l'inférence. Domaine : llm-agents-generation.
-
-### RL agentique & environnements vérifiables — `agentic-rl-environments` → `llm-agents-generation`
-**Verdict : partiel.** `rlhf-dpo` pose RLVR (récompenses vérifiables) et
-`reasoning-test-time-compute` couvre GRPO et les process advantage verifiers ; la fabrication
-d'environnements d'entraînement (gyms, tâches vérifiables à l'échelle) n'est traitée nulle part.
-
-> Reinforcement learning agentique et environnements vérifiables : entraîner des agents LLM par
-> récompenses vérifiables à l'échelle. Couvrir le passage RLHF → RLVR (récompense binaire
-> vérifiable vs reward model appris, et pourquoi cela change l'échelle), la conception
-> d'environnements (gyms d'agents, tâches code/terminal/navigateur, génération de tâches
-> synthétiques et leur vérification, l'exemple des computer-use agents), le RL multi-tours
-> (attribution de crédit sur horizons longs, récompenses de processus vs de résultat), le reward
-> hacking en environnement et ses défenses, et l'infrastructure (rollouts asynchrones, sandboxes à
-> l'échelle). Positionnement : paradigme post-training dominant 2026. Public : ingénieur ML.
-> Délimitations : rlhf-dpo couvre PPO/DPO et pose RLVR (le citer), reasoning-test-time-compute le
-> RL du raisonnement — GRPO, PAV (le citer) ; le socle MDP/Bellman relève du candidat
-> reinforcement-learning-fundamentals (un pont suffit) — se centrer sur les environnements et
-> l'entraînement d'agents multi-tours. Domaine : llm-agents-generation.
 
 ---
 
