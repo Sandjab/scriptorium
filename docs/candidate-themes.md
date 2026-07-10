@@ -82,6 +82,8 @@ contexte n'est posée nulle part.
 
 Candidats à angle neuf ; chaque entrée porte son prompt riche, prêt à lancer.
 
+(`world-models` : FAIT le 2026-07-10, retiré du backlog.)
+
 ### Optimiseurs (Adam / AdamW) — `optimizers-adam` → `deep-learning-foundations`
 **Verdict : partiel (~60 % neuf).** `backpropagation` traite Adam de base (Kingma & Ba) comme étape
 post-gradient ; AdamW (weight decay découplé), schedules warmup/cosine, AdaGrad/RMSProp en propre et
@@ -359,22 +361,6 @@ psychométrie) ; SWE-bench/GAIA ne sont cités que comme résultats d'état de l
 > juges LLM et l'accord juge/humain (la citer, ne pas re-dériver le juge LLM) ; agentic-ai cite
 > SWE-bench/GAIA comme état de l'art mesuré (le citer) — se centrer sur l'évaluation des SYSTÈMES
 > agents et leur observabilité. Domaine : llm-agents-generation.
-
-### World models — `world-models` → `deep-learning-foundations`
-**Verdict : gap réel.** Dreamer, MuZero, JEPA, Genie : 0 occurrence dans le corpus ; direction de
-recherche majeure 2026, contrepoint au paradigme LLM.
-
-> World models : apprendre un modèle du monde pour prédire, planifier et générer. Couvrir la lignée
-> fondatrice (Ha & Schmidhuber 2018 : VAE + RNN + contrôleur, apprendre dans le rêve), le RL basé
-> modèle (Dreamer v1–v3 et l'imagination latente, MuZero et la planification avec modèle appris),
-> les architectures prédictives auto-supervisées (JEPA/V-JEPA : prédire en espace latent plutôt
-> qu'en pixels), les modèles de monde génératifs interactifs (Genie : la vidéo comme environnement
-> jouable) et le débat pixels vs latents, avec le lien vers les agents incarnés. Public : ingénieur
-> ML. Délimitations : diffusion-models couvre la génération par diffusion (le citer) ; le VAE en
-> propre relève du candidat variational-autoencoders et le RL sans modèle de la monographie
-> reinforcement-learning-fundamentals (FAITE — des ponts suffisent) ; agentic-ai couvre les agents incarnés
-> côté LLM — se centrer sur l'apprentissage du modèle de dynamique et son usage pour planifier et
-> générer. Domaine : deep-learning-foundations.
 
 ---
 
