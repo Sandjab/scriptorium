@@ -35,17 +35,7 @@ ces acquis. (`agent-harness-engineering` : FAIT le 2026-07-10, retiré du backlo
 
 ## Priorité haute — gaps réels, forte valeur de référence
 
-### Apprentissage contrastif & auto-supervisé — `contrastive-self-supervised` → `deep-learning-foundations`
-**Verdict : nouveau gap (haute).** Socle du pré-entraînement sans labels ; seulement cité en
-passant (InfoNCE/CLIP dans text-embeddings, CLIP comme conditionneur en diffusion).
-
-> Apprentissage contrastif et auto-supervisé : apprendre des représentations sans labels. Couvrir
-> le cadre contrastif (InfoNCE, paires positives/négatives, augmentations, température), les
-> méthodes phares (SimCLR, MoCo et sa file de négatifs, BYOL et SwAV sans négatifs, Barlow Twins,
-> DINO/auto-distillation), le problème du collapse et comment l'éviter, et l'alignement multimodal
-> texte-image (CLIP). Positionnement : socle des modèles de fondation. Public : ingénieur ML.
-> Délimitations : text-embeddings ne cite InfoNCE/CLIP qu'en passant ; se centrer sur l'objectif
-> contrastif et le self-supervised visuel/multimodal. Domaine : deep-learning-foundations.
+(`contrastive-self-supervised` : FAIT le 2026-07-10, retiré du backlog.)
 
 ### Apprentissage par renforcement : fondamentaux — `reinforcement-learning-fundamentals` → `deep-learning-foundations`
 **Verdict : partiel (~75 % neuf), forte valeur de socle.** Le corpus *utilise* le RL sans jamais le
