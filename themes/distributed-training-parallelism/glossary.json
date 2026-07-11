@@ -1,0 +1,37 @@
+[
+  {
+    "term": "ZeRO",
+    "definition": "Zero Redundancy Optimizer : famille de techniques de partitionnement qui répartit l'état d'entraînement du data parallelism (parallélisme de données) sur les Nd devices au lieu de le répliquer — stade 1 (états d'optimiseur, réduction 4x), stade 2 (+ gradients, 8x), stade 3 (+ paramètres, réduction linéaire en Nd, de 16Ψ jusqu'à 16Ψ/Nd octets par device). Les deux premiers stades conservent le volume de communication du data parallelism standard (2Ψ) ; le stade 3 le porte à environ 3Ψ (1,5x). Étendu par ZeRO-Offload (états d'optimiseur déportés vers le CPU) et ZeRO-Infinity (déport vers SSD NVMe).",
+    "see_also": "FSDP, mixed precision"
+  },
+  {
+    "term": "FSDP",
+    "definition": "Fully Sharded Data Parallel : implémentation native PyTorch de ZeRO stade 3, qui sharde paramètres, gradients et états d'optimiseur entre les devices data-parallèles. Sa seconde génération (FSDP2, API fully_shard) remplace l'abstraction FlatParameter (un unique tenseur 1D aplati par module) par un sharding par-paramètre fondé sur DTensor, ce qui permet notamment le gel partiel de paramètres (LoRA) et des checkpoints shardés sans all-gather supplémentaire.",
+    "see_also": "ZeRO"
+  },
+  {
+    "term": "tensor parallelism",
+    "definition": "Parallélisme de tenseurs : découpage intra-couche des multiplications matricielles, popularisé par Megatron-LM — Q/K/V et première matrice du MLP en colonnes, projection de sortie et seconde matrice du MLP en lignes — de sorte que chaque couche de transformer ne requiert que deux all-reduce en forward pass et deux en backward pass. Ces all-reduce se répétant à chaque couche et pour chaque microbatch, le degré de tensor parallelism est confiné en pratique aux GPU d'un même nœud reliés par NVLink.",
+    "see_also": "pipeline parallelism, sequence parallelism"
+  },
+  {
+    "term": "pipeline parallelism",
+    "definition": "Parallélisme de pipeline : répartition des couches du modèle en p étages successifs placés sur des devices différents, le batch étant découpé en m microbatches qui s'écoulent à travers les étages. Sa perte d'efficacité, la « bulle », suit la fraction (p−1)/m : elle n'est négligeable que si m est très supérieur à p. Sa communication point-à-point, moins chère que les all-reduce du tensor parallelism, en fait le parallélisme réservé au franchissement des nœuds (InfiniBand) dans les topologies 3D sous la contrainte p·t·d = n.",
+    "see_also": "tensor parallelism, ZeRO"
+  },
+  {
+    "term": "sequence parallelism",
+    "definition": "Parallélisme de séquence : partitionnement le long de la dimension séquence. Au sens de Korthikanti et al., il complète le tensor parallelism en partitionnant les régions non tensor-parallèles (LayerNorm, dropout), faisant scaler toute la mémoire d'activation en 1/t. Le context parallelism généralise l'idée aux très longues séquences entre devices : DeepSpeed-Ulysses bascule la partition vers les têtes d'attention via all-to-all (degré plafonné par le nombre de têtes K/V), Ring Attention fait circuler les blocs K/V en anneau sans cette contrainte, et Llama 3 405B emploie une variante all-gather des K/V rendue peu coûteuse par GQA.",
+    "see_also": "tensor parallelism, activation recomputation"
+  },
+  {
+    "term": "activation recomputation",
+    "definition": "Recalcul d'activations (aussi appelé activation checkpointing) : au lieu de stocker toutes les activations du forward pass pour le backward pass, on n'en garde que des points de contrôle et on recalcule le reste. La variante naïve « tout recalculer » coûte 30-40 % de temps d'exécution en plus ; la recomputation sélective (ne recalculer que le sous-bloc attention) obtient une réduction mémoire comparable (~70 % pour GPT-3 175B) pour seulement ~2,7 % de FLOPs supplémentaires.",
+    "see_also": "sequence parallelism, MFU"
+  },
+  {
+    "term": "MFU",
+    "definition": "Model FLOPs Utilization : rapport entre le débit utile du modèle et le débit théorique de pic des accélérateurs, ne comptant que les FLOPs du forward/backward (contrairement au HFU, Hardware FLOPs Utilization, qui inclut la rematérialisation). Métrique reine des grands runs mais non directement comparable entre papiers : elle dépend de conventions de comptage (FLOPs de self-attention inclus ou non) au point de faire varier le chiffre pour un même run — 45,7 % contre 46,2 % sur PaLM 540B, et 57,8 % de HFU sur ce même run.",
+    "see_also": "activation recomputation"
+  }
+]

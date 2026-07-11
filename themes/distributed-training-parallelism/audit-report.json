@@ -1,0 +1,1204 @@
+{
+  "generator": "leanmonograph",
+  "theme": {
+    "slug": "distributed-training-parallelism",
+    "title": "Entraînement distribué et parallélisme des grands modèles"
+  },
+  "summary": {
+    "sections_total": 9,
+    "sections_retained": 7,
+    "claims_total": 36,
+    "confirmed": 15,
+    "corrected": 12,
+    "rejected": 9,
+    "retained": 25
+  },
+  "claims": [
+    {
+      "id": "claim:1",
+      "section": "mur-memoire",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "En entraînement Adam à précision mixte, la mémoire totale par paramètre Ψ se décompose exactement en 16Ψ octets (2Ψ paramètres fp16 + 2Ψ gradients fp16 + 12Ψ états d'optimiseur fp32, K=12). Sur le matériel visé par l'article ZeRO (GPU 16-32 Go), cela rendait déjà des modèles de l'ordre du milliard de paramètres (ex. GPT-2, 1,5 Md → 24 Go, contre 32 Go sur un V100) impossibles à tenir sur un seul GPU sans partitionnement — mais ce seuil dépend strictement de la mémoire du GPU visé : sur un A100/H100 80 Go, 16Ψ seul tient jusqu'à ~5 Md de paramètres, donc l'énoncé n'est pas vrai pour tout modèle « de plusieurs milliards » sur tout GPU actuel.",
+      "original_statement": "En entraînement Adam à précision mixte, la mémoire totale par paramètre Ψ se décompose exactement en 16Ψ octets (2Ψ paramètres fp16 + 2Ψ gradients fp16 + 12Ψ états d'optimiseur fp32), ce qui rend un modèle de plusieurs milliards de paramètres impossible à tenir sur un seul GPU sans partitionnement.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le calcul 2Ψ+2Ψ+12Ψ=16Ψ est exactement celui de l'article ZeRO (Rajbhandari et al. 2019, source d'origine, non comptée comme indépendante). Confirmé indépendamment par EleutherAI (12 octets d'état optimiseur = copie fp32 des poids + momentum + variance, chacun 4 octets) et par la doc Hugging Face (double copie fp16/fp32 des poids, 8 octets pour momentum+variance Adam). L'exemple du papier source (7,5 Md paramètres → 120 Go rien que pour ces états) soutient bien la conclusion qu'un modèle de plusieurs milliards de paramètres excède la mémoire d'un seul GPU sans partitionnement. Nuance : le total exact (16 vs 18 octets chez Hugging Face) dépend de la convention retenue pour les gradients (fp16 vs fp32), mais la décomposition citée dans le claim est fidèle au papier source."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Le calcul 2Ψ+2Ψ+12Ψ=16Ψ (K=12) est vérifié mot pour mot dans le papier. Mais le papier cadre l'« impossibilité » par rapport aux GPU 16-32 Go de son époque, pas comme un fait absolu et intemporel pour « plusieurs milliards » de paramètres : sur GPU modernes 80 Go+, un modèle de 2-5 Md tient en 16Ψ seul, sans partitionnement. Sur-généralisation détectée dans la seconde moitié du claim."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « En entraînement Adam à précision mixte, la mémoire totale par paramètre Ψ se décompose exactement en 16Ψ octets (2Ψ paramètres fp16 + 2Ψ gradients fp16 + 12Ψ états d'optimiseur fp32), ce qui rend un modèle de plusieurs milliards de paramètres impossible à tenir sur un seul GPU sans partitionnement. »"
+    },
+    {
+      "id": "claim:2",
+      "section": "mur-memoire",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "La mémoire d'activation par couche transformer (sbh(34+5as/h) octets, sans parallélisme) croît linéairement avec la taille de batch mais QUADRATIQUEMENT avec la longueur de séquence — le terme 5as/h, une fois multiplié par sbh, contient un terme en s² (sortie softmax/scores d'attention de taille 2as²b, masque de dropout as²b), à cause du mécanisme d'attention. Elle est indépendante de l'empreinte fixe de 16Ψ liée aux paramètres et à l'optimiseur, et peut à elle seule dépasser les 80 Go d'un A100 pour de grands modèles à longues séquences (constat explicite du papier).",
+      "original_statement": "La mémoire d'activation par couche transformer (sbh(34+5as/h) octets, sans parallélisme) croît linéairement avec la longueur de séquence et la taille de batch, indépendamment de l'empreinte fixe de 16Ψ liée aux paramètres et à l'optimiseur, et peut à elle seule dépasser les 80 Go d'un GPU A100 pour des configurations réalistes de grands modèles à longues séquences.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "La formule sbh(34+5as/h) est reprise verbatim et explicitement attribuée à Korthikanti et al. par la doc AWS Neuron (organisation indépendante de NVIDIA). Une dérivation structurellement cohérente (variante avec un terme MLP) apparaît indépendamment dans le blog de Jianbin Chang, qui documente aussi des OOM réels sur A100 80 Go dus aux activations à longue séquence pour des modèles de plusieurs milliards de paramètres, et confirme l'additivité avec la mémoire statique (paramètres+optimiseur) — corroborant formule, additivité et dépassement des 80 Go."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "La formule sbh(34+5as/h) est confirmée mot pour mot, de même que la table de décomposition du papier qui donne explicitement des termes en s² pour le softmax (2as²b) et le masque de dropout (as²b). La croissance en longueur de séquence est donc quadratique, pas linéaire comme l'affirme le claim — erreur mathématique directe, pas une nuance. Le reste du claim (indépendance vis-à-vis de 16Ψ, dépassement des 80 Go d'un A100) est correct et confirmé."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « La mémoire d'activation par couche transformer (sbh(34+5as/h) octets, sans parallélisme) croît linéairement avec la longueur de séquence et la taille de batch, indépendamment de l'empreinte fixe de 16Ψ liée aux paramètres et à l'optimiseur, et peut à elle seule dépasser les 80 Go d'un GPU A100 pour des configurations réalistes de grands modèles à longues séquences. »"
+    },
+    {
+      "id": "claim:3",
+      "section": "mur-memoire",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le partitionnement ZeRO (stades Pos, Pos+g, Pos+g+p) répartit les états d'optimiseur, gradients et paramètres sur Nd dispositifs data-parallèles, réduisant l'empreinte mémoire par device de 16Ψ jusqu'à 16Ψ/Nd au stade final — au prix d'un volume de communication qui passe de 2Ψ (data parallelism standard) à 3Ψ au stade complet.",
+      "original_statement": "Le partitionnement ZeRO (stades Pos, Pos+g, Pos+g+p) répartit les états d'optimiseur, gradients et paramètres sur Nd dispositifs data-parallèles, réduisant l'empreinte mémoire par device de 16Ψ jusqu'à 16Ψ/Nd au stade final — au prix d'un volume de communication qui passe de 2Ψ (data parallelism standard) à 3Ψ au stade complet.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les réductions par étage (jusqu'à 16Ψ/Nd) et le volume de communication 3Ψ (soit 1.5x vs 2Ψ en DP standard) sont confirmés avec les mêmes valeurs numériques par le blog technique indépendant de Sumanth R H (décomposition explicite Ψ all-gather param + Ψ reduce-scatter grad + Ψ all-gather param = 3Ψ). EmergentMind corrobore qualitativement la hausse de communication en ZeRO-3 et donne un exemple chiffré de réduction mémoire (218 Go → 3,3 Go) cohérent avec l'échelle 16Ψ/Nd, sans répéter le ratio exact — support secondaire plus faible."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Formules par étage (4Ψ+KΨ/Nd pour Pos, 2Ψ+14Ψ/Nd≈2Ψ pour Pos+g, 16Ψ/Nd pour Pos+g+p) et volumes de communication (2Ψ pour la DP standard, 3Ψ soit 1,5x au stade complet) confirmés mot pour mot dans le papier. Le claim tient tel quel. Seule réserve : une seule source primaire vérifiée (l'article ZeRO lui-même), les deux URLs candidates étant des miroirs du même papier, non indépendants entre eux."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:4",
+      "section": "mur-memoire",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Passer d'un entraînement Adam en FP32 pleine précision à un entraînement en précision mixte FP16/FP32 ne réduit PAS la mémoire totale requise pour l'état d'entraînement (paramètres + gradients + optimiseur) : les deux approches nécessitent environ 16 octets par paramètre sous la convention ZeRO (4+4+4+4 en fp32 pur, contre 2+2+4+4+4 en mixte — le total est identique, pas réduit), et la précision mixte augmente même de 50% la mémoire dédiée aux seuls poids (copie fp32 maîtresse en plus de la copie fp16). Le gain mémoire réel apporté par la précision mixte provient de la réduction (typiquement ×2) de la mémoire d'activation, pas de celle de l'état d'entraînement.",
+      "original_statement": "Passer un entraînement Adam de la précision FP32 pleine à la précision mixte FP16/FP32 réduit la mémoire totale requise pour l'état d'entraînement (paramètres + gradients + optimiseur).",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 3,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "L'article fondateur de la précision mixte (Micikevicius et al., ICLR 2018 — équipe NVIDIA, totalement indépendante de l'article ZeRO/Microsoft cité en candidate) énonce explicitement que garder une copie fp32 maîtresse « increases the memory requirements for the weights by 50% compared with single precision training », et attribue toute économie mémoire globale à la réduction des activations (stockées en fp16), pas à l'état d'entraînement. La doc Hugging Face va dans le même sens avec sa propre convention (18 octets/paramètre en mixte, contre 16 en fp32 pur si l'on garde les gradients en fp32) : le passage en précision mixte n'allège pas — et peut alourdir — la mémoire paramètres+gradients+optimiseur. Le claim confond l'économie de mémoire d'activation (réelle) avec une économie sur l'état d'entraînement (fausse)."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Le papier donne 16Ψ pour Adam en précision mixte (2Ψ+2Ψ+12Ψ). Un calcul élémentaire équivalent pour Adam en FP32 pur (4Ψ paramètres + 4Ψ gradients + 8Ψ état Adam, arithmétique nécessaire et non spécifique à une source) donne aussi 16Ψ — total identique, pas de réduction. Le papier ne fait pas explicitement cette comparaison mais ne la contredit pas non plus ; c'est un fait de calcul, pas une extrapolation hasardeuse. Le claim confond mémoire de l'état d'entraînement (inchangée) et mémoire d'activations (réduite, hors périmètre du claim)."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 4,
+          "note": "La source fournie (ZeRO) calcule explicitement 16Ψ octets pour Adam mixed-precision (2Ψ fp16 params + 2Ψ fp16 grad + 12Ψ optimiseur incluant la copie maîtresse fp32), soit exactement le même total que l'Adam FP32 pur (4+4+4+4=16Ψ) ; le papier original de Micikevicius et al. confirme même que la copie maîtresse fp32 « increases the memory requirements for the weights by 50% compared with single precision training », le gain global venant des activations, exclues du périmètre de l'énoncé. Quatre sources indépendantes convergent : la précision mixte n'allège pas (paramètres+gradients+optimiseur), elle est au mieux neutre, au pire légèrement plus coûteuse sur ce périmètre précis."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « Passer un entraînement Adam de la précision FP32 pleine à la précision mixte FP16/FP32 réduit la mémoire totale requise pour l'état d'entraînement (paramètres + gradients + optimiseur). »"
+    },
+    {
+      "id": "claim:5",
+      "section": "data-parallelism-zero-fsdp",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Les trois stages de ZeRO offrent des réductions mémoire formelles précises — 4x pour la partition des états d'optimiseur (Pos), 8x en ajoutant les gradients (Pos+g), et une réduction linéaire en Nd (degré de data parallelism) en ajoutant les paramètres (Pos+g+p) — pour un coût de communication identique au data parallelism standard sur les deux premiers stages et environ 1,5x sur le troisième.",
+      "original_statement": "Les trois stages de ZeRO offrent des réductions mémoire formelles précises — 4x pour la partition des états d'optimiseur (Pos), 8x en ajoutant les gradients (Pos+g), et une réduction linéaire en Nd (degré de data parallelism) en ajoutant les paramètres (Pos+g+p) — pour un coût de communication identique au data parallelism standard sur les deux premiers stages et environ 1,5x sur le troisième.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le texte intégral du papier ZeRO (lu via ar5iv) confirme mot pour mot : Pos = 4x, Pos+g = 8x, Pos+g+p = réduction linéaire en Nd (ex. 64x pour Nd=64), communication identique au DP pour les deux premiers stages et 3Ψ (≈1,5x, +50%) pour le troisième. Un blog indépendant (auteur distinct, non affilié Microsoft) corrobore les facteurs mémoire 4x/8x/Nd ; le chiffre précis de surcoût de communication (1,5x) repose principalement sur la source primaire elle-même, qui fait autorité sur ses propres résultats."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Chiffres confirmés mot à mot dans le papier : Pos réduit 4Ψ+KΨ à 4Ψ+KΨ/Nd (4x, exemple 120GB→31.4GB), Pos+g réduit à 2Ψ+2Ψ/Nd+KΨ/Nd (8x, 120GB→16.6GB), Pos+g+p réduit 16Ψ à 16Ψ/Nd (linéaire en Nd, 120GB→1.88GB à Nd=64) ; communication identique à la DP standard pour les deux premiers stages, et « modest 50% increase » (1.5x) pour le troisième via all-gather pipelinés. Une seule source primaire vérifiée (ar5iv est un simple rendu du même arXiv 1910.02054, pas une source indépendante) — c'est toutefois l'analyse formelle des auteurs eux-mêmes, pas un fait à corroborer empiriquement."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:6",
+      "section": "data-parallelism-zero-fsdp",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "FSDP de PyTorch est présenté comme une implémentation native de ZeRO Stage 3, et sa seconde génération (FSDP2, API fully_shard) a remplacé l'abstraction FlatParameter (un unique tenseur 1D aplati par module wrappé) par un sharding par-paramètre fondé sur DTensor.",
+      "original_statement": "FSDP de PyTorch est présenté comme une implémentation native de ZeRO Stage 3, et sa seconde génération (FSDP2, API fully_shard) a remplacé l'abstraction FlatParameter (un unique tenseur 1D aplati par module wrappé) par un sharding par-paramètre fondé sur DTensor.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "La documentation PyTorch elle-même dit être 'inspired by ... ZeRO Stage 3 from DeepSpeed' et confirme le remplacement de FlatParameter (FSDP1, un tenseur 1D aplati par module) par un sharding par-paramètre fondé sur DTensor via fully_shard (FSDP2). Deux sources indépendantes de l'origine (Hugging Face et Anyscale, organisations distinctes de PyTorch/Meta et l'une de l'autre) corroborent exactement cette description."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "FSDP2/fully_shard remplaçant FlatParameter (1 tenseur 1D aplati) par un sharding par-paramètre via DTensor est confirmé mot à mot par PyTorch (docs.pytorch.org/docs/2.9/distributed.fsdp.fully_shard.html) et par HF Accelerate. Nuance : la docstring officielle de FSDP dit littéralement « inspired by ... ZeRO Stage 3 » et non « implémentation de » ; mais le blog PyTorch et HF décrivent FULL_SHARD comme correspondant/« mapping to » ZeRO Stage-3, ce qui soutient la formulation \"implémentation native\" en usage courant — je laisse holds=true mais la nuance mérite d'être connue."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:7",
+      "section": "data-parallelism-zero-fsdp",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "ZeRO-Offload et ZeRO-Infinity étendent ZeRO-3 au-delà de la mémoire GPU : ZeRO-Offload déporte les états d'optimiseur (et leur calcul) vers le CPU pour entraîner plus de 13 milliards de paramètres sur un seul GPU, tandis que ZeRO-Infinity déporte en plus vers des SSD NVMe, permettant de fine-tuner jusqu'à 1000 milliards de paramètres (1 trillion) sur un seul nœud DGX-2.",
+      "original_statement": "ZeRO-Offload et ZeRO-Infinity étendent ZeRO-3 au-delà de la mémoire GPU : ZeRO-Offload déporte les états d'optimiseur (et leur calcul) vers le CPU pour entraîner plus de 13 milliards de paramètres sur un seul GPU, tandis que ZeRO-Infinity déporte en plus vers des SSD NVMe, permettant jusqu'à 1000 milliards de paramètres sur un seul nœud DGX-2.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les deux papiers primaires (arXiv:2101.06840, arXiv:2104.07857) confirment chacun leur moitié du claim (13 Md params/GPU unique par offload CPU des états+calcul d'optimiseur ; extension NVMe et jusqu'à 1000 Md sur un nœud DGX-2 unique). Deux articles indépendants de MarkTechPost (presse tech tierce, non affiliée Microsoft/DeepSpeed) corroborent chaque moitié séparément — limite : ces deux sources indépendantes viennent du même média, donc pas de triangulation inter-organisation complète sur ce claim composite."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "13 milliards sur un seul GPU pour ZeRO-Offload est vérifié mot à mot (« over 13 billion parameters on a single GPU »). Mais le chiffre \"1000 milliards sur un seul DGX-2\" pour ZeRO-Infinity sur-généralise : l'abstract dit explicitement « fine-tune trillion parameter models on a single NVIDIA DGX-2 node », pas \"entraîner\" — la formulation du claim, en parallèle avec « pour entraîner » du ZeRO-Offload, laisse croire à une capacité d'entraînement complet alors que c'est une capacité de fine-tuning."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « ZeRO-Offload et ZeRO-Infinity étendent ZeRO-3 au-delà de la mémoire GPU : ZeRO-Offload déporte les états d'optimiseur (et leur calcul) vers le CPU pour entraîner plus de 13 milliards de paramètres sur un seul GPU, tandis que ZeRO-Infinity déporte en plus vers des SSD NVMe, permettant jusqu'à 1000 milliards de paramètres sur un seul nœud DGX-2. »"
+    },
+    {
+      "id": "claim:8",
+      "section": "data-parallelism-zero-fsdp",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "ZeRO-3 et FSDP obtiennent le sharding complet des paramètres avec un surcoût de communication modeste (environ 1,5x, soit +50 % de volume par rapport au data parallelism standard) — et non « sans surcoût » ; seuls les deux premiers stages de ZeRO (Pos et Pos+g) préservent un volume de communication identique au DP standard.",
+      "original_statement": "ZeRO-3 et FSDP obtiennent leurs économies mémoire (sharding complet des paramètres) sans surcoût de communication par rapport au data parallelism standard.",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 3,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le papier ZeRO lui-même (source primaire, cf. claim 0) affirme explicitement que Pos+g+p (= ZeRO-3/FSDP full sharding) a un volume de communication de 3Ψ, soit 1,5x le DP standard — donc un surcoût, pas son absence. Un papier académique indépendant (AMSP, auteurs distincts) confirme que ZeRO-3 nécessite un AllGather supplémentaire avant chaque forward/backward, en plus de la communication du DP standard, ce qui contredit directement « sans surcoût de communication »."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Directement contredit par la source primaire elle-même (utilisée aussi pour le claim 0) : le papier ZeRO précise noir sur blanc un « modest 50% increase in communication volume » pour le stage Pos+g+p (ZeRO-3) via les all-gather supplémentaires des paramètres, contre une communication identique à la DP standard seulement pour les stages 1 et 2. FSDP FULL_SHARD, présenté comme équivalent à ZeRO-3 (cf. claim 1), hérite du même surcoût."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "La source primaire (papier ZeRO, section sur P_os+g+p) dit explicitement que le partitionnement complet des paramètres (ZeRO-3) entraîne « a maximum of 1.5x communication » / « a modest 50% increase in communication volume » par rapport au DP baseline — seuls ZeRO-1 (Pos) et ZeRO-2 (Pos+g) ont « same communication volume as DP ». La doc PyTorch FSDP confirme le mécanisme : FULL_SHARD (l'équivalent ZeRO-3) fait un all-gather des paramètres avant le forward ET avant le backward (deux unshard/reshard), alors que SHARD_GRAD_OP et NO_SHARD (DDP) en font l'économie — d'où le surcoût. L'énoncé est donc réfuté tel quel pour ZeRO-3/FSDP full-shard ; il ne serait vrai que pour ZeRO-1/ZeRO-2."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « ZeRO-3 et FSDP obtiennent leurs économies mémoire (sharding complet des paramètres) sans surcoût de communication par rapport au data parallelism standard. »"
+    },
+    {
+      "id": "claim:9",
+      "section": "tensor-parallelism",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le tensor parallelism de Megatron-LM découpe les GEMM de l'attention (Q/K/V en colonnes, projection de sortie en lignes) et du MLP (première matrice en colonnes, seconde en lignes) de sorte que chaque couche de transformer ne nécessite que deux opérations all-reduce en forward et deux en backward, sans autre synchronisation à l'intérieur d'un bloc.",
+      "original_statement": "Le tensor parallelism de Megatron-LM découpe les GEMM de l'attention (Q/K/V en colonnes, projection de sortie en lignes) et du MLP (première matrice en colonnes, seconde en lignes) de sorte que chaque couche de transformer ne nécessite que deux opérations all-reduce en forward et deux en backward, sans autre synchronisation à l'intérieur d'un bloc.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Vérifié mot à mot contre la source primaire (1909.08053, texte repris dans 2104.04473 — même lignée d'auteurs, donc non comptée comme indépendante) : QKV en colonnes / sortie en lignes pour l'attention, 1re matrice en colonnes / 2e en lignes pour le MLP, exactement 2 all-reduce forward + 2 backward par couche, sans autre sync intra-bloc. Deux blogs tiers non affiliés à NVIDIA/Megatron confirment le mécanisme : danielvegamyhre couvre attention+MLP en entier, dev.to confirme le détail du bloc MLP (1 all-reduce fwd + 1 bwd)."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Vérifié texte intégral (via ar5iv) des deux papiers : QKV en column-parallel + projection de sortie en row-parallel pour l'attention ; première matrice MLP column-parallel + seconde row-parallel ; le papier original énonce explicitement '4 total communication operations... two all-reduce (f/g) in forward, two in backward' par couche, et 'without requiring communication between the GPUs' à l'intérieur des blocs. Le claim tient tel quel."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:10",
+      "section": "tensor-parallelism",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Les expériences fondatrices de Megatron-LM (2019) entraînent un transformer de 8,3 milliards de paramètres sur 512 GPU en combinant 8-way tensor parallelism et 64-way data parallelism (et non « uniquement » le tensor parallelism), en soutenant 15,1 PetaFLOPs à 76 % de scaling efficiency, et établissent un nouvel état de l'art sur WikiText103, LAMBADA et RACE.",
+      "original_statement": "Les expériences fondatrices de Megatron-LM (2019) entraînent un transformer de 8,3 milliards de paramètres sur 512 GPU en utilisant uniquement le tensor parallelism, en soutenant 15,1 PetaFLOPs à 76 % de scaling efficiency, et établissent un nouvel état de l'art sur WikiText103, LAMBADA et RACE.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le texte intégral de la source primaire (ar5iv 1909.08053) précise explicitement : « we use 8 GPUs per model parallel group and 64-way data parallelism, for a total of 512 GPUs » pour le résultat 15,1 PetaFLOPs/76%. Le tensor parallelism PUR n'est testé qu'à 8 GPU (~77% d'efficacité sur ce sous-ensemble, Figure 5), jamais seul à 512 GPU. Deux sources tierces indépendantes confirment le montage hybride 8-way MP × 64-way DP et les trois bancs SOTA (WikiText103/LAMBADA/RACE)."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Les chiffres (8,3B, 512 GPU, 15,1 PetaFLOPs, 76%, nouveaux SOTA sur les 3 benchmarks) sont exacts et vérifiés, mais 'uniquement le tensor parallelism' est faux : le texte intégral du papier (Table 1 / section expériences) déclare explicitement '8-way model parallelism' combiné à '64-way data parallelism' pour atteindre 512 GPU — jamais de tensor parallelism pur à cette échelle dans ce papier. Note d'indépendance : la page NVIDIA ADLR est du même groupe que les auteurs (corroboration, pas source tierce indépendante)."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « Les expériences fondatrices de Megatron-LM (2019) entraînent un transformer de 8,3 milliards de paramètres sur 512 GPU en utilisant uniquement le tensor parallelism, en soutenant 15,1 PetaFLOPs à 76 % de scaling efficiency, et établissent un nouvel état de l'art sur WikiText103, LAMBADA et RACE. »"
+    },
+    {
+      "id": "claim:11",
+      "section": "tensor-parallelism",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le coût de communication par couche du tensor parallelism à la Megatron a une forme close : 8bsh(t−1)/t par device et par microbatch, dérivée de quatre all-reduce (deux en forward, deux en backward) déplaçant chacun un tenseur d'activation de taille b·s·h à travers le groupe tensor-parallel de taille t.",
+      "original_statement": "Le coût de communication par couche du tensor parallelism à la Megatron a une forme close : 8bsh(t−1)/t par device et par microbatch, dérivée de quatre all-reduce (deux en forward, deux en backward) déplaçant chacun un tenseur d'activation de taille b·s·h à travers le groupe tensor-parallel de taille t.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Formule vérifiée mot à mot dans Narayanan et al. SC'21 (ar5iv 2104.04473) : « tensors of total size bsh need to be all-reduced ... twice each in the forward and backward pass for each layer, leading to a total communication of 8bsh(t−1)/t per layer per device for each microbatch » — soit 4 all-reduce (2 fwd + 2 bwd) × facteur d'anneau 2(t−1)/t × taille bsh. Claim techniquement auto-référentiel à l'article qui introduit la formule : aucune reproduction tierce exacte de la constante « 8 » n'a été trouvée (mbrenndoerfer.com, piste la plus prometteuse, a renvoyé 403) ; seule une corroboration qualitative indépendante existe (numpitron : coût par couche proportionnel à b×s×h, sans le facteur constant ni le (t-1)/t explicite). Teneur exacte, indépendance faible."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Le papier énonce littéralement 'total communication of 8bsh(t-1)/t per layer per device for each microbatch', dérivé de '4 total communication operations' (2 all-reduce forward + 2 backward) sur un tenseur b·s·h à travers le groupe tensor-parallel de taille t — cohérent avec le coût standard d'un ring all-reduce (2·(t-1)/t · volume) × 4. Je n'ai trouvé qu'UNE source vérifiée directement pour la formule close exacte (recherches complémentaires infructueuses pour une 2e source indépendante donnant ce même chiffre) ; le contenu du claim est néanmoins fidèle à la source citée."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:12",
+      "section": "tensor-parallelism",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Parce que Megatron-LM n'insère que deux opérateurs d'all-reduce par couche de transformer (quatre all-reduce au total : deux en forward, deux en backward) — un nombre qui paraît modeste comparé au nombre de matrices découpées — on pourrait croire que le tensor parallelism communique assez peu pour s'étendre sur plusieurs nœuds ; en réalité, les auteurs eux-mêmes (Narayanan et al., SC'21) restreignent le degré de tensor parallelism au nombre de GPU d'un seul serveur, car ces quatre all-reduce par couche se répètent à chaque couche du modèle et pour chaque microbatch (donc bien plus souvent que le all-reduce du data parallelism, qui ne se déclenche qu'une fois par batch/step), rendant les liens inter-nœuds impraticables au-delà de cette limite.",
+      "original_statement": "Parce que Megatron-LM n'insère que deux all-reduce par couche de transformer — un nombre qui paraît modeste comparé au nombre de matrices découpées — on pourrait croire que le tensor parallelism communique assez peu pour s'étendre sur plusieurs nœuds ; en réalité, les auteurs eux-mêmes (Narayanan et al., SC'21) restreignent le degré de tensor parallelism au nombre de GPU d'un seul serveur, car ces deux all-reduce par couche se répètent à chaque couche du modèle (donc bien plus souvent que le all-reduce du data parallelism, qui ne se déclenche qu'une fois par step), rendant les liens inter-nœuds impraticables au-delà de cette limite.",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 3,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Le raisonnement central (restriction au nœud unique, fréquence TP par couche/microbatch vs DP une fois par step, attribution à Narayanan et al. SC'21) est vérifié mot à mot dans la source primaire et corroboré indépendamment par le Ultra-Scale Playbook (Hugging Face, équipe indépendante de NVIDIA) : « tensor parallelism requires multiple communication operations per layer » vs « one all-reduce per training step » pour le data parallel, et limite explicite TP≤8 (taille du nœud). Mais le compte « deux all-reduve par couche » est faux : la source primaire dit deux EN FORWARD et deux EN BACKWARD, soit quatre par couche (cohérent avec claim [0] du même lot) — d'où holds=false malgré un raisonnement par ailleurs solide."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le raisonnement directionnel (restriction au nœud unique, fréquence des all-reduce du TP >> data parallelism 'once per batch', liens inter-nœuds impraticables) est bien confirmé par la source citée (section 3.2/3.3.2). Mais le chiffre 'deux all-reduce par couche' est faux : la même source dit explicitement 'two all-reduce operations EACH in the forward and backward pass', soit quatre par couche — cohérent avec les claims 0 et 2 du même lot. Erreur numérique interne qui invalide le claim tel quel."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Chiffre central faux : la source dit explicitement (§2.3) \"requiring only two all-reduce operations in the forward pass ... and two all-reduces in the backward pass\" — soit QUATRE all-reduce par couche par microbatch (2+2), pas deux ; confirmé aussi §3.2 (\"two all-reduce operations each in the forward and backward pass\") et par le facteur 8bsh(t-1/t) (=4 all-reduces × 2(t-1)/t). Le reste de la chaîne causale tient : Takeaway #1 (§3.2, l.378) recommande bien le TP \"up to degree g when using g-GPU servers\" à cause du surcoût inter-nœud (l.373 \"impractical\"), et le TP communique bien à chaque microbatch contre une fois par batch pour le DP (l.422) — mais l'énoncé attribue cette conclusion au mauvais chiffre de départ (2 au lieu de 4), donc il ne tient pas tel quel."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Parce que Megatron-LM n'insère que deux all-reduce par couche de transformer — un nombre qui paraît modeste comparé au nombre de matrices découpées — on pourrait croire que le tensor parallelism communique assez peu pour s'étendre sur plusieurs nœuds ; en réalité, les auteurs eux-mêmes (Narayanan et al., SC'21) restreignent le degré de tensor parallelism au nombre de GPU d'un seul serveur, car ces deux all-reduce par couche se répètent à chaque couche du modèle (donc bien plus souvent que le all-reduce du data parallelism, qui ne se déclenche qu'une fois par step), rendant les liens inter-nœuds impraticables au-delà de cette limite. »"
+    },
+    {
+      "id": "claim:13",
+      "section": "pipeline-3d",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "La fraction de bulle du pipeline parallelism suit (p−1)/m : elle ne devient négligeable que si le nombre de microbatches m est fixé très au-dessus du nombre d'étages p, ce qui contraint le choix de p dans la composition 3D sous p·t·d=n.",
+      "original_statement": "La fraction de bulle du pipeline parallelism suit (p−1)/m : elle ne devient négligeable que si le nombre de microbatches m est fixé très au-dessus du nombre d'étages p, ce qui contraint le choix de p dans la composition 3D sous p·t·d=n.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Formule et contrainte m≫p confirmées indépendamment par GPipe (Google, antérieur et non affilié à Megatron, pose déjà (K−1)/(M+K−1) avec M≥4K nécessaire) et par l'Ultra-Scale Playbook (Hugging Face/nanotron) qui reprend exactement (p−1)/m et explicite pourquoi m≫p, contraint par le batch global, borne le choix de p en parallélisme composé."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Le papier donne explicitement la formule bubble time fraction = (p−1)/m et énonce « for the bubble time fraction to be small, we thus need m≫p », avec n=p·t·d et la remarque que le nombre total d'étages de pipeline « should thus be limited » — ce qui corrobore le lien avec le choix de p dans la composition 3D. Seule une source primaire a pu être vérifiée en texte intégral (l'URL arxiv.org/abs n'est que la page résumé du même document, donc pas une source indépendante distincte)."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:14",
+      "section": "pipeline-3d",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "La règle de placement de Megatron-LM confine le tensor parallelism (all-reduce coûteux) aux GPU d'un même nœud reliés par NVLink, et réserve le pipeline parallelism (communication point-à-point moins chère) au franchissement des nœuds via InfiniBand.",
+      "original_statement": "La règle de placement de Megatron-LM confine le tensor parallelism (all-reduce coûteux) aux GPU d'un même nœud reliés par NVLink, et réserve le pipeline parallelism (communication point-à-point moins chère) au franchissement des nœuds via InfiniBand.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les deux candidates fournies (paper et blog NVIDIA) sont en réalité la même équipe ADLR, donc non indépendantes entre elles. Confirmation indépendante trouvée via le survey Duan et al. (Shanghai AI Lab/CUHK, sans affiliation NVIDIA) et l'Ultra-Scale Playbook, qui expliquent tous deux pourquoi le TP ne scale pas au-delà d'un nœud et pourquoi le PP est adapté à la traversée inter-nœuds."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Confirmé : le papier décrit le cluster avec « connected to each other by NVLink and NVSwitch » (intra-nœud) et « eight NVIDIA Mellanox 200Gbps HDR Infiniband HCAs » (inter-nœud), recommande « tensor model parallelism should generally be used up to degree g when using g-GPU servers, and then pipeline model parallelism can be used to scale up... across servers », et oppose all-reduce (tensor) à point-à-point (pipeline) ; le blog NVIDIA confirme la même règle. Nuance : c'est une recommandation pratique (« should generally »), pas une contrainte technique absolue — le papier note que t>g reste possible mais « impractical » ; les deux sources partagent une partie des mêmes auteurs (NVIDIA), donc l'indépendance reste partielle."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:15",
+      "section": "pipeline-3d",
+      "section_retained": true,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "En composant tensor, pipeline et data parallelism sous la contrainte p·t·d=n, Megatron-LM a entraîné un modèle GPT à 1 trillion de paramètres sur 3072 GPU A100, atteignant 502 petaFLOP/s agrégés (163 TFLOP/s par GPU), soit 52 % du pic théorique, en bout en bout.",
+      "original_statement": "En composant tensor, pipeline et data parallelism sous la contrainte p·t·d=n, Megatron-LM a entraîné un modèle GPT à 1 trillion de paramètres sur 3072 GPU A100, atteignant 502 petaFLOP/s agrégés (163 TFLOP/s par GPU), soit 52 % du pic théorique, en bout en bout.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 0,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": false,
+          "n_sources": 0,
+          "note": "Chiffres exacts (3072 A100, 502 PF/s, 163 TFLOP/s/GPU, 52%) confirmés deux fois dans la source primaire, mais recherche dédiée infructueuse pour une source réellement indépendante : le miroir Berkeley est hébergé par un co-auteur du papier, le blog est la même équipe NVIDIA ADLR, et toute autre mention trouvée ne fait que citer ce même papier sans re-mesure. Claim auto-référentiel single-source — rejet attendu faute des ≥2 sources indépendantes requises par le projet."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Chiffres exacts confirmés dans le papier : « 502 petaFLOP/s on 3072 GPUs (per-GPU throughput of 52% of theoretical peak) », « 163 teraFLOP/s per GPU », mesuré end-to-end (data loading, optimisation, logging inclus) sur un modèle GPT à 1T paramètres. Le blog NVIDIA rapporte les mêmes chiffres, mais comme il émane de la même équipe (auteurs Megatron-LM chez NVIDIA) rapportant son propre benchmark, ce n'est pas une seconde source réellement indépendante — un seul point de vérification indépendant a pu être établi ici."
+        }
+      ],
+      "audit_note": "Rejeté : 1 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+    },
+    {
+      "id": "claim:16",
+      "section": "pipeline-3d",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Le gain de débit de plus de 10 % apporté par le schedule interleaved 1F1B de Megatron-LM provient principalement de la division du modèle en plusieurs chunks non contigus (« stages virtuels », facteur v) par device, ce qui réduit la fraction de bulle à (p−1)/(v·m) — et non d'une augmentation du nombre de microbatches m, qui reste inchangé par ce schedule.",
+      "original_statement": "Le gain de débit de plus de 10 % apporté par le schedule interleaved 1F1B de Megatron-LM provient principalement d'une augmentation du nombre de microbatches m par batch, qui réduit la fraction de bulle (p−1)/m.",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 3,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Mécanisme mal attribué : la source primaire elle-même donne la formule (p−1)/(v·m) — le gain vient de v (stages/chunks virtuels non contigus par device), pas de m. Confirmé indépendamment par la doc MindSpore/Huawei (distribution non contiguë des couches) et par l'Ultra-Scale Playbook (formule identique, gain attribué explicitement au facteur v)."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le papier donne explicitement la formule du schedule entrelacé : bubble time fraction = (1/v)·(p−1)/m — le mécanisme causal est le facteur d'entrelacement v, pas m. Le blog NVIDIA attribue le gain « up to 11% » à l'optimisation de communication scatter/gather qui « makes more communication-intensive schedules feasible », sans jamais mentionner une hausse de m comme cause. Le claim inverse donc la variable responsable du gain."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "La source primaire est explicite : le schedule interleaved garde m fixe et divise le temps de bulle par v (nombre de model chunks par device), donnant une fraction de bulle (1/v)·(p−1)/m au lieu de (p−1)/m — pas un effet d'augmentation de m. L'énoncé inverse donc le mécanisme causal réel (division par v vs augmentation de m), même si le chiffre « 10+ % » de gain de débit cité dans l'abstract est correct. Vérifié sur deux rendus indépendants du même papier source (ar5iv et arXiv PDF, texte identique)."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « Le gain de débit de plus de 10 % apporté par le schedule interleaved 1F1B de Megatron-LM provient principalement d'une augmentation du nombre de microbatches m par batch, qui réduit la fraction de bulle (p−1)/m. »"
+    },
+    {
+      "id": "claim:17",
+      "section": "sequence-parallelism",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Llama 3 405B n'utilise PAS Ring Attention pour son context parallelism : son implémentation CP repose sur une méthode all-gather (les tenseurs K/V sont d'abord all-gathered, puis l'attention locale est calculée pour le chunk Q local). Le papier Llama 3 contraste explicitement ce choix avec les implémentations CP existantes qui se recouvrent en structure d'anneau (citant Liu et al. 2023, Ring Attention), et le rejette pour deux raisons : plus de flexibilité pour supporter différents masques d'attention (ex. document masking), et un surcoût de communication limité car les tenseurs K/V communiqués sont bien plus petits que Q grâce à GQA.",
+      "original_statement": "Llama 3 405B utilise Ring Attention (communication point-à-point en anneau des blocs K/V) pour son context parallelism, en aboutissement logique de la lignée Ring Self-Attention → DeepSpeed-Ulysses/Ring Attention.",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 3,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Réfutation directe et sans ambiguïté par la source candidate elle-même (texte intégral du papier Llama 3, arXiv:2407.21783) : citation exacte « our CP implementation adopts an all-gather based method... Different from existing CP implementations that overlap communication and computation in a ring-like structure (liu2023ring) ». Confirmé indépendamment par emergentmind.com qui décrit aussi le all-gather K/V sans mention de ring. La lignée Ring Self-Attention→Ulysses/Ring Attention existe dans la littérature mais Llama 3 405B ne s'y inscrit pas comme aboutissement — il s'en écarte délibérément."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Contrediction directe et sourcée mot pour mot : le papier Llama 3 dit explicitement « Different from existing CP implementations that overlap communication and computation in a ring-like structure (liu2023ring), our CP implementation adopts an all-gather based method ». Le claim inverse exactement le choix d'implémentation documenté — c'est une réfutation, pas une nuance."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Réfutation directe par la source primaire elle-même : le papier Llama 3 dit textuellement « Different from existing CP implementations that overlap communication and computation in a ring-like structure (Liu et al., 2023a), our CP implementation adopts an all-gather based method ». Donc Llama 3 405B ne s'inscrit pas en aboutissement de la lignée Ring Attention pour son CP — il en est l'antithèse assumée et documentée par les auteurs eux-mêmes, qui citent Ring Attention seulement pour s'en démarquer."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « Llama 3 405B utilise Ring Attention (communication point-à-point en anneau des blocs K/V) pour son context parallelism, en aboutissement logique de la lignée Ring Self-Attention → DeepSpeed-Ulysses/Ring Attention. »"
+    },
+    {
+      "id": "claim:18",
+      "section": "sequence-parallelism",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "La sequence parallelism de Korthikanti et al. partitionne les régions non tensor-parallèles du transformer (LayerNorm, dropout) le long de la dimension séquence, ce qui fait scaler toute la mémoire d'activation en 1/t (t = degré de tensor parallelism) ; combinée au selective activation recomputation, elle réduit la mémoire d'activation d'environ 5x et le surcoût temporel du recompute de plus de 90% par rapport au recompute intégral.",
+      "original_statement": "La sequence parallelism de Korthikanti et al. partitionne les régions non tensor-parallèles du transformer (LayerNorm, dropout) le long de la dimension séquence, ce qui fait scaler toute la mémoire d'activation en 1/t (t = degré de tensor parallelism) ; combinée au selective activation recomputation, elle réduit la mémoire d'activation d'environ 5x et le surcoût temporel du recompute de plus de 90% par rapport au recompute intégral.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Texte intégral de Korthikanti et al. (arXiv:2205.05198) confirme point par point : les régions non-tensor-parallèles (layer-norms, dropout) sont indépendantes le long de la dimension séquence et y sont partitionnées ; la formule mémoire combinée TP+SP scale en 1/t (sbh(34/t + 5as/ht)) ; combiné au selective activation recomputation, réduction mémoire de 5x et surcoût temporel réduit de >90% (chiffres explicites dans l'abstract même). Le mécanisme (indépendance le long de la séquence, selective checkpointing) est corroboré indépendamment par la doc AWS Neuron ; les chiffres précis (5x, >90%) sont des résultats empiriques propres à ce papier (auto-référentiel, source primaire faisant foi)."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Vérifié contre le texte et les équations du papier : la sequence parallelism partitionne LayerNorm/dropout le long de s, et combinée à la tensor parallelism la mémoire d'activation par couche devient sbh/t(34+5as/h) — bien proportionnelle à 1/t. Le papier rapporte lui-même « 5x » de réduction mémoire et « over 90% » de réduction du surcoût de recompute (tableau détaillé : 39% en full recompute vs 4% en selective+SP), ce qui correspond exactement à l'énoncé."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:19",
+      "section": "sequence-parallelism",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "DeepSpeed-Ulysses et Ring Attention représentent deux mécanismes distincts de sequence parallelism distribuée : Ulysses bascule via un all-to-all la partition de la dimension séquence vers la dimension des têtes d'attention, ce qui plafonne son degré de parallélisme par le nombre de têtes K/V du modèle, alors que Ring Attention communique les blocs K/V de proche en proche en anneau et passe à l'échelle linéairement avec le nombre de devices, sans contrainte liée au nombre de têtes.",
+      "original_statement": "DeepSpeed-Ulysses et Ring Attention représentent deux mécanismes distincts de sequence parallelism distribuée : Ulysses bascule via un all-to-all la partition de la dimension séquence vers la dimension des têtes d'attention, ce qui plafonne son degré de parallélisme par le nombre de têtes K/V du modèle, alors que Ring Attention communique les blocs K/V de proche en proche en anneau et passe à l'échelle linéairement avec le nombre de devices, sans contrainte liée au nombre de têtes.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Confirmé par deux sources véritablement indépendantes entre elles et de l'origine (ni DeepSpeed/Microsoft, ni Liu et al./Berkeley) : USP (Tencent) déclare explicitement 'The parallelism degree of DS-Ulysses cannot exceed the number of attention heads hc... Llama3-8B employs GQA with a KV head number of 8... the maximum SP degree is 8' et 'SP-Ring does not impose any restrictions on hc'. Le blog insujang.github.io confirme indépendamment avec un exemple concret (32 têtes → 64 GPUs impossible en Ulysses) et note le conflit Ulysses/tensor parallelism sur la dimension têtes, contrairement à Ring Attention."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le papier Ulysses confirme le double all-to-all (répartition séquence → têtes puis retour). Le papier USP confirme explicitement et en toutes lettres la contrainte : « The parallelism degree of DS-Ulysses cannot exceed the number of attention heads hc » contre Ring Attention qui « does not impose any restrictions on hc » et scale avec le nombre de devices — description fidèle des deux mécanismes tels que présentés dans le claim."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:20",
+      "section": "sequence-parallelism",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le MoE Parallel Folding de Megatron-Core introduit un parallélisme à 5 dimensions (Tensor, Expert, Context, Data, Pipeline) qui découple la configuration de parallélisme des couches d'attention denses — qui profitent d'un tensor et context parallelism élevés pour les longues séquences — de celle des couches MoE sparses, qui profitent plutôt de l'expert parallelism pour que chaque expert reçoive une charge de calcul pleine.",
+      "original_statement": "Le MoE Parallel Folding de Megatron-Core introduit un parallélisme à 5 dimensions (Tensor, Expert, Context, Data, Pipeline) qui découple la configuration de parallélisme des couches d'attention denses — qui profitent d'un tensor et context parallelism élevés pour les longues séquences — de celle des couches MoE sparses, qui profitent plutôt de l'expert parallelism pour que chaque expert reçoive une charge de calcul pleine.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Confirmé par la source primaire (arXiv:2504.14960, équipe Megatron-Core/NVIDIA) : 'five-dimensional hybrid parallelism: Tensor, Expert, Context, Data, Pipeline' et 'MoE Parallel Folding... decouples the parallelization of attention and MoE layers... attention layers can use TP×CP×DP×PP, while MoE layers use TP×EP×DP×PP'. Corroboré indépendamment par emergentmind.com (source tierce distincte de NVIDIA). Nuance mineure : le papier motive le choix d'EP pour les couches MoE par la sparsité et le faible coût de communication (traitement au niveau token) plutôt que littéralement par 'chaque expert reçoit une charge de calcul pleine' — cette formulation est une paraphrase standard du domaine (GShard/Switch Transformer) non trouvée verbatim dans le texte du papier consulté, mais elle ne contredit pas le fond du claim."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "L'abstract confirme littéralement les 5 dimensions (Tensor, Expert, Context, Data, Pipeline Parallelism) et le découplage : « MoE Parallel Folding... decouples the parallelization of attention and MoE layers... allowing each layer type to adopt optimal parallel configurations », attention bénéficiant de TP/CP élevés pour les longues séquences, MoE de l'expert parallelism. Une seule source primaire vérifiée (pas de seconde source indépendante trouvée dans cette passe) mais le contenu vérifié colle exactement au claim."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": null,
+      "section": "mixed-precision",
+      "section_retained": false,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "La recette de précision mixte 2017 de Micikevicius et al. — poids maîtres FP32, accumulation de gradient FP32, loss scaling autour d'un calcul FP16 — a égalé la précision de référence full-FP32 sur des CNN à l'échelle ImageNet.",
+      "original_statement": "La recette de précision mixte 2017 de Micikevicius et al. — poids maîtres FP32, accumulation de gradient FP32, loss scaling autour d'un calcul FP16 — a égalé la précision de référence full-FP32 sur des CNN à l'échelle ImageNet.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 0,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": false,
+          "n_sources": 0,
+          "note": "Vérifié mot à mot dans la source primaire (Table 1, ar5iv 1710.03740, ICLR 2018) : AlexNet, VGG-D, GoogLeNet, Inception v1/v3 et ResNet-50 égalent ou dépassent légèrement le top-1 FP32 baseline avec poids-maîtres FP32 + accumulation FP32 + loss scaling (loss scaling non requis pour ces réseaux précis). Contenu exact, mais aucune source réellement indépendante trouvée malgré recherche ciblée : le blog NVIDIA 'Mixed-Precision Training of Deep Neural Networks' qui reprend ces mêmes chiffres est signé par Micikevicius lui-même (auteur principal du papier — pas indépendant), et les autres pages (docs PyTorch/Apex, tutoriels tiers) ne font que reciter le même tableau sans réplication expérimentale indépendante. Single-source malgré son statut de résultat fondateur très cité."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Confirmé texte + Table 1 : la recette exacte (copie maîtresse FP32, accumulation FP32 des produits scalaires, loss scaling avant la rétropropagation) est décrite en §3.1–3.3, et le papier rapporte explicitement avoir « match[ed] the top-1 accuracy of baseline FP32 training » sur ResNet-50 (76.04 vs 75.92), Inception v3, VGG-D et AlexNet."
+        }
+      ],
+      "audit_note": "Rejeté : 1 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+    },
+    {
+      "id": null,
+      "section": "mixed-precision",
+      "section_retained": false,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "Le framework FP8-LM de Microsoft a réduit l'usage mémoire réel de 39 % et augmenté le débit d'entraînement de 75 % par rapport à BF16 Megatron-LM pour l'entraînement d'un modèle GPT-175B sur GPU H100.",
+      "original_statement": "Le framework FP8-LM de Microsoft a réduit l'usage mémoire réel de 39 % et augmenté le débit d'entraînement de 75 % par rapport à BF16 Megatron-LM pour l'entraînement d'un modèle GPT-175B sur GPU H100.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 0,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": false,
+          "n_sources": 0,
+          "note": "Chiffres confirmés texto dans l'abstract de la source (39% de réduction mémoire réelle, 75% plus rapide, GPT-175B sur H100 vs Megatron-LM BF16 ; dépasse aussi Transformer Engine de 37%). C'est toutefois un benchmark auto-rapporté par l'équipe Microsoft elle-même — aucune réplication indépendante trouvée (entraîner un GPT-175B en FP8 vs BF16 pour vérifier est hors de portée de tiers) ; les autres mentions du chiffre (HuggingFace papers, blogs, survols FP8) ne font que citer le même papier, une variante interne du même papier donne même des chiffres différents (42%/64% pour une autre échelle de modèle), signe que ce sont des résultats spécifiques à l'expérience d'origine, non corroborés ailleurs."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Chiffres exacts retrouvés en Table 5 (H100 80GB) : GPT-175B passe de 66.1GB (BF16 Megatron-LM) à 40.3GB (FP8) soit -39% mémoire, et de 22.4 à 39.3 échantillons/s soit +75% débit — l'abstract reprend mot pour mot ces deux pourcentages."
+        }
+      ],
+      "audit_note": "Rejeté : 1 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+    },
+    {
+      "id": null,
+      "section": "mixed-precision",
+      "section_retained": false,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "Le pré-entraînement BF16 de Llama 3 conserve malgré tout l'accumulation de gradient et la réduction inter-GPU des gradients en FP32 pour la stabilité numérique, plutôt que de faire confiance au BF16 de bout en bout.",
+      "original_statement": "Le pré-entraînement BF16 de Llama 3 conserve malgré tout l'accumulation de gradient et la réduction inter-GPU des gradients en FP32 pour la stabilité numérique, plutôt que de faire confiance au BF16 de bout en bout.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 0,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Confirmé texto dans la source primaire (Llama 3 §3.3.2, ar5iv 2407.21783) : 'we use FP32 gradient accumulation during backward computation over multiple micro-batches and also reduce-scatter gradients in FP32 across data parallel workers.' Aucune source indépendante nommant spécifiquement Llama 3 sur ce point n'a été trouvée — en particulier le survol arXiv:2407.20018, qui semblait le confirmer d'après un résumé de recherche, ne mentionne en réalité Llama 3 que pour sa durée d'entraînement (54 jours, 16K H100) et non sa précision numérique, vérifié par lecture directe du texte. Un fil GitHub DeepSpeed (Microsoft, organisation indépendante de Meta) corrobore que l'accumulation de gradients en FP32 est une pratique réelle utilisée pour stabiliser l'entraînement BF16 à grande échelle, mais sans viser Llama 3 spécifiquement — corroboration seulement circonstancielle du mécanisme, pas du fait précis énoncé."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Le papier confirme quasi mot pour mot : « we use FP32 gradient accumulation during backward computation over multiple micro-batches and also reduce-scatter gradients in FP32 across data parallel workers in FSDP », tandis que le calcul principal reste en BF16 (mention du « BF16 MFU »)."
+        }
+      ],
+      "audit_note": "Rejeté : 1 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+    },
+    {
+      "id": null,
+      "section": "mixed-precision",
+      "section_retained": false,
+      "retained": false,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "La large plage dynamique du BF16 est communément supposée le rendre assez robuste numériquement pour se passer, contrairement au FP16, de tout garde-fou contre la divergence d'entraînement — mais l'arithmétique BF16 à l'intérieur de l'accumulation softmax/sortie fusionnée de Flash Attention peut elle-même introduire un biais d'arrondi systématique, qui ne s'annule pas et s'accumule silencieusement sur des milliers de steps jusqu'à l'explosion de la loss.",
+      "original_statement": "La large plage dynamique du BF16 est communément supposée le rendre assez robuste numériquement pour se passer, contrairement au FP16, de tout garde-fou contre la divergence d'entraînement — mais l'arithmétique BF16 à l'intérieur de l'accumulation softmax/sortie fusionnée de Flash Attention peut elle-même introduire un biais d'arrondi systématique, qui ne s'annule pas et s'accumule silencieusement sur des milliers de steps jusqu'à l'explosion de la loss.",
+      "corroborated": 2,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Volet 1 (BF16 supposé robuste sans garde-fou, contrairement au FP16) confirmé indépendamment par Kalamkar et al. 2019 (Intel/Facebook/ARM — équipe distincte des auteurs des deux candidates), qui montre que la plage BF16 évite le tuning d'hyperparamètres (dont loss scaling) requis par FP16. Volet 2 (biais systématique non-cancelant dans Flash Attention → explosion de la loss sur des milliers de steps) reprend quasi mot pour mot l'abstract de la source d'origine du claim (arXiv:2510.04212, très récent, non encore répliqué) ; le candidat censé être indépendant (arXiv:2405.02803, équipe différente, mai 2024) documente une déviation numérique BF16 plus forte sous Flash Attention mais la qualifie de mineure et ne mentionne ni biais systématique non-cancelant ni explosion de loss — il tempère plutôt qu'il ne corrobore la formulation alarmiste du second volet."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "2510.04212 §2.1 pose explicitement l'hypothèse communément admise (« BF16 ... provides the same dynamic range as FP32, making it more robust against underflow », contrairement à FP16 qui « requir[es] techniques like loss scaling »), puis démontre mécanistiquement qu'un biais d'arrondi BF16 dans le calcul non normalisé Ō=P̄V (l'accumulation softmax-valeur fusionnée de flash attention) s'accumule sans s'annuler et provoque une explosion soudaine de la loss après plusieurs milliers de steps (fenêtre analysée : steps 6580–6680) ; 2405.02803 corrobore indépendamment qu'à précision BF16, flash attention présente environ un ordre de grandeur de déviation numérique en plus que l'attention de référence."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Vérifié mot à mot contre le texte brut (HTML téléchargé + grep, pas seulement un résumé de modèle) de 2510.04212, qui correspond précisément à chaque élément de l'énoncé : hypothèse commune BF16/pas de garde-fou (citation directe « BF16 eliminates most precision-related tuning and failures », immédiatement nuancée par le papier lui-même), localisation du biais dans l'accumulation P̄V après le safe-softmax fusionné de Flash Attention, biais systématique qui « ne s'annule pas » (« accumulate rather than cancel out »), et explosion de la loss après « several thousand training steps » avec somme cumulative positive trackée sur les steps 6580–6680. arXiv:2405.02803 (Meta/Harvard, source indépendante antérieure) corrobore le phénomène général (Flash Attention en BF16 introduit ~10x plus de déviation numérique que le baseline, qui se répercute sur la divergence des poids en cours d'entraînement) mais n'établit pas aussi précisément la chaîne causale complète biais-systématique→explosion ; son propre cadrage est plus mesuré. Seul point d'attention mineur : « tout garde-fou » est un peu plus absolu que le papier primaire (qui parle surtout de loss scaling/underflow), mais c'est la croyance commune que le papier cite puis complique — pas une déformation matérielle de l'énoncé."
+        }
+      ],
+      "audit_note": "Confirmé : 2/3 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": null,
+      "section": "activation-checkpointing",
+      "section_retained": false,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "Chen et al. (2016) démontrent qu'un réseau à n couches peut être entraîné avec une mémoire en O(√n) au prix d'un unique forward pass supplémentaire par minibatch, un résultat qu'ils valident concrètement en réduisant l'empreinte mémoire d'un ResNet à 1000 couches de 48 Go à 7 Go pour un surcoût de temps d'environ 30 %.",
+      "original_statement": "Chen et al. (2016) démontrent qu'un réseau à n couches peut être entraîné avec une mémoire en O(√n) au prix d'un unique forward pass supplémentaire par minibatch, un résultat qu'ils valident concrètement en réduisant l'empreinte mémoire d'un ResNet à 1000 couches de 48 Go à 7 Go pour un surcoût de temps d'environ 30 %.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 0,
+          "note": "Vérifié mot à mot contre la source primaire (ar5iv 1604.06174) : O(√n) mémoire pour un réseau à n couches au prix d'un forward pass supplémentaire (Sec. 4.3), ResNet 1000 couches 48Go→7Go (abstract, Fig.5), ~30% de surcoût runtime (Sec. 5.4, Fig.7). Tous les chiffres correspondent exactement. Recherche active d'une confirmation tierce indépendante infructueuse pour CES chiffres précis : les surveys/évaluations trouvés (arXiv 2501.11847, 2303.14633) ne reprennent pas les chiffres 48Go/7Go/30% ; seul un tiers réellement indépendant (dépôt OpenAI/cybertronai gradient-checkpointing) confirme le mécanisme général (O(√n) + un forward pass supplémentaire) mais avec ses propres chiffres différents (10x, 20%, autre modèle) — pas les chiffres spécifiques du claim. Claim auto-référentiel à une seule source primaire, conforme au pattern déjà identifié pour ce type de claim dans ce projet."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Vérifié mot à mot sur deux fetches ciblés : abstract donne O(√n) mémoire + coût d'un forward pass supplémentaire par minibatch ; §5.2 donne explicitement 48G→7G pour le ResNet-1000-couches (Titan X, batch 32, 224×224) et « the sublinear allocation strategy costs 30% additional runtime ». Aucune divergence trouvée."
+        }
+      ],
+      "audit_note": "Rejeté : 2 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+    },
+    {
+      "id": null,
+      "section": "activation-checkpointing",
+      "section_retained": false,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "La selective activation recomputation de NVIDIA obtient un compromis mémoire/calcul nettement meilleur que le recompute intégral en ne recalculant que la portion du bloc d'attention coûteuse en mémoire mais bon marché à recalculer (Q·K^T, softmax, dropout du softmax, attention sur V), économisant environ 70 % de la mémoire d'activation pour seulement 2,7 % de FLOPs supplémentaires sur GPT-3.",
+      "original_statement": "La selective activation recomputation de NVIDIA obtient un compromis mémoire/calcul nettement meilleur que le recompute intégral en ne recalculant que la portion du bloc d'attention coûteuse en mémoire mais bon marché à recalculer (Q·K^T, softmax, dropout du softmax, attention sur V), économisant environ 70 % de la mémoire d'activation pour seulement 2,7 % de FLOPs supplémentaires sur GPT-3.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 0,
+          "note": "Vérifié mot à mot contre la source primaire (ar5iv 2205.05198) : le papier confirme explicitement que la selective activation recomputation cible QK^T, softmax, softmax dropout et l'attention sur V (citation exacte obtenue), avec 70% d'économie mémoire pour 2,7% de FLOPs supplémentaires sur GPT-3 (175B). Recherche de confirmation tierce indépendante : le seul papier trouvé qui cite Korthikanti et al. avec un contexte pertinent (arXiv 2406.08756, 'Lynx') ne fait que le mentionner en passant, sans reprendre ces chiffres précis. Aucune source indépendante trouvée reproduisant les chiffres 70%/2,7% — claim auto-référentiel à une seule source primaire (attendu pour ce type de résultat expérimental propre à un seul papier)."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Confirmé : la sélection porte bien sur Q·K^T, softmax, softmax dropout, attention sur V (§5, Fig. 3) ; le papier énonce littéralement « save 70% ... for GPT-3 » et un surcoût FLOPs de 2,7% pour GPT-3. Chiffres exacts, pas de sur-généralisation."
+        }
+      ],
+      "audit_note": "Rejeté : 2 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+    },
+    {
+      "id": null,
+      "section": "activation-checkpointing",
+      "section_retained": false,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "Combinée au sequence parallelism, la selective activation recomputation fait passer la Model FLOPs Utilization de 42,1 % (recompute intégral) à 54,2 % sur un modèle de 530 milliards de paramètres entraîné sur 2240 GPU A100 — un gain de débit de 29 % — ce qui établit la stratégie de recomputation comme un levier de MFU au même titre que la topologie de parallélisme.",
+      "original_statement": "Combinée au sequence parallelism, la selective activation recomputation fait passer la Model FLOPs Utilization de 42,1 % (recompute intégral) à 54,2 % sur un modèle de 530 milliards de paramètres entraîné sur 2240 GPU A100 — un gain de débit de 29 % — ce qui établit la stratégie de recomputation comme un levier de MFU au même titre que la topologie de parallélisme.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 0,
+          "note": "Chiffres MFU 42,1%→54,2% (gain de 29%), 530B paramètres, 2240 GPU A100, vérifiés mot à mot contre l'abstract de la source primaire (ar5iv 2205.05198). La clause de clôture ('établit la stratégie de recomputation comme un levier de MFU au même titre que la topologie de parallélisme') est une synthèse éditoriale raisonnable dans l'esprit du papier mais n'est pas une citation littérale. Aucune source tierce indépendante ne reprend ces chiffres précis malgré recherche (la version MLSys du même papier n'est pas indépendante — mêmes auteurs, même travail) — claim auto-référentiel à une seule source primaire."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Table 5 / abstract confirment 42,1%→54,2% MFU, 530B paramètres, 2240 A100, gain de débit ~29% — cité quasi verbatim dans l'abstract. La conclusion « levier de MFU au même titre que la topologie » est une synthèse de l'auditeur, pas une citation, mais reste une inférence raisonnable et non contredite par le texte."
+        }
+      ],
+      "audit_note": "Rejeté : 2 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+    },
+    {
+      "id": null,
+      "section": "activation-checkpointing",
+      "section_retained": false,
+      "retained": false,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "Idée reçue à départager : le surcoût de calcul de l'activation checkpointing serait une taxe fixe d'environ 30 % (l'équivalent d'un forward pass supplémentaire), intrinsèque au compromis mémoire/calcul formalisé par Chen et al. — alors qu'en réalité ce surcoût dépend entièrement de QUOI l'on choisit de recalculer : le recompute uniforme/intégral coûte bien ~30 %, mais un recompute sélectif ciblant uniquement les tenseurs coûteux en mémoire et bon marché à recalculer réduit ce surcoût de plus d'un ordre de grandeur (~2,7 % de FLOPs) pour l'essentiel du bénéfice mémoire.",
+      "original_statement": "Idée reçue à départager : le surcoût de calcul de l'activation checkpointing serait une taxe fixe d'environ 30 % (l'équivalent d'un forward pass supplémentaire), intrinsèque au compromis mémoire/calcul formalisé par Chen et al. — alors qu'en réalité ce surcoût dépend entièrement de QUOI l'on choisit de recalculer : le recompute uniforme/intégral coûte bien ~30 %, mais un recompute sélectif ciblant uniquement les tenseurs coûteux en mémoire et bon marché à recalculer réduit ce surcoût de plus d'un ordre de grandeur (~2,7 % de FLOPs) pour l'essentiel du bénéfice mémoire.",
+      "corroborated": 3,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Claim de synthèse comparative vérifié composante par composante contre deux sources primaires réellement indépendantes l'une de l'autre (auteurs, institutions et années différentes, aucune citation croisée déterminante) : le ~30% de surcoût du recompute uniforme est confirmé dans Chen et al. (Sec. 5.4), le ~2,7% du recompute sélectif dans Korthikanti et al. (Sec. 5). Le ratio ~11x justifie 'plus d'un ordre de grandeur'. La formulation 'l'essentiel du bénéfice mémoire' (70% vs quasi-totalité pour le recompute intégral) est une caractérisation raisonnable, non un chiffre inventé."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Arithmétique vérifiée : 30%/2,7% ≈ 11×, donc « plus d'un ordre de grandeur » est correct et non gonflé ; « l'essentiel du bénéfice mémoire » (70%) est correctement hedgé (pas 100%). Nuance : le claim relie un résultat CNN (ResNet, Chen et al.) et un résultat Transformer (GPT-3, NVIDIA) pour illustrer un principe général — défendable puisque le claim vise explicitement à déconstruire une généralisation populaire du chiffre de Chen et al., mais ce pontage d'architectures mérite d'être noté."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Les deux chiffres porteurs (~30% pour le recompute intégral/uniforme, ~2,7% de FLOPs pour le recompute sélectif, soit >10x de réduction) sont vérifiés mot pour mot dans les deux sources primaires. Seule la formulation « pour l'essentiel du bénéfice mémoire » est trop généreuse si on l'attribue au recompute sélectif seul : celui-ci ne capture que ~70%/65% de l'économie mémoire (vs ~98% pour l'intégral) ; le gain quasi-total (5x mémoire, >90% de surcoût récupéré) n'est atteint dans le papier Korthikanti et al. qu'en combinant sélectif + parallélisme de séquence/tensoriel, pas par le recompute sélectif isolé.</note>\n</invoke>\n"
+        }
+      ],
+      "audit_note": "Confirmé : 3/3 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:21",
+      "section": "mfu-etudes-de-cas",
+      "section_retained": true,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "La définition PaLM du MFU (rapport du débit observé en tokens/s au débit théorique maximal à FLOPs de pic, ne comptant que les FLOPs forward+backward, sans la rematérialisation) le rend indépendant de l'implémentation, contrairement au HFU (FLOPs observés sur l'appareil / pic théorique de l'appareil, dépendant du compilateur et incluant la rematérialisation) — d'où la publication conjointe des deux métriques pour PaLM (46,2 % MFU vs 57,8 % HFU).",
+      "original_statement": "La définition PaLM du MFU (rapport du débit observé en tokens/s au débit théorique maximal à FLOPs de pic, ne comptant que les FLOPs forward+backward, sans la rematérialisation) le rend indépendant de l'implémentation, contrairement au HFU (FLOPs observés sur l'appareil / pic théorique de l'appareil, dépendant du compilateur et incluant la rematérialisation) — d'où la publication conjointe des deux métriques pour PaLM (46,2 % MFU vs 57,8 % HFU).",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 0,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Vérifié verbatim dans le papier PaLM (ar5iv 2204.02311, section efficacité système) : définitions MFU/HFU et les deux chiffres (46,2%/57,8%) matchent exactement. La distinction conceptuelle (MFU indépendant de l'implémentation vs HFU dépendant du compilateur, incluant la rematérialisation) est corroborée par un papier NVIDIA distinct (2205.05198) qui pose la même distinction Model-FLOPs/Hardware-FLOPs indépendamment — mais ce papier ne reprend PAS les chiffres précis de PaLM. Les 46,2%/57,8% restent auto-rapportés uniquement par PaLM lui-même : aucune deuxième source indépendante ne les mesure/republie. Claim exact mais mono-source sur les chiffres → ne passe pas la barre indépendance de ce jury."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Confirmé quasi mot pour mot dans le papier : MFU = débit observé / débit théorique max ne comptant que forward+backward (pas la rematérialisation), explicitement dit 'implementation-independent' ; HFU = FLOPs observés/pic théorique de l'appareil, 'system-dependent and implementation-dependent', et inclut explicitement les FLOPs de rematérialisation ('hardware FLOPs utilization, which includes rematerialization FLOPs, is 57.8%'). Les chiffres 46,2% MFU / 57,8% HFU pour PaLM 540B sont exacts. Claim auto-référentiel à une seule source par nature (il décrit ce que dit ce papier précis), ce qui est attendu."
+        }
+      ],
+      "audit_note": "Rejeté : 1 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+    },
+    {
+      "id": "claim:22",
+      "section": "mfu-etudes-de-cas",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Le MFU mesuré de Llama 3 405B se dégrade avec l'échelle : 43% à 8192 GPU H100 (DP=64, batch de 32 séquences/groupe DP), puis 41% à 16384 GPU H100 (DP=128, batch de 16 séquences/groupe DP) — cette baisse étant explicitement attribuée par les auteurs à la réduction de la taille de batch par groupe data-parallel pour garder constant le nombre global de tokens par batch. À 16384 GPU H100 en configuration contexte long (CP=16, DP=4, séquences de 131072 tokens), le MFU descend encore à 38%, mais le papier ne fournit AUCUNE explication causale pour cette troisième baisse, et l'explication 'batch par groupe DP' ne s'y applique pas : le Tableau 4 montre un batch/DP identique (16) entre les lignes DP=128 (41%) et CP=16 (38%).",
+      "original_statement": "Le MFU mesuré de Llama 3 405B se dégrade à mesure que le nombre de GPU augmente pour un même modèle : 43 % à 8192 H100 (DP=64), 41 % à 16384 H100 (DP=128), et seulement 38 % à 16384 H100 en configuration contexte long (CP=16) — parce que la taille de batch par groupe data-parallel diminue pour garder constant le nombre global de tokens par batch.",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 2,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": false,
+          "n_sources": 0,
+          "note": "Vérifié verbatim dans le papier Llama 3 Herd of Models (ar5iv 2407.21783, Table 4) : 43% à 8192 GPU (DP=64), 41% à 16384 GPU (DP=128), 38% à 16384 GPU (CP=16), et l'explication batch-size-par-groupe-DP matchent exactement. Recherche étendue pour indépendance : couverture presse (Tom's Hardware, DCD, Yahoo Tech) et le tweet du chercheur Meta Sharan Narang ne font que citer/paraphraser le même papier ; un papier ISCA'25 ultérieur (Scaling Llama 3 Training with Efficient Parallelism Strategies, Chu et al.) est co-écrit par une grande partie de la même équipe Meta — même origine organisationnelle, pas indépendant. Aucune source réellement indépendante trouvée pour ces chiffres de télémétrie interne propriétaire."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Les trois pourcentages (43/41/38%) sont exacts, mais le claim étend à tort à la 3e ligne (CP=16) une explication causale que le papier ne donne QUE pour la transition 43%→41% ; le Tableau 4 montre que le batch par groupe DP est identique (16) entre les lignes DP=128 et CP=16, ce qui invalide directement cette explication pour la baisse à 38% — sur-généralisation du claim."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Les trois chiffres (43 %/41 %/38 %) et les paramètres associés (DP=64, DP=128, CP=16, GPU counts) sont exacts et correspondent mot pour mot à la Table 4 du papier. Le défaut est causal/de périmètre : l'énoncé fait porter l'explication « batch/DP diminue pour garder les tokens/batch constants » sur les TROIS points, alors que le papier ne la donne que pour l'écart 43→41 % ; pour 38 % il n'y a aucune explication dans le texte, et la table contredit même cette extrapolation (batch/DP identique à 16 entre les lignes 41 % et 38 %, GPU count identique à 16 384). Limite : je n'ai vérifié qu'une seule source primaire (le papier, via deux points d'accès non indépendants au fond — ar5iv et arXiv abstract) ; aucune seconde source réellement indépendante n'a été trouvée qui approfondisse la cause du 38 %."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « Le MFU mesuré de Llama 3 405B se dégrade à mesure que le nombre de GPU augmente pour un même modèle : 43 % à 8192 H100 (DP=64), 41 % à 16384 H100 (DP=128), et seulement 38 % à 16384 H100 en configuration contexte long (CP=16) — parce que la taille de batch par groupe data-parallel diminue pour garder constant le nombre global de tokens par batch. »"
+    },
+    {
+      "id": "claim:23",
+      "section": "mfu-etudes-de-cas",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Le chiffre de ~54 % de MFU souvent associé à Megatron-Turing NLG 530B provient en réalité du benchmark simulé de l'article sur la recomputation sélective (configuration 8-way tensor × 35-way pipeline, mise à l'échelle par 8-way data parallel, soit 2240 GPU) et non du run de production réel sur le supercalculateur Selene décrit par NVIDIA, qui ne rapporte lui-même aucun pourcentage de MFU (seulement un débit de 113 TFLOP/s par GPU à 420 serveurs DGX A100, en configuration 8-way tensor × 35-way pipeline).",
+      "original_statement": "Le chiffre de ~54 % de MFU souvent associé à Megatron-Turing NLG 530B provient en réalité du benchmark simulé de l'article sur la recomputation sélective (8-way tensor + 8-way data parallel, 2240 GPU) et non du run de production réel sur le supercalculateur Selene décrit par NVIDIA, qui ne rapporte lui-même aucun pourcentage de MFU (seulement un débit de 113 TFLOP/s par GPU à 420 serveurs DGX A100, en configuration 8-way tensor × 35-way pipeline).",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 3,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "J'ai ouvert et croisé les deux documents primaires moi-même : le blog NVIDIA confirme 113 TFLOP/s/GPU, 420 serveurs DGX A100, 8-way tensor × 35-way pipeline, et NE rapporte aucun % de MFU. Le papier 2205.05198 confirme le 54,2% MFU sur le benchmark simulé à 2240 GPU — mais cette config est en réalité 8-way tensor × 35-way pipeline × 8-way data parallel (8×35×8=2240), pas seulement « 8-way tensor + 8-way data parallel » comme énoncé (8×8=64≠2240) : détail manquant qui rend l'énoncé TEL QUEL incorrect malgré une thèse globale bien vérifiée sur deux documents distincts (blog NVIDIA vs papier de recherche NVIDIA, mesures différentes, pas un miroir)."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le cœur de la thèse tient (le blog NVIDIA/Selene ne donne aucun %MFU, seulement 113 TFLOP/s/GPU) mais la description entre parenthèses du claim est incohérente : '8-way tensor + 8-way data parallel' ne fait que 64 GPU, pas 2240 (il manque le pipeline 35-way, TP×PP×DP=8×35×8=2240) ; de plus le corps du papier (pas seulement l'abstract) présente le passage à 2240 GPU/54,2% comme une extrapolation depuis le run réel à 280 GPU (56,0% MFU mesuré), pas comme une mesure directe à 2240 GPU."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le mécanisme central de l'énoncé tient : le billet NVIDIA sur Selene décrit bien le run de production (jusqu'à 420 serveurs DGX A100, 8-way tensor × 35-way pipeline) et ne mentionne JAMAIS « MFU » ni de pourcentage, seulement 113/121/126 TFLOP/s par GPU ; le 54,2 % vient bien de l'article de recomputation sélective (Table 5, scaling à 2240 GPU). Deux imprécisions empêchent de valider l'énoncé tel quel : (1) « benchmark simulé » est trompeur — le papier précise explicitement « All of our results are run with mixed precision on the Selene supercomputer », donc c'est une mesure réelle sur le même supercalculateur que la production, pas une simulation ; (2) la parenthèse « 8-way tensor + 8-way data parallel, 2240 GPU » omet la dimension pipeline (35-way) pourtant nécessaire pour atteindre 2240 GPU (8×35×8=2240) — sans elle le calcul ne tombe pas juste."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « Le chiffre de ~54 % de MFU souvent associé à Megatron-Turing NLG 530B provient en réalité du benchmark simulé de l'article sur la recomputation sélective (8-way tensor + 8-way data parallel, 2240 GPU) et non du run de production réel sur le supercalculateur Selene décrit par NVIDIA, qui ne rapporte lui-même aucun pourcentage de MFU (seulement un débit de 113 TFLOP/s par GPU à 420 serveurs DGX A100, en configuration 8-way tensor × 35-way pipeline). »"
+    },
+    {
+      "id": "claim:24",
+      "section": "mfu-etudes-de-cas",
+      "section_retained": true,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "Sur une fenêtre de 54 jours de pré-entraînement de Llama 3 405B (jusqu'à 16384 GPU H100), 466 interruptions de job ont eu lieu (419 non planifiées, 47 de maintenance planifiée), dont environ 78 % causées par du matériel et 58,7 % par des pannes GPU seules — malgré cela, le cluster a maintenu plus de 90 % de temps d'entraînement effectif.",
+      "original_statement": "Sur une fenêtre de 54 jours de pré-entraînement de Llama 3 405B (jusqu'à 16384 GPU H100), 466 interruptions de job ont eu lieu (419 non planifiées, 47 de maintenance planifiée), dont environ 78 % causées par du matériel et 58,7 % par des pannes GPU seules — malgré cela, le cluster a maintenu plus de 90 % de temps d'entraînement effectif.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 0,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": false,
+          "n_sources": 0,
+          "note": "Vérifié verbatim dans le papier Llama 3 Herd of Models (ar5iv 2407.21783) : 466 interruptions totales, 419 non planifiées / 47 planifiées, ~78% matériel, 58,7% pannes GPU seules, >90% temps d'entraînement effectif — tout matche exactement. Recherche étendue : la couverture presse (Tom's Hardware, DataCenterDynamics, Yahoo Tech, TweakTown) reprend intégralement les chiffres du même papier sans mesure indépendante propre. Aucune source indépendante possible en pratique : cette télémétrie de cluster interne n'est connue que de Meta, qui est la seule à pouvoir la rapporter — claim auto-référentiel mono-source, comme attendu pour ce type de donnée opérationnelle propriétaire."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Tous les chiffres sont confirmés mot pour mot : fenêtre de 54 jours, jusqu'à 16K GPU H100, 466 interruptions (419 non planifiées + 47 planifiées), ~78% attribuées au matériel, 58,7% aux GPU seuls (les deux pourcentages calculés sur la même base de 419 interruptions non planifiées), et >90% de temps d'entraînement effectif maintenu. Claim auto-référentiel à une seule source par nature."
+        }
+      ],
+      "audit_note": "Rejeté : 1 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+    },
+    {
+      "id": "claim:25",
+      "section": "idees-recues",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "Le MFU (Model FLOPs Utilization) n'est pas une mesure directement comparable entre papiers ou systèmes : elle dépend de conventions de comptage (inclusion ou non des FLOPs de self-attention, et distinction avec le HFU qui inclut la rematerialization), au point de faire varier le chiffre pour un seul et même run.",
+      "original_statement": "Le MFU (Model FLOPs Utilization) n'est pas une mesure directement comparable entre papiers ou systèmes : elle dépend de conventions de comptage (inclusion ou non des FLOPs de self-attention, et distinction avec le HFU qui inclut la rematerialization), au point de faire varier le chiffre pour un seul et même run.",
+      "corroborated": 3,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Confirme quasi mot pour mot par la source primaire elle-meme: PaLM section 4.1 introduit MFU precisement parce que HFU depend de la rematerialization et de la methodologie de comptage, et donne pour UN MEME run deux chiffres differents (PaLM 540B: 45.7% sans self-attention vs 46.2% avec; MT-NLG 530B: 29.7% vs 30.2%). Independamment, stas00/ml-engineering confirme que les methodes de calcul varient et sont rarement documentees, rendant la comparaison inter-papiers non fiable."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Confirmé directement dans la source primaire : pour le MÊME run PaLM 540B, le papier rapporte un MFU de 45,7% sans self-attention vs 46,2% avec, ET un MFU de 46,2% vs un HFU de 57,8% (HFU inclut la rematerialization, MFU non) — écart de plus de 11 points pour un seul et même run selon la convention retenue. La source secondaire indépendante confirme la distinction MFU/HFU et le piège de comparabilité inter-systèmes."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le papier PaLM (source qui introduit le MFU) rapporte explicitement deux chiffres pour le MÊME run — PaLM 540B : 45,7% sans self-attention / 46,2% avec ; Megatron-Turing NLG 530B : 29,7% sans / 30,2% avec — confirmant que la convention de comptage fait varier le chiffre. Le papier distingue aussi le MFU (forward+backward théoriques, sans rematerialization) du HFU, qualifié de « system-dependent and implementation-dependent » précisément parce qu'il compte la rematerialization. L'issue GitHub nanoGPT #322 corrobore indépendamment que des implémentations réelles divergent sur l'inclusion du terme self-attention (12LHQT) dans le calcul, rendant les MFU rapportés difficilement comparables entre systèmes."
+        }
+      ],
+      "audit_note": "Confirmé : 3/3 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:26",
+      "section": "idees-recues",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "ZeRO-3 (sharding des paramètres) n'est pas un substitut universel et équivalent en performance au model parallelism (tensor + pipeline) à grande échelle : sa volumétrie de communication inter-nœuds plus élevée le pénalise face à une approche 3D topologie-aware.",
+      "original_statement": "ZeRO-3 (sharding des paramètres) n'est pas un substitut universel et équivalent en performance au model parallelism (tensor + pipeline) à grande échelle : sa volumétrie de communication inter-nœuds plus élevée le pénalise face à une approche 3D topologie-aware.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Confirme directement par Megatron-LM section 5.2: en doublant le nombre de GPU, PTD-P surpasse ZeRO-3 de 70% grace a moins de communication inter-noeuds (Table 2, Fig. 10). Le papier ZeRO admet lui-meme une augmentation de 50% du volume de communication pour le stage 3 vs DP de base - admission de la partie adverse, donc probante. La survey 2407.20018 corrobore independamment le mecanisme: le full sharding a le plus faible cout memoire mais le plus gros surcout de communication (1.5x vs DP classique). Nuance: un des co-auteurs de Megatron-LM (Phanishayee) est affilie a Microsoft Research comme les auteurs de ZeRO, chevauchement institutionnel mineur mais equipes distinctes."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Confirmé empiriquement : Narayanan et al. (équipe NVIDIA/Stanford, distincte de l'équipe Microsoft DeepSpeed de ZeRO) montrent qu'en doublant le nombre de GPU, PTD-P (tensor+pipeline) dépasse ZeRO-3 de 70% grâce à moins de communication inter-nœuds, avec déjà 6-24% de débit en plus à échelle fixe (175B/530B). Le papier ZeRO lui-même confirme que le schéma complet Pos+g+p augmente la communication de 50% par rapport au data parallelism standard, cohérent avec le coût de sharding évoqué."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:27",
+      "section": "idees-recues",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "La recomputation d'activation \"tout checkpointer\" (naïve, couche par couche) coûte un surcoût de temps d'exécution très supérieur à une recomputation sélective ciblée, pour une réduction mémoire comparable ou meilleure.",
+      "original_statement": "La recomputation d'activation \"tout checkpointer\" (naïve, couche par couche) coûte un surcoût de temps d'exécution très supérieur à une recomputation sélective ciblée, pour une réduction mémoire comparable ou meilleure.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Confirme quasi verbatim par la source primaire: 30-40% de surcout d'execution observe avec le full activation recomputation, contre une reduction de plus de 90% de ce surcout avec la recomputation selective, pour une reduction memoire comparable ou meilleure (exemple concret: MFU 54.2% selectif vs 42.1% full sur un GPT-3 530B). Confirmation independante par Lynx (autre labo, autre modele/hardware) qui mesure par ses propres experiences un surcout de 10-30% du temps total pour le full recomputation sur un GPT 7B, et positionne le recomputation selectif comme reduisant ce cout."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Confirmé quantitativement dans la source primaire : la recomputation complète coûte ~36-39% de surcoût d'exécution contre ~2-7% pour la recomputation sélective (jusqu'à ~18x moins), tout en atteignant une empreinte mémoire par couche légèrement MEILLEURE que la sélective (~10% du baseline vs ~20%) — donc 'comparable ou meilleure' décrit exactement l'écart mémoire. Une source indépendante (papier Megatron Core sur les MoE) corrobore qualitativement le même arbitrage (recomputation complète = 'plusieurs dizaines de %' de ralentissement)."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:28",
+      "section": "idees-recues",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Les runs 3D-parallel bien conçus à l'échelle du trillion de paramètres atteignent en réalité un débit d'environ 50 à 57% du pic théorique des accélérateurs — 52% chez Narayanan et al. (2021, 3072 GPU) mais jusqu'à 56,3% de MFU / 57,0% de HFU chez Korthikanti et al. (2022) grâce au sequence parallelism combiné à la recomputation sélective ; le plafond réel des configurations les mieux optimisées se situe donc plutôt au milieu des 50%, pas strictement '~50%'. En revanche, il est exact que le 'trillion de paramètres' du paper ZeRO original (Rajbhandari et al., 2019) était une capacité mémoire théorique (schéma Pos+g+p projeté sur 1024 GPU), et que le système réellement implémenté et évalué (ZeRO-100B, Pos+g seul) n'a entraîné que des modèles jusqu'à ~170B paramètres sur 400 GPU.",
+      "original_statement": "Même les runs d'entraînement 3D-parallel les mieux conçus à l'échelle du trillion de paramètres plafonnent autour de 50 % du débit théorique de pointe des accélérateurs — le trillion de paramètres du paper ZeRO original était une capacité mémoire théorique, pas un run démontré.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Les deux moities du claim sont confirmees directement par les papiers eux-memes. (a) Megatron-LM Table 1: le run 1T parametres demontre (3072 GPU A100, 502 petaFLOP/s) atteint 52% du pic theorique, soit autour de 50%. Corrobore independamment par OPT-175B (Meta, FSDP+TP, 992 GPU) a 147 TFLOP/s = environ 47% du pic. (b) ZeRO dit explicitement dans son abstract que le trillion de parametres est une potentialite theorique avec le hardware d'alors, et precise en corps de texte que le stage 3 necessaire au sharding a cette echelle n'etait pas encore implemente au moment de la publication (prevu pour une extension future); le plus gros modele reellement entraine dans le papier est 170B (ZeRO-100B+MP) et le SOTA reel revendique est 17B (Turing-NLG). Nuance de calibration: un benchmark NVIDIA ulterieur de la meme lignee Megatron atteint 56-57% HFU sur un modele 1T grace au recomputation selectif, donc le plafond ~50% est une photographie datee plutot qu'une limite physique dure, mais reste une caracterisation raisonnable vu la fourchette 46-57% observee sur plusieurs runs independants."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 4,
+          "note": "Le volet 'ZeRO trillion = capacité théorique, pas un run démontré' est solidement confirmé par 2 sources indépendantes (le papier lui-même + le blog Microsoft Research, qui parle d'un accomplissement réel 'over 100 billion parameters', pas d'un trillion). Mais le chiffre '~50%' comme plafond des MEILLEURS runs 3D-parallel est trop bas : Korthikanti et al. (même lignée Megatron-LM que Narayanan et al., donc sources partiellement non-indépendantes entre elles sur ce point précis) atteignent 56,3% MFU à 1T paramètres via recomputation sélective — nettement au-delà de '~50%'. Le claim sous-estime donc le plafond réel des configurations les mieux optimisées et ne tient pas tel quel."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « Même les runs d'entraînement 3D-parallel les mieux conçus à l'échelle du trillion de paramètres plafonnent autour de 50 % du débit théorique de pointe des accélérateurs — le trillion de paramètres du paper ZeRO original était une capacité mémoire théorique, pas un run démontré. »"
+    }
+  ]
+}
