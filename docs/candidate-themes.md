@@ -39,23 +39,7 @@ ces acquis. (`agent-harness-engineering` : FAIT le 2026-07-10, retiré du backlo
 (`agentic-rl-environments` : FAIT le 2026-07-10, retiré du backlog.)
 (`reinforcement-learning-fundamentals` : FAIT le 2026-07-10, retiré du backlog.)
 (`context-engineering` : FAIT le 2026-07-11, retiré du backlog.)
-
-### Entraînement distribué & parallélisme — `distributed-training-parallelism` → `deep-learning-foundations`
-**Verdict : partiel (~80 % neuf).** `mixture-of-experts` traite l'expert parallelism en profondeur
-(deux all-to-all, DeepSeek-V2 EP sur 8 devices) ; data/tensor/pipeline parallelism, ZeRO/FSDP,
-Megatron ne sont que des mentions éparses (lora, scaling-laws, state-space-models, text-embeddings).
-
-> Entraînement distribué des réseaux profonds : faire tenir et accélérer l'entraînement sur une
-> grappe de GPU. Couvrir le data parallelism (all-reduce, gradient accumulation, ZeRO-1/2/3 et FSDP
-> — partitionnement des états d'optimiseur, gradients et paramètres), le tensor parallelism
-> (Megatron-LM, découpe des matmuls et communications associées), le pipeline parallelism
-> (micro-batches, bulles, schedules 1F1B), le sequence/context parallelism, la précision mixte
-> (FP16/BF16, loss scaling) et l'activation checkpointing, et la mesure d'efficacité (MFU, scaling
-> faible vs fort, choix d'une topologie 3D). Public : ingénieur ML/infra. Délimitations :
-> mixture-of-experts couvre l'expert parallelism (le citer), scaling-laws l'allocation
-> compute-optimale du budget, quantization les formats numériques à l'inférence, lora la mémoire du
-> fine-tuning — se centrer sur les stratégies de partitionnement et la mémoire d'entraînement.
-> Domaine : deep-learning-foundations.
+(`distributed-training-parallelism` : FAIT le 2026-07-11, retiré du backlog.)
 
 ---
 
