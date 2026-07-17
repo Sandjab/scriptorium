@@ -139,20 +139,8 @@ ensemble-learning, régression logistique/BIM dans bm25).
 > logistique (BIM) en contexte IR — se centrer sur la régression supervisée et la régularisation en
 > propre. Domaine : classical-ml-time-series.
 
-### Sécurité LLM & jailbreaks — `llm-safety-jailbreaks` → `llm-agents-generation`
-**Verdict : nouveau gap.** Attaques ponctuelles dispersées (MCP/tool poisoning, MINJA,
-PoisonedRAG/BadRAG, refus).
-
-> Sécurité des LLM : jailbreaks, prompt injection et garde-fous. Couvrir la taxonomie des attaques
-> au niveau du modèle (jailbreaks par rôle/encodage/optimisation type GCG, prompt injection directe
-> et indirecte, extraction de prompt système et de données d'entraînement, attaques multi-tours), le
-> red-teaming (manuel et automatisé), et les défenses (alignement par refus, classificateurs
-> d'entrée/sortie, guardrails, durcissement du system prompt, détection de PII) avec leurs limites
-> (course à l'armement, transférabilité). Positionnement : très demandé, aujourd'hui dispersé.
-> Public : ingénieur ML / sécurité. Délimitations : agentic-ai couvre la surface agentique (MCP,
-> tool poisoning), agentic-memory le MINJA, RAG le PoisonedRAG/BadRAG — se centrer sur la taxonomie
-> attaques/défenses au niveau du MODÈLE, pas sur l'infrastructure agentique ni le RAG. Domaine :
-> llm-agents-generation.
+(`llm-safety-jailbreaks` : FAIT le 2026-07-17, retiré du backlog — 13e run /leanmonograph GREEN,
+classé dans llm-agents-generation après llm-evaluation.)
 
 ### Vision-Language Models (VLM) — `multimodal-vlm` → `llm-agents-generation`
 **Verdict : nouveau gap.** ViT (transformer-attention) et conditionnement cross-attention
