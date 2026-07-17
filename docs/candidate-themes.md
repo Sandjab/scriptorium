@@ -25,6 +25,15 @@ son auto-optimisation, `agentic-ai` la boucle ReAct/tool use et MCP/A2A, `recurs
 le context rot et la compaction, `rlhf-dpo` pose RLVR — les nouveaux candidats se délimitent contre
 ces acquis. (`agent-harness-engineering` : FAIT le 2026-07-10, retiré du backlog.)
 
+**Passe d'enrichissement du 2026-07-17** (corpus à 52 monographies) : ajout de 8 candidats après
+épuisement de la priorité haute — nouvelles modalités (texte par diffusion, audio, document image,
+action robotique), couche systèmes (kernels/compilation, routage multi-modèles) et provenance
+(watermarking). Chacun vérifié par greps ciblés sur les `knowledge.json`/`manifest.json` publiés
+puis lecture du contexte des mentions. Deux pièges de délimitation relevés : le flow matching est
+déjà traité EN PROFONDEUR par `diffusion-models` (le candidat flows se recentre sur la
+vraisemblance exacte), et le candidat `llm-inference-serving` inclut déjà le routage infra (le
+candidat routage se recentre sur l'arbitrage qualité/coût par requête).
+
 - **Fabrication** : `/leanmonograph « <prompt riche> »` (défaut depuis le test GREEN du 2026-07-02 ;
   `/frugalmonograph` en repli) puis `/arrange <slug>`.
 - **Domaine** = celui de `tools/taxonomy.json` (source de vérité). Un thème = un seul domaine.
@@ -327,6 +336,89 @@ psychométrie) ; SWE-bench/GAIA ne sont cités que comme résultats d'état de l
 > SWE-bench/GAIA comme état de l'art mesuré (le citer) — se centrer sur l'évaluation des SYSTÈMES
 > agents et leur observabilité. Domaine : llm-agents-generation.
 
+### Modèles de langage à diffusion — `diffusion-language-models` → `llm-agents-generation`
+**Verdict : gap réel (ajout 2026-07-17).** `diffusion-models` couvre la diffusion continue
+(images/audio) et le flow matching ; `decoding-sampling` cite une source sur la génération
+parallèle des masked diffusion LMs comme contrepoint de l'autorégressif ; le paradigme lui-même
+(D3PM, diffusion masquée, LLaDA, Mercury) = 0 occurrence.
+
+> Modèles de langage à diffusion (diffusion discrète/masquée) : générer du texte sans factorisation
+> autorégressive. Couvrir la diffusion sur espaces discrets (D3PM, état absorbant), le score
+> entropy (SEDD), la diffusion masquée simplifiée et son passage à l'échelle (LLaDA), les modèles
+> déployés (Mercury d'Inception Labs, Gemini Diffusion), le compromis parallélisme/qualité (nombre
+> d'étapes vs tokens par étape, ordre de génération, remasking), le lien avec l'infilling et
+> l'édition, et les pièges d'évaluation (vraisemblance vs qualité perçue, vitesse réelle).
+> Public : ingénieur ML. Délimitations : diffusion-models couvre le cadre continu, l'ELBO et le
+> flow matching (le citer, ne pas re-dériver) ; decoding-sampling couvre le décodage autorégressif
+> et cite la génération parallèle masquée (le citer en pont) — se centrer sur le paradigme
+> diffusion pour le texte. Domaine : llm-agents-generation.
+
+### Kernels GPU & compilation ML — `gpu-kernels-compilers` → `deep-learning-foundations`
+**Verdict : gap réel (ajout 2026-07-17).** Triton n'apparaît que via Liger Kernel
+(`normalization-layers`) et les noyaux AQLM (`quantization`, blurb) ; XLA via GShard (blurb MoE) ;
+torch.compile, fusion d'opérateurs, CUDA Graphs = 0 occurrence. La couche kernels/compilation
+n'est traitée nulle part en propre.
+
+> Kernels GPU et compilation pour le deep learning : pourquoi le même modèle va 3× plus vite bien
+> programmé. Couvrir le modèle d'exécution GPU (SM, warps, hiérarchie mémoire, coalescing,
+> occupancy), l'intensité arithmétique et le Roofline appliqué aux kernels, l'écriture de kernels
+> en Triton (tiling, mémoire partagée, autotuning) face à CUDA, la fusion d'opérateurs et ce
+> qu'elle économise, la pile torch.compile (TorchDynamo, AOTAutograd, TorchInductor, graph
+> breaks), CUDA Graphs contre l'overhead de lancement, et le paysage des compilateurs (XLA, TVM).
+> Public : ingénieur ML/infra. Délimitations : transformer-attention couvre FlashAttention comme
+> algorithme (le citer comme exemple canonique de kernel IO-aware, ne pas re-dériver) ;
+> decoding-sampling couvre le Roofline du décodage et distributed-training-parallelism le MFU et
+> le recouvrement calcul/communication (les citer) ; normalization-layers cite Liger Kernel — se
+> centrer sur la couche kernels/compilation elle-même. Domaine : deep-learning-foundations.
+
+### Vision-Language-Action — `vision-language-action` → `llm-agents-generation`
+**Verdict : partiel (ajout 2026-07-17).** `agentic-ai` a une section « robotique et agents
+incarnés » (RT-1, planification par LLM, PaLM-E) et `world-models` couvre la physical AI côté
+simulation (Cosmos, GAIA-2) ; RT-2, OpenVLA, π0, la tokenisation d'actions = 0 occurrence.
+
+> Modèles vision-langage-action (VLA) : des politiques robotiques généralistes fondées sur des
+> backbones vision-langage. Couvrir le geste fondateur RT-2 (les actions comme tokens de texte,
+> co-fine-tuning web + données robot, transfert sémantique), les VLA ouverts (OpenVLA, Octo), les
+> têtes d'action continues (diffusion policy, flow matching — π0), les données et la
+> cross-embodiment (Open X-Embodiment), l'évaluation (taux de succès réel vs simulation,
+> généralisation aux objets/instructions inédits) et les contraintes de déploiement (fréquence de
+> contrôle, latence, sécurité). Public : ingénieur ML. Délimitations : agentic-ai couvre le LLM
+> planificateur et RT-1 (partir de là, le citer) ; world-models couvre simulateurs et génération
+> vidéo pour la physical AI ; le candidat multimodal-vlm couvre l'architecture VLM de
+> compréhension — se centrer sur la génération d'actions. Domaine : llm-agents-generation.
+
+### Watermarking & détection de texte généré — `llm-watermarking-detection` → `llm-agents-generation`
+**Verdict : gap réel (ajout 2026-07-17).** Watermark, Kirchenbauer, DetectGPT, SynthID =
+0 occurrence dans le corpus.
+
+> Tatouage (watermarking) et détection du texte généré par LLM : établir la provenance. Couvrir le
+> watermarking par biais de logits (Kirchenbauer et al. : listes verte/rouge, test statistique z,
+> compromis détectabilité/distorsion), les schémas cryptographiques indistinguables (Aaronson,
+> Christ-Gunn-Zamir), SynthID-Text et le déploiement à l'échelle, la robustesse (paraphrase,
+> traduction, attaques de suppression et de spoofing), la détection post-hoc sans tatouage
+> (perplexité, DetectGPT/Fast-DetectGPT, classifieurs entraînés) et ses taux d'erreur — notamment
+> sur les locuteurs non natifs —, et les limites fondamentales (résultats d'impossibilité).
+> Public : ingénieur ML / sécurité. Délimitations : decoding-sampling couvre l'échantillonnage et
+> les logits (le citer : le watermarking est une modification du sampling) ; le candidat
+> llm-safety-jailbreaks couvre attaques/défenses du modèle — se centrer sur provenance et
+> détection. Domaine : llm-agents-generation.
+
+### Document AI — `document-ai` → `information-retrieval-representation`
+**Verdict : gap réel (ajout 2026-07-17).** Le corpus traite l'extraction sur texte propre
+(`structured-extraction-llm` ; `relation-extraction` niveau document = DocRED, du texte) mais
+jamais le document image : OCR, LayoutLM, DocVQA, Donut = 0 occurrence.
+
+> Compréhension de documents (Document AI) : du pixel au contenu structuré. Couvrir l'OCR neuronal
+> (détection + reconnaissance, modèles séquence type TrOCR), les modèles texte + layout + image
+> (lignée LayoutLM v1→v3 et ses pré-entraînements), les approches sans OCR (Donut, Pix2Struct) et
+> les VLM généralistes appliqués au document, les tâches et benchmarks (classification,
+> extraction clé-valeur — FUNSD, reconnaissance de tables, DocVQA), le parsing de PDF pour les
+> pipelines RAG, et l'évaluation (ANLS, TEDS, pièges des benchmarks saturés). Public : ingénieur
+> ML/data. Délimitations : structured-extraction-llm couvre l'extraction depuis le TEXTE (la citer
+> comme aval de l'OCR) ; relation-extraction traite le niveau document sur texte propre ; le
+> candidat multimodal-vlm couvre l'architecture VLM générique — se centrer sur la modalité
+> document/layout. Domaine : information-retrieval-representation.
+
 ---
 
 ## Priorité basse / marginale
@@ -432,6 +524,55 @@ confidentialité ; DP-SGD, apprentissage fédéré, attaques par membership infe
 > des LLM croise le candidat pretraining-data-curation (déduplication) — se centrer sur les
 > mécanismes de protection et leurs garanties. Domaine : deep-learning-foundations (à trancher par
 > /arrange).
+
+### Synthèse vocale & codecs audio neuronaux — `speech-synthesis-tts` → `deep-learning-foundations`
+**Verdict : gap réel (ajout 2026-07-17 ; modalité absente, audience comparable au candidat ASR).**
+Seul `diffusion-models` touche l'audio, via DiffWave comme vocoder (MOS 4,44 sur LJSpeech).
+
+> Synthèse vocale neuronale (TTS) et codecs audio : du texte à la parole. Couvrir la lignée
+> acoustique (Tacotron 2 : mel + vocoder ; FastSpeech non autorégressif et le contrôle
+> durée/prosodie), les vocoders (WaveNet, HiFi-GAN, DiffWave), les codecs audio neuronaux
+> (SoundStream, EnCodec, quantification vectorielle résiduelle RVQ) et le TTS comme modèle de
+> langage sur tokens audio (VALL-E), le zero-shot/voice cloning et ses risques d'usage, et
+> l'évaluation (MOS et ses pièges, WER de resynthèse, similarité de locuteur). Public : ingénieur
+> ML. Délimitations : diffusion-models couvre DiffWave côté diffusion (le citer) ; le candidat
+> speech-recognition-asr couvre la direction inverse (parole→texte, se délimiter mutuellement) —
+> se centrer sur la synthèse et les codecs. Domaine : deep-learning-foundations.
+
+### Normalizing flows — `normalizing-flows` → `deep-learning-foundations`
+**Verdict : partiel (ajout 2026-07-17 ; ⚠️ angle réduit).** `diffusion-models` couvre DÉJÀ en
+profondeur le flow matching, rectified flow et les stochastic interpolants (claims dédiés,
+théorèmes de Lipman et al.) — l'angle restant = les flots discrets à vraisemblance exacte, valeur
+de référence 2026 moindre.
+
+> Normalizing flows classiques : modéliser une densité par transformations inversibles. Couvrir le
+> cadre (changement de variable, log-déterminant du jacobien, vraisemblance exacte), les couplages
+> (NICE, RealNVP, Glow et ses convolutions 1×1 inversibles), les flots autorégressifs (MAF/IAF et
+> le compromis échantillonnage/densité), les flots continus (Neural ODE, FFJORD), et les
+> applications où la vraisemblance exacte compte (inférence par simulation, détection d'anomalies,
+> postérieurs variationnels). Public : ingénieur ML. ⚠️ Délimitations strictes : diffusion-models
+> couvre le flow matching/rectified flow/stochastic interpolants (NE PAS les re-dériver ; les
+> citer comme descendance continue) ; le candidat variational-autoencoders couvre l'ELBO — se
+> centrer sur les architectures inversibles et l'estimation de densité exacte. Domaine :
+> deep-learning-foundations.
+
+### Routage multi-modèles & cascades — `model-routing-cascades` → `llm-agents-generation`
+**Verdict : gap réel mais ⚠️ frontière à caler (ajout 2026-07-17).** RouteLLM, FrugalGPT,
+cascades = 0 occurrence ; MAIS le candidat `llm-inference-serving` inclut déjà « le
+routage/autoscaling multi-modèles » côté infra. Ne lancer qu'APRÈS llm-inference-serving, en
+calant la frontière sur l'arbitrage qualité/coût par requête.
+
+> Routage multi-modèles et cascades de LLM : servir chaque requête au moindre coût à qualité
+> maintenue. Couvrir les cascades (FrugalGPT : petit modèle d'abord, escalade sur score de
+> confiance), les routeurs appris sur données de préférences (RouteLLM : classifieurs, matrix
+> factorization, généralisation à des paires de modèles inédites), le choix statique vs dynamique
+> (benchmarks par requête, prédicteurs de difficulté), les métriques (courbes coût-qualité, APGR,
+> % d'appels au grand modèle), et le routage en production (fallbacks, dégradation contrôlée,
+> multi-fournisseurs). Public : ingénieur ML/infra. ⚠️ Délimitations : llm-inference-serving
+> (candidat) couvre le versant infra du routage (autoscaling, SLO) — ici l'arbitrage qualité/coût
+> par requête ; decoding-sampling couvre le speculative decoding (accélération intra-modèle, le
+> citer en contrepoint) ; ensemble-learning couvre l'agrégation de prédictions (tous les modèles
+> répondent) vs le routage (un seul répond). Domaine : llm-agents-generation.
 
 ---
 
