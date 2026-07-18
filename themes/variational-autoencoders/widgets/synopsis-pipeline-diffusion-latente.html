@@ -1,0 +1,484 @@
+<div class="widget spdl-root" id="spdl-root">
+  <style>
+    .spdl-root{--spdl-ink:var(--ink,#15202E);--spdl-soft:var(--ink-soft,#43536A);
+      --spdl-faint:var(--ink-faint,#7A889B);--spdl-card:var(--card,#fff);
+      --spdl-line:var(--line,#D7DFE9);--spdl-line-soft:var(--line-soft,#E7ECF3);
+      --spdl-blue:var(--blue,#23537F);--spdl-deep:var(--blue-deep,#142E49);
+      --spdl-bright:var(--blue-bright,#2C77B6);--spdl-wash:var(--blue-wash,#E7EEF6);
+      --spdl-bord:var(--bordeaux,#7C2A38);--spdl-bord-br:var(--bordeaux-bright,#9B3443);
+      --spdl-bord-wash:var(--bordeaux-wash,#F3E3E6);
+      --spdl-green:#2F7D5B;--spdl-green-wash:#EAF4EE;
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--spdl-ink);
+      border:1px solid var(--spdl-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--spdl-card);max-width:760px}
+    .spdl-root *{box-sizing:border-box}
+    .spdl-k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;
+      color:var(--spdl-faint);font-weight:600;margin:0 0 2px}
+    .spdl-title{font-weight:700;font-size:1.05rem;margin:0 0 4px}
+    .spdl-sub{font-size:.84rem;color:var(--spdl-soft);margin:0 0 12px;line-height:1.45}
+    .spdl-q{margin:0 0 12px;padding:9px 12px;border-radius:8px;border:1px dashed var(--spdl-line);
+      background:#FBFCFE;font-size:.83rem;line-height:1.5}
+    .spdl-q b{color:var(--spdl-deep)}
+
+    /* ruban des phases : surlignage bicolore permanent VAE / diffusion */
+    .spdl-flow{display:flex;gap:8px;flex-wrap:wrap;align-items:stretch;margin:0 0 12px}
+    .spdl-band{border-radius:9px;border:1px solid;padding:7px 8px 8px;flex:1 1 auto;min-width:130px}
+    .spdl-band-vae{background:var(--spdl-wash);border-color:#BFD3E6}
+    .spdl-band-diff{background:var(--spdl-bord-wash);border-color:#E3C6CB;flex-grow:1.4}
+    .spdl-band-k{font-size:.6rem;letter-spacing:.07em;text-transform:uppercase;font-weight:800;margin:0 0 5px}
+    .spdl-band-vae .spdl-band-k{color:var(--spdl-blue)}
+    .spdl-band-diff .spdl-band-k{color:var(--spdl-bord)}
+    .spdl-phs{display:flex;gap:6px;flex-wrap:wrap}
+    .spdl-ph{border:1px solid var(--spdl-line);border-radius:7px;background:var(--spdl-card);
+      font-weight:600;font-size:.72rem;line-height:1.3;font-family:inherit;
+      color:var(--spdl-soft);padding:5px 8px;cursor:pointer;text-align:left}
+    .spdl-band-vae .spdl-ph:hover{border-color:var(--spdl-bright);color:var(--spdl-blue)}
+    .spdl-band-diff .spdl-ph:hover{border-color:var(--spdl-bord-br);color:var(--spdl-bord)}
+    .spdl-ph.spdl-cur{color:#fff;font-weight:700}
+    .spdl-band-vae .spdl-ph.spdl-cur{background:var(--spdl-blue);border-color:var(--spdl-blue)}
+    .spdl-band-diff .spdl-ph.spdl-cur{background:var(--spdl-bord);border-color:var(--spdl-bord)}
+    .spdl-ph.spdl-done{border-style:solid;border-color:var(--spdl-line);opacity:.85}
+    .spdl-ph .spdl-ph-t{display:inline-block;font:700 .92em/1 ui-monospace,monospace;margin-left:4px;
+      padding:1px 5px;border-radius:9px;background:rgba(255,255,255,.25)}
+    .spdl-ph .spdl-ph-t[hidden]{display:none}
+
+    /* panneaux : image → latent → image */
+    .spdl-panels{display:flex;gap:6px;flex-wrap:wrap;align-items:flex-start;justify-content:center;margin:0 0 10px}
+    .spdl-pan{flex:0 1 176px;min-width:150px}
+    .spdl-pan-h{font-size:.66rem;letter-spacing:.05em;text-transform:uppercase;font-weight:700;
+      color:var(--spdl-faint);margin:0 0 4px;text-align:center}
+    .spdl-svg{width:100%;height:auto;display:block;border:1px solid var(--spdl-line-soft);
+      border-radius:9px;background:#FBFCFE}
+    .spdl-tag{display:block;margin:5px auto 0;width:max-content;max-width:100%;
+      font:700 .62rem/1.5 ui-monospace,monospace;padding:1px 8px;border-radius:20px;
+      background:#F1F3F6;color:var(--spdl-faint);text-align:center}
+    .spdl-tag.spdl-t-vae{background:var(--spdl-wash);color:var(--spdl-blue)}
+    .spdl-tag.spdl-t-diff{background:var(--spdl-bord-wash);color:var(--spdl-bord)}
+    .spdl-arrow{flex:0 0 auto;align-self:center;text-align:center;color:var(--spdl-faint);
+      font-size:.62rem;line-height:1.3;padding:0 2px;min-width:52px}
+    .spdl-arrow .spdl-ar{font-size:1.15rem;font-weight:700;display:block}
+    .spdl-arrow.spdl-a-vae{color:var(--spdl-blue)}
+
+    .spdl-read{margin:0 0 10px;padding:10px 12px;border-radius:8px;border:1px solid var(--spdl-line);
+      background:#FBFCFE;font-size:.83rem;line-height:1.5;min-height:4.6em}
+    .spdl-read b{font-weight:700}
+    .spdl-read.spdl-r-vae{background:var(--spdl-wash);border-color:#BFD3E6}
+    .spdl-read.spdl-r-diff{background:var(--spdl-bord-wash);border-color:#E3C6CB}
+    .spdl-read.spdl-r-done{background:var(--spdl-green-wash);border-color:#C3E0D0}
+
+    /* progression : compteur + courbe */
+    .spdl-prog{display:flex;gap:10px;flex-wrap:wrap;align-items:stretch;margin:0 0 10px}
+    .spdl-chartbox{flex:1 1 300px;min-width:260px}
+    .spdl-cap{font-size:.72rem;color:var(--spdl-faint);margin:5px 2px 0;text-align:center}
+    .spdl-stats{flex:1 1 170px;min-width:150px;display:flex;flex-direction:column;gap:6px}
+    .spdl-stat{border:1px solid var(--spdl-line);border-radius:9px;padding:6px 10px;background:var(--spdl-card)}
+    .spdl-stat .spdl-sk{font-size:.6rem;letter-spacing:.05em;text-transform:uppercase;color:var(--spdl-faint);font-weight:700}
+    .spdl-stat .spdl-sv{font:800 1rem/1.2 ui-monospace,monospace;color:var(--spdl-blue);margin:2px 0 0}
+    .spdl-stat.spdl-s-diff .spdl-sv{color:var(--spdl-bord-br)}
+    .spdl-stat.spdl-s-ok .spdl-sv{color:var(--spdl-green)}
+
+    .spdl-btns{display:flex;gap:8px;flex-wrap:wrap}
+    .spdl-btns button{border:1px solid var(--spdl-bright);border-radius:7px;background:transparent;
+      color:var(--spdl-bright);font-weight:600;font-size:13px;line-height:1;font-family:inherit;
+      padding:8px 13px;cursor:pointer}
+    .spdl-btns button:hover{background:var(--spdl-wash)}
+    .spdl-btns button.spdl-primary{background:var(--spdl-blue);color:#fff;border-color:var(--spdl-blue)}
+    .spdl-btns button.spdl-primary:hover{background:var(--spdl-bright)}
+    .spdl-btns button:disabled{opacity:.45;cursor:default}
+    .spdl-btns button:disabled:hover{background:transparent}
+    .spdl-btns button.spdl-primary:disabled{background:var(--spdl-blue)}
+
+    .spdl-banner{margin:10px 0 0;padding:9px 12px;border-radius:8px;font-size:.82rem;font-weight:600;
+      background:var(--spdl-green-wash);border:1px solid #C3E0D0;color:var(--spdl-green);display:none;line-height:1.5}
+    .spdl-banner.spdl-show{display:block}
+    .spdl-note{margin:12px 0 0;font-size:.73rem;color:var(--spdl-faint);line-height:1.5}
+    .spdl-note b{color:var(--spdl-soft)}
+    .spdl-note code{font-family:ui-monospace,monospace}
+  </style>
+
+  <p class="spdl-k">Vue d'ensemble · super-widget</p>
+  <p class="spdl-title">Pipeline de diffusion latente : le VAE comprime, la diffusion génère</p>
+  <p class="spdl-sub">Le trajet complet d'une image jouet à travers un pipeline à la Stable Diffusion,
+    en <b>5 phases nommées</b>. Le surlignage bicolore ne bouge jamais : les phases
+    <b style="color:var(--spdl-blue)">bleues</b> appartiennent au VAE (compression, reconstruction),
+    les phases <b style="color:var(--spdl-bord)">bordeaux</b> à la diffusion (inférence générative).
+    Avancez pas à pas, lancez la lecture continue, ou cliquez une phase pour y sauter.
+    Tout est calculé exactement, sans aucun aléa.</p>
+
+  <div class="spdl-q">
+    <b>Instance jouet :</b> une image x de 8×8 pixels en niveaux de gris (un soleil sur la mer),
+    soit 64 valeurs. L'encodeur jouet moyenne chaque bloc 2×2 et centre le résultat :
+    le latent z fait 4×4, soit <b>16 composantes</b> (compression ×4). Le débruiteur jouet est un
+    <b>oracle</b> : il connaît exactement le bruit injecté, la trajectoire de débruitage
+    (type DDIM, 10 pas) est donc entièrement déterministe.
+  </div>
+
+  <div class="spdl-flow" id="spdl-flow">
+    <div class="spdl-band spdl-band-vae">
+      <p class="spdl-band-k">VAE · compression</p>
+      <div class="spdl-phs">
+        <button type="button" class="spdl-ph" data-ph="1">① Encodage</button>
+        <button type="button" class="spdl-ph" data-ph="2">② Mise à l'échelle</button>
+      </div>
+    </div>
+    <div class="spdl-band spdl-band-diff">
+      <p class="spdl-band-k">Diffusion · génération</p>
+      <div class="spdl-phs">
+        <button type="button" class="spdl-ph" data-ph="3">③ Bruitage</button>
+        <button type="button" class="spdl-ph" data-ph="4">④ Boucle de débruitage<span class="spdl-ph-t" id="spdl-ph-t" hidden></span></button>
+      </div>
+    </div>
+    <div class="spdl-band spdl-band-vae">
+      <p class="spdl-band-k">VAE · reconstruction</p>
+      <div class="spdl-phs">
+        <button type="button" class="spdl-ph" data-ph="5">⑤ Décodage</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="spdl-panels">
+    <div class="spdl-pan">
+      <p class="spdl-pan-h">x — espace pixel (8×8)</p>
+      <svg class="spdl-svg" id="spdl-img-x" viewBox="0 0 170 170" role="img"
+           aria-label="image d'entrée de huit pixels sur huit : un soleil clair au-dessus d'une mer sombre"></svg>
+      <span class="spdl-tag">entrée · 64 pixels</span>
+    </div>
+    <div class="spdl-arrow spdl-a-vae"><span class="spdl-ar">→</span>①② encode<br>+ échelle</div>
+    <div class="spdl-pan">
+      <p class="spdl-pan-h">z — espace latent (4×4)</p>
+      <svg class="spdl-svg" id="spdl-lat" viewBox="0 0 170 170" role="img"
+           aria-label="grille latente de quatre composantes sur quatre, où se déroulent la mise à l'échelle, le bruitage et le débruitage"></svg>
+      <span class="spdl-tag" id="spdl-lat-tag">en attente d'encodage</span>
+    </div>
+    <div class="spdl-arrow spdl-a-vae"><span class="spdl-ar">→</span>⑤ décode</div>
+    <div class="spdl-pan">
+      <p class="spdl-pan-h">x̂ — reconstruction (8×8)</p>
+      <svg class="spdl-svg" id="spdl-img-xr" viewBox="0 0 170 170" role="img"
+           aria-label="image reconstruite de huit pixels sur huit, disponible seulement après le décodage final"></svg>
+      <span class="spdl-tag" id="spdl-xr-tag">pas encore décodée</span>
+    </div>
+  </div>
+
+  <div class="spdl-read" id="spdl-read"></div>
+
+  <div class="spdl-prog">
+    <div class="spdl-chartbox">
+      <svg class="spdl-svg" id="spdl-chart" viewBox="0 0 330 152" role="img"
+           aria-label="courbe de progression : écart quadratique moyen entre le latent courant et le latent propre, du pas t égal dix jusqu'à t égal zéro"></svg>
+      <p class="spdl-cap">Progression du débruitage : écart RMSE entre z<sub>t</sub> et le latent propre z*.</p>
+    </div>
+    <div class="spdl-stats">
+      <div class="spdl-stat spdl-s-diff"><div class="spdl-sk">Pas de diffusion</div><div class="spdl-sv" id="spdl-st-t">—</div></div>
+      <div class="spdl-stat spdl-s-diff"><div class="spdl-sk">Part de signal √ᾱₜ</div><div class="spdl-sv" id="spdl-st-sig">—</div></div>
+      <div class="spdl-stat"><div class="spdl-sk">Échelle s = 1/σ(z)</div><div class="spdl-sv" id="spdl-st-s">—</div></div>
+      <div class="spdl-stat" id="spdl-st-rmse-box"><div class="spdl-sk">RMSE vers z*</div><div class="spdl-sv" id="spdl-st-rmse">—</div></div>
+    </div>
+  </div>
+
+  <div class="spdl-btns">
+    <button type="button" class="spdl-primary" id="spdl-play">▶ Lecture continue</button>
+    <button type="button" id="spdl-step">Étape suivante ▸</button>
+    <button type="button" id="spdl-reset">Réinitialiser</button>
+  </div>
+
+  <div class="spdl-banner" id="spdl-banner">
+    Trajet complet. Division du travail : le VAE (phases ①②⑤) comprime et reconstruit,
+    il ne génère rien ; la boucle de diffusion (phases ③④) porte toute l'inférence générative,
+    entièrement dans la grille 4×4 — jamais en pixels.
+  </div>
+
+  <p class="spdl-note"><b>Débruiteur jouet :</b> l'oracle connaît le bruit exact, la trajectoire
+    reconverge donc vers le latent de départ — un vrai pipeline l'estime avec un réseau de débruitage
+    entraîné et produit de nouveaux latents. <b>Ordres de grandeur réels :</b> l'autoencodeur
+    <code>kl-f8</code> de Stable Diffusion sous-échantillonne d'un facteur 8 (une image 256×256
+    devient un latent 4×32×32) ; dans la bibliothèque Diffusers, <code>AutoencoderKL</code> applique
+    le <code>scaling_factor</code> 0.18215 — l'écart-type mesuré des latents — pour ramener leur
+    variance près de 1 avant diffusion, exactement le rôle de la phase ② ici.</p>
+
+  <script>
+  (function(){
+    "use strict";
+    var $ = function(id){ return document.getElementById(id); };
+    var SVGNS = "http://www.w3.org/2000/svg";
+
+    /* ---------- instance jouet : tout est calculé exactement ---------- */
+    var X = [
+      [0.78,0.78,0.78,0.78,0.78,0.78,0.78,0.78],
+      [0.78,0.78,0.92,1.00,1.00,0.92,0.78,0.78],
+      [0.78,0.88,1.00,1.00,1.00,1.00,0.88,0.78],
+      [0.78,0.78,0.92,1.00,1.00,0.92,0.78,0.78],
+      [0.55,0.55,0.60,0.62,0.62,0.60,0.55,0.55],
+      [0.30,0.30,0.42,0.46,0.46,0.42,0.30,0.30],
+      [0.26,0.30,0.26,0.30,0.30,0.26,0.30,0.26],
+      [0.22,0.22,0.24,0.22,0.22,0.24,0.22,0.22]
+    ];
+
+    /* encodeur jouet : moyenne 2x2 puis centrage vers [-1,1] */
+    var Z = [];
+    (function(){
+      for (var i=0;i<4;i++){ for (var j=0;j<4;j++){
+        var m = (X[2*i][2*j]+X[2*i][2*j+1]+X[2*i+1][2*j]+X[2*i+1][2*j+1])/4;
+        Z.push(2*(m-0.5));
+      } }
+    })();
+
+    /* mise à l'échelle : s = 1/sigma(z), écart-type de z* = 1 exactement */
+    var muZ = Z.reduce(function(a,b){return a+b;},0)/16;
+    var sigmaZ = Math.sqrt(Z.reduce(function(a,b){return a+(b-muZ)*(b-muZ);},0)/16);
+    var S = 1/sigmaZ;
+    var ZS = Z.map(function(v){ return S*v; });
+
+    /* bruit gaussien déterministe : hachage sinusoïdal + Box-Muller (aucun aléa) */
+    function h(n){ var x = Math.sin(n*12.9898 + 4.1414)*43758.5453; return x - Math.floor(x); }
+    var EPS = [];
+    (function(){
+      for (var k=0;k<16;k++){
+        var u1 = Math.max(h(k+1), 1e-6), u2 = h(k+21);
+        var g = Math.sqrt(-2*Math.log(u1))*Math.cos(2*Math.PI*u2);
+        EPS.push(Math.max(-2.4, Math.min(2.4, g)));
+      }
+    })();
+
+    /* trajectoire DDIM jouet : z_t = cos(a)·z* + sin(a)·eps, a = (pi/2)(t/T) */
+    var T = 10;
+    function sigCos(t){ return Math.cos(Math.PI*t/(2*T)); }
+    function latAt(t){
+      var c = sigCos(t), s = Math.sin(Math.PI*t/(2*T));
+      return ZS.map(function(v,k){ return c*v + s*EPS[k]; });
+    }
+    function rmseAt(t){
+      var zt = latAt(t), acc = 0;
+      for (var k=0;k<16;k++){ var d = zt[k]-ZS[k]; acc += d*d; }
+      return Math.sqrt(acc/16);
+    }
+    var RMSE = []; for (var t=T; t>=0; t--) RMSE.push({t:t, v:rmseAt(t)});
+    var RMAX = RMSE.reduce(function(a,p){return Math.max(a,p.v);},0)*1.08;
+
+    /* décodage : division par s, dé-centrage, réplication 2x2 (compression avec perte) */
+    function decode(zs){
+      var img = [];
+      for (var i=0;i<8;i++){ img.push([]); for (var j=0;j<8;j++){
+        img[i].push(zs[((i>>1)*4)+(j>>1)]/S/2 + 0.5);
+      } }
+      return img;
+    }
+
+    /* ---------- machine à états : 15 micro-étapes, phases 1..5 ---------- */
+    /* i=0 init ; 1 encodage ; 2 échelle ; 3 bruitage (t=10) ; 4..13 boucle (t=9..0) ; 14 décodage */
+    var LAST = 14, step = 0, timer = null;
+    function phaseOf(i){ return i===0?0 : i===1?1 : i===2?2 : i===3?3 : i<=13?4 : 5; }
+    function tOf(i){ return i===3 ? T : (i>=4 && i<=13 ? 13-i : null); }
+
+    /* ---------- rendu SVG ---------- */
+    function mk(tag, at){ var e = document.createElementNS(SVGNS, tag);
+      for (var k in at) e.setAttribute(k, at[k]); return e; }
+    function clear(svg){ while (svg.firstChild) svg.removeChild(svg.firstChild); }
+
+    function gray(v){ var c = Math.round(20 + Math.max(0,Math.min(1,v))*225);
+      return "rgb("+c+","+c+","+Math.min(255,c+4)+")"; }
+
+    function drawImage(svg, img, dim){
+      clear(svg);
+      for (var i=0;i<8;i++) for (var j=0;j<8;j++){
+        svg.appendChild(mk("rect",{x:2+j*21, y:2+i*21, width:20, height:20, rx:2,
+          fill: img ? gray(img[i][j]) : "#EFF2F6",
+          opacity: dim ? 0.45 : 1}));
+      }
+      if (!img){
+        var tx = mk("text",{x:85, y:90, "text-anchor":"middle", "font-size":"13",
+          "font-family":"system-ui,sans-serif", fill:"#7A889B"});
+        tx.textContent = "en attente"; svg.appendChild(tx);
+      }
+    }
+
+    /* palette divergente : bordeaux (négatif) — blanc — bleu (positif) */
+    function lerp(a,b,u){ return Math.round(a+(b-a)*u); }
+    function divCol(v){
+      var u = Math.max(-1, Math.min(1, v/2.5));
+      var w = [251,252,254], c = u<0 ? [124,42,56] : [35,83,127], m = Math.abs(u);
+      return "rgb("+lerp(w[0],c[0],m)+","+lerp(w[1],c[1],m)+","+lerp(w[2],c[2],m)+")";
+    }
+    function drawLatent(svg, z){
+      clear(svg);
+      for (var i=0;i<4;i++) for (var j=0;j<4;j++){
+        var v = z ? z[i*4+j] : null;
+        svg.appendChild(mk("rect",{x:2+j*42, y:2+i*42, width:40, height:40, rx:4,
+          fill: v===null ? "#EFF2F6" : divCol(v),
+          stroke:"#fff", "stroke-width":"1"}));
+        var tx = mk("text",{x:22+j*42, y:26+i*42, "text-anchor":"middle", "font-size":"10",
+          "font-family":"ui-monospace,monospace", "font-weight":"600",
+          fill: v===null ? "#AEB8C6" : (Math.abs(v)>1.4 ? "#fff" : "#43536A")});
+        tx.textContent = v===null ? "·" : (v>=0?"+":"−") + Math.abs(v).toFixed(2);
+        svg.appendChild(tx);
+      }
+    }
+
+    function drawChart(nPts, curT){
+      var svg = $("spdl-chart"); clear(svg);
+      var L=40, R=12, Tm=12, B=30, W=330-L-R, H=152-Tm-B;
+      var xOf = function(t){ return L + (T-t)/T*W; };
+      var yOf = function(v){ return Tm + H - (v/RMAX)*H; };
+      svg.appendChild(mk("line",{x1:L, y1:Tm+H, x2:L+W, y2:Tm+H, stroke:"#D7DFE9"}));
+      svg.appendChild(mk("line",{x1:L, y1:Tm, x2:L, y2:Tm+H, stroke:"#D7DFE9"}));
+      [0, RMAX/2, RMAX].forEach(function(v){
+        svg.appendChild(mk("line",{x1:L, y1:yOf(v), x2:L+W, y2:yOf(v),
+          stroke:"#E7ECF3", "stroke-dasharray":"2 3"}));
+        var ty = mk("text",{x:L-4, y:yOf(v)+3, "text-anchor":"end", "font-size":"8.5",
+          "font-family":"ui-monospace,monospace", fill:"#7A889B"});
+        ty.textContent = v.toFixed(1); svg.appendChild(ty);
+      });
+      [10,8,6,4,2,0].forEach(function(t){
+        var tx = mk("text",{x:xOf(t), y:Tm+H+11, "text-anchor":"middle", "font-size":"8.5",
+          "font-family":"ui-monospace,monospace", fill:"#7A889B"});
+        tx.textContent = "t="+t; svg.appendChild(tx);
+      });
+      var lab = mk("text",{x:L+W/2, y:150, "text-anchor":"middle", "font-size":"8.5",
+        "font-family":"system-ui,sans-serif", fill:"#7A889B"});
+      lab.textContent = "bruit pur → latent propre"; svg.appendChild(lab);
+      if (nPts>0){
+        var pts = RMSE.slice(0, nPts), d = "";
+        pts.forEach(function(p,idx){ d += (idx?" L":"M") + xOf(p.t).toFixed(1) + " " + yOf(p.v).toFixed(1); });
+        svg.appendChild(mk("path",{d:d, fill:"none", stroke:"#9B3443", "stroke-width":"2"}));
+        pts.forEach(function(p){
+          svg.appendChild(mk("circle",{cx:xOf(p.t), cy:yOf(p.v), r:2.4, fill:"#9B3443"}));
+        });
+        if (curT!==null){
+          var cp = RMSE[T-curT];
+          svg.appendChild(mk("circle",{cx:xOf(cp.t), cy:yOf(cp.v), r:4.6, fill:"none",
+            stroke:"#7C2A38", "stroke-width":"1.6"}));
+        }
+      } else {
+        var e = mk("text",{x:L+W/2, y:Tm+H/2+3, "text-anchor":"middle", "font-size":"10",
+          "font-family":"system-ui,sans-serif", fill:"#AEB8C6"});
+        e.textContent = "la courbe démarre au bruitage (phase ③)"; svg.appendChild(e);
+      }
+    }
+
+    /* ---------- textes des étapes (lead en gras + suite en texte brut) ---------- */
+    function readFor(i){
+      var t = tOf(i);
+      switch (phaseOf(i)){
+        case 0: return {cls:"", lead:"Instance prête.",
+          rest:" L'image x (8×8, 64 pixels) attend dans l'espace pixel. Tout le trajet génératif "+
+          "va se jouer ailleurs : dans la grille latente 4×4. Lancez l'encodage."};
+        case 1: return {cls:"spdl-r-vae", lead:"① Encodage (VAE).",
+          rest:" L'encodeur compresse chaque bloc 2×2 de x en une composante latente centrée : "+
+          "64 pixels → 16 composantes, facteur 4. Écart-type obtenu : σ(z) = "+sigmaZ.toFixed(3)+
+          " — trop faible pour un débruiteur qui attend une variance unitaire."};
+        case 2: return {cls:"spdl-r-vae", lead:"② Mise à l'échelle.",
+          rest:" Chaque composante est multipliée par s = 1/σ(z) = "+S.toFixed(3)+" : le latent z* "+
+          "a maintenant un écart-type de 1.000 exactement, la plage de valeurs que le réseau de "+
+          "débruitage sait traiter. C'est le rôle du scaling_factor de Diffusers."};
+        case 3: return {cls:"spdl-r-diff", lead:"③ Bruitage.",
+          rest:" Le latent est noyé sous un bruit gaussien complet : t = 10, part de signal √ᾱ = 0 %. "+
+          "Il ne reste rien de z*. La diffusion prend la main — c'est d'un tel bruit pur que part "+
+          "toute génération."};
+        case 4:
+          if (t===0) return {cls:"spdl-r-diff", lead:"④ Boucle de débruitage, t = 0.",
+            rest:" Le latent est propre : RMSE = "+rmseAt(0).toFixed(3)+". La boucle de diffusion a "+
+            "terminé l'inférence générative — et l'image n'existe toujours pas en pixels."};
+          return {cls:"spdl-r-diff", lead:"④ Boucle de débruitage, pas t = "+t+".",
+            rest:" Le débruiteur retire une fraction du bruit : part de signal √ᾱₜ = "+
+            Math.round(sigCos(t)*100)+" %, écart au latent propre RMSE = "+rmseAt(t).toFixed(3)+
+            ". Toute la génération se joue ici, dans la grille 4×4."};
+        default: return {cls:"spdl-r-done", lead:"⑤ Décodage (VAE).",
+          rest:" Le décodeur divise par s puis reconvertit le latent 4×4 en image 8×8. La "+
+          "reconstruction x̂ est lissée par blocs : la compression est avec perte — le prix du "+
+          "référentiel compact où la diffusion a travaillé."};
+      }
+    }
+
+    /* ---------- rendu global ---------- */
+    function render(){
+      var ph = phaseOf(step), t = tOf(step);
+
+      /* ruban de phases */
+      var btns = $("spdl-flow").querySelectorAll(".spdl-ph");
+      for (var b=0;b<btns.length;b++){
+        var p = parseInt(btns[b].getAttribute("data-ph"),10);
+        btns[b].classList.toggle("spdl-cur", p===ph);
+        btns[b].classList.toggle("spdl-done", p<ph || step===LAST);
+      }
+      var chip = $("spdl-ph-t");
+      if (ph===4){ chip.hidden = false; chip.textContent = "t="+t; } else chip.hidden = true;
+
+      /* panneaux */
+      drawImage($("spdl-img-x"), X, false);
+      var lat = step===0 ? null : step===1 ? Z : step===2 ? ZS : step===LAST ? latAt(0) : latAt(t);
+      drawLatent($("spdl-lat"), lat);
+      var ltag = $("spdl-lat-tag");
+      ltag.className = "spdl-tag" + (ph>=3 && ph<=4 ? " spdl-t-diff" : ph>0 ? " spdl-t-vae" : "");
+      ltag.textContent = step===0 ? "en attente d'encodage"
+        : step===1 ? "z brut · σ = "+sigmaZ.toFixed(3)
+        : step===2 ? "z* = s·z · σ = 1.000"
+        : step===3 ? "bruit pur · t = 10"
+        : step===LAST ? "latent propre · t = 0"
+        : (t===0 ? "latent propre · t = 0" : "débruitage · t = "+t);
+      drawImage($("spdl-img-xr"), step===LAST ? decode(latAt(0)) : null, step!==LAST);
+      var xtag = $("spdl-xr-tag");
+      xtag.className = "spdl-tag" + (step===LAST ? " spdl-t-vae" : "");
+      xtag.textContent = step===LAST ? "x̂ décodée · perte par blocs" : "pas encore décodée";
+
+      /* lecture : construction DOM sûre, sans injection de HTML */
+      var r = readFor(step);
+      var rd = $("spdl-read"); rd.className = "spdl-read " + r.cls;
+      while (rd.firstChild) rd.removeChild(rd.firstChild);
+      var bb = document.createElement("b"); bb.textContent = r.lead;
+      rd.appendChild(bb); rd.appendChild(document.createTextNode(r.rest));
+
+      /* progression */
+      var nPts = step<3 ? 0 : step===LAST ? T+1 : step-2;
+      drawChart(nPts, (step>=3 && step<LAST) ? (step===3 ? T : t) : (step===LAST ? 0 : null));
+      $("spdl-st-t").textContent = (step>=3 && step<LAST) ? "t = "+(step===3?T:t)+" / "+T
+        : step===LAST ? "t = 0 / "+T : "—";
+      $("spdl-st-sig").textContent = (step>=3 && step<LAST) ? Math.round(sigCos(step===3?T:t)*100)+" %"
+        : step===LAST ? "100 %" : "—";
+      $("spdl-st-s").textContent = step>=2 ? "× "+S.toFixed(3) : "—";
+      var rm = $("spdl-st-rmse");
+      if (step>=3 && step<LAST) rm.textContent = rmseAt(step===3?T:t).toFixed(3);
+      else if (step===LAST) rm.textContent = "0.000";
+      else rm.textContent = "—";
+      $("spdl-st-rmse-box").className = "spdl-stat" +
+        ((step===LAST || (step>=4 && t===0)) ? " spdl-s-ok" : " spdl-s-diff");
+
+      /* boutons + bannière */
+      $("spdl-step").disabled = (step===LAST) || !!timer;
+      $("spdl-play").disabled = (step===LAST);
+      $("spdl-banner").classList.toggle("spdl-show", step===LAST);
+    }
+
+    /* ---------- pilotage : pas-à-pas, lecture continue, saut, réinitialisation ---------- */
+    function stopPlay(){ if (timer){ clearInterval(timer); timer=null; }
+      $("spdl-play").textContent = "▶ Lecture continue"; }
+
+    $("spdl-step").addEventListener("click", function(){
+      if (timer || step===LAST) return; step++; render();
+    });
+
+    $("spdl-play").addEventListener("click", function(){
+      if (timer){ stopPlay(); render(); return; }
+      if (step===LAST) return;
+      $("spdl-play").textContent = "❚❚ Pause";
+      timer = setInterval(function(){
+        step++;
+        if (step>=LAST){ step = LAST; stopPlay(); }
+        render();
+      }, 750);
+      render();
+    });
+
+    $("spdl-reset").addEventListener("click", function(){ stopPlay(); step=0; render(); });
+
+    $("spdl-flow").addEventListener("click", function(ev){
+      if (timer) return;
+      var b = ev.target.closest ? ev.target.closest(".spdl-ph") : null;
+      if (!b) return;
+      var p = parseInt(b.getAttribute("data-ph"),10);
+      step = (p===1) ? 1 : (p===2) ? 2 : (p===3) ? 3 : (p===4) ? 4 : LAST;
+      render();
+    });
+
+    render();
+  })();
+  </script>
+</div>

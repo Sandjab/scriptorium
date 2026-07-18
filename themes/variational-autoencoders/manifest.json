@@ -1,0 +1,475 @@
+{
+ "edition": "monographie variational-autoencoders",
+ "slug": "variational-autoencoders",
+ "meta": {
+  "title": "Autoencodeurs et VAE : représentations latentes et inférence variationnelle",
+  "kicker": "Autoencodeurs & VAE · monographie",
+  "h1": "Autoencodeurs et VAE : représentations latentes et inférence variationnelle",
+  "lede": "De l'autoencodeur qui recopie son entrée au VAE qui borne la vraisemblance : ELBO, reparameterization trick, β-VAE, VQ-VAE — et pourquoi ces goulots régularisés sont devenus la brique de compression des générateurs modernes.",
+  "meta_chips": [
+   "Monographie"
+  ],
+  "footer": "Autoencodeurs et VAE : représentations latentes et inférence variationnelle · scriptorium"
+ },
+ "elements": [
+  {
+   "type": "abstract"
+  },
+  {
+   "type": "section",
+   "id": "autoencodeur-fondations",
+   "heading": "L'autoencodeur : encoder, comprimer, reconstruire",
+   "level": 3,
+   "prose": "<p>Apprendre une représentation des données sans étiquettes : la promesse tient en une phrase, et l'objet qui la porte est d'une simplicité désarmante. Un autoencodeur est un réseau de neurones entraîné à reproduire sa propre entrée. Un encodeur transforme l'entrée x en un code z — typiquement une application affine suivie d'une non-linéarité, f_θ(x) = s(Wx + b), avec W une matrice de poids, b un biais et s une activation appliquée élément par élément. Un décodeur opère le chemin inverse et produit une reconstruction x̂. La perte compare x à x̂, et c'est tout : la donnée est sa propre cible, aucune supervision n'intervient.</p>\n<p>Tel quel, l'exercice serait vide — reproduire ce qu'on possède déjà n'enseigne rien. Tout repose sur la contrainte imposée au passage. Quand le code vit dans un espace de dimension strictement inférieure à celle de l'entrée, l'autoencodeur est dit undercomplete (sous-complet) : l'information doit franchir un bottleneck (goulot d'étranglement) qui interdit la copie littérale et force une compression. Ce régime s'interprète comme une réduction de dimensionnalité apprise : le réseau doit trier, et l'on espère que ce tri retient la structure des données plutôt que leur détail.</p>\n<p>La perte de reconstruction elle-même n'est pas un choix esthétique : elle découle du modèle probabiliste que l'on suppose pour la sortie du décodeur. Si celle-ci est modélisée comme une gaussienne, maximiser la vraisemblance revient à minimiser l'erreur quadratique L2, ‖x − x̂‖². Si chaque pixel suit une loi de Bernoulli — images binarisées type MNIST, sortie sigmoïde dans [0,1] — la log-vraisemblance s'écrit Σ_i [x_i log x̂_i + (1−x_i) log(1−x̂_i)], soit l'opposé exact de l'entropie croisée binaire. Des visages en niveaux continus appellent donc la L2 ; des chiffres binarisés, l'entropie croisée. Cette lecture probabiliste, anodine ici, deviendra décisive quand l'autoencodeur se fera modèle génératif.</p>\n<p>L'idée est ancienne. Dès 1986, il est proposé de faire fonctionner un réseau en « mode auto-associatif » : reproduire sa propre entrée à travers une couche cachée étroite. La même année, Rumelhart, Hinton et Williams publient dans Nature « Learning representations by back-propagating errors », l'algorithme de backpropagation (rétropropagation) qui donne à ces réseaux leur moteur d'apprentissage ; les premières implémentations auto-associatives suivent avec Cottrell et al. (1987) puis Elman &amp; Zipser (1988).</p>\n<p>Que vaut alors le code appris ? Le cas linéaire admet une réponse complète. Baldi &amp; Hornik (1989) démontrent que pour un autoencodeur linéaire à une couche cachée de taille p, entraîné par erreur quadratique, la fonction d'erreur n'a pas de minimum local parasite : son minimum global réalise la projection sur le sous-espace engendré par les p premières composantes principales de l'ACP (analyse en composantes principales). La nuance importe. Les poids appris engendrent le même sous-espace que l'ACP, mais ne sont en général ni les composantes principales elles-mêmes, ni ordonnés par variance décroissante, ni orthogonaux entre eux ; sur des données aux variances proches, ils ressortent comme une rotation arbitraire des premiers vecteurs propres, et retrouver les composantes exactes exige une étape supplémentaire, par exemple une SVD (décomposition en valeurs singulières) de la matrice de poids.</p>\n<p>Le linéaire plafonne pourtant vite, et c'est en profondeur que la promesse prend corps. En 2006, Hinton et Salakhutdinov montrent dans Science qu'un autoencodeur profond peut battre l'ACP sur son propre terrain. Pré-entraîné couche par couche comme des paires de RBM (Restricted Boltzmann Machine, machine de Boltzmann restreinte), puis affiné globalement par backpropagation, il atteint, sur chiffres manuscrits comme sur visages, une erreur de reconstruction inférieure à celle d'une ACP tronquée à ses 30 premières composantes. L'objet est posé : un compresseur appris, non linéaire, sans étiquettes. Reste à examiner ce que son critère d'entraînement garantit vraiment — et la réponse est moins confortable qu'il n'y paraît.</p>",
+   "claims": [
+    "claim:1",
+    "claim:2",
+    "claim:3",
+    "claim:4"
+   ]
+  },
+  {
+   "type": "section",
+   "id": "limites-reconstruction",
+   "heading": "Ce que la reconstruction garantit — et ce qu'elle ne garantit pas",
+   "level": 3,
+   "prose": "<p>La promesse mérite l'examen : que garantit, au juste, la minimisation de l'erreur de reconstruction ? Le contre-exemple est immédiat. Supprimez le bottleneck — un code de dimension supérieure ou égale à celle de l'entrée, ou un couple encodeur-décodeur de capacité suffisante — et la fonction identité atteint une erreur nulle : g∘f = id reconstruit parfaitement, ne compresse rien, n'apprend rien. Goodfellow, Bengio et Courville le formulent sans détour : avec trop de capacité, l'autoencodeur peut réussir sa tâche de copie sans rien extraire d'utile sur la distribution des données, jusqu'à mémoriser chaque exemple d'entraînement plutôt qu'en dégager une structure partagée. Une erreur de reconstruction basse ne prouve donc pas qu'une représentation existe ; elle prouve que l'information a transité.</p>\n<p>Le critère n'est pas vide pour autant, et l'on peut dire précisément ce qu'il achète. Minimiser l'erreur de reconstruction équivaut formellement à maximiser une borne inférieure sur l'information mutuelle I(X;Y) entre l'entrée X et le code Y — le principe dit infomax, repris de Linsker et formalisé pour les autoencodeurs par Vincent et al. Sous hypothèse gaussienne sur p(x|z), la perte L2 standard est exactement l'expression de cette borne. Mais l'information mutuelle est une garantie de rétention, pas de mise en forme : l'identité, qui reconstruit tout, la préserve intégralement. Retenir l'information ne suffit pas ; encore faut-il que le code la réorganise.</p>\n<p>Le cas linéaire, résolu depuis Baldi &amp; Hornik, précise la nature du problème. Le minimum global y réalise la projection sur le sous-espace principal — mais uniquement le sous-espace. Plaut (2018) rend l'ambiguïté explicite : si W est une solution optimale, alors W′ = P_mQ en est une tout aussi valide, pour n'importe quelle matrice orthogonale Q. Les poids appris ne sont pas uniques ; ils engendrent le sous-espace des vecteurs de chargement de l'ACP sans coïncider en général avec eux, et rien dans la perte ne départage ces solutions. Même dans le régime le mieux compris, la reconstruction choisit donc un sous-espace, jamais une représentation : axes, ordre et orthogonalité restent hors de son ressort, récupérables seulement par post-traitement ou contraintes additionnelles.</p>\n<p>Le diagnostic est net. Le critère de reconstruction dit « garde l'information » ; il ne dit rien de la forme sous laquelle la garder — et c'est cette lacune que toutes les évolutions de la famille viennent combler, chacune à sa façon. Le bottleneck dimensionnel est la contrainte la plus fruste : couper des dimensions. Le denoising autoencoder (autoencodeur débruiteur) de Vincent, Larochelle, Bengio et Manzagol (2008) en propose une plus subtile — corrompre l'entrée et exiger la reconstruction de l'original propre, ce qui rend l'identité inopérante. Mais ces garde-fous restent extérieurs au modèle : ils empêchent la triche sans dire ce que le code devrait être. Le pas suivant renverse la perspective — partir d'un modèle génératif à variables latentes, et laisser la contrainte sur le code découler de l'objectif lui-même.</p>",
+   "claims": [
+    "claim:5",
+    "claim:6",
+    "claim:7",
+    "claim:32"
+   ]
+  },
+  {
+   "type": "widget",
+   "ref": "probe-ambiguite-rotationnelle"
+  },
+  {
+   "type": "section",
+   "id": "vae-elbo",
+   "heading": "Le VAE : un modèle génératif entraîné par borne variationnelle",
+   "level": 3,
+   "prose": "<p>Ce renversement, Kingma et Welling l'opèrent dans « Auto-Encoding Variational Bayes », déposé sur arXiv le 20 décembre 2013 — l'acte fondateur du VAE (Variational Autoencoder, autoencodeur variationnel). Le point de départ n'est plus un compresseur mais un modèle génératif : un prior (distribution a priori) p_θ(z) sur des variables latentes continues, et un décodeur probabiliste p_θ(x|z) qui engendre les données. Le prix de cette généralité est connu : le postérieur p_θ(z|x), qui dit quels codes expliquent une observation donnée, est intraitable. L'inférence variationnelle répond en introduisant une approximation q_φ(z|x), paramétrée par un réseau — et c'est ici que l'autoencodeur réapparaît, sous un autre statut.</p>\n<p>Tout l'édifice repose sur une identité exacte. Pour tout choix de q_φ, la log-vraisemblance marginale se décompose en log p_θ(x) = D_KL(q_φ(z|x)‖p_θ(z|x)) + L(θ,φ;x), où D_KL désigne la divergence de Kullback-Leibler (KL) entre l'approximation et le vrai postérieur. Aucune approximation n'entre dans cette égalité. Comme la divergence KL est toujours positive ou nulle, L est une borne inférieure de la log-vraisemblance — l'ELBO (Evidence Lower Bound, borne inférieure sur l'évidence) — et l'écart entre la borne et la vraie vraisemblance vaut exactement cette divergence. Le cas limite éclaire la mécanique : si q_φ(z|x) coïncide avec p_θ(z|x), l'écart s'annule et l'ELBO égale log p_θ(x). Maximiser l'ELBO en θ et φ pousse donc simultanément le modèle vers les données et l'approximation vers le vrai postérieur.</p>\n<p>L'ELBO admet une seconde écriture, équivalente, qui parle directement à l'ingénieur : L = E_q[log p_θ(x|z)] − D_KL(q_φ(z|x)‖p_θ(z)). Un terme de reconstruction attendue, moins une régularisation KL au prior. On reconnaît l'anatomie de l'autoencodeur — encoder, décoder, comparer — mais la lacune de la section précédente est comblée : la contrainte sur le code n'est plus un garde-fou extérieur, elle découle de la borne variationnelle elle-même. Le code n'est plus un point, c'est une distribution, tirée vers le prior ; et le décodeur n'est plus un simple reconstructeur, c'est un générateur — échantillonner z sous p_θ(z), décoder, obtenir un x neuf. Mieux : lorsque prior et postérieur approché sont des gaussiennes diagonales, le terme KL s'intègre analytiquement en forme fermée, (1/2)Σ_j(1 + log σ_j² − μ_j² − σ_j²), et la régularisation devient un terme exact, différentiable, calculable sans échantillonnage.</p>\n<p>Le vocabulaire de l'article mérite un arrêt. Kingma et Welling nomment q_φ(z|x) « recognition model » (modèle de reconnaissance) ou, de façon équivalente, « probabilistic encoder », puisqu'il produit une distribution sur les codes possibles ; p_θ(x|z) est leur « probabilistic decoder ». L'idée-force est qu'un unique jeu de paramètres φ, partagé entre tous les points de données, remplace l'optimisation variationnelle coûteuse qu'exigerait chaque exemple pris isolément. La littérature ultérieure baptisera ce schéma amortized inference (inférence amortie) — mais le terme est un anachronisme appliqué à l'article de 2013 : « amortized » n'y figure nulle part ; l'expression circule alors chez Stuhlmüller et al. (2013) et Gershman &amp; Goodman (2014), et n'a été rattachée au VAE que rétrospectivement.</p>\n<p>Un verrou demeure, et les auteurs le nomment. Optimiser l'ELBO par gradient exige de dériver une espérance sous q_φ par rapport à φ — autrement dit, de faire passer le gradient à travers un échantillonnage. L'estimateur naïf de Monte Carlo, dit score function (fonction-score), existe, mais il souffre d'une variance que Kingma et Welling jugent trop haute pour être praticable. Leur réponse est le reparameterization trick (astuce de reparamétrisation) : réécrire l'échantillon comme une transformation déterministe z̃ = g_φ(ε,x) d'un bruit ε ∼ p(ε) indépendant de φ, ce que valide le changement de variable ∫q_φ(z|x)f(z)dz = ∫p(ε)f(g_φ(ε,x))dε. Dans le cas gaussien du VAE, cela s'écrit z = μ + σ⊙ε avec ε ∼ N(0,I). Ce déplacement, en apparence anodin, est ce qui rend le VAE entraînable de bout en bout par backpropagation — la section suivante en démonte le mécanisme.</p>",
+   "claims": [
+    "claim:8",
+    "claim:9",
+    "claim:10",
+    "claim:11"
+   ]
+  },
+  {
+   "type": "widget",
+   "ref": "probe-elbo-ecart-kl"
+  },
+  {
+   "type": "section",
+   "id": "reparameterization",
+   "heading": "Reparameterization trick : rendre l'échantillonnage différentiable",
+   "level": 3,
+   "prose": "<p>La borne est posée ; reste à la faire descendre le long du gradient. Côté décodeur, rien ne résiste : le gradient en θ passe sous l'espérance sans précaution. Côté encodeur, tout se bloque, car le terme de reconstruction est une espérance prise sous q_φ(z|x) — la distribution d'échantillonnage dépend précisément des paramètres φ que l'on cherche à ajuster. L'estimateur Monte Carlo naïf pour ce cas, fondé sur la score function, est écarté d'emblée par Kingma et Welling : ils le jugent de très haute variance, « impraticable » pour l'entraînement. C'est cette impasse, et non un goût pour l'élégance, qui motive le reparameterization trick.</p>\n<p>Le trick opère par déplacement de l'aléa. Au lieu d'échantillonner z directement depuis q_φ(z|x), on tire un bruit ε depuis une distribution fixe p(ε), qui ne dépend d'aucun paramètre, puis on le transforme de façon déterministe : z̃ = g_φ(ε, x). Le changement de variable donné plus haut garantit que rien n'est perdu, mais la géographie du calcul a changé. Toute la stochasticité loge désormais dans ε, hors du chemin qui relie φ à la perte ; chaque tirage devient une fonction ordinaire, différentiable, de θ et φ. La backpropagation la traverse sans aménagement.</p>\n<figure class='fig'><svg viewBox='0 0 860 390' role='img' aria-label='Deux graphes de calcul côte à côte : sans reparamétrisation, le gradient est barré au nœud d’échantillonnage z ; avec reparamétrisation, le bruit ε entre par une branche latérale et le gradient traverse en continu de la perte jusqu’à l’encodeur'><defs><marker id='rp-f' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto'><path d='M0 0L10 5L0 10z' fill='var(--ink,#15202E)'/></marker><marker id='rp-g' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto'><path d='M0 0L10 5L0 10z' fill='var(--bordeaux,#7C2A38)'/></marker><marker id='rp-s' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto'><path d='M0 0L10 5L0 10z' fill='var(--ink-faint,#7A889B)'/></marker></defs><text x='190' y='24' text-anchor='middle' font-size='14' font-weight='600' fill='var(--ink,#15202E)'>Sans reparamétrisation</text><text x='620' y='24' text-anchor='middle' font-size='14' font-weight='600' fill='var(--ink,#15202E)'>Avec reparamétrisation</text><line x1='430' y1='34' x2='430' y2='334' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-dasharray='2 4' opacity='0.5'/><rect x='167' y='42' width='46' height='30' rx='6' fill='none' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='190' y='62' text-anchor='middle' font-size='13' fill='var(--ink,#15202E)'>x</text><rect x='135' y='92' width='110' height='30' rx='6' fill='none' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='190' y='112' text-anchor='middle' font-size='13' fill='var(--ink,#15202E)'>Encodeur (φ)</text><rect x='155' y='142' width='70' height='30' rx='6' fill='none' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='190' y='162' text-anchor='middle' font-size='13' fill='var(--ink,#15202E)'>μ, σ</text><rect x='125' y='192' width='130' height='30' rx='6' fill='var(--ink-faint,#7A889B)' fill-opacity='0.15' stroke='var(--ink-faint,#7A889B)' stroke-width='1.5' stroke-dasharray='4 3'/><text x='190' y='212' text-anchor='middle' font-size='13' fill='var(--ink,#15202E)'>z ∼ q_φ(z|x)</text><rect x='135' y='242' width='110' height='30' rx='6' fill='none' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='190' y='262' text-anchor='middle' font-size='13' fill='var(--ink,#15202E)'>Décodeur (θ)</text><rect x='152' y='292' width='76' height='30' rx='6' fill='none' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='190' y='312' text-anchor='middle' font-size='13' fill='var(--ink,#15202E)'>Perte L</text><line x1='190' y1='72' x2='190' y2='88' stroke='var(--ink,#15202E)' stroke-width='1.5' marker-end='url(#rp-f)'/><line x1='190' y1='122' x2='190' y2='138' stroke='var(--ink,#15202E)' stroke-width='1.5' marker-end='url(#rp-f)'/><line x1='190' y1='172' x2='190' y2='188' stroke='var(--ink,#15202E)' stroke-width='1.5' marker-end='url(#rp-f)'/><line x1='190' y1='222' x2='190' y2='238' stroke='var(--ink,#15202E)' stroke-width='1.5' marker-end='url(#rp-f)'/><line x1='190' y1='272' x2='190' y2='288' stroke='var(--ink,#15202E)' stroke-width='1.5' marker-end='url(#rp-f)'/><path d='M228 307H285V226' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.5' stroke-dasharray='5 4' marker-end='url(#rp-g)'/><line x1='276' y1='198' x2='294' y2='216' stroke='var(--bordeaux,#7C2A38)' stroke-width='3'/><line x1='294' y1='198' x2='276' y2='216' stroke='var(--bordeaux,#7C2A38)' stroke-width='3'/><text x='295' y='265' font-size='12' fill='var(--bordeaux,#7C2A38)'>∂L/∂φ bloqué</text><rect x='597' y='42' width='46' height='30' rx='6' fill='none' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='620' y='62' text-anchor='middle' font-size='13' fill='var(--ink,#15202E)'>x</text><rect x='565' y='92' width='110' height='30' rx='6' fill='none' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='620' y='112' text-anchor='middle' font-size='13' fill='var(--ink,#15202E)'>Encodeur (φ)</text><rect x='585' y='142' width='70' height='30' rx='6' fill='none' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='620' y='162' text-anchor='middle' font-size='13' fill='var(--ink,#15202E)'>μ, σ</text><rect x='555' y='192' width='130' height='30' rx='6' fill='none' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='620' y='212' text-anchor='middle' font-size='13' fill='var(--ink,#15202E)'>z = μ + σ⊙ε</text><rect x='565' y='242' width='110' height='30' rx='6' fill='none' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='620' y='262' text-anchor='middle' font-size='13' fill='var(--ink,#15202E)'>Décodeur (θ)</text><rect x='582' y='292' width='76' height='30' rx='6' fill='none' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='620' y='312' text-anchor='middle' font-size='13' fill='var(--ink,#15202E)'>Perte L</text><line x1='620' y1='72' x2='620' y2='88' stroke='var(--ink,#15202E)' stroke-width='1.5' marker-end='url(#rp-f)'/><line x1='620' y1='122' x2='620' y2='138' stroke='var(--ink,#15202E)' stroke-width='1.5' marker-end='url(#rp-f)'/><line x1='620' y1='172' x2='620' y2='188' stroke='var(--ink,#15202E)' stroke-width='1.5' marker-end='url(#rp-f)'/><line x1='620' y1='222' x2='620' y2='238' stroke='var(--ink,#15202E)' stroke-width='1.5' marker-end='url(#rp-f)'/><line x1='620' y1='272' x2='620' y2='288' stroke='var(--ink,#15202E)' stroke-width='1.5' marker-end='url(#rp-f)'/><rect x='440' y='192' width='92' height='30' rx='6' fill='var(--ink-faint,#7A889B)' fill-opacity='0.15' stroke='var(--ink-faint,#7A889B)' stroke-width='1.5' stroke-dasharray='4 3'/><text x='486' y='212' text-anchor='middle' font-size='13' fill='var(--ink-faint,#7A889B)'>ε ∼ N(0,I)</text><text x='486' y='240' text-anchor='middle' font-size='11' fill='var(--ink-faint,#7A889B)'>aléa isolé</text><line x1='532' y1='207' x2='550' y2='207' stroke='var(--ink-faint,#7A889B)' stroke-width='1.5' marker-end='url(#rp-s)'/><path d='M658 307H725V107H681' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.5' stroke-dasharray='5 4' marker-end='url(#rp-g)'/><text x='733' y='210' font-size='12' fill='var(--bordeaux,#7C2A38)'>∂L/∂φ</text><line x1='130' y1='362' x2='168' y2='362' stroke='var(--ink,#15202E)' stroke-width='1.5' marker-end='url(#rp-f)'/><text x='176' y='366' font-size='12' fill='var(--ink,#15202E)'>forward</text><line x1='300' y1='362' x2='338' y2='362' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.5' stroke-dasharray='5 4' marker-end='url(#rp-g)'/><text x='346' y='366' font-size='12' fill='var(--ink,#15202E)'>gradient</text><rect x='470' y='354' width='16' height='16' fill='var(--ink-faint,#7A889B)' fill-opacity='0.15' stroke='var(--ink-faint,#7A889B)' stroke-dasharray='4 3'/><text x='494' y='366' font-size='12' fill='var(--ink,#15202E)'>stochasticité isolée</text></svg><figcaption><span class='fcap-k'></span>En déplaçant l’aléa dans un bruit externe ε, la reparamétrisation z = μ + σ⊙ε remplace le nœud d’échantillonnage qui bloquait la rétropropagation par un nœud déterministe que le gradient traverse en continu, de la perte jusqu’à φ.</figcaption></figure>\n<p>Quelles distributions s'y prêtent ? L'article en recense trois familles. D'abord celles dont l'inverse de la fonction de répartition se calcule — exponentielle, Cauchy, logistique, Gumbel — : on tire ε uniforme et on applique cet inverse. Ensuite les familles location-scale (position-échelle), où g se réduit à un décalage plus une mise à l'échelle du bruit : gaussienne, Laplace, Student-t. Enfin les compositions de variables auxiliaires elles-mêmes reparamétrables, comme la log-normale ou la Dirichlet. Le VAE retient l'instance la plus simple de la deuxième famille, le cas gaussien z = μ + σ⊙ε déjà rencontré.</p>\n<p>L'article assemble ces pièces en un algorithme, AEVB (Auto-Encoding Variational Bayes), dont l'estimateur de la borne porte le nom de SGVB (Stochastic Gradient Variational Bayes). Dans le cas gaussien, la division du travail est nette : le KL au prior s'intègre en forme fermée — la formule diagonale donnée plus haut — et seul le terme de reconstruction reste estimé par Monte Carlo, sur des z reparamétrés. La variance résiduelle est assez faible pour qu'un unique tirage de ε par exemple suffise : les réglages pratiques de l'algorithme fixent L = 1 échantillon latent par exemple, pour un minibatch de M = 100. Un modèle génératif à variables latentes continues s'entraîne dès lors comme n'importe quel réseau, par descente de gradient stochastique.</p>\n<p>Et la garantie théorique établie plus haut tient sans clause supplémentaire : l'écart entre l'ELBO et log p_θ(x) vaut exactement D_KL(q_φ(z|x)‖p_θ(z|x)) — la borne ne repose sur aucune approximation de plus. Le seul problème ouvert était l'estimation de son gradient — celui que la reparamétrisation vient de régler.</p>\n<p>L'idée était mûre. Elle est découverte quasi simultanément et indépendamment par Rezende, Mohamed et Wierstra, qui la publient à ICML 2014 sous le nom de « stochastic backpropagation » : même verrou — rétropropager à travers des variables latentes gaussiennes —, même levée.</p>\n<p>Un mythe s'est pourtant installé autour de ce succès : le trick serait la seule manière de rendre un modèle à variable latente entraînable par backpropagation. C'est faux. L'estimateur score function — connu sous le nom de REINFORCE — reste utilisable pour le même objectif, y compris là où la reparamétrisation ne s'applique pas directement, les latents discrets. Il faut alors en dompter la variance, typiquement par des baselines, des termes de référence soustraits du signal d'apprentissage. Mnih et Gregor le démontrent avec NVIL (leur estimateur variationnel à baselines, présenté à ICML 2014 lui aussi) : une baseline constante, plus une baseline dépendante de l'entrée — un réseau auxiliaire entraîné à minimiser le carré du signal centré — suffisent à entraîner des sigmoid belief networks à latents discrets. La reparamétrisation a gagné sur les latents continus parce que sa variance est plus faible, pas faute d'alternative. Le VAE est désormais entraînable de bout en bout ; la question suivante n'est plus comment optimiser l'ELBO, mais ce que son terme KL fait subir à la représentation — et ce qu'on gagne à le régler.</p>",
+   "claims": [
+    "claim:12",
+    "claim:13",
+    "claim:14",
+    "claim:15"
+   ]
+  },
+  {
+   "type": "section",
+   "id": "beta-vae",
+   "heading": "β-VAE : régler le goulot d'information pour désenchevêtrer",
+   "level": 3,
+   "prose": "<p>L'entraînement acquis, le terme KL change de statut : de coût technique de la borne, il devient un réglage. C'est le geste du β-VAE, proposé par Higgins et ses coauteurs à ICLR 2017 — pondérer le KL pour contrôler ce que le goulot laisse passer.</p>\n<p>La dérivation part d'un problème sous contrainte, pas d'une pondération ad hoc : maximiser la reconstruction espérée E[log p(x|z)] sous la contrainte que D_KL(q(z|x)‖p(z)) reste sous un seuil δ. Les conditions KKT (Karush-Kuhn-Tucker) convertissent ce problème en un lagrangien, F(θ, φ, β) = E[log p(x|z)] − β·D_KL(q(z|x)‖p(z)), où β est le multiplicateur associé à la contrainte. À β = 1, F coïncide exactement avec l'ELBO : l'objectif de Kingma et Welling apparaît rétrospectivement comme un point particulier d'une famille plus large. À β > 1, la contrainte se resserre, et le modèle est poussé vers une représentation plus efficiente, davantage factorisée — au prix de la fidélité de reconstruction.</p>\n<p>Pourquoi resserrer ? L'espoir s'appelle disentanglement (désenchevêtrement) : un code dont chaque dimension capturerait un facteur génératif distinct des données. Pour le mesurer, Higgins et al. proposent une métrique : générer des paires d'échantillons où un seul facteur est maintenu fixe, encoder les paires, puis entraîner un classifieur linéaire de faible capacité à deviner, à partir de la différence latente, quel facteur était fixé ; la précision de ce classifieur fait office de score. Sur cette métrique, β-VAE surpasse les méthodes concurrentes de l'époque, InfoGAN — une variante des GAN (Generative Adversarial Networks, réseaux antagonistes génératifs) — et DC-IGN, évalué sur dSprites, un jeu de données synthétique dont les facteurs génératifs sont connus, ainsi que sur CelebA et des chaises et visages 3D. Le compromis annoncé se vérifie : augmenter β améliore le score de disentanglement et dégrade la reconstruction.</p>\n<p>Burgess et al. donnent à ce compromis sa lecture la plus parlante, via le principe de l'information bottleneck (goulot d'information) : la contrainte KL borne la quantité d'information que z peut transporter sur x, et β en règle le débit. De là, une variante : plutôt qu'une pénalité à β fixe, viser une capacité cible C avec l'objectif E[log p(x|z)] − γ|D_KL(q(z|x)‖p(z)) − C|, et augmenter C linéairement pendant l'entraînement — de 0 à 25 nats (l'unité d'information du logarithme naturel) sur 100 000 itérations dans leurs expériences sur dSprites. Le goulot s'ouvre alors comme une vanne, et les facteurs entrent un à un, par ordre de rendement : la position d'abord (dès 3,1 nats), puis l'échelle, puis la forme, et la rotation en dernier (23,8 nats), quand la capacité permet une reconstruction de haute qualité. La métaphore du goulot devient littérale : le KL mesure, au nat près, ce que le code a le droit de dire.</p><figure class='fig'><svg viewBox='0 0 760 420' role='img' aria-label='Courbe de la capacité KL cible C, de 0 à 25 nats, contre la qualité de reconstruction sur dSprites : quatre seuils marquent les entrées successives des facteurs — position à 3,1 nats, échelle vers 6 à 7 nats, forme vers 15 nats, rotation à 23,8 nats — chaque facteur restant invisible pour le décodeur sous son seuil'><defs><marker id='vae-cap-arr' viewBox='0 0 8 8' refX='6' refY='4' markerWidth='6' markerHeight='6' orient='auto-start-reverse'><path d='M0,0 L8,4 L0,8 Z' fill='var(--ink,#15202E)'/></marker></defs><rect x='70' y='240' width='79.4' height='24' rx='2' fill='var(--ink-faint,#7A889B)' opacity='0.22'/><rect x='149.4' y='240' width='560.6' height='24' rx='2' fill='var(--blue,#23537F)' opacity='0.45'/><rect x='70' y='272' width='166.4' height='24' rx='2' fill='var(--ink-faint,#7A889B)' opacity='0.22'/><rect x='236.4' y='272' width='473.6' height='24' rx='2' fill='var(--blue,#23537F)' opacity='0.45'/><rect x='70' y='304' width='384' height='24' rx='2' fill='var(--ink-faint,#7A889B)' opacity='0.22'/><rect x='454' y='304' width='256' height='24' rx='2' fill='var(--blue,#23537F)' opacity='0.45'/><rect x='70' y='336' width='609.3' height='24' rx='2' fill='var(--ink-faint,#7A889B)' opacity='0.22'/><rect x='679.3' y='336' width='30.7' height='24' rx='2' fill='var(--blue,#23537F)' opacity='0.45'/><g stroke='var(--bordeaux,#7C2A38)' stroke-width='1' stroke-dasharray='3 3' opacity='0.55'><line x1='149.4' y1='92' x2='149.4' y2='368'/><line x1='236.4' y1='92' x2='236.4' y2='368'/><line x1='454' y1='92' x2='454' y2='368'/><line x1='679.3' y1='92' x2='679.3' y2='368'/></g><line x1='70' y1='368' x2='714' y2='368' stroke='var(--ink,#15202E)' stroke-width='1.2' marker-end='url(#vae-cap-arr)'/><line x1='70' y1='368' x2='70' y2='104' stroke='var(--ink,#15202E)' stroke-width='1.2' marker-end='url(#vae-cap-arr)'/><g stroke='var(--ink,#15202E)' stroke-width='1'><line x1='198' y1='368' x2='198' y2='373'/><line x1='326' y1='368' x2='326' y2='373'/><line x1='454' y1='368' x2='454' y2='373'/><line x1='582' y1='368' x2='582' y2='373'/><line x1='710' y1='368' x2='710' y2='373'/></g><g font-size='10' fill='var(--ink-faint,#7A889B)' text-anchor='middle'><text x='70' y='386'>0</text><text x='198' y='386'>5</text><text x='326' y='386'>10</text><text x='454' y='386'>15</text><text x='582' y='386'>20</text><text x='710' y='386'>25</text></g><path d='M70,205 C105,198 122,190 149.4,178 C176,166 205,160 236.4,155 C310,143 385,134 454,128 C540,121 630,116 679.3,114 L710,113' fill='none' stroke='var(--blue,#23537F)' stroke-width='2.5'/><g fill='var(--bordeaux,#7C2A38)'><circle cx='149.4' cy='178' r='4'/><circle cx='236.4' cy='155' r='4'/><circle cx='454' cy='128' r='4'/><circle cx='679.3' cy='114' r='4'/></g><rect x='137' y='34' width='25' height='25' rx='3' fill='none' stroke='var(--ink-faint,#7A889B)'/><rect x='141' y='38' width='6' height='6' fill='var(--blue,#23537F)'/><line x1='147' y1='47' x2='155' y2='53' stroke='var(--ink,#15202E)' stroke-width='1' marker-end='url(#vae-cap-arr)'/><rect x='224' y='34' width='25' height='25' rx='3' fill='none' stroke='var(--ink-faint,#7A889B)'/><rect x='228' y='38' width='17' height='17' fill='none' stroke='var(--blue,#23537F)'/><rect x='233.5' y='43.5' width='6' height='6' fill='var(--blue,#23537F)'/><rect x='436' y='34' width='36' height='25' rx='3' fill='none' stroke='var(--ink-faint,#7A889B)'/><rect x='441' y='43' width='7' height='7' fill='none' stroke='var(--blue,#23537F)'/><ellipse cx='454' cy='46.5' rx='4.5' ry='3.5' fill='none' stroke='var(--blue,#23537F)'/><path d='M465,51 C460,47 461,41.5 465,44 C469,41.5 470,47 465,51 Z' fill='var(--blue,#23537F)'/><rect x='664' y='34' width='31' height='25' rx='3' fill='none' stroke='var(--ink-faint,#7A889B)'/><rect x='673' y='40.5' width='12' height='12' fill='none' stroke='var(--blue,#23537F)' transform='rotate(25 679 46.5)'/><path d='M687,39 A8.5,8.5 0 0 1 691,49' fill='none' stroke='var(--ink,#15202E)' stroke-width='1' marker-end='url(#vae-cap-arr)'/><g text-anchor='middle'><text x='149.4' y='72' font-size='11.5' font-weight='600' fill='var(--ink,#15202E)'>position</text><text x='149.4' y='86' font-size='10.5' fill='var(--bordeaux,#7C2A38)'>3,1 nats</text><text x='236.4' y='72' font-size='11.5' font-weight='600' fill='var(--ink,#15202E)'>échelle</text><text x='236.4' y='86' font-size='10.5' fill='var(--bordeaux,#7C2A38)'>≈ 6–7 nats</text><text x='454' y='72' font-size='11.5' font-weight='600' fill='var(--ink,#15202E)'>forme</text><text x='454' y='86' font-size='10.5' fill='var(--bordeaux,#7C2A38)'>≈ 15 nats</text><text x='679.3' y='72' font-size='11.5' font-weight='600' fill='var(--ink,#15202E)'>rotation</text><text x='679.3' y='86' font-size='10.5' fill='var(--bordeaux,#7C2A38)'>23,8 nats</text></g><g font-size='10.5' font-weight='600' fill='var(--ink,#15202E)'><text x='76' y='255.5'>position</text><text x='76' y='287.5'>échelle</text><text x='76' y='319.5'>forme</text><text x='76' y='351.5'>rotation</text></g><text x='430' y='255.5' text-anchor='middle' font-size='10' fill='var(--ink,#15202E)'>facteur encodé — visible pour le décodeur</text><text x='400' y='351.5' text-anchor='middle' font-size='10' fill='var(--ink-faint,#7A889B)'>zone grisée : facteur invisible pour le décodeur tant que C n’atteint pas son seuil</text><text x='390' y='404' text-anchor='middle' font-size='10.5' fill='var(--ink,#15202E)'>capacité KL cible C (nats), augmentée linéairement de 0 à 25 pendant l’entraînement</text><text x='24' y='234' text-anchor='middle' font-size='10.5' fill='var(--ink,#15202E)' transform='rotate(-90 24 234)'>qualité de reconstruction / information encodée</text></svg><figcaption><span class='fcap-k'></span>La vanne de Burgess et al. sur dSprites : à mesure que la capacité cible C monte linéairement de 0 à 25 nats, les facteurs franchissent le goulot un à un — position (3,1 nats), échelle (≈ 6–7), forme (≈ 15), rotation (23,8) —, chacun restant invisible pour le décodeur tant que le débit n’atteint pas son seuil.</figcaption></figure>\n<p>Puis la douche froide. Locatello et al. (ICML 2019) démontrent un résultat d'impossibilité : sans biais inductifs sur le modèle et sur les données, le disentanglement non supervisé est fondamentalement impossible. Ils doublent le théorème d'une vérification empirique à grande échelle — plus de 12 000 modèles entraînés, couvrant les six méthodes les plus proéminentes dont β-VAE, six métriques de disentanglement, sept jeux de données —, outillée par disentanglement_lib, la bibliothèque publiée pour rendre l'étude reproductible.</p>\n<p>Le verdict opérationnel est plus cruel encore que le théorème. Régler β, ou une capacité cible C, ne suffit pas : dans ce balayage, les hyperparamètres comptent moins que la graine aléatoire, et leurs bons réglages ne se transfèrent pas d'un jeu de données à l'autre. Surtout, même quand un modèle bien désenchevêtré émerge, aucun critère non supervisé ne permet de l'identifier parmi les autres — il faut des labels de vérité terrain, c'est-à-dire précisément ce dont on prétendait se passer. Et l'utilité supposée en aval vacille : un disentanglement accru ne réduit pas de façon fiable la complexité d'échantillon des tâches ultérieures. Le bilan n'est pas nul pour autant : le KL est bel et bien un bouton de capacité latente, Burgess et al. l'ont établi ; ce sont les promesses sémantiques attachées à ce bouton qui ne survivent pas à l'examen. Une autre famille de goulots contourne la question en changeant la nature même du code : le rendre discret.</p>",
+   "claims": [
+    "claim:16",
+    "claim:17",
+    "claim:18",
+    "claim:19"
+   ]
+  },
+  {
+   "type": "section",
+   "id": "vq-vae",
+   "heading": "VQ-VAE : codes discrets, codebook et straight-through",
+   "level": 3,
+   "prose": "<p>Le VQ-VAE (autoencodeur variationnel à quantification vectorielle), introduit par van den Oord, Vinyals et Kavukcuoglu dans « Neural Discrete Representation Learning » (NeurIPS 2017), franchit ce pas. L'objet central est le codebook (dictionnaire de codes) e ∈ R^(K×D), appris conjointement avec le reste du modèle : la sortie continue de l'encodeur, z_e(x), est remplacée par le vecteur du codebook le plus proche, z_q(x), et c'est ce vecteur quantifié que le décodeur reçoit. Le postérieur q(z|x) devient catégorique, one-hot et déterministe — probabilité 1 sur l'indice qui minimise ‖z_e(x) − e_j‖², 0 partout ailleurs.</p>\n<p>La quantification ressuscite aussitôt le problème des latents discrets croisé plus haut : l'argmin n'est pas différentiable, et la reparamétrisation ne s'applique pas. REINFORCE et ses baselines seraient une voie ; van den Oord et al. en choisissent une autre, plus brutale : le straight-through estimator, qui copie tel quel le gradient reçu par le décodeur en z_q(x) vers la sortie de l'encodeur z_e(x), comme si la quantification n'existait pas. Le gradient est biaisé, mais il circule.</p>\n<p>La perte compense ce raccourci par trois termes exactement : L = log p(x|z_q(x)) + ‖sg[z_e(x)] − e‖² + β‖z_e(x) − sg[e]‖², où sg[·] est l'opérateur stop-gradient. Le terme de reconstruction entraîne encodeur et décodeur ; le terme de codebook rapproche les vecteurs du dictionnaire des sorties de l'encodeur ; le terme de commitment, pondéré par β = 0,25, empêche ces sorties de diverger sans borne — un réglage robuste, les auteurs rapportant des résultats stables pour β entre 0,1 et 2,0. Le coût de la discrétisation s'avère modeste : 4,67 bits par dimension sur CIFAR-10, contre 4,51 pour un VAE continu comparable.</p>\n<p>Le point le plus instructif du modèle est ce qu'il fait au KL — ou plutôt ce qu'il n'a plus à en faire. Dans un VAE continu, un décodeur suffisamment puissant peut apprendre à ignorer z : le KL est poussé vers zéro, le postérieur s'aligne sur le prior, le code ne transporte plus rien. C'est le posterior collapse (effondrement du postérieur), pathologie sur laquelle la section suivante reviendra. Le VQ-VAE ferme structurellement cette option : avec un postérieur one-hot déterministe et un prior d'entraînement uniforme, le KL vaut exactement log K — « constant and equal to log K », écrit l'article —, une constante indépendante des paramètres, retirée de la perte. Il n'y a rien à effondrer. On attribue souvent cette immunité au straight-through estimator ; c'est une confusion. Lui ne fait que traverser l'argmin ; la protection vient du KL constant, jamais optimisable à zéro.</p>\n<p>La descendance forme une trajectoire cohérente. VQ-VAE-2 (Razavi, van den Oord et Vinyals, NeurIPS 2019) hiérarchise le codebook sur plusieurs échelles et pose des priors autorégressifs puissants sur les codes latents : les images générées rivalisent avec celles des meilleurs GAN de l'époque, sans le mode collapse — l'effondrement sur quelques modes de la distribution — ni le manque de diversité qui les caractérisent. VQGAN (Esser, Rombach et Ommer, CVPR 2021) ajoute l'entraînement adversarial à l'autoencodeur — discriminateur opérant patch par patch, perte perceptuelle — puis confie la composition des codes à un transformer autorégressif, atteignant l'état de l'art des modèles autorégressifs sur ImageNet conditionné par classe. Le fil est visible : des tokens d'image discrets, qu'un transformer consomme comme il consomme du texte.</p>\n<p>Le dernier mot de la lignée est une simplification. FSQ (Finite Scalar Quantization, Mentzer et al., ICLR 2024) supprime l'appareillage auxiliaire accumulé autour du codebook — commitment loss, reseeding du codebook, pénalité d'entropie — en projetant le latent sur un petit nombre de dimensions, typiquement moins de dix, chacune quantifiée sur un ensemble fixe de valeurs ; le codebook devient implicite. La fidélité n'y perd rien de mesurable : sur MaskGIT/ImageNet 256×256, la configuration FSQ [8,5,5,5] — un codebook effectif d'environ mille mots — atteint un FID (Fréchet Inception Distance, mesure standard de qualité d'images générées) de 4,534 contre 4,509 pour la quantification vectorielle classique. La différence est ailleurs : FSQ utilise 100 % de son codebook, là où la VQ classique n'en exploite que 81 %.</p>\n<p>Deux familles de goulots régularisés coexistent donc : le KL continu du VAE, la quantification discrète du VQ-VAE. Les autoencodeurs de compression des générateurs d'images actuels offriront précisément ce choix — régularisation KL ou régularisation VQ. Mais avant d'en venir à ces usages, il faut solder les comptes du VAE continu : le posterior collapse entrevu ici n'est que la première de ses pathologies apparentes, et plusieurs diagnostics courants à son sujet sont, on va le voir, des idées reçues.</p>",
+   "claims": [
+    "claim:20",
+    "claim:21",
+    "claim:22",
+    "claim:23"
+   ]
+  },
+  {
+   "type": "widget",
+   "ref": "probe-snap-straight-through"
+  },
+  {
+   "type": "section",
+   "id": "pathologies-elbo",
+   "heading": "Pathologies et idées reçues : posterior collapse, ELBO trompeur, flou",
+   "level": 3,
+   "prose": "<p>Le VQ-VAE esquive le posterior collapse par construction — son KL est constant. Le VAE continu, lui, doit l'affronter dès qu'on le couple à un décodeur puissant : le KL s'effondre vers zéro, le postérieur approché se confond avec le prior, et le décodeur génère sans consulter z. Bowman et al. (CoNLL 2016) l'ont documenté sur un VAE de texte à décodeur RNN (Recurrent Neural Network, réseau récurrent) : le terme KL fond pendant l'entraînement et le réseau récurrent encode seul toute l'information dans ses états internes — le latent devient décoratif. Leurs deux parades sont passées dans la boîte à outils. Le KL cost annealing (montée progressive du poids du terme KL) part d'un poids nul, laisse z se charger d'information avant que la régularisation ne morde, puis croît jusqu'à 1 selon un profil sigmoïde. Le word dropout affaiblit le décodeur en remplaçant une partie des tokens qu'il conditionne par un symbole neutre, jusqu'au cas extrême du décodeur privé de toute entrée : forcé de s'appuyer sur le latent, il l'utilise enfin. C'est ce même piège, on l'a vu, que le VQ-VAE a été explicitement conçu pour contourner par ses codes discrets et son prior appris.</p><p>La deuxième mauvaise nouvelle touche la métrique elle-même. Alemi et al. (2018) analysent le VAE dans le plan rate-distortion (débit-distorsion) : le débit mesure l'information que le code transporte sur l'entrée, la distorsion l'erreur de reconstruction. Leur résultat dérange : un même ELBO recouvre toute une famille de compromis débit-distorsion qualitativement différents — y compris le cas limite où un décodeur assez puissant ignore totalement le code latent sans que l'ELBO n'en souffre. Un coefficient β, analogue à celui du β-VAE, interpole continûment du régime auto-encodant (β≪1 : distorsion faible, débit élevé) au régime auto-décodant (β≫1 : l'inverse), sans changer l'architecture ni la valeur de l'objectif atteint. L'heuristique « meilleur ELBO, meilleure représentation » ne tient donc pas : deux modèles au même score peuvent héberger des représentations sans rapport l'une avec l'autre.</p><figure class='fig'><svg viewBox='0 0 640 400' role='img' aria-label='Plan débit-distorsion : une droite iso-ELBO de pente moins un, tangente à la frontière réalisable convexe, relie trois régimes différents (auto-encodant, ELBO standard, auto-décodant) qui partagent une même valeur de la borne ELBO.'><path d='M80,58 C82,96 100,118 118,126 L420,301 C455,321 505,327 585,326 L585,48 L80,48 Z' fill='var(--blue,#23537F)' opacity='0.06' stroke='none'/><path d='M80,58 C82,96 100,118 118,126 L420,301 C455,321 505,327 585,326' fill='none' stroke='var(--blue,#23537F)' stroke-width='2.5'/><line x1='80' y1='108' x2='480' y2='340' stroke='var(--bordeaux,#7C2A38)' stroke-width='2' stroke-dasharray='7 5'/><line x1='80' y1='340' x2='600' y2='340' stroke='var(--ink,#15202E)' stroke-width='1.5'/><line x1='80' y1='340' x2='80' y2='45' stroke='var(--ink,#15202E)' stroke-width='1.5'/><path d='M600,340 L590,336 L590,344 Z' fill='var(--ink,#15202E)'/><path d='M80,45 L76,55 L84,55 Z' fill='var(--ink,#15202E)'/><text x='340' y='374' text-anchor='middle' font-size='13' fill='var(--ink,#15202E)'>Débit R — information transportée par le code</text><text x='34' y='195' transform='rotate(-90 34 195)' text-anchor='middle' font-size='13' fill='var(--ink,#15202E)'>Distorsion D — erreur de reconstruction</text><text x='72' y='356' text-anchor='middle' font-size='11' fill='var(--ink-faint,#7A889B)'>0</text><text x='560' y='96' text-anchor='end' font-size='12' fill='var(--ink-faint,#7A889B)'>région réalisable</text><text x='575' y='320' text-anchor='end' font-size='12' fill='var(--blue,#23537F)'>frontière réalisable</text><circle cx='80' cy='108' r='5.5' fill='var(--bordeaux,#7C2A38)'/><circle cx='280' cy='224' r='5.5' fill='var(--blue,#23537F)'/><circle cx='400' cy='294' r='5.5' fill='var(--blue,#23537F)'/><text x='94' y='78' font-size='12.5' font-weight='600' fill='var(--bordeaux,#7C2A38)'>β ≫ 1 — auto-décodant</text><text x='94' y='94' font-size='11.5' fill='var(--ink-faint,#7A889B)'>R → 0 : le décodeur ignore z (posterior collapse)</text><text x='292' y='212' font-size='12.5' font-weight='600' fill='var(--ink,#15202E)'>β = 1 — ELBO standard</text><text x='416' y='283' font-size='12.5' font-weight='600' fill='var(--ink,#15202E)'>β ≪ 1 — auto-encodant</text><text x='416' y='299' font-size='11.5' fill='var(--ink-faint,#7A889B)'>R élevé, D faible</text><text transform='translate(150,172) rotate(30)' font-size='12.5' font-style='italic' fill='var(--bordeaux,#7C2A38)'>même valeur d'ELBO en chaque point (R + D = const)</text></svg><figcaption><span class='fcap-k'></span>Plan débit-distorsion d'Alemi et al. (2018) : la droite iso-ELBO de pente −1 (R + D = const), tangente à la frontière réalisable, aligne au même score le régime auto-encodant (β≪1), l'optimum standard (β=1) et le régime auto-décodant (β≫1) où le décodeur ignore z.</figcaption></figure><p>Faut-il pour autant accuser l'objectif ? Lucas et al. (NeurIPS 2019) plaident le contraire dans un article au titre explicite, « Don't Blame the ELBO! ». Leur instrument est le VAE linéaire, exactement équivalent à la pPCA (probabilistic PCA, ACP probabiliste) : dans ce cadre soluble, l'ELBO n'introduit aucun maximum local parasite par rapport à la vraisemblance marginale — le VAE linéaire à inférence variationnelle exacte retrouve les mêmes points stationnaires, avec un maximum global identifiable sur les directions principales. Le posterior collapse, montrent-ils, vient d'ailleurs : de la variance du bruit d'observation du décodeur — le σ², qu'il soit appris ou fixé — et de la non-orthogonalité ou mauvaise spécification des colonnes du décodeur. La borne variationnelle est disculpée ; ce sont les choix de modélisation qui s'effondrent.</p><p>Même retournement pour l'idée reçue la plus tenace : le flou des reconstructions. Le diagnostic courant l'impute à la vraisemblance gaussienne isotrope, qui condamnerait le VAE aux sorties moyennées. La littérature conteste cette fatalité. Dai &amp; Wipf (ICLR 2019) partent précisément de cette croyance répandue et montrent, analyse à l'appui, qu'elle n'est vraie que sous certaines conditions ; leur VAE corrigé, sans hyperparamètre supplémentaire, produit des échantillons nets aux scores FID compétitifs face à des GAN. Yu (2020) est plus abrupt : le stéréotype viendrait d'une erreur pratique — minimiser la MSE (Mean Squared Error, erreur quadratique moyenne) brute au lieu de la log-vraisemblance négative correctement pondérée par la variance — et un VAE gaussien correctement entraîné devrait reconstruire quasi parfaitement. Le flou est un symptôme de calibration, pas une signature du cadre.</p><p>Une dernière pathologie concerne l'échantillonnage. Rien ne garantit que le postérieur agrégé — le mélange des postérieurs approchés sur tout le jeu de données — recouvre exactement le prior fixe. Là où les deux divergent apparaissent des « trous » : des régions denses sous le prior mais presque vides sous le postérieur agrégé. C'est le prior hole problem (problème des trous du prior) : échantillonner ces régions, que le décodeur n'a jamais appris à décoder, creuse l'écart entre distribution apprise et distribution réelle et produit des sorties de mauvaise qualité (Saha, Joshi &amp; Whitaker). Le tableau n'est pourtant pas un réquisitoire : chaque pathologie a son diagnostic, et souvent sa parade. C'est armé de ce discernement que l'ingénieur peut lire le rôle exact que les générateurs modernes confient au VAE — non plus générer seul, mais comprimer pour un autre.</p>",
+   "claims": [
+    "claim:24",
+    "claim:25",
+    "claim:26",
+    "claim:27"
+   ]
+  },
+  {
+   "type": "section",
+   "id": "diffusion-latente-applications",
+   "heading": "Du VAE à la diffusion latente : la brique de compression des générateurs modernes",
+   "level": 3,
+   "prose": "<p>Ce rôle a un nom depuis 2022 : la compression perceptuelle. Rombach et al. (CVPR 2022) fondent les Latent Diffusion Models (LDM, modèles de diffusion latente) sur une séparation explicite en deux étages : un autoencodeur assure la compression perceptuelle, tandis que le modèle de diffusion, opérant dans l'espace latent qui en résulte, prend en charge la compression sémantique et la génération. L'autoencodeur existe en deux variantes de régularisation, héritières directes des deux familles suivies dans ce document : KL-reg impose une pénalité KL légère vers la normale standard, à la manière d'un VAE ; VQ-reg insère une couche de quantification vectorielle dans le décodeur, à la manière d'un VQ-VAE.</p><p>Le choix de cet autoencodeur devient une question d'ingénierie à part entière. Les auteurs balaient les facteurs de sous-échantillonnage f de 1 à 32 et concluent que les configurations intermédiaires LDM-4 et LDM-8 offrent le meilleur compromis entre efficacité et fidélité perceptuelle. La sélection s'appuie sur la rFID (reconstruction FID) — le FID calculé entre images originales et leurs reconstructions —, l'entraînement étant poursuivi jusqu'à sa convergence. Des travaux ultérieurs nuancent ce critère en documentant un dilemme reconstruction-génération : améliorer la rFID ne garantit pas d'améliorer le FID de génération (gFID) du modèle de diffusion aval. Stable Diffusion illustre la configuration devenue standard : son autoencodeur « kl-f8 », KL-régularisé avec un sous-échantillonnage spatial d'un facteur 8, compresse une image 256×256 en un latent 4×32×32 avant que le réseau de débruitage n'y opère. Un détail d'implémentation trahit la filiation : dans la bibliothèque Diffusers de Hugging Face, la classe AutoencoderKL applique une constante scaling_factor de 0.18215 — l'écart-type par composante du latent, mesuré sur le premier batch d'entraînement — pour ramener les latents à une variance proche de l'unité avant diffusion.</p><p>La division du travail mérite d'être énoncée sans ambiguïté, car les présentations vulgarisées l'inversent volontiers, décrivant le VAE comme le composant qui « imagine » l'image et la diffusion comme un simple raffinement. C'est l'inverse. Dans un pipeline comme Stable Diffusion, le processus génératif est porté par le modèle de diffusion, qui débruite itérativement dans l'espace latent ; le VAE encode vers le latent en amont et décode le latent généré vers l'espace pixel en aval. Il fournit le référentiel comprimé et la reconstruction — pas l'inférence générative.</p><p>La lignée discrète issue du VQ-VAE alimente une autre famille de générateurs à grande échelle : les transformers autorégressifs. Jukebox (Dhariwal et al., 2020) en est l'application la plus directe. Un VQ-VAE hiérarchique — au sens strict de van den Oord et al. — à trois niveaux de sous-échantillonnage croissant compresse l'audio brut à 44,1 kHz en codes discrets, que des transformers modélisent ensuite séquence par séquence. DALL-E (Ramesh et al., 2021) suit une voie voisine mais distincte : son dVAE (autoencodeur variationnel discret) réduit chaque image à une grille de 32×32 tokens puisés dans un codebook de 8 192 entrées. Un transformer autorégressif de 12 milliards de paramètres apprend ensuite à produire ces tokens conditionnés au texte. Les auteurs présentent leur procédure en deux étapes comme « similaire » à celle du VQ-VAE, mais le mécanisme d'entraînement diffère : la discrétisation passe par une relaxation Gumbel-softmax, version continue et différentiable du tirage discret, sans quantification vectorielle stricte ni straight-through estimator.</p><p>Le cadre déborde enfin l'image. Netflix a étendu le VAE au filtrage collaboratif (Liang et al., WWW 2018) : les retours implicites des utilisateurs y sont modélisés par une vraisemblance multinomiale, avec un poids KL ajusté par annealing — le levier déjà croisé comme parade au posterior collapse. En chimie, Gómez-Bombarelli et al. (2018) convertissent des chaînes SMILES (notation textuelle des molécules) en un espace latent continu ; un perceptron multicouche y prédit les propriétés moléculaires, ce qui organise l'espace de sorte que les molécules aux propriétés similaires se regroupent, et l'optimisation par gradient peut alors guider la conception de nouvelles molécules. Le fil commun est exactement celui du document : transformer des données discrètes ou éparses en un espace continu où le gradient a prise.</p><p>La boucle est bouclée. Parti d'un réseau qui apprenait à recopier son entrée à travers un goulot, l'autoencodeur a vu sa contrainte se raffiner — bruit, distribution, quantification — jusqu'à devenir un cadre probabiliste complet, avec ses pathologies documentées et leurs parades. Ce que la diffusion latente, DALL-E ou Jukebox en retiennent n'est pas le générateur autonome, mais le compromis lui-même : une reconstruction fidèle contre un espace latent régularisé, continu ou discret, où d'autres modèles viennent apprendre. Le VAE n'a pas gagné la course de la génération ; il en est devenu l'infrastructure.</p>",
+   "claims": [
+    "claim:28",
+    "claim:29",
+    "claim:30",
+    "claim:31"
+   ]
+  },
+  {
+   "type": "widget",
+   "ref": "synopsis-pipeline-diffusion-latente"
+  },
+  {
+   "type": "exercise",
+   "part": "ELBO et reparameterization trick",
+   "question": "<p>Écrivez l'identité exacte qui relie log p_θ(x), l'ELBO et une divergence KL, et précisez ce que vaut l'écart entre la borne et la vraie log-vraisemblance. Pourquoi Kingma &amp; Welling écartent-ils l'estimateur de gradient naïf par fonction-score, et par quel mécanisme le reparameterization trick rend-il l'objectif entraînable de bout en bout par backpropagation ? Enfin, dans le cas gaussien diagonal, quel terme de l'ELBO échappe entièrement à l'estimation Monte Carlo, et pourquoi ?</p>",
+   "answer": "<p>L'identité, établie sans aucune approximation, est log p_θ(x) = D_KL(q_φ(z|x)‖p_θ(z|x)) + L(θ,φ;x). Comme la divergence KL est toujours positive ou nulle, L est une borne inférieure de la log-vraisemblance marginale — l'ELBO — et l'écart entre la borne et log p_θ(x) vaut <em>exactement</em> la divergence KL entre l'encodeur approché q_φ(z|x) et le vrai postérieur intraitable p_θ(z|x) : si q_φ coïncide avec le vrai postérieur, l'écart s'annule et l'ELBO égale log p_θ(x).</p><p>L'estimateur naïf par fonction-score est écarté parce que Kingma &amp; Welling le jugent de très haute variance, « impraticable » pour l'entraînement. Le reparameterization trick réécrit l'échantillon comme une transformation déterministe z̃ = g_φ(ε, x) d'un bruit ε ∼ p(ε) indépendant de φ — dans le cas gaussien, z = μ + σ⊙ε avec ε ∼ N(0,I). Toute la stochasticité loge alors dans ε, hors du chemin qui relie φ à la perte : chaque tirage devient une fonction différentiable ordinaire de θ et φ, que la backpropagation traverse sans aménagement — et la variance résiduelle est assez faible pour qu'un seul échantillon latent par exemple (L = 1) suffise en pratique.</p><p>Dans le cas où prior et postérieur approché sont des gaussiennes diagonales, le terme de régularisation D_KL(q_φ(z|x)‖p_θ(z)) s'intègre analytiquement en forme fermée, (1/2)Σ_j(1 + log σ_j² − μ_j² − σ_j²) : il est exact, différentiable et calculable sans échantillonnage — seul le terme de reconstruction reste estimé par Monte Carlo, sur des z reparamétrés.</p>"
+  },
+  {
+   "type": "exercise",
+   "part": "Posterior collapse et lecture critique de l'ELBO",
+   "question": "<p>Sur un VAE de texte à décodeur autorégressif puissant, vous observez que le terme KL s'effondre vers zéro et que le latent devient décoratif. (a) Nommez la pathologie et citez les deux parades introduites par Bowman et al. (b) Expliquez pourquoi le VQ-VAE y est structurellement immunisé — et pourquoi attribuer cette immunité au straight-through estimator est une confusion. (c) Pourquoi comparer deux modèles au seul ELBO ne dit-il rien de la qualité de leurs représentations ?</p>",
+   "answer": "<p>(a) C'est le posterior collapse : le postérieur approché se confond avec le prior et le décodeur génère sans consulter z. Bowman et al. (2016) proposent le KL cost annealing — partir d'un poids nul sur le terme KL, laisser z se charger d'information avant que la régularisation ne morde, puis faire croître le poids jusqu'à 1 selon un profil sigmoïde — et le word dropout, qui affaiblit le décodeur en remplaçant une partie des tokens qu'il conditionne par un symbole neutre, le forçant à s'appuyer sur le latent.</p><p>(b) Dans le VQ-VAE, le postérieur q(z|x) est one-hot et déterministe et le prior d'entraînement est uniforme : la KL au prior vaut exactement log K, une constante indépendante des paramètres, retirée de la perte — il n'y a rien à effondrer. Le straight-through estimator, lui, ne fait que copier le gradient à travers l'argmin non différentiable ; il rend l'entraînement possible mais ne protège en rien du collapse — la protection vient de la KL constante, jamais optimisable à zéro.</p><p>(c) Parce qu'Alemi et al. (2018) montrent, dans le plan débit-distorsion, qu'un même ELBO recouvre toute une famille de compromis qualitativement différents — jusqu'au cas limite où un décodeur assez puissant ignore totalement le code latent sans que l'ELBO n'en souffre. Deux modèles au même score peuvent donc héberger des représentations sans rapport l'une avec l'autre : l'heuristique « meilleur ELBO, meilleure représentation » ne tient pas.</p>"
+  },
+  {
+   "type": "biblio",
+   "entries": [
+    {
+     "label": "Autoencoder — Wikipedia",
+     "href": "https://en.wikipedia.org/wiki/Autoencoder"
+    },
+    {
+     "label": "From Principal Subspaces to Principal Components with Linear Autoencoders (Plaut, 2018)",
+     "href": "https://ar5iv.labs.arxiv.org/html/1804.10253"
+    },
+    {
+     "label": "Autoencoders reloaded (Kramer et al., Biological Cybernetics) — PMC",
+     "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC9287259/"
+    },
+    {
+     "label": "Kunin, Bloom, Goeva, Seed — From Principal Subspaces to Principal Components with Linear Autoencoders (arXiv:1804.10253)",
+     "href": "https://arxiv.org/abs/1804.10253"
+    },
+    {
+     "label": "Plaut, \"From Principal Subspaces to Principal Components with Linear Autoencoders\" (arXiv:1804.10253) — cite et explicite les résultats de Bourlard & Kamp 1988 et Baldi & Hornik 1989",
+     "href": "https://arxiv.org/pdf/1804.10253"
+    },
+    {
+     "label": "Neural networks and principal component analysis: Learning from examples without local minima — Baldi & Hornik, Neural Networks 2(1), 1989 (ScienceDirect)",
+     "href": "https://www.sciencedirect.com/science/article/abs/pii/0893608089900142"
+    },
+    {
+     "label": "Baldi, P. & Hornik, K. (1989) — Neural networks and principal component analysis: Learning from examples without local minima (Neural Networks 2:53-58) — metadata/abstract mirror",
+     "href": "https://oamonitor.ireland.openaire.eu/national/search/publication?pid=10.1016%2F0893-6080%2889%2990014-2"
+    },
+    {
+     "label": "Reducing the Dimensionality of Data with Neural Networks — Hinton & Salakhutdinov, Science 313, 2006",
+     "href": "https://www.cs.toronto.edu/~hinton/absps/science.pdf"
+    },
+    {
+     "label": "Day 12A: Variational Autoencoders — CS152BDL, Tufts University",
+     "href": "https://www.cs.tufts.edu/cs/152BDL/2022f/notes/day12-A-VariationalAutoEncoders.html"
+    },
+    {
+     "label": "Deep Learning — Goodfellow, Bengio & Courville, chap. 5 'Machine Learning Basics'",
+     "href": "https://www.deeplearningbook.org/contents/ml.html"
+    },
+    {
+     "label": "OvGU AI Lab Blog — A Probabilistic View on Reconstruction Losses",
+     "href": "https://ovgu-ailab.github.io/blog/methods/2025/10/05/vae-reconstruction.html"
+    },
+    {
+     "label": "Vincent, Larochelle, Lajoie, Bengio, Manzagol — \"Stacked Denoising Autoencoders: Learning Useful Representations in a Deep Network with a Local Denoising Criterion\", JMLR 11 (2010), §2.3 + note 3",
+     "href": "https://www.jmlr.org/papers/v11/vincent10a.html"
+    },
+    {
+     "label": "Goodfellow, Bengio, Courville — \"Deep Learning\", chap. 14 Autoencoders, §14.1–14.2",
+     "href": "https://www.deeplearningbook.org/contents/autoencoders.html"
+    },
+    {
+     "label": "Vincent, Larochelle, Lajoie, Bengio & Manzagol (2010) — Stacked Denoising Autoencoders: Learning Useful Representations in a Deep Network with a Local Denoising Criterion, JMLR 11",
+     "href": "https://www.jmlr.org/papers/volume11/vincent10a/vincent10a.pdf"
+    },
+    {
+     "label": "Hjelm, Fedorov, Lavoie-Marchildon, Grewal, Bachman, Trischler, Bengio — \"Learning Deep Representations by Mutual Information Estimation and Maximization\" (Deep InfoMax), ICLR 2019, §2 Related Work, Eq. (1)",
+     "href": "https://arxiv.org/abs/1808.06670"
+    },
+    {
+     "label": "Baldi & Hornik — \"Neural Networks and Principal Component Analysis: Learning from Examples Without Local Minima\", Neural Networks 2(1), 1989 (source primaire, théorème original)",
+     "href": "http://www.vision.jhu.edu/teaching/learning/deeplearning19/assets/Baldi_Hornik-89.pdf"
+    },
+    {
+     "label": "Baldi, P. & Hornik, K. (1989), \"Neural Networks and Principal Component Analysis: Learning from Examples Without Local Minima\", Neural Networks, Vol. 2, pp. 53-58 (texte intégral lu, source primaire)",
+     "href": "http://www.vision.jhu.edu/teaching/learning/datascience18/assets/Baldi_Hornik-89.pdf"
+    },
+    {
+     "label": "Doersch, C. — \"Tutorial on Variational Autoencoders\" (2016)",
+     "href": "https://arxiv.org/abs/1606.05908"
+    },
+    {
+     "label": "Wikipedia — \"Variational autoencoder\"",
+     "href": "https://en.wikipedia.org/wiki/Variational_autoencoder"
+    },
+    {
+     "label": "Auto-Encoding Variational Bayes (Kingma & Welling, 2013) — ar5iv full text",
+     "href": "https://ar5iv.labs.arxiv.org/html/1312.6114"
+    },
+    {
+     "label": "Gershman, S. & Goodman, N. — \"Amortized Inference in Probabilistic Reasoning\" (CogSci 2014)",
+     "href": "https://web.stanford.edu/~ngoodman/papers/amortized_inference.pdf"
+    },
+    {
+     "label": "Amortized Inference in Probabilistic Reasoning (Gershman & Goodman, 2014)",
+     "href": "https://escholarship.org/uc/item/34j1h7k5"
+    },
+    {
+     "label": "Estimating the gradient of the ELBO (M. Patacchiola)",
+     "href": "https://mpatacchiola.github.io/blog/2021/02/08/intro-variational-inference-2.html"
+    },
+    {
+     "label": "Kingma & Welling, \"Auto-Encoding Variational Bayes\" (arXiv:1312.6114)",
+     "href": "https://arxiv.org/abs/1312.6114"
+    },
+    {
+     "label": "Wikipedia, \"Reparameterization trick\"",
+     "href": "https://en.wikipedia.org/wiki/Reparameterization_trick"
+    },
+    {
+     "label": "Hunter Heidenreich, \"Auto-Encoding Variational Bayes: VAE Paper Summary\"",
+     "href": "https://hunterheidenreich.com/notes/machine-learning/generative-models/autoencoding-variational-bayes/"
+    },
+    {
+     "label": "Rezende, Mohamed & Wierstra, \"Stochastic Backpropagation and Approximate Inference in Deep Generative Models\", ICML 2014 (PMLR v32)",
+     "href": "https://proceedings.mlr.press/v32/rezende14.html"
+    },
+    {
+     "label": "Matthew N. Bernstein, \"Black-box variational inference via the reparameterization gradient\"",
+     "href": "https://mbernste.github.io/posts/reparameterization_vi/"
+    },
+    {
+     "label": "Rezende, Mohamed & Wierstra, arXiv:1401.4082 (soumis 16 Jan 2014)",
+     "href": "https://arxiv.org/abs/1401.4082"
+    },
+    {
+     "label": "Kingma & Welling, \"An Introduction to Variational Autoencoders\" (arXiv:1906.02691)",
+     "href": "https://arxiv.org/abs/1906.02691"
+    },
+    {
+     "label": "Mnih & Gregor, \"Neural Variational Inference and Learning in Belief Networks\" (arXiv:1402.0030)",
+     "href": "https://arxiv.org/abs/1402.0030"
+    },
+    {
+     "label": "Mohamed, Rosca, Figurnov & Mnih, \"Monte Carlo Gradient Estimation in Machine Learning\", JMLR 2020 (arXiv:1906.10652)",
+     "href": "https://arxiv.org/abs/1906.10652"
+    },
+    {
+     "label": "Lilian Weng — \"From Autoencoder to Beta-VAE\"",
+     "href": "https://lilianweng.github.io/posts/2018-08-12-vae/"
+    },
+    {
+     "label": "Zhao, Song & Ermon — \"The Information Autoencoding Family: A Lagrangian Perspective on Latent Variable Generative Models\" (arXiv:1806.06514)",
+     "href": "https://arxiv.org/abs/1806.06514"
+    },
+    {
+     "label": "VITAL Lab journal club — review of \"Challenging Common Assumptions in the Unsupervised Learning of Disentangled Representations\"",
+     "href": "https://vitalab.github.io/article/2019/05/16/unsupervised-disentanglement.html"
+    },
+    {
+     "label": "Locatello et al. — \"Challenging Common Assumptions in the Unsupervised Learning of Disentangled Representations\" (arXiv:1811.12359)",
+     "href": "https://arxiv.org/abs/1811.12359"
+    },
+    {
+     "label": "Challenging Common Assumptions in the Unsupervised Learning of Disentangled Representations (ar5iv full text)",
+     "href": "https://ar5iv.labs.arxiv.org/html/1811.12359"
+    },
+    {
+     "label": "Challenging Common Assumptions in the Unsupervised Learning of Disentangled Representations (PMLR / ICML 2019)",
+     "href": "https://proceedings.mlr.press/v97/locatello19a.html"
+    },
+    {
+     "label": "Burgess et al. — \"Understanding disentangling in β-VAE\" (arXiv:1804.03599)",
+     "href": "https://arxiv.org/abs/1804.03599"
+    },
+    {
+     "label": "howardyclo/papernotes — Issue #33: \"Understanding disentangling in β-VAE\"",
+     "href": "https://github.com/howardyclo/papernotes/issues/33"
+    },
+    {
+     "label": "Understanding disentangling in β-VAE (ar5iv full text)",
+     "href": "https://ar5iv.labs.arxiv.org/html/1804.03599"
+    },
+    {
+     "label": "[Generative Model] VQ-VAE (blog explicatif indépendant)",
+     "href": "https://leeyngdo.github.io/blog/generative-model/2023-09-02-VQ-VAE/"
+    },
+    {
+     "label": "GitHub issue CompVis/taming-transformers #57 — bug about the commitment loss",
+     "href": "https://github.com/CompVis/taming-transformers/issues/57"
+    },
+    {
+     "label": "Neural Discrete Representation Learning (van den Oord, Vinyals, Kavukcuoglu 2017) — full text via ar5iv",
+     "href": "https://ar5iv.labs.arxiv.org/html/1711.00937"
+    },
+    {
+     "label": "VQ-VAE: Discrete Latent Representations — Emergent Mind topic page",
+     "href": "https://www.emergentmind.com/topics/vector-quantised-variational-autoencoder-vq-vae"
+    },
+    {
+     "label": "VQ-VAE & VQGAN: Architecture & How They Work",
+     "href": "https://nonlinear.technology/blog/vq-vae-vqgan-architecture-how-they-work/"
+    },
+    {
+     "label": "LGQ: Learning Discretization Geometry for Scalable and Stable Image Tokenization",
+     "href": "https://arxiv.org/html/2602.16086"
+    },
+    {
+     "label": "Generating Diverse High-Fidelity Images with VQ-VAE-2 (Razavi, van den Oord, Vinyals 2019)",
+     "href": "https://arxiv.org/abs/1906.00446"
+    },
+    {
+     "label": "Taming Transformers for High-Resolution Image Synthesis (Esser, Rombach, Ommer 2020) — full text via ar5iv",
+     "href": "https://ar5iv.labs.arxiv.org/html/2012.09841"
+    },
+    {
+     "label": "Finite Scalar Quantization: VQ-VAE Made Simple — full text via ar5iv",
+     "href": "https://ar5iv.labs.arxiv.org/html/2309.15505"
+    },
+    {
+     "label": "From Principles to Applications: A Comprehensive Survey of Discrete Tokenizers",
+     "href": "https://arxiv.org/html/2502.12448v1"
+    },
+    {
+     "label": "Finite Scalar Quantization (FSQ) — VQ-VAE Made Simple (notes)",
+     "href": "https://haroldbenoit.com/notes/ml/llms/multi-modality/tokenization/finite-scalar-quantization-(fsq)---vq-vae-made-simple"
+    },
+    {
+     "label": "Finite Scalar Quantization: VQ-VAE Made Simple [Quick Review]",
+     "href": "https://liner.com/review/finite-scalar-quantization-vqvae-made-simple"
+    },
+    {
+     "label": "VQ-VAE: Discrete Latent Generative Modeling (EmergentMind)",
+     "href": "https://www.emergentmind.com/topics/vector-quantised-v-vae-vq-vae"
+    },
+    {
+     "label": "Variational Autoencoders: VAE to VQ-VAE / dVAE — Rohit Bandaru",
+     "href": "https://rohitbandaru.github.io/blog/VAEs/"
+    },
+    {
+     "label": "Preventing Posterior Collapse with δ-VAEs (Razavi et al., ICLR 2019)",
+     "href": "https://arxiv.org/pdf/1901.03416"
+    },
+    {
+     "label": "Neural Discrete Representation Learning (van den Oord, Vinyals, Kavukcuoglu, 2017) — abstract page",
+     "href": "https://arxiv.org/abs/1711.00937"
+    },
+    {
+     "label": "Bae, Zhang, Ruan, Wang, Hasegawa, Ba & Grosse — \"Multi-Rate VAE: Train Once, Get the Full Rate-Distortion Curve\"",
+     "href": "https://arxiv.org/abs/2212.03905"
+    },
+    {
+     "label": "Fixing a Broken ELBO (Alemi, Poole, Fischer, Dillon, Saurous, Murphy, 2018)",
+     "href": "https://arxiv.org/abs/1711.00464"
+    },
+    {
+     "label": "He, Spokoyny, Neubig & Berg-Kirkpatrick — \"Lagging Inference Networks and Posterior Collapse in Variational Autoencoders\" (ICLR 2019)",
+     "href": "https://arxiv.org/abs/1901.05534"
+    },
+    {
+     "label": "Dieng, Kim, Rush & Blei — \"Avoiding Latent Variable Collapse With Generative Skip Models\" (AISTATS 2019)",
+     "href": "https://arxiv.org/abs/1807.04863"
+    },
+    {
+     "label": "Generating Sentences from a Continuous Space (Bowman et al., 2016)",
+     "href": "https://arxiv.org/abs/1511.06349"
+    },
+    {
+     "label": "Wang & Ziyin — \"Posterior Collapse of a Linear Latent Variable Model\" (NeurIPS 2022)",
+     "href": "https://arxiv.org/abs/2205.04009"
+    },
+    {
+     "label": "Don't Blame the ELBO! A Linear VAE Perspective on Posterior Collapse (Lucas, Tucker, Grosse, Norouzi, NeurIPS 2019)",
+     "href": "https://arxiv.org/abs/1911.02469"
+    },
+    {
+     "label": "Dai & Wipf — \"Diagnosing and Enhancing VAE Models\" (ICLR 2019)",
+     "href": "https://arxiv.org/abs/1903.05789"
+    },
+    {
+     "label": "Yu — \"A Tutorial on VAEs: From Bayes' Rule to Lossless Compression\"",
+     "href": "https://arxiv.org/abs/2006.10273"
+    },
+    {
+     "label": "High-Resolution Image Synthesis with Latent Diffusion Models (Rombach et al.) — ar5iv full text",
+     "href": "https://ar5iv.labs.arxiv.org/html/2112.10752"
+    },
+    {
+     "label": "What are Diffusion Models? | Lil'Log (Lilian Weng)",
+     "href": "https://lilianweng.github.io/posts/2021-07-11-diffusion-models/"
+    },
+    {
+     "label": "Zero-Shot Text-to-Image Generation (DALL-E) — ar5iv full text",
+     "href": "https://ar5iv.labs.arxiv.org/html/2102.12092"
+    },
+    {
+     "label": "Jukebox: A Generative Model for Music — ar5iv full text",
+     "href": "https://ar5iv.labs.arxiv.org/html/2005.00341"
+    },
+    {
+     "label": "Variational Autoencoders for Collaborative Filtering (Liang, Krishnan, Hoffman, Jebara)",
+     "href": "https://arxiv.org/abs/1802.05814"
+    },
+    {
+     "label": "Automatic Chemical Design Using a Data-Driven Continuous Representation of Molecules (Gómez-Bombarelli et al., ACS Central Science 2018) — PubMed",
+     "href": "https://pubmed.ncbi.nlm.nih.gov/29532027/"
+    },
+    {
+     "label": "AutoencoderKL — Hugging Face Diffusers documentation",
+     "href": "https://huggingface.co/docs/diffusers/en/api/models/autoencoderkl"
+    }
+   ]
+  },
+  {
+   "type": "pointers",
+   "title": "Pour aller plus loin",
+   "items": [
+    {
+     "name": "disentanglement_lib",
+     "url": "https://github.com/google-research/disentanglement_lib",
+     "kind": "library",
+     "blurb": "Bibliothèque officielle Google Research (Bachem & Locatello) pour entraîner, post-traiter et évaluer des modèles de désenchevêtrement, publiée avec l'étude à grande échelle 'Challenging Common Assumptions in the Unsupervised Learning of Disentangled Representations' (ICML 2019, Best Paper) portant sur plus de 12 000 modèles ; dépôt archivé (lecture seule) depuis avril 2026."
+    },
+    {
+     "name": "google-deepmind/sonnet — module VQ-VAE officiel",
+     "url": "https://github.com/google-deepmind/sonnet/blob/v2/sonnet/src/nets/vqvae.py",
+     "kind": "implementation",
+     "blurb": "Implémentation de référence de VectorQuantizer / VectorQuantizerEMA par DeepMind (branche v2 de Sonnet), correspondant à l'algorithme VQ-VAE de van den Oord et al., 'Neural Discrete Representation Learning' (2017)."
+    },
+    {
+     "name": "CompVis/taming-transformers — VQGAN officiel",
+     "url": "https://github.com/CompVis/taming-transformers",
+     "kind": "implementation",
+     "blurb": "Dépôt officiel de VQGAN (Esser, Rombach, Ommer, CVPR 2021, 'Taming Transformers for High-Resolution Image Synthesis'), avec modèles pré-entraînés sur plusieurs jeux de données et code du transformer autorégressif sur les codes."
+    }
+   ]
+  },
+  {
+   "type": "glossary"
+  }
+ ]
+}
