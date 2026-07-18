@@ -82,20 +82,8 @@ Lion/Adafactor/Sophia/Muon sont absents.
 > l'attention et le PE absolu sinusoïdal — partir de là, se centrer sur RoPE/relatif/extension de
 > contexte. Domaine : deep-learning-foundations.
 
-### Autoencodeurs & VAE — `variational-autoencoders` → `deep-learning-foundations`
-**Verdict : nouveau gap.** `diffusion-models` s'appuie sur un autoencodeur (latent diffusion) sans
-traiter le VAE en propre ; `clustering-dimensionality-reduction` couvre la réduction linéaire (PCA).
-
-> Autoencodeurs et VAE : apprendre des représentations latentes et générer par inférence
-> variationnelle. Couvrir l'autoencodeur (encodeur/décodeur, goulot, reconstruction), le débruitage
-> (denoising autoencoder), puis le Variational Autoencoder (Kingma & Welling 2013 : borne ELBO,
-> reconstruction + KL au prior, reparameterization trick), les variantes (β-VAE et le
-> désenchevêtrement, VQ-VAE et le codebook discret), et le lien avec les modèles latents génératifs.
-> Positionnement : brique fondamentale qui sous-tend la diffusion latente. Public : ingénieur ML.
-> Délimitations : diffusion-models s'appuie sur un autoencodeur (régularisation KL/VQ) sans traiter
-> le VAE en tant que tel (ne le citer que comme usage aval) ; clustering-dimensionality-reduction
-> couvre PCA/UMAP — se centrer sur le cadre génératif probabiliste et l'inférence variationnelle.
-> Domaine : deep-learning-foundations.
+(`variational-autoencoders` : FAIT le 2026-07-19, retiré du backlog — 16e run /leanmonograph
+GREEN direct, classé dans deep-learning-foundations avant diffusion-models.)
 
 ### Systèmes de recommandation — `recommender-systems` → `information-retrieval-representation`
 **Verdict : nouveau gap.** `approximate-nearest-neighbor`/`text-embeddings` n'effleurent que
@@ -515,7 +503,7 @@ de référence 2026 moindre.
 > applications où la vraisemblance exacte compte (inférence par simulation, détection d'anomalies,
 > postérieurs variationnels). Public : ingénieur ML. ⚠️ Délimitations strictes : diffusion-models
 > couvre le flow matching/rectified flow/stochastic interpolants (NE PAS les re-dériver ; les
-> citer comme descendance continue) ; le candidat variational-autoencoders couvre l'ELBO — se
+> citer comme descendance continue) ; variational-autoencoders (FAIT) couvre l'ELBO — se
 > centrer sur les architectures inversibles et l'estimation de densité exacte. Domaine :
 > deep-learning-foundations.
 
