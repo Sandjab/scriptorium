@@ -1,0 +1,490 @@
+{
+ "edition": "monographie",
+ "slug": "agent-evaluation-observability",
+ "meta": {
+  "title": "Évaluation et observabilité des agents LLM",
+  "kicker": "Éval & observabilité d'agents · monographie",
+  "h1": "Évaluation et observabilité des agents LLM",
+  "lede": "Ce que mesure vraiment un score d'agent — benchmarks exécutables, métriques de fiabilité, contamination, écart de harness — et comment l'observabilité en production referme la boucle trace → dataset → éval.",
+  "meta_chips": [
+   "Monographie"
+  ],
+  "footer": "Évaluation et observabilité des agents LLM · scriptorium"
+ },
+ "elements": [
+  {
+   "type": "abstract"
+  },
+  {
+   "type": "section",
+   "id": "pourquoi-mesurer-un-systeme",
+   "heading": "Pourquoi le score final ne suffit pas",
+   "level": 3,
+   "prose": "<p>Un agent LLM ne s'évalue pas comme un modèle. Le modèle se note sur des paires entrée/sortie ; l'agent déroule une trajectoire : il lit un état, appelle un outil, observe le résultat, recommence — et chaque relance du même épisode peut bifurquer ailleurs, car rien dans cette boucle n'est déterministe. Ce que le benchmark note à l'arrivée n'est donc pas un modèle mais un système complet : le modèle, le harness (le scaffold d'exécution qui l'entoure — prompt système, outils exposés, boucle de contrôle) et l'environnement où tout cela s'exécute. Le chiffre unique du leaderboard (classement public) écrase cette composition en un scalaire. C'est là que commence le problème.</p>\n<p>La démonstration la plus directe tient en une expérience : fixer le modèle et ne changer que ce qui l'entoure. L'étude « Stop Comparing LLM Agents Without Disclosing the Harness » (2026) la mène systématiquement. Sur le benchmark SWE-bench Pro, Claude Opus 4.5 passe de 45,9 % sous le scaffold standardisé SEAL à 55,4 % sous le harness Claude Code — 9,5 points imputables à la seule couche d'infrastructure. Sur Terminal-Bench 2, un benchmark de tâches en terminal, changer uniquement le prompt, le middleware et la vérification fait gagner 13,7 points au même modèle. Les environnements exécutables racontent la même histoire : sur OSWorld, où l'agent pilote un système d'exploitation réel, les échecs tiennent d'abord au grounding GUI (l'ancrage des intentions dans les bons éléments d'interface) et à des connaissances opérationnelles manquantes — des défaillances de perception et d'action, pas du seul raisonnement.</p>\n<p>Même à harness fixé, le chiffre peut mesurer autre chose que ce qu'on croit. Prenons SWE-bench, benchmark de correction d'issues GitHub réelles que la section suivante dissèque, et son sous-ensemble filtré par des annotateurs humains, SWE-bench Verified. Une étude de Microsoft, « The SWE-Bench Illusion » (2025), montre que des LLM de pointe y désignent le fichier à corriger avec jusqu'à 76 % de précision en lisant seulement la description de l'issue — sans jamais voir le dépôt. Sur des dépôts absents du benchmark, la précision retombe à 53 %. La reproduction verbatim de fonctions, mesurée en 5-grammes consécutifs, atteint jusqu'à 35 % sur Verified et le jeu complet, contre 18 % sur des benchmarks comparables non contaminés. Un score élevé sur SWE-bench Verified ne démontre donc pas de façon fiable que le modèle raisonne à travers une base de code multi-fichiers comme le ferait un ingénieur : il peut refléter la mémorisation de données d'entraînement, aggravée par une couverture de tests insuffisante — deux facteurs qui surestiment la capacité réelle.</p>\n<p>Deuxième source d'illusion : le succès final est binaire, la trajectoire ne l'est pas. AgentBoard (NeurIPS 2024) part d'un constat explicite — les cadres d'évaluation classiques se limitent au taux de succès final et révèlent peu du déroulement du processus — et introduit un progress rate (taux de progression) à granularité fine, calculé sur des sous-objectifs annotés à la main : deux agents au même score final peuvent avoir progressé très inégalement vers l'objectif. Le signal lui-même peut par ailleurs être défaillant : « Establishing Best Practices for Building Rigorous Agentic Benchmarks » (NeurIPS 2025) recense des défauts de conception de la récompense capables de fausser l'estimation de performance jusqu'à 100 % en termes relatifs.</p>\n<p>Troisième écart : la capacité n'est pas la fiabilité. τ-bench — nous le détaillerons — fait dialoguer un agent outillé avec une user simulation (un utilisateur simulé par un LLM) et vérifie le succès sur l'état final d'une base de données, à travers des essais répétés de la même tâche. Le résultat est sans appel : gpt-4o y dépasse 60 % de réussite en un essai sur le domaine retail, mais tombe sous 25 % quand on exige huit réussites sur huit — la métrique pass^k, formalisée plus loin. Un agent capable n'est pas un agent fiable. Et c'est sur ce même benchmark que l'étude de rigueur citée à l'instant a trouvé des réponses vides comptées comme des succès : même la récompense demande vérification.</p>\n<p>Reste l'écart le plus large : celui qui sépare le benchmark de la production. Un benchmark fige l'environnement, la distribution des tâches et le critère de succès ; en production, l'agent affronte des utilisateurs réels, des coûts et des latences par étape, des modes d'échec qu'aucun jeu de test n'avait anticipés. Ces trois écarts — succès final contre qualité des étapes, benchmark contre production, capacité contre fiabilité — structurent tout ce qui suit. Deux délimitations pour finir : la mécanique du juge LLM, ses biais et son accord avec l'humain relèvent de la monographie sur l'évaluation des modèles et ne sont pas re-dérivés ici ; l'état de l'art des capacités agentiques est l'affaire de la monographie sur les agents. L'objet de ce document est l'instrument de mesure lui-même : le construire — benchmarks exécutables, métriques de fiabilité —, démonter ce qui le fausse — contamination, récompenses défaillantes, écart de harness —, puis ouvrir la boîte : juger la trajectoire, tracer chaque étape en production, refermer la boucle trace → dataset → éval. L'anatomie commence par le benchmark canonique.</p>",
+   "claims": [
+    "claim:1",
+    "claim:3",
+    "claim:4"
+   ]
+  },
+  {
+   "type": "section",
+   "id": "swe-bench-verification",
+   "heading": "SWE-bench : anatomie d'un benchmark et de sa vérification",
+   "level": 3,
+   "prose": "<p>Disséquer ce benchmark canonique donne corps à tout ce qui précède — et montre ce qu'il en coûte de produire un signal propre. SWE-bench (Jimenez et al., Princeton, 2023) doit son statut à un parti pris : évaluer sur du vrai. Ses 2 294 instances proviennent d'issues GitHub réelles et de leurs pull requests correctives, prélevées sur 12 dépôts Python populaires — Django, SymPy, scikit-learn entre autres. L'agent reçoit le dépôt et le texte de l'issue ; il doit produire un patch. À la publication, le meilleur modèle testé, Claude 2, ne résolvait que 1,96 % des tâches : coordonner des modifications à travers plusieurs fichiers, classes et fonctions dépassait alors largement les LLM.</p>\n<p>La force du benchmark tient à son verdict, déterministe et exécutable. Pour chaque instance, le harness construit une image Docker au commit exact <code>environment_setup_commit</code>, restaure le dépôt à son état pré-correctif (<code>base_commit</code>), applique le patch du modèle, puis le <code>test_patch</code> original — celui qui introduit les tests écrits pour la pull request humaine. La tâche n'est déclarée « resolved » que si deux conditions tiennent ensemble : tous les tests FAIL_TO_PASS, qui échouaient avant le correctif, passent désormais, et tous les tests PASS_TO_PASS, qui passaient déjà, continuent de passer. Le premier jeu vérifie que le bug est corrigé ; le second, qu'aucune régression n'a été introduite. Aucun juge, aucune appréciation de texte : des tests, dans un conteneur isolé.</p>\n<p>Mais des issues réelles charrient les défauts du réel : énoncés elliptiques, tests qui encodent des détails accidentels de la solution humaine. Un patch valide peut alors échouer pour de mauvaises raisons. C'est ce qui a motivé SWE-bench Verified (OpenAI, août 2024, en collaboration avec l'équipe SWE-bench) : un filtrage humain massif du jeu original. 93 développeurs Python professionnels ont annoté 1 699 instances tirées aléatoirement du jeu de test, chaque instance passant par plusieurs revues indépendantes, au regard de trois critères : clarté de l'énoncé du problème, exactitude du patch de test, solvabilité de la tâche avec les informations disponibles.</p>\n<p>Le bilan du filtrage est brutal : 68,3 % des instances examinées ont été écartées. Dans le détail, 38,3 % des échantillons ont été signalés pour un énoncé sous-spécifié et 61,1 % pour des tests FAIL_TO_PASS capables de rejeter à tort une solution valide — catégories non exclusives, une même instance cumulant souvent les deux défauts. Restent 500 instances validées sur les trois critères. Le chiffre mérite qu'on s'y arrête : plus des deux tiers du benchmark de référence de la communauté ne fournissaient pas un signal d'évaluation propre.</p>\n<p>On pourrait en conclure que la revue humaine a réglé la question, et que Verified livre un signal propre et durable. Les travaux ultérieurs disent le contraire. Le filtrage a corrigé la qualité des énoncés et des tests — rien d'autre. Les résultats de « The SWE-Bench Illusion » cités en ouverture portent précisément sur Verified : localiser le bon fichier à 76 % sans voir le dépôt reste possible après filtrage, parce que la contamination des données d'entraînement est orthogonale à la clarté des énoncés. Et l'étude NeurIPS 2025 sur la rigueur des benchmarks agentiques juge les jeux de tests de Verified encore insuffisants pour couvrir le succès réel. Le filtrage humain répond à la question « la tâche est-elle bien posée ? » ; il ne répond ni à « le modèle l'a-t-il déjà vue ? » ni à « les tests mesurent-ils vraiment la réussite ? ».</p>\n<p>SWE-bench enseigne ainsi deux choses à la fois. D'abord le coût d'un signal propre : des dizaines d'annotateurs professionnels, des revues croisées, deux instances sur trois sacrifiées. Ensuite sa fragilité : la vérification d'un benchmark n'est pas un état acquis mais un processus — la section sur la contamination montrera que même Verified finira retiré. Avant d'y venir, il faut compléter l'appareil de mesure. SWE-bench note une trajectoire autonome, sans utilisateur, et une seule exécution par tâche ; or un agent déployé converse, et une réussite isolée ne dit rien de sa constance. C'est exactement ce que τ-bench outille.</p>",
+   "claims": [
+    "claim:5",
+    "claim:6",
+    "claim:7",
+    "claim:8"
+   ]
+  },
+  {
+   "type": "widget",
+   "ref": "synopsis-verdict-swe-bench"
+  },
+  {
+   "type": "section",
+   "id": "tau-bench-pass-k",
+   "heading": "τ-bench et pass^k : la fiabilité n'est pas la capacité",
+   "level": 3,
+   "prose": "<p>Le cadre esquissé en ouverture mérite d'être posé précisément. τ-bench (Yao, Shinn, Razavi et Narasimhan — Sierra, 2024) installe l'agent dans une conversation sous contraintes : il dispose d'outils API et d'un document de politique de domaine — les règles métier qu'il doit faire respecter — et dialogue avec un utilisateur simulé qui porte une demande, modifier une commande ou échanger un billet. Le succès est une récompense binaire fondée sur des règles : l'état final de la base de données, plus les sorties requises de l'agent, comparés à un unique état-cible annoté — aucun juge LLM dans la boucle. Deux domaines concrétisent le cadre : τ-retail, 115 tâches adossées à 15 outils API et à une base d'utilisateurs, de produits et de commandes ; τ-airline, 50 tâches et 13 outils sur des vols et des réservations.</p>\n<p>La contribution la plus durable de l'article est métrologique. La tradition venait de la génération de code : pass@k, introduit par Chen et al. (2021) pour évaluer Codex sur HumanEval (benchmark de génération de fonctions Python), estime la probabilité qu'au moins un essai sur k réussisse. Son estimateur non biaisé, pass@k = 1 − C(n−c, k)/C(n, k), se calcule en générant n échantillons par problème — n = 100 dans l'article d'origine — dont c sont corrects. C'est une métrique de découverte : elle convient quand on peut garder le meilleur candidat et jeter les autres.</p>\n<p>τ-bench conserve l'estimateur et lui adjoint son dual. Sur n essais indépendants et identiquement distribués (i.i.d.) de la même tâche, dont c réussis, pass^k = E[C(c, k)/C(n, k)] estime la probabilité que k essais réussissent <em>tous</em>, l'espérance étant prise sur les tâches ; pass@k = 1 − E[C(n−c, k)/C(n, k)] garde son sens d'au-moins-un-succès. Mêmes essais, deux questions distinctes : pass@k demande si l'agent peut réussir, pass^k s'il réussit à chaque fois. Pour un agent en production, où chaque échec est subi par un utilisateur, c'est la seconde qui compte — et les deux métriques ne sont pas interchangeables.</p>\n<p>Les résultats donnent à cette distinction tout son poids. Le meilleur agent testé, gpt-4o en function-calling (appel d'outils structuré), atteint 61,2 % de pass^1 sur τ-retail — 35,2 % sur τ-airline — devant gpt-4-turbo, claude-3-opus ou gemini-1.5-pro. Mais sur ce même domaine retail, son pass^8 tombe sous 25 % : moins d'une tâche sur quatre est réussie huit fois sur huit. La fiabilité se dégrade bien plus vite que la capacité moyenne à mesure que k augmente — et un classement au pass^1 n'en laisse rien voir.</p>\n<p>D'où vient cette instabilité, si l'on parle d'un modèle échantillonné ? Justement pas de l'échantillonnage de l'agent. Le réglage expérimental de τ-bench est explicite : température de décodage à 0,0 pour l'agent, à 1,0 pour le simulateur d'utilisateur (gpt-4-0613) — un réglage documenté par ce seul papier, source unique non corroborée par un travail indépendant. L'agent décode de façon déterministe ; toute la variance que pass^k capture provient de la variabilité conversationnelle de l'utilisateur simulé. L'analogie avec le pass@k historique s'arrête donc là : chez Chen et al., la diversité des essais venait d'un échantillonnage délibérément chaud (température 0,8) ; ici, un agent nominalement déterministe échoue de façon incohérente dès que la conversation dévie. L'article attribue ces échecs à l'inconstance de l'agent à suivre les politiques et à raisonner correctement d'un essai à l'autre.</p>\n<p>L'ablation de la politique de domaine précise le diagnostic. Retirer le document de politique du prompt système ne coûte à gpt-4o que 4,4 points de pass^1 sur τ-retail, dont les règles relèvent du bon sens ; sur τ-airline, où les règles sont ad hoc — franchises de bagages par palier de fidélité et par cabine —, la même ablation coûte 22,4 points dans une exécution. Plus le domaine est complexe, plus l'agent s'appuie sur le texte explicite de la politique : encore une propriété du système complet — modèle, outils, politique —, non du modèle seul.</p>\n<p>τ²-bench (Barres, Dong, Ray, Si et Narasimhan — Sierra, Université de Toronto, Vector Institute, juin 2025) pousse le cadre un cran plus loin avec un domaine telecom en dual-control : l'utilisateur simulé ne se contente plus de fournir des informations, il appelle lui-même des outils qui agissent sur un monde partagé et dynamique — activer le mode avion, par exemple. Le tout se formalise en Dec-POMDP (Decentralized Partially Observable Markov Decision Process) : deux agents aux observations partielles doivent coordonner leurs actions. Les meilleurs modèles y plafonnent à 49 % de pass^1 pour claude-3.7-sonnet (42 % pour o4-mini, 34 % pour gpt-4.1). Surtout, passer du mode « no-user », où l'agent opère seul, au dual-control standard coûte environ 20 points de pass^1 : le goulot d'étranglement est la communication et la coordination avec l'utilisateur, un mode d'échec distinct du pur raisonnement.</p>\n<p>Reste que l'instrument de mesure a lui-même une part variable : le simulateur. τ²-bench en avait pris acte en couplant étroitement le comportement de l'utilisateur simulé aux outils et à l'état observable — son simulateur telecom commet 16 % d'erreurs contre 40 % pour le simulateur retail original, avec moitié moins d'erreurs critiques (source unique, non corroborée). « Lost in Simulation » (UC Irvine et Cohere, janvier 2026) systématise la critique en confrontant les tâches τ-retail à une étude utilisateur humaine menée aux États-Unis, en Inde, au Kenya et au Nigeria. Le seul choix du LLM qui joue l'utilisateur fait varier le taux de succès de l'agent jusqu'à 9 points. La miscalibration est systématique : le simulateur sous-estime le succès sur les tâches les plus dures et le surestime sur les tâches moyennes. Le biais est aussi démographique : les locuteurs d'AAVE (African American Vernacular English) obtiennent des taux de succès simulés et des calibrations systématiquement plus mauvais que les locuteurs de l'anglais américain standard, l'écart croissant avec l'âge — les locuteurs d'AAVE et d'anglais indien étant les moins bien servis. Les utilisateurs simulés, enfin, posent artificiellement plus de questions et se montrent plus polis que les humains réels : un excès de coopération que la production n'offrira pas.</p>\n<p>La leçon dépasse τ-bench : dès que le succès dépend d'un partenaire simulé, ce partenaire fait partie du système mesuré et doit être audité comme tel. Mais τ-bench ne vérifie qu'un état de base de données. La famille suivante de benchmarks généralise le principe à des environnements exécutables complets — navigateur, système d'exploitation, web outillé — où le succès se lit dans l'état du monde, et non dans le texte produit.</p>",
+   "claims": [
+    "claim:9",
+    "claim:11"
+   ]
+  },
+  {
+   "type": "widget",
+   "ref": "probe-passk-capacite-fiabilite"
+  },
+  {
+   "type": "section",
+   "id": "environnements-executables",
+   "heading": "GAIA, WebArena, OSWorld : évaluer dans des environnements exécutables",
+   "level": 3,
+   "prose": "<p>Cette bascule — lire le succès dans l'état du monde plutôt que dans le texte produit — définit une deuxième famille de benchmarks, au-delà du dépôt de code. GAIA, proposé fin 2023 par des chercheurs de Meta FAIR et de Hugging Face, prend le contre-pied des évaluations qui traquent l'expertise pointue : l'intelligence générale d'un système, arguent ses auteurs, se juge à sa robustesse sur des questions conceptuellement simples pour un humain moyen, non à sa virtuosité sur des tâches professionnelles savantes. Le benchmark compte 466 questions ; les réponses de 300 d'entre elles restent privées pour préserver le leaderboard en ligne. Simple pour l'humain, dur pour l'agent : les répondants humains atteignent 92 % de précision là où GPT-4 équipé de plugins plafonne à 15 %.</p>\n<p>La construction anticipe déjà le piège qui occupera la section suivante : chaque question est écrite pour que sa réponse ne figure nulle part en clair sur le web, donc ne puisse pas être trivialement récupérée depuis les données de pré-entraînement. Trois niveaux ordonnent la difficulté selon le nombre d'étapes et d'outils requis, du niveau 1 — dont les questions « ne requièrent généralement aucun outil, ou au plus un outil, en moins de 5 étapes », certaines étant des énigmes autonomes sans navigation web — au niveau 3 et ses longues séquences combinant des outils variés. L'ensemble mobilise raisonnement multi-étapes, navigation web en direct et usage d'outils ; aucune question, prise isolément, n'est tenue d'exiger les trois à la fois.</p>\n<p>WebArena, publié à l'été 2023 par une équipe de Carnegie Mellon, transpose la même logique au web vivant : 812 tâches se déroulent sur quatre sites auto-hébergés — e-commerce, forum de discussion, instance GitLab, gestion de contenu — flanqués d'outils utilitaires et de ressources de connaissance. Un humain y réussit 78,24 % des tâches ; le meilleur agent bâti sur GPT-4, 14,41 %. Son apport le plus durable tient pourtant à la vérification. Au jugement textuel unique, WebArena substitue quatre méthodes fonctionnelles complémentaires : exact match (la réponse coïncide strictement avec la vérité terrain), must-include (elle doit la contenir — utile pour les listes non ordonnées), fuzzy match (un jugement de similarité sémantique rendu par GPT-4, qui tient « 2h58min » et « 2 hours 58 minutes » pour équivalents), et l'évaluation programmatique de l'état intermédiaire ou final de la trajectoire, par requête sur la base de données du site ou sélection d'éléments du DOM via locators (sélecteurs d'éléments). Cette dernière est la plus radicale : elle ne lit pas ce que l'agent dit avoir fait, elle inspecte ce qui a changé.</p>\n<p>OSWorld radicalise le procédé à l'échelle d'un système d'exploitation entier. Ses 369 tâches réelles — web, applications de bureau, opérations sur fichiers, workflows traversant plusieurs applications — s'exécutent sur Ubuntu, Windows et macOS. Chaque tâche part d'un snapshot de VM qui fige l'état initial du bureau ; à l'arrivée, un script inspecte l'état final de la machine et renvoie un score scalaire, en puisant dans une bibliothèque de 134 fonctions d'évaluation réutilisables. Le verdict chiffré rejoint les deux autres : 72,36 % de réussite humaine, contre 12,24 % pour le meilleur agent testé à la publication.</p>\n<p>Trois environnements publiés entre mi-2023 et début 2024, et un même ordre de grandeur : l'écart humain/agent est partout un facteur de 5 à 6. D'où vient-il ? L'analyse d'OSWorld est la plus instructive : selon ses auteurs, les échecs tiennent d'abord au grounding GUI et au déficit de connaissances opérationnelles et procédurales des applications, ces conventions et raccourcis qu'aucun plan abstrait ne remplace. Le déficit de planification à long horizon aggrave le tableau, mais il n'en est pas la cause première. Un agent peut produire un plan parfaitement correct et échouer à cliquer au bon endroit.</p>\n<p>Le principe commun dépasse les chiffres. Dans ces trois benchmarks, le succès ne repose jamais sur un jugement libre porté sur le texte que l'agent formule : même le fuzzy match compare à une vérité terrain fixée d'avance, et le cœur de la vérification est l'inspection programmatique de l'état d'un monde — base de données et DOM pour WebArena, machine virtuelle pour OSWorld, réponse exacte vérifiable pour GAIA. L'évaluation exécutable déplace le juge du texte vers l'état du monde, et c'est ce déplacement qui la rend digne de confiance. À une condition, toutefois : que le signal produit par cet appareil soit lui-même honnête. C'est précisément ce que la suite va mettre en doute.</p>",
+   "claims": [
+    "claim:13",
+    "claim:14",
+    "claim:15",
+    "claim:16"
+   ]
+  },
+  {
+   "type": "section",
+   "id": "contamination-recompenses",
+   "heading": "Contamination et récompenses défaillantes : quand le benchmark ment",
+   "level": 3,
+   "prose": "<p>Tests en conteneur, comparaison d'états de base de données, scripts d'inspection de VM : cet appareil produit un signal ; encore faut-il que le signal soit propre. Le premier grand piège de l'évaluation agentique est là : le benchmark peut mentir. SWE-Bench Illusion, croisé dès l'ouverture, en donnait la signature — des modèles qui identifient le fichier fautif à partir du seul texte de l'issue, sans jamais ouvrir le dépôt, et dont les sorties recouvrent la vérité terrain en 5-grammes bien plus souvent sur SWE-bench que sur des tâches comparables tirées d'ailleurs. La conclusion s'impose : un score de résolution élevé sur SWE-bench Verified ne prouve pas, à lui seul, une capacité de codage généralisable ; une part substantielle de la performance mesurée reflète la mémorisation des données d'entraînement.</p>\n<p>La chute annoncée plus haut est arrivée en février 2026. OpenAI a audité 138 tâches parmi les plus difficiles de SWE-bench Verified, soit un peu plus du quart du jeu. Verdict : au moins 59,4 % d'entre elles reposent sur des tests structurellement défaillants — trop restrictifs, testant des comportements que l'issue ne spécifie pas, ou dépendants de l'environnement — qui rejettent des solutions fonctionnellement correctes. L'audit apporte au passage la preuve la plus directe de la contamination : tous les modèles frontière testés, GPT-5.2 comme Claude Opus 4.5 ou Gemini 3 Flash, savent reproduire mot pour mot le patch de référence écrit par un humain. OpenAI en a tiré la conséquence : cesser de rapporter les scores SWE-bench Verified, et recommander à l'écosystème de basculer vers SWE-bench Pro.</p>\n<p>La contamination n'est pas le seul canal par lequel un benchmark souffle la réponse. SWE-Bench+ (Aleithan et al., octobre 2024) documente le solution leakage (fuite de la solution) : le correctif attendu figure verbatim dans le texte de l'issue ou dans ses commentaires. Près d'un tiers des patchs « réussis » de SWE-Agent avec GPT-4 en bénéficiaient — 32,67 % exactement. Une proportion voisine, 31,08 %, ne passait que grâce à des tests unitaires trop faibles pour distinguer un correctif d'un simulacre. Une fois ces instances filtrées, le taux de résolution réel s'effondre de 12,47 % à 3,97 %.</p><figure class='fig'><svg viewBox='0 0 820 400' role='img' aria-label='Cascade en quatre barres : taux affiché de SWE-Agent + GPT-4 à 12,47 %, moins 32,67 % des succès dus à une fuite de solution, moins 31,08 % dus à des tests trop faibles, taux réel de 3,97 %'><rect x='0' y='0' width='820' height='400' fill='var(--card,#FFFFFF)'/><text x='410' y='26' text-anchor='middle' font-family='Archivo, sans-serif' font-size='15' font-weight='700' fill='var(--blue-deep,#142E49)'>De 12,47 % affichés à 3,97 % réels</text><text x='410' y='44' text-anchor='middle' font-family='Archivo, sans-serif' font-size='11.5' fill='var(--ink-faint,#7A889B)'>décomposition des succès de SWE-Agent + GPT-4 sur SWE-bench · SWE-Bench+ (Aleithan et al., 2024)</text><rect x='90' y='110' width='130' height='240' fill='var(--blue,#23537F)'/><text x='155' y='100' text-anchor='middle' font-family='Archivo, sans-serif' font-size='15' font-weight='700' fill='var(--blue-deep,#142E49)'>12,47 %</text><text x='155' y='134' text-anchor='middle' font-family='Archivo, sans-serif' font-size='10.5' fill='#FFFFFF' opacity='0.85'>patchs « réussis »</text><line x1='220' y1='110' x2='280' y2='110' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-dasharray='4 3'/><rect x='280' y='110' width='130' height='78.4' fill='var(--bordeaux,#7C2A38)'/><text x='345' y='146' text-anchor='middle' font-family='Archivo, sans-serif' font-size='14' font-weight='700' fill='#FFFFFF'>− 32,67 %</text><text x='345' y='164' text-anchor='middle' font-family='Archivo, sans-serif' font-size='10.5' fill='#FFFFFF' opacity='0.85'>des succès</text><text x='345' y='210' text-anchor='middle' font-family='Archivo, sans-serif' font-size='12' font-weight='600' fill='var(--ink-soft,#43536A)'>Fuite de solution</text><text x='345' y='226' text-anchor='middle' font-family='Archivo, sans-serif' font-size='11' font-style='italic' fill='var(--bordeaux,#7C2A38)'>viole la task validity</text><line x1='410' y1='188.4' x2='470' y2='188.4' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-dasharray='4 3'/><rect x='470' y='188.4' width='130' height='74.6' fill='var(--ink-soft,#43536A)'/><text x='535' y='222' text-anchor='middle' font-family='Archivo, sans-serif' font-size='14' font-weight='700' fill='#FFFFFF'>− 31,08 %</text><text x='535' y='240' text-anchor='middle' font-family='Archivo, sans-serif' font-size='10.5' fill='#FFFFFF' opacity='0.85'>des succès</text><text x='535' y='282' text-anchor='middle' font-family='Archivo, sans-serif' font-size='12' font-weight='600' fill='var(--ink-soft,#43536A)'>Tests trop faibles</text><text x='535' y='298' text-anchor='middle' font-family='Archivo, sans-serif' font-size='11' font-style='italic' fill='var(--ink-soft,#43536A)'>viole l’outcome validity</text><path d='M600 263 H630 V273.6 H660' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-dasharray='4 3'/><rect x='660' y='273.6' width='130' height='76.4' fill='var(--blue,#23537F)'/><text x='725' y='266' text-anchor='middle' font-family='Archivo, sans-serif' font-size='15' font-weight='700' fill='var(--blue-deep,#142E49)'>3,97 %</text><line x1='70' y1='350' x2='790' y2='350' stroke='var(--ink-soft,#43536A)' stroke-width='1.2'/><text x='155' y='368' text-anchor='middle' font-family='Archivo, sans-serif' font-size='11.5' fill='var(--ink-soft,#43536A)'>Taux affiché</text><text x='155' y='384' text-anchor='middle' font-family='Archivo, sans-serif' font-size='10.5' fill='var(--ink-faint,#7A889B)'>SWE-Agent + GPT-4</text><text x='725' y='368' text-anchor='middle' font-family='Archivo, sans-serif' font-size='11.5' fill='var(--ink-soft,#43536A)'>Taux réel</text><text x='725' y='384' text-anchor='middle' font-family='Archivo, sans-serif' font-size='10.5' fill='var(--ink-faint,#7A889B)'>après filtrage (SWE-Bench+)</text></svg><figcaption><span class='fcap-k'></span>Décomposition des succès de SWE-Agent + GPT-4 sur SWE-bench d’après SWE-Bench+ : la fuite de solution (task validity violée) et les tests trop faibles (outcome validity violée) ramènent le taux de résolution affiché de 12,47 % à un taux réel de 3,97 %.</figcaption></figure>\n<p>La récompense elle-même peut être défaillante. On a vu que τ-bench comptait des réponses vides comme des succès ; le mécanisme mérite d'être détaillé. Certaines tâches du domaine airline sont délibérément impossibles — modifier un billet non remboursable — et le refus y vaut succès : un agent trivial qui refuse systématiquement tout obtient 38 % sur ce domaine (source unique, non corroborée). L'Agentic Benchmark Checklist (ABC), issue du travail de NeurIPS 2025 déjà cité, formalise deux défauts orthogonaux : la task validity (validité de tâche) — une tâche doit être résoluble si et seulement si l'agent possède la capacité ciblée — et l'outcome validity (validité d'issue), qui exige que le résultat rendu par l'évaluateur reflète fidèlement le succès réel. Le solution leakage viole la première ; les tests faibles et le refus récompensé violent la seconde.</p>\n<p>Face à cela, la parade s'organise sur deux fronts. Détecter, d'abord : Min-K% Prob teste si un texte appartenait aux données de pré-entraînement d'un modèle par simple accès boîte noire aux logits — il moyenne la log-vraisemblance des k % de tokens les moins probables du texte, sans modèle de référence ni accès au corpus d'entraînement. Prévenir, ensuite, par construction : SWE-bench Pro tire ses instances de dépôts sous licence copyleft forte (GPL) et maintient un jeu held-out (mis à l'écart, jamais publié) de 858 instances hors de tout leaderboard, précisément pour détecter un surapprentissage en comparant score public et score privé. Les chiffres suggèrent que la manœuvre mord : là où des modèles de classe comparable dépassent 70 % sur Verified, les meilleurs plafonnent autour de 23 % sur Pro — un fossé de fiabilité d'environ trois fois.</p>\n<p>L'histoire ne s'arrête pas là, et c'est la leçon. Quelques mois après avoir recommandé SWE-bench Pro, vers avril 2026, OpenAI a audité son propre remplaçant, trouvé qu'environ 30 % de ses tâches étaient cassées, et rétracté sa recommandation. La vérification d'un benchmark n'est donc jamais un état acquis : c'est un processus continu, que chaque génération de modèles — et de contaminations — oblige à recommencer. Et quand bien même le jeu de tâches serait irréprochable, le chiffre final dépend encore d'autre chose que du modèle : de tout ce qui l'entoure et l'orchestre. Ce facteur confondant a un nom, le harness, et il pèse plus lourd qu'on ne l'imagine.</p>",
+   "claims": [
+    "claim:17",
+    "claim:18",
+    "claim:19"
+   ]
+  },
+  {
+   "type": "section",
+   "id": "ecart-de-harness",
+   "heading": "L'écart de harness : quand le scaffold pèse plus que le modèle",
+   "level": 3,
+   "prose": "<p>L'écart relevé dès l'ouverture — près de dix points gagnés par Opus 4.5 sur SWE-bench Pro en changeant seulement de scaffold — n'était pas une anecdote : c'était un symptôme. L'article « Stop Comparing… » qui le documentait en propose l'analyse formelle. Sur une population de couples {modèle, harness}, la variance des scores Var[B(M,H)] se décompose en une variance due au modèle (MV), une variance due au harness (HV) et un terme d'interaction. La question « qui pèse le plus ? » devient alors mesurable.</p>\n<p>La réponse est brutale. Sur une grille croisant trois modèles et trois harness — cent tâches de SWE-bench Verified —, la variance imputable au harness dépasse de 7,8 fois celle imputable au modèle. Le simple changement de harness déplace les scores de 8,5 à 13 points. Surtout, six des neuf comparaisons entre paires de modèles voient leur classement s'inverser selon le harness retenu : le « meilleur modèle » d'un leaderboard peut n'être que le mieux harnaché.</p>\n<p>Les amplitudes confirment l'ordre de grandeur. Sur SWE-bench Verified Mini, faire varier le seul harness autour d'un modèle fixé creuse des écarts de 34 à 48 points. Claude Sonnet 4.5 passe de 68 % à 34 % selon le scaffold qui l'exécute ; GPT-5 Medium subit une chute comparable, de 46 % à 12 %, et o4-mini un écart du même ordre. À l'inverse, six modèles frontière exécutés sous le scaffold SEAL ne s'étalent que sur 4,9 points — près de deux fois moins que l'écart obtenu en changeant le harness autour du seul Opus 4.5. Même hors du code de dépôt, sur Terminal-Bench 2, l'optimisation du harness seul, à modèle constant, fait passer un score de 69,7 % à 77 % (source unique, non corroborée).</p>\n<figure class='fig'><svg viewBox='0 0 720 420' role='img' aria-label='Slopegraph : scores de trois modèles sur SWE-bench Verified Mini sous deux harness ; les lignes se croisent et le classement s’inverse.'><text x='360' y='28' text-anchor='middle' font-size='13' fill='var(--ink-faint,#7A889B)'>SWE-bench Verified Mini — même modèle, deux scaffolds</text><text x='200' y='58' text-anchor='middle' font-size='15' font-weight='600' fill='var(--ink,#15202E)'>Harness A</text><text x='520' y='58' text-anchor='middle' font-size='15' font-weight='600' fill='var(--ink,#15202E)'>Harness B</text><line x1='200' y1='70' x2='200' y2='340' stroke='var(--ink-faint,#7A889B)' stroke-width='1' opacity='0.45'/><line x1='520' y1='70' x2='520' y2='340' stroke='var(--ink-faint,#7A889B)' stroke-width='1' opacity='0.45'/><line x1='200' y1='152' x2='520' y2='200' stroke='var(--ink-faint,#7A889B)' stroke-width='2.5' stroke-dasharray='6 5'/><circle cx='200' cy='152' r='4' fill='var(--ink-faint,#7A889B)'/><circle cx='520' cy='200' r='4' fill='var(--ink-faint,#7A889B)'/><line x1='200' y1='88' x2='520' y2='224' stroke='var(--blue,#23537F)' stroke-width='3'/><circle cx='200' cy='88' r='4.5' fill='var(--blue,#23537F)'/><circle cx='520' cy='224' r='4.5' fill='var(--blue,#23537F)'/><line x1='200' y1='176' x2='520' y2='312' stroke='var(--ink,#15202E)' stroke-width='3'/><circle cx='200' cy='176' r='4.5' fill='var(--ink,#15202E)'/><circle cx='520' cy='312' r='4.5' fill='var(--ink,#15202E)'/><circle cx='433' cy='187' r='11' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='2'/><text x='470' y='216' text-anchor='end' font-size='13' font-weight='600' fill='var(--bordeaux,#7C2A38)'>inversion du classement</text><text x='188' y='93' text-anchor='end' font-size='14' fill='var(--blue,#23537F)'>Claude Sonnet 4.5 <tspan font-weight='700'>68 %</tspan></text><text x='188' y='157' text-anchor='end' font-size='13' font-style='italic' fill='var(--ink-faint,#7A889B)'>o4-mini — écart du même ordre</text><text x='188' y='181' text-anchor='end' font-size='14' fill='var(--ink,#15202E)'>GPT-5 Medium <tspan font-weight='700'>46 %</tspan></text><text x='532' y='229' font-size='14' font-weight='700' fill='var(--blue,#23537F)'>34 %</text><text x='532' y='317' font-size='14' font-weight='700' fill='var(--ink,#15202E)'>12 %</text><text x='360' y='384' text-anchor='middle' font-size='14' font-weight='600' fill='var(--bordeaux,#7C2A38)'>Variance imputable au harness = 7,8 × la variance imputable au modèle</text><text x='360' y='405' text-anchor='middle' font-size='13' fill='var(--ink-faint,#7A889B)'>6 comparaisons de paires sur 9 s’inversent selon le harness retenu</text></svg><figcaption><span class='fcap-k'></span>Sur SWE-bench Verified Mini, le même modèle change de score — et de rang — selon le harness qui l’exécute : la variance du harness écrase celle du modèle (d’après « Stop Comparing… », source unique ; positions d’o4-mini schématiques).</figcaption></figure>\n<p>Les laboratoires n'ignorent rien de tout cela — Anthropic l'a écrit noir sur blanc. En annonçant en janvier 2025 les 49 % de son Claude 3.5 Sonnet amélioré sur SWE-bench Verified, contre 45 % pour l'état de l'art d'alors (source unique, non corroborée : l'annonce d'Anthropic elle-même), le billet d'ingénierie précisait que le scaffold était délibérément minimal : un outil bash à état persistant, sans accès internet, et un outil d'édition de fichiers, rien d'autre. Et il reconnaissait la confusion en toutes lettres : SWE-bench « n'évalue pas seulement le modèle IA isolément, mais tout un système “agent” », dont la performance « peut varier significativement selon ce scaffolding, même avec le même modèle sous-jacent » — des développeurs open-source et des startups ayant déjà obtenu de grands succès en optimisant le seul scaffold autour d'un modèle inchangé.</p>\n<p>De ce constat, l'article tire sa Binding Constraint Thesis : dans le régime agentique actuel, c'est la configuration du harness, davantage que le choix du modèle, qui gouverne la variance de performance, et les protocoles à harness unique non divulgué « attribuent systématiquement à tort des gains de harness à des progrès de modèle ». Le cadre théorique va jusqu'à traiter le harness comme le contrôleur d'un système dynamique en boucle fermée autour du modèle : les mêmes poids produisent des « capacités » mesurées très différentes selon ce qui les orchestre. La parade est une discipline de divulgation — une Harness Card décrivant le harness sur sept couches — assortie de deux protocoles de comparaison : harness verrouillé, identique pour tous les modèles, ou plan factoriel où le harness devient un facteur contrôlé au même titre que le modèle.</p>\n<p>Cette seconde voie s'est industrialisée. HAL (Holistic Agent Leaderboard), développé à Princeton, fournit un harness d'évaluation standardisé exécuté sur des centaines de VM en parallèle : 21 730 rollouts (trajectoires d'exécution complètes) couvrant neuf modèles sur neuf benchmarks, du code au service client. Le coût, environ 40 000 $, donne la mesure de ce que vaut une comparaison propre ; les 2,5 milliards de tokens de logs bruts publiés en garantissent la reproductibilité. Harness-Bench pousse jusqu'au plan factoriel complet, avec 106 tâches sandboxées revues manuellement pour leur réalisme, leur solvabilité et leur vérifiabilité. Sa matrice croise six harness configurables avec huit modèles, soit 5 194 trajectoires d'exécution. Sa conclusion tient en une règle de rapport : la capacité d'un agent se déclare au niveau de la configuration modèle+harness, jamais au seul modèle de base — et il documente au passage des « échecs d'alignement d'exécution », où un raisonnement en apparence plausible se découple du retour réel des outils et de l'état de l'environnement.</p>\n<p>L'arc débouche sur une conclusion nette : un score d'agent publié sans description du harnais n'est pas une mesure. Mais le laboratoire, au moins, choisit et fige son harness. En production, l'agent affronte de vrais utilisateurs, de vrais outils, de vraies pannes — et personne n'y relance huit essais pour estimer une variance. Pour continuer à mesurer, il faut instrumenter le système déployé lui-même : enregistrer chaque étape, chaque appel d'outil, chaque coût. C'est l'objet de la suite.</p>",
+   "claims": [
+    "claim:22",
+    "claim:23"
+   ]
+  },
+  {
+   "type": "section",
+   "id": "observabilite-production",
+   "heading": "Observabilité en production : traces, spans, coût par étape",
+   "level": 3,
+   "prose": "<p>Enregistrer chaque étape, chaque appel d'outil, chaque coût : encore faut-il s'accorder sur la forme de l'enregistrement. C'est le rôle d'OpenTelemetry, le standard ouvert d'observabilité des systèmes distribués, dont les conventions sémantiques GenAI transposent le vocabulaire aux applications à LLM. L'unité de base est le span (segment d'exécution nommé, horodaté et imbricable) ; une trace (l'arbre complet des spans d'une requête) raconte une exécution de bout en bout. La trace est à la production ce que la description du harnais est au benchmark : la condition pour que l'observation soit une mesure.</p>\n<p>Pour un agent, la hiérarchie standardisée épouse la boucle d'exécution. Un span racine <code>invoke_agent</code> couvre l'invocation entière ; il abrite des spans <code>chat</code> — un par appel au modèle, nommés par convention « {opération} {système} », <code>chat anthropic</code> par exemple — et des spans <code>execute_tool</code>, un par appel d'outil ; un span <code>plan</code> est prévu pour la phase de planification. Chaque span porte des attributs normalisés en <code>gen_ai.*</code> : le nom de l'opération, seul attribut requis partout, le fournisseur pour les appels sortants, le modèle demandé, les tokens consommés en entrée et en sortie, les raisons d'arrêt de la génération. La lecture d'une trace restitue donc, étape par étape, ce que le score agrégé écrasait : qui a été appelé, avec quoi, pour quel volume.</p>\n<figure class='fig'><svg viewBox='0 0 960 400' role='img' aria-label='Arbre de spans d’une trace OpenTelemetry GenAI : sous le span racine invoke_agent, trois spans chat anthropic et deux spans execute_tool, avec leurs attributs gen_ai, tokens, coût et durée par étape agrégés vers la racine'><g stroke='var(--ink-faint,#7A889B)' stroke-opacity='0.22' stroke-width='1'><line x1='260' y1='40' x2='260' y2='336'/><line x1='360' y1='40' x2='360' y2='336'/><line x1='460' y1='40' x2='460' y2='336'/><line x1='560' y1='40' x2='560' y2='336'/><line x1='660' y1='40' x2='660' y2='336'/><line x1='706' y1='28' x2='706' y2='336'/><line x1='830' y1='28' x2='830' y2='336'/><line x1='894' y1='28' x2='894' y2='336'/></g><text x='16' y='20' font-size='11' font-weight='600' fill='var(--ink,#15202E)'>Span</text><text x='470' y='20' text-anchor='middle' font-size='11' font-weight='600' fill='var(--ink,#15202E)'>chronologie (s)</text><text x='770' y='20' text-anchor='middle' font-size='11' font-weight='600' fill='var(--ink,#15202E)'>tokens in → out</text><text x='862' y='20' text-anchor='middle' font-size='11' font-weight='600' fill='var(--ink,#15202E)'>coût</text><text x='922' y='20' text-anchor='middle' font-size='11' font-weight='600' fill='var(--ink,#15202E)'>durée</text><g font-size='9' fill='var(--ink-faint,#7A889B)' text-anchor='middle'><text x='260' y='36'>0</text><text x='360' y='36'>2</text><text x='460' y='36'>4</text><text x='560' y='36'>6</text><text x='660' y='36'>8</text></g><g stroke='var(--ink-faint,#7A889B)' stroke-width='1'><line x1='22' y1='66' x2='22' y2='306'/><line x1='22' y1='106' x2='30' y2='106'/><line x1='22' y1='156' x2='30' y2='156'/><line x1='22' y1='206' x2='30' y2='206'/><line x1='22' y1='256' x2='30' y2='256'/><line x1='22' y1='306' x2='30' y2='306'/></g><g font-family='ui-monospace,Menlo,monospace'><text x='16' y='60' font-size='11' font-weight='700' fill='var(--ink,#15202E)'>invoke_agent</text><rect x='260' y='48' width='420' height='16' rx='3' fill='var(--ink,#15202E)' fill-opacity='0.13' stroke='var(--ink,#15202E)'/><text x='32' y='80' font-size='9' fill='var(--ink-faint,#7A889B)'>gen_ai.operation.name = invoke_agent · gen_ai.agent.name = coding_agent</text><text x='770' y='60' text-anchor='middle' font-size='10' font-weight='700' fill='var(--bordeaux,#7C2A38)'>Σ 10 740 → 870</text><text x='862' y='60' text-anchor='middle' font-size='10' font-weight='700' fill='var(--bordeaux,#7C2A38)'>Σ 3,7 ¢</text><text x='922' y='60' text-anchor='middle' font-size='10' font-weight='700' fill='var(--bordeaux,#7C2A38)'>8,4 s</text><text x='34' y='110' font-size='11' fill='var(--blue,#23537F)'>chat anthropic</text><rect x='265' y='98' width='90' height='16' rx='3' fill='var(--blue,#23537F)'/><text x='34' y='128' font-size='9' fill='var(--ink-faint,#7A889B)'>gen_ai.operation.name = chat · gen_ai.provider.name = anthropic · gen_ai.request.model = claude-sonnet-4-5</text><text x='770' y='110' text-anchor='middle' font-size='10' fill='var(--ink,#15202E)'>2 310 → 148</text><text x='862' y='110' text-anchor='middle' font-size='10' fill='var(--ink,#15202E)'>0,8 ¢</text><text x='922' y='110' text-anchor='middle' font-size='10' fill='var(--ink,#15202E)'>1,8 s</text><text x='34' y='160' font-size='11' fill='var(--ink,#15202E)'>execute_tool</text><rect x='360' y='148' width='55' height='16' rx='3' fill='var(--ink-faint,#7A889B)'/><text x='34' y='178' font-size='9' fill='var(--ink-faint,#7A889B)'>gen_ai.operation.name = execute_tool · gen_ai.tool.name = search_docs</text><text x='770' y='160' text-anchor='middle' font-size='10' fill='var(--ink-faint,#7A889B)'>—</text><text x='862' y='160' text-anchor='middle' font-size='10' fill='var(--ink-faint,#7A889B)'>—</text><text x='922' y='160' text-anchor='middle' font-size='10' fill='var(--ink,#15202E)'>1,1 s</text><text x='34' y='210' font-size='11' fill='var(--blue,#23537F)'>chat anthropic</text><rect x='420' y='198' width='120' height='16' rx='3' fill='var(--blue,#23537F)'/><text x='34' y='228' font-size='9' fill='var(--ink-faint,#7A889B)'>gen_ai.operation.name = chat · gen_ai.request.model = claude-sonnet-4-5 · gen_ai.response.finish_reasons = tool_use</text><text x='770' y='210' text-anchor='middle' font-size='10' fill='var(--ink,#15202E)'>3 480 → 512</text><text x='862' y='210' text-anchor='middle' font-size='10' fill='var(--ink,#15202E)'>1,3 ¢</text><text x='922' y='210' text-anchor='middle' font-size='10' fill='var(--ink,#15202E)'>2,4 s</text><text x='34' y='260' font-size='11' fill='var(--ink,#15202E)'>execute_tool</text><rect x='545' y='248' width='60' height='16' rx='3' fill='var(--ink-faint,#7A889B)'/><text x='34' y='278' font-size='9' fill='var(--ink-faint,#7A889B)'>gen_ai.operation.name = execute_tool · gen_ai.tool.name = run_tests</text><text x='770' y='260' text-anchor='middle' font-size='10' fill='var(--ink-faint,#7A889B)'>—</text><text x='862' y='260' text-anchor='middle' font-size='10' fill='var(--ink-faint,#7A889B)'>—</text><text x='922' y='260' text-anchor='middle' font-size='10' fill='var(--ink,#15202E)'>1,2 s</text><text x='34' y='310' font-size='11' fill='var(--blue,#23537F)'>chat anthropic</text><rect x='610' y='298' width='65' height='16' rx='3' fill='var(--blue,#23537F)'/><text x='34' y='328' font-size='9' fill='var(--ink-faint,#7A889B)'>gen_ai.operation.name = chat · gen_ai.request.model = claude-sonnet-4-5 · gen_ai.response.finish_reasons = end_turn</text><text x='770' y='310' text-anchor='middle' font-size='10' fill='var(--ink,#15202E)'>4 950 → 210</text><text x='862' y='310' text-anchor='middle' font-size='10' fill='var(--ink,#15202E)'>1,6 ¢</text><text x='922' y='310' text-anchor='middle' font-size='10' fill='var(--ink,#15202E)'>1,3 s</text></g><rect x='260' y='352' width='10' height='10' rx='2' fill='var(--blue,#23537F)'/><text x='276' y='361' font-size='10' fill='var(--ink,#15202E)'>chat — appel modèle</text><rect x='420' y='352' width='10' height='10' rx='2' fill='var(--ink-faint,#7A889B)'/><text x='436' y='361' font-size='10' fill='var(--ink,#15202E)'>execute_tool — appel d’outil</text><text x='16' y='384' font-size='10' fill='var(--ink-faint,#7A889B)'>Colonnes du span racine (Σ) = agrégation de ses enfants : tokens et coût sommés, durée de l’invocation entière.</text></svg><figcaption><span class='fcap-k'></span>Anatomie d’une trace OTel GenAI : le span racine invoke_agent abrite un span chat par appel modèle et un span execute_tool par appel d’outil, dont tokens, coût et durée s’agrègent vers la racine.</figcaption></figure>\n<p>Au-dessus des spans, la spécification définit une douzaine de métriques en histogramme — côté client et serveur, streaming, workflow, invocation d'agent, exécution d'outil — dont deux phares : la durée d'opération, <code>gen_ai.client.operation.duration</code>, et la consommation de tokens, <code>gen_ai.client.token.usage</code>. Cette dernière, ventilée entrée/sortie, est bornée de 1 à 67 108 864 tokens ; croisée avec la grille tarifaire du fournisseur, elle rend le coût par étape directement agrégeable, au même titre que la latence.</p>\n<p>Le standard tranche aussi d'emblée une question sensible : par défaut, l'instrumentation ne capture ni le contenu des prompts, ni les arguments et résultats d'outils — seulement la structure, les identifiants et les volumes. La capture complète des messages est opt-in, activée par une variable d'environnement dédiée, <code>OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT</code>. Le choix est délibéré : prompts et sorties charrient des données personnelles, et une trace exhaustive est aussi une fuite en puissance.</p>\n<p>L'écosystème converge des deux côtés du fil. Les frameworks d'agents LangChain et CrewAI émettent des spans visant la conformité GenAI, AutoGen dans une moindre mesure ; Datadog, Honeycomb et New Relic les consomment nativement comme backends de traces. Mais la convergence a ses conditions fines. La spécification entière — spans, attributs, métriques — reste au statut « Development », c'est-à-dire non stabilisée, et des attributs comme <code>gen_ai.prompt</code> ou <code>gen_ai.completion</code> ont déjà été dépréciés en cours de route, cassant une compatibilité qu'on pouvait croire acquise. Datadog, de son côté, n'accepte que les spans conformes à la version v1.37 ou ultérieure de la convention — et ne liste pas AutoGen parmi les frameworks pris en charge. La portabilité inter-backend n'est donc ni automatique ni garantie : instrumenter « en OTel » ne dispense pas d'aligner versions d'instrumentation et exigences du backend.</p>\n<p>Au-dessus du standard, les plateformes spécialisées superposent leur propre sémantique. Langfuse type chaque étape d'une trace en l'un de dix genres d'observation — event, span, generation, agent, tool, chain, retriever, evaluator, embedding, guardrail — et imbrique le travail de chaque sous-agent sous son parent : la structure de délégation se lit directement dans l'arbre. Cette structure suffit déjà à détecter des pathologies. Le motif documenté par Langfuse pour repérer un agent en boucle tient en une requête : filtrer les traces comptant trente appels d'outil ou plus alors qu'un seul outil est disponible. Un seuil sur des métadonnées brutes, rien de plus.</p>\n<p>L'article AgentOps (CSIRO Data61) confirme que ce traçage est devenu le socle commun : sur les dix-sept outils d'observabilité qu'il recense, tous implémentent un traçage de bout en bout avec relations parent/enfant. Il en tire une taxonomie de spans propre aux agents, superposée aux spans d'appel LLM : Agent (rôle, persona), Reasoning (contexte, connaissances récupérées, règles d'inférence), Planning (objectifs, contraintes, plans passés), Workflow, Task et Tool pour les unités d'exécution, Evaluation et Guardrail pour les contrôles de qualité et de sécurité. Là où OpenTelemetry normalise le comment de l'enregistrement, cette taxonomie nomme le quoi : ce que l'agent savait, visait et s'interdisait à chaque étape — précisément la qualité des étapes que le succès final ne mesure pas.</p>\n<p>Reste à exploiter la masse. Le failure clustering (clustering d'échecs) sur embeddings (représentations vectorielles du texte) en a été la voie séduisante : la plateforme Arize Phoenix projetait les embeddings en deux ou trois dimensions via UMAP (algorithme de réduction de dimension), puis laissait HDBSCAN (clustering par densité) isoler les régions denses de mauvaise qualité en traitant les points isolés comme du bruit — les motifs d'échec remontaient d'eux-mêmes, sans étiquetage manuel. Mais cette fonctionnalité relève désormais de l'histoire du produit plus que de son offre courante : elle n'apparaît plus dans la documentation actuelle de Phoenix. En l'état documenté de la pratique, le clustering d'échecs qui tourne en production est d'abord le filtre à seuil du paragraphe précédent, posé sur des traces bien structurées.</p>\n<p>La trace n'est pourtant que la matière première ; la boucle qui referme le système de mesure — documentée chez Langfuse — en fait un instrument. Les traces de production en échec sont extraites comme items de dataset et revues à la main pour dégager les motifs récurrents ; le jeu ainsi figé sert à l'expérimentation offline ; des évaluateurs, code ou LLM, automatisent les contrôles, et les mises en production sont conditionnées aux scores obtenus ; enfin le trafic en ligne, scoré en continu, réinjecte les nouveaux échecs au départ de la boucle. Chaque échec réel devient un cas de test. Là où les benchmarks publics vieillissent — contamination, fuites, retraits —, ce dataset-là se renouvelle au rythme même des défaillances qu'il doit prévenir. Le chiffre de leaderboard du début n'était qu'un proxy ; la mesure, c'est ce système instrumenté de bout en bout, du span unitaire au dataset d'évaluation qui en découle.</p>",
+   "claims": [
+    "claim:25",
+    "claim:26",
+    "claim:27",
+    "claim:28"
+   ]
+  },
+  {
+   "type": "widget",
+   "ref": "synopsis-boucle-trace-dataset-eval"
+  },
+  {
+   "type": "exercise",
+   "part": "Métriques de fiabilité",
+   "question": "<p>Un agent obtient 61,2&nbsp;% de pass^1 sur le domaine retail de τ-bench, mais moins de 25&nbsp;% en pass^8. Expliquez ce que mesurent respectivement pass@k et pass^k, pourquoi les deux métriques ne sont pas interchangeables, et d'où provient la variance entre essais alors que l'agent décode à température 0,0.</p>",
+   "answer": "<p>pass@k, hérité de Chen et al. (2021) pour Codex/HumanEval, estime la probabilité qu'<em>au moins un</em> essai sur k réussisse (estimateur non biaisé 1&nbsp;−&nbsp;C(n−c,&nbsp;k)/C(n,&nbsp;k)) : c'est une métrique de découverte, adaptée quand on peut garder le meilleur candidat. pass^k, introduit par τ-bench, estime la probabilité que k essais i.i.d. de la même tâche réussissent <em>tous</em> (E[C(c,&nbsp;k)/C(n,&nbsp;k)]) : c'est une métrique de fiabilité, celle qui compte en production où chaque échec est subi par un utilisateur. Elles répondent à deux questions distinctes — «&nbsp;l'agent peut-il réussir&nbsp;?&nbsp;» contre «&nbsp;réussit-il à chaque fois&nbsp;?&nbsp;» — et la fiabilité se dégrade bien plus vite que la capacité moyenne à mesure que k augmente (gpt-4o&nbsp;: 61,2&nbsp;% en pass^1, sous 25&nbsp;% en pass^8 sur retail). Dans τ-bench, l'agent décode à température 0,0 et le simulateur d'utilisateur (gpt-4-0613) à 1,0 — réglage documenté par le seul papier τ-bench, source unique non corroborée par une source indépendante&nbsp;: la variance capturée par pass^k ne vient donc pas de l'échantillonnage de l'agent mais de la variabilité conversationnelle de l'utilisateur simulé — un agent nominalement déterministe échoue de façon incohérente dès que la conversation dévie.</p>"
+  },
+  {
+   "type": "exercise",
+   "part": "Validité du signal",
+   "question": "<p>Un leaderboard annonce qu'un modèle A bat un modèle B de 5 points sur SWE-bench Verified, sans décrire le scaffold utilisé. Citez trois raisons distinctes, documentées dans cette monographie, pour lesquelles ce chiffre ne prouve ni la supériorité du modèle A, ni sa capacité de codage généralisable.</p>",
+   "answer": "<p><strong>1.&nbsp;Écart de harness&nbsp;:</strong> sur une grille de trois modèles et trois harness (100 tâches de SWE-bench Verified), la variance imputable au harness dépasse de 7,8 fois celle imputable au modèle selon l'étude « Stop Comparing… » (source unique), et six comparaisons de paires sur neuf y voient leur classement s'inverser selon le harness retenu — 5 points peuvent tenir entièrement au scaffold. Sur Verified Mini, le seul harness creuse des écarts de 34 à 48 points (Claude Sonnet 4.5&nbsp;: de 68&nbsp;% à 34&nbsp;%). <strong>2.&nbsp;Contamination&nbsp;:</strong> «&nbsp;The SWE-Bench Illusion&nbsp;» montre que des LLM de pointe localisent le fichier fautif à 76&nbsp;% de précision sans jamais voir le dépôt (53&nbsp;% sur des dépôts hors benchmark), et l'audit OpenAI de février 2026 a constaté que tous les modèles frontière testés reproduisent mot pour mot le patch de référence humain&nbsp;: une part de la performance reflète la mémorisation, pas le raisonnement. <strong>3.&nbsp;Récompense défaillante&nbsp;:</strong> le même audit a trouvé qu'au moins 59,4&nbsp;% des 138 tâches difficiles examinées reposent sur des tests structurellement défaillants qui rejettent des solutions correctes — et OpenAI a cessé de rapporter des scores Verified. Le filtrage humain de 2024 avait corrigé énoncés et tests apparents (68,3&nbsp;% d'instances écartées), mais ni la contamination ni la couverture réelle des tests&nbsp;: un score sans Harness Card ni contrôle de contamination n'est pas une mesure.</p>"
+  },
+  {
+   "type": "biblio",
+   "entries": [
+    {
+     "label": "Stop Comparing LLM Agents Without Disclosing the Harness (arXiv:2605.23950)",
+     "href": "https://arxiv.org/abs/2605.23950"
+    },
+    {
+     "label": "Holistic Agent Leaderboard: The Missing Infrastructure for AI Agent Evaluation (arXiv:2510.11977)",
+     "href": "https://arxiv.org/abs/2510.11977"
+    },
+    {
+     "label": "HAL: Holistic Agent Leaderboard — SWE-bench Verified Mini",
+     "href": "https://hal.cs.princeton.edu/swebench_verified_mini"
+    },
+    {
+     "label": "τ-bench: A Benchmark for Tool-Agent-User Interaction in Real-World Domains (arXiv:2406.12045)",
+     "href": "https://arxiv.org/abs/2406.12045"
+    },
+    {
+     "label": "The SWE-Bench Illusion: When State-of-the-Art LLMs Remember Instead of Reason (arXiv:2506.12286)",
+     "href": "https://arxiv.org/abs/2506.12286"
+    },
+    {
+     "label": "Establishing Best Practices for Building Rigorous Agentic Benchmarks (arXiv:2507.02825)",
+     "href": "https://arxiv.org/abs/2507.02825"
+    },
+    {
+     "label": "AgentBoard: An Analytical Evaluation Board of Multi-turn LLM Agents (arXiv:2401.13178)",
+     "href": "https://arxiv.org/abs/2401.13178"
+    },
+    {
+     "label": "SWE-bench Verified — Epoch AI (benchmark methodology page)",
+     "href": "https://epoch.ai/benchmarks/swe-bench-verified"
+    },
+    {
+     "label": "SWE-bench Verified",
+     "href": "https://www.swebench.com/verified.html"
+    },
+    {
+     "label": "Introducing SWE-bench Verified | OpenAI",
+     "href": "https://openai.com/index/introducing-swe-bench-verified/"
+    },
+    {
+     "label": "SWE-bench & SWE-bench Verified Benchmarks",
+     "href": "https://dev.to/duplys/swe-bench-swe-bench-verified-benchmarks-1cm"
+    },
+    {
+     "label": "SWE-Bench+: Enhanced Coding Benchmark for LLMs (arXiv:2410.06992)",
+     "href": "https://arxiv.org/abs/2410.06992"
+    },
+    {
+     "label": "SWE-bench: Can Language Models Resolve Real-World GitHub Issues?",
+     "href": "https://arxiv.org/abs/2310.06770"
+    },
+    {
+     "label": "SWE-bench Explained: The Complete Guide (2026) — qaskills.sh blog",
+     "href": "https://qaskills.sh/blog/swe-bench-explained-guide-2026"
+    },
+    {
+     "label": "SWE-bench harness — grading.py (source)",
+     "href": "https://raw.githubusercontent.com/SWE-bench/SWE-bench/main/swebench/harness/grading.py"
+    },
+    {
+     "label": "SWE-bench harness — run_evaluation.py (source)",
+     "href": "https://raw.githubusercontent.com/SWE-bench/SWE-bench/main/swebench/harness/run_evaluation.py"
+    },
+    {
+     "label": "OpenAI — \"Why SWE-bench Verified no longer measures frontier coding capabilities\"",
+     "href": "https://openai.com/index/why-we-no-longer-evaluate-swe-bench-verified/"
+    },
+    {
+     "label": "\"Does SWE-Bench-Verified Test Agent Ability or Model Memory?\" (arXiv:2512.10218)",
+     "href": "https://arxiv.org/abs/2512.10218"
+    },
+    {
+     "label": "Evaluating Large Language Models Trained on Code (Chen et al., 2021) — Codex/HumanEval, original source of the pass@k unbiased estimator",
+     "href": "https://arxiv.org/abs/2107.03374"
+    },
+    {
+     "label": "sierra-research/tau-bench — GitHub repo (leaderboard: gpt-4o retail pass^1=0.604, pass^4=0.430)",
+     "href": "https://github.com/sierra-research/tau-bench"
+    },
+    {
+     "label": "τ-bench full paper PDF (arXiv:2406.12045) — Methods section: 'The LM temperature is 0.0 for agent and 1.0 for user'; pass^k formal definition (all-k-trials-succeed) vs pass@k (at-least-one-of-k)",
+     "href": "https://arxiv.org/pdf/2406.12045"
+    },
+    {
+     "label": "Lost in Simulation: LLM-Simulated Users are Unreliable Proxies for Human Users in Agentic Evaluations (Seshadri, Cahyawijaya, Odumakinde, Singh, Goldfarb-Tarrant — UC Irvine / Cohere, 2026)",
+     "href": "https://arxiv.org/abs/2601.17087"
+    },
+    {
+     "label": "GAIA: a benchmark for General AI Assistants",
+     "href": "https://arxiv.org/abs/2311.12983"
+    },
+    {
+     "label": "WebArena: A Realistic Web Environment for Building Autonomous Agents",
+     "href": "https://arxiv.org/abs/2307.13854"
+    },
+    {
+     "label": "OSWorld: Benchmarking Multimodal Agents for Open-Ended Tasks in Real Computer Environments",
+     "href": "https://arxiv.org/abs/2404.07972"
+    },
+    {
+     "label": "WebArena: A Realistic Web Environment for Building Autonomous Agents (full text)",
+     "href": "https://arxiv.org/html/2307.13854v4"
+    },
+    {
+     "label": "WebArena Benchmarking Environment — Emergent Mind",
+     "href": "https://www.emergentmind.com/topics/webarena-wa"
+    },
+    {
+     "label": "OSWorld Benchmark — Emergent Mind",
+     "href": "https://www.emergentmind.com/topics/osworld"
+    },
+    {
+     "label": "OSWorld — page officielle du projet (miroir de l'abstract de l'article)",
+     "href": "http://osworld-v1.xlang.ai/"
+    },
+    {
+     "label": "GAIA: General AI Assistants Benchmark — Agentic Design Patterns (KORTEXYA)",
+     "href": "https://agentic-design.ai/patterns/evaluation-monitoring/gaia-benchmark"
+    },
+    {
+     "label": "GAIA: A Benchmark for General AI Assistants (ar5iv full text)",
+     "href": "https://ar5iv.labs.arxiv.org/html/2311.12983"
+    },
+    {
+     "label": "Does SWE-Bench-Verified Test Agent Ability or Model Memory? (arXiv:2512.10218)",
+     "href": "https://arxiv.org/html/2512.10218v2"
+    },
+    {
+     "label": "Why we no longer evaluate SWE-bench Verified (OpenAI, via mirror since openai.com returned HTTP 403 to automated fetch)",
+     "href": "https://dev.to/jgnoncelogic/why-we-no-longer-evaluate-swe-bench-verified-59gc"
+    },
+    {
+     "label": "OpenAI Abandons SWE-bench Verified After Finding 59% of Failed Tests Were Flawed",
+     "href": "https://blockchain.news/news/openai-abandons-swe-bench-verified-contamination-flawed-tests"
+    },
+    {
+     "label": "'Perfect Score Without Solving Anything' — How 8 AI Agent Benchmarks Were Broken (Pebblous.ai)",
+     "href": "https://blog.pebblous.ai/report/ai-agent-benchmark-trust/en/"
+    },
+    {
+     "label": "SWE-bench Pro Explained: The New Standard for AI Coding Benchmarks (2026) (CodingFleet Blog)",
+     "href": "https://codingfleet.com/blog/swe-bench-pro-explained-the-new-standard-for-ai-coding-benchmarks-2026/"
+    },
+    {
+     "label": "SWE-Bench+: Next-Gen Code Agent Benchmarks (EmergentMind)",
+     "href": "https://www.emergentmind.com/topics/swe-bench-3b86a734-b378-4ee6-bcaf-640949ed7afb"
+    },
+    {
+     "label": "Harness-Bench: Measuring Harness Effects across Models in Realistic Agent Workflows",
+     "href": "https://arxiv.org/abs/2605.27922"
+    },
+    {
+     "label": "Stop Comparing LLM Agents Without Disclosing the Harness (HTML full text)",
+     "href": "https://arxiv.org/html/2605.23950"
+    },
+    {
+     "label": "Position: Coding Benchmarks Are Misaligned with Agentic Software Engineering (Gorinova, Baker, Heineike, Shaposhnikov, Willoughby, Knox — arXiv:2606.17799)",
+     "href": "https://arxiv.org/pdf/2606.17799"
+    },
+    {
+     "label": "Claude SWE-Bench Performance",
+     "href": "https://www.anthropic.com/engineering/swe-bench-sonnet"
+    },
+    {
+     "label": "OpenTelemetry Semantic Conventions for Generative AI — Metrics (gen-ai-metrics.md)",
+     "href": "https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/gen-ai-metrics.md"
+    },
+    {
+     "label": "OpenTelemetry for AI Agent Observability (Zylos research)",
+     "href": "https://zylos.ai/research/2026-02-28-opentelemetry-ai-agent-observability/"
+    },
+    {
+     "label": "OpenTelemetry semantic-conventions-genai — gen-ai-agent-spans.md",
+     "href": "https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/gen-ai-agent-spans.md"
+    },
+    {
+     "label": "OpenTelemetry semantic-conventions-genai — gen-ai-spans.md",
+     "href": "https://github.com/open-telemetry/semantic-conventions-genai/blob/main/docs/gen-ai/gen-ai-spans.md"
+    },
+    {
+     "label": "opentelemetry-instrumentation-openai-v2 (PyPI package README)",
+     "href": "https://pypi.org/project/opentelemetry-instrumentation-openai-v2/"
+    },
+    {
+     "label": "OpenTelemetry blog — Inside the LLM Call: GenAI Observability with OpenTelemetry",
+     "href": "https://opentelemetry.io/blog/2026/genai-observability/"
+    },
+    {
+     "label": "Datadog LLM Observability — Auto Instrumentation docs",
+     "href": "https://docs.datadoghq.com/llm_observability/instrumentation/auto_instrumentation/"
+    },
+    {
+     "label": "openllmetry issue #3515 — deprecated gen_ai.prompt/completion vs new message attributes",
+     "href": "https://github.com/traceloop/openllmetry/issues/3515"
+    },
+    {
+     "label": "Langfuse blog — AI Agent Observability with Langfuse",
+     "href": "https://langfuse.com/blog/2024-07-ai-agent-observability-with-langfuse"
+    },
+    {
+     "label": "Arize — Understanding UMAP and HDBSCAN",
+     "href": "https://arize.com/resource/understanding-umap-and-hdbscan/"
+    }
+   ]
+  },
+  {
+   "type": "pointers",
+   "title": "Pour aller plus loin",
+   "items": [
+    {
+     "name": "SWE-bench — site officiel & leaderboard",
+     "url": "https://www.swebench.com/",
+     "kind": "tool",
+     "blurb": "Site de référence du benchmark : leaderboard, documentation, variantes (Verified, Lite, Multimodal, Multilingual, Pro)."
+    },
+    {
+     "name": "SWE-bench/SWE-bench (GitHub)",
+     "url": "https://github.com/SWE-bench/SWE-bench",
+     "kind": "implementation",
+     "blurb": "Dépôt source du harnais d'évaluation officiel (construction des images Docker, exécution FAIL_TO_PASS/PASS_TO_PASS)."
+    },
+    {
+     "name": "Introducing SWE-bench Verified (OpenAI)",
+     "url": "https://openai.com/index/introducing-swe-bench-verified/",
+     "kind": "reading",
+     "blurb": "Annonce originale détaillant la méthodologie de filtrage humain ayant produit le sous-ensemble de 500 instances."
+    },
+    {
+     "name": "SWE-bench: Can Language Models Resolve Real-World GitHub Issues?",
+     "url": "https://arxiv.org/abs/2310.06770",
+     "kind": "reading",
+     "blurb": "Papier fondateur (Jimenez et al., Princeton, 2023) introduisant le benchmark, ses 2 294 instances et sa méthodologie d'évaluation."
+    },
+    {
+     "name": "tau-bench (code & data)",
+     "url": "https://github.com/sierra-research/tau-bench",
+     "kind": "implementation",
+     "blurb": "Dépôt officiel Sierra du benchmark τ-bench : domaines retail/airline, environnement, et implémentation de la métrique pass^k."
+    },
+    {
+     "name": "tau2-bench (code & data)",
+     "url": "https://github.com/sierra-research/tau2-bench",
+     "kind": "implementation",
+     "blurb": "Dépôt officiel de τ²-bench : domaine telecom dual-control formalisé en Dec-POMDP, générateur de tâches compositionnel."
+    },
+    {
+     "name": "GAIA dataset (Hugging Face)",
+     "url": "https://huggingface.co/datasets/gaia-benchmark/GAIA",
+     "kind": "reading",
+     "blurb": "Jeu de données officiel GAIA (questions, réponses, métadonnées d'annotation)."
+    },
+    {
+     "name": "GAIA Leaderboard",
+     "url": "https://huggingface.co/spaces/gaia-benchmark/leaderboard",
+     "kind": "tool",
+     "blurb": "Classement public des systèmes évalués sur les 300 questions de test GAIA."
+    },
+    {
+     "name": "WebArena (code repo)",
+     "url": "https://github.com/web-arena-x/webarena",
+     "kind": "implementation",
+     "blurb": "Environnement auto-hébergeable et code de reproduction des résultats WebArena."
+    },
+    {
+     "name": "OSWorld (code repo)",
+     "url": "https://github.com/xlang-ai/OSWorld",
+     "kind": "implementation",
+     "blurb": "Framework d'exécution et d'évaluation OSWorld (snapshots VM, scripts d'inspection d'état final)."
+    },
+    {
+     "name": "OSWorld leaderboard",
+     "url": "https://os-world.github.io/",
+     "kind": "tool",
+     "blurb": "Site officiel OSWorld (redirige vers osworld-v1.xlang.ai) avec section leaderboard des résultats vérifiés."
+    },
+    {
+     "name": "Agentic Benchmark Checklist (ABC)",
+     "url": "https://uiuc-kang-lab.github.io/agentic-benchmarks/",
+     "kind": "reading",
+     "blurb": "Checklist et papier (arXiv:2507.02825, « Establishing Best Practices for Building Rigorous Agentic Benchmarks ») formalisant validité de tâche et validité d'issue pour auditer un benchmark agentique."
+    },
+    {
+     "name": "SWE-bench Pro Leaderboard (public)",
+     "url": "https://labs.scale.com/leaderboard/swe_bench_pro_public",
+     "kind": "tool",
+     "blurb": "Leaderboard de Scale pour SWE-bench Pro, avec jeu public et jeu held-out privé sous licences copyleft pour détecter le surapprentissage."
+    },
+    {
+     "name": "Min-K%++",
+     "url": "https://github.com/zjysteven/mink-plus-plus",
+     "kind": "implementation",
+     "blurb": "Implémentation de référence de Min-K%/Min-K%++ pour détecter si un texte appartenait aux données de pré-entraînement d'un LLM."
+    },
+    {
+     "name": "HAL — Holistic Agent Leaderboard",
+     "url": "https://hal.cs.princeton.edu/",
+     "kind": "tool",
+     "blurb": "Leaderboard tiers standardisé et cost-aware pour l'évaluation d'agents, avec traces complètes et suivi des tokens/coûts par exécution."
+    },
+    {
+     "name": "hal-harness (GitHub)",
+     "url": "https://github.com/princeton-pli/hal-harness",
+     "kind": "implementation",
+     "blurb": "Harnais d'évaluation open-source de HAL, orchestrant des rollouts reproductibles sur des centaines de VM en parallèle (dépôt archivé depuis juillet 2026, toujours utilisable localement)."
+    },
+    {
+     "name": "Harness-Bench",
+     "url": "https://arxiv.org/abs/2605.27922",
+     "kind": "reading",
+     "blurb": "Benchmark diagnostique mesurant l'effet du harnais sur la performance des agents à travers plusieurs backends de modèles, sur 106 tâches et plus de 5 000 exécutions."
+    },
+    {
+     "name": "Stop Comparing LLM Agents Without Disclosing the Harness",
+     "url": "https://arxiv.org/abs/2605.23950",
+     "kind": "reading",
+     "blurb": "Formalise la décomposition de variance modèle/harnais et propose la Binding Constraint Thesis et un cadre d'évaluation avec norme de divulgation."
+    },
+    {
+     "name": "OpenTelemetry Semantic Conventions for Generative AI",
+     "url": "https://github.com/open-telemetry/semantic-conventions-genai",
+     "kind": "reading",
+     "blurb": "Spécification (statut expérimental) des spans, métriques et attributs gen_ai.* pour instrumenter LLM et agents."
+    },
+    {
+     "name": "Langfuse",
+     "url": "https://langfuse.com/",
+     "kind": "tool",
+     "blurb": "Plateforme open source de tracing/observabilité LLM avec typage sémantique des observations et boucle trace→dataset→éval."
+    },
+    {
+     "name": "Arize Phoenix",
+     "url": "https://arize.com/docs/phoenix",
+     "kind": "tool",
+     "blurb": "Outil open source de tracing, évaluation et analyse d'embeddings pour repérer des clusters d'échecs en production."
+    },
+    {
+     "name": "Datadog LLM/Agent Observability",
+     "url": "https://docs.datadoghq.com/llm_observability/",
+     "kind": "tool",
+     "blurb": "Backend commercial consommant nativement les traces conformes aux conventions GenAI d'OpenTelemetry."
+    },
+    {
+     "name": "OpenLLMetry (Traceloop)",
+     "url": "https://github.com/traceloop/openllmetry",
+     "kind": "library",
+     "blurb": "Bibliothèque d'instrumentation open source qui patche automatiquement 20+ SDK et frameworks LLM en spans OTel GenAI."
+    },
+    {
+     "name": "AgentOps (papier CSIRO Data61)",
+     "url": "https://arxiv.org/abs/2411.05285",
+     "kind": "reading",
+     "blurb": "Taxonomie AgentOps des artefacts à tracer sur le cycle de vie d'un agent, issue d'une revue systématique des outils d'observabilité agentique existants."
+    }
+   ]
+  },
+  {
+   "type": "glossary"
+  }
+ ]
+}
