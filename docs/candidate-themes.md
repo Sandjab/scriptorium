@@ -198,21 +198,9 @@ apprendre dessus) ; GraphRAG/agentic-memory utilisent des graphes sans message p
 > cardinalité) — les citer comme voisins ; se centrer sur quantiles et échantillonnage. Domaine :
 > probabilistic-structures-hashing.
 
-### Serving d'inférence LLM — `llm-inference-serving` → `llm-agents-generation`
-**Verdict : partiel (~60 % neuf).** Les briques sont dispersées : `transformer-attention` couvre
-FlashAttention et le régime mémoire du KV cache (MQA/GQA, MLA à −93,3 %), `decoding-sampling` le
-speculative decoding et le Roofline, `quantization` la compression. Le SYSTÈME de serving
-(batching, ordonnancement, gestion mémoire, SLO) n'est traité nulle part.
-
-> Serving d'inférence LLM : servir des milliers de requêtes concurrentes sur un parc de GPU.
-> Couvrir les deux phases prefill/decode et leurs régimes (compute-bound vs memory-bound), le
-> continuous batching (Orca), PagedAttention et la gestion du KV cache comme mémoire paginée (vLLM),
-> le prefix/radix caching (SGLang), le chunked prefill et la désagrégation prefill/decode, les
-> métriques de service (TTFT, TPOT, goodput, SLO) et le routage/autoscaling multi-modèles. Public :
-> ingénieur ML/infra. Délimitations : transformer-attention couvre FlashAttention et MQA/GQA/MLA,
-> decoding-sampling le speculative decoding et l'échantillonnage, quantization la compression des
-> poids/activations — les citer sans re-dériver ; se centrer sur l'ordonnancement, la mémoire et
-> les SLO du système de serving. Domaine : llm-agents-generation.
+(`llm-inference-serving` : FAIT le 2026-07-17/18, retiré du backlog — 14e run /leanmonograph
+GREEN après resume, classé dans llm-agents-generation après decoding-sampling ; section
+prefix-radix-caching complétée manuellement. Débloque le candidat `model-routing-cascades`.)
 
 ### Curation des données de pré-entraînement — `pretraining-data-curation` → `llm-agents-generation`
 **Verdict : gap réel (angle neuf net).** `scaling-laws` traite le régime data-constrained
@@ -546,9 +534,10 @@ de référence 2026 moindre.
 
 ### Routage multi-modèles & cascades — `model-routing-cascades` → `llm-agents-generation`
 **Verdict : gap réel mais ⚠️ frontière à caler (ajout 2026-07-17).** RouteLLM, FrugalGPT,
-cascades = 0 occurrence ; MAIS le candidat `llm-inference-serving` inclut déjà « le
-routage/autoscaling multi-modèles » côté infra. Ne lancer qu'APRÈS llm-inference-serving, en
-calant la frontière sur l'arbitrage qualité/coût par requête.
+cascades = 0 occurrence ; MAIS `llm-inference-serving` (FAIT le 2026-07-18) traite déjà « le
+routage/autoscaling multi-modèles » côté infra (section routage-autoscaling-multimodeles :
+routage prefix-cache-aware et load-aware). Dépendance levée — caler la frontière sur l'arbitrage
+qualité/coût par requête, en délimitant contre la section routage de llm-inference-serving.
 
 > Routage multi-modèles et cascades de LLM : servir chaque requête au moindre coût à qualité
 > maintenue. Couvrir les cascades (FrugalGPT : petit modèle d'abord, escalade sur score de
@@ -577,6 +566,6 @@ calant la frontière sur l'arbitrage qualité/coût par requête.
 - **Attention efficace / FlashAttention / KV cache (MQA, GQA, MLA)** → `transformer-attention`
   (FlashAttention traité comme attention EXACTE, FA-2/FA-3 sur H100 ; MQA/GQA en production,
   MLA −93,3 % de KV cache) ; le speculative decoding est dans `decoding-sampling`. Le versant
-  SYSTÈME reste ouvert via le candidat `llm-inference-serving`.
+  SYSTÈME est désormais traité par `llm-inference-serving` (FAIT le 2026-07-18).
 - **Embeddings statiques (word2vec, GloVe, fastText)** → `text-embeddings` (lignée historique
   couverte au sein du thème embeddings).
