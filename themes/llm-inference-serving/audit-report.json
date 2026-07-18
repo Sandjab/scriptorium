@@ -1,0 +1,1104 @@
+{
+  "generator": "leanmonograph",
+  "theme": {
+    "slug": "llm-inference-serving",
+    "title": "Servir un LLM à des milliers de requêtes : ordonnancement, mémoire et SLO"
+  },
+  "summary": {
+    "sections_total": 9,
+    "sections_retained": 7,
+    "claims_total": 33,
+    "confirmed": 16,
+    "corrected": 6,
+    "rejected": 11,
+    "retained": 20
+  },
+  "claims": [
+    {
+      "id": "claim:1",
+      "section": "phases-prefill-decode",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le prefill traite tous les tokens du prompt en parallèle via une opération matrice-matrice à haute intensité arithmétique (compute-bound même à batch=1), tandis que le decode génère un token à la fois via une opération matrice-vecteur dont l'intensité arithmétique chute de plus de deux ordres de grandeur, le rendant memory-bandwidth-bound sauf à des tailles de batch impraticables (~256, limitées par l'empreinte du KV cache).",
+      "original_statement": "Le prefill traite tous les tokens du prompt en parallèle via une opération matrice-matrice à haute intensité arithmétique (compute-bound même à batch=1), tandis que le decode génère un token à la fois via une opération matrice-vecteur dont l'intensité arithmétique chute de plus de deux ordres de grandeur, le rendant memory-bandwidth-bound sauf à des tailles de batch impraticables (~256, limitées par l'empreinte du KV cache).",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "SARATHI (arXiv:2308.16369) correspond quasi mot pour mot au claim (\"arithmetic intensity... drop by more than two orders of magnitude in the decode phase\"; \"Only at a very large batch size of 256, the decode phase starts becoming compute-intensive... infeasible due to the KV-cache footprint\") et en est vraisemblablement l'origine — exclu comme source indépendante. kipp.ly (antérieur à SARATHI, dérivation roofline générale indépendante) arrive à un seuil très proche (~208 tokens) par une méthode différente, et NVIDIA confirme qualitativement la distinction matrice-matrice/matrice-vecteur et compute-bound/memory-bound. Le fond tient ; le chiffre exact \"256\" reste attribuable à une source primaire unique (SARATHI)."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "SARATHI (Agrawal et al., 2308.16369) confirme mot pour mot chaque élément quantitatif : prefill à haute intensité arithmétique 'even at a batch size of one', intensité arithmétique qui 'drop[s] by more than two orders of magnitude' en decode (coût par token 200x/100x/16.7x selon batch=1/2/18), et seuil de compute-bound à 'a very large batch size of 256' jugé 'infeasible due to the KV-cache footprint'. Le framing matrice-matrice/matrice-vecteur et compute-bound/memory-bound est corroboré indépendamment (mais sans les chiffres précis) par les blogs NVIDIA et Databricks."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:2",
+      "section": "phases-prefill-decode",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Sur A100, le point de bascule roofline entre régime memory-bandwidth-bound et compute-bound se situe à environ 208 FLOPs par byte transféré, calculé comme le ratio du pic de calcul FP16 (312 TFLOPS) sur la bande passante mémoire (~1,5 TB/s).",
+      "original_statement": "Sur A100, le point de bascule roofline entre régime memory-bandwidth-bound et compute-bound se situe à environ 208 FLOPs par byte transféré, calculé comme le ratio du pic de calcul FP16 (312 TFLOPS) sur la bande passante mémoire (~1,5 TB/s).",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "kipp.ly (seule source candidate) est vraisemblablement l'origine de la formulation \"208 FLOPs/byte\" et n'est donc pas comptée comme indépendante. Les deux entrées du calcul sont vérifiées ailleurs : NVIDIA confirme officiellement 312 TFLOPS FP16 Tensor Core (dense), et Wikipedia confirme pour la variante A100 40GB une bande passante de 1,52 TB/s et 312 TFLOPS FP16 — le ratio 312/1,5≈208 est une arithmétique déterministe sur des entrées indépendamment vérifiées."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "kipp.ly calcule explicitement 312e12 FLOPS ÷ 1.5e12 bytes/s = 208 comme seuil roofline pour l'A100 standard (40GB), texte source : '312e12 flops per second ÷ 1.5e12 bytes per second' donnant 'a distinct ratio here of 208'. La fiche produit NVIDIA confirme indépendamment le pic FP16 dense de 312 TFLOPS (sans sparsité) ; la bande passante ~1,5TB/s correspond à la variante 40GB (bien documentée ailleurs à 1 555 GB/s), cohérente avec le calcul du claim."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:3",
+      "section": "phases-prefill-decode",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Idée reçue à nuancer : le prefill n'est pas toujours et uniquement compute-bound — à petite taille de batch et petite longueur de séquence, le temps de chargement des poids peut dominer et le prefill devient lui aussi memory-bound (au-delà d'un certain seuil de longueur, le prefill redevient compute-bound, cf. le seuil L_m de DistServe). En chunked prefill, des chunks trop petits dégradent également l'efficacité du prefill, mais la littérature (SARATHI) attribue cette dégradation surtout à une sous-utilisation du GPU par quantification de tuiles (tile quantization), pas explicitement à un régime memory-bound par chargement des poids.",
+      "original_statement": "Idée reçue à nuancer : le prefill serait toujours et uniquement compute-bound, jamais limité par la bande passante mémoire — en réalité, à petite taille de batch et petite longueur de séquence (ou avec des chunks de prefill trop petits en chunked prefill), le temps de chargement des poids domine et le prefill devient lui aussi memory-bound.",
+      "corroborated": 1,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le mécanisme général (petit batch/séquence → chargement des poids domine → prefill memory-bound) est confirmé indépendamment par Pope et al. (\"At small batch sizes and sequence lengths, the time to load weights dominates\", explicitement généralisé à \"prefill or decode step\") et par DistServe (seuil L_m en dessous duquel le prefill n'est PAS compute-bound). Mais la clause parenthétique sur les \"chunks de prefill trop petits\" n'est pas soutenue ainsi par SARATHI (2308.16369, vérifié en ar5iv) : ce papier attribue explicitement la perte d'efficacité des petits chunks à la quantification de tuiles GPU (sous-utilisation du calcul), et minimise même l'effet mémoire (relecture du KV cache jugée négligeable). Le claim original conflate donc deux mécanismes distincts — d'où holds=false malgré un noyau bien confirmé."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Pope et al. (2211.05102) soutient bien la nuance générale : 'At small batch sizes and sequence lengths, the time to load weights dominates' et 'low-batch-size cost is dominated by weight loading time'. Mais SARATHI (2308.16369), la source citée pour le volet chunked prefill, contredit l'attribution au chargement des poids pour ce cas précis : elle affirme que le prefill 'saturates the GPU even at batch size of 1' et impute le surcoût des petits chunks (ex. chunk=64 → '3× overhead for attention', '5× in overall prefill time') à l'attention et aux rechargements du KV cache, pas au memory-bandwidth du chargement des poids. Le claim fusionne donc deux mécanismes distincts sous une explication causale unique que sa propre source chunked-prefill ne soutient pas."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les deux sources (texte intégral vérifié via pdftotext + relecture des passages) corroborent le mécanisme, sans employer littéralement la formule « prefill memory-bound ». Pope et al. (§2, Memory costs) : « These tensors need to be transferred from HBM to the compute cores of the chip once per forward pass (prefill or decode step)... At small batch sizes and sequence lengths, the time to load weights dominates » — énoncé général couvrant explicitement le prefill, pas seulement le decode. SARATHI (§1, §3.1, §4.2) fournit le cadre quantitatif : « kernels with arithmetic intensity above a GPU's FLOPS:MemBandwidth ratio are compute-bound... kernels with a lower arithmetic intensity fail to utilize GPUs well due to being memory-bound » ; et donne un seuil explicite — « a prefill with a sequence length of 512 tokens saturates GPU compute even at a batch size of just one » / Fig.4a : le débit du prefill sature seulement quand B×L ≥ 512 — impliquant qu'en dessous de ce seuil (petit batch × petite longueur), le prefill ne sature pas le compute. Pour les chunks de prefill trop petits, SARATHI est explicite et chiffré : « splitting prefills into very small chunks leads to lower arithmetic intensity i.e. less efficient matmuls... resulting in reduced end-to-end performance » et « the chunk size of 64 incurs... about 5× [overhead] in the overall prefill time ». Nuance à noter : SARATHI attribue le surcoût des petits chunks à la fois à la perte d'intensité arithmétique (mécanisme « poids ») ET aux relectures répétées du KV-cache entre chunks — un second facteur que l'énoncé original, focalisé uniquement sur le chargement des poids, ne mentionne pas mais ne contredit pas non plus. Aucune des deux sources n'écrit noir sur blanc « le prefill devient memory-bound » ; c'est une inférence directe et à faible risque à partir de leurs propres définitions et seuils chiffrés, jamais contredite."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Idée reçue à nuancer : le prefill serait toujours et uniquement compute-bound, jamais limité par la bande passante mémoire — en réalité, à petite taille de batch et petite longueur de séquence (ou avec des chunks de prefill trop petits en chunked prefill), le temps de chargement des poids domine et le prefill devient lui aussi memory-bound. »"
+    },
+    {
+      "id": "claim:4",
+      "section": "continuous-batching-orca",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Orca (OSDI 2022, Seoul National University / FriendliAI) introduit l'iteration-level scheduling, qui redétermine la composition et la taille du batch à chaque itération de génération plutôt qu'à l'échelle de toute la durée de vie de la requête, en remplaçant les séquences terminées par de nouvelles requêtes sans attendre que tout le batch se vide — c'est l'origine du continuous batching.",
+      "original_statement": "Orca (OSDI 2022, Seoul National University / FriendliAI) introduit l'iteration-level scheduling, qui redétermine la composition et la taille du batch à chaque itération de génération plutôt qu'à l'échelle de toute la durée de vie de la requête, en remplaçant les séquences terminées par de nouvelles requêtes sans attendre que tout le batch se vide — c'est l'origine du continuous batching.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 4,
+          "note": "La page USENIX (source primaire, lue via proxy lecteur) décrit explicitement l'iteration-level scheduling comme exécutant une seule itération à la fois et permettant la substitution des requêtes terminées sans attendre le batch entier ; dblp confirme les 5 auteurs (Yu, Jeong, Kim, Kim, Chun) et le venue OSDI 2022 ; FriendliAI confirme indépendamment que Chun (SNU) et Yu (PhD SNU) sont ses fondateurs, corroborant l'attribution « Seoul National University / FriendliAI ». Anyscale corrobore indépendamment la description technique."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "L'abstract USENIX confirme explicitement l'iteration-level scheduling comme contribution originale à la granularité de l'itération (pas de la requête), avec remplacement des séquences terminées ; les affiliations SNU/FriendliAI sont corroborées à la fois par le texte du papier (Yu, Jeong = SNU ; Kim, Kim, Chun = FriendliAI+SNU) et par la page FriendliAI (Chun = fondateur/CEO et prof. SNU, Yu = CTO, PhD SNU). Nuance mineure : le terme littéral « continuous batching » n'apparaît pas dans le papier Orca lui-même (qui parle de « selective batching »/« iteration-level scheduling ») — il a été popularisé après-coup par la communauté (ex. Anyscale) ; le claim est défendable car il attribue à Orca l'origine de la pratique, pas le mot."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:5",
+      "section": "continuous-batching-orca",
+      "section_retained": true,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "Sur le benchmark OPT-13B/A100 (UC Berkeley/Anyscale) en scénario de variance maximale de longueur de sortie, vLLM (continuous batching + PagedAttention) atteint jusqu'à 23x de throughput vs un batching statique naïf, contre environ 8x pour d'autres implémentations de continuous batching (Ray Serve, HuggingFace TGI) et environ 4x pour un batching statique optimisé (NVIDIA FasterTransformer) — les trois comparaisons utilisant la même baseline statique naïve.",
+      "original_statement": "Sur le benchmark OPT-13B/A100 (UC Berkeley/Anyscale) en scénario de variance maximale de longueur de sortie, vLLM (continuous batching + PagedAttention) atteint jusqu'à 23x de throughput vs un batching statique naïf, contre environ 8x pour d'autres implémentations de continuous batching (Ray Serve, HuggingFace TGI) et environ 4x pour un batching statique optimisé (NVIDIA FasterTransformer) — les trois comparaisons utilisant la même baseline statique naïve.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 0,
+          "note": "J'ai vérifié que les chiffres 23x/8x/4x correspondent exactement au texte de la source Anyscale, mais je n'ai trouvé aucune source indépendante (ni vLLM, ni HuggingFace TGI, ni tiers) qui réplique ou confirme ce benchmark précis — c'est un résultat empirique auto-référentiel publié une seule fois, en une seule source (avec simple remerciement à des collaborateurs UC Berkeley, pas de publication séparée). Conformément à la consigne, je penche vers holds=false faute d'indépendance vérifiable."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Les chiffres 23x/8x/4x et la baseline commune (batching statique naïf, ~81 tok/s, scénario 1536 tokens de variance max) sont repris quasi mot pour mot du post Anyscale, qui précise lui-même que les trois multiplicateurs sont exprimés « as improvement multiples over naive static batching ». Un seul juré-source vérifié avec ces chiffres précis : le blog officiel vLLM teste un tout autre setup (LLaMA-7B/13B vs HF/TGI) et ne corrobore pas indépendamment ces multiplicateurs OPT-13B — à signaler pour le seuil ≥2 sources indépendantes du projet, même si le claim est fidèle à sa source."
+        }
+      ],
+      "audit_note": "Rejeté : 1 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+    },
+    {
+      "id": "claim:6",
+      "section": "continuous-batching-orca",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "« Dynamic batching » et « continuous batching » sont souvent traités comme synonymes, mais un dynamic batcher classique à fenêtre de temps fixe (ex. le paramètre max_queue_delay_microseconds de NVIDIA Triton Inference Server) opère au niveau de l'admission des requêtes — il accumule les requêtes arrivant dans une fenêtre de délai statique avant de former et d'envoyer un batch — et ne réévalue jamais la composition du batch pendant le décodage comme le fait l'iteration-level scheduling d'Orca ; il ne résout donc pas le sous-emploi du GPU causé par l'hétérogénéité des longueurs de sortie une fois le batch lancé.",
+      "original_statement": "« Dynamic batching » et « continuous batching » sont souvent traités comme synonymes, mais un dynamic batcher classique à fenêtre de temps fixe (ex. le paramètre max_queue_delay_microseconds de NVIDIA Triton Inference Server) opère au niveau de l'admission des requêtes — il accumule les requêtes arrivant dans une fenêtre de délai statique avant de former et d'envoyer un batch — et ne réévalue jamais la composition du batch pendant le décodage comme le fait l'iteration-level scheduling d'Orca ; il ne résout donc pas le sous-emploi du GPU causé par l'hétérogénéité des longueurs de sortie une fois le batch lancé.",
+      "corroborated": 3,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "La doc NVIDIA confirme que le dynamic batcher classique opère exclusivement à l'admission (fenêtre max_queue_delay_microseconds), forme le batch avant dispatch, et ne mentionne aucune ré-évaluation pendant l'exécution ni modification post-dispatch. Anyscale confirme indépendamment que les termes « dynamic batching », « continuous batching » et « iteration-level scheduling » sont couramment traités comme proches/synonymes dans l'industrie. La page USENIX/Orca confirme indépendamment que l'iteration-level scheduling ré-évalue la composition à chaque itération — contraste technique qui étaye la distinction du claim."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Confirmé quasi littéralement par la doc Triton elle-même, qui décrit max_queue_delay_microseconds comme un mécanisme d'admission (délai avant envoi du batch, composition figée une fois envoyée) et distingue explicitement cela d'une fonctionnalité séparée « Continuous/Inflight Batching with Iterative Sequences » ajoutée pour les LLM qui réutilise les slots sans attendre la fin du batch. Le blog Anyscale confirme aussi qu'au moment de l'écriture Triton offrait le dynamic batching request-level mais pas le continuous batching, et que les deux termes sont souvent utilisés comme synonymes dans l'industrie."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Toutes les clauses vérifiées mot à mot sur les deux sources fournies. (1) Triton docs, verbatim : « the dynamic batcher will delay sending the batch as long as no request is delayed longer than the configured max_queue_delay_microseconds value » et « If the delay expires the dynamic batcher sends the batch as is » — confirme admission par fenêtre de délai statique, aucune mention de recomposition du batch après envoi (la page distingue explicitement ce mécanisme classique d'une fonctionnalité séparée, plus récente, « Iterative Sequences », que la formule « classique à fenêtre de temps fixe » de l'énoncé exclut correctement par construction). (2) Anyscale, verbatim sur la synonymie : « Continuous batching, dynamic batching, and iteration-level scheduling are all close enough in meaning that any one of them can be used to describe the batching algorithm » — confirme que les deux termes sont bien traités comme quasi-synonymes en pratique, tout en distinguant explicitement Triton comme faisant du « request-level dynamic batching, but not continuous batching yet ». (3) Anyscale sur Orca, verbatim : « Orca implements iteration-level scheduling where the batch size is determined per iteration » et « Once a sequence in a batch has completed generation, a new sequence can be inserted in its place, yielding higher GPU utilization than static batching » — confirme la comparaison et le lien causal avec le sous-emploi GPU (« static batching means that the GPU will be underutilized until the last sequence in the batch finishes generation »). Limite : je n'ai pas pu accéder directement au papier Orca (OSDI '22, usenix.org) — 403 Forbidden sur la page de présentation et sur le PDF direct, et le budget WebSearch de la session était épuisé pour chercher un miroir alternatif — donc l'attribution à Orca repose sur la citation fidèle et précise d'Anyscale (titre exact, venue exacte, mécanisme conforme à la littérature connue) plutôt que sur une lecture directe du papier original."
+        }
+      ],
+      "audit_note": "Confirmé : 3/3 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": null,
+      "section": "pagedattention-kv-cache",
+      "section_retained": false,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "PagedAttention réduit le gaspillage mémoire du KV cache d'environ 60-80% (seulement 20,4%-38,2% de la mémoire allouée sert réellement à stocker les états des tokens dans les systèmes antérieurs) à moins de 4%, en partitionnant le KV cache de chaque séquence en blocs de taille fixe (16 tokens par défaut) reliés par une table de blocs par requête, sur le modèle de la mémoire virtuelle paginée des OS.",
+      "original_statement": "PagedAttention réduit le gaspillage mémoire du KV cache d'environ 60-80% (seulement 20,4%-38,2% de la mémoire allouée sert réellement à stocker les états des tokens dans les systèmes antérieurs) à moins de 4%, en partitionnant le KV cache de chaque séquence en blocs de taille fixe (16 tokens par défaut) reliés par une table de blocs par requête, sur le modèle de la mémoire virtuelle paginée des OS.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": false,
+          "n_sources": 0,
+          "note": "Le papier primaire (arXiv 2309.06180, section 4 / Fig.2) confirme mot pour mot : « only 20.4%-38.2% of the KV cache memory is used to store the actual token states in the existing systems » (donc gaspillage ~62-80%, cohérent avec « 60-80% »), bloc par défaut = 16 tokens (« vLLM sets its default block size as 16 »), table de blocs par requête, et l'analogie explicite à la pagination OS (« blocks as pages, tokens as bytes, requests as processes »). Mais toutes les sources trouvées (arXiv/ar5iv = même document, + le blog officiel vllm.ai = même équipe/projet) sont une SEULE lignée d'origine (Kwon et al.) : aucune source tierce indépendante n'a pu être localisée dans cette passe (budget WebSearch de la session épuisé). De plus le chiffre précis « <4% » n'apparaît que dans le blog vLLM — deux lectures ciblées du texte du papier (via ar5iv) ne l'y ont pas retrouvé, qui parle seulement de « near-zero waste » sans chiffre exact. Contenu fidèle à la source primaire, mais échec du critère d'indépendance."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Verbatim confirmed dans le papier (§3.1, Fig.2) : « only 20.4% - 38.2% of the KV cache memory is used to store the actual token states in the existing systems » et vLLM atteint 96.3% (donc gaspillage ~3.7%, cohérent avec « moins de 4% »), block size 16 par défaut confirmé explicitement (§7.2 : « vLLM sets its default block size as 16 »), block table par requête confirmé (Fig.4/6). Le chiffre « 60-80% » n'apparaît pas littéralement dans le papier mais est dérivable de la Fig.2 (gaspillage Orca Max ≈79.6%, Orca Oracle ≈61.8%) et figure explicitement dans le blog officiel vLLM (même équipe d'auteurs, donc source non strictement indépendante du papier mais légitime en tant qu'annonce officielle du même travail) ; nuance : les baselines « Orca » du papier sont une réimplémentation par les auteurs (Orca réel non public), pas le système Orca original mesuré directement."
+        }
+      ],
+      "audit_note": "Rejeté : 1 confirmation(s), 2 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+    },
+    {
+      "id": null,
+      "section": "pagedattention-kv-cache",
+      "section_retained": false,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "Le partage de blocs de vLLM, à base de comptage de références et de copy-on-write, permet à des séquences logiquement distinctes (échantillonnage parallèle, branches de beam search, ou requêtes indépendantes partageant un préfixe) de pointer vers les mêmes blocs physiques de KV cache jusqu'à divergence, réduisant le surcoût mémoire jusqu'à 55% et améliorant le débit jusqu'à 2,2x sur les charges d'échantillonnage parallèle.",
+      "original_statement": "Le partage de blocs de vLLM, à base de comptage de références et de copy-on-write, permet à des séquences logiquement distinctes (échantillonnage parallèle, branches de beam search, ou requêtes indépendantes partageant un préfixe) de pointer vers les mêmes blocs physiques de KV cache jusqu'à divergence, réduisant le surcoût mémoire jusqu'à 55% et améliorant le débit jusqu'à 2,2x sur les charges d'échantillonnage parallèle.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 0,
+          "note": "Le papier primaire (arXiv 2309.06180, §6.3) sépare clairement les deux workloads et les chiffres ne correspondent PAS à ce que dit le claim : les ~55% d'économie mémoire et le ~2,2-2,3x de débit proviennent du BEAM SEARCH, pas de l'échantillonnage parallèle (qui ne monte qu'à 30,5% de mémoire économisée et 1,3x de débit). Le claim mélange donc les deux régimes et surattribue au mauvais workload. En plus de cette erreur factuelle, les seules sources disponibles (papier + blog vllm.ai) sont non-indépendantes entre elles (même équipe) et aucune source tierce n'a été trouvée."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Le papier attribue explicitement les chiffres différemment de la claim : le gain mémoire max de 55% (55.16% précisément) est un résultat de BEAM SEARCH (largeur 6, Fig.15b/§6.3), pas de l'échantillonnage parallèle dont le gain max mesuré est 9.8% (Alpaca) ou 30.5% (ShareGPT) ; le 2.2x de throughput est un résultat de BASIC SAMPLING (une séquence par requête, Fig.13a/§6.2, vs Orca Oracle), pas un résultat propre à l'échantillonnage parallèle. La claim, en attribuant les deux chiffres au sampling parallèle, déforme la source primaire (elle suit probablement la formulation vague du blog vLLM qui regroupe 'parallel sampling and beam search' sous un même '55%'/'2.2x' sans les distinguer)."
+        }
+      ],
+      "audit_note": "Rejeté : 0 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+    },
+    {
+      "id": null,
+      "section": "pagedattention-kv-cache",
+      "section_retained": false,
+      "retained": false,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "La taille de bloc par défaut de PagedAttention/vLLM est de 16 tokens, choisie par les auteurs comme compromis (papier, §7.2 « Impact of Block Size », étudie explicitement le tradeoff entre tailles) ; ce n'est pas une constante figée mais un paramètre réglable par l'utilisateur (champ `block_size` de `vllm.config.cache.CacheConfig`, entier positif configurable, résolu à 16 par défaut si non spécifié).",
+      "original_statement": "La taille de bloc par défaut de PagedAttention (16 tokens) est une constante architecturale figée du gestionnaire mémoire de vLLM, non un paramètre réglable selon la charge.",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 3,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le claim affirme que 16 tokens est une constante architecturale figée, non réglable. C'est réfuté directement par le code source de vLLM (`vllm/config/cache.py`) : `block_size` est un champ configurable (`int | None`, validation `gt=0`, avec suivi explicite `user_specified_block_size` pour distinguer une valeur fournie par l'utilisateur du défaut automatique) qui ne se résout à 16 que si l'utilisateur ne le fixe pas. Le papier primaire confirme aussi que 16 est un choix issu d'une étude d'impact/tradeoff (§7.2), pas une constante imposée par l'architecture. Ces deux sources sont de nature différente (code du projet vs. article de recherche) et suffisent à trancher factuellement, même si elles proviennent globalement du même projet vLLM — la question posée (configurable ou non) est directement vérifiable par inspection du code, ce qui fait foi ici."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Contredit directement par deux sources primaires vérifiées : (1) le papier §7.2 mène une étude d'ablation sur la taille de bloc (1-256 tokens) et conclut '16 is large enough... Accordingly, vLLM sets its default BLOCK SIZE' — explicitement un défaut, pas une constante figée ; (2) le code source actuel de vLLM définit `DEFAULT_BLOCK_SIZE: ClassVar[int] = 16` mais expose `block_size` comme champ configurable via l'argument CLI `--block-size` (avec un flag interne `user_specified_block_size` pour tracer les overrides utilisateur). La claim inverse donc la réalité : c'est un paramètre réglable dont 16 est seulement la valeur par défaut."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Le papier original consacre sa section 7.2 « Impact of Block Size » à une étude d'ablation faisant varier la taille de bloc de 1 à 256, et conclut explicitement « vLLM sets its default block size as 16 » — un défaut choisi empiriquement, dont l'optimum diffère selon le workload (ShareGPT vs Alpaca), pas une constante figée. Le code source confirme : c'est un champ CacheConfig.block_size réglable via le flag --block-size ; seule nuance vraie dans l'énoncé : ce réglage est statique au lancement, vLLM ne le réajuste pas automatiquement en temps réel selon la charge."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « La taille de bloc par défaut de PagedAttention (16 tokens) est une constante architecturale figée du gestionnaire mémoire de vLLM, non un paramètre réglable selon la charge. »"
+    },
+    {
+      "id": null,
+      "section": "prefix-radix-caching",
+      "section_retained": false,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "RadixAttention (SGLang) organise le KV cache dans un radix tree dont les arêtes portent des sous-séquences de tokens de longueur variable, avec éviction LRU des feuilles protégée par un compteur de références par nœud et un ordonnanceur qui traite les requêtes par préfixe-partagé-le-plus-long-d'abord (équivalent à un parcours DFS de l'arbre) — obtenant des taux de hit mesurés de 50 à 99 % (52,4 % sur LLaVA-Next-34B, 74,1 % sur Vicuna-33B en traces de production) et jusqu'à 6,4x plus de débit que les systèmes de référence antérieurs.",
+      "original_statement": "RadixAttention (SGLang) organise le KV cache dans un radix tree dont les arêtes portent des sous-séquences de tokens de longueur variable, avec éviction LRU des feuilles protégée par un compteur de références par nœud et un ordonnanceur qui traite les requêtes par préfixe-partagé-le-plus-long-d'abord (équivalent à un parcours DFS de l'arbre) — obtenant des taux de hit mesurés de 50 à 99 % (52,4 % sur LLaVA-Next-34B, 74,1 % sur Vicuna-33B en traces de production) et jusqu'à 6,4x plus de débit que les systèmes de référence antérieurs.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 0,
+          "note": "Confirmé verbatim par le papier d'origine (arbre radix à arêtes de longueur variable, éviction LRU des feuilles avec compteur de références par nœud, ordonnancement préfixe-le-plus-long-d'abord = parcours DFS explicitement énoncé, taux 52,4% LLaVA-Next-34B / 74,1% Vicuna-33B / plage 50-99%, 6,4x vs Guidance/vLLM/LMQL). Aucune source secondaire indépendante de l'origine trouvée (budget WebSearch épuisé avant d'en localiser une) — claim auto-référentiel, métriques de production non reproductibles par un tiers."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Vérifié verbatim sur le texte intégral du PDF (extraction locale, pas seulement le résumé WebFetch) : radix tree à arêtes de longueur variable, éviction LRU des feuilles avec compteur de références par nœud, scheduling longest-shared-prefix-first prouvé équivalent DFS (Theorem 3.1), hit rate 50-99% sur les benchmarks, 52,4% LLaVA-Next-34B / 74,1% Vicuna-33B en déploiement production Chatbot Arena après un mois, et 6,4x de débit annoncé dès l'abstract pour SGLang/RadixAttention vs systèmes SOTA. Chaque chiffre du claim est retrouvé mot pour mot dans la source primaire."
+        }
+      ],
+      "audit_note": "Rejeté : 2 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+    },
+    {
+      "id": null,
+      "section": "prefix-radix-caching",
+      "section_retained": false,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "Le prefix caching automatique de vLLM identifie les blocs de KV cache réutilisables par une chaîne de hachage (hash du bloc parent + tokens exacts du bloc + hash additionnels comme LoRA ID / hash multimodal / cache_salt), ne hache que les blocs pleins, et gère l'éviction via une file libre doublement chaînée en ordre LRU où les blocs comptés par référence (ref_cnt > 0) sont protégés de l'éviction tant qu'une requête en cours les utilise.",
+      "original_statement": "Le prefix caching automatique de vLLM identifie les blocs de KV cache réutilisables par une chaîne de hachage (hash du bloc parent + tokens exacts du bloc + hash additionnels comme LoRA ID / hash multimodal / cache_salt), ne hache que les blocs pleins, et gère l'éviction via une file libre doublement chaînée en ordre LRU où les blocs comptés par référence (ref_cnt > 0) sont protégés de l'éviction tant qu'une requête en cours les utilise.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 0,
+          "note": "Confirmé verbatim par la doc design vLLM elle-même : hash = parent hash + tokens du bloc + extra hashes (LoRA IDs, hash multimodal, cache salts) ; \"We only cache full blocks\" ; éviction via file libre doublement chaînée en ordre LRU ; ref_cnt protège les blocs utilisés par une requête en cours. Source unique et auto-référentielle (vLLM décrivant son propre code) — aucun tiers indépendant trouvé pour corroborer ces détails internes."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Confirmé verbatim par deux fetches indépendants du même doc (vue GitHub + markdown brut) : hash = hash(parent hash, tuple des tokens du bloc, extra_keys incluant LoRA IDs / hash multimodal / cache salts), 'we only cache full blocks', file libre en doubly-linked list (prev_free_block/next_free_block) en ordre LRU, ref_cnt protège les blocs 'touched' (retirés de la file libre tant qu'utilisés)."
+        }
+      ],
+      "audit_note": "Rejeté : 2 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+    },
+    {
+      "id": null,
+      "section": "prefix-radix-caching",
+      "section_retained": false,
+      "retained": false,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "Idée reçue à départager : le prefix/radix caching (vLLM APC comme RadixAttention) serait un « free lunch » systématique qui accélère toute charge de travail — en réalité les deux mécanismes ne réduisent que la phase de prefill (compute-bound) ; sur une charge dominée par la génération (decode long) ou sans préfixes partagés entre requêtes, le gain de débit tend vers zéro alors que le hachage, le comptage de références et la gestion de la file LRU restent un coût système actif.",
+      "original_statement": "Idée reçue à départager : le prefix/radix caching (vLLM APC comme RadixAttention) serait un « free lunch » systématique qui accélère toute charge de travail — en réalité les deux mécanismes ne réduisent que la phase de prefill (compute-bound) ; sur une charge dominée par la génération (decode long) ou sans préfixes partagés entre requêtes, le gain de débit tend vers zéro alors que le hachage, le comptage de références et la gestion de la file LRU restent un coût système actif.",
+      "corroborated": 2,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Deux origines mutuellement indépendantes (projets/équipes distincts vLLM vs SGLang/LMSYS) confirment chacune le même principe : vLLM énonce explicitement qu'APC ne réduit que le prefill et n'apporte aucun gain quand les réponses sont longues ou sans préfixe partagé ; SGLang énonce que pour les sorties longues \"decoding time dominates, there is almost no speedup\", tout en précisant que le surcoût de gestion de l'arbre reste présent mais négligeable (<0,3%) en l'absence de hit — cohérent avec le libellé \"coût système actif\" du claim."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les deux mécanismes confirment le mythe démonté par deux sources indépendantes : vLLM dit verbatim 'APC only reduces... the prefilling phase and does not reduce... the decoding phase' et 'does not bring performance gain when... the length of the answer is long, or new queries do not share the same prefix' ; SGLang confirme 'for long outputs... there is almost no speedup' et mesure lui-même le coût résiduel du hachage/refcounting/LRU à <0,3% de surcoût même sans aucune opportunité de reuse — donc bien un 'coût actif' non nul, quoique les deux sources le décrivent comme négligeable en pratique (nuance que le claim n'affirme pas contredire, puisqu'il dit seulement 'reste actif', pas 'coûteux')."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 4,
+          "note": "Le cœur mécanique (prefill-only, gain nul si decode long ou sans préfixe partagé, hachage/ref-count/LRU comme coût actif) est vérifié mot pour mot pour vLLM APC dans docs/design/prefix_caching.md. Mais l'énoncé traite « les deux mécanismes » à égalité alors que le papier RadixAttention/SGLang ne formule jamais explicitement la restriction prefill-only ni le coût système en régime de gain nul — c'est une inférence plausible depuis le design (compteur de réf. + LRU confirmés, decode dit « memory-bound »), pas une citation. D'où holds=false : l'énoncé est globalement dans la bonne direction mais surattribue à SGLang une précision que seule la doc vLLM affirme explicitement, et présente comme repoussoir un « free lunch systématique » alors que la source vLLM elle-même dit « almost a free lunch » avec les deux exceptions déjà listées."
+        }
+      ],
+      "audit_note": "Confirmé : 2/3 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": null,
+      "section": "prefix-radix-caching",
+      "section_retained": false,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "vLLM formalise le workflow d'allocation de blocs autour de deux appels du scheduler — get_computed_blocks() (lookup par hash pour trouver les blocs déjà calculés) puis allocate_slots() (qui « touche » les blocs trouvés en incrémentant leur ref_cnt et en les retirant de la file libre, avant d'allouer les blocs manquants en tête de file libre, évinçant au passage tout bloc caché qui s'y trouve) — un mécanisme directement analogue à la pagination mémoire d'un OS.",
+      "original_statement": "vLLM formalise le workflow d'allocation de blocs autour de deux appels du scheduler — get_computed_blocks() (lookup par hash pour trouver les blocs déjà calculés) puis allocate_slots() (qui « touche » les blocs trouvés en incrémentant leur ref_cnt et en les retirant de la file libre, avant d'allouer les blocs manquants en tête de file libre, évinçant au passage tout bloc caché qui s'y trouve) — un mécanisme directement analogue à la pagination mémoire d'un OS.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 0,
+          "note": "Confirmé verbatim par la doc design vLLM : get_computed_blocks() fait le lookup par hash des blocs déjà calculés ; allocate_slots() incrémente ref_cnt et retire de la file libre les blocs trouvés, puis alloue les blocs manquants en tête de file libre en évinçant au passage tout bloc caché qui s'y trouve. Source unique et auto-référentielle (vLLM décrivant son propre scheduler) — aucune source tierce indépendante trouvée."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Le workflow get_computed_blocks()/allocate_slots() est confirmé mot pour mot (touch = incrémente ref_cnt + retire de la file libre ; 'Allocate new blocks by popping the heads of the free queue. If the head block is a cached block, this also evicts the block'). Seule réserve : l'analogie explicite 'pagination mémoire d'un OS' n'est pas formulée telle quelle sur cette page précise (deux fetches distincts confirment son absence littérale) — mais elle est fidèle à la philosophie de conception documentée de PagedAttention/vLLM elle-même (nom du mécanisme, papier SOSP d'origine), donc pas une distorsion, juste un ajout éditorial non sourcé mot-à-mot ici."
+        }
+      ],
+      "audit_note": "Rejeté : 2 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+    },
+    {
+      "id": "claim:7",
+      "section": "chunked-prefill-disaggregation",
+      "section_retained": true,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "SARATHI réduit l'interférence prefill/decode en interne au GPU colocalisé (sans désagrégation physique) via le chunked-prefill combiné au decode-maximal batching, avec des gains de débit de décodage jusqu'à 10x et des gains bout-en-bout jusqu'à 1.91x selon le modèle et la configuration matérielle.",
+      "original_statement": "SARATHI réduit l'interférence prefill/decode en interne au GPU colocalisé (sans désagrégation physique) via le chunked-prefill combiné au decode-maximal batching, avec des gains de débit de décodage jusqu'à 10x et des gains bout-en-bout jusqu'à 1.91x selon le modèle et la configuration matérielle.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 0,
+          "note": "Contenu vérifié mot pour mot dans l'abstract du papier (colocation confirmée, 10x et 1.91x exacts). Mais malgré recherche sur plusieurs fronts (2 surveys tiers ne mentionnent pas SARATHI, docs vLLM bloqué en 429 de façon répétée, Semantic Scholar bloqué, recherche GitHub sans résultat), aucune source indépendante ne corrobore ces chiffres : rejet single-source attendu pour un claim auto-référentiel de benchmark."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Abstract vérifié verbatim : « improves decode throughput by up to 10x » (LLaMA-13B/A6000) et « end-to-end throughput improvement of 1.91x » (GPT-3 + pipeline parallelism) — les deux chiffres max sont exacts et proviennent bien de configs différentes, correctement signalé par « selon le modèle et la configuration matérielle ». Le mot « interférence » n'apparaît pas dans l'abstract (framing principal = sous-utilisation GPU au decode + bulles de pipeline), mais la §5.2 du papier discute explicitement comment l'approche full-prefill d'Orca retarde les decodes en cours, donc le framing « réduit l'interférence » reste défendable sur le fond. Le papier est bien 100% colocalisé (GPU unique ou pipeline-parallel), aucune désagrégation physique."
+        }
+      ],
+      "audit_note": "Rejeté : 1 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+    },
+    {
+      "id": "claim:8",
+      "section": "chunked-prefill-disaggregation",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Sarathi-Serve étend le chunked-prefill en 'stall-free scheduling' — les nouvelles requêtes rejoignent un batch actif sans jamais interrompre les décodages en cours (mécanisme confirmé par des surveys tiers indépendants), sans recourir à une désagrégation physique des GPU ; le papier original (arXiv 2403.02310, source unique) rapporte 2.6x à 5.6x de capacité de service en plus qu'une baseline vLLM colocalisée, sous contrainte de latence de queue fixe.",
+      "original_statement": "Sarathi-Serve étend le chunked-prefill en 'stall-free scheduling' — les nouvelles requêtes rejoignent un batch actif sans jamais interrompre les décodages en cours — et démontre 2.6x à 5.6x de capacité de service en plus qu'une baseline vLLM colocalisée, sous contrainte de latence de queue fixe, sans recourir à une désagrégation physique des GPU.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le mécanisme stall-free/chunked-prefill colocalisé (sans désagrégation) est confirmé indépendamment par 2 surveys tiers qui citent explicitement Sarathi-Serve. Les chiffres précis 2.6x-5.6x proviennent uniquement du papier source lui-même — rejet single-source attendu pour la partie quantitative, malgré recherche complémentaire (blog vLLM confirme seulement l'existence/légitimité du papier, pas les chiffres)."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Abstract vérifié verbatim : « creates stall-free schedules that adds new requests in a batch without pausing ongoing decodes » — correspond à « sans jamais interrompre les décodages en cours ». Chiffres exacts : 2.6x (Mistral-7B/1×A100), jusqu'à 3.7x (Yi-34B/2×A100), jusqu'à 5.6x (Falcon-180B+PP) vs vLLM, « under tail latency constraints » — la plage 2.6x-5.6x annoncée est correcte et encadre bien les trois résultats. Toutes les configs testées (GPU unique, multi-GPU, pipeline parallelism) sont colocalisées, aucune désagrégation physique mentionnée."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Sarathi-Serve étend le chunked-prefill en 'stall-free scheduling' — les nouvelles requêtes rejoignent un batch actif sans jamais interrompre les décodages en cours — et démontre 2.6x à 5.6x de capacité de service en plus qu'une baseline vLLM colocalisée, sous contrainte de latence de queue fixe, sans recourir à une désagrégation physique des GPU. »"
+    },
+    {
+      "id": "claim:9",
+      "section": "chunked-prefill-disaggregation",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Les systèmes de désagrégation physique (DistServe, Splitwise, Mooncake) séparent prefill et décodage sur des pools de GPU distincts reliés par un transfert réseau du KV cache, ce qui découple l'allocation de ressources et la stratégie de parallélisme propres à chaque phase — un objectif que le seul ordonnancement colocalisé (même chunked) ne peut atteindre — et chacun rapporte des gains substantiels sur son propre benchmark.",
+      "original_statement": "Les systèmes de désagrégation physique (DistServe, Splitwise, Mooncake) séparent prefill et décodage sur des pools de GPU distincts reliés par un transfert réseau du KV cache, ce qui découple l'allocation de ressources et la stratégie de parallélisme propres à chaque phase — un objectif que le seul ordonnancement colocalisé (même chunked) ne peut atteindre — et chacun rapporte des gains substantiels sur son propre benchmark.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Architecture (pools GPU distincts, transfert réseau du KV cache, découplage ressources/parallélisme) confirmée indépendamment pour DistServe et Splitwise par 2 surveys tiers ; Mooncake confirmé seulement via sa source primaire mais sans ambiguïté (disaggregation est le sujet même du papier). Le claim hedge correctement les gains comme auto-rapportés ('chacun rapporte... sur son propre benchmark'), sans les affirmer comme vérifiés indépendamment — formulation prudente et exacte."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Les trois papiers confirment séparation prefill/decode sur machines/pools distincts + transfert réseau du KV cache (DistServe: 'assigns prefill and decoding computation to different GPUs' + transfert KV cache ~1.13GB/requête nécessitant interconnexion rapide ; Splitwise: 'splitting the two phases... onto separate machines' avec 'state transfer' ; Mooncake: 'KVCache-centric disaggregated architecture that separates the prefill and decoding clusters'). Le découplage ressources/parallélisme est explicite dans DistServe ('co-optimizes the resource allocation and parallelism strategy tailored for each phase' vs colocation qui 'couples' les deux) ; pour Splitwise/Mooncake c'est surtout le découplage matériel/ressources qui est explicite dans l'abstract (parallélisme non nommé littéralement mais implicite à la séparation physique). Gains substantiels confirmés pour chacun sur son propre benchmark : DistServe 7.4x plus de requêtes ou 12.6x SLO plus serré vs baseline ; Splitwise 1.4x débit à -20% coût, ou 2.35x débit à coût égal ; Mooncake jusqu'à +525% en simulation, +75% de requêtes en prod (Kimi)."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 5 sources indépendantes."
+    },
+    {
+      "id": "claim:10",
+      "section": "chunked-prefill-disaggregation",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "La désagrégation physique du prefill et du décodage (DistServe/Splitwise/Mooncake) élimine plus complètement l'interférence prefill/decode que l'ordonnancement colocalisé de type chunked-prefill/stall-free scheduling (Sarathi-Serve), mais au prix d'un coût de migration réseau du KV cache et d'une sous-utilisation de la mémoire GPU des replicas de prefill — un coût structurel que l'ajout de GPU supplémentaires ne supprime pas. Ni les auteurs des deux approches ni la littérature de synthèse ne tranchent en faveur d'une supériorité stricte et générale de la désagrégation.",
+      "original_statement": "La désagrégation physique du prefill et du décodage (DistServe/Splitwise/Mooncake) est une solution strictement supérieure à l'ordonnancement colocalisé de type chunked-prefill/stall-free scheduling (Sarathi-Serve) pour protéger la latence de décodage sous charge, rendant ce dernier une solution de repli inférieure dès que suffisamment de GPU sont disponibles pour désagréger.",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 3,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Réfuté par les sources primaires elles-mêmes, lues intégralement : Sarathi-Serve (2403.02310) écrit 'We leave a quantitative comparison between Sarathi-Serve and disaggregation-based solutions for future work' et liste des inconvénients structurels persistants de la désagrégation (migration KV cache, sous-utilisation mémoire) ; DistServe (2401.09670) concède que le chunked-prefill 'may be preferred' en scénario orienté débit sans contrainte de latence stricte. Aucun des 2 surveys indépendants ne déclare l'une des approches strictement supérieure — la formulation 'strictement supérieure'/'solution de repli inférieure' est une sur-généralisation non supportée par la littérature."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "DistServe ne compare empiriquement qu'à vLLM colocalisé (scheduling par itération), jamais à Sarathi-Serve/chunked-prefill stall-free — il cite SARATHI en related work sans benchmark comparatif direct. Sarathi-Serve, de son côté, se compare aussi uniquement à vLLM (2.6x-5.6x). Les deux lignées de gains (7.4x/12.6x pour DistServe, 2.6x-5.6x pour Sarathi-Serve) sont mesurées contre la même famille de baseline faible mais sur workloads/matériel différents, donc non transitives — rien dans les sources ne permet de conclure à une supériorité stricte. DistServe documente lui-même des coûts réels de la désagrégation (bande passante réseau pour le transfert KV cache, ~90Gbps pour 10 req/s, overhead 'négligeable' seulement grâce à NVLink 600GB/s intra-nœud ; tolérance aux pannes explicitement laissée en travail futur ; convoy effect FCFS). Le claim inverse aussi la logique de scaling : plus de GPU disponibles ne suffit pas à rendre la désagrégation supérieure si l'interconnexion entre pools n'est pas assez rapide."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Vérifié via lecture intégrale (texte PDF, pas seulement l'abstract) des deux papiers sources fournis. Sarathi-Serve §6 déclare explicitement laisser la comparaison quantitative à la désagrégation comme \"future work\" ; DistServe §7 (Discussion) identifie lui-même des scénarios (throughput-optimized, resource-constrained) où le chunked-prefill colocalisé reste préférable pour des raisons autres que la disponibilité de GPU — ce qui contredit directement la clause \"solution de repli inférieure dès que suffisamment de GPU sont disponibles\" de l'énoncé."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « La désagrégation physique du prefill et du décodage (DistServe/Splitwise/Mooncake) est une solution strictement supérieure à l'ordonnancement colocalisé de type chunked-prefill/stall-free scheduling (Sarathi-Serve) pour protéger la latence de décodage sous charge, rendant ce dernier une solution de repli inférieure dès que suffisamment de GPU sont disponibles pour désagréger. »"
+    },
+    {
+      "id": "claim:11",
+      "section": "metriques-slo-goodput",
+      "section_retained": true,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "contestable",
+      "statement": "L'augmentation du degré de parallélisme tenseur (intra-op) réduit le TTFT de façon quasi linéaire avec le nombre de GPU.",
+      "original_statement": "L'augmentation du degré de parallélisme tenseur (intra-op) réduit le TTFT de façon quasi linéaire avec le nombre de GPU.",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 3,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 0,
+          "note": "La seule source candidate (DistServe, arXiv:2401.09670) réfute elle-même l'énoncé : le papier formalise le speedup du parallélisme tenseur avec un coefficient K sous-linéaire (1<K<2 pour un degré 2) explicitement attribué aux surcoûts de communication, à l'opposé de « quasi linéaire ». Vérifié via la version HTML complète du papier (arxiv.org/html/2401.09670), section sur le TTFT en intra-op parallelism."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Contredit texto par la source elle-même : §3.1 introduit un « speedup coefficient K, où 1 < K < 2, reflecting the imperfect speedup caused by high communication overheads of intra-op parallelism », et l'Avg_TTFT_intra dérivée (Eq. 3) intègre ce K borné — c'est l'opposé d'une réduction quasi linéaire. Le papier ajoute qu'à débit croissant, l'inter-op « gains superiority » sur l'intra-op pour le TTFT."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "La source primaire (DistServe, Zhong et al. 2024) modélise explicitement le TTFT sous parallélisme intra-op avec un coefficient de speedup K où 1<K<2 (pour un partitionnement à 2 voies) — donc un gain strictement sous-linéaire, jamais un doublement complet pour un doublement des GPU — et attribue cet écart aux « high communication overheads », notant des rendements décroissants à mesure que le degré augmente ; ceci contredit directement l'affirmation de scaling « quasi linéaire ». Limite : le contenu exact du papier a été lu via WebFetch (résumé par un modèle intermédiaire, pas de lecture brute du PDF/HTML par moi-même) ; les citations et l'équation (D/K + RD²/2K(K−RD)) sont cohérentes entre deux extractions indépendantes (rendu /pdf et /html), ce qui renforce la confiance mais ne remplace pas une relecture humaine du PDF source."
+        }
+      ],
+      "audit_note": "Rejeté : 0 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+    },
+    {
+      "id": "claim:12",
+      "section": "metriques-slo-goodput",
+      "section_retained": true,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "Le goodput, tel que formalisé par DistServe, est le débit de requêtes maximal soutenable par GPU provisionné tout en respectant conjointement des cibles d'attainment SLO pour le TTFT et le TPOT (p.ex. P90 des deux sous 90% d'attainment) — ce n'est pas un simple débit en tokens/s.",
+      "original_statement": "Le goodput, tel que formalisé par DistServe, est le débit de requêtes maximal soutenable par GPU provisionné tout en respectant conjointement des cibles d'attainment SLO pour le TTFT et le TPOT (p.ex. P90 des deux sous 90% d'attainment) — ce n'est pas un simple débit en tokens/s.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 0,
+          "note": "Vérifié mot pour mot dans le texte intégral de DistServe (arxiv.org/html/2401.09670) : « goodput, defined as the maximum request rate that can be served adhering to the SLO attainment goal (say, 90%) for each GPU provisioned », avec attainment conjoint TTFT+TPOT évalué en P90 dans l'évaluation. C'est une formalisation auto-référentielle (le claim attribue explicitement la définition à DistServe) : la seule source faisant foi est le papier lui-même ; aucune tierce source indépendante n'a pu être vérifiée dans le budget de recherche disponible (WebSearch épuisé en session)."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Confirmé mot pour mot : DistServe définit le per-GPU goodput comme « the maximum request rate that can be served adhering to the SLO attainment goal (say, 90%) for each GPU provisioned », contraint par « the more stringent one of TTFT and TPOT requirements » (ex. numérique : 1.6 rps sur A100). Figure 1 illustre précisément via P90 TTFT / P90 TPOT vs ligne SLA, cohérent avec l'exemple donné dans le claim. Claim auto-référentiel à la définition du papier source — mono-source attendu et suffisant ici."
+        }
+      ],
+      "audit_note": "Rejeté : 2 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+    },
+    {
+      "id": "claim:13",
+      "section": "metriques-slo-goodput",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "La latence de bout en bout d'une requête se décompose additivement en TTFT + TPOT × (nombre de tokens générés), et MFU/MBU sont les métriques d'efficacité complémentaires des deux phases : MFU (utilisation FLOPS) pour le prefill compute-bound, MBU (bande passante mémoire atteinte / crête) pour le decode memory-bound.",
+      "original_statement": "La latence de bout en bout d'une requête se décompose additivement en TTFT + TPOT × (nombre de tokens générés), et MFU/MBU sont les métriques d'efficacité complémentaires des deux phases : MFU (utilisation FLOPS) pour le prefill compute-bound, MBU (bande passante mémoire atteinte / crête) pour le decode memory-bound.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "La décomposition latence = TTFT + TPOT × tokens générés est confirmée mot pour mot par Databricks (« latency = (TTFT) + (TPOT) × (the number of tokens to be generated) ») ET indépendamment par DistServe (« overall request latency equals TTFT plus TPOT times the number of generated tokens »). Le MFU (compute-bound) est confirmé par Databricks ET par Pope et al. (76% MFU en large-batch prefill) — deux sources indépendantes (Databricks vs Google Research). Le MBU (bande passante atteinte/crête) est défini précisément par Databricks ; sa complémentarité avec MFU pour le régime memory-bound du decode est cohérente avec l'analyse roofline de Pope et al., mais l'acronyme MBU lui-même n'est attesté que par la source Databricks — nuance mineure qui ne remet pas en cause l'énoncé général."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Décomposition additive confirmée par deux sources indépendantes texto : DistServe note 1 p.2 « The overall request latency equals TTFT plus TPOT times the number of generated tokens » et Databricks « latency = (TTFT) + (TPOT) * (the number of tokens to be generated) ». MFU (compute-bound/prefill) et MBU (bande passante atteinte/crête, memory-bound/decode) sont définis explicitement par Databricks (MBU = achieved BW / peak BW, achieved BW = (params+KV)/TPOT) ; l'association MFU↔compute-bound est corroborée indépendamment par Pope et al. (76% MFU en traitement de type prefill à grand batch). DistServe n'emploie pas ces sigles mais sa distinction compute-bound (prefill) / memory-bandwidth-bound (decode) est cohérente, sans contredire."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:14",
+      "section": "metriques-slo-goodput",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "vLLM instrumente concrètement cette fonction objectif : il expose vllm:time_to_first_token_seconds et vllm:inter_token_latency_seconds (documenté explicitement comme le TPOT) en histogrammes Prometheus par requête, calcule le TTFT relativement à l'arrival_time de la requête (englobant le temps de tokenisation), et offre une API de métriques par requête optionnelle pour le suivi individuel SLO/facturation.",
+      "original_statement": "vLLM instrumente concrètement cette fonction objectif : il expose vllm:time_to_first_token_seconds et vllm:inter_token_latency_seconds (documenté explicitement comme le TPOT) en histogrammes Prometheus par requête, calcule le TTFT relativement à l'arrival_time de la requête (englobant le temps de tokenisation), et offre une API de métriques par requête optionnelle pour le suivi individuel SLO/facturation.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 0,
+          "note": "Vérifié mot pour mot dans la documentation officielle vLLM : vllm:time_to_first_token_seconds et vllm:inter_token_latency_seconds sont bien des histogrammes Prometheus (metrics.md), TPOT est explicitement le nom documenté de l'inter-token latency, le TTFT est calculé relativement à arrival_time qui « starts when tokenization begins » (englobe la tokenisation), et une API de métriques par requête optionnelle (--enable-per-request-metrics) existe explicitement pour le billing/SLA monitoring (per_request_metrics.md). Claim auto-référentiel sur le comportement propre de vLLM : les deux documents consultés proviennent du même dépôt (vllm-project/vllm), donc non indépendants l'un de l'autre — mais c'est la source primaire faisant foi pour ce que vLLM implémente. Aucune tierce source indépendante trouvée (WebSearch épuisé en session)."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Vérifié sur le texte brut (raw.githubusercontent.com, pas seulement le résumé WebFetch) : vllm:time_to_first_token_seconds et vllm:inter_token_latency_seconds sont bien des Histograms Prometheus par requête, ce dernier explicitement libellé « Inter-token latency (Time Per Output Token, TPOT) » dans la section dashboard Grafana. Le TTFT est calculé « relative to when the request was first received by the frontend (arrival_time)… arrival_time starts when tokenization begins » — englobe donc la tokenisation. L'API per-request (flag optionnel --enable-per-request-metrics) est documentée pour billing/SLA monitoring/latency analysis individuel. Les deux fichiers sont la même source primaire (doc officielle vLLM) — claim auto-référentiel sur l'outil lui-même, mono-source-projet attendu et suffisant."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:15",
+      "section": "routage-autoscaling-multimodeles",
+      "section_retained": true,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "AlpaServe shows that placing multiple distinct models across a shared GPU cluster with model-parallel placement (statistical multiplexing) rather than dedicating fixed replicas per model raises aggregate throughput up to 10x or tolerates 6x more traffic burstiness while keeping over 99% of requests within latency SLOs.",
+      "original_statement": "AlpaServe shows that placing multiple distinct models across a shared GPU cluster with model-parallel placement (statistical multiplexing) rather than dedicating fixed replicas per model raises aggregate throughput up to 10x or tolerates 6x more traffic burstiness while keeping over 99% of requests within latency SLOs.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 0,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Les chiffres (10x débit / 6x rafales / >99% SLO) collent mot pour mot à l'abstract du papier OSDI'23, source primaire vérifiée — contenu exact. Mais aucune seconde source réellement indépendante trouvée : github.com/alpa-projects/mms est le code officiel des mêmes auteurs (même origine), et CatalyzeX/AITopics ne font que reciter l'abstract (miroir, exclu par la règle du rôle). Faute d'indépendance, je penche holds=false malgré l'exactitude du contenu."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Abstract matches almost verbatim: 'process requests at up to 10x higher rates' / '6x more burstiness' / 'more than 99% of requests' within latency constraints. Only checked the arXiv primary source (also tried the alpa-projects/mms GitHub repo and an OSDI page, but those are the same authors' code repo / were unreachable, so not independent corroboration; WebSearch budget was exhausted before a truly independent second source could be found)."
+        }
+      ],
+      "audit_note": "Rejeté : 1 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+    },
+    {
+      "id": "claim:16",
+      "section": "routage-autoscaling-multimodeles",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Llumnix migrates an in-flight LLM request's KV cache to another GPU instance with only 20-30ms of generation downtime, by copying already-generated KV blocks stage-by-stage while decode continues and pausing only for the last iteration's blocks.",
+      "original_statement": "Llumnix migrates an in-flight LLM request's KV cache to another GPU instance with only 20-30ms of generation downtime, by copying already-generated KV blocks stage-by-stage while decode continues and pausing only for the last iteration's blocks.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le mécanisme (copie par étapes des blocs KV déjà générés pendant que le decode continue, pause seulement pour le dernier bloc) et le chiffre '20-30 ms' sont confirmés mot pour mot dans le papier primaire (§4.2/6.2). Un blog technique tiers indépendant reproduit le même mécanisme de pré-copie par étapes et rapporte un downtime du même ordre de grandeur (~1.5 ms sur un setup différent, LLaMA-7B/NVLink), confirmant qualitativement l'architecture."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Paper confirms the exact mechanism (stage-0 copies completed-iteration KV blocks while decode continues, final stage suspends only to copy the last block) and the exact figure: 'the downtime of migration is nearly constant... roughly 20-30 ms, even shorter than a single decode step.' GitHub repo (AlibabaPAI/llumnix) corroborates 'near-zero overhead' migration but is the same project/authors, not an independent second source."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:17",
+      "section": "routage-autoscaling-multimodeles",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Prefix-cache-aware and load-aware routing across replicas materially outperforms naive round-robin/least-connections routing for LLM serving, because unlike stateless web requests, a request's performance depends on whether the chosen replica already holds its KV-cache prefix.",
+      "original_statement": "Prefix-cache-aware and load-aware routing across replicas materially outperforms naive round-robin/least-connections routing for LLM serving, because unlike stateless web requests, a request's performance depends on whether the chosen replica already holds its KV-cache prefix.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "llm-d (origine du claim) documente le routage prefix-cache/load-aware avec 3x débit / 2x TTFT vs round-robin. Preble, papier académique d'une équipe indépendante (WukLab), confirme séparément la thèse générale : un routage round-robin naïf ignore le partage de préfixe inter-GPU et dégrade la latence de 1.5-14.5x (moyenne) / 2-10x (p99) vs un ordonnancement conscient du cache KV. Deux sources indépendantes convergentes."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "llm-d README explicitly advertises prefix-cache- and load-aware balancing and reports a concrete benchmark ('3x higher output throughput and 2x faster TTFT with prefix-cache-aware routing vs round-robin — Llama 3.1 70B on 4x AMD MI300X'), supporting 'materially outperforms.' The causal claim about KV-cache statefulness is architecturally sound but the only quantitative evidence found is a single vendor's self-reported benchmark, not an independent academic replication (WebSearch budget exhausted before a second source, e.g. Mooncake/Preble/SGLang scheduling papers, could be checked)."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:18",
+      "section": "routage-autoscaling-multimodeles",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Une migration naïve du KV cache exigerait effectivement de tuer la requête et de refaire le prefill, mais des systèmes comme Llumnix montrent que la migration live d'une génération LLM en cours entre répliques GPU est réalisable à des budgets de latence pertinents en production (downtime d'environ 20-30 ms) en copiant en arrière-plan les blocs KV déjà générés pendant que le decode continue, avec une pause limitée aux derniers blocs delta.",
+      "original_statement": "Because GPUs are stateless accelerators and a request's KV cache lives only in one GPU's HBM, migrating an in-flight LLM generation to a different GPU replica must mean killing the request and re-running its full prefill from scratch — live migration at production-relevant latency budgets is not practically achievable.",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 3,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 0,
+          "note": "Directement réfuté par la source même citée à l'appui : Llumnix (arXiv 2406.03243) démontre précisément qu'une migration live est possible en production sans tuer la requête ni refaire le prefill, via copie par étapes des blocs KV déjà générés. Confirmé indépendamment par le blog technique tiers zhongzhuzhou.org qui reproduit le même mécanisme — cas classique de rejet-réfuté (la source candidate contredit l'énoncé qu'elle est censée soutenir)."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "This claim's conclusion is directly contradicted by claim [1]'s own source: Llumnix performs live KV-cache migration without killing the request or re-running full prefill, with only ~20-30ms downtime (vs. naive recomputation which the paper says can be up to 111x slower). The premise 'must mean killing the request' is false — incremental block-by-block copying is exactly how Llumnix avoids that."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Primary-source check on the Llumnix paper (arXiv 2406.03243) directly refutes the premise: it implements live migration of in-flight requests, including KV cache, by pipelining cache-block transfer with decode and pausing only for a final one-iteration handshake, achieving ~20-30ms migration downtime independent of context length (vs. ~3.5s to redo an 8k-token prefill on LLaMA-30B — 111x worse per the paper) and ~1% impact on co-located requests. So no kill-and-full-reprefill is required, and the \"not practically achievable\" claim is false. Caveat: both cited URLs are the abstract page and full-text HTML of the *same* single paper (arXiv preprint of a system later presented at OSDI'24), not two independent works — WebSearch quota for this session was exhausted before I could pull a second, distinct corroborating source (e.g. a citing paper or the OSDI proceedings page, which returned 403 on direct fetch), so this verdict rests on one authoritative primary source rather than two independent ones. Confidence remains high because the claim under test is an impossibility/infeasibility claim, and one credible, quantified, working counter-system is sufficient to falsify it."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « Because GPUs are stateless accelerators and a request's KV cache lives only in one GPU's HBM, migrating an in-flight LLM generation to a different GPU replica must mean killing the request and re-running its full prefill from scratch — live migration at production-relevant latency budgets is not practically achievable. »"
+    },
+    {
+      "id": "claim:19",
+      "section": "limites-tradeoffs-idees-recues",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "Le paging du KV cache (PagedAttention) n'est pas une nécessité absolue pour un serving LLM performant : garder le KV cache virtuellement contigu via les API CUDA VMM peut faire mieux.",
+      "original_statement": "Le paging du KV cache (PagedAttention) n'est pas une nécessité absolue pour un serving LLM performant : garder le KV cache virtuellement contigu via les API CUDA VMM peut faire mieux.",
+      "corroborated": 2,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 0,
+          "note": "J'ai ouvert arXiv:2405.04437 (vAttention) : il soutient bien le claim (jusqu'à 1.23x de débit en plus vs PagedAttention en gardant le KV cache virtuellement contigu via CUDA VMM) — mais c'est l'origine même du claim, pas une source indépendante. Le blog vLLM (vllm.ai/blog/2023-06-20-vllm) est l'annonce originale de PagedAttention : il documente les bénéfices du paging (fragmentation réduite de 60-80% à <4%) mais ne confirme en rien l'affirmation inverse de vAttention. J'ai aussi vérifié le blog vLLM (vllm.ai/blog) et son post V1 (janv. 2025) : aucune mention de vAttention ni d'un abandon du paging. Budget WebSearch épuisé en session avant d'avoir pu chercher une tierce partie indépendante corroborant le résultat de vAttention — faute d'une deuxième source indépendante, je penche vers holds=false plutôt que d'affirmer une conclusion établie."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "vAttention explicitly argues PagedAttention's non-contiguous layout imposes real overhead and reports up to 1.23x higher throughput than PagedAttention-based FlashAttention/FlashInfer kernels by keeping the KV cache virtually contiguous via CUDA VMM APIs — matches the claim's hedged wording ('peut faire mieux', not 'est toujours meilleur'). Caveat: this rests on one systems paper's self-reported, modest (1.23x) gain, not on broad independent replication; the vLLM blog only establishes what PagedAttention does, it does not corroborate the VMM counter-claim itself."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "L'énoncé correspond exactement à la thèse et au titre du papier vAttention (arXiv:2405.04437, ASPLOS 2025) : « Dynamic Memory Management for Serving LLMs without PagedAttention ». Le papier propose explicitement de garder le KV cache contigu en mémoire virtuelle via les API CUDA VMM bas niveau (cuMemAddressReserve, cuMemCreate, cuMemMap, cuMemSetAccess) plutôt que d'adopter le layout non contigu de PagedAttention, et rapporte des gains mesurés contre des noyaux PagedAttention (FlashAttention/FlashInfer) — jusqu'à 1,97x en decode vs vLLM et jusqu'à 3,92x/1,45x en prefill selon les sections du papier (le résumé condensé cite « jusqu'à 1,23x » en agrégé selon une lecture automatisée de l'abstract ; les chiffres varient selon la phase/le noyau mais tous vont dans le sens de « peut faire mieux »). Le blog vLLM confirme en creux le problème que PagedAttention résout (60-80% de mémoire gaspillée sans lui), ce qui situe correctement le périmètre de la comparaison. L'énoncé étant hedgé avec « peut faire mieux » (pas « fait toujours mieux »), il tient tel quel sans déformation de périmètre ni de causalité ; attribution correcte (papier vAttention, pas vLLM lui-même)."
+        }
+      ],
+      "audit_note": "Confirmé : 2/3 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:20",
+      "section": "limites-tradeoffs-idees-recues",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "DistServe cible explicitement la latence sous contrainte SLO (goodput, jusqu'à 7.4x plus de requêtes servies dans les bornes TTFT/TPOT) plutôt que le débit brut ; Splitwise, en revanche, formule son objectif principal comme le débit, le coût et la puissance à budget matériel fixé (SLO traité comme contrainte de fond, pas comme métrique headline) — regrouper les deux sous une même bannière « latence/SLO plutôt que débit » sur-généralise le positionnement de Splitwise.",
+      "original_statement": "La désagrégation prefill/decode (DistServe, Splitwise) cible la latence sous contrainte SLO (goodput/tail latency) plutôt que d'augmenter mécaniquement le débit brut par GPU.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Deux équipes distinctes et indépendantes l'une de l'autre : DistServe (Hao AI Lab, UC Berkeley/UCSD) déclare explicitement viser le goodput sous contraintes TTFT/TPOT plutôt que le débit brut (« DistServe significantly improves LLM serving performance in terms of the maximum rate that can be served within both TTFT and TPOT constraints »). Splitwise (Microsoft Azure Research, équipe distincte) confirme via le corps du papier (pas juste l'abstract) que ses clusters sont dimensionnés sous neuf SLOs P50/P90/P99 de TTFT/TBT/E2E (« To determine the maximum throughput... we use P50, P90, and P99 SLOs for TTFT, TBT, and E2E latency metrics » ; « we require all nine SLOs to be met ») — le débit n'est optimisé QUE sous ces contraintes de latence, pas de façon brute. J'ai exclu haoailab.com/blogs/distserve/ des sources indépendantes : c'est un blog écrit par les MÊMES auteurs que le papier DistServe (Hao AI Lab @ UCSD), donc pas indépendant de l'origine."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "DistServe's own framing matches the claim closely (goodput under TTFT/TPOT SLOs, explicit contrast with raw throughput). Splitwise's stated objectives are throughput, cost, and power at a given hardware budget — latency/SLO is not the paper's headline optimization target, it is a boundary condition. Grouping both papers under one 'targets latency, not throughput' banner overstates Splitwise's positioning."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « La désagrégation prefill/decode (DistServe, Splitwise) cible la latence sous contrainte SLO (goodput/tail latency) plutôt que d'augmenter mécaniquement le débit brut par GPU. »"
+    },
+    {
+      "id": "claim:21",
+      "section": "limites-tradeoffs-idees-recues",
+      "section_retained": true,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "Le chunked prefill (Sarathi-Serve) échange la vitesse de complétion du prefill contre la fluidité du decode via un paramètre de réglage explicite (token budget), et non gratuitement.",
+      "original_statement": "Le chunked prefill (Sarathi-Serve) échange la vitesse de complétion du prefill contre la fluidité du decode via un paramètre de réglage explicite (token budget), et non gratuitement.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 0,
+          "note": "Vérifié directement dans le corps du papier Sarathi-Serve (arXiv:2403.02310, version HTML) : « Sarathi-Serve first calculates the budget of maximum number of tokens that can be executed in a batch based on user specified SLO » et « From a TBT minimization point of view, a smaller token budget is preferable... However, smaller token budget can result in excessive chunking of prefills resulting in overheads... one needs to take into account the trade-offs between prefill overhead and decode latency while determining the token budget » — le claim est exact et précis (paramètre explicite, arbitrage non gratuit, valeurs testées 512/1024/1536/2048). C'est un claim auto-référentiel sur le mécanisme interne du système lui-même : source unique attendue, aucune source indépendante n'existe ni n'est pertinente à chercher pour ce type d'énoncé."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "The paper's own chunked-prefill mechanism splits a prefill into near-equal chunks sized by an explicit token budget: larger chunks finish the prefill faster but increase decode-token latency variance (stalls), smaller chunks smooth decode latency at the cost of slower prefill completion — an explicit, operator-tuned knob, not a free lunch. This is a claim about the paper's own described mechanism, so a single primary source is the correct standard here (no external corroboration needed for how a system's own scheduler works)."
+        }
+      ],
+      "audit_note": "Rejeté : 2 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+    },
+    {
+      "id": "claim:22",
+      "section": "limites-tradeoffs-idees-recues",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Les chiffres de benchmark de débit publiés pour un même système (SGLang) varient significativement selon la date et la version des systèmes comparés.",
+      "original_statement": "Les chiffres de benchmark de débit publiés pour un même système (SGLang) varient significativement selon la date et la version des systèmes comparés.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 0,
+          "note": "Vérifié par comparaison directe des deux publications SGLang elles-mêmes : le blog LMSYS du 17 janvier 2024 (lmsys.org/blog/2024-01-17-sglang) rapporte « up to 5x higher throughput » vs vllm v0.2.5, guidance v0.1.8 et TGI v1.3.0 ; le papier arXiv:2312.07104 (révision v2, 6 juin 2024, mêmes auteurs) rapporte « up to 6.4x higher throughput compared to state-of-the-art inference systems ». Le chiffre a bien varié selon la date et les versions des systèmes comparés, exactement comme l'énonce le claim. Cependant les deux sources partagent la même origine (équipe LMSYS/SGLang) : elles ne sont pas indépendantes entre elles, donc aucune n'est listée en independent_sources malgré la vérification de contenu réussie — pour ce type de claim méta-observationnel sur l'évolution des chiffres auto-rapportés d'un même projet, une tierce source indépendante n'apporterait rien de plus probant que la comparaison directe des deux publications d'origine ; le budget WebSearch de la session étant épuisé, je n'ai pas pu chercher un commentaire tiers indépendant sur cette variabilité."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Directly verified date/version-dependence: arXiv v1 (Dec 2023) claims 'up to 5x' throughput speedup while the current v2 (June 2024) claims 'up to 6.4x' for the same system; the Jan 2024 lmsys blog separately reports '~5x' against explicitly pinned old competitor versions (vLLM v0.2.5, Guidance v0.1.8, TGI v1.3.0). Caveat: paper and blog share the same authoring team (not fully independent research groups), but they are distinct documents at different dates, which is exactly the axis of variation the claim describes."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:23",
+      "section": "ecosysteme-pour-aller-plus-loin",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Orca a introduit le scheduling au niveau de l'itération (continuous batching), un paradigme d'ordonnancement devenu la base standard de quasiment tous les moteurs de serving majeurs actuels.",
+      "original_statement": "Orca a introduit le scheduling au niveau de l'itération (continuous batching), un paradigme d'ordonnancement devenu la base standard de quasiment tous les moteurs de serving majeurs actuels.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 4,
+          "note": "Confirmé à la source primaire (page USENIX Orca, abstract) : Orca introduit explicitement le \"iteration-level scheduling\". Trois moteurs majeurs actuels (vLLM, SGLang, TensorRT-LLM) confirment chacun, dans leur propre documentation, avoir le continuous/in-flight batching comme fonctionnalité standard — TensorRT-LLM reprend même le terme \"iteration-level batching\". Aucun des trois ne cite Orca nommément dans le texte consulté, mais l'adoption factuelle du paradigme est bien établie par 3 sources indépendantes."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "vLLM et SGLang implémentent et documentent explicitement le continuous batching, et le papier DistServe corrobore l'attribution de l'origine ('iteration-level scheduling') à Orca (Yu et al. 2022). Le papier Orca lui-même (usenix.org) est resté inaccessible cette session (403 sur la page et le PDF) donc non relu directement ; nuance mineure : TensorRT-LLM n'a pas explicitement fait apparaître ce terme dans le README consulté (le projet utilise en pratique le terme 'in-flight batching', connu par ailleurs mais non confirmé dans l'extrait obtenu)."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 5 sources indépendantes."
+    },
+    {
+      "id": "claim:24",
+      "section": "ecosysteme-pour-aller-plus-loin",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "La gestion paginée du KV cache introduite par PagedAttention (vLLM, SOSP 2023) est devenue la référence de facto en gestion mémoire, reprise par les moteurs et couches d'orchestration ultérieurs.",
+      "original_statement": "La gestion paginée du KV cache introduite par PagedAttention (vLLM, SOSP 2023) est devenue la référence de facto en gestion mémoire, reprise par les moteurs et couches d'orchestration ultérieurs.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "PagedAttention/vLLM (arXiv 2309.06180, SOSP 2023) et le blog vLLM sont l'origine du claim, donc exclus des sources indépendantes. En revanche TensorRT-LLM (NVIDIA), Dynamo (couche d'orchestration NVIDIA) et SGLang confirment chacun, indépendamment, avoir repris une gestion paginée/par blocs du KV cache — TensorRT-LLM ne cite pas vLLM nommément mais le mécanisme est fonctionnellement le même paradigme block-based. Trois reprises indépendantes suffisent à soutenir \"référence de facto\"."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Le papier et le blog vLLM confirment le mécanisme de pagination du KV cache (blocs non contigus, <4% de gaspillage), et SGLang confirme explicitement sa réutilisation. TensorRT-LLM (paged KV cache, bien documenté par ailleurs) et les couches d'orchestration (Dynamo/llm-d/AIBrix, qui font du routage sensible au KV cache) corroborent une adoption large, mais aucun de ces extraits consultés cette session ne cite littéralement 'PagedAttention' — reprise conceptuelle confirmée, terme exact non recoupé partout."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 5 sources indépendantes."
+    },
+    {
+      "id": "claim:25",
+      "section": "ecosysteme-pour-aller-plus-loin",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Au-dessus des moteurs de serving eux-mêmes, une nouvelle couche de projets d'orchestration Kubernetes-native (llm-d, AIBrix, NVIDIA Dynamo) a émergé spécifiquement pour ajouter routage sensible au KV cache, désagrégation prefill/decode et autoscaling piloté par SLO par-dessus vLLM/SGLang/TensorRT-LLM, plutôt que pour les remplacer.",
+      "original_statement": "Au-dessus des moteurs de serving eux-mêmes, une nouvelle couche de projets d'orchestration Kubernetes-native (llm-d, AIBrix, NVIDIA Dynamo) a émergé spécifiquement pour ajouter routage sensible au KV cache, désagrégation prefill/decode et autoscaling piloté par SLO par-dessus vLLM/SGLang/TensorRT-LLM, plutôt que pour les remplacer.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Les trois README confirment, indépendamment, le positionnement \"couche d'orchestration K8s-native au-dessus des moteurs, pas un remplacement\", avec routage KV-aware et autoscaling SLO. La désagrégation prefill/decode est explicitement nommée pour llm-d et Dynamo ; le README top-level d'AIBrix (vérifié via raw GitHub, 96 lignes) ne la mentionne pas nommément dans sa liste de \"Key Features\" — d'où la correction mineure."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Fortement confirmé : Dynamo se décrit littéralement comme 'the orchestration layer above inference engines — it doesn't replace SGLang, TensorRT-LLM, or vLLM', avec routage KV-aware, désagrégation prefill/decode et autoscaling SLA-driven ; llm-d confirme les mêmes quatre capacités au-dessus de vLLM/SGLang. Nuance mineure : le README AIBrix consulté met l'accent sur vLLM spécifiquement et ne liste pas explicitement la désagrégation prefill/decode parmi ses fonctionnalités (silence de l'extrait, pas forcément absence réelle du projet)."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:26",
+      "section": "ecosysteme-pour-aller-plus-loin",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "Les multiplicateurs de throughput revendiqués par chaque moteur/papier (Orca 36,9x, vLLM 24x, SGLang jusqu'à 6,4x, DistServe 7,4x/12,6x, Splitwise 1,4-2,35x) sont souvent lus comme un classement de performance directement comparable entre les moteurs actuels — alors qu'ils sont mesurés contre des baselines, workloads et époques différents, et ne peuvent donc pas être chaînés pour classer vLLM, SGLang et TensorRT-LLM entre eux aujourd'hui.",
+      "original_statement": "Les multiplicateurs de throughput revendiqués par chaque moteur/papier (Orca 36,9x, vLLM 24x, SGLang jusqu'à 6,4x, DistServe 7,4x/12,6x, Splitwise 1,4-2,35x) sont souvent lus comme un classement de performance directement comparable entre les moteurs actuels — alors qu'ils sont mesurés contre des baselines, workloads et époques différents, et ne peuvent donc pas être chaînés pour classer vLLM, SGLang et TensorRT-LLM entre eux aujourd'hui.",
+      "corroborated": 3,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 7,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 5,
+          "note": "Les 5 chiffres cités (Orca 36.9x, vLLM 24x, SGLang jusqu'à 6.4x, DistServe 7.4x/12.6x, Splitwise 1.4-2.35x) sont tous confirmés mot pour mot depuis leur source primaire respective. Chaque source montre un baseline, un workload et une époque différents (FasterTransformer/GPT-3-175B 2022 ; HuggingFace/TGI sur ShareGPT 2023 ; \"state-of-the-art systems\" non nommés en 2024 pour SGLang et DistServe ; baseline coût/puissance normalisée pour Splitwise) — ce qui soutient directement la thèse du claim : ces multiplicateurs ne sont pas chaînables pour classer vLLM/SGLang/TensorRT-LLM entre eux aujourd'hui."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 5,
+          "note": "Claim confirmé et même renforcé : le '24x' de vLLM vient du blog (vs HuggingFace Transformers nu, baseline faible) alors que le papier SOSP publié ne revendique que 1,7-8x vs Orca et 2-4x vs FasterTransformer/Orca — deux chiffres différents pour le même système selon la baseline choisie. Plus frappant : le chiffre DistServe a lui-même changé ENTRE VERSIONS arXiv du même papier (4,48x/10,2x en v1 janvier 2024 → 7,4x/12,6x en v3 juin 2024/OSDI), preuve directe que même un seul papier n'a pas un multiplicateur stable dans le temps. SGLang (6,4x sur benchmarks agentiques, pas du throughput brut de serving classique) et Splitwise (1,4-2,35x vs 'current designs' non nommés) confirment aussi des protocoles hétérogènes. Seul le chiffre Orca 36,9x n'a pas pu être re-vérifié en primaire cette session (usenix.org a renvoyé 403 sur la page et le PDF, budget WebSearch épuisé pour la session) ; rien ne le contredit et il est cohérent avec la littérature secondaire (ex. citations dans DistServe), mais je ne l'ai pas lu moi-même ce tour."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 6,
+          "note": "Les 5 multiplicateurs sont exacts textuellement mais chacun est mesuré contre une baseline, une métrique et un workload différents (et à des époques différentes, 2022-2024) ; preuve la plus directe : le papier académique vLLM (SOSP'23) revendique 2-4× vs FasterTransformer/Orca, contre 24× dans le blog vLLM vs HuggingFace brut — le même système produit deux chiffres incompatibles selon la seule baseline choisie, ce qui interdit tout chaînage pour classer les moteurs actuels."
+        }
+      ],
+      "audit_note": "Confirmé : 3/3 jurés, 7 sources indépendantes."
+    }
+  ]
+}

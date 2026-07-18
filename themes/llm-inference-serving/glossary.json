@@ -1,0 +1,37 @@
+[
+  {
+    "term": "Prefill / decode",
+    "definition": "Les deux phases de l'inférence autorégressive et leurs régimes matériels opposés. Le prefill traite tous les tokens du prompt en parallèle par une opération matrice-matrice à haute intensité arithmétique : il est compute-bound (limité par le calcul) même à batch=1. Le decode génère ensuite un token à la fois par une opération matrice-vecteur dont l'intensité arithmétique chute de plus de deux ordres de grandeur : il devient memory-bandwidth-bound (limité par la bande passante mémoire), le temps étant dominé par le rechargement des poids depuis la mémoire GPU. Le point de bascule roofline dépend du matériel — environ 208 FLOPs par byte sur A100 (312 TFLOPS FP16 ÷ ~1,5 TB/s). Le régime n'est pas absolu : à petit batch et courte séquence, le prefill peut lui aussi devenir memory-bound.",
+    "see_also": "KV cache, Continuous batching, Goodput"
+  },
+  {
+    "term": "KV cache",
+    "definition": "Cache des clés (keys) et valeurs (values) d'attention déjà calculées, conservé en mémoire GPU (HBM) pour éviter de les recalculer à chaque token généré. Il croît linéairement avec la longueur de séquence et le nombre de requêtes concurrentes, et devient le facteur qui plafonne la taille du batch en decode. PagedAttention (vLLM, SOSP 2023) le gère comme de la mémoire paginée — des blocs non contigus, à la façon de la mémoire virtuelle d'un OS —, réduisant le gaspillage mémoire de 60-80 % à moins de 4 % ; ce paging n'est pas une nécessité absolue : vAttention garde le KV cache virtuellement contigu via les API CUDA VMM et atteint jusqu'à 1,23x de débit en plus.",
+    "see_also": "Prefill / decode, Chunked prefill, Prefix caching / RadixAttention"
+  },
+  {
+    "term": "Continuous batching",
+    "definition": "Ordonnancement à l'itération (iteration-level scheduling), introduit par Orca (OSDI 2022) : la composition et la taille du batch sont redéterminées à chaque itération de génération plutôt qu'à l'échelle de vie de la requête, les séquences terminées étant remplacées par de nouvelles sans attendre que tout le batch se vide. À distinguer du dynamic batching classique (ex. le paramètre max_queue_delay_microseconds de NVIDIA Triton), qui n'agit qu'à l'admission des requêtes et ne réévalue jamais le batch pendant le decode. C'est aujourd'hui la base d'ordonnancement de vLLM, SGLang et TensorRT-LLM.",
+    "see_also": "Prefill / decode, Chunked prefill"
+  },
+  {
+    "term": "Chunked prefill",
+    "definition": "Découpage d'un prefill long en morceaux (chunks) exécutés sur plusieurs itérations et intercalés avec les décodages en cours (Sarathi, Sarathi-Serve). Combiné au stall-free scheduling, il laisse les nouvelles requêtes rejoindre un batch actif sans jamais interrompre les décodages, réduisant l'interférence prefill/decode sur GPU colocalisé sans désagrégation physique — jusqu'à 2,6x à 5,6x de capacité de service en plus qu'une baseline vLLM sous contrainte de latence de queue fixe. Le découpage n'est pas gratuit : des chunks trop petits dégradent l'efficacité du prefill par sous-utilisation du GPU (tile quantization).",
+    "see_also": "Continuous batching, Prefill/decode disaggregation"
+  },
+  {
+    "term": "Prefill/decode disaggregation",
+    "definition": "Désagrégation physique des deux phases sur des pools de GPU distincts reliés par un transfert réseau du KV cache (DistServe, Splitwise, Mooncake). Elle découple l'allocation de ressources et la stratégie de parallélisme propres à chaque phase — ce que le seul ordonnancement colocalisé ne peut atteindre — et élimine plus complètement l'interférence prefill/decode que le chunked prefill, au prix d'un coût de migration réseau du KV cache et d'une sous-utilisation de la mémoire GPU des replicas de prefill (un coût structurel que l'ajout de GPU ne supprime pas). Aucune des deux approches n'est strictement supérieure en général.",
+    "see_also": "Chunked prefill, Goodput"
+  },
+  {
+    "term": "Prefix caching / RadixAttention",
+    "definition": "Réutilisation du KV cache d'un préfixe de prompt partagé entre requêtes (system prompt, exemples few-shot, historique de conversation). RadixAttention (SGLang) l'organise via un arbre radix. Corollaire au niveau du serving : un routage prefix-cache-aware et load-aware — qui envoie une requête vers la réplique détenant déjà son préfixe en cache — surpasse nettement un round-robin ou least-connections naïf, car, contrairement à une requête web sans état, la performance dépend de l'état KV présent sur la réplique choisie (llm-d rapporte 3x de débit de sortie et un TTFT 2x plus rapide sur un déploiement Llama 3.1 70B).",
+    "see_also": "KV cache, Continuous batching"
+  },
+  {
+    "term": "Goodput",
+    "definition": "Débit utile : nombre de requêtes par seconde réellement servies en respectant conjointement les cibles de SLO (Service Level Objective) sur le TTFT (Time To First Token, latence jusqu'au premier token) et le TPOT (Time Per Output Token, temps par token généré) — et non un simple débit en tokens/s. La latence de bout en bout se décompose additivement en TTFT + TPOT × (nombre de tokens générés). Exemple : un système à 10 req/s de débit brut peut ne délivrer que 3 req/s de goodput sous contrainte TTFT<200 ms et TPOT<50 ms. vLLM instrumente TTFT et TPOT (documenté comme inter_token_latency) en histogrammes Prometheus par requête.",
+    "see_also": "Prefill / decode, Prefill/decode disaggregation"
+  }
+]
