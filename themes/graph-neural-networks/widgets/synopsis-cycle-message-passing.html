@@ -1,0 +1,651 @@
+<div class="widget scmp-root" id="scmp-root">
+  <style>
+    .scmp-root{--scmp-ink:var(--ink,#15202E);--scmp-soft:var(--ink-soft,#43536A);
+      --scmp-faint:var(--ink-faint,#7A889B);--scmp-card:var(--card,#fff);
+      --scmp-line:var(--line,#D7DFE9);--scmp-line-soft:var(--line-soft,#E7ECF3);
+      --scmp-blue:var(--blue,#23537F);--scmp-deep:var(--blue-deep,#142E49);
+      --scmp-bright:var(--blue-bright,#2C77B6);--scmp-wash:var(--blue-wash,#E7EEF6);
+      --scmp-bord:var(--bordeaux,#7C2A38);--scmp-bord-br:var(--bordeaux-bright,#9B3443);
+      --scmp-bord-wash:var(--bordeaux-wash,#F3E3E6);--scmp-gold:var(--gold,#C68A2E);
+      --scmp-gold-wash:#FBF3E1;--scmp-green:#2F7D5B;--scmp-green-wash:#EAF4EE;
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--scmp-ink);
+      border:1px solid var(--scmp-line);border-radius:12px;padding:18px 18px 15px;
+      background:var(--scmp-card);max-width:920px}
+    .scmp-root *{box-sizing:border-box}
+    .scmp-k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;color:var(--scmp-faint);font-weight:600;margin:0 0 2px}
+    .scmp-title{font-weight:700;font-size:1.05rem;margin:0 0 4px;line-height:1.3}
+    .scmp-sub{font-size:.84rem;color:var(--scmp-soft);margin:0 0 12px;line-height:1.5}
+    .scmp-sub b{color:var(--scmp-ink)}
+    .scmp-root code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em}
+
+    /* rangée nœud focal + compteur d'étape */
+    .scmp-focrow{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0 0 9px}
+    .scmp-foclab{font-size:.68rem;letter-spacing:.05em;text-transform:uppercase;color:var(--scmp-faint);font-weight:700;margin-right:2px}
+    .scmp-foc{border:1px solid var(--scmp-line);border-radius:999px;background:var(--scmp-card);color:var(--scmp-soft);
+      font:600 .76rem/1 inherit;font-family:inherit;padding:6px 11px;cursor:pointer;transition:.15s}
+    .scmp-foc:hover{border-color:var(--scmp-bright)}
+    .scmp-foc.scmp-sel{background:var(--scmp-blue);border-color:var(--scmp-blue);color:#fff}
+    .scmp-stepctr{margin-left:auto;font:700 .72rem/1 ui-monospace,monospace;color:var(--scmp-faint);white-space:nowrap}
+
+    /* commandes */
+    .scmp-ctrl{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0 0 11px}
+    .scmp-btn{border:1px solid var(--scmp-line);border-radius:8px;background:var(--scmp-card);color:var(--scmp-ink);
+      font:600 .8rem/1 inherit;font-family:inherit;padding:8px 12px;cursor:pointer;transition:.15s}
+    .scmp-btn:hover:not(:disabled){border-color:var(--scmp-bright);background:var(--scmp-wash)}
+    .scmp-btn:disabled{opacity:.45;cursor:default}
+    .scmp-btn.scmp-primary{background:var(--scmp-blue);border-color:var(--scmp-blue);color:#fff}
+    .scmp-btn.scmp-primary:hover:not(:disabled){background:var(--scmp-deep);border-color:var(--scmp-deep)}
+    .scmp-pbar{flex:1 1 90px;min-width:70px;height:7px;border:1px solid var(--scmp-line);border-radius:99px;overflow:hidden;background:var(--scmp-card)}
+    .scmp-pfill{display:block;height:100%;width:0%;background:var(--scmp-bright);transition:width .25s}
+
+    /* rail des 4 phases nommées */
+    .scmp-rail{display:flex;gap:4px;margin:0 0 12px;flex-wrap:wrap}
+    .scmp-ph{flex:1 1 150px;min-width:140px;border:1px solid var(--scmp-line);border-radius:8px;padding:5px 8px 7px;
+      background:var(--scmp-card);text-align:center;transition:.15s}
+    .scmp-ph .scmp-pn{font-size:.56rem;letter-spacing:.03em;text-transform:uppercase;color:var(--scmp-faint);font-weight:700}
+    .scmp-ph .scmp-pl{font-size:.72rem;font-weight:700;color:var(--scmp-soft);line-height:1.15;margin-top:1px}
+    .scmp-ph .scmp-pf{font-size:.62rem;color:var(--scmp-faint);font-family:ui-monospace,monospace;margin-top:2px}
+    .scmp-ph.scmp-active{border-color:var(--scmp-bright);background:var(--scmp-wash);box-shadow:0 0 0 1px var(--scmp-bright)}
+    .scmp-ph.scmp-active .scmp-pl{color:var(--scmp-blue)}
+    .scmp-ph.scmp-done{border-color:#C3E0D0;background:var(--scmp-green-wash)}
+    .scmp-ph.scmp-done .scmp-pn{color:var(--scmp-green)}
+
+    /* grille principale */
+    .scmp-grid{display:flex;gap:13px;flex-wrap:wrap;align-items:flex-start}
+    .scmp-col-main{flex:1 1 440px;min-width:330px}
+    .scmp-col-side{flex:1 1 250px;min-width:225px;display:flex;flex-direction:column;gap:10px}
+
+    /* scène */
+    .scmp-stage{border:1px solid var(--scmp-line-soft);border-radius:9px;background:#FBFCFE;padding:11px 12px 10px}
+    .scmp-sh{font-size:.7rem;letter-spacing:.05em;text-transform:uppercase;color:var(--scmp-faint);font-weight:700;margin:0 0 8px}
+    .scmp-sh b{color:var(--scmp-blue);font-weight:800}
+    .scmp-dgwrap{overflow-x:auto}
+    .scmp-dg{width:100%;min-width:520px;height:auto;display:block}
+    .scmp-dg text{font-family:inherit}
+    .scmp-dg .scmp-nl{font-size:13px;font-weight:800;fill:#fff}
+    .scmp-dg .scmp-nv{font:700 11px ui-monospace,SFMono-Regular,Menlo,monospace;fill:var(--scmp-soft);
+      paint-order:stroke;stroke:#FBFCFE;stroke-width:3px}
+    .scmp-dg .scmp-halo{fill:none;stroke:var(--scmp-gold);stroke-width:2.5;stroke-dasharray:4 4;opacity:0;transition:opacity .2s}
+    .scmp-dg .scmp-halo.scmp-on{opacity:1}
+    .scmp-dg .scmp-ring{fill:none;stroke:var(--scmp-deep);stroke-width:3;opacity:0;transition:opacity .2s}
+    .scmp-dg .scmp-ring.scmp-on{opacity:1}
+    .scmp-dg .scmp-edge{stroke:var(--scmp-line);stroke-width:1.8;transition:stroke .2s}
+    .scmp-dg .scmp-edge.scmp-flow{stroke:var(--scmp-bright);stroke-width:2.6;stroke-dasharray:7 7;
+      animation:scmp-dash .8s linear infinite}
+    .scmp-dg .scmp-edge.scmp-flow-far{stroke:var(--scmp-faint);stroke-dasharray:3 6;animation:scmp-dash 1.2s linear infinite}
+    .scmp-dg .scmp-edge.scmp-hold{stroke:var(--scmp-bright);stroke-width:2.6}
+    .scmp-dg .scmp-mlab{font:700 11px ui-monospace,monospace;fill:var(--scmp-bright);
+      paint-order:stroke;stroke:#FBFCFE;stroke-width:3.5px;opacity:0;transition:opacity .2s}
+    .scmp-dg .scmp-mlab.scmp-on{opacity:1}
+    .scmp-dg .scmp-agg{font:800 12px ui-monospace,monospace;fill:var(--scmp-bord-br);
+      paint-order:stroke;stroke:#FBFCFE;stroke-width:4px;opacity:0;transition:opacity .2s}
+    .scmp-dg .scmp-agg.scmp-on{opacity:1}
+    .scmp-dg .scmp-rbox rect{fill:var(--scmp-card);stroke:var(--scmp-line);stroke-width:1.4;opacity:.4;transition:.2s}
+    .scmp-dg .scmp-rbox text{opacity:.4;transition:.2s}
+    .scmp-dg .scmp-rbox .scmp-rk{font-size:10px;font-weight:700;letter-spacing:.04em;fill:var(--scmp-faint)}
+    .scmp-dg .scmp-rbox .scmp-rv{font:800 12.5px ui-monospace,monospace;fill:var(--scmp-green)}
+    .scmp-dg .scmp-rbox.scmp-on rect{opacity:1;stroke:#7DBB9A;fill:var(--scmp-green-wash)}
+    .scmp-dg .scmp-rbox.scmp-on text{opacity:1}
+    .scmp-dg .scmp-rline{stroke:#7DBB9A;stroke-width:1.5;stroke-dasharray:4 4;opacity:0;transition:opacity .2s}
+    .scmp-dg .scmp-rline.scmp-on{opacity:1;animation:scmp-dash 1s linear infinite}
+    @keyframes scmp-dash{to{stroke-dashoffset:-14}}
+    @media (prefers-reduced-motion:reduce){
+      .scmp-dg .scmp-edge.scmp-flow,.scmp-dg .scmp-edge.scmp-flow-far,.scmp-dg .scmp-rline.scmp-on{animation:none}
+    }
+
+    .scmp-detail{border:1px solid var(--scmp-line-soft);border-radius:8px;background:var(--scmp-card);margin-top:9px;padding:9px 11px 10px}
+    .scmp-dh{font-size:.8rem;font-weight:700;color:var(--scmp-blue);margin:0 0 6px}
+    .scmp-note{font-size:.74rem;color:var(--scmp-soft);margin:7px 0 0;line-height:1.5}
+    .scmp-note b{color:var(--scmp-ink)}
+    .scmp-list{margin:6px 0 0;padding:0;list-style:none;font-size:.78rem;color:var(--scmp-soft)}
+    .scmp-list li{padding:3px 0 3px 16px;position:relative;line-height:1.45}
+    .scmp-list li::before{content:"▸";position:absolute;left:2px;color:var(--scmp-bright)}
+    .scmp-banner{border-radius:9px;padding:10px 12px;margin:9px 0 0;font-size:.8rem;line-height:1.5;
+      background:var(--scmp-green-wash);border:1px solid #C3E0D0;color:var(--scmp-green)}
+    .scmp-banner b{display:block;font-size:.84rem;margin-bottom:2px}
+
+    /* panneau latéral */
+    .scmp-box{border:1px solid var(--scmp-line-soft);border-radius:9px;background:#FBFCFE;padding:9px 11px 10px}
+    .scmp-bh{font-size:.64rem;letter-spacing:.05em;text-transform:uppercase;color:var(--scmp-faint);font-weight:700;margin:0 0 7px}
+    .scmp-fl{font:600 .72rem/1.6 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--scmp-soft);margin:0;white-space:nowrap;overflow-x:auto}
+    .scmp-fl b{color:var(--scmp-bord-br)}
+    .scmp-fnote{font-size:.68rem;color:var(--scmp-faint);margin:6px 0 0;line-height:1.45}
+    .scmp-permbtn{border:1px solid var(--scmp-line);border-radius:8px;background:var(--scmp-card);color:var(--scmp-ink);
+      font:600 .72rem/1 inherit;font-family:inherit;padding:6px 10px;cursor:pointer;margin:7px 0 0;transition:.15s}
+    .scmp-permbtn:hover{border-color:var(--scmp-bright);background:var(--scmp-wash)}
+
+    .scmp-rfrow{display:flex;align-items:flex-end;gap:8px;margin:2px 0 0}
+    .scmp-rfcell{flex:1 1 0;text-align:center}
+    .scmp-rfbar{width:100%;height:52px;display:flex;align-items:flex-end;border-bottom:1px solid var(--scmp-line)}
+    .scmp-rffill{width:100%;background:var(--scmp-line-soft);border-radius:3px 3px 0 0;transition:height .25s,background .25s}
+    .scmp-rfcell.scmp-cur .scmp-rffill{background:var(--scmp-gold)}
+    .scmp-rfcell.scmp-past .scmp-rffill{background:#E4CD9C}
+    .scmp-rflab{font:700 .6rem/1.4 ui-monospace,monospace;color:var(--scmp-faint)}
+    .scmp-rfcell.scmp-cur .scmp-rflab{color:var(--scmp-gold)}
+    .scmp-rfcap{font-size:.64rem;color:var(--scmp-faint);margin:6px 0 0;line-height:1.45}
+
+    .scmp-mechs{margin:0;padding:0;list-style:none;font-size:.7rem;line-height:1.35}
+    .scmp-mechs li{padding:2.5px 6px;border-radius:6px;color:var(--scmp-faint);transition:.15s}
+    .scmp-mechs li.scmp-mon{background:var(--scmp-wash);color:var(--scmp-blue);font-weight:700}
+
+    .scmp-foot{font-size:.72rem;color:var(--scmp-faint);margin:12px 0 0;line-height:1.5;border-top:1px dashed var(--scmp-line-soft);padding-top:9px}
+  </style>
+
+  <p class="scmp-k">Vue d'ensemble</p>
+  <p class="scmp-title">Le cycle de message passing déroulé sur un graphe jouet : MESSAGE → AGRÉGATION → MISE À JOUR, puis LECTURE</p>
+  <p class="scmp-sub">
+    Six nœuds, six arêtes, des états à deux composantes (teinte = direction du vecteur, rayon = norme).
+    La même boucle <b>MESSAGE → AGRÉGATION → MISE À JOUR</b> se répète pendant <b>T = 3 pas</b>, puis une
+    <b>LECTURE</b> invariante par permutation produit le vecteur du graphe entier. Choisissez le nœud focal
+    (une simple loupe : tous les nœuds calculent en même temps), avancez phase par phase ou déroulez d'un
+    trait ; le halo doré montre le champ récepteur qui s'élargit d'un saut par pas. Tout est calculé
+    exactement, sans aucun aléa : rejouez, vous retrouverez les mêmes nombres.
+  </p>
+
+  <div class="scmp-focrow" id="scmp-focrow">
+    <span class="scmp-foclab">Nœud focal</span>
+    <span class="scmp-stepctr" id="scmp-stepctr"></span>
+  </div>
+
+  <div class="scmp-ctrl">
+    <button type="button" class="scmp-btn" id="scmp-prev">◀ Précédent</button>
+    <button type="button" class="scmp-btn scmp-primary" id="scmp-next">Phase suivante ▶</button>
+    <button type="button" class="scmp-btn" id="scmp-play">▶▶ Dérouler jusqu'à la lecture</button>
+    <button type="button" class="scmp-btn" id="scmp-reset">⟲ Rejouer</button>
+    <span class="scmp-pbar"><span class="scmp-pfill" id="scmp-pfill"></span></span>
+  </div>
+
+  <div class="scmp-rail" id="scmp-rail"></div>
+
+  <div class="scmp-grid">
+    <div class="scmp-col-main">
+      <div class="scmp-stage">
+        <p class="scmp-sh" id="scmp-stagehead"></p>
+        <div class="scmp-dgwrap">
+          <svg class="scmp-dg" id="scmp-svg" viewBox="0 0 640 300" role="img"
+            aria-label="Graphe jouet de six nœuds ; les messages circulent le long des arêtes vers le nœud focal, le halo doré marque le champ récepteur"></svg>
+        </div>
+        <div class="scmp-detail">
+          <p class="scmp-dh" id="scmp-dh"></p>
+          <div id="scmp-dbody"></div>
+        </div>
+        <div id="scmp-banner"></div>
+      </div>
+    </div>
+    <div class="scmp-col-side">
+      <div class="scmp-box">
+        <p class="scmp-bh">Fiche de calcul — nœud focal</p>
+        <div id="scmp-fiche"></div>
+      </div>
+      <div class="scmp-box">
+        <p class="scmp-bh">Progression — champ récepteur du focal</p>
+        <div class="scmp-rfrow" id="scmp-rfrow"></div>
+        <p class="scmp-rfcap" id="scmp-rfcap"></p>
+      </div>
+      <div class="scmp-box">
+        <p class="scmp-bh">Mécanismes reliés (actifs à cette phase)</p>
+        <ul class="scmp-mechs" id="scmp-mechs"></ul>
+      </div>
+    </div>
+  </div>
+
+  <p class="scmp-foot">
+    Pour situer les mécanismes : chaque architecture instancie les trois fonctions de ce cycle. GCN remplace
+    la somme brute par une somme normalisée par les degrés ; GraphSAGE échantillonne N(v) au lieu de le
+    parcourir en entier ; GAT pondère chaque message par un coefficient d'attention appris sur l'arête ;
+    GIN garde la somme, justement parce qu'elle distingue des multi-ensembles que la moyenne ou le max
+    confondent (lien avec le test de Weisfeiler-Lehman). Le halo qui s'élargit d'un saut par pas éclaire
+    aussi les pièges : trop peu de pas et l'information lointaine n'arrive jamais (et se comprime dans les
+    goulots, l'oversquashing) ; trop de pas et les états se confondent (l'oversmoothing).
+  </p>
+
+  <script>
+  (function(){
+    "use strict";
+    var $ = function(id){ return document.getElementById(id); };
+    var SVGNS = "http://www.w3.org/2000/svg";
+
+    /* ---------- helpers DOM ---------- */
+    function mk(tag, cls, txt){
+      var el = document.createElement(tag);
+      if (cls) el.className = cls;
+      if (txt != null) el.textContent = txt;
+      return el;
+    }
+    /* markup léger autorisé : <b> <code> <i> */
+    function setMarkup(el, markup){
+      el.textContent = "";
+      var parts = markup.split(/(<\/?(?:b|code|i)>)/), stack = [el];
+      for (var i = 0; i < parts.length; i++){
+        var tok = parts[i];
+        if (tok === "") continue;
+        if (tok === "<b>" || tok === "<code>" || tok === "<i>"){
+          var child = document.createElement(tok.slice(1, -1));
+          stack[stack.length - 1].appendChild(child); stack.push(child);
+        } else if (tok === "</b>" || tok === "</code>" || tok === "</i>"){
+          if (stack.length > 1) stack.pop();
+        } else stack[stack.length - 1].appendChild(document.createTextNode(tok));
+      }
+      return el;
+    }
+    function noteEl(m){ return setMarkup(mk("p", "scmp-note"), m); }
+    function svgEl(tag, attrs){
+      var el = document.createElementNS(SVGNS, tag);
+      for (var k in attrs) el.setAttribute(k, attrs[k]);
+      return el;
+    }
+
+    /* ---------- le graphe jouet (tout est fixé, aucun aléa) ---------- */
+    var IDS = ["A","B","C","D","E","F"];
+    var POS = {A:[85,110], B:[225,50], C:[195,210], D:[360,160], E:[500,70], F:[495,250]};
+    var H0  = {A:[2,0], B:[0,2], C:[1,1], D:[0,1], E:[2,1], F:[1,0]};
+    var EDGES = [["A","B"],["A","C"],["B","C"],["C","D"],["D","E"],["D","F"]];
+    var T = 3, NSTEPS = 3 * T + 1;      /* 9 phases + la lecture ; index 0 = état initial */
+
+    var ADJ = {};
+    IDS.forEach(function(v){ ADJ[v] = []; });
+    EDGES.forEach(function(e){ ADJ[e[0]].push(e[1]); ADJ[e[1]].push(e[0]); });
+
+    /* états h^0..h^T, calculés exactement : M = h_w ; ⊕ = somme ; U = h_v + m_v */
+    function vadd(a, b){ return [a[0] + b[0], a[1] + b[1]]; }
+    function msum(v, t){
+      var m = [0, 0];
+      ADJ[v].forEach(function(w){ m = vadd(m, HS[t][w]); });
+      return m;
+    }
+    var HS = [H0];
+    (function(){
+      for (var t = 1; t <= T; t++){
+        var nxt = {};
+        IDS.forEach(function(v){ nxt[v] = vadd(HS[t-1][v], msum(v, t-1)); });
+        HS.push(nxt);
+      }
+    })();
+    var HG = IDS.reduce(function(acc, v){ return vadd(acc, HS[T][v]); }, [0, 0]);
+
+    function bfs(src){
+      var d = {}; d[src] = 0;
+      var q = [src];
+      while (q.length){
+        var v = q.shift();
+        ADJ[v].forEach(function(w){
+          if (!(w in d)){ d[w] = d[v] + 1; q.push(w); }
+        });
+      }
+      return d;
+    }
+    function rfSize(src, t){
+      var d = bfs(src), n = 0;
+      IDS.forEach(function(v){ if (d[v] <= t) n++; });
+      return n;
+    }
+    function fmt(v){ return "[" + v[0] + ", " + v[1] + "]"; }
+    var SUP = ["⁰","¹","²","³"];
+    function hOf(v, t){ return "h" + SUP[t] + "(" + v + ")"; }
+
+    /* ---------- couleurs des états ---------- */
+    function mix(c1, c2, k){
+      return "rgb(" + [0,1,2].map(function(i){
+        return Math.round(c1[i] + (c2[i] - c1[i]) * k);
+      }).join(",") + ")";
+    }
+    function vcolor(v){
+      var ang = Math.atan2(v[1], v[0]) / (Math.PI / 2);   /* 0 = axe x → bleu ; 1 = axe y → bordeaux */
+      return mix([44,119,182], [155,52,67], Math.max(0, Math.min(1, ang)));
+    }
+    function vradius(v){
+      var n = Math.sqrt(v[0]*v[0] + v[1]*v[1]);
+      return 15 + 8 * Math.min(1, Math.log(1 + n) / Math.log(61));
+    }
+
+    /* ---------- construction du SVG ---------- */
+    var svg = $("scmp-svg");
+    var edgeEls = {}, mlabEls = {}, nodeEls = {}, rlineEls = {};
+    function ekey(e){ return e[0] + "-" + e[1]; }
+
+    EDGES.forEach(function(e){
+      var p = POS[e[0]], q = POS[e[1]];
+      var ln = svgEl("line", {x1:p[0], y1:p[1], x2:q[0], y2:q[1], "class":"scmp-edge"});
+      svg.appendChild(ln);
+      edgeEls[ekey(e)] = ln;
+    });
+    /* boîte de lecture h_G */
+    var rbox = svgEl("g", {"class":"scmp-rbox"});
+    rbox.appendChild(svgEl("rect", {x:548, y:118, width:88, height:56, rx:9}));
+    var rk = svgEl("text", {x:592, y:138, "text-anchor":"middle", "class":"scmp-rk"});
+    rk.textContent = "h_G (LECTURE)";
+    var rv = svgEl("text", {x:592, y:160, "text-anchor":"middle", "class":"scmp-rv"});
+    rv.textContent = "?";
+    rbox.appendChild(rk); rbox.appendChild(rv);
+    IDS.forEach(function(v){
+      var p = POS[v];
+      var ln = svgEl("line", {x1:p[0], y1:p[1], x2:548, y2:146, "class":"scmp-rline"});
+      svg.appendChild(ln);
+      rlineEls[v] = ln;
+    });
+    svg.appendChild(rbox);
+    /* étiquettes de messages (une par arête) */
+    EDGES.forEach(function(e){
+      var p = POS[e[0]], q = POS[e[1]];
+      var tl = svgEl("text", {x:(p[0]+q[0])/2, y:(p[1]+q[1])/2 - 7, "text-anchor":"middle", "class":"scmp-mlab"});
+      svg.appendChild(tl);
+      mlabEls[ekey(e)] = tl;
+    });
+    /* nœuds */
+    IDS.forEach(function(v){
+      var p = POS[v], g = svgEl("g", {});
+      var halo = svgEl("circle", {cx:p[0], cy:p[1], r:26, "class":"scmp-halo"});
+      var ring = svgEl("circle", {cx:p[0], cy:p[1], r:23, "class":"scmp-ring"});
+      var circ = svgEl("circle", {cx:p[0], cy:p[1], r:18});
+      var lab = svgEl("text", {x:p[0], y:p[1]+4.5, "text-anchor":"middle", "class":"scmp-nl"});
+      lab.textContent = v;
+      var vec = svgEl("text", {x:p[0], y:p[1]+34, "text-anchor":"middle", "class":"scmp-nv"});
+      g.appendChild(halo); g.appendChild(ring); g.appendChild(circ); g.appendChild(lab); g.appendChild(vec);
+      svg.appendChild(g);
+      nodeEls[v] = {halo:halo, ring:ring, circ:circ, vec:vec};
+    });
+    /* pastille m_v du focal */
+    var aggEl = svgEl("text", {x:0, y:0, "text-anchor":"middle", "class":"scmp-agg"});
+    svg.appendChild(aggEl);
+
+    /* ---------- phases nommées ---------- */
+    var PHASES = [
+      {n:"phase 1 · ×" + T, l:"MESSAGE", f:"Mₜ(h_v, h_w, e_vw)"},
+      {n:"phase 2 · ×" + T, l:"AGRÉGATION", f:"m_v = Σ messages de N(v)"},
+      {n:"phase 3 · ×" + T, l:"MISE À JOUR", f:"h_v ← Uₜ(h_v, m_v)"},
+      {n:"une fois, après le pas T", l:"LECTURE", f:"h_G = R({h_v})"}
+    ];
+    var MECHS = [
+      {id:"mpnn",  t:"Cadre MPNN : Mₜ, ⊕, Uₜ — chaque architecture choisit ses trois fonctions"},
+      {id:"invar", t:"Agrégateur invariant par permutation (somme, moyenne, max)"},
+      {id:"rf",    t:"Champ récepteur : T pas ⇒ information à ≤ T sauts"},
+      {id:"read",  t:"Lecture (readout) : du niveau nœud au niveau graphe"},
+      {id:"smooth",t:"Oversmoothing : trop de pas ⇒ des états qui se confondent"}
+    ];
+
+    /* ---------- état ---------- */
+    var IDX = 0;                 /* 0 = initial ; 1..9 = phases ; 10 = lecture */
+    var focal = "A";
+    var permIdx = 0;             /* rotation déterministe de l'ordre des voisins */
+    var playing = false, timer = null;
+
+    function phaseAt(i){
+      if (i === 0) return {kind:"init", t:0};
+      if (i >= NSTEPS) return {kind:"read", t:T};
+      var t = Math.floor((i - 1) / 3) + 1;
+      return {kind:["msg","agg","upd"][(i - 1) % 3], t:t};
+    }
+    /* états affichés / champ récepteur affiché à l'index i */
+    function shownT(p){ return p.kind === "upd" ? p.t : (p.kind === "read" ? T : (p.kind === "init" ? 0 : p.t - 1)); }
+    function rfT(p){ return shownT(p); }
+    function neighborsPerm(v){
+      var ns = ADJ[v].slice(), k = permIdx % ns.length;
+      return ns.slice(k).concat(ns.slice(0, k));
+    }
+
+    /* ---------- rendu ---------- */
+    var railEl = $("scmp-rail"), stageHead = $("scmp-stagehead"), dhEl = $("scmp-dh"),
+        dbodyEl = $("scmp-dbody"), bannerEl = $("scmp-banner"), mechsEl = $("scmp-mechs"),
+        ficheEl = $("scmp-fiche"), rfrowEl = $("scmp-rfrow"), rfcapEl = $("scmp-rfcap"),
+        ctrEl = $("scmp-stepctr"), pfillEl = $("scmp-pfill"),
+        prevBtn = $("scmp-prev"), nextBtn = $("scmp-next"), playBtn = $("scmp-play"),
+        resetBtn = $("scmp-reset"), focrowEl = $("scmp-focrow");
+
+    /* boutons de nœud focal (insérés avant le compteur) */
+    IDS.forEach(function(v){
+      var b = mk("button", "scmp-foc", v + " · deg " + ADJ[v].length);
+      b.type = "button";
+      b.setAttribute("data-foc", v);
+      focrowEl.insertBefore(b, ctrEl);
+    });
+
+    function renderSvg(p){
+      var st = shownT(p), rt = rfT(p), dist = bfs(focal);
+      IDS.forEach(function(v){
+        var h = HS[st][v], r = vradius(h), e = nodeEls[v];
+        e.circ.setAttribute("r", r);
+        e.circ.setAttribute("fill", vcolor(h));
+        e.ring.setAttribute("r", r + 3.5);
+        e.halo.setAttribute("r", r + 8);
+        e.vec.setAttribute("y", POS[v][1] + r + 15);
+        e.vec.textContent = fmt(h);
+        e.ring.setAttribute("class", "scmp-ring" + (v === focal ? " scmp-on" : ""));
+        var inRf = dist[v] >= 1 && dist[v] <= rt;
+        e.halo.setAttribute("class", "scmp-halo" + (inRf || (p.kind === "read" && v !== focal) ? " scmp-on" : ""));
+      });
+      /* arêtes + étiquettes de messages */
+      EDGES.forEach(function(e){
+        var k = ekey(e), ln = edgeEls[k], cls = "scmp-edge";
+        var touches = (e[0] === focal || e[1] === focal);
+        if (p.kind === "msg"){
+          cls += touches ? " scmp-flow" : " scmp-flow-far";
+          /* le pointillé court du voisin vers le focal */
+          var from = e[0] === focal ? e[1] : e[0], to = e[0] === focal ? e[0] : e[1];
+          ln.setAttribute("x1", POS[from][0]); ln.setAttribute("y1", POS[from][1]);
+          ln.setAttribute("x2", POS[to][0]);   ln.setAttribute("y2", POS[to][1]);
+        } else {
+          ln.setAttribute("x1", POS[e[0]][0]); ln.setAttribute("y1", POS[e[0]][1]);
+          ln.setAttribute("x2", POS[e[1]][0]); ln.setAttribute("y2", POS[e[1]][1]);
+          if ((p.kind === "agg" || p.kind === "upd") && touches) cls += " scmp-hold";
+        }
+        ln.setAttribute("class", cls);
+        var tl = mlabEls[k], show = p.kind === "msg" && touches;
+        if (show){
+          var w = e[0] === focal ? e[1] : e[0];
+          tl.textContent = fmt(HS[p.t - 1][w]);
+        }
+        tl.setAttribute("class", "scmp-mlab" + (show ? " scmp-on" : ""));
+      });
+      /* pastille m_v */
+      var showAgg = p.kind === "agg" || p.kind === "upd";
+      if (showAgg){
+        var m = msum(focal, p.t - 1), r0 = vradius(HS[st][focal]);
+        aggEl.setAttribute("x", POS[focal][0]);
+        aggEl.setAttribute("y", POS[focal][1] - r0 - 12);
+        aggEl.textContent = "m = " + fmt(m);
+      }
+      aggEl.setAttribute("class", "scmp-agg" + (showAgg ? " scmp-on" : ""));
+      /* lecture */
+      rbox.setAttribute("class", "scmp-rbox" + (p.kind === "read" ? " scmp-on" : ""));
+      rv.textContent = p.kind === "read" ? fmt(HG) : "?";
+      IDS.forEach(function(v){
+        rlineEls[v].setAttribute("class", "scmp-rline" + (p.kind === "read" ? " scmp-on" : ""));
+      });
+    }
+
+    function buildDetail(p){
+      var box = mk("div"), ns = ADJ[focal];
+      if (p.kind === "init"){
+        box.appendChild(noteEl("Chaque nœud porte un petit vecteur d'attributs à deux composantes — la teinte code la direction du vecteur, le rayon sa norme. Les degrés varient de 1 (E, F) à 3 (C, D) : c'est cette <b>irrégularité</b>, sans aucun ordre canonique des voisins, que le message passing doit absorber."));
+        box.appendChild(noteEl("Choisissez un nœud focal puis avancez : les trois phases du pas t = 1 s'enchaînent, et la boucle se répète jusqu'à t = " + T + " avant la lecture finale."));
+      } else if (p.kind === "msg"){
+        box.appendChild(noteEl("Chaque voisin w de <b>" + focal + "</b> calcule un message le long de son arête : <code>Mₜ(h_v, h_w, e_vw)</code>. Version jouet : <b>M = h_w</b>, l'état du voisin au pas précédent."));
+        var ul = mk("ul", "scmp-list");
+        neighborsPerm(focal).forEach(function(w){
+          ul.appendChild(mk("li", null, w + " → " + focal + " : message " + fmt(HS[p.t - 1][w])));
+        });
+        box.appendChild(ul);
+        box.appendChild(noteEl("<b>Tous les nœuds font la même chose en parallèle</b> (pointillés discrets sur les autres arêtes) : le nœud focal n'est qu'une loupe, pas un cas particulier."));
+      } else if (p.kind === "agg"){
+        var m = msum(focal, p.t - 1);
+        box.appendChild(noteEl("Le nœud <b>" + focal + "</b> agrège les messages de N(" + focal + ") par une somme : <b>m = " + fmt(m) + "</b>. La somme accepte 1 comme 3 messages et ignore leur ordre : c'est ainsi qu'elle absorbe les <b>degrés variables</b> et l'<b>absence d'ordre canonique</b> des voisins."));
+        box.appendChild(noteEl("Dans la fiche de calcul à droite, permutez l'ordre des voisins : la liste change, la somme jamais. Un agrégateur <b>invariant par permutation</b> est le prix d'entrée de toute couche GNN."));
+      } else if (p.kind === "upd"){
+        var m2 = msum(focal, p.t - 1);
+        box.appendChild(noteEl("Chaque nœud met à jour son état : <code>h_v ← Uₜ(h_v, m_v)</code>, version jouet <b>U = h_v + m_v</b>. Pour " + focal + " : " + fmt(HS[p.t - 1][focal]) + " + " + fmt(m2) + " = <b>" + fmt(HS[p.t][focal]) + "</b>."));
+        box.appendChild(noteEl("Les mises à jour sont <b>simultanées</b> : le pas t = " + p.t + " ne lit que les états du pas t = " + (p.t - 1) + ". Après ce pas, " + focal + " a intégré l'information des nœuds à ≤ " + p.t + " saut" + (p.t > 1 ? "s" : "") + " : <b>" + rfSize(focal, p.t) + " nœud" + (rfSize(focal, p.t) > 1 ? "s" : "") + " sur 6</b> (halo doré)."));
+        if (p.t === T){
+          box.appendChild(noteEl("Regardez les teintes : après " + T + " pas de sommes répétées, les directions des vecteurs se ressemblent déjà. Empiler beaucoup de pas rapproche tous les états — c'est l'<b>oversmoothing</b> qui guette."));
+        }
+      } else {
+        box.appendChild(noteEl("Après le pas T = " + T + ", la <b>LECTURE</b> <code>R({h_v})</code> résume le graphe entier : ici la somme des six états, <b>h_G = " + fmt(HG) + "</b>. Comme R est invariante par permutation, renuméroter les nœuds donne exactement le même vecteur."));
+        box.appendChild(noteEl("Ce vecteur de graphe alimente une tête de <b>classification de graphe</b>. Pour une tâche au niveau des nœuds (classification de nœuds, prédiction de liens), on saute la lecture et on consomme directement les h_v finaux."));
+      }
+      return box;
+    }
+
+    function buildFiche(p){
+      var box = mk("div"), ns = ADJ[focal];
+      box.appendChild(setMarkup(mk("p", "scmp-fl"),
+        "<b>" + focal + "</b> · deg " + ns.length + " · N(" + focal + ") = {" + ns.join(", ") + "}"));
+      if (p.kind === "init"){
+        box.appendChild(setMarkup(mk("p", "scmp-fl"), hOf(focal, 0) + " = <b>" + fmt(H0[focal]) + "</b>"));
+        box.appendChild(mk("p", "scmp-fnote", "Avancez pour voir les messages arriver."));
+      } else if (p.kind === "msg"){
+        neighborsPerm(focal).forEach(function(w){
+          box.appendChild(setMarkup(mk("p", "scmp-fl"),
+            "M(h_" + focal + ", h_" + w + ") = h_" + w + " = <b>" + fmt(HS[p.t - 1][w]) + "</b>"));
+        });
+      } else if (p.kind === "agg"){
+        var perm = neighborsPerm(focal), m = msum(focal, p.t - 1);
+        box.appendChild(setMarkup(mk("p", "scmp-fl"),
+          "m = " + perm.map(function(w){ return fmt(HS[p.t - 1][w]); }).join(" + ") +
+          " = <b>" + fmt(m) + "</b>"));
+        var pb = mk("button", "scmp-permbtn", "⇄ Permuter l'ordre des voisins");
+        pb.type = "button";
+        pb.id = "scmp-perm";
+        box.appendChild(pb);
+        box.appendChild(mk("p", "scmp-fnote",
+          ns.length > 1
+            ? "Ordre affiché : " + perm.join(" puis ") + " — la somme ne bouge pas."
+            : "Un seul voisin ici : essayez C ou D (degré 3) pour voir la permutation agir."));
+      } else if (p.kind === "upd"){
+        box.appendChild(setMarkup(mk("p", "scmp-fl"),
+          hOf(focal, p.t) + " = " + hOf(focal, p.t - 1) + " + m = " + fmt(HS[p.t - 1][focal]) +
+          " + " + fmt(msum(focal, p.t - 1)) + " = <b>" + fmt(HS[p.t][focal]) + "</b>"));
+        box.appendChild(mk("p", "scmp-fnote", "Les six nœuds se mettent à jour en même temps, avec la même règle."));
+      } else {
+        box.appendChild(setMarkup(mk("p", "scmp-fl"),
+          "h_G = Σ h" + SUP[T] + "(v) = <b>" + fmt(HG) + "</b>"));
+        box.appendChild(mk("p", "scmp-fnote",
+          "Somme sur les six nœuds, quel que soit leur ordre : la sortie au niveau du graphe."));
+      }
+      return box;
+    }
+
+    function render(){
+      var p = phaseAt(IDX);
+
+      /* boutons focaux */
+      Array.prototype.forEach.call(focrowEl.querySelectorAll(".scmp-foc"), function(b){
+        b.classList.toggle("scmp-sel", b.getAttribute("data-foc") === focal);
+      });
+
+      /* compteur + barre de progression */
+      var lbl = p.kind === "init" ? "départ" : (p.kind === "read" ? "lecture" : "pas " + p.t + "/" + T);
+      ctrEl.textContent = "étape " + IDX + " / " + NSTEPS + " · " + lbl;
+      pfillEl.style.width = (100 * IDX / NSTEPS) + "%";
+
+      /* rail des phases */
+      var cur = p.kind === "msg" ? 0 : p.kind === "agg" ? 1 : p.kind === "upd" ? 2 : p.kind === "read" ? 3 : -1;
+      railEl.textContent = "";
+      PHASES.forEach(function(ph, i){
+        var cls = "scmp-ph";
+        if (i === cur) cls += " scmp-active";
+        else if (cur >= 0 && i < cur && cur < 3) cls += " scmp-done";       /* dans le pas courant */
+        else if (p.kind === "read" && i < 3) cls += " scmp-done";
+        var el = mk("div", cls);
+        el.appendChild(mk("div", "scmp-pn", ph.n));
+        el.appendChild(mk("div", "scmp-pl", ph.l));
+        el.appendChild(mk("div", "scmp-pf", ph.f));
+        railEl.appendChild(el);
+      });
+
+      /* scène */
+      if (p.kind === "init"){
+        setMarkup(stageHead, "Instance jouet — <b>état initial h⁰</b>, avant tout échange");
+        dhEl.textContent = "Six nœuds, des degrés de 1 à 3, aucun ordre canonique";
+      } else if (p.kind === "read"){
+        setMarkup(stageHead, "Après le pas " + T + " — <b>LECTURE</b> (une fois, sur tout le graphe)");
+        dhEl.textContent = "R invariante par permutation : le graphe devient un vecteur";
+      } else {
+        var names = {msg:"MESSAGE", agg:"AGRÉGATION", upd:"MISE À JOUR"};
+        setMarkup(stageHead, "Pas <b>t = " + p.t + "/" + T + "</b> · phase <b>" + names[p.kind] + "</b>");
+        dhEl.textContent = p.kind === "msg"
+          ? "Chaque voisin de " + focal + " émet un message le long de son arête"
+          : p.kind === "agg"
+            ? focal + " somme les messages de son voisinage : m = Σ"
+            : "Tous les nœuds appliquent h_v ← U(h_v, m_v) en même temps";
+      }
+      dbodyEl.textContent = "";
+      dbodyEl.appendChild(buildDetail(p));
+      renderSvg(p);
+
+      /* bannière de fin */
+      bannerEl.textContent = "";
+      if (p.kind === "read"){
+        var ban = mk("div", "scmp-banner");
+        ban.appendChild(mk("b", null, "Cycle complet : " + (3 * T) + " phases en " + T + " pas, puis une lecture — h_G = " + fmt(HG)));
+        ban.appendChild(document.createTextNode(
+          "Chaque pas n'a fait qu'un saut : le champ récepteur du focal est passé de 1 à " +
+          rfSize(focal, T) + " nœuds sur 6. Changez de nœud focal et rejouez : mêmes états, autre loupe."));
+        bannerEl.appendChild(ban);
+      }
+
+      /* fiche de calcul */
+      ficheEl.textContent = "";
+      ficheEl.appendChild(buildFiche(p));
+      var pb = $("scmp-perm");
+      if (pb) pb.addEventListener("click", function(){ permIdx++; render(); });
+
+      /* barres du champ récepteur */
+      var rt = rfT(p);
+      rfrowEl.textContent = "";
+      for (var t = 0; t <= T; t++){
+        var n = rfSize(focal, t);
+        var cell = mk("div", "scmp-rfcell" + (t === rt ? " scmp-cur" : (t < rt ? " scmp-past" : "")));
+        var bar = mk("div", "scmp-rfbar");
+        var fill = mk("div", "scmp-rffill");
+        fill.style.height = (n / 6 * 100) + "%";
+        bar.appendChild(fill);
+        cell.appendChild(bar);
+        cell.appendChild(mk("div", "scmp-rflab", "t=" + t + " · " + n + "/6"));
+        rfrowEl.appendChild(cell);
+      }
+      rfcapEl.textContent = "Nœuds à ≤ t sauts de " + focal + " : un saut de plus par pas de message passing." +
+        (rfSize(focal, T) === 6 ? " À t = " + T + ", " + focal + " voit tout le graphe." : "");
+
+      /* mécanismes actifs */
+      var act = p.kind === "msg" ? ["mpnn"]
+        : p.kind === "agg" ? ["mpnn","invar"]
+        : p.kind === "upd" ? (p.t === T ? ["mpnn","rf","smooth"] : ["mpnn","rf"])
+        : p.kind === "read" ? ["read","invar"] : [];
+      mechsEl.textContent = "";
+      MECHS.forEach(function(m){
+        mechsEl.appendChild(mk("li", act.indexOf(m.id) >= 0 ? "scmp-mon" : null, m.t));
+      });
+
+      /* boutons */
+      prevBtn.disabled = playing || IDX === 0;
+      nextBtn.disabled = playing || IDX >= NSTEPS;
+      playBtn.textContent = playing ? "⏸ Pause" : "▶▶ Dérouler jusqu'à la lecture";
+    }
+
+    /* ---------- navigation ---------- */
+    function goto_(i){ IDX = Math.max(0, Math.min(NSTEPS, i)); render(); }
+    function stopPlay(){ playing = false; if (timer){ clearInterval(timer); timer = null; } render(); }
+    function play(){
+      if (playing){ stopPlay(); return; }
+      if (IDX >= NSTEPS) IDX = 0;
+      playing = true; render();
+      timer = setInterval(function(){
+        if (IDX >= NSTEPS){ stopPlay(); return; }
+        IDX++; render();
+        if (IDX >= NSTEPS) stopPlay();
+      }, 1300);
+    }
+
+    prevBtn.addEventListener("click", function(){ if (!playing) goto_(IDX - 1); });
+    nextBtn.addEventListener("click", function(){ if (!playing) goto_(IDX + 1); });
+    playBtn.addEventListener("click", play);
+    resetBtn.addEventListener("click", function(){ stopPlay(); goto_(0); });
+    focrowEl.addEventListener("click", function(ev){
+      var b = ev.target.closest ? ev.target.closest(".scmp-foc") : null;
+      if (!b) return;
+      focal = b.getAttribute("data-foc"); permIdx = 0; render();
+    });
+
+    render();
+  })();
+  </script>
+</div>

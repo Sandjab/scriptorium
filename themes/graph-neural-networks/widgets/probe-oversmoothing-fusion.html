@@ -1,0 +1,437 @@
+<div class="widget osm-root" id="osm-root">
+  <style>
+    .osm-root{--osm-ink:var(--ink,#15202E);--osm-soft:var(--ink-soft,#43536A);
+      --osm-faint:var(--ink-faint,#7A889B);--osm-card:var(--card,#fff);
+      --osm-line:var(--line,#D7DFE9);--osm-line-soft:var(--line-soft,#E7ECF3);
+      --osm-blue:var(--blue,#23537F);--osm-bright:var(--blue-bright,#2C77B6);
+      --osm-wash:var(--blue-wash,#E7EEF6);--osm-bord:var(--bordeaux,#7C2A38);
+      --osm-bord-br:var(--bordeaux-bright,#9B3443);--osm-gold:var(--gold,#C68A2E);
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--osm-ink);
+      border:1px solid var(--osm-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--osm-card);max-width:680px}
+    .osm-root *{box-sizing:border-box}
+    .osm-k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;
+      color:var(--osm-faint);font-weight:600;margin:0 0 2px}
+    .osm-title{font-weight:700;font-size:1.05rem;margin:0 0 12px}
+    .osm-ctl{margin:0 0 10px}
+    .osm-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+    .osm-row+.osm-row{margin-top:10px}
+    .osm-lab{flex:0 0 auto;font-weight:600;font-size:.85rem;color:var(--osm-soft)}
+    .osm-slider{flex:1 1 220px;min-width:160px;accent-color:var(--osm-bright);height:22px}
+    .osm-val{flex:0 0 auto;font:700 .98rem/1 ui-monospace,monospace;color:var(--osm-blue);
+      min-width:3.4em;text-align:right}
+    .osm-btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+    .osm-btns button{border:1px solid var(--osm-bright);border-radius:7px;
+      background:transparent;color:var(--osm-bright);font:600 13px/1 inherit;
+      padding:8px 13px;cursor:pointer}
+    .osm-btns button:hover{background:var(--osm-wash)}
+    .osm-btns button.osm-primary{background:var(--osm-blue);color:#fff;border-color:var(--osm-blue)}
+    .osm-btns button.osm-primary:hover{background:var(--osm-bright)}
+    .osm-btns button.osm-bridge.osm-on{background:var(--osm-gold);border-color:var(--osm-gold);color:#fff}
+    .osm-svg{width:100%;height:auto;display:block;margin:2px 0 0;
+      border:1px solid var(--osm-line-soft);border-radius:9px;background:#FBFCFE}
+    .osm-svg text{font:11px/1 ui-monospace,monospace}
+    .osm-hint{font-size:.74rem;color:var(--osm-faint);margin:6px 0 12px;text-align:center}
+    .osm-strip{margin:0 0 12px;border:1px solid var(--osm-line-soft);border-radius:9px;padding:9px 11px}
+    .osm-striprow{display:flex;gap:4px;align-items:center}
+    .osm-striprow+.osm-striprow{margin-top:4px}
+    .osm-striplab{flex:0 0 58px;font:600 .7rem/1.2 ui-monospace,monospace;color:var(--osm-faint)}
+    .osm-cell{flex:1 1 0;height:20px;border-radius:4px;border:1px solid rgba(0,0,0,.08)}
+    .osm-cellname{flex:1 1 0;height:auto;border:none;text-align:center;
+      font:600 .68rem/1 ui-monospace,monospace;color:var(--osm-faint)}
+    .osm-stats{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 12px}
+    .osm-stat{flex:1 1 130px;border:1px solid var(--osm-line);border-radius:9px;
+      padding:9px 11px;background:var(--osm-card)}
+    .osm-stat .osm-sk{font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;
+      color:var(--osm-faint);font-weight:600}
+    .osm-stat .osm-sv{font:800 1.3rem/1.1 ui-monospace,monospace;color:var(--osm-blue);margin:3px 0 0}
+    .osm-stat.osm-warn .osm-sv{color:var(--osm-bord-br)}
+    .osm-read{margin:12px 0 0;padding:11px 13px;border-radius:8px;border:1px solid var(--osm-line);
+      background:var(--osm-wash);font-size:.86rem;line-height:1.5;color:var(--osm-ink)}
+    .osm-read b{font-weight:700}
+    .osm-read.osm-r-warn{background:#FBEDEF;border-color:#E8C7CD}
+    .osm-note{margin:10px 0 0;font-size:.74rem;color:var(--osm-faint);line-height:1.45}
+    .osm-note code{font-family:ui-monospace,monospace}
+  </style>
+
+  <p class="osm-k">Sonde interactive</p>
+  <p class="osm-title">Oversmoothing : empiler les couches GCN fait fusionner les couleurs</p>
+
+  <div class="osm-ctl">
+    <div class="osm-row">
+      <span class="osm-lab">Couches empilées k</span>
+      <input class="osm-slider" id="osm-kslider" type="range" min="0" max="40" value="0" step="1"
+             aria-label="nombre de couches de propagation">
+      <span class="osm-val" id="osm-kval">k = 0</span>
+    </div>
+    <div class="osm-btns">
+      <button type="button" class="osm-primary" id="osm-play">▶ Empiler les couches</button>
+      <button type="button" id="osm-step">+1 couche</button>
+      <button type="button" id="osm-reset">Revenir à k = 0</button>
+      <button type="button" class="osm-bridge" id="osm-bridge">Relier les deux composantes</button>
+    </div>
+  </div>
+
+  <svg class="osm-svg" id="osm-graph" viewBox="0 0 660 300" role="img"
+       aria-label="graphe dont les couleurs de nœuds fusionnent au fil des couches"></svg>
+  <p class="osm-hint">Disque = couleur après k couches ; anneau extérieur = couleur initiale ;
+    « d » = degré du nœud.</p>
+
+  <div class="osm-strip" aria-label="couleurs des nœuds avant et après propagation">
+    <div class="osm-striprow"><span class="osm-striplab">nœud</span><span class="osm-cells-names" id="osm-names" style="display:flex;flex:1;gap:4px"></span></div>
+    <div class="osm-striprow"><span class="osm-striplab">k = 0</span><span id="osm-cells0" style="display:flex;flex:1;gap:4px"></span></div>
+    <div class="osm-striprow"><span class="osm-striplab" id="osm-lk">k = 0</span><span id="osm-cellsk" style="display:flex;flex:1;gap:4px"></span></div>
+  </div>
+
+  <div class="osm-stats">
+    <div class="osm-stat">
+      <div class="osm-sk">Couches k</div>
+      <div class="osm-sv" id="osm-vk">0</div>
+    </div>
+    <div class="osm-stat" id="osm-st-dist">
+      <div class="osm-sk">Distance inter-nœuds restante</div>
+      <div class="osm-sv" id="osm-vdist">100 %</div>
+    </div>
+    <div class="osm-stat">
+      <div class="osm-sk"><span style="text-transform:none">λ₂</span> (vitesse de mélange)</div>
+      <div class="osm-sv" id="osm-vlam">—</div>
+    </div>
+  </div>
+
+  <svg class="osm-svg" id="osm-chart" viewBox="0 0 660 130" role="img"
+       aria-label="décroissance de la distance moyenne entre nœuds selon le nombre de couches"></svg>
+
+  <div class="osm-read" id="osm-read"></div>
+
+  <p class="osm-note">Chaque « couche » applique le propagateur GCN
+    <code>X ← D̂⁻¹ᐟ²ÂD̂⁻¹ᐟ²X</code> avec <code>Â = A + I</code>, sans poids appris ni
+    non-linéarité : c'est le mécanisme de lissage isolé. Le point fixe vaut
+    <code>x_i ∝ √(dᵢ+1)</code> fois une constante propre à chaque composante connexe : à la
+    limite, la représentation d'un nœud ne dépend plus que de son degré et de sa composante.
+    L'écart à ce point fixe décroît en <code>λ₂ᵏ</code>, où λ₂ est la deuxième plus grande
+    valeur propre (en module) du propagateur — d'où la décroissance exponentielle observée
+    (Li et al. 2018 ; Oono &amp; Suzuki 2020). Tout est calculé exactement, sans aléa.</p>
+
+  <script>
+  (function(){
+    var root=document.getElementById("osm-root");
+    if(!root||root.dataset.osmInit)return; root.dataset.osmInit="1";
+
+    var SVGNS="http://www.w3.org/2000/svg";
+    var gsvg=document.getElementById("osm-graph");
+    var csvg=document.getElementById("osm-chart");
+    var kslider=document.getElementById("osm-kslider");
+    var kvalEl=document.getElementById("osm-kval");
+    var playBtn=document.getElementById("osm-play");
+    var stepBtn=document.getElementById("osm-step");
+    var resetBtn=document.getElementById("osm-reset");
+    var bridgeBtn=document.getElementById("osm-bridge");
+    var namesEl=document.getElementById("osm-names");
+    var cells0El=document.getElementById("osm-cells0");
+    var cellskEl=document.getElementById("osm-cellsk");
+    var lkEl=document.getElementById("osm-lk");
+    var vkEl=document.getElementById("osm-vk");
+    var vdistEl=document.getElementById("osm-vdist");
+    var vlamEl=document.getElementById("osm-vlam");
+    var stDist=document.getElementById("osm-st-dist");
+    var readEl=document.getElementById("osm-read");
+
+    // --- graphe fixe : composante A (7 nœuds), composante B (triangle), pont optionnel ---
+    var N=10, KMAX=40;
+    var pos=[[170,150],[90,80],[70,190],[155,250],[262,88],[350,125],[428,195],
+             [520,85],[606,148],[522,218]];
+    var baseEdges=[[0,1],[0,2],[0,3],[0,4],[1,2],[4,5],[5,6],[7,8],[8,9],[7,9]];
+    var bridgeEdge=[6,7];
+    var labels=["a","b","c","d","e","f","g","h","i","j"];
+
+    // couleurs initiales : 10 teintes distinctes (HSL réparties, converties en RGB)
+    function hsl2rgb(h,s,l){
+      var c=(1-Math.abs(2*l-1))*s, hp=h/60, x=c*(1-Math.abs(hp%2-1));
+      var r=0,g=0,b=0;
+      if(hp<1){r=c;g=x;}else if(hp<2){r=x;g=c;}else if(hp<3){g=c;b=x;}
+      else if(hp<4){g=x;b=c;}else if(hp<5){r=x;b=c;}else{r=c;b=x;}
+      var m=l-c/2; return [r+m,g+m,b+m];
+    }
+    var X0=[]; for(var i=0;i<N;i++)X0.push(hsl2rgb(i*36,0.74,0.55));
+
+    function css(v){
+      function u(t){return Math.max(0,Math.min(255,Math.round(t*255)));}
+      return "rgb("+u(v[0])+","+u(v[1])+","+u(v[2])+")";
+    }
+    function fmt(v,d){return v.toFixed(d).replace(".",",");}
+
+    // --- état ---
+    var bridged=false, k=0, timer=null;
+    var feats=null, ratio=null, floorRatio=0, lambda2=0, degs=null, edges=null;
+
+    // --- propagation exacte X^(k+1) = D̂^{-1/2} Â D̂^{-1/2} X^(k) ---
+    function rebuild(){
+      edges=baseEdges.slice(); if(bridged)edges.push(bridgeEdge);
+      var adj=[]; for(var i=0;i<N;i++)adj.push([i]);       // Â = A + I (auto-boucle)
+      degs=[]; for(i=0;i<N;i++)degs.push(0);
+      edges.forEach(function(e){adj[e[0]].push(e[1]);adj[e[1]].push(e[0]);
+        degs[e[0]]++;degs[e[1]]++;});
+      var dhat=degs.map(function(d){return d+1;});
+      var isq=dhat.map(function(d){return 1/Math.sqrt(d);});
+
+      function applyM(X){
+        var Y=[];
+        for(var i=0;i<N;i++){
+          var acc=[0,0,0];
+          adj[i].forEach(function(j){
+            var w=isq[i]*isq[j];
+            acc[0]+=w*X[j][0];acc[1]+=w*X[j][1];acc[2]+=w*X[j][2];
+          });
+          Y.push(acc);
+        }
+        return Y;
+      }
+      feats=[X0];
+      for(var s=1;s<=KMAX;s++)feats.push(applyM(feats[s-1]));
+
+      // composantes connexes (BFS)
+      var comp=[]; for(i=0;i<N;i++)comp.push(-1);
+      var nc=0;
+      for(i=0;i<N;i++)if(comp[i]<0){
+        var q=[i]; comp[i]=nc;
+        while(q.length){var u=q.pop();
+          adj[u].forEach(function(v){if(comp[v]<0){comp[v]=nc;q.push(v);}});}
+        nc++;
+      }
+      // point fixe : x_i -> sqrt(d̂_i) · (v·x)/(v·v) par composante, v = sqrt(d̂)
+      var limit=[]; for(i=0;i<N;i++)limit.push([0,0,0]);
+      for(var c=0;c<nc;c++){
+        var num=[0,0,0], den=0;
+        for(i=0;i<N;i++)if(comp[i]===c){
+          var v=Math.sqrt(dhat[i]); den+=dhat[i];
+          num[0]+=v*X0[i][0];num[1]+=v*X0[i][1];num[2]+=v*X0[i][2];
+        }
+        for(i=0;i<N;i++)if(comp[i]===c){
+          var vv=Math.sqrt(dhat[i]);
+          limit[i]=[vv*num[0]/den,vv*num[1]/den,vv*num[2]/den];
+        }
+      }
+      // distance moyenne entre paires de nœuds
+      function meanDist(X){
+        var s=0,n=0;
+        for(var a=0;a<N;a++)for(var b=a+1;b<N;b++){
+          var dx=X[a][0]-X[b][0],dy=X[a][1]-X[b][1],dz=X[a][2]-X[b][2];
+          s+=Math.sqrt(dx*dx+dy*dy+dz*dz);n++;
+        }
+        return s/n;
+      }
+      var d0=meanDist(X0);
+      ratio=feats.map(function(X){return meanDist(X)/d0;});
+      floorRatio=meanDist(limit)/d0;
+
+      // λ₂ : itération de puissance sur M, en projetant hors des vecteurs propres de valeur 1
+      var us=[];
+      for(c=0;c<nc;c++){
+        var u=[],norm=0;
+        for(i=0;i<N;i++){var t=(comp[i]===c)?Math.sqrt(dhat[i]):0;u.push(t);norm+=t*t;}
+        norm=Math.sqrt(norm); us.push(u.map(function(t){return t/norm;}));
+      }
+      function proj(x){
+        us.forEach(function(u){
+          var dp=0; for(var i=0;i<N;i++)dp+=u[i]*x[i];
+          for(i=0;i<N;i++)x[i]-=dp*u[i];
+        });
+        return x;
+      }
+      function applyMv(x){
+        var y=[];
+        for(var i=0;i<N;i++){var acc=0;
+          adj[i].forEach(function(j){acc+=isq[i]*isq[j]*x[j];});y.push(acc);}
+        return y;
+      }
+      var x=[]; for(i=0;i<N;i++)x.push(Math.sin((i+1)*12.9898)%1);
+      x=proj(x);
+      var lam=0;
+      for(s=0;s<300;s++){
+        var y=proj(applyMv(x));
+        var nx=0,dp=0;
+        for(i=0;i<N;i++){dp+=x[i]*y[i];nx+=x[i]*x[i];}
+        lam=dp/nx;
+        var ny=0; for(i=0;i<N;i++)ny+=y[i]*y[i];
+        ny=Math.sqrt(ny); if(ny<1e-12)break;
+        x=y.map(function(t){return t/ny;});
+      }
+      lambda2=Math.abs(lam);
+    }
+
+    // --- dessin du graphe ---
+    function el(tag,attrs,parent){
+      var e=document.createElementNS(SVGNS,tag);
+      for(var a in attrs)e.setAttribute(a,attrs[a]);
+      if(parent)parent.appendChild(e);
+      return e;
+    }
+    function drawGraph(){
+      gsvg.textContent="";
+      edges.forEach(function(e){
+        var isBridge=(e[0]===bridgeEdge[0]&&e[1]===bridgeEdge[1]);
+        el("line",{x1:pos[e[0]][0],y1:pos[e[0]][1],x2:pos[e[1]][0],y2:pos[e[1]][1],
+          stroke:isBridge?"var(--osm-gold)":"#C7D2DF","stroke-width":isBridge?2.6:2,
+          "stroke-dasharray":isBridge?"6 4":"none"},gsvg);
+      });
+      if(bridged){
+        el("text",{x:(pos[6][0]+pos[7][0])/2,y:(pos[6][1]+pos[7][1])/2-8,
+          fill:"var(--osm-gold)","text-anchor":"middle"},gsvg)
+          .textContent="pont";
+      }
+      for(var i=0;i<N;i++){
+        el("circle",{cx:pos[i][0],cy:pos[i][1],r:19,fill:"none",
+          stroke:css(X0[i]),"stroke-width":3.4,opacity:0.9},gsvg);
+        el("circle",{id:"osm-n"+i,cx:pos[i][0],cy:pos[i][1],r:14,
+          fill:css(feats[k][i]),stroke:"#fff","stroke-width":1.5},gsvg);
+        el("text",{x:pos[i][0],y:pos[i][1]-25,fill:"var(--osm-soft)",
+          "text-anchor":"middle","font-weight":"700"},gsvg).textContent=labels[i];
+        el("text",{x:pos[i][0],y:pos[i][1]+34,fill:"var(--osm-faint)",
+          "text-anchor":"middle"},gsvg).textContent="d="+degs[i];
+      }
+      el("text",{x:300,y:290,fill:"var(--osm-faint)","text-anchor":"middle"},gsvg)
+        .textContent="composante 1";
+      el("text",{x:552,y:290,fill:"var(--osm-faint)","text-anchor":"middle"},gsvg)
+        .textContent=bridged?"reliée par le pont":"composante 2";
+    }
+
+    // --- courbe de décroissance ---
+    var PADL=52,PADR=14,PADT=14,PADB=26,CW=660,CH=130;
+    function cx(kk){return PADL+kk/KMAX*(CW-PADL-PADR);}
+    function cy(r){return PADT+(1-r)*(CH-PADT-PADB);}
+    function drawChart(){
+      csvg.textContent="";
+      el("line",{x1:PADL,y1:PADT,x2:PADL,y2:CH-PADB,stroke:"#C7D2DF","stroke-width":1.2},csvg);
+      el("line",{x1:PADL,y1:CH-PADB,x2:CW-PADR,y2:CH-PADB,stroke:"#C7D2DF","stroke-width":1.2},csvg);
+      el("text",{x:PADL-6,y:PADT+8,fill:"var(--osm-faint)","text-anchor":"end"},csvg)
+        .textContent="100 %";
+      el("text",{x:PADL-6,y:CH-PADB+3,fill:"var(--osm-faint)","text-anchor":"end"},csvg)
+        .textContent="0 %";
+      el("text",{x:(PADL+CW-PADR)/2,y:CH-6,fill:"var(--osm-faint)","text-anchor":"middle"},csvg)
+        .textContent="couches k";
+      // plancher théorique (effet degré + composante)
+      el("line",{x1:PADL,y1:cy(floorRatio),x2:CW-PADR,y2:cy(floorRatio),
+        stroke:"var(--osm-bord)","stroke-width":1.3,"stroke-dasharray":"4 4",opacity:0.7},csvg);
+      el("text",{x:CW-PADR-4,y:cy(floorRatio)-5,fill:"var(--osm-bord)",
+        "text-anchor":"end"},csvg).textContent="plancher : degré + composante";
+      var d="";
+      for(var s=0;s<=KMAX;s++)d+=(s?"L":"M")+cx(s).toFixed(1)+" "+cy(ratio[s]).toFixed(1)+" ";
+      el("path",{d:d,fill:"none",stroke:"var(--osm-bright)","stroke-width":2.2},csvg);
+      el("circle",{id:"osm-mark",cx:cx(k),cy:cy(ratio[k]),r:5,
+        fill:"var(--osm-gold)",stroke:"#fff","stroke-width":1.5},csvg);
+    }
+
+    // --- bandeau de couleurs ---
+    function buildStrip(){
+      namesEl.textContent="";cells0El.textContent="";cellskEl.textContent="";
+      for(var i=0;i<N;i++){
+        var n=document.createElement("span");
+        n.className="osm-cellname";n.textContent=labels[i];namesEl.appendChild(n);
+        var c0=document.createElement("span");
+        c0.className="osm-cell";c0.style.background=css(X0[i]);cells0El.appendChild(c0);
+        var ck=document.createElement("span");
+        ck.className="osm-cell";ck.id="osm-ck"+i;ck.style.background=css(feats[k][i]);
+        cellskEl.appendChild(ck);
+      }
+    }
+
+    // --- lecture pédagogique ---
+    function setRead(){
+      var r=ratio[k], gap=(r-floorRatio)/(1-floorRatio), msg, warn=false;
+      if(k===0){
+        msg=[{b:"k = 0 : signal intact."},
+          " Chaque nœud porte sa couleur propre — c'est le signal discriminant que les "+
+          "couches suivantes vont mélanger. Faites glisser le curseur ou lancez l'animation."];
+      }else if(gap>0.45){
+        msg=[{b:"k = "+k+" : le mélange local commence."},
+          " Chaque couche remplace la couleur d'un nœud par une moyenne pondérée de son "+
+          "voisinage : les voisins directs se ressemblent déjà, mais les composantes et les "+
+          "zones éloignées restent distinctes."];
+      }else if(gap>0.10){
+        msg=[{b:"k = "+k+" : les couleurs convergent."},
+          " La distance moyenne entre nœuds fond couche après couche — d'un facteur ≈ λ₂ = "+
+          fmt(lambda2,2)+" par couche. Les nœuds d'une même composante deviennent difficiles "+
+          "à distinguer."];
+      }else{
+        warn=true;
+        msg=[{b:"k = "+k+" : effondrement (oversmoothing)."},
+          bridged?
+          " Le graphe entier a fusionné vers une seule teinte : la représentation d'un nœud ne "+
+          "dépend plus que de son degré (facteur √(d+1)). Tout ce qui distinguait les nœuds a "+
+          "disparu — un classifieur ne peut plus rien en tirer.":
+          " Chaque composante s'est figée sur sa teinte moyenne, modulée par √(d+1) : la "+
+          "représentation d'un nœud ne dépend plus que de son degré et de sa composante. Tout "+
+          "ce qui distinguait les nœuds entre eux a disparu."];
+      }
+      readEl.className="osm-read"+(warn?" osm-r-warn":"");
+      readEl.textContent="";
+      msg.forEach(function(p){
+        if(typeof p==="string")readEl.appendChild(document.createTextNode(p));
+        else{var b=document.createElement("b");b.textContent=p.b;readEl.appendChild(b);}
+      });
+    }
+
+    // --- mise à jour pour un k donné ---
+    function render(){
+      kvalEl.textContent="k = "+k;
+      kslider.value=k;
+      vkEl.textContent=k;
+      var pct=ratio[k]*100;
+      vdistEl.textContent=(pct<10?fmt(pct,1):Math.round(pct))+" %";
+      stDist.className="osm-stat"+
+        (((ratio[k]-floorRatio)/(1-floorRatio))<0.10?" osm-warn":"");
+      vlamEl.textContent=fmt(lambda2,3);
+      for(var i=0;i<N;i++){
+        var c=css(feats[k][i]);
+        var node=document.getElementById("osm-n"+i);
+        if(node)node.setAttribute("fill",c);
+        var cell=document.getElementById("osm-ck"+i);
+        if(cell)cell.style.background=c;
+      }
+      lkEl.textContent="k = "+k;
+      var mark=document.getElementById("osm-mark");
+      if(mark){mark.setAttribute("cx",cx(k));mark.setAttribute("cy",cy(ratio[k]));}
+      setRead();
+    }
+
+    function rebuildAll(){
+      rebuild(); drawGraph(); drawChart(); buildStrip(); render();
+    }
+
+    // --- animation ---
+    function stopAnim(){
+      if(timer){clearInterval(timer);timer=null;}
+      playBtn.textContent="▶ Empiler les couches";
+    }
+    function playAnim(){
+      if(timer){stopAnim();return;}
+      if(k>=KMAX){k=0;render();}
+      playBtn.textContent="⏸ Pause";
+      timer=setInterval(function(){
+        if(k>=KMAX){stopAnim();return;}
+        k++; render();
+      },240);
+    }
+
+    // --- interactions ---
+    kslider.addEventListener("input",function(){
+      stopAnim(); k=parseInt(kslider.value,10)||0; render();
+    });
+    playBtn.addEventListener("click",playAnim);
+    stepBtn.addEventListener("click",function(){
+      stopAnim(); if(k<KMAX){k++;render();}
+    });
+    resetBtn.addEventListener("click",function(){stopAnim();k=0;render();});
+    bridgeBtn.addEventListener("click",function(){
+      stopAnim();
+      bridged=!bridged;
+      bridgeBtn.classList.toggle("osm-on",bridged);
+      bridgeBtn.textContent=bridged?"Retirer le pont":"Relier les deux composantes";
+      rebuildAll();
+    });
+
+    // --- init ---
+    rebuildAll();
+  })();
+  </script>
+</div>
