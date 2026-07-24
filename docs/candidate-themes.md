@@ -171,20 +171,11 @@ classé dans llm-agents-generation après llm-evaluation.)
 > re-dériver) — se centrer sur la marge maximale, la dualité, la hinge loss et SMO. Domaine :
 > classical-ml-time-series.
 
-### Graph neural networks (GNN) — `graph-neural-networks` → `deep-learning-foundations`
-**Verdict : gap réel.** ⚠️ `knowledge-graph-construction` traite l'*extraction* de graphes (≠
-apprendre dessus) ; GraphRAG/agentic-memory utilisent des graphes sans message passing.
-
-> Graph neural networks (GNN) : apprendre sur des données structurées en graphe. Couvrir le cadre du
-> message passing (agrégation de voisinage, mise à jour, lecture), les architectures de référence
-> (GCN spectral/spatial, GraphSAGE et l'échantillonnage de voisinage, GAT et l'attention sur arêtes,
-> GIN et le pouvoir expressif lié au test de Weisfeiler-Lehman), le pooling de graphes, les tâches
-> (classification de nœuds/graphes, prédiction de liens), et les pièges (oversmoothing,
-> oversquashing, passage à l'échelle). Positionnement : famille d'architectures absente d'un corpus
-> 100 % séquence/transformer. Public : ingénieur ML. Délimitations : ⚠️ knowledge-graph-construction
-> traite l'EXTRACTION de graphes depuis le texte ; GraphRAG (RAG) et les knowledge graphs
-> (agentic-memory) utilisent des graphes sans message passing — se centrer sur l'apprentissage de
-> représentations sur graphes. Domaine : deep-learning-foundations.
+(`graph-neural-networks` : FAIT le 2026-07-24, retiré du backlog — 18e run /leanmonograph GREEN
+après backstop [2 hedges single-source + sigle workshop RLR→R2L], classé dans
+deep-learning-foundations après state-space-models. Section pooling-graphes écartée par l'audit
+(3 claims single-source) : le pooling n'est couvert que par un paragraphe DiffPool — angle
+résiduel si un candidat « pooling/expressivité avancée » émerge un jour.)
 
 ### Sketches en flux : quantiles & échantillonnage — `streaming-quantiles-sampling` → `probabilistic-structures-hashing`
 **Verdict : gap réel.** Complète `count-min-sketch` (fréquences) et `hyperloglog` (cardinalité).
