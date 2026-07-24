@@ -1,0 +1,904 @@
+<div class="widget spv-root" id="spv-root">
+  <style>
+    .spv-root{--spv-ink:var(--ink,#15202E);--spv-soft:var(--ink-soft,#43536A);
+      --spv-faint:var(--ink-faint,#7A889B);--spv-card:var(--card,#fff);
+      --spv-line:var(--line,#D7DFE9);--spv-line-soft:var(--line-soft,#E7ECF3);
+      --spv-blue:var(--blue,#23537F);--spv-deep:var(--blue-deep,#142E49);
+      --spv-bright:var(--blue-bright,#2C77B6);--spv-wash:var(--blue-wash,#E7EEF6);
+      --spv-bord:var(--bordeaux,#7C2A38);--spv-bord-br:var(--bordeaux-bright,#9B3443);
+      --spv-bord-wash:var(--bordeaux-wash,#F3E3E6);--spv-gold:var(--gold,#C68A2E);
+      --spv-gold-wash:#FBF3E1;--spv-green:#2F7D5B;--spv-green-wash:#EAF4EE;
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--spv-ink);
+      border:1px solid var(--spv-line);border-radius:12px;padding:18px 18px 15px;
+      background:var(--spv-card);max-width:960px}
+    .spv-root *{box-sizing:border-box}
+    .spv-k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;color:var(--spv-faint);font-weight:600;margin:0 0 2px}
+    .spv-title{font-weight:700;font-size:1.05rem;margin:0 0 4px;line-height:1.3}
+    .spv-sub{font-size:.84rem;color:var(--spv-soft);margin:0 0 12px;line-height:1.5}
+    .spv-sub b{color:var(--spv-ink)}
+    .spv-root code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em}
+
+    /* rangée du connecteur commutable + compteur d'étape */
+    .spv-connrow{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0 0 9px}
+    .spv-connlab{font-size:.68rem;letter-spacing:.05em;text-transform:uppercase;color:var(--spv-faint);font-weight:700;margin-right:2px}
+    .spv-conn{border:1px solid var(--spv-line);border-radius:999px;background:var(--spv-card);color:var(--spv-soft);
+      font:600 .76rem/1 inherit;font-family:inherit;padding:6px 11px;cursor:pointer;transition:.15s}
+    .spv-conn:hover{border-color:var(--spv-bright)}
+    .spv-conn.spv-sel{background:var(--spv-blue);border-color:var(--spv-blue);color:#fff}
+    .spv-stepctr{margin-left:auto;font:700 .72rem/1 ui-monospace,monospace;color:var(--spv-faint);white-space:nowrap}
+
+    /* commandes */
+    .spv-ctrl{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0 0 11px}
+    .spv-btn{border:1px solid var(--spv-line);border-radius:8px;background:var(--spv-card);color:var(--spv-ink);
+      font:600 .8rem/1 inherit;font-family:inherit;padding:8px 12px;cursor:pointer;transition:.15s}
+    .spv-btn:hover:not(:disabled){border-color:var(--spv-bright);background:var(--spv-wash)}
+    .spv-btn:disabled{opacity:.45;cursor:default}
+    .spv-btn.spv-primary{background:var(--spv-blue);border-color:var(--spv-blue);color:#fff}
+    .spv-btn.spv-primary:hover:not(:disabled){background:var(--spv-deep);border-color:var(--spv-deep)}
+    .spv-pbar{flex:1 1 90px;min-width:70px;height:7px;border:1px solid var(--spv-line);border-radius:99px;overflow:hidden;background:var(--spv-card)}
+    .spv-pfill{display:block;height:100%;width:0%;background:var(--spv-bright);transition:width .25s}
+
+    /* rail des 4 phases */
+    .spv-rail{display:flex;gap:4px;margin:0 0 12px;flex-wrap:wrap}
+    .spv-ph{flex:1 1 150px;min-width:140px;border:1px solid var(--spv-line);border-radius:8px;padding:5px 8px 7px;
+      background:var(--spv-card);text-align:center;transition:.15s}
+    .spv-ph .spv-pn{font-size:.56rem;letter-spacing:.03em;text-transform:uppercase;color:var(--spv-faint);font-weight:700}
+    .spv-ph .spv-pl{font-size:.72rem;font-weight:700;color:var(--spv-soft);line-height:1.15;margin-top:1px}
+    .spv-ph .spv-pf{font-size:.62rem;color:var(--spv-faint);font-family:ui-monospace,monospace;margin-top:2px}
+    .spv-ph.spv-active{border-color:var(--spv-bright);background:var(--spv-wash);box-shadow:0 0 0 1px var(--spv-bright)}
+    .spv-ph.spv-active .spv-pl{color:var(--spv-blue)}
+    .spv-ph.spv-done{border-color:#C3E0D0;background:var(--spv-green-wash)}
+    .spv-ph.spv-done .spv-pn{color:var(--spv-green)}
+
+    /* grille principale */
+    .spv-grid{display:flex;gap:13px;flex-wrap:wrap;align-items:flex-start}
+    .spv-col-main{flex:1 1 470px;min-width:340px}
+    .spv-col-side{flex:1 1 250px;min-width:230px;display:flex;flex-direction:column;gap:10px}
+
+    /* scène */
+    .spv-stage{border:1px solid var(--spv-line-soft);border-radius:9px;background:#FBFCFE;padding:11px 12px 10px}
+    .spv-sh{font-size:.7rem;letter-spacing:.05em;text-transform:uppercase;color:var(--spv-faint);font-weight:700;margin:0 0 8px}
+    .spv-sh b{color:var(--spv-blue);font-weight:800}
+    .spv-dgwrap{overflow-x:auto}
+    .spv-dg{width:100%;min-width:560px;height:auto;display:block}
+    .spv-dg text{font-family:inherit}
+    .spv-dg .spv-g{transition:opacity .25s}
+    .spv-dg .spv-dim{opacity:.15}
+    .spv-dg .spv-frame{fill:var(--spv-card);stroke:var(--spv-line);stroke-width:1.2;transition:.2s}
+    .spv-dg .spv-frame.spv-focus{stroke:var(--spv-bright);stroke-width:2.2}
+    .spv-dg .spv-lab{font-size:8.5px;fill:var(--spv-faint);font-weight:600}
+    .spv-dg .spv-bt{font-size:10.5px;font-weight:800;fill:var(--spv-ink)}
+    .spv-dg .spv-bs{font-size:8.5px;fill:var(--spv-soft)}
+    .spv-dg .spv-map{font:700 9.5px ui-monospace,SFMono-Regular,Menlo,monospace;fill:var(--spv-bord-br)}
+    .spv-dg .spv-badge-fr{fill:var(--spv-wash)}
+    .spv-dg .spv-badge-fr-t{font-size:7.5px;font-weight:800;fill:var(--spv-blue);letter-spacing:.04em}
+    .spv-dg .spv-badge-tr{fill:var(--spv-bord-wash)}
+    .spv-dg .spv-badge-tr-t{font-size:7.5px;font-weight:800;fill:var(--spv-bord-br);letter-spacing:.04em}
+    .spv-dg .spv-gridln{stroke:var(--spv-ink);stroke-width:.5;opacity:.28}
+    .spv-dg .spv-arr{stroke:var(--spv-soft);stroke-width:1.7;fill:none;transition:opacity .25s}
+    .spv-dg .spv-xpath{stroke:var(--spv-gold);stroke-width:1.8;fill:none;stroke-dasharray:6 5;animation:spv-dash 1.1s linear infinite}
+    .spv-dg .spv-xlab{font-size:8px;font-weight:700;fill:#9A6A1E}
+    .spv-dg .spv-loop{stroke:var(--spv-green);stroke-width:1.6;fill:none;stroke-dasharray:5 5;animation:spv-dash 1.1s linear infinite}
+    .spv-dg .spv-looplab{font-size:8px;font-weight:700;fill:var(--spv-green)}
+    .spv-dg .spv-seqframe{fill:#FDFEFF;stroke:var(--spv-line);stroke-width:1.2;transition:.2s}
+    .spv-dg .spv-seqframe.spv-focus{stroke:var(--spv-bright);stroke-width:2.2}
+    .spv-dg .spv-chip-txt{fill:var(--spv-wash);stroke:var(--spv-bright);stroke-width:.8}
+    .spv-dg .spv-chip-txt-t{font-size:9.5px;font-weight:700;fill:var(--spv-blue)}
+    .spv-dg .spv-chip-gen{fill:var(--spv-green-wash);stroke:#7DBB9A;stroke-width:.9}
+    .spv-dg .spv-chip-gen-t{font-size:9.5px;font-weight:800;fill:var(--spv-green)}
+    .spv-dg .spv-chip-ph{fill:none;stroke:var(--spv-faint);stroke-width:1;stroke-dasharray:3 3}
+    .spv-dg .spv-chip-ph-t{font:700 9px ui-monospace,monospace;fill:var(--spv-faint)}
+    .spv-dg .spv-chip-vis{fill:var(--spv-bord-wash);stroke:var(--spv-bord-br);stroke-width:1}
+    .spv-dg .spv-chip-vis-t{font-size:8.5px;font-weight:800;fill:var(--spv-bord)}
+    .spv-dg .spv-vtick{stroke:var(--spv-bord-br);stroke-width:.6;opacity:.3}
+    .spv-dg .spv-band{fill:var(--spv-gold-wash);stroke:var(--spv-gold);stroke-width:.9}
+    .spv-dg .spv-band-t{font-size:6.8px;font-weight:800;fill:#9A6A1E;letter-spacing:.05em}
+    @keyframes spv-dash{to{stroke-dashoffset:-11}}
+    @media (prefers-reduced-motion:reduce){
+      .spv-dg .spv-xpath,.spv-dg .spv-loop{animation:none}
+    }
+
+    .spv-detail{border:1px solid var(--spv-line-soft);border-radius:8px;background:var(--spv-card);margin-top:9px;padding:9px 11px 10px}
+    .spv-dh{font-size:.8rem;font-weight:700;color:var(--spv-blue);margin:0 0 6px}
+    .spv-note{font-size:.74rem;color:var(--spv-soft);margin:7px 0 0;line-height:1.5}
+    .spv-note b{color:var(--spv-ink)}
+    .spv-banner{border-radius:9px;padding:10px 12px;margin:9px 0 0;font-size:.8rem;line-height:1.5;
+      background:var(--spv-green-wash);border:1px solid #C3E0D0;color:var(--spv-green)}
+    .spv-banner b{display:block;font-size:.84rem;margin-bottom:2px}
+
+    /* panneau latéral */
+    .spv-box{border:1px solid var(--spv-line-soft);border-radius:9px;background:#FBFCFE;padding:9px 11px 10px}
+    .spv-bh{font-size:.64rem;letter-spacing:.05em;text-transform:uppercase;color:var(--spv-faint);font-weight:700;margin:0 0 7px}
+    .spv-fl{font:600 .72rem/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--spv-soft);margin:0 0 2px;overflow-x:auto}
+    .spv-fl b{color:var(--spv-bord-br)}
+    .spv-fnote{font-size:.68rem;color:var(--spv-faint);margin:6px 0 0;line-height:1.45}
+    .spv-chips{display:flex;gap:4px;flex-wrap:wrap;margin:6px 0 0}
+    .spv-chip{font:700 .6rem/1 inherit;letter-spacing:.03em;border-radius:999px;padding:4px 8px;white-space:nowrap}
+    .spv-chip-frz{background:var(--spv-wash);color:var(--spv-blue)}
+    .spv-chip-trn{background:var(--spv-bord-wash);color:var(--spv-bord-br)}
+    .spv-chip-mix{background:var(--spv-card);color:var(--spv-bord-br);border:1px dashed var(--spv-bord-br)}
+
+    .spv-cmprow{display:flex;align-items:center;gap:6px;margin:0 0 5px;border-radius:6px;padding:3px 4px;transition:.15s}
+    .spv-cmprow.spv-cur{background:var(--spv-wash)}
+    .spv-cmpname{flex:0 0 118px;font-size:.66rem;font-weight:600;color:var(--spv-soft);line-height:1.2}
+    .spv-cmprow.spv-cur .spv-cmpname{color:var(--spv-blue);font-weight:800}
+    .spv-cmpbar{flex:1 1 60px;height:11px;border:1px solid var(--spv-line-soft);border-radius:4px;overflow:hidden;display:flex;background:var(--spv-card)}
+    .spv-cmpfill{height:100%;background:var(--spv-bright)}
+    .spv-cmpfill.spv-hatch{background:repeating-linear-gradient(45deg,var(--spv-gold-wash),var(--spv-gold-wash) 3px,var(--spv-gold) 3px,var(--spv-gold) 4.5px)}
+    .spv-cmpval{flex:0 0 46px;font:700 .64rem/1 ui-monospace,monospace;color:var(--spv-faint);text-align:right}
+    .spv-cmprow.spv-cur .spv-cmpval{color:var(--spv-blue)}
+    .spv-cmpcap{font-size:.64rem;color:var(--spv-faint);margin:6px 0 0;line-height:1.45}
+
+    .spv-mechs{margin:0;padding:0;list-style:none;font-size:.7rem;line-height:1.35}
+    .spv-mechs li{padding:2.5px 6px;border-radius:6px;color:var(--spv-faint);transition:.15s}
+    .spv-mechs li.spv-mon{background:var(--spv-wash);color:var(--spv-blue);font-weight:700}
+
+    .spv-foot{font-size:.72rem;color:var(--spv-faint);margin:12px 0 0;line-height:1.5;border-top:1px dashed var(--spv-line-soft);padding-top:9px}
+  </style>
+
+  <p class="spv-k">Vue d'ensemble</p>
+  <p class="spv-title">Le pipeline VLM déroulé sur une image jouet : patchs → ViT gelé → connecteur commutable → séquence du LLM → réponse</p>
+  <p class="spv-sub">
+    Une image jouet de 336 × 336 (un chat roux dans l'herbe, un soleil), la question
+    « De quelle couleur est le chat ? », et quatre phases chaînées : <b>patchs + ViT CLIP gelé</b>,
+    <b>connecteur</b>, <b>séquence d'entrée</b>, <b>génération</b>. Le connecteur se commute à tout
+    moment — projection MLP (LLaVA), Q-Former (BLIP-2), Perceiver Resampler (Flamingo) — et la fiche
+    de droite suit ce qui change : nombre de tokens visuels, longueur de séquence, entraîné vs gelé.
+    Avancez phase par phase ou déroulez d'un trait : tout est calculé exactement, sans aucun aléa.
+  </p>
+
+  <div class="spv-connrow" id="spv-connrow">
+    <span class="spv-connlab">Connecteur</span>
+    <span class="spv-stepctr" id="spv-stepctr"></span>
+  </div>
+
+  <div class="spv-ctrl">
+    <button type="button" class="spv-btn" id="spv-prev">◀ Précédent</button>
+    <button type="button" class="spv-btn spv-primary" id="spv-next">Phase suivante ▶</button>
+    <button type="button" class="spv-btn" id="spv-play">▶▶ Dérouler jusqu'à la réponse</button>
+    <button type="button" class="spv-btn" id="spv-reset">⟲ Rejouer</button>
+    <span class="spv-pbar"><span class="spv-pfill" id="spv-pfill"></span></span>
+  </div>
+
+  <div class="spv-rail" id="spv-rail"></div>
+
+  <div class="spv-grid">
+    <div class="spv-col-main">
+      <div class="spv-stage">
+        <p class="spv-sh" id="spv-stagehead"></p>
+        <div class="spv-dgwrap">
+          <svg class="spv-dg" id="spv-svg" viewBox="0 0 680 318" role="img"
+            aria-label="Pipeline VLM sur une image jouet : découpage en patchs, encodage par le ViT CLIP gelé, connecteur commutable vers des tokens visuels, séquence d'entrée du LLM puis génération autorégressive de la réponse"></svg>
+        </div>
+        <div class="spv-detail">
+          <p class="spv-dh" id="spv-dh"></p>
+          <div id="spv-dbody"></div>
+        </div>
+        <div id="spv-banner"></div>
+      </div>
+    </div>
+    <div class="spv-col-side">
+      <div class="spv-box">
+        <p class="spv-bh">Fiche du connecteur — tokens, séquence, entraîné vs gelé</p>
+        <div id="spv-fiche"></div>
+      </div>
+      <div class="spv-box">
+        <p class="spv-bh">Longueur traitée par le LLM — les trois voies</p>
+        <div id="spv-cmp"></div>
+        <p class="spv-cmpcap">Préfixe pour la même image et la même question, avant génération.
+        Hachuré : les 64 latents de Flamingo, consultés par cross-attention, hors séquence.</p>
+      </div>
+      <div class="spv-box">
+        <p class="spv-bh">Mécanismes reliés (actifs à cette phase)</p>
+        <ul class="spv-mechs" id="spv-mechs"></ul>
+      </div>
+    </div>
+  </div>
+
+  <p class="spv-foot">
+    Les trois voies de fusion se referment ici : même encodeur gelé, même question, trois connecteurs.
+    LLaVA maximise la fidélité — toute la grille passe, séquence longue, LLM affiné par
+    instruction-tuning. BLIP-2 minimise l'entraînement — un goulot appris de 32 tokens entre deux
+    modèles gelés. Flamingo sort la vision de la séquence — 64 latents consultés par cross-attention
+    à porte, langage intact. Deux licences de l'instance jouet : la tokenisation « un mot = un token »
+    est une simplification, et le vrai Flamingo encode l'image avec un NFNet entraîné contrastivement
+    (gelé lui aussi) plutôt qu'avec le ViT de CLIP — la logique du Resampler est inchangée.
+  </p>
+
+  <script>
+  (function(){
+    "use strict";
+    var $ = function(id){ return document.getElementById(id); };
+    var SVGNS = "http://www.w3.org/2000/svg";
+
+    /* ---------- helpers DOM ---------- */
+    function mk(tag, cls, txt){
+      var el = document.createElement(tag);
+      if (cls) el.className = cls;
+      if (txt != null) el.textContent = txt;
+      return el;
+    }
+    /* markup léger autorisé : <b> <code> <i> */
+    function setMarkup(el, markup){
+      el.textContent = "";
+      var parts = markup.split(/(<\/?(?:b|code|i)>)/), stack = [el];
+      for (var i = 0; i < parts.length; i++){
+        var tok = parts[i];
+        if (tok === "") continue;
+        if (tok === "<b>" || tok === "<code>" || tok === "<i>"){
+          var child = document.createElement(tok.slice(1, -1));
+          stack[stack.length - 1].appendChild(child); stack.push(child);
+        } else if (tok === "</b>" || tok === "</code>" || tok === "</i>"){
+          if (stack.length > 1) stack.pop();
+        } else stack[stack.length - 1].appendChild(document.createTextNode(tok));
+      }
+      return el;
+    }
+    function noteEl(m){ return setMarkup(mk("p", "spv-note"), m); }
+    function svgEl(tag, attrs){
+      var el = document.createElementNS(SVGNS, tag);
+      for (var k in attrs) el.setAttribute(k, attrs[k]);
+      return el;
+    }
+    function txt(parent, x, y, cls, anchor, content){
+      var t = svgEl("text", {x:x, y:y, "class":cls, "text-anchor":anchor || "middle"});
+      t.textContent = content;
+      parent.appendChild(t);
+      return t;
+    }
+    function fmtN(n){
+      var s = String(n), o = "";
+      for (var i = 0; i < s.length; i++){
+        var r = s.length - i;
+        o += s[i];
+        if (r > 1 && (r - 1) % 3 === 0) o += " ";
+      }
+      return o;
+    }
+
+    /* ---------- l'instance jouet (tout est fixé, aucun aléa) ---------- */
+    var QTOK = ["De","quelle","couleur","est","le","chat","?"];   /* 7 tokens texte */
+    var ATOK = ["Le","chat","est","roux","."];                    /* 5 tokens générés */
+    var NTXT = QTOK.length, NGEN = ATOK.length;
+    var NSTEPS = 9;   /* 0 départ · 1 patchs · 2 ViT · 3 connecteur · 4 séquence · 5..9 génération */
+
+    var CONN = {
+      mlp:       {short:"Projection MLP · LLaVA", name:"projection MLP — façon LLaVA",
+                  k:576, base:576 + NTXT, xattn:false},
+      qformer:   {short:"Q-Former · BLIP-2", name:"Q-Former — façon BLIP-2",
+                  k:32, base:32 + NTXT, xattn:false},
+      perceiver: {short:"Perceiver Resampler · Flamingo", name:"Perceiver Resampler — façon Flamingo",
+                  k:64, base:NTXT, xattn:true}
+    };
+    var CONN_ORDER = ["mlp", "qformer", "perceiver"];
+
+    /* couleurs de la scène jouet (fonction analytique, déterministe) */
+    var SUN = [227,179,77], CAT = [193,102,47], GRASS = [106,158,95], SKY = [196,218,236];
+    function inC(u, v, cx, cy, r){ var dx = u - cx, dy = v - cy; return dx*dx + dy*dy <= r*r; }
+    function inE(u, v, cx, cy, rx, ry){ var dx = (u - cx)/rx, dy = (v - cy)/ry; return dx*dx + dy*dy <= 1; }
+    function sample(u, v){
+      if (inC(u, v, .20, .20, .11)) return SUN;
+      if (inC(u, v, .545, .42, .045) || inC(u, v, .695, .42, .045)) return CAT;
+      if (inC(u, v, .62, .50, .095)) return CAT;
+      if (inE(u, v, .62, .72, .17, .115)) return CAT;
+      if (inE(u, v, .815, .76, .06, .035)) return CAT;
+      return v > .66 ? GRASS : SKY;
+    }
+    function mix(c1, c2, k){
+      return "rgb(" + [0,1,2].map(function(i){
+        return Math.round(c1[i] + (c2[i] - c1[i]) * k);
+      }).join(",") + ")";
+    }
+    function rgb(c){ return "rgb(" + c.join(",") + ")"; }
+
+    /* ---------- géométrie du schéma ---------- */
+    var IMG  = {x:10,  y:22,  s:92};
+    var VIT  = {x:128, y:30,  w:90,  h:76};
+    var FEAT = {x:244, y:22,  s:92};
+    var CONB = {x:362, y:26,  w:152, h:84};
+    var OUT  = {x:538, y:26,  w:132, h:84};
+    var SEQ  = {x:10,  y:158, h:36};
+    var LLM  = {x:180, y:236, w:240, h:68};
+    var BUB  = {x:454, y:250, w:176, h:40};
+    var NP = 24;   /* 24 × 24 = 576 patchs */
+
+    var svg = $("spv-svg");
+
+    /* pointes de flèches */
+    var defs = svgEl("defs", {});
+    function marker(id, color){
+      var m = svgEl("marker", {id:id, viewBox:"0 0 8 8", refX:"7", refY:"4",
+        markerWidth:"6", markerHeight:"6", orient:"auto-start-reverse"});
+      m.appendChild(svgEl("path", {d:"M 0 0 L 8 4 L 0 8 z", fill:color}));
+      defs.appendChild(m);
+    }
+    marker("spv-mk-ink", "#43536A");
+    marker("spv-mk-gold", "#C68A2E");
+    marker("spv-mk-green", "#2F7D5B");
+    svg.appendChild(defs);
+
+    function badge(parent, cx, y, label, trained){
+      var w = label.length * 5.2 + 12;
+      parent.appendChild(svgEl("rect", {x:cx - w/2, y:y, width:w, height:13, rx:6.5,
+        "class": trained ? "spv-badge-tr" : "spv-badge-fr"}));
+      txt(parent, cx, y + 9.5, trained ? "spv-badge-tr-t" : "spv-badge-fr-t", "middle", label);
+    }
+
+    /* ---------- groupes statiques ---------- */
+    var gImg = svgEl("g", {"class":"spv-g"});
+    var imgF = svgEl("rect", {x:IMG.x, y:IMG.y, width:IMG.s, height:IMG.s, "class":"spv-frame"});
+    gImg.appendChild(imgF);
+    (function(){
+      var x = IMG.x, y = IMG.y, s = IMG.s;
+      gImg.appendChild(svgEl("rect", {x:x+1, y:y+1, width:s-2, height:0.66*s-1, fill:rgb(SKY)}));
+      gImg.appendChild(svgEl("rect", {x:x+1, y:y+0.66*s, width:s-2, height:0.34*s-1, fill:rgb(GRASS)}));
+      gImg.appendChild(svgEl("circle", {cx:x+.20*s, cy:y+.20*s, r:.11*s, fill:rgb(SUN)}));
+      gImg.appendChild(svgEl("circle", {cx:x+.545*s, cy:y+.42*s, r:.045*s, fill:rgb(CAT)}));
+      gImg.appendChild(svgEl("circle", {cx:x+.695*s, cy:y+.42*s, r:.045*s, fill:rgb(CAT)}));
+      gImg.appendChild(svgEl("circle", {cx:x+.62*s, cy:y+.50*s, r:.095*s, fill:rgb(CAT)}));
+      gImg.appendChild(svgEl("ellipse", {cx:x+.62*s, cy:y+.72*s, rx:.17*s, ry:.115*s, fill:rgb(CAT)}));
+      gImg.appendChild(svgEl("ellipse", {cx:x+.815*s, cy:y+.76*s, rx:.06*s, ry:.035*s, fill:rgb(CAT)}));
+      gImg.appendChild(svgEl("circle", {cx:x+.585*s, cy:y+.49*s, r:1.2, fill:"#4A2B18"}));
+      gImg.appendChild(svgEl("circle", {cx:x+.655*s, cy:y+.49*s, r:1.2, fill:"#4A2B18"}));
+    })();
+    var imgLab = txt(gImg, IMG.x + IMG.s/2, IMG.y + IMG.s + 12, "spv-lab", "middle", "image 336 × 336");
+    svg.appendChild(gImg);
+
+    /* quadrillage des patchs (recouvre l'image) */
+    var gGrid = svgEl("g", {"class":"spv-g"});
+    (function(){
+      for (var i = 1; i < NP; i++){
+        var d = IMG.s * i / NP;
+        gGrid.appendChild(svgEl("line", {x1:IMG.x + d, y1:IMG.y, x2:IMG.x + d, y2:IMG.y + IMG.s, "class":"spv-gridln"}));
+        gGrid.appendChild(svgEl("line", {x1:IMG.x, y1:IMG.y + d, x2:IMG.x + IMG.s, y2:IMG.y + d, "class":"spv-gridln"}));
+      }
+    })();
+    svg.appendChild(gGrid);
+
+    /* flèches de la rangée haute */
+    function hArrow(x1, x2, y){
+      return svgEl("line", {x1:x1, y1:y, x2:x2, y2:y, "class":"spv-arr spv-g",
+        "marker-end":"url(#spv-mk-ink)"});
+    }
+    var arr1 = hArrow(106, 124, 68);
+    var arr2 = hArrow(222, 240, 68);
+    var arr3 = hArrow(340, 358, 68);
+    var arr4 = hArrow(518, 534, 68);
+    svg.appendChild(arr1); svg.appendChild(arr2); svg.appendChild(arr3); svg.appendChild(arr4);
+
+    /* boîte ViT */
+    var gVit = svgEl("g", {"class":"spv-g"});
+    var vitF = svgEl("rect", {x:VIT.x, y:VIT.y, width:VIT.w, height:VIT.h, rx:8, "class":"spv-frame"});
+    gVit.appendChild(vitF);
+    txt(gVit, VIT.x + VIT.w/2, VIT.y + 22, "spv-bt", "middle", "ViT CLIP");
+    txt(gVit, VIT.x + VIT.w/2, VIT.y + 35, "spv-bs", "middle", "encodeur visuel");
+    badge(gVit, VIT.x + VIT.w/2, VIT.y + 46, "GELÉ", false);
+    svg.appendChild(gVit);
+
+    /* grille de features (576 vecteurs) */
+    var gFeat = svgEl("g", {"class":"spv-g"});
+    var featF = svgEl("rect", {x:FEAT.x, y:FEAT.y, width:FEAT.s, height:FEAT.s, "class":"spv-frame"});
+    gFeat.appendChild(featF);
+    (function(){
+      var cell = FEAT.s / NP;
+      for (var j = 0; j < NP; j++){
+        for (var i = 0; i < NP; i++){
+          var c = sample((i + .5)/NP, (j + .5)/NP);
+          gFeat.appendChild(svgEl("rect", {x:FEAT.x + i*cell, y:FEAT.y + j*cell,
+            width:cell + .15, height:cell + .15, fill:mix(c, [91,107,133], .58)}));
+        }
+      }
+    })();
+    txt(gFeat, FEAT.x + FEAT.s/2, FEAT.y + FEAT.s + 12, "spv-lab", "middle", "576 vecteurs · d = 1024");
+    svg.appendChild(gFeat);
+
+    /* groupes dynamiques (reconstruits au rendu) */
+    var gConn = svgEl("g", {"class":"spv-g"});   svg.appendChild(gConn);
+    var gOut  = svgEl("g", {"class":"spv-g"});   svg.appendChild(gOut);
+    var gX    = svgEl("g", {"class":"spv-g"});   svg.appendChild(gX);
+    var seqLabEl = txt(svg, SEQ.x, SEQ.y - 6, "spv-lab", "start", "");
+    var gSeq  = svgEl("g", {"class":"spv-g"});   svg.appendChild(gSeq);
+    var arrSeq = svgEl("line", {x1:LLM.x + LLM.w/2, y1:SEQ.y + SEQ.h + 2, x2:LLM.x + LLM.w/2,
+      y2:LLM.y - 4, "class":"spv-arr spv-g", "marker-end":"url(#spv-mk-ink)"});
+    svg.appendChild(arrSeq);
+    var gLLM  = svgEl("g", {"class":"spv-g"});   svg.appendChild(gLLM);
+    var gBub  = svgEl("g", {"class":"spv-g"});   svg.appendChild(gBub);
+
+    /* ---------- rail des phases ---------- */
+    var PHASES = [
+      {n:"phase 1", l:"PATCHS + ViT GELÉ", f:"image → 576 vecteurs"},
+      {n:"phase 2 · commutable", l:"CONNECTEUR", f:"576 → K tokens"},
+      {n:"phase 3", l:"SÉQUENCE D'ENTRÉE", f:"préfixe visuel + question"},
+      {n:"phase 4 · ×5", l:"GÉNÉRATION", f:"token suivant, en boucle"}
+    ];
+    function phaseOf(i){
+      if (i === 0) return -1;
+      if (i <= 2) return 0;
+      if (i === 3) return 1;
+      if (i === 4) return 2;
+      return 3;
+    }
+
+    var MECHS = [
+      {id:"vit",   t:"ViT : l'image traitée comme une suite de patchs-tokens"},
+      {id:"clip",  t:"Alignement contrastif (CLIP) : des features déjà parlantes pour le texte, réutilisées gelées"},
+      {id:"proj",  t:"Espace d'embedding partagé : le connecteur traduit les features en tokens du LLM"},
+      {id:"gout",  t:"Goulot appris : des requêtes ou latents compressent la grille en K tokens de taille fixe"},
+      {id:"xattn", t:"Cross-attention insérée : la vision consultée de côté, hors séquence (voie Flamingo)"},
+      {id:"prefix",t:"Préfixe multimodal : tokens visuels et texte dans la même auto-attention"},
+      {id:"it",    t:"Instruction-tuning multimodal : apprendre à répondre à une consigne appuyée sur l'image"},
+      {id:"ar",    t:"Génération autorégressive : chaque token regarde tout ce qui précède — coût en L²"}
+    ];
+
+    /* ---------- état ---------- */
+    var IDX = 0;
+    var conn = "mlp";
+    var playing = false, timer = null;
+    var lastOutConn = null;
+    var seqEndX = 400;
+
+    function genCount(){ return Math.max(0, IDX - 4); }
+    function seqLen(){ return CONN[conn].base + genCount(); }
+
+    /* ---------- rendus partiels ---------- */
+    function buildConnBox(){
+      gConn.textContent = "";
+      var C = CONN[conn];
+      var f = svgEl("rect", {x:CONB.x, y:CONB.y, width:CONB.w, height:CONB.h, rx:8, "class":"spv-frame"});
+      gConn.appendChild(f);
+      var cx = CONB.x + CONB.w/2;
+      var title = conn === "mlp" ? "Projection MLP" : conn === "qformer" ? "Q-Former" : "Perceiver Resampler";
+      var sub = conn === "mlp" ? "2 couches · 1024 → 4096"
+              : conn === "qformer" ? "32 requêtes apprises"
+              : "64 latents appris";
+      txt(gConn, cx, CONB.y + 18, "spv-bt", "middle", title);
+      txt(gConn, cx, CONB.y + 31, "spv-bs", "middle", sub);
+      txt(gConn, cx, CONB.y + 48, "spv-map", "middle", "576 → " + C.k + " tokens");
+      badge(gConn, cx, CONB.y + 58, "ENTRAÎNÉ", true);
+      return f;
+    }
+
+    function buildOut(){
+      if (lastOutConn === conn) return;
+      lastOutConn = conn;
+      gOut.textContent = "";
+      var f = svgEl("rect", {x:OUT.x, y:OUT.y, width:OUT.w, height:OUT.h, rx:8, "class":"spv-frame", id:"spv-outF"});
+      gOut.appendChild(f);
+      if (conn === "mlp"){
+        var cell = 84 / NP, ox = OUT.x + (OUT.w - 84)/2, oy = OUT.y + (OUT.h - 84)/2;
+        for (var j = 0; j < NP; j++){
+          for (var i = 0; i < NP; i++){
+            var c = sample((i + .5)/NP, (j + .5)/NP);
+            gOut.appendChild(svgEl("rect", {x:ox + i*cell, y:oy + j*cell,
+              width:cell + .15, height:cell + .15, fill:mix(c, [155,52,67], .5)}));
+          }
+        }
+      } else {
+        var cols = conn === "qformer" ? 8 : 16;
+        var rows = 4, n = CONN[conn].k;
+        var cw = conn === "qformer" ? 12 : 6, chh = 12, gap = 2;
+        var w = cols*cw + (cols - 1)*gap, h = rows*chh + (rows - 1)*gap;
+        var bx = OUT.x + (OUT.w - w)/2, by = OUT.y + (OUT.h - h)/2;
+        for (var q = 0; q < n; q++){
+          var col = q % cols, row = (q / cols) | 0;
+          gOut.appendChild(svgEl("rect", {x:bx + col*(cw + gap), y:by + row*(chh + gap),
+            width:cw, height:chh, rx:2, fill:mix([198,138,46], [255,255,255], .15 + .12*(q % 4))}));
+        }
+      }
+      var lab = conn === "mlp" ? "576 tokens visuels"
+              : conn === "qformer" ? "32 tokens de requête"
+              : "64 tokens latents";
+      txt(gOut, OUT.x + OUT.w/2, OUT.y + OUT.h + 14, "spv-lab", "middle", lab);
+    }
+
+    function chipW(word){ return 12 + 5.5 * word.length; }
+
+    function buildSeq(focus){
+      gSeq.textContent = "";
+      var g = genCount(), C = CONN[conn];
+      var frame = svgEl("rect", {x:SEQ.x, y:SEQ.y, width:100, height:SEQ.h, rx:8,
+        "class":"spv-seqframe" + (focus ? " spv-focus" : "")});
+      gSeq.appendChild(frame);
+      var x = SEQ.x + 8, y = SEQ.y + 7, ch = 22;
+      function chip(w, rectCls, txtCls, label){
+        gSeq.appendChild(svgEl("rect", {x:x, y:y, width:w, height:ch, rx:4, "class":rectCls}));
+        txt(gSeq, x + w/2, y + 15, txtCls, "middle", label);
+        x += w + 3;
+      }
+      if (IDX < 4){
+        chip(58, "spv-chip-ph", "spv-chip-ph-t", "<image>");
+      } else if (!C.xattn){
+        var w = conn === "mlp" ? 176 : 88;
+        gSeq.appendChild(svgEl("rect", {x:x, y:y, width:w, height:ch, rx:4, "class":"spv-chip-vis"}));
+        for (var t = 8; t < w - 4; t += 8){
+          gSeq.appendChild(svgEl("line", {x1:x + t, y1:y + 17.5, x2:x + t, y2:y + 21, "class":"spv-vtick"}));
+        }
+        txt(gSeq, x + w/2, y + 13, "spv-chip-vis-t", "middle",
+          conn === "mlp" ? "⋯ 576 tokens visuels ⋯" : "32 tokens visuels");
+        x += w + 3;
+      }
+      QTOK.forEach(function(wd){ chip(chipW(wd), "spv-chip-txt", "spv-chip-txt-t", wd); });
+      for (var i = 0; i < g; i++){
+        chip(chipW(ATOK[i]), "spv-chip-gen", "spv-chip-gen-t", ATOK[i]);
+      }
+      seqEndX = x;
+      frame.setAttribute("width", x - SEQ.x + 5);
+      var L = seqLen();
+      if (IDX < 4){
+        seqLabEl.textContent = "Séquence d'entrée du LLM (en préparation) — 1 marqueur <image> + " + NTXT + " tokens texte";
+      } else if (C.xattn){
+        seqLabEl.textContent = "Séquence d'entrée du LLM — L = " + L + " tokens texte (+ 64 latents hors séquence)";
+      } else {
+        seqLabEl.textContent = "Séquence d'entrée du LLM — L = " + C.k + " + " + NTXT +
+          (g ? " + " + g : "") + " = " + L + " tokens";
+      }
+      return frame;
+    }
+
+    function buildLLM(focus){
+      gLLM.textContent = "";
+      var f = svgEl("rect", {x:LLM.x, y:LLM.y, width:LLM.w, height:LLM.h, rx:9,
+        "class":"spv-frame" + (focus ? " spv-focus" : "")});
+      gLLM.appendChild(f);
+      var cx = LLM.x + LLM.w/2;
+      var withBands = conn === "perceiver" && IDX >= 4;
+      if (withBands){
+        gLLM.appendChild(svgEl("rect", {x:LLM.x + 12, y:LLM.y + 6, width:LLM.w - 24, height:10, rx:3, "class":"spv-band"}));
+        txt(gLLM, cx, LLM.y + 13.5, "spv-band-t", "middle", "CROSS-ATTENTION INSÉRÉE (XATTN)");
+        gLLM.appendChild(svgEl("rect", {x:LLM.x + 12, y:LLM.y + LLM.h - 16, width:LLM.w - 24, height:10, rx:3, "class":"spv-band"}));
+        txt(gLLM, cx, LLM.y + LLM.h - 8.5, "spv-band-t", "middle", "CROSS-ATTENTION INSÉRÉE (XATTN)");
+      }
+      txt(gLLM, cx, LLM.y + (withBands ? 33 : 28), "spv-bt", "middle", "LLM décodeur");
+      if (conn === "mlp"){
+        badge(gLLM, cx, LLM.y + (withBands ? 38 : 36), "AFFINÉ (ÉTAPE 2)", true);
+      } else {
+        badge(gLLM, cx, LLM.y + (withBands ? 38 : 36), "GELÉ", false);
+      }
+      if (!withBands){
+        txt(gLLM, cx, LLM.y + 60, "spv-bs", "middle",
+          conn === "mlp" ? "auto-attention sur les " + seqLen() + " tokens" : "auto-attention sur la séquence");
+      }
+    }
+
+    function buildBubble(){
+      gBub.textContent = "";
+      var g = genCount();
+      if (g < 1) return;
+      var tok = ATOK[g - 1];
+      gBub.appendChild(svgEl("line", {x1:LLM.x + LLM.w + 2, y1:270, x2:BUB.x - 4, y2:270,
+        "class":"spv-arr", "marker-end":"url(#spv-mk-ink)"}));
+      gBub.appendChild(svgEl("rect", {x:BUB.x, y:BUB.y, width:BUB.w, height:BUB.h, rx:9, "class":"spv-frame"}));
+      txt(gBub, BUB.x + BUB.w/2, BUB.y + 17, "spv-bs", "middle", "token suivant (" + g + "/" + NGEN + ")");
+      txt(gBub, BUB.x + BUB.w/2, BUB.y + 31, "spv-bt", "middle", "« " + tok + " »");
+      var ex = Math.min(seqEndX, 620);
+      var loop = svgEl("path", {d:"M " + (BUB.x + BUB.w/2 + 20) + " " + (BUB.y - 3) +
+        " C 640 214, " + (ex + 42) + " 228, " + (ex + 6) + " " + (SEQ.y + SEQ.h + 5),
+        "class":"spv-loop", "marker-end":"url(#spv-mk-green)"});
+      gBub.appendChild(loop);
+      txt(gBub, 612, 218, "spv-looplab", "middle", "rajouté en fin de séquence");
+    }
+
+    function buildXPaths(){
+      gX.textContent = "";
+      if (conn !== "perceiver" || IDX < 4) return;
+      gX.appendChild(svgEl("path", {d:"M 604 114 C 616 172, 545 218, " + (LLM.x + LLM.w + 8) + " 248",
+        "class":"spv-xpath", "marker-end":"url(#spv-mk-gold)"}));
+      txt(gX, 600, 190, "spv-xlab", "middle", "les 64 latents, consultés");
+      txt(gX, 600, 200, "spv-xlab", "middle", "par cross-attention · entraînée");
+    }
+
+    /* ---------- textes pédagogiques ---------- */
+    function stageHead(){
+      var C = CONN[conn], g = genCount();
+      if (IDX === 0) return "Départ — <b>instance jouet</b> : une image, une question, un connecteur à choisir";
+      if (IDX === 1) return "Phase 1 · <b>PATCHS</b> — 336 / 14 = 24, soit 24 × 24 = 576 patchs";
+      if (IDX === 2) return "Phase 1 · <b>ViT CLIP gelé</b> — 576 patchs → 576 vecteurs (d = 1024)";
+      if (IDX === 3) return "Phase 2 · <b>CONNECTEUR</b> — " + C.name;
+      if (IDX === 4) return C.xattn
+        ? "Phase 3 · <b>SÉQUENCE D'ENTRÉE</b> — texte seul, la vision reste hors séquence"
+        : "Phase 3 · <b>SÉQUENCE D'ENTRÉE</b> — le préfixe visuel prend la place du marqueur";
+      return "Phase 4 · <b>GÉNÉRATION</b> — token " + g + " / " + NGEN + ", L = " + seqLen();
+    }
+
+    function detailHead(){
+      var C = CONN[conn], g = genCount();
+      if (IDX === 0) return "Le point de départ : une image 336 × 336 et une question en texte";
+      if (IDX === 1) return "336 / 14 = 24 : l'image devient une grille de 24 × 24 = 576 patchs";
+      if (IDX === 2) return "576 patchs → 576 vecteurs, sémantique héritée du contrastif";
+      if (IDX === 3){
+        if (conn === "mlp") return "576 → 576 : aucune compression, un MLP projette chaque vecteur";
+        if (conn === "qformer") return "576 → 32 : un goulot appris interroge la grille";
+        return "576 → 64 latents… qui n'entreront pas dans la séquence";
+      }
+      if (IDX === 4){
+        return C.xattn
+          ? "Pas de préfixe : la séquence reste du texte, la vision passe par cross-attention"
+          : "Le marqueur <image> est remplacé par les " + C.k + " tokens visuels";
+      }
+      return "Le LLM lit " + seqLen() + " tokens et produit « " + ATOK[g - 1] + " »";
+    }
+
+    function buildDetail(){
+      var box = mk("div"), C = CONN[conn], g = genCount();
+      if (IDX === 0){
+        box.appendChild(noteEl("L'instance jouet : une image de <b>336 × 336 pixels</b> (un chat roux dans l'herbe, un soleil) et la question « De quelle couleur est le chat ? ». Objectif : que le LLM réponde en langage naturel, en s'appuyant réellement sur l'image."));
+        box.appendChild(noteEl("La séquence d'entrée contient déjà les <b>7 tokens</b> de la question (tokenisation jouet : un mot = un token) et un marqueur <code><image></code> : c'est lui que le pipeline va remplir. Choisissez un connecteur, puis avancez phase par phase — ou déroulez d'un trait."));
+      } else if (IDX === 1){
+        box.appendChild(noteEl("L'image est découpée en patchs de <b>14 × 14 pixels</b>, sans recouvrement : 336 / 14 = 24 par côté, soit <b>24 × 24 = 576 patchs</b>. Chaque patch aplati devient un « mot visuel » — exactement le geste du ViT. Aucune sémantique encore : une simple remise en forme."));
+        box.appendChild(noteEl("La résolution fixe la facture : doubler le côté de l'image <b>quadruple</b> le nombre de patchs. C'est pour cela que la haute résolution (tuiles, AnyRes) est un chapitre à part entière des VLM."));
+      } else if (IDX === 2){
+        box.appendChild(noteEl("Le <b>ViT-L/14 de CLIP</b> transforme les 576 patchs en 576 vecteurs de dimension 1024. Pré-entraîné par <b>alignement contrastif</b> image–texte sur des centaines de millions de paires, il produit des features déjà « parlantes » pour du texte — c'est exactement ce capital qu'on recycle."));
+        box.appendChild(noteEl("Il reste <b>GELÉ</b> dans tout ce qui suit : aucun gradient ne le traverse. Le pari des VLM modernes tient en une phrase : la vision est déjà acquise, il ne reste qu'à la brancher sur le langage."));
+      } else if (IDX === 3){
+        if (conn === "mlp"){
+          box.appendChild(noteEl("Chaque vecteur de dimension 1024 passe dans une projection — linéaire dans LLaVA v1, <b>MLP à 2 couches</b> dans LLaVA-1.5 — vers la dimension d'embedding du LLM (4096 pour Vicuna-7B). Les <b>576 tokens visuels</b> gardent la grille complète : rien n'est résumé, rien n'est perdu."));
+          box.appendChild(noteEl("Le prix se lit dans la fiche : 576 tokens entreront dans la séquence. La simplicité du connecteur (quelques millions de paramètres entraînés) s'échange contre la <b>longueur</b>."));
+        } else if (conn === "qformer"){
+          box.appendChild(noteEl("Le <b>Q-Former</b> porte 32 requêtes apprises qui interrogent les 576 features par cross-attention : chaque requête va chercher ce qui l'intéresse dans la grille, et il en sort <b>32 tokens</b>. Compression ×18, apprise plutôt que fixée à la main."));
+          box.appendChild(noteEl("Seul le Q-Former est entraîné ; <b>ViT et LLM restent gelés</b> — c'est le pari frugal de BLIP-2 : un petit module de traduction entre deux modèles intacts."));
+        } else {
+          box.appendChild(noteEl("Le <b>Perceiver Resampler</b> porte 64 latents appris qui résument les 576 features par cross-attention — même idée de goulot que le Q-Former, avec une sortie de <b>taille fixe</b> quel que soit le nombre de features en entrée (voire plusieurs images)."));
+          box.appendChild(noteEl("Particularité de Flamingo : ces 64 tokens <b>ne seront pas préfixés</b> à la séquence. Le LLM les consultera de côté, par des couches de <b>cross-attention insérées</b> entre ses blocs gelés — la troisième voie de fusion."));
+        }
+      } else if (IDX === 4){
+        if (C.xattn){
+          box.appendChild(noteEl("La séquence d'entrée ne contient que les <b>7 tokens</b> de la question. Les 64 latents visuels restent à côté : dans chaque couche de cross-attention insérée, les tokens texte viennent regarder les latents — requêtes côté texte, clés et valeurs côté vision."));
+          box.appendChild(noteEl("Ces couches insérées sont entraînées, avec une <b>porte tanh initialisée à zéro</b> : au départ, le modèle de langage gelé se comporte exactement comme avant, et la vision s'introduit progressivement pendant l'entraînement."));
+        } else {
+          box.appendChild(noteEl("Les <b>" + C.k + " tokens visuels</b> prennent la place du marqueur <code><image></code>, devant les 7 tokens de la question : séquence de " + C.k + " + 7 = <b>" + C.base + " tokens</b>. Pour le LLM, ce sont des embeddings comme les autres : l'auto-attention les traite exactement comme du texte."));
+          if (conn === "mlp"){
+            box.appendChild(noteEl("C'est l'<b>instruction-tuning multimodal</b> qui apprend au modèle quoi faire de ce préfixe : sur des paires (image, consigne → réponse), LLaVA affine la projection <b>et</b> le LLM — d'où le badge « affiné (étape 2) », après une étape 1 où seule la projection bougeait."));
+          } else {
+            box.appendChild(noteEl("BLIP-2 garde le LLM <b>gelé</b> : c'est au Q-Former, entraîné sur des objectifs image–texte, de produire des tokens directement « compréhensibles » par le LLM tel quel."));
+          }
+        }
+      } else {
+        var tok = ATOK[g - 1];
+        if (g === 1){
+          box.appendChild(noteEl("Le LLM lit toute son entrée — " + (C.xattn ? "les 7 tokens texte, plus les 64 latents regardés par cross-attention à chaque couche insérée" : "préfixe visuel de " + C.k + " tokens compris") + " — et produit le token le plus probable : <b>« " + tok + " »</b>. Il est rajouté en fin de séquence, et on recommence."));
+          box.appendChild(noteEl(C.xattn
+            ? "L'auto-attention ne porte que sur le texte (séquence courte), la vision se paie dans les couches de cross-attention : L × 64 paires par couche insérée."
+            : "Le coût de l'auto-attention croît en <b>L²</b> : le préfixe de " + C.k + " tokens se paie à chaque token généré, cache KV compris."));
+        } else if (tok === "roux"){
+          box.appendChild(noteEl("Token " + g + "/" + NGEN + " : <b>« roux »</b>. La séquence fait maintenant L = " + seqLen() + " tokens ; chaque nouveau token prête attention à tout ce qui précède" + (C.xattn ? ", et regarde les latents visuels par cross-attention" : ", tokens visuels compris") + "."));
+          box.appendChild(noteEl("C'est ici que la vision paie : <b>« roux » ne peut venir que du canal visuel</b> — un LLM aveugle aurait dû deviner. C'est aussi ici que naissent les hallucinations visuelles, quand le modèle répond depuis ses a priori de langage plutôt que depuis l'image."));
+        } else {
+          box.appendChild(noteEl("Token " + g + "/" + NGEN + " : <b>« " + tok + " »</b>. La séquence fait maintenant L = " + seqLen() + " tokens ; chaque nouveau token prête attention à tout ce qui précède" + (C.xattn ? ", et regarde les 64 latents par cross-attention à chaque couche insérée" : ", tokens visuels compris") + "."));
+          box.appendChild(noteEl("La boucle est identique à celle d'un LLM texte seul : <b>rien dans le décodage n'est spécifique à la vision</b>. Toute la « fusion » a eu lieu en amont, dans le connecteur et la séquence d'entrée."));
+        }
+      }
+      return box;
+    }
+
+    /* ---------- fiche, comparatif, mécanismes ---------- */
+    function chipSpan(label, cls){ return mk("span", "spv-chip " + cls, label); }
+
+    function buildFiche(){
+      var box = mk("div"), C = CONN[conn], g = genCount(), L = seqLen();
+      box.appendChild(setMarkup(mk("p", "spv-fl"), "<b>" + C.name + "</b>"));
+      if (conn === "mlp"){
+        box.appendChild(setMarkup(mk("p", "spv-fl"), "tokens visuels : <b>576</b> — aucune compression (grille 24 × 24 intacte)"));
+        box.appendChild(setMarkup(mk("p", "spv-fl"), "séquence LLM : 576 + 7" + (g ? " + " + g : "") + " = <b>" + L + "</b>"));
+      } else if (conn === "qformer"){
+        box.appendChild(setMarkup(mk("p", "spv-fl"), "tokens visuels : <b>32</b> — compression ×18 (576 → 32)"));
+        box.appendChild(setMarkup(mk("p", "spv-fl"), "séquence LLM : 32 + 7" + (g ? " + " + g : "") + " = <b>" + L + "</b>"));
+      } else {
+        box.appendChild(setMarkup(mk("p", "spv-fl"), "tokens visuels : <b>64 latents</b> — hors séquence (compression ×9)"));
+        box.appendChild(setMarkup(mk("p", "spv-fl"), "séquence LLM : 7" + (g ? " + " + g : "") + " = <b>" + L + "</b> (+ 64 via cross-attention)"));
+      }
+      var chips = mk("div", "spv-chips");
+      chips.appendChild(chipSpan("ViT : gelé", "spv-chip-frz"));
+      if (conn === "mlp"){
+        chips.appendChild(chipSpan("MLP : entraîné", "spv-chip-trn"));
+        chips.appendChild(chipSpan("LLM : gelé (ét. 1) → affiné (ét. 2)", "spv-chip-mix"));
+      } else if (conn === "qformer"){
+        chips.appendChild(chipSpan("Q-Former : entraîné", "spv-chip-trn"));
+        chips.appendChild(chipSpan("LLM : gelé", "spv-chip-frz"));
+      } else {
+        chips.appendChild(chipSpan("Resampler : entraîné", "spv-chip-trn"));
+        chips.appendChild(chipSpan("XATTN insérées : entraînées", "spv-chip-trn"));
+        chips.appendChild(chipSpan("LM : gelé", "spv-chip-frz"));
+      }
+      box.appendChild(chips);
+      var note;
+      if (conn === "mlp"){
+        note = "auto-attention ∝ L² : " + fmtN(L*L) + " paires — le préfixe de 576 tokens se paie à chaque token généré.";
+      } else if (conn === "qformer"){
+        var Lm = CONN.mlp.base + g;
+        note = "auto-attention ∝ L² : " + fmtN(L*L) + " paires, contre " + fmtN(Lm*Lm) + " pour LLaVA au même point.";
+      } else {
+        note = "auto-attention sur le texte seul (" + fmtN(L*L) + " paires) ; s'y ajoute la cross-attention texte → 64 latents dans chaque couche insérée.";
+      }
+      box.appendChild(mk("p", "spv-fnote", note));
+      return box;
+    }
+
+    var CMP = [
+      {id:"mlp",       n:"LLaVA · projection MLP", val:"583", segs:[[583, ""]]},
+      {id:"perceiver", n:"Flamingo · Resampler",   val:"7 +64", segs:[[7, ""], [64, "spv-hatch"]]},
+      {id:"qformer",   n:"BLIP-2 · Q-Former",      val:"39",  segs:[[39, ""]]}
+    ];
+    function buildCmp(){
+      var wrap = mk("div");
+      CMP.forEach(function(r){
+        var row = mk("div", "spv-cmprow" + (r.id === conn ? " spv-cur" : ""));
+        row.appendChild(mk("span", "spv-cmpname", r.n));
+        var bar = mk("span", "spv-cmpbar");
+        r.segs.forEach(function(sg){
+          var f = mk("span", "spv-cmpfill " + sg[1]);
+          f.style.width = Math.max(1.2, sg[0] / 583 * 100) + "%";
+          bar.appendChild(f);
+        });
+        row.appendChild(bar);
+        row.appendChild(mk("span", "spv-cmpval", r.val));
+        wrap.appendChild(row);
+      });
+      return wrap;
+    }
+
+    function activeMechs(){
+      if (IDX === 1) return ["vit"];
+      if (IDX === 2) return ["vit", "clip"];
+      if (IDX === 3){
+        if (conn === "mlp") return ["proj"];
+        if (conn === "qformer") return ["proj", "gout"];
+        return ["proj", "gout", "xattn"];
+      }
+      if (IDX === 4) return CONN[conn].xattn ? ["xattn", "it"] : ["prefix", "it"];
+      if (IDX >= 5) return CONN[conn].xattn ? ["ar", "xattn"] : ["ar", "prefix"];
+      return [];
+    }
+
+    /* ---------- rendu global ---------- */
+    var railEl = $("spv-rail"), stagehEl = $("spv-stagehead"), dhEl = $("spv-dh"),
+        dbodyEl = $("spv-dbody"), bannerEl = $("spv-banner"), mechsEl = $("spv-mechs"),
+        ficheEl = $("spv-fiche"), cmpEl = $("spv-cmp"),
+        ctrEl = $("spv-stepctr"), pfillEl = $("spv-pfill"),
+        prevBtn = $("spv-prev"), nextBtn = $("spv-next"), playBtn = $("spv-play"),
+        resetBtn = $("spv-reset"), connrowEl = $("spv-connrow");
+
+    CONN_ORDER.forEach(function(c){
+      var b = mk("button", "spv-conn", CONN[c].short);
+      b.type = "button";
+      b.setAttribute("data-conn", c);
+      connrowEl.insertBefore(b, ctrEl);
+    });
+
+    function setDim(el, active){
+      var cls = el.getAttribute("class") || "";
+      cls = cls.replace(/\s*spv-dim/g, "");
+      if (!active) cls += " spv-dim";
+      el.setAttribute("class", cls);
+    }
+    function setFocus(frame, on){
+      var cls = frame.getAttribute("class") || "";
+      cls = cls.replace(/\s*spv-focus/g, "");
+      if (on) cls += " spv-focus";
+      frame.setAttribute("class", cls);
+    }
+
+    function render(){
+      var C = CONN[conn], g = genCount();
+
+      /* boutons connecteur */
+      Array.prototype.forEach.call(connrowEl.querySelectorAll(".spv-conn"), function(b){
+        b.classList.toggle("spv-sel", b.getAttribute("data-conn") === conn);
+      });
+
+      /* compteur + barre */
+      var lbl = IDX === 0 ? "départ" : IDX === 1 ? "patchs" : IDX === 2 ? "ViT"
+        : IDX === 3 ? "connecteur" : IDX === 4 ? "séquence" : "token " + g + "/" + NGEN;
+      ctrEl.textContent = "étape " + IDX + " / " + NSTEPS + " · " + lbl;
+      pfillEl.style.width = (100 * IDX / NSTEPS) + "%";
+
+      /* rail */
+      var cur = phaseOf(IDX);
+      railEl.textContent = "";
+      PHASES.forEach(function(ph, i){
+        var cls = "spv-ph";
+        if (i === cur) cls += " spv-active";
+        else if (i < cur) cls += " spv-done";
+        var el = mk("div", cls);
+        el.appendChild(mk("div", "spv-pn", ph.n));
+        el.appendChild(mk("div", "spv-pl", ph.l));
+        el.appendChild(mk("div", "spv-pf", ph.f));
+        railEl.appendChild(el);
+      });
+
+      /* schéma : reconstruction des groupes dynamiques */
+      var connF = buildConnBox();
+      buildOut();
+      var seqF = buildSeq(IDX === 4);
+      buildLLM(IDX >= 5);
+      buildBubble();
+      buildXPaths();
+
+      /* visibilité (les éléments futurs sont estompés) */
+      setDim(gGrid, IDX >= 1);
+      setDim(arr1, IDX >= 2);
+      setDim(gVit, IDX >= 2);
+      setDim(arr2, IDX >= 2);
+      setDim(gFeat, IDX >= 2);
+      setDim(arr3, IDX >= 3);
+      setDim(gConn, IDX >= 3);
+      setDim(arr4, IDX >= 3);
+      setDim(gOut, IDX >= 3);
+      setDim(arrSeq, IDX >= 4);
+      setDim(gLLM, IDX >= 4);
+      imgLab.textContent = IDX >= 1 ? "576 patchs de 14 × 14 px" : "image 336 × 336";
+
+      /* focus de l'étape courante */
+      setFocus(imgF, IDX === 1);
+      setFocus(vitF, IDX === 2);
+      setFocus(featF, IDX === 2);
+      setFocus(connF, IDX === 3);
+      var outF = gOut.querySelector(".spv-frame");
+      if (outF) setFocus(outF, IDX === 3);
+
+      /* scène : textes */
+      setMarkup(stagehEl, stageHead());
+      dhEl.textContent = detailHead();
+      dbodyEl.textContent = "";
+      dbodyEl.appendChild(buildDetail());
+
+      /* bannière finale */
+      bannerEl.textContent = "";
+      if (IDX >= NSTEPS){
+        var ban = mk("div", "spv-banner");
+        ban.appendChild(mk("b", null, "Réponse : « Le chat est roux. » — pipeline complet en 4 phases"));
+        var kphr = conn === "mlp" ? "576 tokens visuels (MLP)"
+          : conn === "qformer" ? "32 tokens de requête (Q-Former)"
+          : "64 latents hors séquence (Resampler + cross-attention)";
+        ban.appendChild(document.createTextNode(
+          "Image → 576 patchs → ViT gelé → " + kphr + " → séquence de " + C.base +
+          " tokens → 5 tokens générés (L finale = " + seqLen() + "). Commutez le connecteur et rejouez : " +
+          "mêmes phases, même réponse ici — seuls changent le nombre de tokens visuels, la longueur de séquence et ce qui est entraîné."));
+        bannerEl.appendChild(ban);
+      }
+
+      /* fiche + comparatif + mécanismes */
+      ficheEl.textContent = "";
+      ficheEl.appendChild(buildFiche());
+      cmpEl.textContent = "";
+      cmpEl.appendChild(buildCmp());
+      var act = activeMechs();
+      mechsEl.textContent = "";
+      MECHS.forEach(function(m){
+        mechsEl.appendChild(mk("li", act.indexOf(m.id) >= 0 ? "spv-mon" : null, m.t));
+      });
+
+      /* boutons */
+      prevBtn.disabled = playing || IDX === 0;
+      nextBtn.disabled = playing || IDX >= NSTEPS;
+      playBtn.textContent = playing ? "⏸ Pause" : "▶▶ Dérouler jusqu'à la réponse";
+    }
+
+    /* ---------- navigation ---------- */
+    function goto_(i){ IDX = Math.max(0, Math.min(NSTEPS, i)); render(); }
+    function stopPlay(){ playing = false; if (timer){ clearInterval(timer); timer = null; } render(); }
+    function play(){
+      if (playing){ stopPlay(); return; }
+      if (IDX >= NSTEPS) IDX = 0;
+      playing = true; render();
+      timer = setInterval(function(){
+        if (IDX >= NSTEPS){ stopPlay(); return; }
+        IDX++; render();
+        if (IDX >= NSTEPS) stopPlay();
+      }, 1300);
+    }
+
+    prevBtn.addEventListener("click", function(){ if (!playing) goto_(IDX - 1); });
+    nextBtn.addEventListener("click", function(){ if (!playing) goto_(IDX + 1); });
+    playBtn.addEventListener("click", play);
+    resetBtn.addEventListener("click", function(){ stopPlay(); goto_(0); });
+    connrowEl.addEventListener("click", function(ev){
+      var b = ev.target.closest ? ev.target.closest(".spv-conn") : null;
+      if (!b) return;
+      conn = b.getAttribute("data-conn");
+      render();
+    });
+
+    render();
+  })();
+  </script>
+</div>
