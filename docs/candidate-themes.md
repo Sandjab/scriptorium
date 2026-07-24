@@ -143,20 +143,13 @@ ensemble-learning, régression logistique/BIM dans bm25).
 (`llm-safety-jailbreaks` : FAIT le 2026-07-17, retiré du backlog — 13e run /leanmonograph GREEN,
 classé dans llm-agents-generation après llm-evaluation.)
 
-### Vision-Language Models (VLM) — `multimodal-vlm` → `llm-agents-generation`
-**Verdict : nouveau gap.** ViT (transformer-attention) et conditionnement cross-attention
-(diffusion) seulement.
-
-> Vision-Language Models (VLM) et fusion multimodale : aligner image et texte dans un même modèle.
-> Couvrir l'alignement contrastif (CLIP en rappel), les architectures de fusion (encodeur visuel +
-> LLM via projection/Q-Former — BLIP-2 ; cross-attention — Flamingo ; tokens visuels en entrée —
-> LLaVA), l'instruction-tuning multimodal, le traitement de la résolution/des patchs, et les
-> benchmarks (VQA, captioning, hallucination visuelle). Positionnement : pertinence croissante,
-> absent en tant que thème cohérent. Public : ingénieur ML. Délimitations : transformer-attention
-> couvre le ViT, diffusion-models le conditionnement (génération d'images), agentic-ai l'agent
-> incarné (PaLM-E) — se centrer sur l'architecture VLM et l'alignement vision→langage pour la
-> compréhension ; le contrastif/CLIP est approfondi par contrastive-self-supervised (le citer).
-> Domaine : llm-agents-generation.
+(`multimodal-vlm` : FAIT le 2026-07-25, retiré du backlog — 19e run /leanmonograph GREEN direct
+[backstop 100 % propre, 0 correction], classé dans llm-agents-generation entre
+agentic-rl-environments et llm-evaluation. Section modality-gap écartée par l'audit (4 rejets
+dont 2 réfutés-jury) : le modality gap de CLIP n'est couvert par aucun claim retenu — angle
+résiduel si un candidat « géométrie des espaces d'embedding multimodaux » émerge un jour.
+Les candidats document-ai et vision-language-action peuvent désormais se délimiter contre
+cette monographie publiée.)
 
 ### SVM / méthodes à noyau — `svm-kernel-methods` → `classical-ml-time-series`
 **Verdict : gap réel.** Le kernel trick n'est effleuré que via Kernel PCA et les noyaux GP.
