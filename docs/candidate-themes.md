@@ -34,6 +34,14 @@ déjà traité EN PROFONDEUR par `diffusion-models` (le candidat flows se recent
 vraisemblance exacte), et le candidat `llm-inference-serving` inclut déjà le routage infra (le
 candidat routage se recentre sur l'arbitrage qualité/coût par requête).
 
+**Ajout du 2026-07-23** (corpus à 56 monographies) : +1 candidat `multi-agent-orchestration`, issu
+d'une veille sur le buzz « graph engineering » (terme né le 18 juillet 2026 — tweet de Steinberger
+puis « Loop Engineering Is Dead » de Husain 4 h 30 plus tard). Le buzzword lui-même est écarté comme
+sujet (trop jeune pour la règle des ≥ 2 sources indépendantes, corpus primaire = tweets et
+Substacks) ; le sujet de fond — topologies, frameworks et modes d'échec des systèmes multi-agents —
+est retenu en priorité moyenne. L'acception « context/knowledge graphs pour agents » est déjà
+couverte (agentic-memory, knowledge-graph-construction, retrieval-augmented-generation).
+
 - **Fabrication** : `/leanmonograph « <prompt riche> »` (défaut depuis le test GREEN du 2026-07-02 ;
   `/frugalmonograph` en repli) puis `/arrange <slug>`.
 - **Domaine** = celui de `tools/taxonomy.json` (source de vérité). Un thème = un seul domaine.
@@ -57,6 +65,11 @@ candidat routage se recentre sur l'arbitrage qualité/coût par requête).
 Candidats à angle neuf ; chaque entrée porte son prompt riche, prêt à lancer.
 
 (`world-models` : FAIT le 2026-07-10, retiré du backlog.)
+
+(`multi-agent-orchestration` : FAIT le 2026-07-24, retiré du backlog — 17e run /leanmonograph
+GREEN après backstop [1 correction dure : blurb MetaGPT « ICLR 2025 »→« ICLR 2024 (oral) »],
+classé dans llm-agents-generation après agent-harness-engineering. Ajouté puis fabriqué dans la
+foulée de la veille « graph engineering » du 2026-07-23.)
 
 ### Optimiseurs (Adam / AdamW) — `optimizers-adam` → `deep-learning-foundations`
 **Verdict : partiel (~60 % neuf).** `backpropagation` traite Adam de base (Kingma & Ba) comme étape
