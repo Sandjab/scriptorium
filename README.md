@@ -17,6 +17,11 @@ themes/<slug>/            un dossier par thème (slug kebab-case, sans accents)
 .claude/skills/monograph/        le skill local qui produit une monographie (charte + build.py partagés)
 .claude/skills/frugalmonograph/  variante à coût réduit (mêmes garanties)
 .claude/skills/leanmonograph/    variante « vérifier d'abord, écrire une fois » (+ lint déterministe)
+tools/                    assemblage du site publié
+  build_site.py           génère _site/ (home + portails) — échoue bruyamment
+  taxonomy.json           classement des thèmes par domaine (skill /arrange)
+  portals/<domaine>.json  couche éditoriale d'un portail de domaine (skill /arrange)
+  portal.py               chargement, validation et rendu d'un portail
 ```
 
 ## Produire une monographie
@@ -56,8 +61,8 @@ dédié par claim « contestable ») et la **prose est rédigée après l'audit*
 (charte de voix, fil rouge, relecture de continuité) — la dérive « prose pré-council » disparaît
 par construction. Un **lint déterministe** (`scripts/lint.py`) traque les pivots des claims
 rejetés et les chiffres absents de `knowledge.json`, vérifiés à la source avant l'assemblage.
-Cible : moins de tokens que `/frugalmonograph` et une prose plus homogène (en cours de
-validation comparative).
+Cible : moins de tokens que `/frugalmonograph` et une prose plus homogène. Éprouvé : les **19
+monographies les plus récentes** du corpus en sont issues.
 
 > [!WARNING]
 > `/monograph` consomme **ÉNORMÉMENT de tokens** — de l'ordre de **plusieurs millions de
@@ -131,19 +136,21 @@ flowchart TD
 
 ## Thèmes
 
-Chaque document est sous `themes/<slug>/dist/`. Le corpus compte **40 thèmes** (42 documents),
-tous générés par `/monograph` ou `/frugalmonograph` — sauf **automatic-prompt-optimization**,
-construit à la main avant le skill et conservé gelé sous
-`themes/automatic-prompt-optimization/legacy/`. La liste complète, groupée par domaine
-(`tools/taxonomy.json`, skill `/arrange`), est publiée sur la
+Chaque document est sous `themes/<slug>/dist/`. Le corpus compte **59 thèmes** (61 documents),
+tous générés par `/monograph`, `/frugalmonograph` ou `/leanmonograph` — sauf
+**automatic-prompt-optimization**, construit à la main avant le skill (triptyque à 3 éditions)
+et conservé gelé sous `themes/automatic-prompt-optimization/legacy/`. La liste complète, groupée
+par domaine (`tools/taxonomy.json`, skill `/arrange`), est publiée sur la
 [home GitHub Pages](https://sandjab.github.io/scriptorium/) régénérée à chaque push par
 `tools/build_site.py`.
 
-Les domaines les plus fournis ont un **portail** (`tools/portals/<domaine>.json`, rendu sous
-`domaines/<domaine>.html`) : un parcours de lecture, les arêtes entre thèmes et les frontières
-entre voisins proches — ce qu'aucune monographie prise isolément ne peut dire. Le corps de la
-page est dérivé des `tldr.json` ; la couche éditoriale ne contient aucun fait vérifiable et
-n'est donc pas soumise au council.
+Les trois domaines les plus fournis ont un **portail** (`tools/portals/<domaine>.json`, rendu
+sous `domaines/<domaine>.html`) : un parcours de lecture, les arêtes entre thèmes et les
+frontières entre voisins proches — ce qu'aucune monographie prise isolément ne peut dire. Le
+corps de la page est dérivé des `tldr.json` ; la couche éditoriale ne contient aucun fait
+vérifiable et n'est donc pas soumise au council. Un thème d'un domaine portalisé **doit**
+figurer dans son parcours : `build_site.py` échoue sinon, pour qu'aucune monographie ne
+devienne invisible.
 
 ## Statut
 
@@ -151,10 +158,12 @@ n'est donc pas soumise au council.
 - Phase 1 — générateur déterministe (`.claude/skills/monograph/` : charte + `build.py`, 16 tests) : ✅
 - Phase 2 — workflow multi-agents + `SKILL.md` des skills `monograph` et `frugalmonograph` : ✅
   Pipeline à **8 phases** (Sweep → Plan → Extract → Verify → Author → **Widgets** → Compose →
-  Build), document unique « best-of » + widgets pilotés par concept. Éprouvé sur **39 thèmes**
+  Build), document unique « best-of » + widgets pilotés par concept. Éprouvé sur **58 thèmes**
   hors APO et publié via GitHub Pages.
-- Skill `leanmonograph` (« vérifier d'abord, écrire une fois » + lint déterministe) : construit
-  et revu ; **pas encore éprouvé en réel** — validation comparative à venir sur un thème.
+- Skill `leanmonograph` (« vérifier d'abord, écrire une fois » + lint déterministe) : ✅
+  éprouvé — les **19 monographies les plus récentes** en sont issues.
+- Portails de domaine (`tools/portals/`, rendus sous `domaines/`) : ✅ sur les 3 domaines les
+  plus fournis ; parcours de lecture, arêtes et frontières maintenus par `/arrange`.
 
 ## Licence
 
