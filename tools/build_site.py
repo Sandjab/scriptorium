@@ -20,10 +20,14 @@ import re
 import shutil
 from pathlib import Path
 
+import portal
+from portal import PALETTE_CSS
+
 ROOT = Path(__file__).resolve().parent.parent
 THEMES_DIR = ROOT / "themes"
 SITE_DIR = ROOT / "_site"
 TAXONOMY_PATH = Path(__file__).resolve().parent / "taxonomy.json"
+PORTALS_DIR = portal.PORTALS_DIR
 
 # Suffixe de variante (triptyque) -> libellé affiché.
 VARIANTS = {
@@ -43,9 +47,15 @@ _TITLE_RE = re.compile(r"<title>(.*?)</title>", re.IGNORECASE | re.DOTALL)
 
 
 def extract_title(path: Path) -> str:
-    """Titre lisible d'un document = contenu de sa balise <title>."""
+    """Titre lisible d'un document = contenu de sa balise <title>.
+
+    Déséchappé : le <title> source porte des entités HTML ('&amp;'), et tout
+    affichage les ré-échappe — sans ce unescape, un '&' s'afficherait '&amp;'.
+    """
     m = _TITLE_RE.search(path.read_text(encoding="utf-8", errors="replace"))
-    return re.sub(r"\s+", " ", m.group(1)).strip() if m else path.stem
+    if not m:
+        return path.stem
+    return html.unescape(re.sub(r"\s+", " ", m.group(1)).strip())
 
 
 def theme_label(slug: str) -> str:
@@ -143,8 +153,43 @@ def group_by_domain(collected, domains, legacy_slug):
     return sections
 
 
-def render_index(sections, n_themes, n_docs) -> str:
-    """Page d'accueil groupée par domaine — esthétique alignée sur charte.css."""
+def write_portals(sections, themes_dir: Path, portals_dir: Path, site_dir: Path,
+                  built: str) -> set[str]:
+    """Écrit _site/domaines/<id>.html pour chaque domaine ayant un portail.
+
+    L'existence de tools/portals/<id>.json déclare que le domaine en a un.
+    Échoue bruyamment sur un portail orphelin (fichier ne correspondant à aucun
+    domaine), qui serait sinon ignoré en silence après un renommage de domaine.
+    """
+    domain_ids = {sec["id"] for sec in sections if sec["kind"] == "domain"}
+    if portals_dir.is_dir():
+        for path in sorted(portals_dir.glob("*.json")):
+            if path.stem not in domain_ids:
+                raise SystemExit(
+                    f"build_site: portail orphelin '{path.name}' "
+                    f"(aucun domaine '{path.stem}' dans la taxonomie)"
+                )
+
+    rendered = set()
+    for sec in sections:
+        if sec["kind"] != "domain":
+            continue
+        path = portal.portal_path(sec["id"], portals_dir)
+        if not path.exists():
+            continue
+        data = portal.load_portal(path, sec["id"], [s for s, _, _ in sec["themes"]])
+        out = portal.render(sec, data, sec["themes"], themes_dir, built)
+        (site_dir / "domaines").mkdir(parents=True, exist_ok=True)
+        (site_dir / "domaines" / f"{sec['id']}.html").write_text(out, encoding="utf-8")
+        rendered.add(sec["id"])
+    return rendered
+
+
+def render_index(sections, n_themes, n_docs, portals=()) -> str:
+    """Page d'accueil groupée par domaine — esthétique alignée sur charte.css.
+
+    `portals` = ids des domaines disposant d'un portail (lien « Parcourir »).
+    """
     e = html.escape
     built = _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
@@ -187,7 +232,11 @@ def render_index(sections, n_themes, n_docs) -> str:
         else:  # domain
             cards = "\n".join(render_card(s, l, d) for s, l, d in sec["themes"])
             head = f'      <h2 class="dhead">{e(sec["label"])}</h2>'
-            blurb = f'      <p class="dblurb">{e(sec["blurb"])}</p>'
+            blurb = f'      <p class="dblurb">{e(sec["blurb"])}'
+            if sec["id"] in portals:
+                blurb += (f'<a class="dportal" href="domaines/{e(sec["id"])}.html">'
+                          f'Parcourir le domaine &rarr;</a>')
+            blurb += '</p>'
         blurb_line = (blurb + "\n") if blurb else ""
         blocks.append(
             f'    <section class="domain">\n{head}\n{blurb_line}'
@@ -205,14 +254,7 @@ def render_index(sections, n_themes, n_docs) -> str:
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800&family=Spectral:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-  :root{{
-    --paper:#F4F6FA; --card:#FFFFFF;
-    --ink:#15202E; --ink-soft:#43536A; --ink-faint:#7A889B;
-    --blue:#23537F; --blue-deep:#142E49; --blue-bright:#2C77B6; --blue-wash:#E7EEF6;
-    --bordeaux:#7C2A38; --bordeaux-bright:#9B3443; --bordeaux-wash:#F3E3E6;
-    --line:#D7DFE9; --maxw:1100px;
-  }}
-  *{{box-sizing:border-box;}}
+{PALETTE_CSS}  *{{box-sizing:border-box;}}
   body{{margin:0;background:var(--paper);color:var(--ink);
     font-family:"Spectral",Georgia,serif;font-size:17px;line-height:1.62;
     -webkit-font-smoothing:antialiased;}}
@@ -238,6 +280,9 @@ def render_index(sections, n_themes, n_docs) -> str:
   .dblurb{{margin:0 0 18px;color:var(--ink-soft);font-size:15px;
     border-bottom:1px solid var(--line);padding-bottom:14px;}}
   .dblurb code{{font-family:"JetBrains Mono",monospace;font-size:13px;color:var(--blue);}}
+  .dportal{{font-family:"Archivo",system-ui,sans-serif;font-size:13.5px;font-weight:700;
+    color:var(--blue-bright);text-decoration:none;margin-left:14px;white-space:nowrap;}}
+  .dportal:hover{{color:var(--bordeaux);}}
   .cards{{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:24px;}}
   .card{{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--blue);
     border-radius:7px;padding:22px 24px;box-shadow:0 1px 2px rgba(20,46,73,.04);}}
@@ -289,7 +334,7 @@ def render_index(sections, n_themes, n_docs) -> str:
 
 
 def main(themes_dir: Path = THEMES_DIR, taxonomy_path: Path = TAXONOMY_PATH,
-         site_dir: Path = SITE_DIR) -> int:
+         site_dir: Path = SITE_DIR, portals_dir: Path = PORTALS_DIR) -> int:
     collected = collect(themes_dir)
     if not collected:
         raise SystemExit(f"build_site: aucun document sous {themes_dir}/*/dist/*.html")
@@ -307,10 +352,14 @@ def main(themes_dir: Path = THEMES_DIR, taxonomy_path: Path = TAXONOMY_PATH,
         for href, *_ in docs:
             shutil.copy2(themes_dir / slug / "dist" / Path(href).name, site_dir / href)
 
+    built = _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    portals = write_portals(sections, themes_dir, portals_dir, site_dir, built)
+
     (site_dir / "index.html").write_text(
-        render_index(sections, n_themes, n_docs), encoding="utf-8"
+        render_index(sections, n_themes, n_docs, portals), encoding="utf-8"
     )
-    print(f"build_site: {n_themes} thèmes, {n_docs} documents -> {site_dir}")
+    print(f"build_site: {n_themes} thèmes, {n_docs} documents, "
+          f"{len(portals)} portails -> {site_dir}")
     return 0
 
 

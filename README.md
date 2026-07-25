@@ -139,6 +139,12 @@ construit à la main avant le skill et conservé gelé sous
 [home GitHub Pages](https://sandjab.github.io/scriptorium/) régénérée à chaque push par
 `tools/build_site.py`.
 
+Les domaines les plus fournis ont un **portail** (`tools/portals/<domaine>.json`, rendu sous
+`domaines/<domaine>.html`) : un parcours de lecture, les arêtes entre thèmes et les frontières
+entre voisins proches — ce qu'aucune monographie prise isolément ne peut dire. Le corps de la
+page est dérivé des `tldr.json` ; la couche éditoriale ne contient aucun fait vérifiable et
+n'est donc pas soumise au council.
+
 ## Statut
 
 - Phase 0 — restructure & migration : ✅

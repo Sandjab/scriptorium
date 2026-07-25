@@ -15,6 +15,14 @@ def test_collect_finds_published_theme(tmp_path):
     assert out == [("alpha", "Alpha", [("alpha/alpha.html", "Titre Alpha", "Titre Alpha")])]
 
 
+def test_extract_title_unescapes_entities(tmp_path):
+    """Le <title> source porte des entités ('&amp;') et tout affichage les ré-échappe :
+    sans déséchappement ici, un '&' finit affiché '&amp;' sur la page."""
+    _publish(tmp_path, "amp", "Harness &amp; loop engineering")
+    out = build_site.collect(tmp_path)
+    assert out[0][2][0][2] == "Harness & loop engineering"
+
+
 def test_collect_skips_dir_without_dist(tmp_path):
     (tmp_path / "nodist").mkdir()
     _publish(tmp_path, "withdist")
@@ -135,6 +143,75 @@ def test_render_unclassified_and_legacy_last():
     assert out.index("À classer") < out.index("Legacy")  # bucket avant legacy
 
 
+def _write_portal_file(portals_dir, domain_id, slugs):
+    portals_dir.mkdir(parents=True, exist_ok=True)
+    (portals_dir / f"{domain_id}.json").write_text(json.dumps({
+        "domain": domain_id,
+        "intro": "Intro du domaine.",
+        "parcours": [{"slug": s, "pourquoi": f"étape {s}"} for s in slugs],
+        "aretes": [], "delimitations": [],
+    }), encoding="utf-8")
+
+
+def _write_tldr(themes_dir, slug):
+    (themes_dir / slug).mkdir(parents=True, exist_ok=True)
+    (themes_dir / slug / "tldr.json").write_text(
+        json.dumps({"these": f"Thèse de {slug}."}), encoding="utf-8")
+
+
+def test_main_writes_portal_and_links_it_from_home(tmp_path):
+    """Un portail présent doit être rendu ET atteignable : une page publiée mais
+    orpheline de lien serait invisible."""
+    themes = tmp_path / "themes"
+    for s in ("alpha", "beta"):
+        _publish(themes, s, s.title())
+        _write_tldr(themes, s)
+    taxo = _write_taxo(tmp_path, [
+        {"id": "d1", "label": "Domaine Un", "blurb": "b", "themes": ["alpha", "beta"]},
+    ])
+    portals = tmp_path / "portals"
+    _write_portal_file(portals, "d1", ["alpha", "beta"])
+    site = tmp_path / "_site"
+
+    assert build_site.main(themes_dir=themes, taxonomy_path=taxo, site_dir=site,
+                           portals_dir=portals) == 0
+    page = site / "domaines" / "d1.html"
+    assert page.is_file()
+    assert "Thèse de alpha." in page.read_text(encoding="utf-8")
+    assert 'href="domaines/d1.html"' in (site / "index.html").read_text(encoding="utf-8")
+
+
+def test_main_without_portal_has_no_link(tmp_path):
+    """Les petits domaines n'ont pas de portail : la home ne doit pas proposer de lien mort."""
+    themes = tmp_path / "themes"
+    _publish(themes, "alpha", "Alpha")
+    taxo = _write_taxo(tmp_path, [
+        {"id": "d1", "label": "D1", "blurb": "b", "themes": ["alpha"]},
+    ])
+    site = tmp_path / "_site"
+    build_site.main(themes_dir=themes, taxonomy_path=taxo, site_dir=site,
+                    portals_dir=tmp_path / "portals-absent")
+    index = (site / "index.html").read_text(encoding="utf-8")
+    assert "domaines/" not in index
+    assert not (site / "domaines").exists()
+
+
+def test_orphan_portal_file_fails(tmp_path):
+    """Un portail dont le domaine a été renommé ou supprimé doit casser le build
+    plutôt que rester ignoré en silence."""
+    themes = tmp_path / "themes"
+    _publish(themes, "alpha", "Alpha")
+    _write_tldr(themes, "alpha")
+    taxo = _write_taxo(tmp_path, [
+        {"id": "d1", "label": "D1", "blurb": "b", "themes": ["alpha"]},
+    ])
+    portals = tmp_path / "portals"
+    _write_portal_file(portals, "ancien-nom", ["alpha"])
+    with pytest.raises(SystemExit):
+        build_site.main(themes_dir=themes, taxonomy_path=taxo,
+                        site_dir=tmp_path / "_site", portals_dir=portals)
+
+
 def test_main_end_to_end(tmp_path):
     themes = tmp_path / "themes"
     _publish(themes, "alpha", "Alpha")
@@ -143,7 +220,8 @@ def test_main_end_to_end(tmp_path):
         {"id": "d1", "label": "Domaine Un", "blurb": "b", "themes": ["alpha", "beta"]},
     ])
     site = tmp_path / "_site"
-    rc = build_site.main(themes_dir=themes, taxonomy_path=taxo, site_dir=site)
+    rc = build_site.main(themes_dir=themes, taxonomy_path=taxo, site_dir=site,
+                         portals_dir=tmp_path / "portals-absent")
     assert rc == 0
     index = (site / "index.html").read_text(encoding="utf-8")
     assert "Domaine Un" in index
