@@ -1,0 +1,37 @@
+[
+  {
+    "term": "layout embedding",
+    "definition": "Encodage de la mise en page : dans LayoutLM, les coordonnées de la boîte englobante de chaque token, quantifiées sur une grille 0-1000, deviennent des embeddings de position 2D additionnés à l'embedding de texte. C'est ce qui sépare la lignée du traitement NLP classique, qui lit le document comme une séquence plate en négligeant position et style. LayoutLMv2 conserve cet encodage absolu et lui ajoute un biais spatial dans la self-attention (α'ᵢⱼ = αᵢⱼ + biais-1D(j−i) + biais-2D-x(xⱼ−xᵢ) + biais-2D-y(yⱼ−yᵢ)), des biais appris qui varient par tête d'attention mais restent partagés entre toutes les couches de l'encodeur ; LayoutLMv3 supprime ensuite le backbone visuel CNN de v2 (44M pour ResNet-101) au profit d'une projection linéaire de patches 16×16 d'environ 0,6M de paramètres.",
+    "see_also": "entity linking, OCR-free"
+  },
+  {
+    "term": "CTC (Connectionist Temporal Classification)",
+    "definition": "Classification temporelle connexionniste (Graves et al., ICML 2006) : perte qui apprend à transcrire une ligne de texte sans alignement annoté entre pixels et caractères. Elle impose deux contraintes formelles, un alignement monotone (aucune réorganisation entre entrée et sortie) et l'indépendance conditionnelle des sorties entre elles étant donné l'entrée, ce qui interdit toute dépendance inter-caractères sans modèle de langage externe. Ces limites n'ont pas fait disparaître CTC : les pipelines OCR les plus déployés (Tesseract 4+ en mode LSTM, PP-OCR/PaddleOCR et son module de reconnaissance convolutif-récurrent) reposent toujours sur une architecture CTC en cascade détection → reconnaissance, et non sur un décodeur seq2seq de type TrOCR.",
+    "see_also": "OCR-free"
+  },
+  {
+    "term": "OCR-free",
+    "definition": "Sans OCR : modèle génératif qui lit directement les pixels de la page et produit la séquence structurée voulue, sans moteur de reconnaissance en amont. Donut (encodeur Swin, décodeur BART) l'a motivé par l'élimination de l'OCR comme goulot d'étranglement, à savoir son coût de calcul, sa rigidité multi-langue et la propagation de ses erreurs vers l'aval. Le compromis est mesurable : Donut égale LayoutLMv2 en classification RVL-CDIP (95,30 % contre 95,25 %) à environ deux fois la vitesse et sans aucun moteur OCR, mais concède plus de 10 points d'ANLS sur DocVQA, là où il faut lire un champ précis.",
+    "see_also": "ANLS (Average Normalized Levenshtein Similarity), CTC (Connectionist Temporal Classification)"
+  },
+  {
+    "term": "ANLS (Average Normalized Levenshtein Similarity)",
+    "definition": "Similarité de Levenshtein normalisée puis moyennée : métrique principale de DocVQA, qui compare la réponse produite à la réponse attendue caractère par caractère au lieu d'exiger une correspondance exacte, et absorbe ainsi les petites erreurs de transcription. Elle sert d'échelle commune à la littérature du document : Donut 67,5, Pix2Struct-Large 76,6, LayoutLMv2 78,1 (86,7 pour une variante spécialisée DocVQA), UDOP 84,7. Le benchmark est aujourd'hui quasi saturé, un score de 97,25 % ANLS étant rapporté pour Qwen2-VL — au-dessus de la performance humaine de référence en exact-match (94,36 %), mais en retrait des 0,981 ANLS mesurés pour les annotateurs eux-mêmes.",
+    "see_also": "OCR-free, TEDS (Tree-Edit-Distance-based Similarity)"
+  },
+  {
+    "term": "TEDS (Tree-Edit-Distance-based Similarity)",
+    "definition": "Similarité fondée sur la distance d'édition d'arbre : métrique de reconnaissance de tables qui compare la structure produite et la structure attendue comme deux arbres, plutôt que d'exiger une exactitude cellule par cellule, et capte donc les décalages de cellules sur plusieurs sauts. Elle accompagne les corpus faiblement supervisés générés par alignement PDF/XML qui ont porté la tâche à l'échelle du million (PubTabNet : 568 000 tables ; PubTables-1M : 947 642 tables) et rendu possible l'entraînement de détecteurs transformers dédiés (Table Transformer, dérivé de DETR ; TableFormer d'IBM).",
+    "see_also": "document layout analysis, ANLS (Average Normalized Levenshtein Similarity)"
+  },
+  {
+    "term": "document layout analysis",
+    "definition": "Analyse de la mise en page : découpage d'une page en régions typées avant toute lecture du texte. Les deux corpus de référence exposent l'arbitrage entre échelle et qualité d'annotation, PubLayNet alignant automatiquement PDF et XML pour 360 000 pages sur 5 classes seulement, tandis que DocLayNet (IBM Research, KDD 2022) annote manuellement 80 863 pages sur 11 classes fines et mesure l'accord inter-annotateurs grâce à ses 7 059 pages doublement annotées. En production, la boîte à outils Docling s'appuie sur un détecteur dérivé de RT-DETR ré-entraîné sur DocLayNet, complété d'un module TableFormer pour les tables.",
+    "see_also": "TEDS (Tree-Edit-Distance-based Similarity)"
+  },
+  {
+    "term": "entity linking",
+    "definition": "Association d'entités : sur FUNSD, la tâche qui relie une question à sa réponse, c'est-à-dire le clé-valeur proprement dit, évaluée séparément de l'entity labeling (labellisation sémantique, qui range chaque entité en question, réponse, en-tête ou autre). La distinction commande la lecture des scores, puisque les F1 habituellement cités sur FUNSD (79,27 pour LayoutLM, environ 90 pour LayoutLMv3) mesurent le labeling en supposant déjà connus le regroupement des mots, leur localisation et leur contenu, alors que la baseline d'entity linking de l'article original s'effondre à F1 = 0,04, pour une précision de 2,1 % et un rappel de 99,2 %.",
+    "see_also": "layout embedding, ANLS (Average Normalized Levenshtein Similarity)"
+  }
+]

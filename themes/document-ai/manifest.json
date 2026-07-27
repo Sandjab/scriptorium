@@ -1,0 +1,644 @@
+{
+  "edition": "monographie",
+  "slug": "document-ai",
+  "meta": {
+    "title": "Document AI : du pixel au contenu structuré",
+    "kicker": "Document AI · monographie",
+    "h1": "Document AI : du pixel au contenu structuré",
+    "lede": "De l'OCR neuronal aux VLM généralistes : comment une page devient du contenu structuré, ce que les benchmarks mesurent réellement, et ce que la génération fait payer à la fidélité.",
+    "meta_chips": [
+      "Monographie"
+    ],
+    "footer": "Document AI : du pixel au contenu structuré · scriptorium"
+  },
+  "elements": [
+    {
+      "type": "abstract"
+    },
+    {
+      "type": "section",
+      "id": "pixel-vers-structure",
+      "heading": "Le problème : un document n'est pas du texte",
+      "level": 3,
+      "prose": "<p>Un document n'est pas une chaîne de caractères. La colonne, l'encadré, la case à cocher alignée en face de son libellé, le total posé en bas à droite d'un reçu : le layout (mise en page) porte une part du sens, et l'aplatir revient à en perdre une part. C'est le pari fondateur du Document AI, champ constitué à la croisée du NLP (Natural Language Processing) et de la computer vision (vision par ordinateur) : ses modèles analysent conjointement le contenu textuel et la position spatiale des éléments, là où le traitement NLP classique lit la page comme une séquence plate. Les auteurs de LayoutLM le formulaient sans détour fin 2019 — les modèles pré-entraînés de leur époque « négligent l'information de mise en page et de style, pourtant essentielle à la compréhension d'images de documents ».</p><p>Cette structure n'est écrite nulle part : il faut la reconstruire à partir de pixels, et à une échelle industrielle. Le corpus qui a servi de socle à toute la lignée, l'IIT-CDIP Test Collection 1.0, circule d'ailleurs sous une étiquette approximative, « 11 millions de documents ». L'article de LayoutLM est plus prudent : plus de 6 millions de documents scannés, totalisant plus de 11 millions d'images de pages. La nuance n'est pas cosmétique. Le nombre qui circule compte des pages, pas des dossiers, et cette confusion entre l'unité page et l'unité document traversera tout le parcours, jusqu'aux benchmarks.</p><p>Trois familles se disputent aujourd'hui la conversion pixel → structure. La première place un OCR (Optical Character Recognition, reconnaissance optique de caractères) en amont, puis confie le texte et ses coordonnées à un modèle texte + layout : c'est la voie LayoutLM. La deuxième supprime cet étage et fait produire la séquence structurée directement depuis les pixels par un unique réseau génératif — Donut, avec son encodeur Swin et son décodeur BART, puis Pix2Struct. La troisième n'a plus rien de spécifique au document : elle applique à l'image un VLM (Vision-Language Model) généraliste, entraîné pour tout autre chose. Ces familles ne se sont pas remplacées proprement ; elles coexistent, et leur ordre d'apparition est celui de leur dépendance décroissante à l'ingénierie en amont.</p><figure class='fig'><svg viewBox='0 0 720 560' role='img' aria-label='Organigramme comparant les trois voies de conversion des pixels vers un contenu structuré, disposées de gauche à droite par dépendance décroissante à la préparation en amont. Une même image de page alimente les trois voies. Voie 1 : un étage OCR neuronal, puis un modèle texte et layout de la lignée LayoutLM ; la flèche qui relie les deux étages porte le coût de calcul et la propagation des erreurs. Voie 2 : un seul réseau génératif de bout en bout, encodeur Swin puis décodeur BART (Donut, Pix2Struct), où la lecture reste une compétence interne que rien ne rend accessible. Voie 3 : un VLM généraliste appliqué à la page, non conçu pour le document, dont le fonctionnement interne renvoie à une autre monographie. Les trois voies convergent vers le même contenu structuré. En grisé, hors du cadre : extraction de champs depuis le texte, extraction de relations au niveau du document, pipeline RAG, architecture interne des VLM.'><text x='360' y='18' text-anchor='middle' font-family='sans-serif' font-size='11' font-weight='700' letter-spacing='1.6' fill='var(--ink,#15202E)'>DÉPENDANCE À L'INGÉNIERIE EN AMONT</text><polygon points='16,25 686,30.5 686,33.5 16,39' fill='var(--ink-faint,#7A889B)' fill-opacity='0.3'/><polygon points='686,24 706,32 686,40' fill='var(--ink-faint,#7A889B)' fill-opacity='0.55'/><text x='16' y='53' font-family='sans-serif' font-size='9.5' font-style='italic' fill='var(--ink-faint,#7A889B)'>forte : un étage d'OCR à construire et à maintenir</text><text x='706' y='53' text-anchor='end' font-family='sans-serif' font-size='9.5' font-style='italic' fill='var(--ink-faint,#7A889B)'>faible : aucun prétraitement</text><rect x='8' y='64' width='704' height='360' rx='8' fill='none' stroke='var(--blue,#23537F)' stroke-width='1.2' stroke-opacity='0.55'/><text x='22' y='81' font-family='sans-serif' font-size='9.5' font-weight='700' letter-spacing='1.2' fill='var(--blue,#23537F)'>PÉRIMÈTRE : DU PIXEL À LA STRUCTURE</text><rect x='16' y='90' width='688' height='28' rx='5' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1'/><text x='360' y='108' text-anchor='middle' font-family='sans-serif' font-size='11' font-weight='700' letter-spacing='1' fill='var(--blue,#23537F)'>IMAGE DE PAGE — PIXELS</text><line x1='121' y1='118' x2='121' y2='127' stroke='var(--blue,#23537F)' stroke-width='1.4'/><polygon points='117,127 125,127 121,133' fill='var(--blue,#23537F)'/><line x1='360' y1='118' x2='360' y2='127' stroke='var(--blue,#23537F)' stroke-width='1.4'/><polygon points='356,127 364,127 360,133' fill='var(--blue,#23537F)'/><line x1='599' y1='118' x2='599' y2='127' stroke='var(--blue,#23537F)' stroke-width='1.4'/><polygon points='595,127 603,127 599,133' fill='var(--blue,#23537F)'/><rect x='16' y='134' width='210' height='34' rx='6' fill='var(--blue,#23537F)'/><text x='121' y='156' text-anchor='middle' font-family='sans-serif' font-size='11.5' font-weight='700' fill='#FFFFFF'>1 · OCR puis texte + layout</text><text x='121' y='184' text-anchor='middle' font-family='sans-serif' font-size='9.5' font-style='italic' fill='var(--ink-faint,#7A889B)'>deux étages distincts</text><rect x='255' y='134' width='210' height='34' rx='6' fill='var(--blue,#23537F)'/><text x='360' y='156' text-anchor='middle' font-family='sans-serif' font-size='11.5' font-weight='700' fill='#FFFFFF'>2 · Génératif sans OCR</text><text x='360' y='184' text-anchor='middle' font-family='sans-serif' font-size='9.5' font-style='italic' fill='var(--ink-faint,#7A889B)'>un seul étage, de bout en bout</text><rect x='494' y='134' width='210' height='34' rx='6' fill='var(--blue,#23537F)'/><text x='599' y='156' text-anchor='middle' font-family='sans-serif' font-size='11.5' font-weight='700' fill='#FFFFFF'>3 · VLM généraliste</text><text x='599' y='184' text-anchor='middle' font-family='sans-serif' font-size='9.5' font-style='italic' fill='var(--ink-faint,#7A889B)'>un seul étage, non spécialisé</text><rect x='16' y='196' width='210' height='52' rx='6' fill='var(--card,#FFFFFF)' stroke='var(--blue,#23537F)' stroke-width='1.4'/><text x='121' y='218' text-anchor='middle' font-family='sans-serif' font-size='11.5' font-weight='700' fill='var(--ink,#15202E)'>OCR neuronal</text><text x='121' y='234' text-anchor='middle' font-family='sans-serif' font-size='9.5' fill='var(--ink-soft,#43536A)'>détection + reconnaissance</text><line x1='121' y1='248' x2='121' y2='298' stroke='var(--bordeaux,#7C2A38)' stroke-width='2.2'/><polygon points='115.5,298 126.5,298 121,307' fill='var(--bordeaux,#7C2A38)'/><text x='111' y='268' text-anchor='end' font-family='sans-serif' font-size='9.5' font-weight='600' fill='var(--bordeaux,#7C2A38)'>coût de</text><text x='111' y='280' text-anchor='end' font-family='sans-serif' font-size='9.5' font-weight='600' fill='var(--bordeaux,#7C2A38)'>calcul</text><text x='131' y='268' font-family='sans-serif' font-size='9.5' font-weight='600' fill='var(--bordeaux,#7C2A38)'>propagation</text><text x='131' y='280' font-family='sans-serif' font-size='9.5' font-weight='600' fill='var(--bordeaux,#7C2A38)'>d'erreurs</text><rect x='16' y='308' width='210' height='52' rx='6' fill='var(--card,#FFFFFF)' stroke='var(--blue,#23537F)' stroke-width='1.4'/><text x='121' y='330' text-anchor='middle' font-family='sans-serif' font-size='11.5' font-weight='700' fill='var(--ink,#15202E)'>Modèle texte + layout</text><text x='121' y='346' text-anchor='middle' font-family='sans-serif' font-size='9.5' fill='var(--ink-soft,#43536A)'>lignée LayoutLM v1 → v3</text><rect x='255' y='196' width='210' height='164' rx='6' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.6'/><text x='360' y='215' text-anchor='middle' font-family='sans-serif' font-size='9.5' font-weight='700' letter-spacing='0.6' fill='var(--blue,#23537F)'>UN SEUL RÉSEAU GÉNÉRATIF</text><rect x='269' y='224' width='182' height='28' rx='5' fill='var(--blue,#23537F)'/><text x='360' y='242' text-anchor='middle' font-family='sans-serif' font-size='10' fill='#FFFFFF'>encodeur d'image (Swin)</text><line x1='360' y1='252' x2='360' y2='258' stroke='var(--blue,#23537F)' stroke-width='1.4'/><polygon points='356,258 364,258 360,264' fill='var(--blue,#23537F)'/><rect x='269' y='264' width='182' height='28' rx='5' fill='var(--blue,#23537F)'/><text x='360' y='282' text-anchor='middle' font-family='sans-serif' font-size='10' fill='#FFFFFF'>décodeur de séquence (BART)</text><text x='360' y='307' text-anchor='middle' font-family='sans-serif' font-size='9.5' fill='var(--ink-soft,#43536A)'>Donut — Pix2Struct : même principe</text><line x1='277' y1='317' x2='443' y2='317' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-opacity='0.4'/><text x='360' y='334' text-anchor='middle' font-family='sans-serif' font-size='9' font-style='italic' fill='var(--ink-faint,#7A889B)'>la lecture devient une compétence interne</text><text x='360' y='347' text-anchor='middle' font-family='sans-serif' font-size='9' font-style='italic' fill='var(--ink-faint,#7A889B)'>qu'aucune interface n'expose</text><rect x='494' y='196' width='210' height='80' rx='6' fill='var(--card,#FFFFFF)' stroke='var(--blue,#23537F)' stroke-width='1.4'/><text x='599' y='218' text-anchor='middle' font-family='sans-serif' font-size='11.5' font-weight='700' fill='var(--ink,#15202E)'>VLM généraliste</text><text x='599' y='233' text-anchor='middle' font-family='sans-serif' font-size='9.5' fill='var(--ink-soft,#43536A)'>entraîné pour tout autre chose</text><rect x='506' y='242' width='186' height='26' rx='4' fill='var(--ink-faint,#7A889B)' fill-opacity='0.1' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-dasharray='4 3'/><text x='599' y='259' text-anchor='middle' font-family='sans-serif' font-size='8.5' fill='var(--ink-faint,#7A889B)'>architecture interne : hors cadre</text><text x='599' y='301' text-anchor='middle' font-family='sans-serif' font-size='9' font-style='italic' fill='var(--ink-faint,#7A889B)'>aucun étage dédié au document :</text><text x='599' y='314' text-anchor='middle' font-family='sans-serif' font-size='9' font-style='italic' fill='var(--ink-faint,#7A889B)'>ni OCR exposé, ni layout explicite</text><line x1='121' y1='360' x2='121' y2='377' stroke='var(--blue,#23537F)' stroke-width='1.5'/><polygon points='116.5,377 125.5,377 121,384' fill='var(--blue,#23537F)'/><line x1='360' y1='360' x2='360' y2='377' stroke='var(--blue,#23537F)' stroke-width='1.5'/><polygon points='355.5,377 364.5,377 360,384' fill='var(--blue,#23537F)'/><line x1='599' y1='324' x2='599' y2='377' stroke='var(--blue,#23537F)' stroke-width='1.5'/><polygon points='594.5,377 603.5,377 599,384' fill='var(--blue,#23537F)'/><rect x='110' y='384' width='500' height='30' rx='5' fill='var(--blue-deep,#142E49)'/><text x='360' y='404' text-anchor='middle' font-family='sans-serif' font-size='11' font-weight='700' letter-spacing='1' fill='#FFFFFF'>CONTENU STRUCTURÉ — TEXTE, CHAMPS, TABLES</text><text x='8' y='437' font-family='sans-serif' font-size='9.5' font-weight='700' letter-spacing='1.4' fill='var(--ink-faint,#7A889B)'>HORS DU CADRE DE CE DOCUMENT</text><line x1='360' y1='414' x2='360' y2='452' stroke='var(--ink-faint,#7A889B)' stroke-width='1.2'/><line x1='85' y1='452' x2='420' y2='452' stroke='var(--ink-faint,#7A889B)' stroke-width='1.2'/><text x='368' y='432' font-family='sans-serif' font-size='8.5' font-style='italic' fill='var(--ink-faint,#7A889B)'>en aval</text><line x1='85' y1='452' x2='85' y2='462' stroke='var(--ink-faint,#7A889B)' stroke-width='1.2'/><polygon points='81,462 89,462 85,468' fill='var(--ink-faint,#7A889B)'/><line x1='252' y1='452' x2='252' y2='462' stroke='var(--ink-faint,#7A889B)' stroke-width='1.2'/><polygon points='248,462 256,462 252,468' fill='var(--ink-faint,#7A889B)'/><line x1='420' y1='452' x2='420' y2='462' stroke='var(--ink-faint,#7A889B)' stroke-width='1.2'/><polygon points='416,462 424,462 420,468' fill='var(--ink-faint,#7A889B)'/><rect x='8' y='470' width='154' height='48' rx='5' fill='var(--ink-faint,#7A889B)' fill-opacity='0.08' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-dasharray='4 3'/><text x='85' y='490' text-anchor='middle' font-family='sans-serif' font-size='9.5' font-weight='600' fill='var(--ink-faint,#7A889B)'>Extraction de champs</text><text x='85' y='504' text-anchor='middle' font-family='sans-serif' font-size='8.5' fill='var(--ink-faint,#7A889B)'>à partir du texte propre</text><rect x='175' y='470' width='154' height='48' rx='5' fill='var(--ink-faint,#7A889B)' fill-opacity='0.08' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-dasharray='4 3'/><text x='252' y='490' text-anchor='middle' font-family='sans-serif' font-size='9.5' font-weight='600' fill='var(--ink-faint,#7A889B)'>Extraction de relations</text><text x='252' y='504' text-anchor='middle' font-family='sans-serif' font-size='8.5' fill='var(--ink-faint,#7A889B)'>au niveau du document</text><rect x='343' y='470' width='154' height='48' rx='5' fill='var(--ink-faint,#7A889B)' fill-opacity='0.08' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-dasharray='4 3'/><text x='420' y='490' text-anchor='middle' font-family='sans-serif' font-size='9.5' font-weight='600' fill='var(--ink-faint,#7A889B)'>Pipeline RAG</text><text x='420' y='504' text-anchor='middle' font-family='sans-serif' font-size='8.5' fill='var(--ink-faint,#7A889B)'>indexation, recherche, génération</text><line x1='688' y1='268' x2='688' y2='462' stroke='var(--ink-faint,#7A889B)' stroke-width='1.1' stroke-dasharray='3 4'/><polygon points='684,462 692,462 688,469' fill='var(--ink-faint,#7A889B)'/><text x='682' y='378' text-anchor='end' font-family='sans-serif' font-size='8.5' font-style='italic' fill='var(--ink-faint,#7A889B)'>renvoi</text><rect x='524' y='470' width='188' height='48' rx='5' fill='var(--ink-faint,#7A889B)' fill-opacity='0.08' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-dasharray='4 3'/><text x='618' y='490' text-anchor='middle' font-family='sans-serif' font-size='9.5' font-weight='600' fill='var(--ink-faint,#7A889B)'>Architecture interne des VLM</text><text x='618' y='504' text-anchor='middle' font-family='sans-serif' font-size='8.5' fill='var(--ink-faint,#7A889B)'>projection, Q-Former, tokens visuels</text><rect x='8' y='528' width='12' height='12' rx='2' fill='var(--blue,#23537F)'/><text x='26' y='538' font-family='sans-serif' font-size='9.5' fill='var(--ink,#15202E)'>étage conçu pour le document</text><line x1='210' y1='534' x2='224' y2='534' stroke='var(--bordeaux,#7C2A38)' stroke-width='2.2'/><polygon points='224,530 232,534 224,538' fill='var(--bordeaux,#7C2A38)'/><text x='240' y='538' font-family='sans-serif' font-size='9.5' fill='var(--ink,#15202E)'>interface fragile : erreurs propagées</text><rect x='470' y='528' width='12' height='12' rx='2' fill='var(--ink-faint,#7A889B)' fill-opacity='0.1' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-dasharray='3 3'/><text x='488' y='538' font-family='sans-serif' font-size='9.5' fill='var(--ink,#15202E)'>hors cadre : autre monographie</text></svg><figcaption><span class='fcap-k'></span>Les trois voies pixel → structure, rangées par dépendance décroissante à l'ingénierie en amont : OCR puis modèle texte + layout, réseau génératif unique, VLM généraliste ; en grisé, ce qui relève d'autres monographies.</figcaption></figure><p>Le motif du saut est explicite chez les auteurs de Donut, qui revendiquent une approche OCR-free (sans OCR). L'OCR y est décrit comme un goulot d'étranglement à trois titres : son coût de calcul, sa rigidité dès qu'il faut changer de langue, et surtout la propagation de ses erreurs vers tous les étages en aval — un caractère mal lu ne se rattrape plus. Supprimer l'étage supprime le problème, à condition d'accepter qu'un réseau génératif décide seul de ce qui est écrit.</p><p>Le périmètre de ce document est celui de la modalité : du pixel à la structure. Ce qu'on fait ensuite d'un texte propre — extraire des champs par un LLM, extraire des relations à l'échelle du document — relève d'autres monographies, tout comme l'architecture interne d'un VLM et le pipeline RAG (Retrieval-Augmented Generation) qui consomme le résultat en aval. L'enjeu, lui, n'a rien de théorique : dès novembre 2020, Google Cloud lançait une plateforme commerciale Document AI avec plus de dix « processeurs » d'extraction pré-construits, dont deux génériques et des moteurs dédiés aux factures et aux documents financiers. Le problème était en production bien avant que les modèles génératifs ne prétendent le résoudre d'un bloc. Le parcours commence donc par le maillon le plus ancien de la chaîne : lire les caractères.</p>",
+      "claims": [
+        "claim:1",
+        "claim:2",
+        "claim:3",
+        "claim:4"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "ocr-neuronal-ctc-seq2seq",
+      "heading": "OCR neuronal : détecter, reconnaître, puis abandonner CTC",
+      "level": 3,
+      "prose": "<p>Lire les caractères, en pratique, ce sont deux tâches et non une : détecter les régions de texte, puis reconnaître ce qu'elles contiennent. Le découpage est si stable qu'il structure encore les moteurs déployés aujourd'hui. Tesseract, à partir de sa version 4, a adjoint à son moteur historique — celui de la reconnaissance de motifs de caractères — un second moteur à base de LSTM, configuré comme reconnaisseur de ligne et sélectionnable par le drapeau --oem, qui laisse le choix entre le legacy seul, le LSTM seul, les deux, ou la sélection automatique par défaut. Ce moteur descend en droite ligne d'OCRopus, dont l'implémentation Python a été entièrement retravaillée en C++ ; sa topologie, couches convolutives puis récurrentes, se décrit dans un langage de spécification dédié, VGSL (Variable-size Graph Specification Language), antérieur à TensorFlow.</p><p>PP-OCR, publié par Baidu en 2020, pousse la même décomposition vers la frugalité : détection par l'algorithme DB, classification de l'orientation du texte, puis reconnaissance — trois modules légers pour un système combiné de 3,5 M de paramètres en chinois (6 622 caractères couverts). Sa brique de reconnaissance est un CRNN (Convolutional Recurrent Neural Network), l'architecture proposée par Shi, Bai et Yao en 2015, qui fond extraction convolutive, modélisation récurrente et transcription dans un réseau unique entraînable de bout en bout, sans segmentation préalable des caractères ni normalisation d'échelle horizontale.</p><p>La transcription, justement, tient à une fonction de perte : CTC (Connectionist Temporal Classification), introduite par Graves et ses coauteurs à ICML 2006. Elle évite d'aligner explicitement les frames de l'image sur les caractères de la cible. La probabilité d'une séquence-cible y est définie comme une somme sur tous les alignements qui, après effondrement — fusion des répétitions consécutives, puis suppression du symbole blanc ε —, redonnent cette cible, chaque alignement contribuant par le produit de ses probabilités pas à pas. On entraîne ainsi un reconnaisseur de ligne sans jamais annoter au caractère près.</p><p>Deux contraintes sont scellées dans cette définition. La monotonie d'abord : les alignements admis ne réordonnent rien, la sortie suit l'entrée. L'indépendance conditionnelle ensuite, plus lourde de conséquences, puisque chaque sortie est prédite indépendamment des autres une fois l'entrée donnée. Un modèle CTC ne peut donc pas réviser un caractère au vu du suivant, ni exploiter la moindre régularité lexicale, à moins qu'on lui adjoigne un modèle de langage externe. Ce qu'il gagne en simplicité de décodage, il le paie en dépendances entre caractères qu'il ne sait pas représenter.</p><p>TrOCR tire la conséquence du diagnostic et remplace l'étage de reconnaissance — convolutif, récurrent et CTC jusqu'alors — par un encodeur-décodeur Transformer pur, entraîné par cross-entropy (entropie croisée) au niveau des wordpieces. Rien n'y est appris de zéro : l'encodeur image est initialisé depuis BEiT ou DeiT, le décodeur texte depuis RoBERTa ou MiniLM, la plus grande des trois variantes totalisant 558 M de paramètres. Le pré-entraînement se fait en deux temps, entièrement sur du synthétique : 684 millions de lignes de texte imprimé produites à partir de PDF numérisés, puis un mélange de lignes manuscrites et de texte de scène. Sur IAM, en écriture manuscrite, le CER (Character Error Rate, taux d'erreur par caractère) descend à 2,89 %. Sur la tâche 2 de SROIE, en reçus imprimés, le F1 atteint 96,58.</p><p>Ces chiffres appellent deux réserves. L'article ne traite que la reconnaissance : la détection reste hors périmètre, renvoyée explicitement aux travaux futurs, et l'évaluation porte sur des lignes déjà découpées d'après les bounding boxes (boîtes englobantes) de la ground truth (vérité de référence). Ensuite, le décodage change de nature. Là où CTC produit toutes ses prédictions en une seule passe, un décodeur sequence-to-sequence (seq2seq) autorégressif génère token par token, avec l'exposure bias que cela suppose ; à taille de modèle comparable, on échange de la vitesse contre de la précision. C'est une des raisons pour lesquelles les pipelines les plus déployés, Tesseract en mode LSTM comme PP-OCR, sont restés fidèles à CTC et à l'enchaînement détection puis reconnaissance, plutôt que de basculer vers un décodeur seq2seq.</p><p>Reste que ce maillon, si soigné soit-il, ne rend qu'un flux de mots assortis de coordonnées. Encore faut-il que le modèle en aval fasse de ces coordonnées autre chose qu'un ornement.</p>",
+      "claims": [
+        "claim:5",
+        "claim:6",
+        "claim:7",
+        "claim:8"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-ctc-effondrement-somme-chemins"
+    },
+    {
+      "type": "section",
+      "id": "lignee-layoutlm",
+      "heading": "Texte + layout + image : la lignée LayoutLM",
+      "level": 3,
+      "prose": "<p>Quatre nombres par mot : c'est tout ce que l'OCR transmet de la géométrie, et c'est déjà beaucoup. Le plus court chemin pour les faire entrer dans un Transformer consiste à les traiter comme on traite la position dans une phrase. LayoutLM v1 discrétise les coordonnées d'une bounding box sur une grille entière de 0 à 1000, puis les projette par deux tables d'embeddings partagées entre dimensions homogènes. Le procédé est direct, sa limite l'est tout autant : la résolution spatiale se trouve bornée par la grille, quelle que soit la taille réelle de l'image, et deux positions tombant dans le même intervalle deviennent indiscernables.</p><p>Le pré-entraînement s'appuie sur les 11 millions de pages de l'IIT-CDIP, avec deux objectifs. Le Masked Visual-language Model (MVLM) masque des tokens de texte tout en conservant leurs embeddings de position 2D, et demande de les retrouver par le contexte — la géométrie reste visible quand le mot disparaît. La Multi-label Document Classification (MDC) exploite en parallèle les tags de document comme signal supervisé. L'apparence des mots entre par une troisième porte, sous forme de caractéristiques de région extraites par Faster R-CNN. La variante Base compte environ 113 M de paramètres, 160 M une fois ces features image intégrées ; la Large, initialisée depuis RoBERTa, monte à 343 M.</p><p>La taille, pourtant, ne décide de rien. Au sein de la première génération, la Large devance la Base sur SROIE, avec 95,24 de F1 contre 94,38, et la dépasse d'un cheveu sur RVL-CDIP, le jeu de classification d'images de documents ; elle reste en revanche derrière sur FUNSD, le jeu d'extraction clé-valeur sur formulaires scannés, où la Base l'emporte de peu. L'écart le plus parlant est ailleurs : sur RVL-CDIP, la Base équipée de sa branche image atteint 94,42 % quand la Large, privée de cette branche dans la configuration publiée, plafonne à 91,90 %. C'est la modalité visuelle qui manque, pas les paramètres.</p><p>La deuxième génération change de mécanique sans jeter la première. LayoutLMv2 conserve l'embedding de position absolu quantifié, toujours additionné à l'entrée, et lui ajoute une self-attention spatiale : le score d'attention entre deux tokens est augmenté de trois biais appris, l'un pour leur distance dans la séquence, les deux autres pour les déplacements horizontal et vertical entre leurs bounding boxes. Ces biais varient d'une tête d'attention à l'autre mais sont partagés par toutes les couches de l'encodeur. Le bénéfice est une forme d'invariance par translation : une même disposition relative produit le même signal où qu'elle se trouve sur la page, ce que la quantification absolue de v1 ne pouvait pas offrir. S'y ajoutent un backbone visuel — le réseau chargé d'extraire les caractéristiques d'image — de type ResNeXt101-FPN, ramené à 49 tokens visuels par moyennage sur une grille 7×7, et deux nouveaux objectifs d'alignement entre texte et image. Sur FUNSD, le F1 de la Large passe à 84,20.</p><p>LayoutLMv3 pousse l'unification jusqu'au bout : un seul Transformer, deux modalités masquées ensemble. Côté texte, 30 % des tokens sont masqués par spans dont la longueur suit une loi de Poisson ; côté image, environ 40 % des patches le sont par blocs. Entre les deux, l'objectif Word-Patch Alignment (WPA) pose une question binaire : pour chaque token de texte non masqué, le patch d'image qui lui correspond est-il masqué ou non ? De quoi forcer un appariement fin entre mots et pixels. Le backbone convolutif disparaît au passage : v2 s'appuyait sur un réseau de l'ordre de 44 M de paramètres, v3 se contente d'une projection linéaire de patches 16×16, soit un facteur d'environ 73 sur ce seul composant.</p><p>Les gains suivent la même pente d'une génération à l'autre. Sur FUNSD, le F1 de la Large atteint 92,08, contre 77,89 pour la Large de première génération ; sur DocVQA, le benchmark de question-réponse posée sur l'image d'une page, le score ANLS (Average Normalized Levenshtein Similarity) — la métrique propre à ce jeu, dont les propriétés seront discutées plus loin — monte à 83,37. Sur PubLayNet, jeu de layout analysis (analyse de mise en page) construit automatiquement à partir de plus d'un million d'articles PDF de PubMed Central, la variante Base devance DiT, pourtant doté d'un backbone d'image dédié. Une réserve s'impose sur cette dernière comparaison : les deux résultats vivent dans des tableaux distincts de l'article, v2 n'y étant pas évalué sur PubLayNet, ni DiT sur FUNSD. Le classement est moins transitif qu'il n'y paraît.</p><p>Poussée à son sommet, la voie « OCR d'abord, comprendre ensuite » tient donc ses promesses. Elle reste néanmoins suspendue à un moteur qu'elle ne contrôle pas, dont les erreurs se propagent et dont le coût s'ajoute au sien. D'où la question que la suite prend au sérieux : et si l'on supprimait purement et simplement le premier étage ?</p>",
+      "claims": [
+        "claim:9",
+        "claim:10",
+        "claim:11",
+        "claim:12"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-grille-1000-vs-biais-relatifs"
+    },
+    {
+      "type": "section",
+      "id": "ocr-free-donut-pix2struct",
+      "heading": "Se passer de l'OCR : Donut et Pix2Struct",
+      "level": 3,
+      "prose": "<p>Supprimer le premier étage revient à parier qu'un réseau unique franchit d'un coup la distance du pixel à la séquence structurée, sans jamais énoncer le texte de la page comme un objet séparé. Donut (ECCV 2022) tient ce pari. L'encodeur Swin lit l'image, le décodeur BART multilingue écrit directement la sortie voulue — une structure JSON, par exemple — et rien entre les deux ne ressemble à un moteur de reconnaissance : la lecture cesse d'être un livrable intermédiaire pour devenir une compétence interne. Les choix d'ingénierie suivent cette économie. L'entrée de la configuration de base tient sur 2560 × 1920 pixels ; le décodeur, lui, est tronqué à ses quatre premières couches pour contenir la latence et la mémoire.</p><p>Le pré-entraînement dit où passe l'effort. Faute d'annotations de structure en quantité, Donut apprend d'abord à lire : sur les pages scannées d'IIT-CDIP et sur celles que fabrique son propre générateur, SynthDoG, la tâche prétexte consiste à restituer le texte dans l'ordre de lecture. Le générateur produit un demi-million d'échantillons pour chacune des quatre langues couvertes, anglais, chinois, japonais et coréen. Un OCR, donc, mais intériorisé, qu'aucune interface n'expose.</p><p>Sur la classification d'images de documents, le pari est gagné sans réserve. Donut atteint 95,30 % sur RVL-CDIP là où LayoutLMv2 en obtient 95,25 % : à justesse égale, l'un embarque 143 millions de paramètres, l'autre en compte 200 millions et doit encore appeler un moteur OCR externe. La différence se lit à l'horloge, 752 millisecondes par image contre 1 489, soit près du double de débit. L'argument n'est pas la précision mais le coût total d'une chaîne dont on a retiré une pièce — et la disparition d'une dépendance qu'aucun entraînement ne pouvait corriger.</p><p>Le tableau change dès qu'il faut lire un champ précis au lieu de reconnaître une allure générale. La métrique de DocVQA, ANLS, est une similarité d'édition tolérante aux écarts de transcription ; Donut y plafonne à 67,5 quand la baseline (système de référence) LayoutLMv2, dépendante de l'OCR, tient 78,1. Une variante Large spécialisée sur la tâche, entraînée avec des questions générées en supplément, monte même à 86,7. Le sous-ensemble manuscrit, à 72,1, ne renverse pas le verdict. Plus de dix points d'écart, et ils se concentrent exactement là où l'OCR-free devrait convaincre : restituer au caractère près ce qui est écrit.</p><p>Pix2Struct attaque cet écart par le pré-entraînement plutôt que par l'architecture. Sa tâche s'appelle screenshot parsing : prédire le HTML simplifié d'une page web à partir d'une capture d'écran partiellement masquée, signal gratuit et massif dont les auteurs tirent 80 millions de captures en suivant les URL listées dans le corpus C4. Deux décisions techniques accompagnent la recette. Le patching à résolution variable extrait le nombre maximal de patches de taille fixe qui tiennent dans un budget de longueur de séquence donné, en conservant le ratio d'aspect natif de l'image, des embeddings positionnels 2D absolus levant l'ambiguïté qui en découle. Et le prompt — la question posée sur la page — est rendu graphiquement sur l'image d'entrée au lieu de transiter par un canal texte : l'interface entière du modèle se réduit à des pixels.</p><p>Le gain est net, l'écart demeure. Pix2Struct-Large, 1,3 milliard de paramètres contre 282 millions pour la version Base, porte DocVQA à 76,6 ANLS, plus de neuf points au-dessus de Donut. Mais UDOP (Microsoft, CVPR 2023), qui unifie vision, texte et layout dans un seul Transformer conditionné sur les tokens issus de l'OCR, tient 84,7 sur le même benchmark ; sur InfographicVQA, où les questions portent sur des infographies, l'écart se répète, 40,0 contre 47,4. Selon le protocole de comparaison, deux à dix points séparent encore l'OCR-free des meilleures chaînes modulaires sur la lecture fine — beaucoup, quand la sortie alimente un système en aval.</p><p>Ce que Pix2Struct apporte de décisif est pourtant d'un autre ordre. Un unique checkpoint (jeu de poids pré-entraîné), transféré sans changement d'architecture, dépasse Donut sur des domaines qui n'ont plus rien de documentaire : de 5,3 points sur OCR-VQA, l'écart le plus faible, à 53 sur Screen2Words, dont les entrées sont des captures d'interface. Sur six des neuf tâches évaluées, il établit l'état de l'art. La leçon du pivot n'est donc pas que l'OCR-free lit mieux, puisqu'il lit encore un peu moins bien, mais que la page cesse d'être un objet à part. Elle devient un cas particulier d'image porteuse de texte — et ce déplacement ouvre la porte à des modèles que personne n'avait conçus pour les documents.</p>",
+      "claims": [
+        "claim:13",
+        "claim:14",
+        "claim:15",
+        "claim:16"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-pix2struct-patching-ratio"
+    },
+    {
+      "type": "section",
+      "id": "vlm-generalistes-document",
+      "heading": "Quand les VLM généralistes avalent le document",
+      "level": 3,
+      "prose": "<p>Si la page n'est qu'une image parmi d'autres, rien n'oblige à la confier à un modèle de document. La vague suivante commence pourtant par des spécialistes, chacun taillé pour un type de page. Nougat (Meta, ICLR 2024) vise l'article scientifique, où l'enjeu n'est pas le champ à extraire mais la formule à restituer : la page est rasterisée, l'image seule entre dans le modèle — ni OCR, ni couche texte du PDF — et il en sort du Markdown, mathématiques comprises. L'entraînement mobilise plus de huit millions de pages, dont plus de neuf sur dix viennent d'arXiv, le reste de PubMed Central et de l'Industry Documents Library. Deux tailles sont publiées, 250 et 350 millions de paramètres. Sur l'ensemble de test, la distance d'édition normalisée du modèle de base tombe à 0,071, quand la baseline GROBID reste à 0,312.</p><p>Le même article documente ce que ce choix coûte. Sur environ 1,5 % des pages de test, le modèle dégénère : il répète la même phrase indéfiniment, défaillance propre à la génération autorégressive et plus fréquente hors du domaine d'entraînement. Les auteurs la réduisent sans la supprimer — une augmentation anti-répétition à l'entraînement retire près d'un tiers des échecs hors domaine, une heuristique fondée sur la variance des logits interrompt la génération quand elle boucle. Un moteur OCR classique produit des erreurs de caractères ; un générateur produit des paragraphes entiers de texte qui n'existe pas.</p><p>Kosmos-2.5 (Microsoft, 2023) généralise l'idée en la rendant contrôlable. Un seul décodeur de 1,3 milliard de paramètres, pré-entraîné sur plus de trois cent cinquante millions de pages, produit selon le prompt reçu soit un OCR spatialisé, blocs de texte accompagnés de leurs coordonnées, soit du Markdown structuré : même image, deux représentations, aucune chaîne à reconstruire entre les deux. Ses auteurs assortissent la publication d'un avertissement sans détour : le modèle étant génératif, il y a un risque d'hallucination et aucune garantie ne peut être donnée sur l'exactitude des sorties. La mise en garde ne figure que dans le README officiel du dépôt — source unique, non corroborée par une source indépendante, l'article ne la reprenant pas. L'aveu est rare et mérite d'être pris au sérieux : il ne décrit pas un défaut de jeunesse mais une propriété du procédé.</p><p>GOT-OCR2.0 (septembre 2024) transforme cette propriété en programme. Son « OCR-2.0 » traite comme des caractères tout ce qu'une page peut porter — texte courant, formules mathématiques ou moléculaires, tableaux, partitions musicales, graphiques — et rend le résultat brut ou formaté selon le prompt, en Markdown, TikZ, SMILES ou Kern. L'ensemble tient dans 580 millions de paramètres : un encodeur visuel de type ViTDet, dérivé de SAM, comprime la page en 256 tokens visuels qu'une projection linéaire présente à un décodeur Qwen-0.5B. Le modèle tourne sur une carte grand public de 4 Go, accepte le multi-page et la résolution dynamique, et sait cibler une région désignée par ses coordonnées ou par la couleur d'une boîte tracée sur l'image.</p><p>La spécialisation commence à se dissoudre au moment où le document devient une tâche parmi d'autres dans un mélange d'instructions. mPLUG-DocOwl part d'un VLM généraliste, mPLUG-Owl, dont l'abstracteur visuel condense l'image en un jeu de tokens apprenables, et l'entraîne conjointement sur du langage seul, des tâches vision-langage générales et des tâches documentaires — question-réponse, extraction clé-valeur, légendage —, sans aucun fine-tuning (réglage supervisé sur la tâche cible) propre à chaque jeu de données. L'évaluation change de nature en même temps : à côté des comparaisons sur DUE-Benchmark face à Donut et Pix2Struct, les auteurs construisent LLMDoc, un benchmark jugé par des humains, faute de métrique automatique capable d'apprécier une réponse libre.</p><p>Le mouvement n'est pas à sens unique, et la spécialisation revient par le bas, sous forme compacte. Granite-Docling-258M, publié par IBM en septembre 2025, pèse 258 millions de paramètres — un encodeur SigLIP2 devant un modèle de langage Granite de 165 millions, selon le schéma Idefics3 — et convertit l'image d'un document en DocTags, un format proche du XML qui encode en une seule passe la mise en page, les tableaux, les équations en LaTeX, le code et les graphiques, avant conversion vers Markdown, JSON ou HTML. Par rapport à son prédécesseur en preview, SmolDocling-258M, le changement de nom mis à part, l'essentiel du progrès porte sur les tableaux et sur les formules. La contribution réelle est ce format de sortie explicite, conçu pour être relu par une machine : il ne rend pas la génération fiable, il donne prise sur elle.</p><p>Un dernier échelon voit la spécialisation disparaître pour de bon. Qwen2.5-VL, publié par Alibaba en février 2025, n'est pas un modèle de document : c'est un VLM généraliste dont les auteurs revendiquent, pour la déclinaison à 72 milliards de paramètres, la parité avec GPT-4o et Claude 3.5 Sonnet sur la compréhension de documents et de diagrammes. Cette déclinaison marque 874 sur OCRBench, la version à 7 milliards de paramètres 864. L'architecture qui rend la chose possible — projection visuelle, tokens d'image, entraînement multitâche à grande échelle — relève de la monographie consacrée aux VLM et n'est pas re-dérivée ici. Ce qui change pour le document tient en une phrase : plus aucun étage du système ne garantit que la sortie corresponde à l'encre de la page, puisqu'elle est générée. Reste à savoir ce que mesurent au juste les chiffres qu'on vient d'aligner.</p>",
+      "claims": [
+        "claim:18",
+        "claim:19",
+        "claim:20"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "taches-jeux-de-donnees",
+      "heading": "Les tâches et leurs jeux de référence",
+      "level": 3,
+      "prose": "<p>Comparer des systèmes suppose des règles du jeu, et celles du champ tiennent dans une poignée de corpus dont l'origine commune mérite un mot. RVL-CDIP, l'étalon de la classification, est un sous-ensemble étiqueté d'IIT-CDIP : 400 000 images en niveaux de gris réparties en seize classes — lettre, mémo, courriel, facture, formulaire, manuscrit, CV, publicité, publication scientifique et quelques autres —, partitionnées en 320 000 pages d'entraînement pour 40 000 de validation et autant de test. Il a été introduit à ICDAR 2015 par Harley, Ufkes et Derpanis, et sa matière première est la Legacy Tobacco Document Library, l'archive judiciaire de l'industrie du tabac. FUNSD en est lui-même un sous-échantillon. Une part notable de ce que le champ appelle généralisation se joue donc à l'intérieur d'un même fonds.</p><p>L'extraction clé-valeur, elle, s'évalue sur des documents volontairement ingrats. FUNSD ne compte que 199 formulaires scannés ; numérisés à basse résolution, bruités par l'impression et le scanner, ils portent une dizaine de milliers d'entités annotées en quatre catégories, question, réponse, en-tête et autre. CORD, publié par Clova AI à l'atelier Document Intelligence de NeurIPS 2019, prélève mille reçus indonésiens dans une collecte dix fois plus large et les annote sur trois couches superposées : quadrilatères et texte issus de l'OCR, indicateur de clé, puis trente classes sémantiques regroupées en cinq familles. SROIE, issu du concours de lecture robuste d'ICDAR 2019, fournit mille reçus entiers pour trois tâches enchaînées — localiser, transcrire, extraire environ quatre champs — sur des images froissées, mal imprimées, déformées au passage du scanner.</p><p>Les scores obtenus sur ces jeux demandent à être lus avec précaution, car celui que tout le monde cite ne mesure pas ce qu'on croit. Les F1 rapportés sur FUNSD, ceux de la lignée LayoutLM comme ceux de ses concurrents, entre le seuil des 79 points et la barre des 90, portent sur l'entity labeling, la labellisation sémantique : classer une entité déjà délimitée, déjà localisée, dont le contenu textuel est fourni par la ground truth. Ce n'est ni une extraction de bout en bout depuis l'image, ni l'entity linking, l'association d'une question à sa réponse — c'est-à-dire le clé-valeur proprement dit —, que FUNSD évalue séparément. L'article original chiffre l'écart sans ménagement : la baseline atteint 0,57 de F1 en labellisation et s'effondre à 0,04 en linking, avec une précision de 2,1 % pour un rappel de 99,2 %. Le système propose presque toutes les bonnes paires, noyées dans les mauvaises.</p><figure class='fig'><svg viewBox='0 0 760 496' role='img' aria-label='Schéma en deux volets sur un même formulaire jouet, comparant les deux tâches que FUNSD évalue séparément. Volet gauche, entity labeling : six entités déjà groupées, déjà localisées et déjà transcrites par la ground truth — un en-tête, deux libellés, deux valeurs saisies, une mention accessoire — sont reliées par des flèches à des étiquettes de classe prises parmi en-tête, question, réponse et autre ; le modèle ne fait que classer. Une échelle de F1 de 0 à 1 y situe la bande 0,79 à 0,90 des scores cités pour la lignée LayoutLM et ses concurrents, et un repère à 0,57 pour la baseline de l&#39;article original. Volet droit, entity linking : les mêmes entités, déjà classées, mais les liens question vers réponse restent à établir ; quinze arcs candidats forment un buisson dont deux seulement, tracés en bordeaux, sont corrects. Sur la même échelle, la baseline tombe à 0,04. Deux barres détaillent l&#39;effondrement : parmi les paires proposées, 2,1 % seulement sont justes, ce qui est la précision, tandis que 99,2 % des bonnes paires du document sont bien proposées, ce qui est le rappel.'><text x='380' y='20' text-anchor='middle' font-family='sans-serif' font-size='11' font-weight='700' letter-spacing='1.4' fill='var(--ink,#15202E)'>FUNSD : DEUX TÂCHES ÉVALUÉES SÉPARÉMENT</text><rect x='8' y='34' width='368' height='450' rx='8' fill='none' stroke='var(--line,#D7DFE9)' stroke-width='1.2'/><rect x='384' y='34' width='368' height='450' rx='8' fill='none' stroke='var(--line,#D7DFE9)' stroke-width='1.2'/><rect x='8' y='34' width='368' height='28' rx='8' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.2'/><text x='192' y='53' text-anchor='middle' font-family='sans-serif' font-size='11.5' font-weight='700' letter-spacing='0.6' fill='var(--blue,#23537F)'>ENTITY LABELING — labellisation</text><rect x='384' y='34' width='368' height='28' rx='8' fill='var(--bordeaux-wash,#F3E3E6)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2'/><text x='568' y='53' text-anchor='middle' font-family='sans-serif' font-size='11.5' font-weight='700' letter-spacing='0.6' fill='var(--bordeaux,#7C2A38)'>ENTITY LINKING — mise en relation</text><text x='192' y='76' text-anchor='middle' font-family='sans-serif' font-size='9.5' fill='var(--ink-soft,#43536A)'>entrée : entités déjà groupées, localisées, transcrites</text><text x='192' y='89' text-anchor='middle' font-family='sans-serif' font-size='9.5' font-weight='700' fill='var(--ink,#15202E)'>sortie : une classe parmi quatre</text><text x='568' y='76' text-anchor='middle' font-family='sans-serif' font-size='9.5' fill='var(--ink-soft,#43536A)'>entrée : les mêmes entités, déjà classées</text><text x='568' y='89' text-anchor='middle' font-family='sans-serif' font-size='9.5' font-weight='700' fill='var(--ink,#15202E)'>sortie : les arêtes question → réponse</text><text x='28' y='100' font-family='sans-serif' font-size='8' font-style='italic' fill='var(--ink-faint,#7A889B)'>formulaire jouet — entités fournies par la ground truth</text><rect x='28' y='104' width='228' height='190' rx='4' fill='var(--paper,#F4F6FA)' stroke='var(--line,#D7DFE9)' stroke-width='1'/><rect x='42' y='116' width='200' height='24' rx='3' fill='var(--card,#FFFFFF)' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='52' y='132' font-family='sans-serif' font-size='9.5' font-weight='700' letter-spacing='0.5' fill='var(--ink,#15202E)'>DEMANDE D'AUTORISATION</text><rect x='42' y='148' width='142' height='22' rx='3' fill='var(--card,#FFFFFF)' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='50' y='163' font-family='sans-serif' font-size='9' fill='var(--ink,#15202E)'>Nom du demandeur :</text><rect x='94' y='176' width='148' height='22' rx='3' fill='var(--card,#FFFFFF)' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='102' y='191' font-family='sans-serif' font-size='9' font-weight='700' fill='var(--ink,#15202E)'>MARTIN</text><rect x='42' y='204' width='100' height='22' rx='3' fill='var(--card,#FFFFFF)' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='50' y='219' font-family='sans-serif' font-size='9' fill='var(--ink,#15202E)'>Date :</text><rect x='94' y='232' width='118' height='22' rx='3' fill='var(--card,#FFFFFF)' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='102' y='247' font-family='sans-serif' font-size='9' font-weight='700' fill='var(--ink,#15202E)'>12/03/2019</text><rect x='42' y='262' width='104' height='20' rx='3' fill='var(--card,#FFFFFF)' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='50' y='276' font-family='sans-serif' font-size='8' fill='var(--ink-soft,#43536A)'>réf. 0421 — p. 1</text><text x='311' y='112' text-anchor='middle' font-family='sans-serif' font-size='8' font-weight='700' letter-spacing='0.9' fill='var(--ink-faint,#7A889B)'>CLASSE PRÉDITE</text><line x1='246' y1='128' x2='261' y2='128' stroke='var(--blue,#23537F)' stroke-width='1.1' stroke-dasharray='3 2'/><polygon points='261,124.5 266,128 261,131.5' fill='var(--blue,#23537F)'/><line x1='188' y1='159' x2='261' y2='159' stroke='var(--blue,#23537F)' stroke-width='1.1' stroke-dasharray='3 2'/><polygon points='261,155.5 266,159 261,162.5' fill='var(--blue,#23537F)'/><line x1='246' y1='187' x2='261' y2='187' stroke='var(--blue-bright,#2C77B6)' stroke-width='1.1' stroke-dasharray='3 2'/><polygon points='261,183.5 266,187 261,190.5' fill='var(--blue-bright,#2C77B6)'/><line x1='146' y1='215' x2='261' y2='215' stroke='var(--blue,#23537F)' stroke-width='1.1' stroke-dasharray='3 2'/><polygon points='261,211.5 266,215 261,218.5' fill='var(--blue,#23537F)'/><line x1='216' y1='243' x2='261' y2='243' stroke='var(--blue-bright,#2C77B6)' stroke-width='1.1' stroke-dasharray='3 2'/><polygon points='261,239.5 266,243 261,246.5' fill='var(--blue-bright,#2C77B6)'/><line x1='150' y1='272' x2='261' y2='272' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-dasharray='3 2'/><polygon points='261,268.5 266,272 261,275.5' fill='var(--ink-faint,#7A889B)'/><rect x='266' y='118' width='90' height='20' rx='10' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.6'/><text x='311' y='132' text-anchor='middle' font-family='sans-serif' font-size='9' font-weight='700' letter-spacing='0.6' fill='var(--blue,#23537F)'>EN-TÊTE</text><rect x='266' y='149' width='90' height='20' rx='10' fill='none' stroke='var(--blue,#23537F)' stroke-width='1.6'/><text x='311' y='163' text-anchor='middle' font-family='sans-serif' font-size='9' font-weight='700' letter-spacing='0.6' fill='var(--blue,#23537F)'>QUESTION</text><rect x='266' y='177' width='90' height='20' rx='10' fill='none' stroke='var(--blue-bright,#2C77B6)' stroke-width='1.6' stroke-dasharray='5 3'/><text x='311' y='191' text-anchor='middle' font-family='sans-serif' font-size='9' font-weight='700' letter-spacing='0.6' fill='var(--blue-bright,#2C77B6)'>RÉPONSE</text><rect x='266' y='205' width='90' height='20' rx='10' fill='none' stroke='var(--blue,#23537F)' stroke-width='1.6'/><text x='311' y='219' text-anchor='middle' font-family='sans-serif' font-size='9' font-weight='700' letter-spacing='0.6' fill='var(--blue,#23537F)'>QUESTION</text><rect x='266' y='233' width='90' height='20' rx='10' fill='none' stroke='var(--blue-bright,#2C77B6)' stroke-width='1.6' stroke-dasharray='5 3'/><text x='311' y='247' text-anchor='middle' font-family='sans-serif' font-size='9' font-weight='700' letter-spacing='0.6' fill='var(--blue-bright,#2C77B6)'>RÉPONSE</text><rect x='266' y='262' width='90' height='20' rx='10' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-dasharray='2 3'/><text x='311' y='276' text-anchor='middle' font-family='sans-serif' font-size='9' font-weight='700' letter-spacing='0.6' fill='var(--ink-faint,#7A889B)'>AUTRE</text><text x='28' y='308' font-family='sans-serif' font-size='8.5' font-style='italic' fill='var(--ink-faint,#7A889B)'>la flèche est tout ce que produit le modèle : la classe, pas le texte</text><text x='404' y='100' font-family='sans-serif' font-size='8' font-style='italic' fill='var(--ink-faint,#7A889B)'>formulaire jouet — les mêmes entités, déjà classées</text><rect x='404' y='104' width='228' height='190' rx='4' fill='var(--paper,#F4F6FA)' stroke='var(--line,#D7DFE9)' stroke-width='1'/><rect x='418' y='116' width='200' height='24' rx='3' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.6'/><text x='428' y='132' font-family='sans-serif' font-size='9.5' font-weight='700' letter-spacing='0.5' fill='var(--ink,#15202E)'>DEMANDE D'AUTORISATION</text><text x='612' y='131' text-anchor='end' font-family='sans-serif' font-size='7' font-weight='700' letter-spacing='0.5' fill='var(--blue,#23537F)'>EN-TÊTE</text><rect x='418' y='148' width='142' height='22' rx='3' fill='none' stroke='var(--blue,#23537F)' stroke-width='1.4'/><text x='426' y='163' font-family='sans-serif' font-size='9' fill='var(--ink,#15202E)'>Nom du demandeur :</text><text x='554' y='162' text-anchor='end' font-family='sans-serif' font-size='7' font-weight='700' letter-spacing='0.5' fill='var(--blue,#23537F)'>QUESTION</text><rect x='470' y='176' width='148' height='22' rx='3' fill='none' stroke='var(--blue-bright,#2C77B6)' stroke-width='1.4' stroke-dasharray='5 3'/><text x='478' y='191' font-family='sans-serif' font-size='9' font-weight='700' fill='var(--ink,#15202E)'>MARTIN</text><text x='612' y='190' text-anchor='end' font-family='sans-serif' font-size='7' font-weight='700' letter-spacing='0.5' fill='var(--blue-bright,#2C77B6)'>RÉPONSE</text><rect x='418' y='204' width='100' height='22' rx='3' fill='none' stroke='var(--blue,#23537F)' stroke-width='1.4'/><text x='426' y='219' font-family='sans-serif' font-size='9' fill='var(--ink,#15202E)'>Date :</text><text x='512' y='218' text-anchor='end' font-family='sans-serif' font-size='7' font-weight='700' letter-spacing='0.5' fill='var(--blue,#23537F)'>QUESTION</text><rect x='470' y='232' width='118' height='22' rx='3' fill='none' stroke='var(--blue-bright,#2C77B6)' stroke-width='1.4' stroke-dasharray='5 3'/><text x='478' y='247' font-family='sans-serif' font-size='9' font-weight='700' fill='var(--ink,#15202E)'>12/03/2019</text><text x='582' y='246' text-anchor='end' font-family='sans-serif' font-size='7' font-weight='700' letter-spacing='0.5' fill='var(--blue-bright,#2C77B6)'>RÉPONSE</text><rect x='418' y='262' width='104' height='20' rx='3' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-dasharray='2 3'/><text x='426' y='276' font-family='sans-serif' font-size='8' fill='var(--ink-soft,#43536A)'>réf. 0421 — p. 1</text><text x='516' y='275' text-anchor='end' font-family='sans-serif' font-size='7' font-weight='700' letter-spacing='0.5' fill='var(--ink-faint,#7A889B)'>AUTRE</text><line x1='618' y1='128' x2='640' y2='128' stroke='var(--ink-faint,#7A889B)' stroke-width='0.8' stroke-opacity='0.55'/><line x1='560' y1='159' x2='640' y2='159' stroke='var(--ink-faint,#7A889B)' stroke-width='0.8' stroke-opacity='0.55'/><line x1='618' y1='187' x2='640' y2='187' stroke='var(--ink-faint,#7A889B)' stroke-width='0.8' stroke-opacity='0.55'/><line x1='518' y1='215' x2='640' y2='215' stroke='var(--ink-faint,#7A889B)' stroke-width='0.8' stroke-opacity='0.55'/><line x1='588' y1='243' x2='640' y2='243' stroke='var(--ink-faint,#7A889B)' stroke-width='0.8' stroke-opacity='0.55'/><line x1='522' y1='272' x2='640' y2='272' stroke='var(--ink-faint,#7A889B)' stroke-width='0.8' stroke-opacity='0.55'/><path d='M640,128 Q681.5,143.5 640,159' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='0.9' stroke-opacity='0.5'/><path d='M640,128 Q695.5,157.5 640,187' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='0.9' stroke-opacity='0.5'/><path d='M640,128 Q709.5,171.5 640,215' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='0.9' stroke-opacity='0.5'/><path d='M640,128 Q723.5,185.5 640,243' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='0.9' stroke-opacity='0.5'/><path d='M640,128 Q738,200 640,272' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='0.9' stroke-opacity='0.5'/><path d='M640,159 Q694,187 640,215' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='0.9' stroke-opacity='0.5'/><path d='M640,159 Q708,201 640,243' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='0.9' stroke-opacity='0.5'/><path d='M640,159 Q722.5,215.5 640,272' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='0.9' stroke-opacity='0.5'/><path d='M640,187 Q680,201 640,215' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='0.9' stroke-opacity='0.5'/><path d='M640,187 Q694,215 640,243' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='0.9' stroke-opacity='0.5'/><path d='M640,187 Q708.5,229.5 640,272' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='0.9' stroke-opacity='0.5'/><path d='M640,215 Q694.5,243.5 640,272' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='0.9' stroke-opacity='0.5'/><path d='M640,243 Q680.5,257.5 640,272' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='0.9' stroke-opacity='0.5'/><circle cx='640' cy='128' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='640' cy='159' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='640' cy='187' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='640' cy='215' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='640' cy='243' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='640' cy='272' r='2' fill='var(--ink-faint,#7A889B)'/><path d='M640,159 Q680,173 640,187' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='2.2'/><polygon points='0,0 -8,-3.2 -8,3.2' fill='var(--bordeaux,#7C2A38)' transform='translate(640,187) rotate(160.7)'/><path d='M640,215 Q680,229 640,243' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='2.2'/><polygon points='0,0 -8,-3.2 -8,3.2' fill='var(--bordeaux,#7C2A38)' transform='translate(640,243) rotate(160.7)'/><line x1='404' y1='305' x2='428' y2='305' stroke='var(--ink-faint,#7A889B)' stroke-width='0.9' stroke-opacity='0.6'/><text x='433' y='308.5' font-family='sans-serif' font-size='8.5' fill='var(--ink-faint,#7A889B)'>paire candidate proposée</text><line x1='536' y1='305' x2='560' y2='305' stroke='var(--bordeaux,#7C2A38)' stroke-width='2.2'/><text x='565' y='308.5' font-family='sans-serif' font-size='8.5' font-weight='700' fill='var(--bordeaux,#7C2A38)'>lien correct question → réponse</text><text x='28' y='326' font-family='sans-serif' font-size='9' font-weight='700' letter-spacing='1' fill='var(--blue,#23537F)'>CE QUE CHIFFRENT LES F1 CITÉS SUR FUNSD</text><text x='28' y='340' font-family='sans-serif' font-size='9' font-style='italic' fill='var(--ink-faint,#7A889B)'>classer une entité déjà délimitée, déjà transcrite</text><text x='340' y='358' text-anchor='end' font-family='sans-serif' font-size='9.5' font-weight='700' fill='var(--blue,#23537F)'>0,79 – 0,90 : lignée LayoutLM et concurrents</text><line x1='294' y1='361' x2='294' y2='368' stroke='var(--blue,#23537F)' stroke-width='1'/><text x='38' y='378' text-anchor='end' font-family='sans-serif' font-size='9' font-weight='700' fill='var(--ink-faint,#7A889B)'>F1</text><rect x='44' y='368' width='296' height='13' rx='2' fill='var(--line-soft,#E7ECF3)' stroke='var(--line,#D7DFE9)' stroke-width='0.8'/><rect x='277.8' y='368' width='32.6' height='13' fill='var(--blue,#23537F)'/><rect x='211.2' y='363' width='3' height='23' fill='var(--bordeaux,#7C2A38)'/><line x1='44' y1='381' x2='44' y2='387' stroke='var(--ink-faint,#7A889B)' stroke-width='0.8'/><line x1='192' y1='381' x2='192' y2='387' stroke='var(--ink-faint,#7A889B)' stroke-width='0.8'/><line x1='340' y1='381' x2='340' y2='387' stroke='var(--ink-faint,#7A889B)' stroke-width='0.8'/><text x='44' y='396' text-anchor='middle' font-family='sans-serif' font-size='8' fill='var(--ink-faint,#7A889B)'>0</text><text x='192' y='396' text-anchor='middle' font-family='sans-serif' font-size='8' fill='var(--ink-faint,#7A889B)'>0,50</text><text x='340' y='396' text-anchor='middle' font-family='sans-serif' font-size='8' fill='var(--ink-faint,#7A889B)'>1,00</text><line x1='212.7' y1='386' x2='212.7' y2='404' stroke='var(--bordeaux,#7C2A38)' stroke-width='1'/><text x='212.7' y='417' text-anchor='middle' font-family='sans-serif' font-size='11' font-weight='700' fill='var(--bordeaux,#7C2A38)'>0,57</text><text x='212.7' y='430' text-anchor='middle' font-family='sans-serif' font-size='8.5' fill='var(--ink-faint,#7A889B)'>baseline de l'article FUNSD</text><text x='192' y='460' text-anchor='middle' font-family='sans-serif' font-size='9' font-style='italic' fill='var(--ink-soft,#43536A)'>ni segmentation, ni lecture : tout est fourni au modèle</text><text x='404' y='326' font-family='sans-serif' font-size='9' font-weight='700' letter-spacing='1' fill='var(--bordeaux,#7C2A38)'>CE QUE CHIFFRE L'ENTITY LINKING SUR FUNSD</text><text x='404' y='340' font-family='sans-serif' font-size='9' font-style='italic' fill='var(--ink-faint,#7A889B)'>la même baseline passe de 0,57 à 0,04</text><text x='716' y='358' text-anchor='end' font-family='sans-serif' font-size='9' fill='var(--ink-faint,#7A889B)'>zone des F1 de labellisation (volet gauche)</text><line x1='670.1' y1='361' x2='670.1' y2='368' stroke='var(--ink-faint,#7A889B)' stroke-width='0.8' stroke-dasharray='2 2'/><text x='431.8' y='355' text-anchor='middle' font-family='sans-serif' font-size='11' font-weight='700' fill='var(--bordeaux,#7C2A38)'>0,04</text><line x1='431.8' y1='358' x2='431.8' y2='363' stroke='var(--bordeaux,#7C2A38)' stroke-width='1'/><text x='414' y='378' text-anchor='end' font-family='sans-serif' font-size='9' font-weight='700' fill='var(--ink-faint,#7A889B)'>F1</text><rect x='420' y='368' width='296' height='13' rx='2' fill='var(--line-soft,#E7ECF3)' stroke='var(--line,#D7DFE9)' stroke-width='0.8'/><rect x='653.8' y='368' width='32.6' height='13' fill='none' stroke='var(--blue,#23537F)' stroke-width='1' stroke-dasharray='3 2'/><rect x='430.3' y='363' width='3' height='23' fill='var(--bordeaux,#7C2A38)'/><line x1='420' y1='381' x2='420' y2='387' stroke='var(--ink-faint,#7A889B)' stroke-width='0.8'/><line x1='568' y1='381' x2='568' y2='387' stroke='var(--ink-faint,#7A889B)' stroke-width='0.8'/><line x1='716' y1='381' x2='716' y2='387' stroke='var(--ink-faint,#7A889B)' stroke-width='0.8'/><text x='420' y='396' text-anchor='middle' font-family='sans-serif' font-size='8' fill='var(--ink-faint,#7A889B)'>0</text><text x='568' y='396' text-anchor='middle' font-family='sans-serif' font-size='8' fill='var(--ink-faint,#7A889B)'>0,50</text><text x='716' y='396' text-anchor='middle' font-family='sans-serif' font-size='8' fill='var(--ink-faint,#7A889B)'>1,00</text><text x='420' y='414' font-family='sans-serif' font-size='8.5' font-weight='700' letter-spacing='0.8' fill='var(--ink-faint,#7A889B)'>PAIRES PROPOSÉES PAR LE SYSTÈME</text><text x='716' y='414' text-anchor='end' font-family='sans-serif' font-size='9' font-weight='700' fill='var(--bordeaux,#7C2A38)'>précision 2,1 %</text><rect x='420' y='418' width='296' height='13' rx='2' fill='var(--line-soft,#E7ECF3)' stroke='var(--line,#D7DFE9)' stroke-width='0.8'/><rect x='420' y='418' width='6.2' height='13' fill='var(--bordeaux,#7C2A38)'/><text x='568' y='427.5' text-anchor='middle' font-family='sans-serif' font-size='8' fill='var(--ink-faint,#7A889B)'>97,9 % de paires fausses</text><text x='420' y='448' font-family='sans-serif' font-size='8.5' font-weight='700' letter-spacing='0.8' fill='var(--ink-faint,#7A889B)'>BONNES PAIRES DU DOCUMENT</text><text x='716' y='448' text-anchor='end' font-family='sans-serif' font-size='9' font-weight='700' fill='var(--bordeaux,#7C2A38)'>rappel 99,2 %</text><rect x='420' y='452' width='296' height='13' rx='2' fill='var(--line-soft,#E7ECF3)' stroke='var(--line,#D7DFE9)' stroke-width='0.8'/><rect x='420' y='452' width='293.6' height='13' fill='var(--bordeaux,#7C2A38)'/><text x='566' y='461.5' text-anchor='middle' font-family='sans-serif' font-size='8' font-weight='700' fill='var(--card,#FFFFFF)'>99,2 % sont bien proposées</text></svg><figcaption><span class='fcap-k'></span>Sur FUNSD, le F1 qui domine le champ note la labellisation d'entités déjà délimitées et déjà transcrites — ni une extraction de bout en bout depuis l'image, ni la mise en relation, où la même baseline s'effondre de 0,57 à 0,04.</figcaption></figure><p>La layout analysis expose l'autre grande fracture, celle de l'annotation. PubLayNet, meilleur article d'ICDAR 2019, doit ses 360 000 pages à un alignement automatique entre les XML et les PDF du fonds PubMed Central ; le procédé ne coûte presque rien et passe à l'échelle, mais il ne produit que cinq classes de blocs et n'offre aucun recours là où l'alignement se trompe. DocLayNet, présenté à KDD 2022 par la même équipe d'IBM Research, prend le contre-pied : 80 863 pages annotées à la main sur onze classes fines, jusqu'à la légende, la note de bas de page, la formule, l'en-tête et le pied de page, couvrant six domaines de la finance au brevet en passant par les manuels et les appels d'offres. Surtout, 7 059 pages y sont annotées deux fois et 1 591 trois fois, ce qui permet de mesurer l'accord entre annotateurs. Un jeu dérivé d'un XML ne peut pas offrir ce contrôle : il ignore son propre taux d'erreur.</p><p>La reconnaissance de tables a suivi la même pente, poussée plus loin. PubTabNet aligne à son tour XML et PDF d'articles biomédicaux pour produire 568 000 images de tables accompagnées de leur structure HTML, et PubTables-1M, chez Microsoft, monte à 947 642 tables entièrement annotées. À cette échelle la supervision est faible par construction, et l'exactitude cellule par cellule perd son sens : on compare des arbres. TEDS (Tree-Edit-Distance-based Similarity) représente prédiction et référence comme deux arbres HTML et retient un moins la distance d'édition, normalisée par la taille du plus grand des deux, avec une variante qui ignore le contenu des cellules pour ne juger que la structure. Ces corpus ont rendu possibles des modèles dédiés : Table Transformer, deux réseaux fondés sur DETR dont l'un repère la table et l'autre en reconstruit la structure, et TableFormer, qui prédit d'un seul coup, depuis l'image, la structure logique et les bounding boxes de chaque cellule, sans règle ni détection de traits — donc sur des tables sans quadrillage, à cellules vides, fusionnées ou hiérarchiques. L'équipe de Table Transformer a d'ailleurs proposé son propre instrument, GriTS (Grid Table Similarity), qui traite la table comme une matrice plutôt que comme un arbre et réunit topologie, localisation et contenu en un seul score, au prix d'une heuristique polynomiale pour approcher un problème de sous-structure commune bidimensionnelle NP-difficile — caractérisation issue de l'article qui l'introduit, source unique non corroborée par une évaluation indépendante.</p><p>Vient enfin DocVQA, devenu la mesure dominante du champ. Cinquante mille questions posées sur 12 767 images tirées de l'Industry Documents Library de l'UCSF, déjà croisée à propos de Nougat, mêlant imprimé, dactylographié et manuscrit ; la performance humaine y a été mesurée à 94,36 % en exact-match (correspondance exacte). Le jeu retient pourtant une autre métrique, l'ANLS, distincte de ce chiffre : pour chaque question, on calcule un moins la distance de Levenshtein normalisée entre réponse produite et réponse de référence, puis l'on remet le score à zéro dès que cette distance dépasse 0,5. La comparaison ignore la casse, mais pas les espaces. L'intention se comprend — tolérer une lettre mal transcrite, refuser une réponse sémantiquement fausse — et le seuil rend la mesure discontinue : passé la moitié, plus rien ne distingue une réponse presque juste d'une réponse absurde. Ces instruments posés, il devient possible de demander ce qu'ils garantissent encore lorsque les scores approchent le plafond.</p>",
+      "claims": [
+        "claim:22",
+        "claim:23",
+        "claim:24"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-anls-falaise-seuil"
+    },
+    {
+      "type": "section",
+      "id": "pieges-benchmarks",
+      "heading": "Benchmarks saturés, raccourcis et angles morts",
+      "level": 3,
+      "prose": "<p>Un score note une réponse, jamais le chemin qui y mène, et c'est par là que la mesure se fissure. LandingAI l'a montré en 2025 de la manière la plus directe : son pipeline DPT-2 analyse chaque document une seule fois, le convertit en texte structuré, puis répond à toutes les questions depuis ce seul texte, sans jamais raccéder à l'image pendant la phase de question-réponse. Le score atteint 99,16 % sur la validation de DocVQA, soit 5 286 réponses justes sur 5 331. Un jeu conçu pour évaluer le raisonnement visuel multimodal se laisse donc résoudre presque intégralement sans regarder l'image au moment de répondre, et un score proche du plafond cesse de prouver ce qu'on lui prête.</p>\n<p>D'où viennent les 45 erreurs subsistantes ? Leur ventilation instruit plus que le score. La part la plus lourde, 18 cas, tient au raisonnement ou à l'interprétation de la question, pas à la lecture ; neuf autres portent sur la position d'un élément dans la page, que le parseur ne cherche pas à restituer. Les défaillances de lecture proprement dites, confusions de caractères et champs manqués confondus, pèsent exactement le même poids que les erreurs de raisonnement, à peine plus d'un tiers du total. Dix-huit questions supplémentaires ont d'ailleurs été retirées du calcul parce que leur ground truth paraissait douteuse. Quand l'erreur résiduelle du système et celle de l'annotation deviennent du même ordre, le benchmark a cessé de discriminer.</p>\n<p>La saturation ne tient pas à cette seule démonstration. Sur le leaderboard (classement public) de DocVQA, le peloton de tête loge dans un intervalle d'un point et demi, Qwen2.5-VL-72B en tête à 96,4 ANLS, Claude 3.5 Sonnet et Mistral Small 3.2 dans son sillage ; un score de 97,25 % a même été rapporté pour Qwen2-VL, au-dessus de la barre humaine en exact-match (correspondance exacte) que le jeu s'était donnée. Ce repère mérite pourtant d'être relu : les annotateurs de référence eux-mêmes ne dépassent pas 0,981 sous ANLS, si bien que les derniers points se disputent dans le bruit de l'annotation. S'y ajoute le risque que l'origine commune des corpus laissait deviner, la contamination, c'est-à-dire la fuite d'un jeu de test dans les corpus de pré-entraînement collectés à l'échelle du web. Les travaux de détection menés sur les VLM la traitent comme un défaut de construction de tout benchmark multimodal public : le modèle contaminé mémorise des triplets texte-image-étiquette au lieu de généraliser.</p>\n<p>Un jeu de données peut aussi porter en lui le raccourci qu'on reproche aux modèles d'emprunter. Dans FUNSD, les tokens d'une même entité partagent des coordonnées identiques, artefact du protocole d'annotation ; un modèle y apprend donc à découper les entités sur les discontinuités géométriques, sans que la sémantique ait à intervenir. EC-FUNSD, ré-annotation débiaisée publiée en 2024, chiffre le coût de l'illusion : LayoutLMv3-base tombe de 90,85 à 82,30 de F1 en reconnaissance de segments et d'entités, sa variante large et GeoLayoutLM perdant l'une et l'autre près de huit points — chiffres de l'article EC-FUNSD lui-même, source unique non corroborée par une réplication indépendante. Le contraste avec la seconde tâche est le vrai résultat. L'entity linking, lui, ne cède qu'un à deux points : le raccourci gonflait la détection des frontières, pas la mise en relation, soit précisément la partie du score que la lignée LayoutLM affichait comme sa réussite.</p>\n<p>Un agrégat cache par construction ce qu'il n'a jamais isolé. CheckboxQA, paru en 2025, met à l'épreuve une lecture que DocVQA, InfographicVQA, SlideVQA et DUDE noient dans le reste : la case à cocher. Le meilleur modèle testé, Qwen2.5-VL-72B, y plafonne à 83,2 % quand l'humain atteint 97,5 % ; GPT-4o n'obtient que 66,7 %, sa déclinaison mini 40,4 %. Celui-là même qui domine le leaderboard DocVQA échoue donc sur un champ binaire, mode de défaillance à fort enjeu qu'aucun score global ne fait apparaître. Ses auteurs étendent le diagnostic de quasi-saturation à InfographicVQA et à SlideVQA, sans que ce point ait pu être recoupé de façon indépendante.</p>\n<p>Le protocole de mesure lui-même peut fausser le verdict. OmniDocBench, présenté à CVPR 2025, appariait dans sa version 1.5 les éléments de la prédiction et ceux de la référence un à un, à granularité fixe. Une sortie sémantiquement juste mais découpée autrement s'en trouve pénalisée sans que rien ne le signale, et une formule multi-lignes parfaitement parsée peut chuter près de zéro pour un simple désaccord de segmentation en blocs. La version 1.6 y répond par MGAM (Multi-Granularity Adaptive Matching), qui cherche la granularité optimale du seul côté de la prédiction. Les auteurs reconnaissent un second biais : les échantillons étiquetés « Hard » manquaient presque entièrement du jeu d'évaluation, de sorte qu'un benchmark annoncé comme couvrant tout le spectre mesurait surtout des documents de difficulté faible à moyenne.</p>\n<p>Le terrain se déplace enfin vers ce qu'aucun de ces jeux ne couvrait : le document long. L'ambiguïté entre la page et le document, présente depuis les corpus fondateurs, y devient la difficulté principale. MMLongBench-Doc, présenté à NeurIPS 2024, pose 1 062 questions expertes sur 130 PDF dont la longueur moyenne approche la cinquantaine de pages. Un tiers d'entre elles exigent de croiser des preuves réparties sur plusieurs pages ; près d'un quart sont délibérément sans réponse, pour mesurer la propension à halluciner. Le meilleur système évalué, GPT-4o, n'y dépasse pas 42,7 % de F1 — mesures propres à l'article qui introduit le benchmark, source unique non corroborée par une évaluation indépendante. Un résultat referme la boucle ouverte par LandingAI : douze des quatorze VLM testés font moins bien en recevant les images des pages qu'en recevant le texte, pourtant dégradé, qu'un OCR en extrait. Sur le document long, la modalité visuelle coûte plus qu'elle ne rapporte, et le travail retombe sur l'étage que la génération OCR-free prétendait supprimer.</p>",
+      "claims": [
+        "claim:25",
+        "claim:27"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "pdf-vers-rag",
+      "heading": "Du PDF au pipeline RAG : le parsing en production",
+      "level": 3,
+      "prose": "<p>Cet étage a un nom en production, et un adversaire de prédilection : le PDF. Le format résiste parce qu'il hérite du modèle d'imagerie de PostScript, dont il reprend la logique fixée en 1982 : une page y est une séquence d'opérateurs de dessin à coordonnées fixes, destinée à produire une image fidèle pour un lecteur humain. Rien dans le format ne connaît le mot, le paragraphe, le tableau ni l'ordre de lecture. Le texte n'y est pas stocké en caractères Unicode mais en contours de glyphes positionnés, dont la correspondance vers des caractères passe par des CMaps, tables propres à chaque police ; l'ordre du content stream (flux de contenu) n'entretient aucune relation garantie avec celui où le regard parcourt la page ; un tableau n'existe que comme des traits dessinés d'un côté et du texte posé de l'autre. Ces structures doivent être reconstruites par heuristique, ce qui repose en coordonnées le problème que les sections précédentes traitaient en pixels.</p>\n<p>Docling, publié par IBM Research sous licence MIT, est le toolkit (boîte à outils) qui documente le mieux ce travail. Sa détection de mise en page repose sur un modèle dérivé de RT-DETR (détecteur d'objets temps réel de type Transformer), ré-entraîné sur DocLayNet, et TableFormer y prend en charge la structure des tables. Le rapport technique publie des débits, ce qui reste rare : la médiane s'établit à 0,79 seconde par page sur un CPU x86 à huit threads, contre 114 millisecondes sur un GPU L4. Ce facteur voisin de sept décide seul de la faisabilité d'un traitement de fonds. Les tables restent le poste le plus cher, environ 400 millisecondes chacune sur ce même GPU contre 1,74 seconde sur processeur, et désactiver l'OCR lorsque le PDF porte déjà son texte fait tomber la durée de traitement de plus de moitié. L'outil a servi à parser 2,1 millions de PDF issus de Common Crawl et alimente aussi bien des produits d'entreprise que la constitution de jeux d'entraînement. Sa limite est celle de son entraînement : sur DocLayNet, les détecteurs de mise en page restent une dizaine de points de mAP (mean Average Precision, la métrique standard de détection d'objets) derrière l'accord entre annotateurs humains.</p>\n<p>Le choix entre outils se joue rarement sur la qualité brute. LayoutParser, présenté à ICDAR 2021 sous licence CC-BY-4.0, encapsule des modèles de détection, l'intégration OCR et une plateforme de partage de modèles pré-entraînés et de pipelines complets de numérisation, avec un public revendiqué au-delà du NLP, jusqu'aux sciences sociales et aux humanités. Marker, lui, obtient le meilleur score sur la mise en page multi-colonnes d'un comparatif tiers, à 96,1 % de F1 devant Docling, que les gouttières étroites mettent en défaut, et devant Unstructured, qui ferme la marche à 91,8 %. Mais si son code est sous Apache 2.0, ses poids relèvent d'une licence restrictive, gratuite pour la recherche, l'usage personnel et les jeunes entreprises sous un seuil de revenu, payante au-delà : la contrainte juridique tranche avant la métrique. Le comparatif appelle du reste la prudence, conduit sur 500 documents d'entreprise annotés par trois personnes avec un accord supérieur à 95 %, mais publié par un éditeur qui y compare aussi son propre produit.</p>\n<p>Quand le parsing n'est pas le métier, les offres gérées prennent le relais, et leur convergence récente est un signal en soi : elles ne restituent plus un document, elles produisent des fragments prêts pour l'indexation. Azure AI Document Intelligence extrait tables, paragraphes, titres et — précisément l'angle mort relevé plus haut — cases à cocher, avec une sortie Markdown pensée pour le chunking (découpage en fragments indexables) sémantique. Chez Google Cloud Document AI, déjà rencontré, un Layout Parser est venu s'ajouter aux processeurs pré-entraînés, avec pour usage documenté la préparation de chunks contextuels destinés à la recherche et au RAG ; le Workbench maison entraîne pour sa part un processeur personnalisé à partir d'une dizaine de documents annotés. Amazon Textract se rencontre rarement seul : il vit inséré dans une chaîne où la classification, l'orchestration et la revue humaine des exceptions comptent autant que l'extraction, sur des dossiers de prêt, des admissions de patients ou des demandes d'assurance santé. LlamaParse, propriétaire lui aussi, mise sur des VLM pour rendre un Markdown exploitable sur les documents à tables et figures imbriquées.</p>\n<p>Une voie plus radicale supprime la question. Si le parsing détruit de l'information de mise en page, pourquoi indexer autre chose que la page elle-même ? ColPali étend PaliGemma-3B d'un encodeur visuel SigLIP et produit 1 024 embeddings de patches par image de page, projetés chacun en 128 dimensions ; le score entre requête et document se calcule ensuite par late interaction (interaction tardive) de type ColBERT, en sommant, pour chaque token de requête, sa similarité maximale avec l'ensemble des patches. Sur le benchmark ViDoRe, la moyenne atteint 81,3 de NDCG@5 (qualité du classement sur les cinq premiers résultats), là où les pipelines classiques bâtis sur un parseur et une recherche lexicale plafonnent autour de 65. L'écart devient un gouffre partout où l'information est visuelle : sur des tables, 83,9 contre 35,4. Ces chiffres viennent de l'article ColPali, qui introduit à la fois la méthode et le benchmark : source unique, non corroborée par une évaluation indépendante. On reconnaît le geste de Donut, transposé de la compréhension au retrieval (la recherche des passages pertinents).</p>\n<p>Reste la question qui décide vraiment d'une architecture, et à laquelle le champ ne répond pas. Rien n'établit qu'un meilleur score de parsing mesuré hors contexte se traduise par de meilleures réponses en bout de chaîne ; la corrélation n'a pas été démontrée et peut varier d'un domaine à l'autre, si bien que le classement des parseurs sur la mise en page multi-colonnes ne préjuge pas de leur rang en question-réponse. Une étude présentée à ICSE-SEIP 2026 s'y attaque en comparant systématiquement plusieurs parseurs et plusieurs stratégies de découpage sur FinanceBench, jeu de questions portant sur des rapports annuels d'entreprises cotées, et sur TableQuest, dérivé automatiquement de ses tables ; les tables y demeurent l'élément le plus rétif, entre cellules fusionnées, en-têtes couvrant plusieurs colonnes et densité. Le retour industriel dit la même chose autrement. COIN (Contract Intelligence), en production chez JPMorgan Chase depuis juin 2016, relit les contrats de prêt commercial et en extrait clauses et conditions, à raison de quelque 12 000 contrats par an ; l'économie revendiquée avoisine 360 000 heures de travail juridique. La valeur se capture sur un flux étroit et répétitif, où l'on sait ce que l'on mesure, pas sur le document générique. Ce qui advient ensuite du texte reconstruit, son indexation, la génération de réponses, l'extraction de champs structurés, relève des monographies consacrées au RAG et à l'extraction structurée depuis le texte.</p>",
+      "claims": [
+        "claim:29",
+        "claim:31",
+        "claim:32"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "synopsis-pdf-vers-fragments"
+    },
+    {
+      "type": "exercise",
+      "part": "La voie modulaire : reconnaître, puis encoder la mise en page",
+      "question": "<p>Un intégrateur veut moderniser une chaîne de lecture de reçus scannés. On lui vend TrOCR (CER de 2,89 sur IAM, F1 de 96,58 sur la tâche 2 de SROIE) comme le remplaçant naturel de son pipeline CTC, et LayoutLMv3 comme le successeur évident de LayoutLM v1.</p><p>(a) Quelles <strong>deux contraintes formelles</strong> CTC impose-t-il, et pourquoi ces contraintes ne suffisent-elles pas à justifier une bascule ? (b) Que remplace exactement TrOCR dans le pipeline, et sur quelles entrées ses chiffres ont-ils été mesurés ? (c) Comment l'encodage de la mise en page évolue-t-il de v1 à v3, et pourquoi les scores FUNSD de la première génération interdisent-ils de conclure « plus gros = meilleur » ?</p>",
+      "answer": "<p><strong>(a)</strong> CTC (Graves <em>et al.</em>, ICML 2006) impose un <strong>alignement monotone</strong> — aucune réorganisation entre entrée et sortie — et l'<strong>indépendance conditionnelle</strong> de chaque sortie par rapport aux autres, l'entrée étant donnée : sans modèle de langage externe, aucune dépendance inter-caractères n'est représentable. Ces limites sont réelles, mais elles ne dictent pas le choix industriel : le passage à un décodeur seq2seq autorégressif apporte un gain de précision <em>au prix</em> de la vitesse d'inférence, puisqu'on décode token par token là où CTC prédit en une seule passe. C'est pourquoi les pipelines les plus déployés — Tesseract 4+ en mode LSTM, PP-OCR/PaddleOCR — restent sur une architecture CTC en détection → [classification d'orientation] → reconnaissance.</p><p><strong>(b)</strong> TrOCR ne remplace que l'étage de <strong>reconnaissance</strong> (jusque-là CNN+RNN+CTC) par un encodeur-décodeur Transformer pur entraîné par cross-entropy. La <strong>détection de texte reste hors périmètre</strong> de l'article, explicitement renvoyée aux travaux futurs, et l'évaluation porte sur des <strong>lignes déjà découpées</strong>, obtenues depuis les bounding boxes de vérité terrain. Les 2,89 de CER et les 96,58 de F1 (variante Large) ne disent donc rien du comportement d'une chaîne complète partant d'une page brute.</p><p><strong>(c)</strong> v1 quantifie les coordonnées des bounding boxes sur une grille entière 0–1000 et les injecte comme embeddings de position absolue. v2 <strong>conserve</strong> cet embedding absolu (toujours additionné à l'entrée) et lui <strong>ajoute</strong> une self-attention spatiale : α′ᵢⱼ = αᵢⱼ + biais-1D(j−i) + biais-2D-x(xⱼ−xᵢ) + biais-2D-y(yⱼ−yᵢ), des biais appris qui varient par tête d'attention mais sont partagés entre toutes les couches de l'encodeur. v3 supprime le backbone CNN de v2 (l'article cite l'ordre de grandeur de 44 M pour ResNet-101) au profit d'une projection linéaire de patches 16×16 d'environ 0,6 M de paramètres. Sur FUNSD, le F1 progresse palier par palier — 79,27 (v1-Base) / 77,89 (v1-Large) → 82,76 (v2-Base) / 84,20 (v2-Large) → 90,29 (v3-Base) / 92,08 (v3-Large) — mais <strong>v1-Large (343 M) passe sous v1-Base</strong> sur ce même jeu, alors qu'elle la devance sur SROIE (95,24 contre 94,38) et sur RVL-CDIP (91,90 % contre 91,78 %). La taille n'est pas le facteur dominant.</p>"
+    },
+    {
+      "type": "exercise",
+      "part": "Supprimer l'OCR, puis douter des scores",
+      "question": "<p>Une équipe produit doit arbitrer entre une chaîne modulaire (OCR + modèle texte/layout) et un modèle OCR-free, et s'appuie pour cela sur les classements DocVQA.</p><p>(a) Sur quelle tâche l'OCR-free est-il déjà à parité, et sur laquelle perd-il encore ? Chiffrez. (b) Qu'a changé la recette de pré-entraînement de Pix2Struct, et l'écart est-il comblé ? (c) Donnez deux raisons de se méfier d'un classement DocVQA élevé.</p>",
+      "answer": "<p><strong>(a)</strong> Sur la <strong>classification</strong> d'images de documents, la parité est acquise : Donut atteint 95,30 % sur RVL-CDIP contre 95,25 % pour LayoutLMv2, à environ <strong>deux fois la vitesse</strong> et <strong>sans aucun moteur OCR</strong>. Sur la <strong>lecture fine d'un champ</strong>, en revanche, l'OCR-free coûte cher : Donut perd <strong>plus de 10 points d'ANLS</strong> sur DocVQA face à la baseline LayoutLMv2, qui, elle, dépend de l'OCR. Le verdict dépend donc de la granularité exigée de la sortie, pas de l'architecture en soi.</p><p><strong>(b)</strong> Pix2Struct attaque l'écart par le pré-entraînement : parsing de captures d'écran vers du HTML simplifié, patching à résolution variable, prompt rendu graphiquement dans l'image d'entrée. Le gain est substantiel mais <strong>partiel</strong> : environ <strong>+9 points d'ANLS</strong> sur Donut (67,5 → 76,6), alors que des pipelines dépendants de l'OCR comme UDOP tiennent 84,7 et LayoutLMv2 de 78,1 à 86,7 selon le protocole — soit <strong>2 à 10 points</strong> d'écart résiduel. Le bénéfice décisif est ailleurs : un <strong>unique checkpoint</strong> transféré sans changement d'architecture dépasse Donut de 5,3 points (OCR-VQA, le plus petit écart) à 53,0 points (Screen2Words, le plus grand) et atteint l'état de l'art sur <strong>6 des 9 tâches</strong> évaluées, bien au-delà du domaine documentaire.</p><p><strong>(c)</strong> Première raison : le score peut ne pas mesurer de raisonnement visuel du tout. Une démonstration publique (LandingAI, 2025) obtient <strong>99,16 % de bonnes réponses</strong> sur DocVQA en n'utilisant que le texte extrait par un parseur, <strong>sans aucun accès à l'image</strong> pendant la phase de question-réponse. Seconde raison : le benchmark est quasi saturé et aveugle sur certains champs — un score de <strong>97,25 % d'ANLS</strong> rapporté pour Qwen2-VL dépasse la performance humaine de référence de 94,36 %, tandis que CheckboxQA (2025) exhibe un angle mort spécifique, l'interprétation des cases à cocher, que DocVQA, InfographicVQA, SlideVQA et DUDE ne permettent pas de détecter faute d'isoler ce type de champ. À retenir, la même prudence s'applique en aval : un meilleur score de parsing PDF sur un benchmark générique de mise en page n'implique pas une meilleure exactitude de réponse sur une tâche de QA RAG en production, la corrélation n'étant pas établie empiriquement.</p>"
+    },
+    {
+      "type": "biblio",
+      "entries": [
+        {
+          "label": "Document AI — Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/Document_AI"
+        },
+        {
+          "label": "LayoutLM: Pre-training of Text and Layout for Document Image Understanding (arXiv:1912.13318)",
+          "href": "https://arxiv.org/abs/1912.13318"
+        },
+        {
+          "label": "Donut: Document Understanding Transformer without OCR (arXiv:2111.15664)",
+          "href": "https://arxiv.org/abs/2111.15664"
+        },
+        {
+          "label": "Pix2Struct: Screenshot Parsing as Pretraining for Visual Language Understanding (arXiv:2210.03347)",
+          "href": "https://arxiv.org/abs/2210.03347"
+        },
+        {
+          "label": "Hugging Face blog: Accelerating Document AI",
+          "href": "https://huggingface.co/blog/document-ai"
+        },
+        {
+          "label": "GitHub note (Noba1anc3/Document-Analysis-Recognition) on LayoutLM pretraining data",
+          "href": "https://github.com/Noba1anc3/Document-Analysis-Recognition/blob/master/LayoutLM:%20Pre-training%20of%20Text%20and%20Layout%20for%20Document%20Image%20Understanding.md"
+        },
+        {
+          "label": "microsoft/layoutlm-base-uncased — Hugging Face model card",
+          "href": "https://huggingface.co/microsoft/layoutlm-base-uncased"
+        },
+        {
+          "label": "LayoutLM: Pre-training of Text and Layout for Document Image Understanding (arXiv:1912.13318, full text)",
+          "href": "https://ar5iv.labs.arxiv.org/html/1912.13318"
+        },
+        {
+          "label": "TREC Legal Track — IIT-CDIP collection format guidelines (Lewis)",
+          "href": "https://trec-legal.umiacs.umd.edu/guidelines/lewis2.txt"
+        },
+        {
+          "label": "Building a Test Collection for Complex Document Information Processing (Lewis et al., SIGIR 2006) — papier fondateur de la collection IIT-CDIP",
+          "href": "https://ir.cs.georgetown.edu/downloads/sigir06cdipcoll_v05-with-authors.pdf"
+        },
+        {
+          "label": "Deep Learning based Visually Rich Document Content Understanding: A Survey (arXiv:2408.01287)",
+          "href": "https://arxiv.org/abs/2408.01287"
+        },
+        {
+          "label": "Hugging Face Transformers — Donut model docs",
+          "href": "https://huggingface.co/docs/transformers/model_doc/donut"
+        },
+        {
+          "label": "TrOCR: Transformer-based OCR System — EmergentMind",
+          "href": "https://www.emergentmind.com/topics/trocr"
+        },
+        {
+          "label": "TrOCR — Hugging Face Transformers documentation",
+          "href": "https://huggingface.co/docs/transformers/model_doc/trocr"
+        },
+        {
+          "label": "TrOCR: Transformer-based Optical Character Recognition with Pre-trained Models (Li et al. 2021)",
+          "href": "https://arxiv.org/abs/2109.10282"
+        },
+        {
+          "label": "A Visual Guide to Connectionist Temporal Classification (CTC) — Distill",
+          "href": "https://distill.pub/2017/ctc/"
+        },
+        {
+          "label": "Connectionist temporal classification — Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/Connectionist_temporal_classification"
+        },
+        {
+          "label": "Connectionist Temporal Classification: Labelling Unsegmented Sequence Data with Recurrent Neural Networks (Graves, Fernández, Gomez, Schmidhuber, ICML 2006)",
+          "href": "https://www.cs.toronto.edu/~graves/icml_2006.pdf"
+        },
+        {
+          "label": "NeuralNetsInTesseract4.00 / TrainingTesseract-4.00 (tessdoc, documentation officielle Tesseract)",
+          "href": "https://tesseract-ocr.github.io/tessdoc/tess4/TrainingTesseract-4.00.html"
+        },
+        {
+          "label": "PP-OCR: A Practical Ultra Lightweight OCR System (arXiv 2009.09941)",
+          "href": "https://arxiv.org/abs/2009.09941"
+        },
+        {
+          "label": "PaddleOCR — configs/rec/PP-OCRv6 (dépôt GitHub actuel, PP-OCRv6_small_rec.yml)",
+          "href": "https://github.com/PaddlePaddle/PaddleOCR/blob/main/configs/rec/PP-OCRv6/PP-OCRv6_small_rec.yml"
+        },
+        {
+          "label": "DTrOCR: Decoder-only Transformer for Optical Character Recognition (arXiv 2308.15996)",
+          "href": "https://arxiv.org/abs/2308.15996"
+        },
+        {
+          "label": "A Benchmark of State-Space Models vs. Transformers and BiLSTM-based Models for Historical Newspaper OCR",
+          "href": "https://arxiv.org/html/2604.00725"
+        },
+        {
+          "label": "TrOCR: Transformer-based Optical Character Recognition with Pre-trained Models (Li et al., arXiv:2109.10282) — Table 5, inference speed",
+          "href": "https://ar5iv.labs.arxiv.org/html/2109.10282"
+        },
+        {
+          "label": "Technical Analysis of Modern Non-LLM OCR Engines (IntuitionLabs) — \"TrOCR is generally slower than an equivalent CRNN and needs more memory\"; ViTSTR ~11x slower than a small CRNN on CPU",
+          "href": "https://intuitionlabs.ai/articles/non-llm-ocr-technologies"
+        },
+        {
+          "label": "GitHub issue on the official TrOCR/UniLM repo: \"How to improve speed to TrOCR inference?\" — 600ms per single text line on a V100 GPU",
+          "href": "https://github.com/microsoft/unilm/issues/462"
+        },
+        {
+          "label": "LayoutLMv2: Multi-modal Pre-training for Visually-Rich Document Understanding (arXiv:2012.14740)",
+          "href": "https://ar5iv.labs.arxiv.org/html/2012.14740"
+        },
+        {
+          "label": "LayoutLMv3: Pre-training for Document AI with Unified Text and Image Masking (arXiv:2204.08387)",
+          "href": "https://ar5iv.labs.arxiv.org/html/2204.08387"
+        },
+        {
+          "label": "Layout LM explained - paper reading (Minhaz's Blog)",
+          "href": "https://blog.minhazav.dev/layout-lm-explained-paper-reading/"
+        },
+        {
+          "label": "GraphLayoutLM (arXiv:2308.07777) — Table 1 comparison citing LayoutLM/v2/v3 FUNSD baselines",
+          "href": "https://ar5iv.labs.arxiv.org/html/2308.07777"
+        },
+        {
+          "label": "LayoutLMv2: Multi-modal Pre-training for Visually-rich Document Understanding",
+          "href": "https://arxiv.org/abs/2012.14740"
+        },
+        {
+          "label": "LayoutLMv3: Pre-training for Document AI with Unified Text and Image Masking",
+          "href": "https://arxiv.org/abs/2204.08387"
+        },
+        {
+          "label": "LayoutLMv2 — Hugging Face Transformers documentation",
+          "href": "https://huggingface.co/docs/transformers/en/model_doc/layoutlmv2"
+        },
+        {
+          "label": "LayoutLMv3 — Hugging Face Transformers documentation",
+          "href": "https://huggingface.co/docs/transformers/en/model_doc/layoutlmv3"
+        },
+        {
+          "label": "SCOB: Universal Text Understanding via Character-wise Supervised Contrastive Learning with Online Text Rendering for Bridging Domain Gap",
+          "href": "https://arxiv.org/abs/2309.12382"
+        },
+        {
+          "label": "Unifying Vision, Text, and Layout for Universal Document Processing (UDOP), Table 2 DocVQA=84.7",
+          "href": "https://arxiv.org/abs/2212.02623"
+        },
+        {
+          "label": "Papers Explained 254: Pix2Struct (Ritvik Rastogi)",
+          "href": "https://ritvik19.medium.com/papers-explained-254-pix2struct-6adc95a01586"
+        },
+        {
+          "label": "Document Information Extraction Using Pix2Struct (Analytics Vidhya)",
+          "href": "https://www.analyticsvidhya.com/blog/2023/04/document-information-extraction-using-pix2struct/"
+        },
+        {
+          "label": "Pix2Struct: Screenshot Parsing as Pretraining for Visual Language Understanding (aiexpjourney newsletter)",
+          "href": "https://aiexpjourney.substack.com/p/pix2struct-screenshot-parsing-as"
+        },
+        {
+          "label": "Kosmos-2.5 README — microsoft/unilm (GitHub, documentation officielle du modèle)",
+          "href": "https://github.com/microsoft/unilm/blob/master/kosmos-2.5/README.md"
+        },
+        {
+          "label": "Qwen2.5-VL Technical Report — abstract arXiv:2502.13923",
+          "href": "https://arxiv.org/abs/2502.13923"
+        },
+        {
+          "label": "Qwen/Qwen2.5-VL-7B-Instruct — fiche modèle Hugging Face (tableau benchmarks)",
+          "href": "https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct"
+        },
+        {
+          "label": "Qwen/Qwen2.5-VL-72B-Instruct — fiche modèle Hugging Face (tableau benchmarks)",
+          "href": "https://huggingface.co/Qwen/Qwen2.5-VL-72B-Instruct"
+        },
+        {
+          "label": "Nougat: Neural Optical Understanding for Academic Documents — arXiv:2308.13418 (texte intégral, rendu ar5iv)",
+          "href": "https://ar5iv.labs.arxiv.org/html/2308.13418"
+        },
+        {
+          "label": "Nougat: Neural Optical Understanding for Academic Documents",
+          "href": "https://arxiv.org/abs/2308.13418"
+        },
+        {
+          "label": "KOSMOS-2.5: A Multimodal Literate Model (arXiv:2309.11419) — Section 5 « Conclusion and Future Work » (limitations listées : pas de mention d'hallucination/répétition)",
+          "href": "https://arxiv.org/abs/2309.11419"
+        },
+        {
+          "label": "General OCR Theory: Towards OCR-2.0 via a Unified End-to-end Model / GOT-OCR2.0 (arXiv:2409.01704) — Introduction et Conclusion (pas de section Limitations dédiée à l'hallucination du modèle)",
+          "href": "https://arxiv.org/abs/2409.01704"
+        },
+        {
+          "label": "DocVQA: A Dataset for VQA on Document Images (Mathew, Karatzas, Jawahar — arXiv:2007.00398, WACV 2021)",
+          "href": "https://arxiv.org/abs/2007.00398"
+        },
+        {
+          "label": "DocLayNet: A Large Human-Annotated Dataset for Document-Layout Analysis (Pfitzmann, Auer, Dolfi, Nassar, Staar — arXiv:2206.01062, SIGKDD 2022)",
+          "href": "https://arxiv.org/abs/2206.01062"
+        },
+        {
+          "label": "PubLayNet: largest dataset ever for document layout analysis (Zhong, Tang, Jimeno Yepes — arXiv:1908.07836)",
+          "href": "https://arxiv.org/abs/1908.07836"
+        },
+        {
+          "label": "IBM Research publication page — DocLayNet",
+          "href": "https://research.ibm.com/publications/doclaynet-a-large-human-annotated-dataset-for-document-layout-segmentation"
+        },
+        {
+          "label": "FUNSD: A Dataset for Form Understanding in Noisy Scanned Documents (Jaume, Ekenel, Thiran — arXiv:1905.13538)",
+          "href": "https://ar5iv.labs.arxiv.org/html/1905.13538"
+        },
+        {
+          "label": "PubTabNet / Image-based table recognition: data, model, and evaluation (Zhong, ShafieiBavani, Jimeno Yepes — arXiv:1911.10683)",
+          "href": "https://arxiv.org/abs/1911.10683"
+        },
+        {
+          "label": "PubTables-1M: Towards comprehensive table extraction from unstructured documents (Smock, Pesala, Abraham — arXiv:2110.00061)",
+          "href": "https://ar5iv.labs.arxiv.org/html/2110.00061"
+        },
+        {
+          "label": "microsoft/table-transformer (GitHub)",
+          "href": "https://github.com/microsoft/table-transformer"
+        },
+        {
+          "label": "TableFormer: Table Structure Understanding with Transformers (Nassar, Livathinos, Lysak, Staar — IBM Research, CVPR 2022)",
+          "href": "https://research.ibm.com/publications/tableformer-table-structure-understanding-with-transformers"
+        },
+        {
+          "label": "Image-based table recognition: data, model, and evaluation (PubTabNet, arXiv, full text via ar5iv)",
+          "href": "https://arxiv.org/pdf/1911.10683"
+        },
+        {
+          "label": "PubTables-1M: Towards comprehensive table extraction from unstructured documents (arXiv, full text via ar5iv)",
+          "href": "https://arxiv.org/abs/2110.00061"
+        },
+        {
+          "label": "TableFormer: Table Structure Understanding with Transformers (arXiv)",
+          "href": "https://arxiv.org/abs/2203.01017"
+        },
+        {
+          "label": "Superhuman on DocVQA without images in QA — Agentic Document Extraction (LandingAI blog)",
+          "href": "https://landing.ai/blog/superhuman-on-docvqa-without-images-in-qa-agentic-document-extraction"
+        },
+        {
+          "label": "arXiv 2402.02379 — EC-FUNSD: an entity-centric benchmark disentangling FUNSD's block-level annotation shortcut",
+          "href": "https://arxiv.org/abs/2402.02379"
+        },
+        {
+          "label": "arXiv 2504.10419 — CheckboxQA: uncovering a checkbox blind spot in document VQA",
+          "href": "https://arxiv.org/abs/2504.10419"
+        },
+        {
+          "label": "Qwen2-VL: Enhancing Vision-Language Model's Perception of the World at Any Resolution",
+          "href": "https://arxiv.org/abs/2409.12191"
+        },
+        {
+          "label": "arXiv 2407.01523 — MMLongBench-Doc: benchmarking long-context document understanding with visualizations",
+          "href": "https://arxiv.org/abs/2407.01523"
+        },
+        {
+          "label": "Docling: An Efficient Open-Source Toolkit for AI-driven Document Conversion (arXiv:2501.17887, full text)",
+          "href": "https://arxiv.org/abs/2501.17887"
+        },
+        {
+          "label": "Docling: a powerful open-source tool for parsing documents for generative AI (IBM Research blog)",
+          "href": "https://research.ibm.com/blog/docling-generative-AI"
+        },
+        {
+          "label": "ColPali: Efficient Document Retrieval with Vision Language Models (arXiv:2407.01449, full text)",
+          "href": "https://arxiv.org/abs/2407.01449"
+        },
+        {
+          "label": "Why Reading PDFs is Hard (LlamaIndex blog)",
+          "href": "https://www.llamaindex.ai/blog/why-reading-pdfs-is-hard"
+        },
+        {
+          "label": "PDF — Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/PDF"
+        },
+        {
+          "label": "Unstructured Benchmarks",
+          "href": "https://unstructured.io/benchmarks"
+        },
+        {
+          "label": "PDF Parsing Accuracy Benchmark: Docling vs Unstructured (ertas.ai blog)",
+          "href": "https://www.ertas.ai/blog/pdf-parsing-accuracy-benchmark-docling-unstructured"
+        },
+        {
+          "label": "Empirical Evaluation of PDF Parsing and Chunking for Financial Question Answering with RAG (arXiv:2604.12047)",
+          "href": "https://arxiv.org/abs/2604.12047"
+        }
+      ]
+    },
+    {
+      "type": "pointers",
+      "title": "Pour aller plus loin",
+      "items": [
+        {
+          "name": "Tesseract OCR",
+          "url": "https://github.com/tesseract-ocr/tesseract",
+          "kind": "tool",
+          "blurb": "Moteur OCR open-source historique ; depuis la v4, propose un moteur LSTM (détection+reconnaissance de ligne, CTC) aux côtés du moteur legacy."
+        },
+        {
+          "name": "PaddleOCR",
+          "url": "https://github.com/PaddlePaddle/PaddleOCR",
+          "kind": "tool",
+          "blurb": "Toolkit OCR de Baidu implémentant la lignée PP-OCR (détection DB + classification d'orientation + reconnaissance CRNN/CTC), optimisé pour la légèreté."
+        },
+        {
+          "name": "TrOCR (microsoft/unilm)",
+          "url": "https://github.com/microsoft/unilm/tree/master/trocr",
+          "kind": "implementation",
+          "blurb": "Implémentation de référence de TrOCR (encodeur d'image + décodeur texte pré-entraînés type Transformer), également intégrée à Hugging Face Transformers."
+        },
+        {
+          "name": "clovaai/donut",
+          "url": "https://github.com/clovaai/donut",
+          "kind": "implementation",
+          "blurb": "Official implementation of Donut and its SynthDoG synthetic-document generator (ECCV 2022)."
+        },
+        {
+          "name": "naver-clova-ix/donut-base",
+          "url": "https://huggingface.co/naver-clova-ix/donut-base",
+          "kind": "implementation",
+          "blurb": "Pretrained-only Donut checkpoint on Hugging Face, meant to be fine-tuned for classification, parsing or DocVQA."
+        },
+        {
+          "name": "google-research/pix2struct",
+          "url": "https://github.com/google-research/pix2struct",
+          "kind": "implementation",
+          "blurb": "Official Pix2Struct code release, including screenshot-parsing pretraining and task configs."
+        },
+        {
+          "name": "google/pix2struct-docvqa-large",
+          "url": "https://huggingface.co/google/pix2struct-docvqa-large",
+          "kind": "implementation",
+          "blurb": "Pix2Struct-Large checkpoint fine-tuned for DocVQA, available on Hugging Face."
+        },
+        {
+          "name": "Nougat (facebookresearch/nougat)",
+          "url": "https://github.com/facebookresearch/nougat",
+          "kind": "implementation",
+          "blurb": "Implémentation officielle Meta : conversion d'une page de PDF scientifique rasterisée en Markdown, sans OCR."
+        },
+        {
+          "name": "Kosmos-2.5 (microsoft/unilm)",
+          "url": "https://github.com/microsoft/unilm/tree/master/kosmos-2.5",
+          "kind": "implementation",
+          "blurb": "Code et poids officiels Microsoft pour le modèle littéraire multimodal générant du texte spatialisé ou du Markdown structuré à partir d'images."
+        },
+        {
+          "name": "GOT-OCR2.0 (Ucas-HaoranWei/GOT-OCR2.0)",
+          "url": "https://github.com/Ucas-HaoranWei/GOT-OCR2.0",
+          "kind": "implementation",
+          "blurb": "Implémentation officielle du modèle unifié « OCR-2.0 » traitant texte, formules, tableaux, partitions et graphiques comme des caractères."
+        },
+        {
+          "name": "mPLUG-DocOwl (X-PLUG/mPLUG-DocOwl)",
+          "url": "https://github.com/X-PLUG/mPLUG-DocOwl",
+          "kind": "implementation",
+          "blurb": "Code officiel Alibaba du MLLM modulaire instruction-tuné pour la compréhension de documents, avec son jeu d'évaluation dédié."
+        },
+        {
+          "name": "Granite-Docling-258M",
+          "url": "https://huggingface.co/ibm-granite/granite-docling-258M",
+          "kind": "implementation",
+          "blurb": "Fiche modèle officielle IBM : VLM 258M (architecture Idefics3) convertissant un document en DocTags (layout, tableaux OTSL, formules LaTeX) en une passe."
+        },
+        {
+          "name": "Qwen2.5-VL-72B-Instruct (Hugging Face)",
+          "url": "https://huggingface.co/Qwen/Qwen2.5-VL-72B-Instruct",
+          "kind": "implementation",
+          "blurb": "Fiche modèle Hugging Face du VLM 72B d'Alibaba dont les benchmarks (DocVQA, MMMU) le positionnent au niveau de GPT-4o/Claude 3.5 Sonnet sur la compréhension de documents ; le dépôt GitHub QwenLM/Qwen2.5-VL a depuis été renommé et son contenu remplacé par Qwen3-VL, donc corrigé vers HF."
+        },
+        {
+          "name": "RVL-CDIP (Hugging Face)",
+          "url": "https://huggingface.co/datasets/aharley/rvl_cdip",
+          "kind": "reading",
+          "blurb": "Sous-ensemble étiqueté (400k images, 16 classes) de IIT-CDIP pour la classification d'images de documents."
+        },
+        {
+          "name": "FUNSD — site officiel",
+          "url": "https://guillaumejaume.github.io/FUNSD/",
+          "kind": "reading",
+          "blurb": "Site officiel du jeu de 199 formulaires scannés pour l'entity labeling et l'entity linking."
+        },
+        {
+          "name": "CORD (clovaai/cord)",
+          "url": "https://github.com/clovaai/cord",
+          "kind": "reading",
+          "blurb": "Dépôt officiel Clova AI du jeu de reçus indonésiens annotés (OCR + parsing sémantique)."
+        },
+        {
+          "name": "SROIE — ICDAR2019 Robust Reading Challenge",
+          "url": "https://rrc.cvc.uab.es/?ch=13",
+          "kind": "reading",
+          "blurb": "Page du challenge ICDAR2019 (OCR + extraction d'information sur reçus scannés)."
+        },
+        {
+          "name": "PubLayNet (ibm-aur-nlp)",
+          "url": "https://github.com/ibm-aur-nlp/PubLayNet",
+          "kind": "reading",
+          "blurb": "Dépôt IBM du jeu de pages annotées automatiquement pour l'analyse de mise en page, meilleur papier ICDAR 2019."
+        },
+        {
+          "name": "DocLayNet (DS4SD)",
+          "url": "https://github.com/DS4SD/DocLayNet",
+          "kind": "reading",
+          "blurb": "Dépôt IBM du jeu de pages annotées manuellement sur des classes de mise en page."
+        },
+        {
+          "name": "PubTabNet (ibm-aur-nlp)",
+          "url": "https://github.com/ibm-aur-nlp/PubTabNet",
+          "kind": "reading",
+          "blurb": "Dépôt IBM du jeu de 568k+ tables avec représentation HTML, associé à la métrique TEDS."
+        },
+        {
+          "name": "Table Transformer / PubTables-1M",
+          "url": "https://github.com/microsoft/table-transformer",
+          "kind": "implementation",
+          "blurb": "Implémentation Microsoft des modèles DETR de détection et reconnaissance de structure de table, entraînés sur PubTables-1M."
+        },
+        {
+          "name": "DocVQA — site officiel",
+          "url": "https://www.docvqa.org/datasets/docvqa",
+          "kind": "reading",
+          "blurb": "Page officielle du jeu DocVQA (50k questions, ~12k images) ; les leaderboards des challenges sont accessibles depuis le même site (section Challenges)."
+        },
+        {
+          "name": "Docling",
+          "url": "https://github.com/docling-project/docling",
+          "kind": "tool",
+          "blurb": "Pipeline open source (IBM Research, MIT) de conversion de documents pour le RAG, avec export Markdown/JSON/DocTags sans perte."
+        },
+        {
+          "name": "LayoutParser",
+          "url": "https://layout-parser.github.io/",
+          "kind": "tool",
+          "blurb": "Toolkit pour la détection de layout par deep learning et le partage communautaire de pipelines de numérisation de documents (présenté à ICDAR 2021)."
+        },
+        {
+          "name": "Unstructured",
+          "url": "https://github.com/Unstructured-IO/unstructured",
+          "kind": "tool",
+          "blurb": "Bibliothèque open source de partitionnement de documents (PDF, HTML, DOCX...) pour pipelines RAG."
+        },
+        {
+          "name": "Marker (datalab-to/marker)",
+          "url": "https://github.com/datalab-to/marker",
+          "kind": "tool",
+          "blurb": "Convertisseur PDF→Markdown/JSON rapide ; code Apache 2.0, mais poids de modèle sous licence avec seuil de revenu/financement (gratuit sous 5M$) ; dépôt renommé depuis VikParuchuri/marker."
+        },
+        {
+          "name": "Azure AI Document Intelligence",
+          "url": "https://learn.microsoft.com/en-us/azure/ai-services/document-intelligence/",
+          "kind": "tool",
+          "blurb": "Service managé Microsoft avec modèles pré-entraînés (facture, reçu) et une page dédiée au chunking RAG."
+        },
+        {
+          "name": "Google Cloud Document AI",
+          "url": "https://cloud.google.com/document-ai",
+          "kind": "tool",
+          "blurb": "Service managé Google avec parsers pré-entraînés pour la préparation de documents à des usages de recherche/RAG."
+        },
+        {
+          "name": "Amazon Textract",
+          "url": "https://aws.amazon.com/textract/",
+          "kind": "tool",
+          "blurb": "Service managé AWS d'extraction de texte/tables/clé-valeur, utilisé en production dans des pipelines IDP."
+        },
+        {
+          "name": "ColPali (ColVision models)",
+          "url": "https://github.com/illuin-tech/colpali",
+          "kind": "implementation",
+          "blurb": "Modèles ColPali/ColQwen2/ColSmol pour l'embedding multi-vecteur de pages en images, court-circuitant le parsing PDF côté retrieval."
+        },
+        {
+          "name": "LlamaParse",
+          "url": "https://www.llamaindex.ai/blog/introducing-llamacloud-and-llamaparse-af8cedf9006b",
+          "kind": "tool",
+          "blurb": "Article de blog officiel LlamaIndex annonçant LlamaParse, service propriétaire de parsing PDF pensé pour le chunking et le retrieval récursif en RAG."
+        },
+        {
+          "name": "Empirical Evaluation of PDF Parsing and Chunking for Financial QA with RAG",
+          "url": "https://arxiv.org/abs/2604.12047",
+          "kind": "reading",
+          "blurb": "Étude comparant parseurs PDF et stratégies de chunking sur des benchmarks financiers (dont TableQuest, créé par les auteurs), DOI lié à une publication ACM cohérente avec ICSE-SEIP 2026."
+        }
+      ]
+    },
+    {
+      "type": "glossary"
+    }
+  ]
+}
