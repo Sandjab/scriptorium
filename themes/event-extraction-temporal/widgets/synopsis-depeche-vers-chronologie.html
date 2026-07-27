@@ -1,0 +1,993 @@
+<div class="widget sdc-root" id="sdc-root">
+  <style>
+    .sdc-root{--sdc-ink:var(--ink,#15202E);--sdc-soft:var(--ink-soft,#43536A);
+      --sdc-faint:var(--ink-faint,#7A889B);--sdc-card:var(--card,#fff);
+      --sdc-line:var(--line,#D7DFE9);--sdc-line-soft:var(--line-soft,#E7ECF3);
+      --sdc-blue:var(--blue,#23537F);--sdc-deep:var(--blue-deep,#142E49);
+      --sdc-bright:var(--blue-bright,#2C77B6);--sdc-wash:var(--blue-wash,#E7EEF6);
+      --sdc-bord:var(--bordeaux,#7C2A38);--sdc-bord-br:var(--bordeaux-bright,#9B3443);
+      --sdc-bord-wash:var(--bordeaux-wash,#F3E3E6);--sdc-gold:var(--gold,#C68A2E);
+      --sdc-gold-dark:#9A6A1E;--sdc-gold-wash:#FBF3E1;
+      --sdc-green:#2F7D5B;--sdc-green-wash:#EAF4EE;
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--sdc-ink);
+      border:1px solid var(--sdc-line);border-radius:12px;padding:18px 18px 15px;
+      background:var(--sdc-card);max-width:960px}
+    .sdc-root *{box-sizing:border-box}
+    .sdc-k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;color:var(--sdc-faint);font-weight:600;margin:0 0 2px}
+    .sdc-title{font-weight:700;font-size:1.05rem;margin:0 0 4px;line-height:1.3}
+    .sdc-sub{font-size:.84rem;color:var(--sdc-soft);margin:0 0 12px;line-height:1.5}
+    .sdc-sub b{color:var(--sdc-ink)}
+    .sdc-root code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em}
+
+    /* rangée de l'ancre DCT + compteur d'étape */
+    .sdc-dctrow{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0 0 9px}
+    .sdc-dctlab{font-size:.68rem;letter-spacing:.05em;text-transform:uppercase;color:var(--sdc-faint);font-weight:700;margin-right:2px}
+    .sdc-dct{border:1px solid var(--sdc-line);border-radius:999px;background:var(--sdc-card);color:var(--sdc-soft);
+      font:600 .76rem/1 inherit;font-family:inherit;padding:6px 11px;cursor:pointer;transition:.15s}
+    .sdc-dct:hover{border-color:var(--sdc-bright)}
+    .sdc-dct.sdc-sel{background:var(--sdc-blue);border-color:var(--sdc-blue);color:#fff}
+    .sdc-dcthint{font-size:.66rem;color:var(--sdc-faint)}
+    .sdc-stepctr{margin-left:auto;font:700 .72rem/1 ui-monospace,monospace;color:var(--sdc-faint);white-space:nowrap}
+
+    /* commandes : pas-à-pas + lecture continue */
+    .sdc-ctrl{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin:0 0 11px}
+    .sdc-btn{border:1px solid var(--sdc-line);border-radius:8px;background:var(--sdc-card);color:var(--sdc-ink);
+      font:600 .8rem/1 inherit;font-family:inherit;padding:8px 12px;cursor:pointer;transition:.15s}
+    .sdc-btn:hover:not(:disabled){border-color:var(--sdc-bright);background:var(--sdc-wash)}
+    .sdc-btn:disabled{opacity:.45;cursor:default}
+    .sdc-btn.sdc-primary{background:var(--sdc-blue);border-color:var(--sdc-blue);color:#fff}
+    .sdc-btn.sdc-primary:hover:not(:disabled){background:var(--sdc-deep);border-color:var(--sdc-deep)}
+    .sdc-pbar{flex:1 1 90px;min-width:70px;height:7px;border:1px solid var(--sdc-line);border-radius:99px;overflow:hidden;background:var(--sdc-card)}
+    .sdc-pfill{display:block;height:100%;width:0%;background:var(--sdc-bright);transition:width .25s}
+
+    /* rail des 6 phases */
+    .sdc-rail{display:flex;gap:4px;margin:0 0 12px;flex-wrap:wrap}
+    .sdc-ph{flex:1 1 140px;min-width:132px;border:1px solid var(--sdc-line);border-radius:8px;padding:5px 8px 7px;
+      background:var(--sdc-card);text-align:center;transition:.15s;cursor:pointer;font-family:inherit}
+    .sdc-ph .sdc-pn{font-size:.56rem;letter-spacing:.03em;text-transform:uppercase;color:var(--sdc-faint);font-weight:700}
+    .sdc-ph .sdc-pl{font-size:.72rem;font-weight:700;color:var(--sdc-soft);line-height:1.15;margin-top:1px}
+    .sdc-ph .sdc-pf{font-size:.62rem;color:var(--sdc-faint);font-family:ui-monospace,monospace;margin-top:2px}
+    .sdc-ph:hover{border-color:var(--sdc-bright)}
+    .sdc-ph.sdc-active{border-color:var(--sdc-bright);background:var(--sdc-wash);box-shadow:0 0 0 1px var(--sdc-bright)}
+    .sdc-ph.sdc-active .sdc-pl{color:var(--sdc-blue)}
+    .sdc-ph.sdc-done{border-color:#C3E0D0;background:var(--sdc-green-wash)}
+    .sdc-ph.sdc-done .sdc-pn{color:var(--sdc-green)}
+
+    /* grille principale */
+    .sdc-grid{display:flex;gap:13px;flex-wrap:wrap;align-items:flex-start}
+    .sdc-col-main{flex:1 1 470px;min-width:340px}
+    .sdc-col-side{flex:1 1 250px;min-width:230px;display:flex;flex-direction:column;gap:10px}
+
+    /* scène : la dépêche annotée */
+    .sdc-stage{border:1px solid var(--sdc-line-soft);border-radius:9px;background:#FBFCFE;padding:11px 12px 10px}
+    .sdc-sh{font-size:.7rem;letter-spacing:.05em;text-transform:uppercase;color:var(--sdc-faint);font-weight:700;margin:0 0 8px}
+    .sdc-sh b{color:var(--sdc-blue);font-weight:800}
+    .sdc-doc{border:1px solid var(--sdc-line);border-radius:8px;background:var(--sdc-card);padding:10px 12px 11px;
+      font-size:.92rem;line-height:2.05}
+    .sdc-dctline{font-size:.72rem;color:var(--sdc-faint);border-bottom:1px dashed var(--sdc-line-soft);
+      padding-bottom:6px;margin-bottom:7px;line-height:1.8}
+    .sdc-dctline b{color:var(--sdc-soft)}
+    .sdc-snum{font:700 .62rem/1 ui-monospace,monospace;color:var(--sdc-faint);margin-right:4px;vertical-align:1px}
+
+    /* empans annotés */
+    .sdc-trg{font-weight:700;border-bottom:2.5px solid;padding:1px 2px;border-radius:3px 3px 0 0;cursor:pointer}
+    .sdc-trg.sdc-ty-atk{color:var(--sdc-bord);border-color:var(--sdc-bord-br);background:var(--sdc-bord-wash)}
+    .sdc-trg.sdc-ty-inj{color:var(--sdc-green);border-color:var(--sdc-green);background:var(--sdc-green-wash)}
+    .sdc-trg.sdc-ty-arr{color:var(--sdc-blue);border-color:var(--sdc-bright);background:var(--sdc-wash)}
+    .sdc-mbadge{display:inline-block;font:800 .58rem/1 ui-monospace,monospace;letter-spacing:.02em;
+      border-radius:4px;padding:2.5px 4px;margin-left:2px;vertical-align:5px;white-space:nowrap}
+    .sdc-mbadge.sdc-ty-atk{background:var(--sdc-bord-wash);color:var(--sdc-bord-br)}
+    .sdc-mbadge.sdc-ty-inj{background:var(--sdc-green-wash);color:var(--sdc-green)}
+    .sdc-mbadge.sdc-ty-arr{background:var(--sdc-wash);color:var(--sdc-blue)}
+    .sdc-arg{border-bottom:2px dotted var(--sdc-bright);padding-bottom:1px;cursor:pointer}
+    .sdc-role{display:inline-block;font-weight:800;font-size:.56rem;line-height:1;letter-spacing:.04em;text-transform:uppercase;
+      background:var(--sdc-card);border:1px solid var(--sdc-line);color:var(--sdc-soft);
+      border-radius:4px;padding:2px 4px;margin-left:3px;vertical-align:5px;white-space:nowrap}
+    .sdc-tmx{background:var(--sdc-gold-wash);border-bottom:2px solid var(--sdc-gold);padding:1px 2px;border-radius:3px 3px 0 0;cursor:pointer}
+    .sdc-tval{display:inline-block;font:800 .58rem/1 ui-monospace,monospace;background:var(--sdc-gold-wash);
+      color:var(--sdc-gold-dark);border:1px solid var(--sdc-gold);border-radius:4px;padding:2px 4px;
+      margin-left:3px;vertical-align:5px;white-space:nowrap}
+    .sdc-hl{outline:2px solid var(--sdc-bright);outline-offset:1px;border-radius:3px}
+
+    /* légende */
+    .sdc-legend{display:flex;gap:5px;flex-wrap:wrap;margin:7px 0 0}
+    .sdc-lg{font-weight:700;font-size:.6rem;line-height:1;letter-spacing:.02em;border-radius:999px;padding:4px 8px;white-space:nowrap}
+    .sdc-lg-atk{background:var(--sdc-bord-wash);color:var(--sdc-bord-br)}
+    .sdc-lg-inj{background:var(--sdc-green-wash);color:var(--sdc-green)}
+    .sdc-lg-arr{background:var(--sdc-wash);color:var(--sdc-blue)}
+    .sdc-lg-tmx{background:var(--sdc-gold-wash);color:var(--sdc-gold-dark)}
+    .sdc-lg-arg{background:var(--sdc-card);color:var(--sdc-soft);border:1px dashed var(--sdc-bright)}
+
+    /* structure extraite */
+    .sdc-struct{margin-top:10px}
+    .sdc-empty{font-size:.78rem;color:var(--sdc-faint);font-style:italic;margin:4px 0 0;line-height:1.5}
+    .sdc-block{border:1px solid var(--sdc-line-soft);border-radius:8px;background:var(--sdc-card);padding:8px 10px 9px;margin-top:8px;transition:.2s}
+    .sdc-block.sdc-new{border-color:var(--sdc-bright);box-shadow:0 0 0 1px var(--sdc-bright)}
+    .sdc-sth{font-size:.64rem;letter-spacing:.05em;text-transform:uppercase;color:var(--sdc-faint);font-weight:700;margin:0 0 6px}
+    .sdc-block.sdc-new .sdc-sth{color:var(--sdc-blue)}
+    .sdc-cards{display:flex;gap:6px;flex-wrap:wrap}
+    .sdc-card{flex:1 1 190px;min-width:170px;border:1px solid var(--sdc-line);border-radius:7px;padding:6px 8px 7px;background:#FDFEFF;cursor:pointer;transition:.15s}
+    .sdc-card .sdc-ch{display:flex;gap:4px;align-items:baseline;flex-wrap:wrap;margin:0 0 3px}
+    .sdc-cid{font:800 .68rem/1 ui-monospace,monospace}
+    .sdc-cid.sdc-ty-atk{color:var(--sdc-bord-br)}
+    .sdc-cid.sdc-ty-inj{color:var(--sdc-green)}
+    .sdc-cid.sdc-ty-arr{color:var(--sdc-blue)}
+    .sdc-ctype{font:700 .58rem/1 ui-monospace,monospace;color:var(--sdc-faint)}
+    .sdc-ctrig{font-size:.72rem;color:var(--sdc-soft);margin:0 0 2px}
+    .sdc-ctrig b{color:var(--sdc-ink)}
+    .sdc-cargs{width:100%;border-collapse:collapse;font-size:.68rem;margin-top:3px}
+    .sdc-cargs td{padding:1.5px 4px 1.5px 0;vertical-align:top;line-height:1.35}
+    .sdc-cargs td:first-child{font-weight:800;font-size:.58rem;line-height:1.5;letter-spacing:.03em;text-transform:uppercase;color:var(--sdc-blue);white-space:nowrap}
+    .sdc-noarg{font-size:.68rem;color:var(--sdc-faint);font-style:italic;margin:2px 0 0}
+    .sdc-fus{font-size:.64rem;color:var(--sdc-bord-br);font-weight:700;margin:4px 0 0}
+    .sdc-prov{font:600 .58rem/1 ui-monospace,monospace;color:var(--sdc-faint)}
+
+    .sdc-ttbl{width:100%;border-collapse:collapse;font-size:.7rem}
+    .sdc-ttbl td,.sdc-ttbl th{padding:3px 6px 3px 0;text-align:left;vertical-align:top;line-height:1.4}
+    .sdc-ttbl th{font-size:.58rem;letter-spacing:.04em;text-transform:uppercase;color:var(--sdc-faint);border-bottom:1px solid var(--sdc-line-soft)}
+    .sdc-ttbl .sdc-tid{font:800 .66rem/1.5 ui-monospace,monospace;color:var(--sdc-gold-dark)}
+    .sdc-ttbl .sdc-tiso{font:800 .66rem/1.5 ui-monospace,monospace;color:var(--sdc-ink);white-space:nowrap}
+    .sdc-ttbl .sdc-trule{color:var(--sdc-soft)}
+
+    .sdc-tls{margin:0;padding:0;list-style:none}
+    .sdc-tl{display:flex;gap:6px;align-items:baseline;flex-wrap:wrap;font-size:.72rem;padding:3px 0;line-height:1.4}
+    .sdc-tlids{font:800 .66rem/1.5 ui-monospace,monospace;color:var(--sdc-ink);white-space:nowrap}
+    .sdc-tlrel{font:800 .58rem/1 ui-monospace,monospace;background:var(--sdc-wash);color:var(--sdc-blue);
+      border-radius:4px;padding:2.5px 5px;white-space:nowrap}
+    .sdc-tl.sdc-vague .sdc-tlrel{background:var(--sdc-bord-wash);color:var(--sdc-bord-br);border:1px dashed var(--sdc-bord-br)}
+    .sdc-tlcue{color:var(--sdc-faint);font-size:.66rem}
+
+    .sdc-tlwrap{overflow-x:auto}
+    .sdc-tldg{width:100%;min-width:520px;height:auto;display:block}
+    .sdc-tldg text{font-family:inherit}
+    .sdc-ordline{font:700 .66rem/1.55 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--sdc-soft);margin:6px 0 0;overflow-x:auto;white-space:nowrap}
+    .sdc-ordline b{color:var(--sdc-bord-br)}
+
+    .sdc-detail{border:1px solid var(--sdc-line-soft);border-radius:8px;background:var(--sdc-card);margin-top:9px;padding:9px 11px 10px}
+    .sdc-dh{font-size:.8rem;font-weight:700;color:var(--sdc-blue);margin:0 0 6px}
+    .sdc-note{font-size:.74rem;color:var(--sdc-soft);margin:7px 0 0;line-height:1.5}
+    .sdc-note b{color:var(--sdc-ink)}
+    .sdc-note:first-of-type{margin-top:0}
+    .sdc-banner{border-radius:9px;padding:10px 12px;margin:9px 0 0;font-size:.8rem;line-height:1.5;
+      background:var(--sdc-green-wash);border:1px solid #C3E0D0;color:var(--sdc-green)}
+    .sdc-banner b{display:block;font-size:.84rem;margin-bottom:2px}
+    .sdc-warn{border-radius:9px;padding:9px 12px;margin:8px 0 0;font-size:.74rem;line-height:1.5;
+      background:var(--sdc-bord-wash);border:1px solid var(--sdc-bord-br);color:var(--sdc-bord)}
+    .sdc-warn b{color:var(--sdc-bord-br)}
+
+    /* panneau latéral */
+    .sdc-box{border:1px solid var(--sdc-line-soft);border-radius:9px;background:#FBFCFE;padding:9px 11px 10px}
+    .sdc-bh{font-size:.64rem;letter-spacing:.05em;text-transform:uppercase;color:var(--sdc-faint);font-weight:700;margin:0 0 7px}
+    .sdc-cntrow{display:flex;align-items:baseline;gap:6px;margin:0 0 4px;border-radius:6px;padding:2.5px 5px;transition:.15s}
+    .sdc-cntrow.sdc-cur{background:var(--sdc-wash)}
+    .sdc-cntname{flex:1 1 auto;font-size:.68rem;font-weight:600;color:var(--sdc-faint);line-height:1.3}
+    .sdc-cntrow.sdc-on .sdc-cntname{color:var(--sdc-soft)}
+    .sdc-cntrow.sdc-cur .sdc-cntname{color:var(--sdc-blue);font-weight:800}
+    .sdc-cntval{flex:0 0 auto;font:800 .7rem/1 ui-monospace,monospace;color:var(--sdc-line);text-align:right;white-space:nowrap}
+    .sdc-cntrow.sdc-on .sdc-cntval{color:var(--sdc-ink)}
+    .sdc-cntrow.sdc-cur .sdc-cntval{color:var(--sdc-blue)}
+    .sdc-cntcap{font-size:.64rem;color:var(--sdc-faint);margin:6px 0 0;line-height:1.45}
+
+    .sdc-mechs{margin:0;padding:0;list-style:none;font-size:.7rem;line-height:1.35}
+    .sdc-mechs li{padding:2.5px 6px;border-radius:6px;color:var(--sdc-faint);transition:.15s}
+    .sdc-mechs li.sdc-mon{background:var(--sdc-wash);color:var(--sdc-blue);font-weight:700}
+
+    .sdc-foot{font-size:.72rem;color:var(--sdc-faint);margin:12px 0 0;line-height:1.5;border-top:1px dashed var(--sdc-line-soft);padding-top:9px}
+  </style>
+
+  <p class="sdc-k">Vue d'ensemble</p>
+  <p class="sdc-title">La dépêche devient chronologie : les six phases du pipeline sur trois phrases</p>
+  <p class="sdc-sub">
+    Une mini-dépêche jouet : deux comptes rendus de la même attaque, une expression temporelle
+    relative, une arrestation. Six phases chaînées transforment ce texte brut en frise datée :
+    <b>triggers</b> → <b>arguments</b> → <b>coréférence</b> → <b>TIMEX3</b> → <b>TLINK</b> →
+    <b>chronologie</b>. Avancez pas à pas ou déroulez d'un trait : la structure s'enrichit
+    sous vos yeux sur le même texte, et la frise finale signale honnêtement la zone que le texte
+    ne tranche pas. Tout est calculé exactement, sans aucun aléa — changez l'ancre (DCT) pour
+    voir la normalisation et la chronologie se recalculer.
+  </p>
+
+  <div class="sdc-dctrow" id="sdc-dctrow">
+    <span class="sdc-dctlab">Ancre — date de publication (DCT)</span>
+    <span class="sdc-dcthint" id="sdc-dcthint">(effet visible aux phases 4 à 6)</span>
+    <span class="sdc-stepctr" id="sdc-stepctr"></span>
+  </div>
+
+  <div class="sdc-ctrl">
+    <button type="button" class="sdc-btn" id="sdc-prev">◀ Précédente</button>
+    <button type="button" class="sdc-btn sdc-primary" id="sdc-next">Phase suivante ▶</button>
+    <button type="button" class="sdc-btn" id="sdc-play">▶▶ Dérouler jusqu'à la frise</button>
+    <button type="button" class="sdc-btn" id="sdc-reset">⟲ Rejouer</button>
+    <span class="sdc-pbar"><span class="sdc-pfill" id="sdc-pfill"></span></span>
+  </div>
+
+  <div class="sdc-rail" id="sdc-rail"></div>
+
+  <div class="sdc-grid">
+    <div class="sdc-col-main">
+      <div class="sdc-stage">
+        <p class="sdc-sh" id="sdc-stagehead"></p>
+        <div class="sdc-doc" id="sdc-doc"></div>
+        <div class="sdc-legend" id="sdc-legend"></div>
+        <div class="sdc-struct" id="sdc-struct"></div>
+        <div class="sdc-detail">
+          <p class="sdc-dh" id="sdc-dh"></p>
+          <div id="sdc-dbody"></div>
+        </div>
+        <div id="sdc-banner"></div>
+      </div>
+    </div>
+    <div class="sdc-col-side">
+      <div class="sdc-box">
+        <p class="sdc-bh">Tableau de bord — la structure accumulée</p>
+        <div id="sdc-cnt"></div>
+        <p class="sdc-cntcap">Chaque phase consomme la sortie de la précédente : une ancre manquée
+        en phase 1 serait un événement absent de la frise en phase 6.</p>
+      </div>
+      <div class="sdc-box">
+        <p class="sdc-bh">Mécanismes reliés (actifs à cette phase)</p>
+        <ul class="sdc-mechs" id="sdc-mechs"></ul>
+      </div>
+    </div>
+  </div>
+
+  <p class="sdc-foot">
+    Instance jouet, chaîne réelle : dans un vrai système, chaque phase produit aussi ses erreurs,
+    et elles se propagent — un trigger manqué prive la coréférence d'une mention, une valeur TIMEX3
+    fausse déplace tout un pan de la frise. Ici chaque sortie est exacte et déterministe pour isoler
+    le mécanisme ; survolez ou cliquez un empan du texte (ou une fiche) pour relier les deux vues.
+  </p>
+
+  <script>
+  (function(){
+    "use strict";
+    var $ = function(id){ return document.getElementById(id); };
+    var SVGNS = "http://www.w3.org/2000/svg";
+
+    /* ---------- helpers DOM ---------- */
+    function mk(tag, cls, txt){
+      var el = document.createElement(tag);
+      if (cls) el.className = cls;
+      if (txt != null) el.textContent = txt;
+      return el;
+    }
+    /* markup léger autorisé : <b> <code> <i> */
+    function setMarkup(el, markup){
+      el.textContent = "";
+      var parts = markup.split(/(<\/?(?:b|code|i)>)/), stack = [el];
+      for (var i = 0; i < parts.length; i++){
+        var tok = parts[i];
+        if (tok === "") continue;
+        if (tok === "<b>" || tok === "<code>" || tok === "<i>"){
+          var child = document.createElement(tok.slice(1, -1));
+          stack[stack.length - 1].appendChild(child); stack.push(child);
+        } else if (tok === "</b>" || tok === "</code>" || tok === "</i>"){
+          if (stack.length > 1) stack.pop();
+        } else stack[stack.length - 1].appendChild(document.createTextNode(tok));
+      }
+      return el;
+    }
+    function noteEl(m){ return setMarkup(mk("p", "sdc-note"), m); }
+    function svgEl(tag, attrs){
+      var el = document.createElementNS(SVGNS, tag);
+      for (var k in attrs) el.setAttribute(k, attrs[k]);
+      return el;
+    }
+    function stxt(parent, x, y, size, fill, weight, anchor, content){
+      var t = svgEl("text", {x:x, y:y, "font-size":size, fill:fill,
+        "font-weight":weight, "text-anchor":anchor});
+      t.textContent = content;
+      parent.appendChild(t);
+      return t;
+    }
+
+    /* ---------- calendrier (tout déterministe, calculé exactement) ---------- */
+    function pd(iso){ var p = iso.split("-"); return Date.UTC(+p[0], +p[1]-1, +p[2]); }
+    function addD(iso, n){
+      var d = new Date(pd(iso) + n*86400000);
+      return d.toISOString().slice(0, 10);
+    }
+    function dow(iso){ return new Date(pd(iso)).getUTCDay(); } /* 0 = dimanche */
+    var JOURS = ["dimanche","lundi","mardi","mercredi","jeudi","vendredi","samedi"];
+    var JABR  = ["dim.","lun.","mar.","mer.","jeu.","ven.","sam."];
+    var MOIS  = ["janvier","février","mars","avril","mai","juin","juillet",
+                 "août","septembre","octobre","novembre","décembre"];
+    function frDate(iso){
+      var p = iso.split("-");
+      return JOURS[dow(iso)] + " " + (+p[2]) + " " + MOIS[+p[1]-1] + " " + p[0];
+    }
+    function frShort(iso){
+      var p = iso.split("-");
+      return JABR[dow(iso)] + " " + (+p[2]) + " " + MOIS[+p[1]-1];
+    }
+    function lastThursdayBefore(iso){
+      var d = iso;
+      do { d = addD(d, -1); } while (dow(d) !== 4);
+      return d;
+    }
+    function timexVals(dct){
+      return { t0: dct, t1: addD(dct, -1), t2: lastThursdayBefore(dct) };
+    }
+
+    /* ---------- l'instance jouet ---------- */
+    var TYPES = {
+      ATTACK: { full:"CONFLICT.ATTACK",    cls:"sdc-ty-atk" },
+      INJURE: { full:"LIFE.INJURE",        cls:"sdc-ty-inj" },
+      ARREST: { full:"JUSTICE.ARREST-JAIL",cls:"sdc-ty-arr" }
+    };
+    var MENT = {
+      m1: { trig:"attaqué", ty:"ATTACK", ev:"E1", sent:"S1", pos:"verbe",
+            args:[["Attacker","des hommes armés"],["Target","un convoi militaire"],
+                  ["Place","Kaboul"],["Time-Within","« hier » (t1)"]] },
+      m2: { trig:"assaut",  ty:"ATTACK", ev:"E1", sent:"S2", pos:"nom", args:[] },
+      m3: { trig:"blessé",  ty:"INJURE", ev:"E2", sent:"S2", pos:"verbe",
+            args:[["Victim","trois soldats"]] },
+      m4: { trig:"arrêté",  ty:"ARREST", ev:"E3", sent:"S3", pos:"verbe",
+            args:[["Agent","la police"],["Person","deux suspects"],
+                  ["Time-Within","« jeudi » (t2)"],["Place","Kaboul"]] }
+    };
+    var EVENTS = {
+      E1: { ty:"ATTACK", label:"l'attaque",      ments:["m1","m2"] },
+      E2: { ty:"INJURE", label:"les blessures",  ments:["m3"] },
+      E3: { ty:"ARREST", label:"l'arrestation",  ments:["m4"] }
+    };
+    var EVORD = ["E1","E2","E3"];
+    var MORD  = ["m1","m2","m3","m4"];
+
+    /* segments des 3 phrases : t = texte ; trg = mention ; arg = {m, role} ; tmx = timex */
+    var SENTS = [
+      [ {t:"Des hommes armés", arg:{m:"m1", role:"Attacker"}},
+        {t:" ont "},
+        {t:"attaqué", trg:"m1"},
+        {t:" "},
+        {t:"hier", tmx:"t1", arg:{m:"m1", role:"Time-Within"}},
+        {t:" "},
+        {t:"un convoi militaire", arg:{m:"m1", role:"Target"}},
+        {t:" près de "},
+        {t:"Kaboul", arg:{m:"m1", role:"Place"}},
+        {t:"."} ],
+      [ {t:"L'"},
+        {t:"assaut", trg:"m2"},
+        {t:", qui a "},
+        {t:"blessé", trg:"m3"},
+        {t:" "},
+        {t:"trois soldats", arg:{m:"m3", role:"Victim"}},
+        {t:", n'a pas été revendiqué."} ],
+      [ {t:"La police", arg:{m:"m4", role:"Agent"}},
+        {t:" a "},
+        {t:"arrêté", trg:"m4"},
+        {t:" "},
+        {t:"deux suspects", arg:{m:"m4", role:"Person"}},
+        {t:" "},
+        {t:"jeudi", tmx:"t2", arg:{m:"m4", role:"Time-Within"}},
+        {t:" à "},
+        {t:"Kaboul", arg:{m:"m4", role:"Place"}},
+        {t:"."} ]
+    ];
+
+    var PH = [
+      { n:"Phase 1", l:"Détection des triggers",    f:"ancres → types" },
+      { n:"Phase 2", l:"Étiquetage des arguments",  f:"rôles du schéma" },
+      { n:"Phase 3", l:"Coréférence d'événements",  f:"m1 + m2 → E1" },
+      { n:"Phase 4", l:"Normalisation TIMEX3",      f:"« hier » → ISO 8601" },
+      { n:"Phase 5", l:"Relations temporelles",     f:"TLINK : BEFORE, INCLUDES" },
+      { n:"Phase 6", l:"Chronologie",               f:"points + tri topologique" }
+    ];
+    var NSTEP = 6;
+
+    var DCTS = ["2010-03-12", "2010-03-13", "2010-03-15"];
+
+    var state = { step: 0, dct: DCTS[0], playing: null };
+
+    /* ---------- rangée DCT ---------- */
+    (function buildDctRow(){
+      var row = $("sdc-dctrow"), hint = $("sdc-dcthint");
+      DCTS.forEach(function(iso){
+        var b = mk("button", "sdc-dct", frDate(iso));
+        b.type = "button";
+        b.setAttribute("data-dct", iso);
+        b.addEventListener("click", function(){
+          if (state.dct === iso) return;
+          state.dct = iso;
+          render();
+        });
+        row.insertBefore(b, hint);
+      });
+    })();
+
+    /* ---------- rail des phases ---------- */
+    (function buildRail(){
+      var rail = $("sdc-rail");
+      PH.forEach(function(p, i){
+        var b = mk("button", "sdc-ph");
+        b.type = "button";
+        b.appendChild(mk("span", "sdc-pn", p.n));
+        b.appendChild(mk("br"));
+        b.appendChild(mk("span", "sdc-pl", p.l));
+        b.appendChild(mk("br"));
+        b.appendChild(mk("span", "sdc-pf", p.f));
+        b.addEventListener("click", function(){ stopPlay(); go(i + 1); });
+        rail.appendChild(b);
+      });
+    })();
+
+    /* ---------- rendu du texte annoté ---------- */
+    function badgeText(m){
+      var men = MENT[m];
+      var id = (state.step >= 3) ? men.ev : m;
+      return id + "·" + men.ty;
+    }
+    function renderDoc(){
+      var doc = $("sdc-doc"), s = state.step, v = timexVals(state.dct);
+      doc.textContent = "";
+      var dl = mk("p", "sdc-dctline");
+      dl.appendChild(document.createTextNode("Mini-dépêche (instance jouet) — publiée le "));
+      var d0 = mk("span", null, frDate(state.dct));
+      if (s >= 4){
+        d0.className = "sdc-tmx";
+        d0.setAttribute("data-link", "t0");
+        dl.appendChild(d0);
+        var tv0 = mk("span", "sdc-tval", "t0 = " + v.t0 + " (DCT)");
+        tv0.setAttribute("data-link", "t0");
+        dl.appendChild(tv0);
+      } else {
+        var b0 = mk("b", null, frDate(state.dct));
+        dl.appendChild(b0);
+      }
+      dl.appendChild(document.createTextNode("."));
+      doc.appendChild(dl);
+
+      var body = mk("p");
+      body.style.margin = "0";
+      SENTS.forEach(function(segs, si){
+        body.appendChild(mk("span", "sdc-snum", "S" + (si + 1)));
+        segs.forEach(function(sg){
+          var isTrg = sg.trg && s >= 1;
+          var isArg = sg.arg && s >= 2;
+          var isTmx = sg.tmx && s >= 4;
+          if (!isTrg && !isArg && !isTmx){
+            body.appendChild(document.createTextNode(sg.t));
+            return;
+          }
+          var span = mk("span", null, sg.t);
+          var cls = [];
+          if (isTrg) cls.push("sdc-trg", TYPES[MENT[sg.trg].ty].cls);
+          if (isArg) cls.push("sdc-arg");
+          if (isTmx) cls.push("sdc-tmx");
+          span.className = cls.join(" ");
+          var links = [];
+          if (sg.trg) links.push(sg.trg);
+          if (sg.arg) links.push(sg.arg.m);
+          if (sg.tmx) links.push(sg.tmx);
+          span.setAttribute("data-link", links.join(" "));
+          body.appendChild(span);
+          if (isTrg){
+            var mb = mk("span", "sdc-mbadge " + TYPES[MENT[sg.trg].ty].cls, badgeText(sg.trg));
+            mb.setAttribute("data-link", sg.trg);
+            body.appendChild(mb);
+          }
+          if (isArg){
+            var rc = mk("span", "sdc-role", sg.arg.role);
+            rc.setAttribute("data-link", sg.arg.m);
+            body.appendChild(rc);
+          }
+          if (isTmx){
+            var tv = mk("span", "sdc-tval", sg.tmx + " = " + v[sg.tmx]);
+            tv.setAttribute("data-link", sg.tmx);
+            body.appendChild(tv);
+          }
+        });
+        if (si < SENTS.length - 1) body.appendChild(document.createTextNode(" "));
+      });
+      doc.appendChild(body);
+    }
+
+    /* ---------- légende ---------- */
+    function renderLegend(){
+      var lg = $("sdc-legend"), s = state.step;
+      lg.textContent = "";
+      if (s >= 1){
+        lg.appendChild(mk("span", "sdc-lg sdc-lg-atk", "CONFLICT.ATTACK"));
+        lg.appendChild(mk("span", "sdc-lg sdc-lg-inj", "LIFE.INJURE"));
+        lg.appendChild(mk("span", "sdc-lg sdc-lg-arr", "JUSTICE.ARREST-JAIL"));
+      }
+      if (s >= 2) lg.appendChild(mk("span", "sdc-lg sdc-lg-arg", "argument + rôle"));
+      if (s >= 4) lg.appendChild(mk("span", "sdc-lg sdc-lg-tmx", "TIMEX3 normalisé"));
+    }
+
+    /* ---------- fiches mention / événement ---------- */
+    function argsTable(args){
+      var t = mk("table", "sdc-cargs");
+      args.forEach(function(a){
+        var tr = mk("tr");
+        tr.appendChild(mk("td", null, a[0]));
+        tr.appendChild(mk("td", null, a[1]));
+        t.appendChild(tr);
+      });
+      return t;
+    }
+    function mentionCard(m){
+      var men = MENT[m], s = state.step;
+      var c = mk("div", "sdc-card");
+      c.setAttribute("data-link", m);
+      var h = mk("div", "sdc-ch");
+      h.appendChild(mk("span", "sdc-cid " + TYPES[men.ty].cls, m));
+      h.appendChild(mk("span", "sdc-ctype", TYPES[men.ty].full));
+      h.appendChild(mk("span", "sdc-prov", men.sent));
+      c.appendChild(h);
+      c.appendChild(setMarkup(mk("p", "sdc-ctrig"),
+        "ancre : <b>« " + men.trig + " »</b> (" + men.pos + ")"));
+      if (s >= 2){
+        if (men.args.length) c.appendChild(argsTable(men.args));
+        else c.appendChild(mk("p", "sdc-noarg", "aucun argument local — mention nue"));
+      }
+      return c;
+    }
+    function eventCard(ev){
+      var e = EVENTS[ev];
+      var c = mk("div", "sdc-card");
+      c.setAttribute("data-link", e.ments.join(" "));
+      var h = mk("div", "sdc-ch");
+      h.appendChild(mk("span", "sdc-cid " + TYPES[e.ty].cls, ev));
+      h.appendChild(mk("span", "sdc-ctype", TYPES[e.ty].full));
+      c.appendChild(h);
+      var mentTxt = e.ments.map(function(m){
+        return "« " + MENT[m].trig + " » (" + MENT[m].sent + ")";
+      }).join(" + ");
+      setMarkup(c.appendChild(mk("p", "sdc-ctrig")), "mentions : <b>" + mentTxt + "</b>");
+      var union = [];
+      e.ments.forEach(function(m){ MENT[m].args.forEach(function(a){ union.push(a); }); });
+      if (union.length) c.appendChild(argsTable(union));
+      else c.appendChild(mk("p", "sdc-noarg", "aucun argument"));
+      if (e.ments.length > 1)
+        c.appendChild(mk("p", "sdc-fus", "⇐ fusion " + e.ments.join(" + ") +
+          " : même type, aucun argument contradictoire"));
+      return c;
+    }
+
+    /* ---------- TLINK ---------- */
+    function tlinkList(v){
+      return [
+        { a:"E1", rel:"IS_INCLUDED", b:"t1 (" + v.t1 + ")",
+          cue:"« attaqué hier » : l'adverbe rattache l'événement au jour" },
+        { a:"E1", rel:"INCLUDES", b:"E2",
+          cue:"« l'assaut, qui a blessé… » : les blessures surviennent au cours de l'attaque" },
+        { a:"E3", rel:"IS_INCLUDED", b:"t2 (" + v.t2 + ")",
+          cue:"« arrêté jeudi » : même mécanisme d'ancrage" },
+        { a:"E1", rel:"BEFORE", b:"t0 (" + v.t0 + ")",
+          cue:"passé composé : l'événement précède la publication" }
+      ];
+    }
+
+    /* ---------- frise (phase 6) ---------- */
+    function buildTimeline(host){
+      var v = timexVals(state.dct);
+      var sameDay = (v.t1 === v.t2);
+      var days = [];
+      for (var d = (pd(v.t2) < pd(v.t1) ? v.t2 : v.t1); pd(d) <= pd(v.t0); d = addD(d, 1))
+        days.push(d);
+      var W = 660, H = sameDay ? 200 : 168, x0 = 14, x1 = W - 14;
+      var slotW = (x1 - x0) / days.length;
+      var yAxis = H - 42;
+      var svg = svgEl("svg", { "class":"sdc-tldg", viewBox:"0 0 " + W + " " + H, role:"img" });
+      svg.setAttribute("aria-label",
+        "Frise chronologique construite à partir des TLINK : événements placés sur les jours normalisés, " +
+        "avec une zone hachée là où l'ordre reste indéterminé");
+
+      var defs = svgEl("defs", {});
+      var pat = svgEl("pattern", { id:"sdc-hatch", width:"7", height:"7",
+        patternUnits:"userSpaceOnUse", patternTransform:"rotate(45)" });
+      pat.appendChild(svgEl("rect", { width:"7", height:"7", fill:"#F3E3E6" }));
+      pat.appendChild(svgEl("rect", { width:"2", height:"7", fill:"#9B3443", opacity:"0.35" }));
+      defs.appendChild(pat);
+      svg.appendChild(defs);
+
+      /* axe + cases des jours */
+      svg.appendChild(svgEl("line", { x1:x0, y1:yAxis, x2:x1, y2:yAxis,
+        stroke:"#43536A", "stroke-width":"1.6" }));
+      svg.appendChild(svgEl("path", { d:"M" + (x1) + " " + yAxis + " l-8 -4 l0 8 z", fill:"#43536A" }));
+      days.forEach(function(d, i){
+        var xa = x0 + i * slotW;
+        svg.appendChild(svgEl("line", { x1:xa, y1:yAxis - 5, x2:xa, y2:yAxis + 5,
+          stroke:"#7A889B", "stroke-width":"1" }));
+        if (i % 2 === 1)
+          svg.insertBefore(svgEl("rect", { x:xa, y:18, width:slotW, height:yAxis - 18,
+            fill:"#7A889B", opacity:"0.06" }), svg.firstChild.nextSibling);
+        stxt(svg, xa + slotW/2, yAxis + 18, 10, "#43536A", "700", "middle", frShort(d));
+      });
+
+      function slotX(iso){ return x0 + days.indexOf(iso) * slotW; }
+      var TC = { ATTACK:{fill:"#F3E3E6", stroke:"#9B3443", ink:"#7C2A38"},
+                 INJURE:{fill:"#EAF4EE", stroke:"#2F7D5B", ink:"#2F7D5B"},
+                 ARREST:{fill:"#E7EEF6", stroke:"#2C77B6", ink:"#23537F"} };
+
+      function evBar(ev, label, x, y, w, h, labelTop){
+        var c = TC[EVENTS[ev].ty];
+        var g = svgEl("g", {});
+        g.appendChild(svgEl("rect", { x:x, y:y, width:w, height:h, rx:5,
+          fill:c.fill, stroke:c.stroke, "stroke-width":"1.4" }));
+        if (labelTop) stxt(g, x + 7, y + 11, 9, c.ink, "800", "start", label);
+        else stxt(g, x + w/2, y + h/2 + 3.5, 10, c.ink, "800", "middle", label);
+        svg.appendChild(g);
+        return g;
+      }
+      function endpoints(x, y, w, name){
+        stxt(svg, x + 2, y, 7.5, "#7A889B", "700", "start", name + "⁻");
+        stxt(svg, x + w - 2, y, 7.5, "#7A889B", "700", "end", name + "⁺");
+      }
+
+      if (sameDay){
+        var xs = slotX(v.t1), pad = slotW * 0.09;
+        var bx = xs + pad, bw = slotW - 2 * pad;
+        /* zone indéterminée hachée */
+        svg.appendChild(svgEl("rect", { x:bx - 6, y:36, width:bw + 12, height:100, rx:8,
+          fill:"url(#sdc-hatch)", opacity:"0.5", stroke:"#9B3443",
+          "stroke-width":"1.2", "stroke-dasharray":"5 4" }));
+        stxt(svg, bx + bw/2, 30, 9.5, "#9B3443", "800", "middle",
+          "ordre interne : indéterminé (VAGUE)");
+        /* E1 contenant E2 */
+        evBar("E1", "E1 · attaque", bx, 44, bw, 34, true);
+        endpoints(bx, 88, bw, "e1");
+        var e2w = bw * 0.44;
+        evBar("E2", "E2 · blessures", bx + (bw - e2w)/2, 58, e2w, 16);
+        stxt(svg, bx + (bw + e2w)/2 + 5, 69, 7.5, "#2F7D5B", "700", "start", "⊂ E1");
+        /* E3, ordre inconnu par rapport à E1 */
+        evBar("E3", "E3 · arrestation", bx, 100, bw, 26);
+        stxt(svg, bx + bw/2, 96, 9, "#9B3443", "800", "middle", "? avant, pendant ou après E1 ?");
+      } else {
+        var xsE3 = slotX(v.t2), xsE1 = slotX(v.t1), pad2 = slotW * 0.09;
+        var b1x = xsE1 + pad2, b1w = slotW - 2 * pad2;
+        evBar("E1", "E1 · attaque", b1x, 52, b1w, 34, true);
+        endpoints(b1x, 96, b1w, "e1");
+        var e2w2 = b1w * 0.44;
+        evBar("E2", "E2 · blessures", b1x + (b1w - e2w2)/2, 66, e2w2, 16);
+        stxt(svg, b1x + (b1w + e2w2)/2 + 5, 77, 7.5, "#2F7D5B", "700", "start", "⊂ E1");
+        evBar("E3", "E3 · arrestation", xsE3 + pad2, 52, slotW - 2 * pad2, 30);
+        stxt(svg, xsE3 + slotW/2, 46, 8.5, "#23537F", "800", "middle", "t2 < t1 : ordre résolu");
+      }
+
+      /* marqueur DCT */
+      var xd = slotX(v.t0) + slotW/2;
+      svg.appendChild(svgEl("line", { x1:xd, y1:24, x2:xd, y2:yAxis,
+        stroke:"#C68A2E", "stroke-width":"1.6", "stroke-dasharray":"4 3" }));
+      stxt(svg, xd, 18, 9, "#9A6A1E", "800", "middle", "t0 · publication (DCT)");
+
+      var wrap = mk("div", "sdc-tlwrap");
+      wrap.appendChild(svg);
+      host.appendChild(wrap);
+
+      var ord = mk("p", "sdc-ordline");
+      if (sameDay){
+        setMarkup(ord, frShort(v.t1) + " : { E1 ⊇ E2 · E3 } <b>ordre interne inconnu</b>  →  " +
+          frShort(v.t0) + " : t0");
+      } else {
+        setMarkup(ord, frShort(v.t2) + " : E3  →  " + frShort(v.t1) + " : E1 ⊇ E2  →  " +
+          frShort(v.t0) + " : t0");
+      }
+      host.appendChild(ord);
+      return sameDay;
+    }
+
+    /* ---------- structure extraite (colonne principale) ---------- */
+    function block(title, isNew){
+      var b = mk("div", "sdc-block" + (isNew ? " sdc-new" : ""));
+      b.appendChild(mk("p", "sdc-sth", title));
+      return b;
+    }
+    function renderStruct(){
+      var host = $("sdc-struct"), s = state.step, v = timexVals(state.dct);
+      host.textContent = "";
+      if (s === 0){
+        host.appendChild(mk("p", "sdc-empty",
+          "Aucune structure : la machine ne voit encore que des tokens. " +
+          "Lancez la phase 1 pour poser les premières ancres."));
+        return;
+      }
+      /* mentions puis événements */
+      if (s < 3){
+        var b1 = block("Mentions d'événements — sortie des phases 1" + (s >= 2 ? "-2" : ""), s <= 2);
+        var row1 = mk("div", "sdc-cards");
+        MORD.forEach(function(m){ row1.appendChild(mentionCard(m)); });
+        b1.appendChild(row1);
+        host.appendChild(b1);
+      } else {
+        var b2 = block("Événements — après coréférence (4 mentions → 3 événements)", s === 3);
+        var row2 = mk("div", "sdc-cards");
+        EVORD.forEach(function(ev){ row2.appendChild(eventCard(ev)); });
+        b2.appendChild(row2);
+        host.appendChild(b2);
+      }
+      if (s >= 4){
+        var b3 = block("TIMEX3 — expressions temporelles normalisées (ancre : " + v.t0 + ")", s === 4);
+        var tt = mk("table", "sdc-ttbl");
+        var hr = mk("tr");
+        ["id","texte","règle d'ancrage","valeur"].forEach(function(h){ hr.appendChild(mk("th", null, h)); });
+        tt.appendChild(hr);
+        [ ["t0", "date de la dépêche", "DCT — donnée avec le document", v.t0],
+          ["t1", "« hier »", "DCT − 1 jour", v.t1],
+          ["t2", "« jeudi »", "dernier jeudi avant la DCT (le passé composé impose le passé)", v.t2]
+        ].forEach(function(r){
+          var tr = mk("tr");
+          tr.setAttribute("data-link", r[0]);
+          var c0 = mk("td"); c0.appendChild(mk("span", "sdc-tid", r[0])); tr.appendChild(c0);
+          tr.appendChild(mk("td", null, r[1]));
+          var c2 = mk("td", "sdc-trule", r[2]); tr.appendChild(c2);
+          var c3 = mk("td"); c3.appendChild(mk("span", "sdc-tiso", r[3])); tr.appendChild(c3);
+          tt.appendChild(tr);
+        });
+        b3.appendChild(tt);
+        host.appendChild(b3);
+      }
+      if (s >= 5){
+        var b4 = block("TLINK — relations temporelles posées sur indices du texte", s === 5);
+        var ul = mk("ul", "sdc-tls");
+        tlinkList(v).forEach(function(tl){
+          var li = mk("li", "sdc-tl");
+          li.appendChild(mk("span", "sdc-tlids", tl.a));
+          li.appendChild(mk("span", "sdc-tlrel", tl.rel));
+          li.appendChild(mk("span", "sdc-tlids", tl.b));
+          li.appendChild(mk("span", "sdc-tlcue", "— " + tl.cue));
+          ul.appendChild(li);
+        });
+        var liV = mk("li", "sdc-tl sdc-vague");
+        liV.appendChild(mk("span", "sdc-tlids", "E1"));
+        liV.appendChild(mk("span", "sdc-tlrel", "VAGUE"));
+        liV.appendChild(mk("span", "sdc-tlids", "E3"));
+        liV.appendChild(mk("span", "sdc-tlcue",
+          "— aucun indice textuel entre attaque et arrestation : on ne pose rien"));
+        ul.appendChild(liV);
+        b4.appendChild(ul);
+        host.appendChild(b4);
+      }
+      if (s >= 6){
+        var b5 = block("Chronologie — intervalles → points → tri topologique", true);
+        buildTimeline(b5);
+        host.appendChild(b5);
+      }
+    }
+
+    /* ---------- détail pédagogique par étape ---------- */
+    function detailFor(){
+      var s = state.step, v = timexVals(state.dct), sameDay = (v.t1 === v.t2);
+      if (s === 0) return {
+        h: "Étape 0 — le texte brut, et rien d'autre",
+        b: ["Trois phrases, et tout le problème du sujet en germe : S1 et S2 racontent <b>la même " +
+            "attaque</b> avec deux mots différents, « hier » et « jeudi » ne veulent rien dire sans " +
+            "ancre, et l'ordre réel des faits n'est écrit nulle part.",
+            "Chaque phase va ajouter une couche de structure <b>sur ce même texte</b> — avancez " +
+            "avec « Phase suivante », ou déroulez tout d'un trait."]
+      };
+      if (s === 1) return {
+        h: "Phase 1 — chaque token est interrogé : ancre d'événement, ou non ?",
+        b: ["Le détecteur classe chaque token : est-ce le <b>trigger</b> (l'ancre lexicale) d'un " +
+            "événement, et de quel <b>type</b> du schéma ? Quatre ancres ressortent — dont " +
+            "<b>« assaut »</b>, un nom : un trigger n'est pas forcément un verbe.",
+            "« attaqué » et « assaut » reçoivent le même type <code>CONFLICT.ATTACK</code> mais " +
+            "restent <b>deux mentions distinctes</b> (m1, m2) : rien ne dit encore qu'elles " +
+            "désignent le même fait. Le même typage s'obtient par classification de séquence, " +
+            "par question-réponse (« que s'est-il passé ? ») ou par génération — la sortie " +
+            "structurée est identique."]
+      };
+      if (s === 2) return {
+        h: "Phase 2 — qui a fait quoi, à qui, où : les rôles du schéma",
+        b: ["Autour de chaque trigger, les empans voisins reçoivent un <b>rôle</b> défini par le " +
+            "type d'événement : <code>Attacker</code>, <code>Target</code>, <code>Place</code>, " +
+            "<code>Time-Within</code> pour l'attaque ; <code>Agent</code> et <code>Person</code> " +
+            "pour l'arrestation. C'est la grille « qui a fait quoi, à qui » du schéma.",
+            "Deux cas instructifs : <b>m2 (« assaut ») reste nue</b> — aucun argument dans sa " +
+            "phrase, c'est la coréférence qui la raccrochera ; et <b>« Kaboul » sert deux " +
+            "événements</b> — un même empan peut remplir un rôle dans plusieurs structures."]
+      };
+      if (s === 3) return {
+        h: "Phase 3 — deux comptes rendus, un seul fait : la fusion",
+        b: ["m1 et m2 désignent-elles le même événement ? Trois tests concordent : <b>même " +
+            "type</b> (<code>CONFLICT.ATTACK</code>), <b>lexique compatible</b> (attaquer / " +
+            "assaut), <b>aucun argument contradictoire</b> (m2 n'en a pas). Fusion en <b>E1</b>, " +
+            "qui hérite de l'union des arguments — la mention nue de S2 est désormais riche.",
+            "Contre-exemple immédiat : <b>E2 (« blessé ») n'est pas fusionné</b> avec E1. Le lien " +
+            "est causal (les blessures résultent de l'attaque), pas identitaire — et les types " +
+            "diffèrent (<code>LIFE.INJURE</code> ≠ <code>CONFLICT.ATTACK</code>). " +
+            "Bilan : 4 mentions → 3 événements."]
+      };
+      if (s === 4) return {
+        h: "Phase 4 — « hier » ne veut rien dire sans ancre : la normalisation",
+        b: ["Chaque expression temporelle est repérée puis <b>normalisée</b> en valeur calendaire " +
+            "ISO 8601, calculée à partir de la <b>DCT</b> (la date de création du document) : " +
+            "« hier » = DCT − 1 jour = <code>" + v.t1 + "</code> ; « jeudi » au passé composé = " +
+            "dernier jeudi avant la DCT = <code>" + v.t2 + "</code>." +
+            (v.t1 === v.t2 ? " Ici les <b>deux expressions retombent sur le même jour</b> — deux surfaces, une valeur." : ""),
+            "<b>Essayez les trois ancres</b> en haut du widget : le texte ne bouge pas d'un " +
+            "caractère, mais toutes les valeurs se recalculent — la normalisation est une fonction " +
+            "du couple (expression, DCT), pas de l'expression seule."]
+      };
+      if (s === 5) return {
+        h: "Phase 5 — ordonner sans dater : les TLINK",
+        b: ["Les événements et les dates sont reliés par des relations d'ordre — " +
+            "<code>BEFORE</code>, <code>INCLUDES</code>, <code>IS_INCLUDED</code>… Chaque TLINK " +
+            "est justifié par un <b>indice du texte</b> : un adverbe (« hier »), une proposition " +
+            "relative (les blessures au cours de l'assaut), le temps verbal (passé composé → " +
+            "avant la publication).",
+            "Le plus important est <b>ce qu'on ne pose pas</b> : entre E1 (attaque) et E3 " +
+            "(arrestation), le texte ne donne aucun indice d'ordre. La relation reste " +
+            "<b>VAGUE</b> — une annotation honnête encode ce que le texte affirme, pas ce que " +
+            "le lecteur devine."]
+      };
+      /* s === 6 */
+      var b6 = ["Dernière phase : chaque intervalle devient <b>deux points</b> (début, fin), " +
+        "chaque TLINK devient des inégalités — <code>INCLUDES(E1, E2)</code> se traduit par " +
+        "e1⁻ < e2⁻ et e2⁺ < e1⁺ — et un <b>tri topologique</b> ordonne tout ce qui peut l'être, " +
+        "les valeurs TIMEX3 servant de points d'ancrage absolus."];
+      if (sameDay){
+        b6.push("Avec cette ancre, attaque et arrestation tombent le <b>même jour</b> (" +
+          frShort(v.t1) + ") et aucun TLINK ne les relie : leur ordre interne est " +
+          "<b>incomparable</b> dans le graphe de points. La frise le montre par une zone " +
+          "hachée au lieu de trancher — c'est la bonne réponse quand le texte ne dit rien.");
+      } else {
+        b6.push("Avec cette ancre, t2 (" + frShort(v.t2) + ") précède t1 (" + frShort(v.t1) +
+          ") : les points d'ancrage suffisent, l'ordre devient <b>total</b> et la zone " +
+          "indéterminée disparaît.");
+      }
+      return { h: "Phase 6 — du graphe de relations à la frise", b: b6 };
+    }
+
+    /* ---------- tableau de bord ---------- */
+    var CNT = [
+      { at:1, name:"Mentions typées (triggers)", val:"4" },
+      { at:2, name:"Rôles d'arguments posés",    val:"9" },
+      { at:3, name:"Événements après fusion",    val:"3 (m1+m2 → E1)" },
+      { at:4, name:"TIMEX3 normalisés",          val:"3" },
+      { at:5, name:"TLINK posés",                val:"4 (+1 VAGUE)" },
+      { at:6, name:"Frise construite",           val:"oui" }
+    ];
+    function renderCnt(){
+      var host = $("sdc-cnt"), s = state.step;
+      host.textContent = "";
+      CNT.forEach(function(c){
+        var on = s >= c.at;
+        var row = mk("div", "sdc-cntrow" + (on ? " sdc-on" : "") + (s === c.at ? " sdc-cur" : ""));
+        row.appendChild(mk("span", "sdc-cntname", c.name));
+        row.appendChild(mk("span", "sdc-cntval", on ? c.val : "—"));
+        host.appendChild(row);
+      });
+    }
+
+    /* ---------- mécanismes reliés ---------- */
+    var MECHS = [
+      { on:[1,2,3], t:"Schéma d'événements ACE — types et rôles" },
+      { on:[1],     t:"Détection et typage des triggers" },
+      { on:[2],     t:"Étiquetage d'arguments (classification, QA, génération)" },
+      { on:[3],     t:"Coréférence d'événements (≠ coréférence d'entités)" },
+      { on:[4],     t:"TIMEX3 — normalisation ancrée sur la DCT" },
+      { on:[5],     t:"TLINK — relations temporelles, style TempEval" },
+      { on:[6],     t:"Chronologie — points, tri topologique, zones vagues" }
+    ];
+    function renderMechs(){
+      var ul = $("sdc-mechs"), s = state.step;
+      ul.textContent = "";
+      MECHS.forEach(function(m){
+        var li = mk("li", m.on.indexOf(s) >= 0 ? "sdc-mon" : null, m.t);
+        ul.appendChild(li);
+      });
+    }
+
+    /* ---------- rendu global ---------- */
+    function render(){
+      var s = state.step;
+      /* rail */
+      var phs = $("sdc-rail").children;
+      for (var i = 0; i < phs.length; i++){
+        phs[i].className = "sdc-ph" +
+          (s === i + 1 ? " sdc-active" : (s > i + 1 ? " sdc-done" : ""));
+      }
+      /* pilotage */
+      $("sdc-stepctr").textContent = s === 0 ? "départ · 0 / 6" : "étape " + s + " / 6";
+      $("sdc-pfill").style.width = (s / NSTEP * 100) + "%";
+      $("sdc-prev").disabled = (s === 0);
+      $("sdc-next").disabled = (s === NSTEP);
+      $("sdc-play").disabled = (s === NSTEP && !state.playing);
+      /* pastilles DCT */
+      var dcts = $("sdc-dctrow").querySelectorAll(".sdc-dct");
+      for (var j = 0; j < dcts.length; j++){
+        dcts[j].className = "sdc-dct" +
+          (dcts[j].getAttribute("data-dct") === state.dct ? " sdc-sel" : "");
+      }
+      /* scène */
+      $("sdc-stagehead").textContent = "";
+      var sh = $("sdc-stagehead");
+      var shb = mk("b", null, s === 0 ? "Départ" : PH[s-1].n);
+      sh.appendChild(shb);
+      sh.appendChild(document.createTextNode(
+        " — " + (s === 0 ? "la dépêche telle qu'elle arrive" : PH[s-1].l)));
+      renderDoc();
+      renderLegend();
+      renderStruct();
+      var d = detailFor();
+      $("sdc-dh").textContent = d.h;
+      var db = $("sdc-dbody");
+      db.textContent = "";
+      d.b.forEach(function(m){ db.appendChild(noteEl(m)); });
+      /* bannière de convergence */
+      var bn = $("sdc-banner");
+      bn.textContent = "";
+      if (s === NSTEP){
+        var v = timexVals(state.dct), sameDay = (v.t1 === v.t2);
+        var box = mk("div", "sdc-banner");
+        setMarkup(box, "<b>Convergence — la dépêche est devenue une chronologie.</b>" +
+          "4 mentions → 3 événements → 3 TIMEX3 → 4 TLINK → 1 frise" +
+          (sameDay ? ", avec une zone laissée indéterminée là où le texte ne tranche pas."
+                   : ", entièrement ordonnée avec cette ancre."));
+        bn.appendChild(box);
+        if (!sameDay){
+          var w = mk("div", "sdc-warn");
+          setMarkup(w, "<b>Regardez l'ordre obtenu :</b> avec cette ancre, l'arrestation " +
+            "(jeudi) précède l'attaque — le texte n'a pas changé, seule la DCT a bougé. " +
+            "Toute la chronologie repose sur l'ancrage : une DCT fausse produit une frise " +
+            "fausse avec une parfaite assurance.");
+          bn.appendChild(w);
+        }
+      }
+      renderCnt();
+      renderMechs();
+    }
+
+    /* ---------- navigation ---------- */
+    function go(n){
+      state.step = Math.max(0, Math.min(NSTEP, n));
+      render();
+    }
+    function stopPlay(){
+      if (state.playing){
+        clearInterval(state.playing);
+        state.playing = null;
+        $("sdc-play").textContent = "▶▶ Dérouler jusqu'à la frise";
+      }
+      render();
+    }
+    $("sdc-prev").addEventListener("click", function(){ stopPlay(); go(state.step - 1); });
+    $("sdc-next").addEventListener("click", function(){ stopPlay(); go(state.step + 1); });
+    $("sdc-reset").addEventListener("click", function(){ stopPlay(); go(0); });
+    $("sdc-play").addEventListener("click", function(){
+      if (state.playing){ stopPlay(); return; }
+      if (state.step === NSTEP) go(0);
+      $("sdc-play").textContent = "⏸ Pause";
+      state.playing = setInterval(function(){
+        if (state.step >= NSTEP){ stopPlay(); return; }
+        go(state.step + 1);
+      }, 2200);
+      go(state.step === NSTEP ? 0 : state.step + 1);
+    });
+
+    /* ---------- liaison texte ↔ fiches (survol + clic) ---------- */
+    var root = $("sdc-root");
+    function linkedIds(el){
+      var l = el.getAttribute("data-link");
+      return l ? l.split(" ") : [];
+    }
+    function setHl(ids, on){
+      var all = root.querySelectorAll("[data-link]");
+      for (var i = 0; i < all.length; i++){
+        var mine = linkedIds(all[i]), hit = false;
+        for (var j = 0; j < mine.length; j++)
+          if (ids.indexOf(mine[j]) >= 0){ hit = true; break; }
+        if (hit) all[i].classList[on ? "add" : "remove"]("sdc-hl");
+      }
+    }
+    root.addEventListener("mouseover", function(e){
+      var t = e.target.closest ? e.target.closest("[data-link]") : null;
+      if (t) setHl(linkedIds(t), true);
+    });
+    root.addEventListener("mouseout", function(e){
+      var t = e.target.closest ? e.target.closest("[data-link]") : null;
+      if (t) setHl(linkedIds(t), false);
+    });
+    root.addEventListener("click", function(e){
+      var t = e.target.closest ? e.target.closest("[data-link]") : null;
+      if (!t) return;
+      var on = !t.classList.contains("sdc-hl");
+      setHl(linkedIds(t), on);
+    });
+
+    render();
+  })();
+  </script>
+</div>
