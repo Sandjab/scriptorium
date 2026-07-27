@@ -351,21 +351,16 @@ simulation (Cosmos, GAIA-2) ; RT-2, OpenVLA, π0, la tokenisation d'actions = 0 
 > llm-safety-jailbreaks couvre attaques/défenses du modèle — se centrer sur provenance et
 > détection. Domaine : llm-agents-generation.
 
-### Document AI — `document-ai` → `information-retrieval-representation`
-**Verdict : gap réel (ajout 2026-07-17).** Le corpus traite l'extraction sur texte propre
-(`structured-extraction-llm` ; `relation-extraction` niveau document = DocRED, du texte) mais
-jamais le document image : OCR, LayoutLM, DocVQA, Donut = 0 occurrence.
-
-> Compréhension de documents (Document AI) : du pixel au contenu structuré. Couvrir l'OCR neuronal
-> (détection + reconnaissance, modèles séquence type TrOCR), les modèles texte + layout + image
-> (lignée LayoutLM v1→v3 et ses pré-entraînements), les approches sans OCR (Donut, Pix2Struct) et
-> les VLM généralistes appliqués au document, les tâches et benchmarks (classification,
-> extraction clé-valeur — FUNSD, reconnaissance de tables, DocVQA), le parsing de PDF pour les
-> pipelines RAG, et l'évaluation (ANLS, TEDS, pièges des benchmarks saturés). Public : ingénieur
-> ML/data. Délimitations : structured-extraction-llm couvre l'extraction depuis le TEXTE (la citer
-> comme aval de l'OCR) ; relation-extraction traite le niveau document sur texte propre ; le
-> candidat multimodal-vlm couvre l'architecture VLM générique — se centrer sur la modalité
-> document/layout. Domaine : information-retrieval-representation.
+(`document-ai` : FAIT le 2026-07-27, retiré du backlog — 20e run /leanmonograph GREEN après
+backstop [1 correction : réserve single-source sur GriTS], classé dans
+information-retrieval-representation à la charnière entre le bloc recherche et le bloc
+structuration (parcours du portail : juste après retrieval-augmented-generation). Section
+metriques-anls-teds-grits écartée par l'audit (4 rejets, dont 1 réfuté-jury : ANLS n'est PAS une
+similarité continue, elle a un seuil dur τ = 0,5) — la prose et le widget ANLS portent bien la
+réfutation, mais le rejet GriTS, single-source équivalent aux 4 rejets hedgés de knowledge.json,
+était affirmé nu : **confirmation que les rejets d'une section écartée échappent au lint** (leçon
+du 18e run, re-vérifiée ici). Premier run réel de `/arrange` étendu : proposition d'insertion bien
+calibrée.)
 
 ---
 
