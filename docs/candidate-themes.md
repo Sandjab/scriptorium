@@ -234,21 +234,9 @@ des noms d'auteurs).
 > recommender-systems (candidat) traite les modèles de préférence — se centrer sur le cadre sans
 > état et les garanties de regret. Domaine : classical-ml-time-series.
 
-### Extraction d'événements & information temporelle — `event-extraction-temporal` → `information-retrieval-representation`
-**Verdict : gap réel (audience plus étroite que la RE).** ACE 2005 n'est cité que comme benchmark
-ICL dans `structured-extraction-llm` ; TIMEX seulement comme catégorie MUC historique dans le thème
-NER. Triggers/arguments, coréférence d'événements, TimeML = 0 occurrence.
-
-> Extraction d'événements et d'information temporelle : qui a fait quoi, à qui, et quand. Couvrir
-> le schéma ACE (triggers, arguments, types d'événements), la détection de triggers et l'étiquetage
-> d'arguments (par classification, par question-réponse, par génération), la coréférence
-> d'événements, l'extraction temporelle (TimeML et TIMEX3, normalisation des expressions
-> temporelles, relations temporelles et TempEval) et la construction de chronologies (timelines),
-> avec les benchmarks (ACE 2005, MAVEN, TimeBank). Public : ingénieur NLP. Délimitations :
-> structured-extraction-llm cite l'event extraction comme benchmark des LLM extracteurs (le
-> citer) ; named-entity-recognition-sequence-labeling détecte les entités qui servent d'arguments ;
-> la RE binaire entité-entité relève de la monographie relation-extraction (FAITE) — se centrer sur les
-> structures événementielles et le temps. Domaine : information-retrieval-representation.
+(`event-extraction-temporal` : FAIT le 2026-07-27, retiré du backlog — 21e run /leanmonograph
+GREEN après backstop [1 correction : sur-hedge du Build retiré, « 5 349 mentions ACE 2005 »
+corroboré par MAVEN], classé dans information-retrieval-representation après relation-extraction.)
 
 ### Supervision faible & apprentissage actif — `weak-supervision-active-learning` → `classical-ml-time-series`
 **Verdict : gap réel.** Seule la supervision distante (cas particulier pour la RE) est traitée
