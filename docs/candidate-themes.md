@@ -289,23 +289,19 @@ parallèle des masked diffusion LMs comme contrepoint de l'autorégressif ; le p
 > et cite la génération parallèle masquée (le citer en pont) — se centrer sur le paradigme
 > diffusion pour le texte. Domaine : llm-agents-generation.
 
-### Kernels GPU & compilation ML — `gpu-kernels-compilers` → `deep-learning-foundations`
-**Verdict : gap réel (ajout 2026-07-17).** Triton n'apparaît que via Liger Kernel
-(`normalization-layers`) et les noyaux AQLM (`quantization`, blurb) ; XLA via GShard (blurb MoE) ;
-torch.compile, fusion d'opérateurs, CUDA Graphs = 0 occurrence. La couche kernels/compilation
-n'est traitée nulle part en propre.
-
-> Kernels GPU et compilation pour le deep learning : pourquoi le même modèle va 3× plus vite bien
-> programmé. Couvrir le modèle d'exécution GPU (SM, warps, hiérarchie mémoire, coalescing,
-> occupancy), l'intensité arithmétique et le Roofline appliqué aux kernels, l'écriture de kernels
-> en Triton (tiling, mémoire partagée, autotuning) face à CUDA, la fusion d'opérateurs et ce
-> qu'elle économise, la pile torch.compile (TorchDynamo, AOTAutograd, TorchInductor, graph
-> breaks), CUDA Graphs contre l'overhead de lancement, et le paysage des compilateurs (XLA, TVM).
-> Public : ingénieur ML/infra. Délimitations : transformer-attention couvre FlashAttention comme
-> algorithme (le citer comme exemple canonique de kernel IO-aware, ne pas re-dériver) ;
-> decoding-sampling couvre le Roofline du décodage et distributed-training-parallelism le MFU et
-> le recouvrement calcul/communication (les citer) ; normalization-layers cite Liger Kernel — se
-> centrer sur la couche kernels/compilation elle-même. Domaine : deep-learning-foundations.
+(`gpu-kernels-compilers` : FAIT le 2026-07-28, retiré du backlog — 22e run /leanmonograph
+GREEN après backstop [2 corrections], classé dans deep-learning-foundations après
+distributed-training-parallelism. Deux leçons. **Le SUR-HEDGE se confirme comme classe, pas
+comme accident** (2e occurrence consécutive après le 21e run) : le Build a hedgé « source unique »
+la filiation Halide de TVM/nvFuser/NNC que l'Audit-prose avait délibérément laissée nue — or
+l'article TVM, présent dans la bibliographie du document, revendique lui-même cette filiation.
+**Nouvelle variante de l'ASYMÉTRIE DE TRAITEMENT** (7e angle mort) : elle peut vivre à
+l'intérieur d'une section retenue, entre deux paragraphes voisins issus du même claim rejeté —
+le lint reste aveugle quand les pivots sont reformulés (« 1 134 » pour un pivot « 1100 ») ou
+écrits en toutes lettres (« soixante-dix » pour « 70 »), cumul des angles morts 11e et 7e.
+Deux corrections d'audit du backlog au passage : « Roofline » n'apparaissait nulle part dans le
+corpus, seule l'**intensité arithmétique** y était traitée ; et l'homonymie *Triton Inference
+Server* / **langage Triton** n'avait pas été relevée.)
 
 ### Vision-Language-Action — `vision-language-action` → `llm-agents-generation`
 **Verdict : partiel (ajout 2026-07-17).** `agentic-ai` a une section « robotique et agents
