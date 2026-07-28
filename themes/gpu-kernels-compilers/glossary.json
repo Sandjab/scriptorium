@@ -1,0 +1,37 @@
+[
+  {
+    "term": "warp",
+    "definition": "Le groupe de 32 threads qu'un SM (Streaming Multiprocessor) ordonnance et fait avancer d'un seul tenant, sur le mode SIMT (Single-Instruction, Multiple-Thread) : une même instruction pour les 32 voies. Quand une branche conditionnelle sépare les threads d'un même warp, le matériel sérialise les deux chemins de code et masque par prédicat les threads hors du chemin actif jusqu'à reconvergence, si bien que le warp paie les deux branches. C'est aussi l'unité à laquelle se jugent les accès mémoire et la résidence sur un SM.",
+    "see_also": "memory coalescing, occupancy"
+  },
+  {
+    "term": "memory coalescing",
+    "definition": "Regroupement des accès mémoire : la propriété d'un motif d'accès à la mémoire globale qui permet au matériel de servir les 32 threads d'un warp en un minimum de transactions alignées de 32 octets. Un accès contigu mobilise 4 secteurs de 32 octets pour 128 octets utiles ; le même besoin utile, lu à foulée (stride) ou de façon dispersée, peut en mobiliser 32, soit 8 fois plus d'octets réellement transférés pour le même travail. Le compilateur Triton prend ce réagencement en charge automatiquement ; en CUDA, il incombe au programmeur.",
+    "see_also": "warp, Roofline model"
+  },
+  {
+    "term": "occupancy",
+    "definition": "Taux d'occupation : la part des warps résidents sur un SM rapportée au maximum que le matériel autorise, soit 64 warps par SM sur A100 et 48 sur les puces Ampere grand public. L'occupancy sert à masquer la latence mémoire et d'instruction ; tant qu'elle est insuffisante pour cela, l'augmenter aide, mais passé ce seuil elle n'améliore généralement plus rien et peut même dégrader la performance. Ce qui décide reste la saturation des unités de calcul ou de la bande passante, pas l'occupancy elle-même : des kernels GEMM (General Matrix Multiply) parmi les plus rapides sur Hopper et Blackwell tournent à une occupancy à un seul chiffre.",
+    "see_also": "warp, Roofline model"
+  },
+  {
+    "term": "Roofline model",
+    "definition": "Modèle Roofline (Williams, Waterman et Patterson, 2009) : une borne supérieure de la performance atteignable par un kernel, performance ≤ min(pic de calcul, bande passante de pic × intensité arithmétique), où l'intensité arithmétique (arithmetic intensity) est le nombre d'opérations flottantes effectuées par octet lu ou écrit. C'est une inégalité, jamais une garantie d'atteinte. Le ridge point, abscisse où les deux plafonds se croisent, sépare le régime memory-bound du régime compute-bound : environ 12,5 à 13 FLOPs par octet en FP32 hors Tensor Core sur A100 40 Go, environ 9,6 sur A100 80 Go. Un troisième régime échappe au modèle, l'overhead-bound (interpréteur Python, framework, lancement de kernels), qui domine les petits opérateurs élémentaires.",
+    "see_also": "memory coalescing, kernel fusion"
+  },
+  {
+    "term": "kernel fusion",
+    "definition": "Fusion d'opérateurs : réunir plusieurs opérations successives dans un seul kernel, pour que les résultats intermédiaires restent en registres au lieu d'être écrits en mémoire globale puis relus. Le gain vient du trafic mémoire supprimé et des lancements évités, jamais des FLOPs, qui restent inchangés. Fusionner une multiplication, une addition et un sigmoid fait ainsi passer les opérations mémoire de 8 à 4 (3 lectures, 1 écriture) et les lancements de 3 à 1. XLA en fait son optimisation la plus importante et empile pour cela plusieurs passes nommées, fusion merger, multi-output fusion et horizontal fusion, qui visent tantôt la bande passante, tantôt l'overhead de lancement.",
+    "see_also": "Roofline model, Triton"
+  },
+  {
+    "term": "Triton",
+    "definition": "Langage et compilateur de kernels GPU embarqué dans Python (Tillet, Kung et Cox, MAPL'19), diffusé par OpenAI, à ne pas confondre avec Triton Inference Server, le serveur d'inférence de NVIDIA. Il inverse le modèle CUDA « programme scalaire, threads groupés en blocs » en « programme en blocs, threads scalaires » : l'auteur décrit le découpage en tuiles (BLOCK_SIZE_M/N/K et stratégie de parcours), tandis que le compilateur prend en charge le coalescing, l'allocation et la synchronisation de la mémoire partagée, ainsi que l'ordonnancement des instructions dans un SM. Le décorateur @triton.autotune ne découvre aucun découpage : il mesure une liste finie de triton.Config écrits à la main.",
+    "see_also": "kernel fusion, occupancy"
+  },
+  {
+    "term": "graph break",
+    "definition": "Rupture de graphe : l'interruption de la capture par TorchDynamo, la couche de torch.compile qui intercepte l'exécution Python au niveau de la frame via la Frame Evaluation API de CPython (PEP 523). Devant un fragment de bytecode qu'il ne sait pas tracer (flux de contrôle dépendant des données, print(), appel opaque), Dynamo compile le graphe accumulé, laisse le fragment s'exécuter en Python eager, puis reprend le traçage dans un nouveau graphe FX. Le résultat numérique reste exact ; seule la portée de la fusion en aval est amputée. À ne pas confondre avec les CUDA Graphs, qui enregistrent une séquence de lancements de kernels et de copies mémoire sous forme de graphe orienté acyclique afin de la rejouer par un unique appel.",
+    "see_also": "kernel fusion, Triton"
+  }
+]

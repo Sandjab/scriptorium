@@ -1,0 +1,1197 @@
+{
+  "generator": "leanmonograph",
+  "theme": {
+    "slug": "gpu-kernels-compilers",
+    "title": "Kernels GPU et compilation : pourquoi le même modèle va plusieurs fois plus vite"
+  },
+  "summary": {
+    "sections_total": 9,
+    "sections_retained": 9,
+    "claims_total": 36,
+    "confirmed": 18,
+    "corrected": 14,
+    "rejected": 4,
+    "retained": 32
+  },
+  "claims": [
+    {
+      "id": "claim:1",
+      "section": "modele-execution-gpu",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le GPU exécute les threads par warps SIMT de 32 threads programmés sur un même SM ; une divergence de branche à l'intérieur d'un warp force une exécution sérielle des chemins de code avec masquage par prédicat, désactivant les threads hors du chemin actif jusqu'à reconvergence.",
+      "original_statement": "Le GPU exécute les threads par warps SIMT de 32 threads programmés sur un même SM ; une divergence de branche à l'intérieur d'un warp force une exécution sérielle des chemins de code avec masquage par prédicat, désactivant les threads hors du chemin actif jusqu'à reconvergence.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Modal (warp + warp-divergence, même éditeur donc compté comme une source) et un papier de synthèse arXiv indépendant confirment : warp = 32 threads SIMT sur un SM, divergence gérée par masquage via registres de prédicat, reconvergence quand les chemins se rejoignent. Nuance à noter : le papier arXiv précise que sur GPU post-Volta (dont Ampere/A100, sujet de cette section), l'Independent Thread Scheduling a éliminé l'exigence de stricte sérialisation et de reconvergence garantie au point IPDom — le modèle décrit reste le modèle standard/pédagogique et demeure globalement exact au niveau du masquage matériel, mais « force » simplifie légèrement le comportement du matériel récent."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Confirmé par Modal (masquage par prédicat, exécution des chemins divergents, reconvergence quand le warp scheduler réémet la même instruction pour tous) et par la doc NVIDIA (SASS encode la divergence via prédication ; sur Volta+, l'Independent Thread Scheduling donne un PC par thread mais des instructions de convergence explicites — BSSY/BSYNC — préservent le comportement décrit). Nuance non bloquante : le modèle 'sérialisation stricte + reconvergence forcée au même point' est le modèle pré-Volta ; sur Volta+ l'effet observable reste conforme mais le mécanisme sous-jacent diffère légèrement (progression indépendante par thread avec reconvergence explicite plutôt qu'implicite)."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:2",
+      "section": "modele-execution-gpu",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Sur A100 (Ampere, compute capability 8.0), 108 des 128 SM possibles du die GA100 sont actifs, avec jusqu'à 64 warps concurrents et 164 Ko de shared memory par SM, 40 Mo de L2 partagé, et 1555 Go/s de bande passante HBM2 — mais ces chiffres ne se transposent pas telles quelles à d'autres puces Ampere.",
+      "original_statement": "Sur A100 (Ampere, compute capability 8.0), 108 des 128 SM possibles du die GA100 sont actifs, avec jusqu'à 64 warps concurrents et 164 Ko de shared memory par SM, 40 Mo de L2 partagé, et 1555 Go/s de bande passante HBM2 — mais ces chiffres ne se transposent pas telles quelles à d'autres puces Ampere.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "108/128 SM, 40 Mo de L2 partagé et 1555 Go/s HBM2 sont confirmés à la fois par la source primaire NVIDIA (qui fait foi pour des specs matérielles) et par un article tiers indépendant (Jonathan Hui) qui reprend ces mêmes chiffres après analyse propre. Les 64 warps/SM et 164 Ko de shared memory par SM ne sont confirmés que par deux documents NVIDIA distincts (blog + Ampere Tuning Guide, même origine) — attendu pour une spec constructeur, mais pas d'indépendance tierce sur ce sous-point précis. La clause de non-transposition à d'autres puces Ampere (ex. GA102) est cohérente avec ce que montrent ces mêmes sources."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Tous les chiffres vérifiés exactement : 108 SM actifs sur 128 possibles du GA100, 64 warps concurrents max par SM (CC 8.0), 164 Ko de shared memory par SM (valeur precise du carveout listée dans le tuning guide : 0/8/16/32/64/100/132/164 Ko, sur 192 Ko combinés L1+shared+texture), 40 Mo de L2, 1555 Go/s HBM2 (variante A100 40 Go). Le hedge final est justifié (l'A100 80 Go a 2039 Go/s, et les autres puces Ampere — RTX 30xx, A30, A40 — ont des SM/shared-mem/bande passante différents). Réserve d'indépendance : les deux sources sont toutes deux publiées par NVIDIA (blog vs guide technique) — pas d'indépendance éditoriale au sens strict, mais ce sont les deux documents primaires faisant autorité sur ces specs, et ils se corroborent."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:3",
+      "section": "modele-execution-gpu",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "L'accès mémoire global se fait par transactions alignées de 32 octets ; un accès dispersé ou à foulée (stride) par les threads d'un warp peut multiplier par 8 le volume de données effectivement transférées par rapport à un accès contigu, pour le même nombre d'octets réellement utiles.",
+      "original_statement": "L'accès mémoire global se fait par transactions alignées de 32 octets ; un accès dispersé ou à foulée (stride) par les threads d'un warp peut multiplier par 8 le volume de données effectivement transférées par rapport à un accès contigu, pour le même nombre d'octets réellement utiles.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "La source primaire NVIDIA chiffre exactement le facteur ×8 dans son exemple (32 secteurs de 32 o = 1024 o transférés pour 128 o réellement utiles). Un dépôt tiers indépendant (Kobzol, non affilié à NVIDIA) mesure empiriquement le même facteur ×8 (32 transactions en accès dispersé vs 4 en accès optimal), ce qui corrobore le claim tel quel (« peut multiplier par 8 » = cas dispersé, pas systématique)."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Transaction de 32 octets confirmée par les deux sources (CC 6.0+). Le facteur ×8 est corroboré indépendamment par deux chemins de calcul différents : le blog mesure 8 388 900 secteurs (coalescé) vs 67 110 368 (dispersé) = ×8 exact ; le Best Practices Guide donne, pour un stride de 32, 32 transactions de 32 octets au lieu de 4 dans le cas contigu = ×8 exact également, pour le même volume utile. Les deux sources sont NVIDIA (pas d'indépendance éditoriale tierce), mais deux documents distincts arrivant à la même valeur par des exemples différents."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:4",
+      "section": "modele-execution-gpu",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Maximiser l'occupancy permet de masquer la latence mémoire/instruction tant qu'elle est insuffisante pour cela ; au-delà du seuil nécessaire, augmenter encore l'occupancy n'améliore généralement plus la performance et peut même la dégrader — ce qui détermine la performance est la saturation des ressources de calcul (régime compute-bound) ou de bande passante mémoire (régime memory-bound), pas l'occupancy en tant que telle (les kernels GEMM les plus rapides sur Hopper/Blackwell tournent souvent à occupancy à un chiffre).",
+      "original_statement": "Maximiser l'occupancy (le ratio de warps actifs par SM) maximise la performance d'un kernel GPU.",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 3,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Faux tel quel. Modal explicite que l'occupancy n'est utile que jusqu'au seuil de masquage de latence, au-delà duquel la maximiser peut dégrader la performance, et cite des kernels GEMM à occupancy mono-chiffre sur Hopper/Blackwell. Volkov (UC Berkeley, GTC 2010), source académique indépendante et antérieure à Modal, est la référence canonique ayant établi ce contre-exemple à la croyance intuitive testée par ce claim."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Le claim est un contresens direct sur un point que la source candidate elle-même corrige explicitement : 'once occupancy is sufficient for latency hiding, increasing it further may actually degrade performance', et les kernels haute performance 'often run at single-digit occupancy percentages'. L'occupancy est un facilitateur (masquer la latence mémoire) et non un objectif d'optimisation en soi ; le rejeter tel quel."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Trois sources indépendantes et faisant autorité réfutent explicitement l'énoncé : le glossaire GPU de Modal montre des kernels GEMM performants à occupancy à un chiffre ; l'article de performance GPUOpen d'AMD répond littéralement « No » à la question « une meilleure occupancy signifie-t-elle une meilleure performance ? » (risque de thrashing de cache) ; et le CUDA C++ Best Practices Guide de NVIDIA (source primaire du fabricant, cité mot pour mot dans un fil du forum développeur) affirme : « Higher occupancy does not always equate to higher performance—there is a point above which additional occupancy does not improve performance. » Cela recoupe aussi le résultat académique classique de Volkov (GTC 2010, « Better Performance at Lower Occupancy » — contenu non extrait directement, PDF binaire non lisible par mes outils, donc non listé en source vérifiée, mais fortement corroboré par plusieurs résumés indépendants trouvés en recherche). L'énoncé confond un seuil nécessaire (occupancy suffisante) avec une relation monotone croissante — c'est cette dernière partie qui est fausse."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « Maximiser l'occupancy (le ratio de warps actifs par SM) maximise la performance d'un kernel GPU. »"
+    },
+    {
+      "id": "claim:5",
+      "section": "roofline-intensite-arithmetique",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le modèle Roofline borne formellement la performance atteignable d'un kernel par performance = min(pic de calcul du GPU, bande passante mémoire de pic × intensité arithmétique du kernel) : c'est une inégalité de borne supérieure, jamais une garantie d'atteinte.",
+      "original_statement": "Le modèle Roofline borne formellement la performance atteignable d'un kernel par performance = min(pic de calcul du GPU, bande passante mémoire de pic × intensité arithmétique du kernel) : c'est une inégalité de borne supérieure, jamais une garantie d'atteinte.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le papier fondateur (peer-reviewed, Comm. ACM 2009) énonce textuellement la formule 'Attainable GFlops/sec = Min(Peak Floating Point Performance, Peak Memory Bandwidth x Operational Intensity)' et précise 'The Roofline sets an upper bound on performance of a kernel'. modal.com confirme indépendamment que les kernels 'rarement' atteignent le roof à cause de l'overhead — cohérent avec 'jamais une garantie d'atteinte'."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Confirmé mot pour mot par le papier original : « Attainable GFlops/sec = Min(Peak Floating Point Performance, Peak Memory Bandwidth x Operational Intensity) », explicitement qualifié de borne supérieure d'un kernel ('sets an upper bound on performance'), jamais de garantie. Recoupé indépendamment par modal.com : « Kernels are rarely up against either roof due to the effects of overhead »."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:6",
+      "section": "roofline-intensite-arithmetique",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Sur A100 40 Go (bande passante nominale ≈1 555 Go/s) en FP32 non-Tensor Core, le ridge point se situe autour de 12,5-13 FLOPs par octet (19,5 TFLOPS / 1,555 TB/s). Sur A100 80 Go, dont la bande passante mémoire officielle est ≈2 039 Go/s, le ridge point tombe à environ 9,6 FLOPs par octet. « ~1,5 TB/s » ne caractérise donc qu'une partie de la famille A100, pas « l'A100 » générique — et encore moins la fiche 80 Go citée comme source candidate de ce claim.",
+      "original_statement": "Sur A100 en FP32 (non-Tensor Core), le ridge point — l'intensité arithmétique minimale pour espérer devenir compute-bound — se situe autour de 13 FLOPs par octet (19,5 TFLOPS de pic / ~1,5 TB/s de bande passante), un seuil en dessous duquel un kernel est mathématiquement condamné à être memory-bound.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "damek.github.io calcule explicitement '19.5 TFLOPS / 1.5 TB/s ≈ 13 FLOPs/Byte' pour l'A100. Le datasheet officiel NVIDIA confirme les deux chiffres bruts (Peak FP32 = 19.5 TF ; bande passante 1 555 GB/s pour le 40GB, arrondie usuellement à '~1.5 TB/s' dans la littérature, soit ≈12.5 FLOPs/octet au calcul précis — cohérent avec 'autour de 13'). Deux sources indépendantes convergentes."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "L'arithmétique 19,5/1,5≈13 est correcte et recoupée par une source indépendante, mais correspond à la bande passante du SKU A100 40 Go (1 555 Go/s) — la fiche technique NVIDIA A100 80 Go elle-même, donnée comme candidate, affiche 2 039 Go/s pour la variante 80 Go, ce qui donnerait ≈9,6 FLOPs/octet. Le claim sur-généralise en parlant de « l'A100 » sans préciser le SKU."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « Sur A100 en FP32 (non-Tensor Core), le ridge point — l'intensité arithmétique minimale pour espérer devenir compute-bound — se situe autour de 13 FLOPs par octet (19,5 TFLOPS de pic / ~1,5 TB/s de bande passante), un seuil en dessous duquel un kernel est mathématiquement condamné à être memory-bound. »"
+    },
+    {
+      "id": "claim:7",
+      "section": "roofline-intensite-arithmetique",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Au-delà des deux régimes classiques du Roofline, un troisième régime — overhead-bound (temps passé dans l'interpréteur Python, le framework et le lancement de kernels) — domine typiquement les petits opérateurs élémentaires ; ce régime distinct est confirmé par plusieurs sources indépendantes (horace.io, documentation ROCm/HIP d'AMD). En revanche, le seuil chiffré d'« environ une centaine d'opérations arithmétiques par élément » cité par horace.io pour l'A100 décrit, dans la source elle-même, la transition memory-bound → compute-bound d'un opérateur unaire répété (franchissement du ridge point d'intensité arithmétique) — pas la sortie du régime overhead-bound proprement dit.",
+      "original_statement": "Au-delà des deux régimes classiques du Roofline (compute-bound et memory-bound), un troisième régime — overhead-bound, où le temps passé dans l'interpréteur Python, le framework et le lancement de kernels domine — s'applique typiquement aux petits opérateurs élémentaires, pour lesquels il faut de l'ordre d'une centaine d'opérations arithmétiques par élément avant de basculer vers le compute-bound sur A100.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Vérifié par 3 fetches ciblés successifs sur horace.io : la phrase 'about a hundred operations... you'll be spending more time performing memory accesses than actual compute' vit dans la section Bandwidth (memory-bound), pas dans la section Overhead ('Python interpreter... framework... kernel launch'). La doc ROCm confirme indépendamment la trichotomie compute/memory/overhead-bound (avec 'small array operations' pour overhead-bound) mais sans chiffrer de seuil. Le claim attribue au mauvais régime un chiffre par ailleurs réel dans la source."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Vérifié directement sur horace.io : la phrase « until you're doing about a hundred operations in your unary operator, you'll be spending more time performing memory accesses than actual compute » figure dans la section consacrée à la bande passante (dérivée du même ridge point A100 FP32 ≈13 FLOPs/octet × ~8 octets d'aller-retour ≈100), pas dans la section Overhead ; l'article ne relie pas ce chiffre aux petits opérateurs overhead-bound (Python/dispatch), contrairement à ce que sous-entend le claim."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « Au-delà des deux régimes classiques du Roofline (compute-bound et memory-bound), un troisième régime — overhead-bound, où le temps passé dans l'interpréteur Python, le framework et le lancement de kernels domine — s'applique typiquement aux petits opérateurs élémentaires, pour lesquels il faut de l'ordre d'une centaine d'opérations arithmétiques par élément avant de basculer vers le compute-bound sur A100. »"
+    },
+    {
+      "id": "claim:8",
+      "section": "roofline-intensite-arithmetique",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Le ridge point du Roofline tend, sur le temps long et pour le calcul Tensor Core, à se déplacer vers la droite au fil des générations NVIDIA, la bande passante mémoire progressant structurellement moins vite que le calcul ('memory wall'). Mais ce n'est pas un mouvement systématique à chaque génération pour toute métrique : pour le FP32 non-Tensor Core en particulier, le ridge point a reculé du V100 (~15-17 FLOPs/octet, 14-16,4 TFLOPS / 900-1 134 GB/s) à l'A100 (~10-13 FLOPs/octet, 19,5 TFLOPS / 1 555-2 039 GB/s) avant de remonter sur H100 (~20-25 FLOPs/octet, 51-67 TFLOPS / 2-3,35 TB/s) — la bande passante HBM2e de l'A100 ayant crû plus vite que son débit FP32 CUDA-core entre ces deux générations.",
+      "original_statement": "Le ridge point du Roofline se déplace systématiquement vers la droite (intensité arithmétique requise pour devenir compute-bound de plus en plus élevée) à chaque nouvelle génération de GPU NVIDIA, parce que la bande passante mémoire progresse structurellement moins vite que le calcul.",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 3,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 4,
+          "note": "modal.com ne dit que 'generally... pushed the ridge points... to the right over time' — une tendance générale, pas 'systématiquement à chaque génération'. Recalcul à partir des 3 datasheets officiels NVIDIA (FP32 non-Tensor Core, cohérent avec le cadrage du claim [1] de la même section) : le ridge point BAISSE de V100 à A100 (~17→~10-13 FLOPs/octet) avant de remonter sur H100. Le mot 'systématiquement... à chaque nouvelle génération' est donc factuellement contredit sur cette métrique."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 4,
+          "note": "Calcul direct à partir des trois fiches techniques NVIDIA officielles citées comme candidates : le ridge point FP32 non-Tensor Core baisse de V100 à A100 (le bond de bande passante HBM2e dépasse celui du FP32 CUDA-core, surtout sur la variante 80 Go) avant de remonter avec H100 — un contre-exemple direct au « systématiquement » et « à chaque nouvelle génération » du claim ; la source modal.com elle-même ne parle que d'une tendance générale sur la durée, pas d'une règle génération par génération."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 5,
+          "note": "J'ai calculé le ridge point (FLOPS pic / bande passante mémoire) directement à partir des datasheets NVIDIA officielles pour V100, A100, H100 et Blackwell (GB200/HGX B200), pour deux métriques de calcul distinctes. En FP32 non-Tensor : V100=17,4 FLOP/o → A100(80GB)=9,6 → H100=20,0 → Blackwell(GB200)=10,0 — trajectoire en dents de scie, PAS monotone vers la droite. En Tensor FP16 dense : V100=138,9 → A100(80GB)=153,0/(40GB)=200,6 → H100=295,4 → Blackwell(GB200)=312,5/(HGX B200)=292,2 — tendance globalement haussière mais qui s'aplatit nettement (quasi stagnante, voire négative) sur la dernière transition. La source modal.com elle-même hedge correctement (« generally... over time »), sans jamais affirmer « systématiquement à chaque génération » — l'énoncé testé sur-généralise ce hedge en loi stricte, et le mécanisme causal invoqué (bande passante toujours plus lente que le calcul) est contredit par au moins deux transitions réelles (V100→A100 et H100→Blackwell) où la bande passante a progressé plus vite que le calcul FP32."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « Le ridge point du Roofline se déplace systématiquement vers la droite (intensité arithmétique requise pour devenir compute-bound de plus en plus élevée) à chaque nouvelle génération de GPU NVIDIA, parce que la bande passante mémoire progresse structurellement moins vite que le calcul. »"
+    },
+    {
+      "id": "claim:9",
+      "section": "fusion-operateurs",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Fusionner un enchaînement multiplication + addition + sigmoid en un seul kernel Triton réduit les opérations mémoire de 8 à 4 (3 lectures + 1 écriture) et les lancements de kernel de 3 à 1, les résultats intermédiaires restant en registres au lieu d'être écrits puis relus en mémoire globale.",
+      "original_statement": "Fusionner un enchaînement multiplication + addition + sigmoid en un seul kernel Triton réduit les opérations mémoire de 8 à 4 (3 lectures + 1 écriture) et les lancements de kernel de 3 à 1, les résultats intermédiaires restant en registres au lieu d'être écrits puis relus en mémoire globale.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Les chiffres exacts (8→4 opérations mémoire, 3→1 lancements) sont vérifiés mot pour mot sur le blog pytorch.org, qui en est très probablement l'origine — ce n'est donc pas une source indépendante. Le mécanisme général (intermédiaires en registres, réduction simultanée du trafic mémoire ET des lancements) est corroboré indépendamment par le blog développeur NVIDIA avec un exemple chiffré distinct (sum(abs(x)), 3GB→1GB, 2→1 kernels), qui dément aussi explicitement toute réduction de FLOPs."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Chiffres exacts confirmés par la source : le blog décrit littéralement l'exemple mul+add+sigmoid avec 8→4 opérations mémoire (3 lectures + 1 écriture), 3→1 lancements de kernel, et les résultats intermédiaires conservés en registres plutôt qu'écrits/relus en mémoire globale. C'est un exemple pédagogique propre à cette source unique, mais l'arithmétique elle-même est vérifiable et exacte."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:10",
+      "section": "fusion-operateurs",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "XLA implémente, au-delà de la simple fusion producteur-consommateur (instruction fusion), trois passes de fusion distinctes et nommées — fusion merger, multi-output fusion (sibling et producteur-consommateur), et horizontal fusion — chacune ciblant explicitement soit la bande passante mémoire soit l'overhead de lancement.",
+      "original_statement": "XLA implémente, au-delà de la simple fusion producteur-consommateur (instruction fusion), trois passes de fusion distinctes et nommées — fusion merger, multi-output fusion (sibling et producteur-consommateur), et horizontal fusion — chacune ciblant explicitement soit la bande passante mémoire soit l'overhead de lancement.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Lu intégralement le PDF arXiv 2301.13062 (Fig.1, §III-B) : correspond exactement à l'énoncé. Remonté à la source primaire (le code source XLA lui-même, contemporain du papier) pour une confirmation indépendante — les commentaires de classe reprennent verbatim les cibles citées (fusion merger : bande passante ET overhead ; multi-output sibling/producer-consumer : bande passante ; horizontal : overhead). Note : dans le XLA actuel (2026), ces passes séparées sont en cours de dépréciation au profit d'une passe \"priority fusion\", mais cela n'invalide pas l'énoncé qui décrit l'architecture documentée par le papier."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le papier confirme les trois passes nommées (fusion merger, multi-output fusion sibling/producer-consumer, horizontal fusion) et leurs cibles ; corroboré indépendamment par un fil xla-dev où un développeur XLA confirme l'existence et le rôle de fusion_merger. Nuance mineure : fusion merger cible explicitement LES DEUX (bande passante ET overhead de lancement) selon le papier, pas l'un ou l'autre exclusivement — imprécision mineure qui n'invalide pas l'énoncé."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 5 sources indépendantes."
+    },
+    {
+      "id": "claim:11",
+      "section": "fusion-operateurs",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "La fusion d'opérateurs accélère un modèle principalement en réduisant le trafic mémoire (lectures/écritures vers la mémoire globale/HBM) et l'overhead de lancement de kernels — pas en réduisant le nombre de FLOPs, qui reste inchangé par la fusion.",
+      "original_statement": "La fusion d'opérateurs accélère un modèle principalement en réduisant le nombre d'opérations flottantes (FLOPs) effectuées.",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 3,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Les deux sources (auteurs et organisations distincts) affirment explicitement le contraire : horace.io dit que la fusion élide les accès mémoire répétés (x.cos().cos() : 4 opérations mémoire réduites à 2, le calcul restant identique) ; le blog PyTorch dit que la fusion réduit le trafic mémoire et l'overhead de lancement, jamais les FLOPs."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Les deux sources disent l'exact inverse du claim : horace.io illustre explicitement qu'un gelu fusionné coûte quasiment le même temps qu'un relu malgré beaucoup plus de FLOPs, et attribue le gain de fusion à la réduction des lectures/écritures mémoire (ex. x.cos().cos() : 4→2 accès mémoire) ; le blog PyTorch attribue le gain à la réduction du trafic mémoire et de l'overhead de lancement, pas aux FLOPs. Rejet net, deux sources indépendantes concordantes."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Les deux sources vérifiées directement (WebFetch) sont explicites et concordantes : la fusion élide les écritures/lectures intermédiaires en mémoire globale et réduit le nombre de lancements de kernel (ex. PyTorch blog : 8 opérations mémoire → 4, soit -50 % de trafic mémoire, et 3 kernels → 1), sans changer les calculs eux-mêmes. Horace He formule explicitement le contraste : les opérations élément-par-élément typiques de la fusion sont memory-bound, pas compute-bound, donc réduire les FLOPs n'apporte rien — c'est le trafic mémoire qui compte. L'énoncé inverse la causalité réelle ; il ne tient pas tel quel."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « La fusion d'opérateurs accélère un modèle principalement en réduisant le nombre d'opérations flottantes (FLOPs) effectuées. »"
+    },
+    {
+      "id": "claim:12",
+      "section": "fusion-operateurs",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Les heuristiques de fusion par défaut, rule-based (XLA) ou score-based (TorchInductor), peuvent être mesurablement loin de l'optimum : dans le cas Cartpole, XLA refuse par règle une fusion concaténation à consommateurs multiples ; la forcer en modifiant XLA ne rapporte qu'un gain marginal de 1,10× (et non le gain cumulé jusqu'à 10,56×, qui provient d'une voie distincte — retirer la concaténation du code utilisateur, 3,41×, puis dérouler la boucle ×10). Le scheduler de TorchInductor a par ailleurs contenu un bug réel où la condition de score_fusion_memory (max(n1,n2)×4 > min(n1,n2)) est mathématiquement toujours vraie pour des longueurs de dépendances positives, rendant systématique une branche censée être conditionnelle.",
+      "original_statement": "Les heuristiques de fusion par défaut, qu'elles soient rule-based (XLA) ou score-based (TorchInductor), peuvent être mesurablement loin de l'optimum : XLA refuse par règle une fusion concaténation à consommateurs multiples pourtant bénéfique une fois forcée (cas Cartpole, contribuant à un gain cumulé jusqu'à 10,56× vs baseline), et le scheduler de TorchInductor a contenu un bug réel où la condition de score_fusion_memory était toujours vraie, rendant une branche censée être conditionnelle systématique.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Le volet TorchInductor est confirmé exactement (code source lu directement : node2_dep_len partage le terme reads de node1, et max*4>min est de toute façon une tautologie arithmétique pour deux entiers positifs — bug réel, confirmé par un mainteneur). Mais le volet XLA/Cartpole mélange deux expériences distinctes du papier (Fig.5, §V.B vs §V.C-D) : forcer la fusion concat via modification d'XLA ne donne que 1,10×, alors que 10,56× vient d'une technique différente (contournement du concat + déroulage de boucle) qui ne force pas la règle de fusion XLA. L'attribution causale du claim est donc fausse telle qu'énoncée."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le volet TorchInductor est exact et confirmé par l'issue GitHub. Mais le volet XLA/Cartpole déforme la causalité : d'après le papier lui-même, forcer la fusion concaténation refusée ne produit qu'un gain marginal (~10 %), alors que la majeure partie du 10,56× cumulé vient d'un redesign évitant la concaténation et d'un déroulement de boucle — pas de la fusion forcée. Le claim tel que formulé fait porter au forçage de cette fusion un crédit que la source primaire ne lui accorde pas."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « Les heuristiques de fusion par défaut, qu'elles soient rule-based (XLA) ou score-based (TorchInductor), peuvent être mesurablement loin de l'optimum : XLA refuse par règle une fusion concaténation à consommateurs multiples pourtant bénéfique une fois forcée (cas Cartpole, contribuant à un gain cumulé jusqu'à 10,56× vs baseline), et le scheduler de TorchInductor a contenu un bug réel où la condition de score_fusion_memory était toujours vraie, rendant une branche censée être conditionnelle systématique. »"
+    },
+    {
+      "id": "claim:13",
+      "section": "triton-tuiles-autotuning",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le compilateur Triton automatise le coalescing mémoire, l'allocation et la synchronisation de la mémoire partagée, ainsi que l'ordonnancement des instructions au sein d'un SM ; le programmeur continue d'exprimer l'algorithme sous forme de blocs (choix de BLOCK_SIZE_M/N/K et de la stratégie de découpage), Triton inversant le modèle CUDA de « programme scalaire, threads en blocs » en « programme en blocs, threads scalaires ».",
+      "original_statement": "Le compilateur Triton automatise le coalescing mémoire, l'allocation et la synchronisation de la mémoire partagée, ainsi que l'ordonnancement des instructions au sein d'un SM ; le programmeur continue d'exprimer l'algorithme sous forme de blocs (choix de BLOCK_SIZE_M/N/K et de la stratégie de découpage), Triton inversant le modèle CUDA de « programme scalaire, threads en blocs » en « programme en blocs, threads scalaires ».",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le papier original (lu intégralement, §3.3 + §5.2) confirme mot pour mot l'automatisation par le compilateur du coalescing mémoire (§5.2.2), de l'allocation mémoire partagée (§5.2.3) et de sa synchronisation (§5.2.4), ainsi que l'inversion SPMD 'kernel single-threaded, automatiquement parallélisé' vs le modèle CUDA par thread-block (§3.3, Fig.3) — même substance que le tableau 'Scalar Program, Blocked Threads' vs 'Blocked Program, Scalar Threads' des docs actuelles, avec une formulation différente en 2019. Le blog PyTorch (organisation tierce, Meta) corrobore indépendamment le modèle 'programme en blocs' mais ne détaille pas explicitement l'automatisation coalescing/mémoire partagée. Limite : le papier et les docs triton-lang.org partagent le même auteur fondateur (Tillet) — ce n'est pas une indépendance totale, mais le papier fait foi comme source primaire peer-reviewed pour un fait architectural sur Triton lui-même. 'Ordonnancement des instructions au sein d'un SM' n'est pas le terme exact du papier 2019 (qui parle de hierarchical tiling / pre-fetching) mais correspond à 'asynchronous copy scheduling' / 'instruction selection' des docs actuelles."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Confirmé mot pour mot par les deux sources : la doc officielle liste coalescing automatique, allocation/synchronisation de la mémoire partagée, ordonnancement (pre-fetching, sélection d'instructions tensor-core) comme automatisés par le compilateur, et oppose explicitly CUDA « Scalar Program, Blocked Threads » à Triton « Blocked Program, Scalar Threads ». Le papier fondateur (§5.2, Fig. 3) confirme l'automatisation du hierarchical tiling, du memory coalescing et de l'allocation/synchro de mémoire partagée par Triton-JIT, et montre le même renversement de modèle (CUDA threads individuels vs Triton kernel single-threaded auto-parallélisé par blocs). Le programmeur choisit bien les tailles de tuile (TM/TN/TK tunable dans Listing 1)."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:14",
+      "section": "triton-tuiles-autotuning",
+      "section_retained": true,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "Dans le tutoriel officiel de matmul tuilée, le super-grouping via GROUP_SIZE_M réordonne le lancement des blocs pour améliorer la réutilisation en cache L2 et apporte un gain mesurable de plus de 10 % sans changer le nombre de FLOP du kernel.",
+      "original_statement": "Dans le tutoriel officiel de matmul tuilée, le super-grouping via GROUP_SIZE_M réordonne le lancement des blocs pour améliorer la réutilisation en cache L2 et apporte un gain mesurable de plus de 10 % sans changer le nombre de FLOP du kernel.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Claim auto-référentiel ('dans le tutoriel officiel, il est dit que...') : vérifié directement dans la page, citation exacte trouvée : 'this can improve the performance of our matrix multiplication kernel by more than 10% on some hardware architecture (e.g., 220 to 245 TFLOPS on A100)'. Le gain vient uniquement du réordonnancement du lancement des blocs (réutilisation L2 via GROUP_SIZE_M), sans changer le nombre de FLOP — cohérent avec l'énoncé. Une seule source suffit ici puisque la vérité de l'énoncé se réduit au contenu du document cité ; pas de mirroir utilisé."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Citation quasi littérale du tutoriel : « launch blocks in an order that promotes data reuse » via super-grouping GROUP_M, avec le gain chiffré exact « improve the performance of our matrix multiplication kernel by more than 10% on some hardware architecture (e.g., 220 to 245 TFLOPS on A100) ». Une seule source vérifiée (le tutoriel lui-même, autorité primaire sur son propre benchmark) ; pas de second témoin indépendant trouvé pour ce chiffre spécifique."
+        }
+      ],
+      "audit_note": "Rejeté : 2 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+    },
+    {
+      "id": "claim:15",
+      "section": "triton-tuiles-autotuning",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Unsloth écrit ses kernels de fine-tuning LoRA directement en Triton avec un backward dérivé à la main (sans autodiff) ; pour le mécanisme d'attention combiné aux adaptateurs LoRA (poids de base W gelés, seuls A et B entraînés), l'équipe indique devoir dériver 6 différentielles matricielles — la même approche de différentiation manuelle est dite appliquée à d'autres couches (MLP, lm_head, layernorms, RoPE) sans qu'un compte de « 6 » y soit donné explicitement. Unsloth revendique par ailleurs « 0 % de perte de précision » (affirmation auto-rapportée dans son propre blog, sans méthodologie ni base de comparaison précisée).",
+      "original_statement": "Unsloth écrit ses kernels de fine-tuning LoRA directement en Triton avec un backward dérivé à la main (sans autodiff) — 6 différentielles matricielles par module car les poids de base W sont gelés et seuls les facteurs LoRA A, B sont entraînés — et revendique 0 % de perte de précision par rapport à une implémentation standard.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Claim correctement couvert par 'revendique' pour la partie précision — donc c'est un énoncé sur ce qu'Unsloth affirme/fait, pas une vérité absolue à corroborer par un tiers. Vérifié : le blog dit mot pour mot 'you have to derive the matrix differentials yourself' et 'we have to find 6 matrix differentials since we freeze the original weight matrices W, but train A and B', et '0% loss in accuracy'. Le code source (lu directement) confirme : LoRA_MLP et LoRA_QKV calculent chacun 6 différentielles (d_gateA/B, d_upA/B, d_downA/B ; d_QA/B, d_KA/B, d_VA/B) via des addmm_ manuels, sans passer par autograd — W jamais dérivé. Nuance : fast_lora.py orchestre des kernels Triton importés (SwiGLU/GeGLU/RoPE) mais le calcul des 6 différentielles lui-même utilise des matmul PyTorch/cuBLAS classiques, pas de nouveau kernel Triton dédié — nuance mineure qui n'invalide pas l'énoncé au niveau où il est formulé. J'ai cherché une confirmation tierce indépendante du chiffre '0% de perte de précision' (benchmark académique, analyse indépendante) : aucune trouvée — même le post invité huggingface.co/blog/unsloth-trl reprenant ce chiffre est signé par l'équipe Unsloth elle-même (guest post), donc pas indépendant. Comme l'énoncé audité dit explicitement 'revendique', ce n'est pas un défaut de véracité."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 0,
+          "note": "Sur-généralisation : le blog attache le chiffre « 6 » spécifiquement au « mécanisme d'attention couplé aux adaptateurs LoRA » (Q/K/V combinés), pas à « chaque module » en général — l'inspection de fast_lora.py pour le bloc MLP (gate/up/down) donne un décompte de gradients différent (~9 opérations), ce qui contredit un chiffre universel « par module ». Par ailleurs le « 0% de perte de précision » est cité tel quel dans le blog mais sans préciser vs quelle baseline (QLoRA ? PEFT standard ?) — « implémentation standard » est un ajout du claim, pas de la source. Les deux sources vérifiées (blog unsloth.ai et code github unslothai/unsloth) proviennent de la même organisation auto-publiante : aucune source tierce indépendante trouvée pour corroborer le chiffre ou la revendication de précision."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « Unsloth écrit ses kernels de fine-tuning LoRA directement en Triton avec un backward dérivé à la main (sans autodiff) — 6 différentielles matricielles par module car les poids de base W sont gelés et seuls les facteurs LoRA A, B sont entraînés — et revendique 0 % de perte de précision par rapport à une implémentation standard. »"
+    },
+    {
+      "id": "claim:16",
+      "section": "triton-tuiles-autotuning",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "Idée reçue à trancher : @triton.autotune « trouve automatiquement » la meilleure taille de tuile, comme si le compilateur découvrait lui-même le découpage optimal — en réalité c'est une recherche parmi une liste finie de triton.Config rédigés à la main par l'auteur du kernel (BLOCK_SIZE_M/N/K, num_warps, num_stages) ; le paramètre 'key' ne fait que redéclencher cette recherche quand la forme d'entrée change, il ne crée aucune configuration nouvelle.",
+      "original_statement": "Idée reçue à trancher : @triton.autotune « trouve automatiquement » la meilleure taille de tuile, comme si le compilateur découvrait lui-même le découpage optimal — en réalité c'est une recherche parmi une liste finie de triton.Config rédigés à la main par l'auteur du kernel (BLOCK_SIZE_M/N/K, num_warps, num_stages) ; le paramètre 'key' ne fait que redéclencher cette recherche quand la forme d'entrée change, il ne crée aucune configuration nouvelle.",
+      "corroborated": 3,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Vérifié dans le code source de l'autotuner (primaire, faisant foi) : la classe Autotuner ne fait que benchmarker la liste de triton.Config fournie par l'utilisateur (self.configs) et retenir le minimum de temps mesuré — aucune génération de configuration nouvelle. 'key' sert uniquement de clé de cache : un changement de valeur invalide le cache et redéclenche le benchmark sur la MÊME liste de configs pour la nouvelle forme d'entrée. Confirmé indépendamment par un blog tiers (Till Code, non affilié à Triton/OpenAI) qui décrit exactement ce mécanisme avec les mêmes termes, et par le tutoriel officiel 03 (liste explicite de triton.Config avec BLOCK_SIZE_M/N/K, num_warps, num_stages, key=['M','N','K'])."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Confirmé par le tutoriel officiel : @triton.autotune consomme « a list of triton.Config objects that define different configurations of meta-parameters ... to try » (écrits à la main par l'auteur du kernel, incluant BLOCK_SIZE_M/N/K, num_warps, num_stages) et « an auto-tuning key whose change in values will trigger evaluation of all the provided configs » — le key redéclenche la recherche parmi les configs existantes, il n'en crée aucune nouvelle. Une seule source vérifiée (le tutoriel), suffisante pour ce point de mécanique documentée mais sans second témoin indépendant."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "L'énoncé tient tel quel, vérifié sur 3 sources primaires du projet Triton (tutoriel, référence API, code source). Le tutoriel de multiplication matricielle liste 16 (CUDA) / 8 (HIP) objets triton.Config écrits à la main avec BLOCK_SIZE_M/N/K, num_warps (2-8), num_stages (2-5) explicitement fixés — aucun découpage n'est « découvert » par le compilateur. La doc officielle définit key comme « a list of argument names whose change in value will trigger the evaluation of all provided configs » : il redéclenche une réévaluation, il ne crée rien. Le code source de la classe Autotuner confirme qu'elle stocke, élague (prune_configs) et sélectionne parmi les configs fournies, sans mécanisme de génération de nouvelles configurations."
+        }
+      ],
+      "audit_note": "Confirmé : 3/3 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:17",
+      "section": "triton-face-a-cuda",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Le slogan d'OpenAI selon lequel Triton permet d'égaler cuBLAS en moins de 25 lignes de code correspond à une performance globalement comparable sur le benchmark FP16 publié dans la documentation officielle, mais cette parité fluctue selon la taille de matrice testée (Triton devançant ou étant devancé par cuBLAS selon les points, ex. 214 vs 218 TFLOPS à 4096×4096) et n'est pas garantie sur toute configuration matérielle : un rapport tiers documente un écart de performance substantiel et des problèmes de précision numérique sur d'autres GPU (ex. T4 sur Google Colab).",
+      "original_statement": "Le slogan d'OpenAI selon lequel Triton permet d'égaler cuBLAS « en moins de 25 lignes de code » se vérifie de façon uniforme, quelle que soit la taille de matrice ou la configuration matérielle.",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 3,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le tutoriel officiel lui-même ne parle que de performance 'sur par avec' cuBLAS, avec des écarts qui varient selon la taille de matrice (parfois devant, parfois derrière) ; l'issue GitHub #2824, rapport indépendant d'un tiers, montre un écart de performance net et des problèmes de précision numérique sur d'autres configurations (T4). L'uniformité affirmée par le claim n'est donc pas soutenue."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "La citation OpenAI est exacte mot pour mot, mais deux sources indépendantes de la performance réelle (le tutoriel Triton lui-même et un rapport de bug tiers) montrent que l'égalité avec cuBLAS se dégrade selon la taille de matrice et le GPU — donc pas 'uniforme' comme l'affirme le claim."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "L'énoncé « uniforme quelle que soit la taille de matrice ou la configuration matérielle » est réfuté par la source primaire elle-même (le tutoriel Triton) qui documente des croisements de performance selon la taille de matrice, et par des rapports indépendants sur au moins 4 GPU différents (T4, RTX 2070S, Quadro RTX 8000, A100) montrant un écart net avec cuBLAS et des problèmes de tolérance numérique (torch.allclose échouant à 1e-2). L'accès direct à openai.com a été bloqué (HTTP 403 en WebFetch et en curl), mais la citation exacte a pu être confirmée via le cache de résultats de recherche — c'est une citation très largement reprise et cohérente entre plusieurs sources secondaires."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Le slogan d'OpenAI selon lequel Triton permet d'égaler cuBLAS « en moins de 25 lignes de code » se vérifie de façon uniforme, quelle que soit la taille de matrice ou la configuration matérielle. »"
+    },
+    {
+      "id": "claim:18",
+      "section": "triton-face-a-cuda",
+      "section_retained": true,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "Sans autotuning, la portabilité de performance de Triton entre GPU NVIDIA et AMD n'est pas automatique : une implémentation d'attention portée telle quelle affiche des écarts de débit dramatiques par rapport aux bibliothèques optimisées à la main sur chaque plateforme.",
+      "original_statement": "Sans autotuning, la portabilité de performance de Triton entre GPU NVIDIA et AMD n'est pas automatique : une implémentation d'attention portée telle quelle affiche des écarts de débit dramatiques par rapport aux bibliothèques optimisées à la main sur chaque plateforme.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 0,
+          "note": "Le papier source (arXiv:2505.03780, Fig. 4) mesure bien une dégradation dramatique 'sans autotuning', mais il s'agit du transfert d'une CONFIGURATION Triton optimisée pour un GPU vers un AUTRE GPU (Triton-vs-Triton mal réglé), pas d'une comparaison chiffrée d'une implémentation Triton portée telle quelle contre les bibliothèques optimisées à la main (flash_attn/rocm_flash_attn) sur chaque plateforme séparément — cette comparaison précise n'existe pas dans le papier ; au contraire, le seul chiffrage Triton-vs-bibliothèques montré (kernel AUTOTUNÉ) égale ou dépasse ces bibliothèques (jusqu'à 2,3×, au pire 78% du SOTA)."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Le papier (RQ2, Fig. 4) montre bien un effondrement dramatique de performance sans autotuning par plateforme, mais la comparaison mesurée est 'config réutilisée d'une autre plateforme vs Triton autotuné sur la bonne plateforme' — pas un kernel 'porté tel quel' comparé aux bibliothèques optimisées à la main comme l'affirme le claim ; aucune expérience de ce type (Triton non-tuné vs flash_attn/rocm_flash_attn sur les deux plateformes) n'existe dans le papier."
+        }
+      ],
+      "audit_note": "Rejeté : 0 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+    },
+    {
+      "id": "claim:19",
+      "section": "triton-face-a-cuda",
+      "section_retained": true,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "Un kernel Triton d'attention pleinement autotuné, d'environ 1100 lignes, peut dépasser les bibliothèques de kernels optimisées à la main de jusqu'à 230% tout en réduisant la taille du code d'un facteur 70, avec le même code source sur GPU NVIDIA A100 et AMD MI250.",
+      "original_statement": "Un kernel Triton d'attention pleinement autotuné, d'environ 1100 lignes, peut dépasser les bibliothèques de kernels optimisées à la main de jusqu'à 230% tout en réduisant la taille du code d'un facteur 70, avec le même code source sur GPU NVIDIA A100 et AMD MI250.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 0,
+          "note": "Tous les chiffres du claim (1100 LoC, 2,3×/230%, facteur 70, A100 et MI250 avec code inchangé) correspondent exactement au texte de l'unique papier source (Table I + abstract, arXiv:2505.03780). Recherche dédiée pour une confirmation indépendante (hgpu.org, ResearchGate, Semantic Scholar) : ces pages ne font que reposter l'abstract du même preprint, aucune source tierce indépendante trouvée reproduisant ou confirmant ces chiffres précis — claim single-source à ce stade."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Confirmé par la source primaire : kernel d'attention Triton autotuné (1134 LoC, ≈1100) bat flash_attn/rocm_flash_attn jusqu'à 230% avec une réduction de code de 70x, même code source sur A100-80GB et MI250-128GB (le 'jusqu'à' du claim est cohérent avec le pire cas rapporté, 78% du SOTA)."
+        }
+      ],
+      "audit_note": "Rejeté : 1 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+    },
+    {
+      "id": "claim:20",
+      "section": "triton-face-a-cuda",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "La critique documentée de Triton porte sur l'abaissement (lowering) prématuré de son IR, effectué directement du niveau workgroup (= CTA / thread-block) au niveau par-thread sans étage intermédiaire warp, ce qui masque la topologie matérielle et a motivé le travail de compilation multi-niveaux ML-Triton.",
+      "original_statement": "La critique documentée de Triton porte sur l'abaissement (lowering) prématuré de son IR, effectué directement du niveau workgroup au niveau par-thread sans étage intermédiaire warp/CTA, ce qui masque la topologie matérielle et a motivé le travail de compilation multi-niveaux ML-Triton.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Le cœur du claim est bien confirmé, et de façon indépendante : la RFC GitHub #2729 (nov. 2023, ~16 mois avant le papier ML-Triton, aucun renvoi croisé visible) documente déjà, depuis l'intérieur du projet Triton, exactement le même constat ('TritonGPU lowers directly from the thread block level to the per-thread level. This is kind of large gap.') et motive une passe warp-level pour les mêmes raisons (SIMD, Flash Attention v2). Correction nécessaire : 'workgroup' EST déjà le niveau CTA/thread-block (le papier le dit lui-même, 'workgroup aka threadblock') — c'est donc le niveau WARP seul qui est sauté, pas un niveau 'warp/CTA' distinct ; la formulation du claim laisse à tort entendre que CTA serait aussi un étage manquant alors qu'il est le point de départ du lowering."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Le fond de la critique (lowering direct workgroup→thread sans étage intermédiaire, motivant ML-Triton) est bien confirmé par la source, mais le claim est terminologiquement incohérent : 'workgroup' EST le niveau CTA/threadblock, explicitement nommé comme point de départ dans la même phrase — ce n'est pas l'étage manquant. Le seul étage ajouté par ML-Triton est 'warp' (puis intrinsèque), pas 'warp/CTA'."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « La critique documentée de Triton porte sur l'abaissement (lowering) prématuré de son IR, effectué directement du niveau workgroup au niveau par-thread sans étage intermédiaire warp/CTA, ce qui masque la topologie matérielle et a motivé le travail de compilation multi-niveaux ML-Triton. »"
+    },
+    {
+      "id": "claim:21",
+      "section": "pile-torch-compile",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "TorchDynamo capture un graphe FX en interceptant l'exécution Python au niveau de la frame via la Frame Evaluation API de CPython (PEP 523), sans nécessiter de modification du code source tracé.",
+      "original_statement": "TorchDynamo capture un graphe FX en interceptant l'exécution Python au niveau de la frame via la Frame Evaluation API de CPython (PEP 523), sans nécessiter de modification du code source tracé.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Confirmé indépendamment par le papier ASPLOS 2024 (peer-reviewed, §3.2 'CPython Frame Evaluation Hook' : 'TorchDynamo hooks into the Python frame evaluation API in CPython to dynamically modify Python bytecode right before it is executed') et par le texte de la PEP 523 elle-même, spécification CPython indépendante de PyTorch. Aucune modification du code source tracé n'est requise (confirmé par le billet PyTorch 2.0 : 'without needing any changes to the original code')."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Confirmé texto par les deux sources : le blog cite explicitement PEP-0523 / Frame Evaluation API et « without needing any changes to the original code » ; le papier ASPLOS précise « TorchDynamo hooks into the Python frame evaluation API [PEP 523] in CPython to dynamically modify Python bytecode right before it is executed ». Nuance mineure sans incidence : Dynamo produit souvent PLUSIEURS graphes FX (graph breaks) plutôt qu'un seul, mais le claim ne revendique pas l'unicité du graphe donc pas de contradiction."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:22",
+      "section": "pile-torch-compile",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le partitionneur min-cut d'AOTAutograd formalise l'arbitrage recalcul-vs-stockage d'une activation comme un problème de min-cut/max-flow sur le graphe joint forward+backward, automatisant une décision historiquement manuelle (torch.utils.checkpoint).",
+      "original_statement": "Le partitionneur min-cut d'AOTAutograd formalise l'arbitrage recalcul-vs-stockage d'une activation comme un problème de min-cut/max-flow sur le graphe joint forward+backward, automatisant une décision historiquement manuelle (torch.utils.checkpoint).",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le post dev-discuss original (source primaire du design) formalise explicitement le choix recompute-vs-save comme un min-cut/max-flow sur le graphe joint et l'oppose à la sélection manuelle antérieure via torch.utils.checkpoint. Confirmé indépendamment par le papier ASPLOS 2024 (§3.9 AOTAutograd, peer-reviewed) : 'AOTAutograd then uses a min-cut algorithm to split this joint graph into separate forward and backward graphs in a way that optimizes for memory usage.'"
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "La formalisation min-cut/max-flow sur le graphe joint forward+backward est confirmée mot pour mot par le post dev-discuss (source = nœuds d'entrée, sink = nœuds requis au backward, coût du cut = coût lecture/écriture des activations, algorithme max-flow standard) et recoupée indépendamment par le §3.9 du papier ASPLOS 2024 : « AOTAutograd then uses a min-cut algorithm to split this joint graph into separate forward and backward graphs ... to rematerialize certain activations that are cheap to recompute ». Réserve : ni l'une ni l'autre des deux sources ne mentionne texto torch.utils.checkpoint comme la référence « historiquement manuelle » — ce framing est correct (torch.utils.checkpoint impose bien à l'utilisateur de choisir manuellement les segments à recalculer) mais c'est une inférence du rédacteur, pas une citation directe des deux candidates."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:23",
+      "section": "pile-torch-compile",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "PrimTorch et TorchInductor canonicalisent PyTorch en couches d'opérateurs de taille fixe et documentée : ~2000+ opérateurs (1200+ hors surcharges) ramenés à ~250 Prim ops + ~750 ATen ops, puis un IR de boucle define-by-run d'environ 50 opérateurs seulement pour la génération de code.",
+      "original_statement": "PrimTorch et TorchInductor canonicalisent PyTorch en couches d'opérateurs de taille fixe et documentée : ~2000+ opérateurs (1200+ hors surcharges) ramenés à ~250 Prim ops + ~750 ATen ops, puis un IR de boucle define-by-run d'environ 50 opérateurs seulement pour la génération de code.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les chiffres 2000+/1200+ et 250 Prim + 750 ATen n'ont qu'une seule origine vérifiable (le billet PyTorch 2.0, republié à l'identique sur get-started/pytorch-2-x — un miroir, pas une source distincte). Seul le chiffre '~50 opérateurs' de l'IR de boucle TorchInductor est confirmé indépendamment par le papier ASPLOS 2024 peer-reviewed ('the loop-level TorchInductor IR consisted of 54 primitive operators'), qui ne mentionne pas PrimTorch nommément et décrit à la place un mécanisme voisin mais distinct (191 décompositions, 387 avec surcharges) — sans contredire les chiffres 250/750."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Chiffres confirmés texto par le blog : « PyTorch has 1200+ operators, and 2000+ if you consider various overloads », « Prim ops with about ~250 operators », « ATen ops with about ~750 canonical operators », « TorchInductor's core loop level IR contains only ~50 operators ». Prims et ATen sont bien deux ensembles-cibles PARALLÈLES documentés (pas une chaîne séquentielle 2000→750→250) — lecture cohérente avec le « + » du claim, qui énumère deux ensembles et non une somme téléscopée. Le papier ASPLOS 2024 recoupe indépendamment le chiffre de l'IR de boucle : « the loop-level TorchInductor IR consisted of 54 primitive operators » au moment de l'écriture — cohérent avec « environ 50 »."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:24",
+      "section": "pile-torch-compile",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Les chiffres du billet PyTorch 2.0 (163 modèles = 56 TorchBench + 46 HuggingFace + 61 TIMM, 93 % de réussite, +43 % d'entraînement en moyenne PONDÉRÉE 0,75×AMP+0,25×float32) et ceux du papier ASPLOS 2024 (180+ modèles, Table 1 : jusqu'à 74-80 TorchBench + 46 HuggingFace + 62 TIMM, 2,27× inférence / 1,41× entraînement en moyenne GÉOMÉTRIQUE, mesurés sur un nightly build du 30/08/2023) sont deux campagnes de mesure distinctes — composition de modèles, méthodologie d'agrégation et date de mesure différentes — et non une seule et même mesure simplement reconduite à plus grande échelle.",
+      "original_statement": "Les chiffres du billet PyTorch 2.0 (163 modèles, 93 % de réussite, +43 % d'entraînement en moyenne sur A100) et ceux du papier évalué par les pairs à ASPLOS 2024 (180+ modèles, 2,27× d'accélération géométrique en inférence, 1,41× en entraînement sur A100) constituent une seule et même mesure, simplement reconduite à plus grande échelle.",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 3,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 0,
+          "note": "Faux tel qu'énoncé : j'ai lu les deux documents directement. Le billet utilise une moyenne PONDÉRÉE (0,75×AMP+0,25×float32) sur 163 modèles mesurés avant mars 2023 ; le papier ASPLOS utilise une moyenne GÉOMÉTRIQUE explicite sur 180+ modèles mesurés sur un nightly build du 30/08/2023, avec une composition de suites différente (Table 1). L'annexe A.8 du papier précise même : 'Speedups and model coverage results have improved in recent versions of PyTorch compared to results shown in this paper' — preuve que ce sont des mesures séparées, pas la même reconduite."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "RÉFUTÉ. Le billet mesure uniquement l'entraînement (moyenne pondérée 0,75×AMP + 0,25×float32, PAS de chiffre d'inférence) sur 163 modèles ; le papier ASPLOS mesure entraînement ET inférence en moyenne GÉOMÉTRIQUE (pas une moyenne simple) sur 180+ modèles répartis en trois suites, et ajoute une comparaison à six autres compilateurs absente du billet. Nombre de modèles, métrique et périmètre diffèrent tous les trois : ce sont deux campagnes de benchmark distinctes, pas une seule mesure prolongée."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Chiffres exacts vérifiés dans chaque source primaire (163/93%/+43% dans le billet ; « 2.27× inference and 1.41× training geometric mean speedup ... across 180+ real-world models » dans l'abstract du papier ASPLOS). Mais l'affirmation qu'il s'agit « d'une seule et même mesure reconduite à plus grande échelle » est réfutée : le billet parle explicitement de « weighted average speedup » (moyenne arithmétique pondérée AMP/float32) sans jamais mentionner de moyenne géométrique ni de chiffre d'inférence, alors que le papier utilise systématiquement la « geometric mean speedup » (titre des tableaux 3 et 4) ; l'annexe artefact du papier précise que les benchmarks tournent sur la branche `release/2.1` de PyTorch (pas 2.0) ; et la composition des suites diffère (TorchBench passe de 56 modèles dans le billet à 80 dans le Tableau 1 du papier). Ce sont deux campagnes de mesure distinctes et cohérentes, pas la même mesure agrandie. La page ACM (dl.acm.org) a renvoyé 403 ; j'ai utilisé le PDF hébergé par PyTorch lui-même (même titre, mêmes auteurs, même DOI imprimé en page 1) comme substitut de source primaire."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Les chiffres du billet PyTorch 2.0 (163 modèles, 93 % de réussite, +43 % d'entraînement en moyenne sur A100) et ceux du papier évalué par les pairs à ASPLOS 2024 (180+ modèles, 2,27× d'accélération géométrique en inférence, 1,41× en entraînement sur A100) constituent une seule et même mesure, simplement reconduite à plus grande échelle. »"
+    },
+    {
+      "id": "claim:25",
+      "section": "graph-breaks-recompilations",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Un graph break dans TorchDynamo préserve la correction du programme : le fragment de bytecode non supporté s'exécute en Python eager exact (sans perte de sémantique), et le traçage reprend ensuite dans un nouveau graphe FX — seule la portée de la fusion et de l'optimisation en aval est amputée, jamais l'exactitude du résultat.",
+      "original_statement": "Un graph break dans TorchDynamo préserve la correction du programme : le fragment de bytecode non supporté s'exécute en Python eager exact (sans perte de sémantique), et le traçage reprend ensuite dans un nouveau graphe FX — seule la portée de la fusion et de l'optimisation en aval est amputée, jamais l'exactitude du résultat.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Docs page (2.9, fetched directly): 'Dynamo compiles the FX graph that has been determined up to that point, executes the unsupported code in regular Python, and then resumes tracing' — matches the claim's mechanism verbatim. Source code docstring for resume_execution.py (the module implementing this resume) states it is 'critical for PyTorch Dynamo's ability to optimize code while preserving Python semantics and execution state', directly backing the 'correction preserved, only fusion/optimization scope amputated' framing. Caveat: both artifacts are PyTorch/Meta-maintained (docs vs. source code, not third-party-independent orgs) — I found no unaffiliated third party independently verifying this design guarantee, only the project's own docs+code, which is the strongest available evidence for an internal-compiler-semantics claim of this kind."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Confirmé par le tutoriel officiel, fetché directement : « It allows torch.compile to handle arbitrary Python code by interrupting compilation, running the unsupported code, then resuming compilation » et « Graph breaks result in lost optimization opportunities... rather than errors or silent incorrectness ». Recoupé par la doc programming_model (contenu obtenu via citations google indexées de cette page précise, le WebFetch direct de cette URL a échoué en redirection vide) : le code non supporté s'exécute en eager, la trace reprend ensuite dans un sous-graphe suivant — seule l'optimisation est amputée, jamais la correction. Le claim tient tel quel."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:26",
+      "section": "graph-breaks-recompilations",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le nombre de recompilations tolérées pour une même frame est borné par torch._dynamo.config.recompile_limit (8 par défaut) ; une fois cette limite dépassée, TorchDynamo cesse définitivement d'essayer de recompiler cette frame, bascule son exécution en mode eager, et émet un avertissement explicite nommant la fonction et la raison du dernier échec de guard.",
+      "original_statement": "Le nombre de recompilations tolérées pour une même frame est borné par torch._dynamo.config.recompile_limit (8 par défaut) ; une fois cette limite dépassée, TorchDynamo cesse définitivement d'essayer de recompiler cette frame, bascule son exécution en mode eager, et émet un avertissement explicite nommant la fonction et la raison du dernier échec de guard.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Source code (fetched raw from GitHub) confirms `recompile_limit = 8` (line 121) and `fail_on_recompile_limit_hit = False` by default (supports eager fallback rather than a hard error). Docs page states verbatim: 'If either limit is exceeded, then we will not attempt to compile the function again and instead will run the function eagerly. torch.compile will also issue a warning containing the affected function and which limit was hit', with a worked example showing the warning text 'torch._dynamo hit config.recompile_limit (8) function: ... last reason: ...' — matches the claim exactly (limit=8, permanent eager fallback for that frame, explicit warning naming function + last guard-failure reason). Same caveat as claim 0: both sources are PyTorch/Meta-owned (docs + code), not third-party-independent, but they are the authoritative artifacts for an internal default-config claim."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Confirmé sur les deux sources : recompile_limit = 8 par défaut (config.py ; cache_size_limit n'est qu'un alias hérité). Le doc de troubleshooting cite l'exemple exact du message émis au dépassement : « torch._dynamo hit config.recompile_limit (8) function: 'fn' (...) last reason: ... » — dépassement → plus de tentative de recompilation, exécution eager, avertissement nommant la fonction ET la raison du dernier échec de guard. Le claim tient tel quel."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:27",
+      "section": "graph-breaks-recompilations",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Pour tirer la performance maximale de torch.compile, il n'est pas nécessaire d'éliminer systématiquement tous les graph breaks : leur impact dépend de leur emplacement dans le forward — ceux situés au milieu du forward coûtent en général plus cher (en optimisations perdues) que ceux en périphérie (ex. prétraitement en début de forward) — donc l'effort doit cibler les graph breaks qui causent une perte de performance mesurable, pas viser l'exhaustivité.",
+      "original_statement": "Pour tirer la performance maximale de torch.compile, il faut systématiquement traquer et éliminer tous les graph breaks d'un modèle, quel que soit leur emplacement dans le forward.",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 3,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "The official docs directly contradict the claim's 'systematically eliminate all, regardless of location' framing, stating verbatim: 'graph breaks that happen in the middle of your model's forward are likely to have a more negative impact than graph breaks in a preprocessing part at the beginning of the forward. So it is not crucial to prevent every single break, but rather to prevent the ones that cause significant performance hits.' I verified this exact text myself in the fetched page body."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Contredit frontalement par la source citée elle-même : « it is not crucial to prevent every single break, but rather to prevent the ones that cause significant performance hits » et « graph breaks that happen in the middle of your model's forward are likely to have a more negative impact than graph breaks in a preprocessing part at the beginning ». Le claim affirme exactement l'inverse (« systématiquement tous », « quel que soit leur emplacement »)."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "La documentation officielle PyTorch (vérifiée sur main et sur la version stable 2.8, wording identique) affirme explicitement : « it is not crucial to prevent every single break, but rather to prevent the ones that cause significant performance hits » — les breaks au milieu du forward sont dits plus dommageables que ceux en début (préprocessing). L'article académique GraphMend (arXiv 2509.16248) corrobore empiriquement cette dépendance à l'emplacement (exemple Phi-4-mini-instruct vs Qwen-Audio-Chat : même type de break, gain de perf différent selon la position dans le forward). L'énoncé contesté affirme l'inverse (élimination systématique et exhaustive requise « quel que soit l'emplacement ») — il est réfuté par la source primaire faisant autorité elle-même."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Pour tirer la performance maximale de torch.compile, il faut systématiquement traquer et éliminer tous les graph breaks d'un modèle, quel que soit leur emplacement dans le forward. »"
+    },
+    {
+      "id": "claim:28",
+      "section": "graph-breaks-recompilations",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Selon un benchmark interne rapporté par l'équipe PyTorch elle-même, TorchDynamo capture un graphe complet dans environ 99 % des cas sur un test de plus de 7000 projets GitHub utilisant PyTorch, contre environ 50 % pour TorchScript et les approches antérieures — chiffre auto-rapporté par le projet PyTorch, non corroboré par une source tierce véritablement indépendante que j'aie pu identifier.",
+      "original_statement": "TorchDynamo capture un graphe complet dans environ 99% des cas sur un test de plus de 7000 projets GitHub utilisant PyTorch, contre environ 50% pour TorchScript, le tracing statique qui l'a précédé.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 0,
+          "note": "I verified the exact wording on pytorch.org/get-started/pytorch-2-x/ myself: '7,000+ Github projects... TorchScript and others struggled to even acquire the graph 50% of the time... TorchDynamo acquired the graph 99% of the time', which links to a dev-discuss.pytorch.org post by the same TorchDynamo team — same origin, not independent. I searched for third-party replications (academic papers on TorchDynamo/torch.compile evaluation, e.g. the PyTorch2 ASPLOS paper — also authored by the same Meta/PyTorch team) and found no unaffiliated party that independently reran or verified this specific 7000-repo/99%-vs-50% figure; other mentions found (blogs) merely cite the same pytorch.org post rather than re-measuring. Per the stated doubt-leans-false rule, marking holds=false for lack of independent corroboration, not because the figure is known to be wrong."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le 99% du blog pytorch.org mesure la réussite d'exécution CORRECTE en tolérant les graph breaks (mode par défaut) — pas la capture d'UN SEUL graphe complet sans coupure. Le post primaire dev-discuss, référencé par ce même blog comme source du chiffre, précise que sur ce benchmark identique, le mode fullgraph/nopython (graphe unique exigé, sans repli eager) n'atteint que 63,3% des projets / 84,4% des tests — chiffre très différent. Dire que TorchDynamo « capture un graphe complet » dans 99% des cas déforme donc la métrique, de façon particulièrement trompeuse dans une section consacrée aux graph breaks (qui suppose justement que les graphes ne sont PAS toujours complets). Par ailleurs le 50% est attribué par la source à « TorchScript and others » collectivement, pas exclusivement à TorchScript, et n'est corroboré par aucune méthodologie publiée (contrairement au chiffre de 7000+ projets). Les deux sources listées appartiennent au même écosystème PyTorch (le blog cite le post dev-discuss) : indépendance éditoriale limitée, à noter."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « TorchDynamo capture un graphe complet dans environ 99% des cas sur un test de plus de 7000 projets GitHub utilisant PyTorch, contre environ 50% pour TorchScript, le tracing statique qui l'a précédé. »"
+    },
+    {
+      "id": "claim:29",
+      "section": "cuda-graphs-overhead-lancement",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Les CUDA Graphs suppriment l'essentiel du surcoût de soumission CPU par kernel (de l'ordre de quelques microsecondes chacun) en enregistrant une fois pour toutes, sous forme de graphe (DAG), une séquence de lancements de kernels et de copies mémoire, puis en la rejouant par un unique appel (cudaGraphLaunch côté CUDA, g.replay() côté PyTorch).",
+      "original_statement": "Les CUDA Graphs suppriment l'essentiel du surcoût de soumission CPU par kernel (de l'ordre de quelques microsecondes chacun) en enregistrant une fois pour toutes, sous forme de graphe (DAG), une séquence de lancements de kernels et de copies mémoire, puis en la rejouant par un unique appel (cudaGraphLaunch côté CUDA, g.replay() côté PyTorch).",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "NVIDIA chiffre l'overhead CPU par kernel à ~1-5 μs et décrit la soumission en un seul appel ; le blog PyTorch confirme indépendamment le mécanisme DAG (stream capture) rejoué via g.replay(), avec code à l'appui. Le candidat arXiv 2603.12465 (TaxBreak, vérifié réel) ne discute pas des CUDA Graphs comme mécanisme et a été écarté."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le blog PyTorch confirme mot pour mot le mécanisme (stream capture → graphe, puis 'a replay submits the entire graph's work to the GPU with a single call to cudaGraphLaunch', g.replay() côté PyTorch) ; la doc NVIDIA chiffre l'overhead CPU/driver par kernel à '~1-5 μs per kernel', ce qui colle à 'quelques microsecondes chacun'. arXiv:2603.12465 (TaxBreak) n'apporte rien de vérifiable sur ce point précis dans le texte accessible, donc non retenu comme source."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:30",
+      "section": "cuda-graphs-overhead-lancement",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Le gain des CUDA Graphs est fortement borné par le profil du workload : fort (1,5 à 3×) sur les flots de nombreux petits kernels (>50 par itération, overhead de lancement dominant), faible — de l'ordre de 5 à 15 % — sur une charge déjà saturée (>90 % d'utilisation GPU), et non « quasi nul » au sens littéral ; par ailleurs le gain d'un sous-composant graphé ne se transmet pas au même facteur au pipeline entier (exemple Mask R-CNN : 5× sur le backbone graphé, ~1,7× sur le modèle complet).",
+      "original_statement": "Le gain des CUDA Graphs est fortement borné par le profil du workload : fort sur les flots de nombreux petits kernels, quasi nul sur une charge déjà saturée — et le gain d'un sous-composant graphé ne se transmet pas au même facteur au pipeline entier.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "NVIDIA donne des plages de speedup explicites selon le profil (1,5-3x pour >50 petits kernels/itération vs 1,05-1,15x pour >95% d'utilisation GPU) ; le blog PyTorch montre indépendamment que le backbone Mask R-CNN graphé gagne 5x isolément (31ms→6ms) mais seulement 1,7x sur le modèle complet, confirmant la non-transitivité du gain."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "La seconde moitié du claim (non-transmission proportionnelle au pipeline) est solidement corroborée par l'exemple Mask R-CNN du blog PyTorch (5× sur le composant graphé → ~1,7× global). Mais 'quasi nul' déforme la source primaire : la doc NVIDIA chiffre explicitement le cas saturé à 1,05-1,15× (soit 5-15 %), un gain mesurable et non négligeable au sens strict — le PyTorch blog parle lui d'overhead CPU 'negligible' pour les gros batches, ce qui nuance mais ne rétablit pas la formulation 'quasi nul' comme un chiffre exact."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « Le gain des CUDA Graphs est fortement borné par le profil du workload : fort sur les flots de nombreux petits kernels, quasi nul sur une charge déjà saturée — et le gain d'un sous-composant graphé ne se transmet pas au même facteur au pipeline entier. »"
+    },
+    {
+      "id": "claim:31",
+      "section": "cuda-graphs-overhead-lancement",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "Idée reçue à départager : un CUDA Graph devrait obligatoirement capturer la totalité d'un modèle en un seul graphe monolithique et statique — alors qu'en pratique la capture naïve d'un unique graphe est documentée comme un anti-pattern (régressions mémoire sévères, échecs sur mutation de paramètres/tenseurs), ce qui a motivé des mécanismes de capture partielle et sélective devenus la norme en production.",
+      "original_statement": "Idée reçue à départager : un CUDA Graph devrait obligatoirement capturer la totalité d'un modèle en un seul graphe monolithique et statique — alors qu'en pratique la capture naïve d'un unique graphe est documentée comme un anti-pattern (régressions mémoire sévères, échecs sur mutation de paramètres/tenseurs), ce qui a motivé des mécanismes de capture partielle et sélective devenus la norme en production.",
+      "corroborated": 2,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "PyTorch documente des régressions mémoire sévères issues de captures découplées/naïves, motivant CUDAGraph Trees ; PyGraph (académique, IISc) documente la corruption silencieuse/crash issus de la mutation de paramètres non gérée et jusqu'à 39% de dégradation sur ~25% des captures naïves, motivant le déploiement sélectif ; vLLM documente explicitement l'abandon du couplage all-or-nothing pour une capture piecewise devenue la norme. Nuance mineure : la 'régression mémoire' PyTorch concerne des pools non partagés entre captures découplées plutôt qu'un unique graphe monolithique au sens strict, écart mineur qui ne remet pas en cause la thèse."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Trois sources indépendantes convergent : la doc PyTorch documente explicitement les 'large memory regressions' de la capture séparée/non-poolée que CUDA Graph Trees corrige par une capture arborescente sélective ; le papier PyGraph motive tout son travail par le surcoût mémoire et les échecs sur mutation de paramètres/tenseurs d'une capture monolithique naïve, et propose une capture sélective en réponse ; vLLM confirme que sa production par défaut mélange FULL et PIECEWISE précisément parce que certaines opérations (attention) sont incompatibles avec une capture totale — la capture partielle/sélective est bien la norme opérationnelle, pas un cas marginal."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 5,
+          "note": "Le cœur de l'énoncé tient (capturer tout le modèle en un seul graphe n'est pas obligatoire ; NVIDIA dit explicitement \"not a one-size-fits-all solution\" et recommande le partial graphing pour le contrôle dynamique type MoE ; PyTorch documente des \"large memory regressions\" liées aux captures multiples non poolées ; le papier PyGraph documente des valeurs obsolètes au replay quand un paramètre est muté), mais deux formulations sont trop absolues : aucune source primaire ne qualifie la capture unique d'« anti-pattern » (terme non trouvé chez PyTorch/NVIDIA/vLLM/PyGraph), et la capture partielle n'est pas devenue « la norme » au sens où elle aurait remplacé la capture monolithique — vLLM, SGLang et TensorRT-LLM implémentent les deux modes (full ET piecewise) qui coexistent selon que la portion du modèle est statique ou non."
+        }
+      ],
+      "audit_note": "Confirmé : 2/3 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:32",
+      "section": "cuda-graphs-overhead-lancement",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "La capture d'un CUDA Graph impose des préconditions dures (formes de tenseurs statiques, flux de contrôle statique, absence de synchronisation CPU-GPU, adresses mémoire figées) contournées en pratique par des tampons statiques recopiés avant chaque rejeu, un warmup sur un flux CUDA secondaire avant capture, et des captures partielles plutôt qu'un graphe englobant tout le modèle.",
+      "original_statement": "La capture d'un CUDA Graph impose des préconditions dures (formes de tenseurs statiques, flux de contrôle statique, absence de synchronisation CPU-GPU, adresses mémoire figées) contournées en pratique par des tampons statiques recopiés avant chaque rejeu, un warmup sur un flux CUDA secondaire avant capture, et des captures partielles plutôt qu'un graphe englobant tout le modèle.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Le blog PyTorch et les pages NVIDIA (organisation distincte) confirment chacun séparément les 4 préconditions (formes statiques, flux de contrôle statique, absence de sync CPU-GPU, adresses fixes) et les 3 contournements exacts : buffers statiques via .copy_(), warmup sur un stream secondaire avant capture ('Warmup must occur on a side stream'), et capture partielle plutôt qu'un graphe englobant tout le modèle."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Correspondance quasi littérale avec le blog PyTorch : les 4 préconditions (formes statiques, contrôle statique, absence de sync CPU-GPU, adresses mémoire figées 'the same memory addresses are used') y sont énoncées explicitement, de même que les tampons statiques recopiés ('static_input.copy_(data)' avant 'g.replay()'), le warmup sur flux secondaire ('Warmup must occur on a side stream') et le contournement par capture partielle via make_graphed_callables plutôt qu'un graphe englobant tout le modèle. PyGraph corrobore les 4 préconditions et la solution de capture sélective, sans toutefois mentionner explicitement le warmup sur flux secondaire dans le texte consulté."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:33",
+      "section": "xla-tvm-paysage-compilateurs",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "XLA, annoncé par Google en mars 2017 comme compilateur pour TensorFlow, affirme dans sa documentation OpenXLA (page XLA:GPU Architecture Overview) que « Fusion is XLA's single most important optimization », en expliquant que de nombreuses charges GPU sont memory-bound ; la formulation précise « memory bandwidth is typically the scarcest resource on hardware accelerators » provient d'un billet du TensorFlow Blog de Google datant de novembre 2018, pas de la documentation OpenXLA elle-même. Son pipeline descend bien de StableHLO vers HLO puis vers LLVM pour la génération de code CPU/GPU.",
+      "original_statement": "XLA, annoncé par Google en mars 2017 comme compilateur pour TensorFlow, revendique dans sa documentation OpenXLA que la fusion d'opérateurs est son optimisation la plus importante, précisément parce que la bande passante mémoire est la ressource la plus rare sur les accélérateurs matériels ; son pipeline descend de StableHLO (couche de portabilité) vers HLO puis vers LLVM pour la génération de code CPU/GPU.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 6,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 4,
+          "note": "Vérifié mot pour mot sur openxla.org/xla/tf2xla : « Fusion is XLA's single most important optimization. Memory bandwidth is typically the scarcest resource on hardware accelerators... ». Pipeline StableHLO→HLO→LLVM confirmé sur openxla.org/xla/architecture et corroboré indépendamment par la doc Intel (tierce partie, non-Google). Annonce mars 2017 confirmée sur le blog Google d'origine."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 4,
+          "note": "La date, le statut de compilateur TF et le pipeline StableHLO→HLO→LLVM sont exacts et vérifiés dans la doc OpenXLA actuelle, qui affirme bien que la fusion est 'son optimisation la plus importante'. Mais la phrase précise « la bande passante mémoire est la ressource la plus rare sur les accélérateurs matériels » n'apparaît pas dans la documentation OpenXLA (vérifié sur la page rendue et sur le markdown source GitHub) : elle vient d'un billet de blog TensorFlow de 2018, antérieur au projet OpenXLA — le claim attribue donc une citation précise à la mauvaise source."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (6 sources indépendantes). Origine : « XLA, annoncé par Google en mars 2017 comme compilateur pour TensorFlow, revendique dans sa documentation OpenXLA que la fusion d'opérateurs est son optimisation la plus importante, précisément parce que la bande passante mémoire est la ressource la plus rare sur les accélérateurs matériels ; son pipeline descend de StableHLO (couche de portabilité) vers HLO puis vers LLVM pour la génération de code CPU/GPU. »"
+    },
+    {
+      "id": "claim:34",
+      "section": "xla-tvm-paysage-compilateurs",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "TVM (papier OSDI 2018) refuse la dépendance aux bibliothèques d'opérateurs propriétaires et la remplace par une recherche de schedules guidée par un modèle de coût appris (gradient boosting) entraîné sur des mesures d'exécution, s'appuyant sur une taxonomie explicite des opérateurs fusables (injective, reduction, complex-out-fusable, opaque) pour décider automatiquement des fusions possibles.",
+      "original_statement": "TVM (papier OSDI 2018) refuse la dépendance aux bibliothèques d'opérateurs propriétaires et la remplace par une recherche de schedules guidée par un modèle de coût appris (gradient boosting) entraîné sur des mesures d'exécution, s'appuyant sur une taxonomie explicite des opérateurs fusables (injective, reduction, complex-out-fusable, opaque) pour décider automatiquement des fusions possibles.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le papier TVM (lu directement) confirme mot pour mot le rejet des bibliothèques vendor, le cost model par gradient tree boosting (XGBoost), et la taxonomie à 4 catégories (injective, reduction, complex-out-fusable, opaque). La survey indépendante (auteurs sans lien avec TVM ni Apache, Beihang/Tsinghua) corrobore séparément et la même taxonomie de fusion (p.15) et le même cost model GBDT (p.19) — source authentiquement indépendante de l'origine du claim."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Les quatre éléments sont confirmés verbatim dans le papier : rejet explicite des bibliothèques d'opérateurs vendor ('without the need for an external operator library'), modèle de coût par gradient boosting (XGBoost) entraîné sur des mesures, et taxonomie exacte à quatre catégories (injective, reduction, complex-out-fusable, opaque) pour piloter la fusion."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:35",
+      "section": "xla-tvm-paysage-compilateurs",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "Le pari de TVM — qu'une recherche de schedules automatisée et guidée par apprentissage égale ou dépasse de façon fiable les bibliothèques vendor optimisées à la main, à travers les charges de travail — se vérifie dans le papier fondateur (1,6-3,8x vs TensorFlow/MXNet sur GPU serveur) mais s'effondre dans un benchmark indépendant à grande échelle : le papier PyTorch 2 (ASPLOS'24) rapporte que sur GPU, TVM (comme Hidet) produit des ralentissements sur tous les modèles sauf 4 (resp. 2), et que TVM, inference-only, échoue à s'exécuter sur de nombreux modèles par implémentations d'opérateurs manquantes.",
+      "original_statement": "Le pari de TVM — qu'une recherche de schedules automatisée et guidée par apprentissage égale ou dépasse de façon fiable les bibliothèques vendor optimisées à la main, à travers les charges de travail — se vérifie dans le papier fondateur (1,6-3,8x vs TensorFlow/MXNet sur GPU serveur) mais s'effondre dans un benchmark indépendant à grande échelle : le papier PyTorch 2 (ASPLOS'24) rapporte que sur GPU, TVM (comme Hidet) produit des ralentissements sur tous les modèles sauf 4 (resp. 2), et que TVM, inference-only, échoue à s'exécuter sur de nombreux modèles par implémentations d'opérateurs manquantes.",
+      "corroborated": 3,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Lu directement dans le PDF ASPLOS'24 (section Conclusions, p.15) : « On GPU, TVM and Hidet produce slowdowns for all except 4, and 2, models respectively » et « TVM [...] and Hidet [...] are inference-only and fail to run many models due to missing operator implementations and other issues. » — correspond exactement au claim. Le chiffre fondateur 1.6-3.8x est confirmé dans le papier TVM lui-même (comparaison vs MXNet/TensorFlow/TF-XLA sur Titan X). Les deux papiers sont d'équipes totalement différentes (UW/Amazon 2018 vs Meta/OpenAI/Quansight 2024) — indépendance réelle."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le chiffre 1,6-3,8x est confirmé mot pour mot dans la section 6.1 du papier TVM (NVIDIA Titan X, baselines MXNet 1.1/TensorFlow 1.7/TensorFlow XLA). Le papier PyTorch 2 confirme lui aussi exactement : 'TVM [12], and Hidet [18] are inference-only and fail to run many models due to missing operator implementations and other issues' et 'On GPU, TVM and Hidet produce slowdowns for all except 4, and 2, models respectively.'"
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les deux moitiés de l'énoncé sont vérifiées mot pour mot contre les PDF sources. (1) TVM/OSDI'18 §6.1 « Server-Class GPU Evaluation » (Nvidia Titan X) dit textuellement : « TVM outperforms the baselines, with speedups ranging from 1.6× to 3.8× » — comparé à MXNet, TensorFlow (baselines cuDNN/hand-tuned) et TensorFlow XLA (compilateur, non hand-tuned) ; restreindre la formule à « vs TensorFlow/MXNet » colle précisément au périmètre « bibliothèques vendor optimisées à la main » de l'énoncé, puisque XLA n'est pas hand-tuned — ce n'est pas une omission trompeuse. (Note : l'abstract cite une plage plus large, 1.2×-3.8×, agrégée sur GPU serveur + GPU mobile + CPU embarqué + FPGA ; l'énoncé cite bien le chiffre spécifique-GPU-serveur de §6.1, pas celui de l'abstract — c'est le bon chiffre.) (2) PyTorch2/ASPLOS'24, texte juste avant la section 7 Conclusions, dit textuellement : « TVM [12], and Hidet [18] are inference-only and fail to run many models due to missing operator implementations and other issues. […] On GPU, TVM and Hidet produce slowdowns for all except 4, and 2, models respectively. » — correspondance exacte des chiffres (4, 2) et de l'attribution ; l'énoncé omet seulement « and other issues » comme cause additionnelle à côté des implémentations d'opérateurs manquantes, simplification mineure qui ne dénature pas la cause principale citée. Aucune correction nécessaire."
+        }
+      ],
+      "audit_note": "Confirmé : 3/3 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:36",
+      "section": "xla-tvm-paysage-compilateurs",
+      "section_retained": true,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "torch.compile/TorchInductor s'inscrit explicitement dans la même famille de compilateurs que XLA et TVM : le papier PyTorch 2 (ASPLOS'24) situe TorchInductor parmi des designs inspirés de Halide (TVM, nvFuser, NNC) et le benchmarke directement contre six backends concurrents, dont PyTorch/XLA 2.1 et TVM 0.11.1, décrivant XLA comme « le compilateur derrière TensorFlow et JAX » dont l'IR HLO est devenu un standard pour les TPU.",
+      "original_statement": "torch.compile/TorchInductor s'inscrit explicitement dans la même famille de compilateurs que XLA et TVM : le papier PyTorch 2 (ASPLOS'24) situe TorchInductor parmi des designs inspirés de Halide (TVM, nvFuser, NNC) et le benchmarke directement contre six backends concurrents, dont PyTorch/XLA 2.1 et TVM 0.11.1, décrivant XLA comme « le compilateur derrière TensorFlow et JAX » dont l'IR HLO est devenu un standard pour les TPU.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Lu directement dans le PDF (p.8 et p.14). Confirmé : six backends (nvFuser, NNC, Hidet, TVM 0.11.1, ONNXRT, PyTorch/XLA 2.1) et la citation XLA exacte. MAIS le texte dit « Many compilers use designs inspired by Halide [...], including: TVM, nvFuser, and NNC » — TorchInductor n'est jamais inclus dans cette liste ; ses propres inspirations (section 4.1) sont Triton et les abstractions PyTorch natives, pas Halide. Le claim affirme à tort que le papier « situe TorchInductor parmi » ces designs Halide et le place dans « la même famille » que XLA et TVM, alors que le papier traite ces deux familles comme distinctes de TorchInductor lui-même."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "La comparaison à six backends (versions PyTorch/XLA 2.1 et TVM 0.11.1 incluses) et la citation sur XLA/HLO-standard-TPU sont vérifiées mot pour mot (Table 3, section 4.8). Mais la section 4.8 présente TVM/nvFuser/NNC comme des compilateurs 'inspirés de Halide' à propos desquels le papier explique justement pourquoi TorchInductor+Triton a été choisi à la place — il ne classe jamais TorchInductor dans cette famille Halide, contrairement à ce qu'affirme le claim."
+        }
+      ],
+      "audit_note": "Rejeté : 0 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+    }
+  ]
+}
