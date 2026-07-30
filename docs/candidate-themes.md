@@ -272,22 +272,14 @@ contrainte applicative dans `time-series-forecasting`) ; aucune méthode traité
 (`agent-evaluation-observability` : FAIT le 2026-07-18, retiré du backlog — 15e run /leanmonograph
 GREEN direct, classé dans llm-agents-generation après llm-evaluation.)
 
-### Modèles de langage à diffusion — `diffusion-language-models` → `llm-agents-generation`
-**Verdict : gap réel (ajout 2026-07-17).** `diffusion-models` couvre la diffusion continue
-(images/audio) et le flow matching ; `decoding-sampling` cite une source sur la génération
-parallèle des masked diffusion LMs comme contrepoint de l'autorégressif ; le paradigme lui-même
-(D3PM, diffusion masquée, LLaDA, Mercury) = 0 occurrence.
-
-> Modèles de langage à diffusion (diffusion discrète/masquée) : générer du texte sans factorisation
-> autorégressive. Couvrir la diffusion sur espaces discrets (D3PM, état absorbant), le score
-> entropy (SEDD), la diffusion masquée simplifiée et son passage à l'échelle (LLaDA), les modèles
-> déployés (Mercury d'Inception Labs, Gemini Diffusion), le compromis parallélisme/qualité (nombre
-> d'étapes vs tokens par étape, ordre de génération, remasking), le lien avec l'infilling et
-> l'édition, et les pièges d'évaluation (vraisemblance vs qualité perçue, vitesse réelle).
-> Public : ingénieur ML. Délimitations : diffusion-models couvre le cadre continu, l'ELBO et le
-> flow matching (le citer, ne pas re-dériver) ; decoding-sampling couvre le décodage autorégressif
-> et cite la génération parallèle masquée (le citer en pont) — se centrer sur le paradigme
-> diffusion pour le texte. Domaine : llm-agents-generation.
+(`diffusion-language-models` : FAIT le 2026-07-30, retiré du backlog — 23e run /leanmonograph
+GREEN après backstop [1 correction dure : chiffre FIM Mercury 84,8 % vs Codestral 82,5 %, rejeté
+single-source mais affirmé nu — angle mort NOUVEAU du lint : les mêmes pivots vivaient dans les
+`examples` d'un claim retenu (claim:21, confirmé sur le débit/arena, pas sur le FIM), donc exclus
+comme « non distinctifs » ; les `examples` d'un claim retenu peuvent blanchir les pivots d'un
+claim rejeté], classé dans llm-agents-generation entre decoding-sampling et llm-inference-serving.
+Gap re-vérifié par greps avant lancement : une seule occurrence corpus, clause d'exclusion dans
+diffusion-models.)
 
 (`gpu-kernels-compilers` : FAIT le 2026-07-28, retiré du backlog — 22e run /leanmonograph
 GREEN après backstop [2 corrections], classé dans deep-learning-foundations après
