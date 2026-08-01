@@ -143,11 +143,36 @@ function dedupSources(list) {
 // Sources de SOUTIEN uniquement : on n'agrège QUE les independent_sources des verdicts passés.
 // Le juré réfutateur (lentille 0) ramène des sources CONTRADICTOIRES — ne jamais les compter
 // comme « sources indépendantes » du claim. On ne lui passe donc que les verdicts soutenants.
+// Identité du DOCUMENT, pas de l'URL. Un même travail se présente sous plusieurs entrées —
+// arxiv /abs/ vs /html/ vs /pdf/, préprint vs actes de conférence, blog ou dataset card des
+// mêmes auteurs — et ne vaut qu'UNE source pour le seuil ≥2. Sans ça le seuil se contourne
+// sans le vouloir : un juré cite le PDF, un autre la page abs, le compteur lit 2.
+// Chaque source produit PLUSIEURS clés (identifiant + titre) : deux entrées sont le même
+// travail dès qu'UNE clé coïncide — l'identifiant seul rate le blog, le titre seul rate
+// les entrées dont le nom varie.
+const docKeys = s => {
+  const u = normUrl(s.url), t = (s.title || '').toLowerCase();
+  const keys = [];
+  const arx = (u.match(/arxiv\.org\/(?:abs|html|pdf)\/(\d{4}\.\d{4,5})/) ||
+               t.match(/arxiv:\s*(\d{4}\.\d{4,5})/) || [])[1];
+  if (arx) keys.push('arxiv:' + arx);
+  const doi = (u.match(/doi\.org\/(10\.[^\s/]+\/[^\s]+)/) || [])[1];
+  if (doi) keys.push('doi:' + doi);
+  // titre dépouillé de son suffixe d'édition : « … — NeurIPS 2023 PDF », « … (blog HF) »
+  const base = t.split(/\s+[—–-]\s+|\s*\(/)[0].replace(/[^a-z0-9]+/g, '');
+  if (base.length >= 12) keys.push('title:' + base);
+  if (!keys.length) keys.push('url:' + u);
+  return keys;
+};
+
+// Sources de SOUTIEN uniquement : on n'agrège QUE les independent_sources des verdicts passés.
 function collectSources(verdicts) {
   const out = [], seen = new Set();
   for (const v of verdicts) for (const s of (v.independent_sources || [])) {
-    const k = normUrl(s.url);
-    if (k && !seen.has(k)) { seen.add(k); out.push({ title: s.title || s.url, url: s.url }); }
+    const keys = docKeys(s);
+    if (keys.some(k => seen.has(k))) continue;       // même travail sous une autre forme
+    keys.forEach(k => seen.add(k));
+    out.push({ title: s.title || s.url, url: s.url });
   }
   return out;
 }
