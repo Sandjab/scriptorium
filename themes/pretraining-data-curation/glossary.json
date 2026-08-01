@@ -1,0 +1,37 @@
+[
+  {
+    "term": "WARC / WET",
+    "definition": "Les deux formats sous lesquels Common Crawl publie chaque snapshot : le WARC conserve la réponse HTTP complète, donc le HTML tel qu'il a été crawlé, le WET une extraction texte générique déjà réalisée. Réextraire soi-même depuis les WARC avec un outil dédié comme trafilatura coûte du calcul mais rapporte, les WET restant chargés de boilerplate, c'est-à-dire d'habillage de page sans contenu propre : FineWeb mesure +1,5 point absolu sur sa suite de 8 benchmarks, et DataComp-LM un score Core de 20,7 pour le WET contre 24,5 pour trafilatura. Aucun extracteur pris seul ne capture tout le contenu utile : trafilatura, jusText et resiliparse retiennent des ensembles de pages substantiellement différents.",
+    "see_also": "language identification (langID), model-based filtering"
+  },
+  {
+    "term": "language identification (langID)",
+    "definition": "Identification de langue : classifieur qui attribue à chaque document une langue et un score de confiance, exploité par un seuil d'acceptation. Le seuil varie fortement d'un corpus ouvert à l'autre (C4 : langdetect ≥ 0,99 ; CCNet et Dolma : fastText ≥ 0,5 ; RefinedWeb et FineWeb : fastText ≥ 0,65), et sa place dans la chaîne aussi : dernier filtre appliqué dans C4, postérieur à la déduplication dans CCNet et donc dans Dolma, appliqué juste après extraction dans RefinedWeb et FineWeb, où il écarte alors environ la moitié des documents. C'est souvent le plus gros contributeur en volume retiré : chez Dolma, le seul seuil fastText à 0,5 retire 61,7 % des pages web brutes en taille.",
+    "see_also": "WARC / WET, model-based filtering"
+  },
+  {
+    "term": "model-based filtering",
+    "definition": "Filtrage par modèle : remplacer les règles heuristiques à seuil par un classifieur appris qui note chaque document. GPT-3 s'appuyait sur une régression logistique entraînée avec WebText, Wikipédia et un corpus de livres web en positifs contre du Common Crawl brut en négatifs, dont le score gouvernait un rééchantillonnage par loi de Pareto (alpha = 9) plutôt qu'une acceptation ou un rejet net. FineWeb-Edu distille des annotations de Llama-3-70B-Instruct en une tête de régression posée sur des embeddings gelés, et fait monter MMLU de 33 % à 37 % et ARC de 46 % à 57 % à budget de tokens égal. Le levier est réel mais coûteux : il écarte jusqu'à ~90 % du crawl brut, et RefinedWeb y renonce explicitement hors identification de langue, en invoquant des risques de biais documentés.",
+    "see_also": "language identification (langID), DoReMi"
+  },
+  {
+    "term": "MinHash",
+    "definition": "Signature compacte permettant de repérer des quasi-doublons, au sens d'une similarité de Jaccard élevée, sans comparaison exhaustive entre documents. Ce qui se joue à l'échelle d'un corpus n'est pas sa mécanique mais son périmètre d'application : FineWeb déduplique par MinHash indépendamment dump par dump et conserve ~20 000 milliards de tokens, alors que le même MinHash appliqué globalement aux 96 dumps ne garde plus qu'environ 10 % des données originales et produit des modèles nettement en deçà de RefinedWeb. SlimPajama l'applique en variante LSH sur des 13-grammes à un seuil de Jaccard de 0,8, ce qui réduit RedPajama de 1,2 billion à 627 milliards de tokens.",
+    "see_also": "memorization, WARC / WET"
+  },
+  {
+    "term": "memorization",
+    "definition": "Mémorisation : régénération verbatim, par le modèle entraîné, de séquences vues pendant le pré-entraînement. Sa probabilité croît de façon superlinéaire avec le nombre d'occurrences de la séquence dans le corpus, et non proportionnellement — une séquence présente 10 fois est régénérée en moyenne environ 1000 fois plus souvent qu'une séquence présente une seule fois (Kandpal, Wallace et Raffel, ICML 2022). C'est l'argument de confidentialité de la déduplication : réentraîner sur un corpus dédupliqué réduit d'environ 20 fois le volume de texte mémorisé extractible par attaque.",
+    "see_also": "MinHash, decontamination"
+  },
+  {
+    "term": "DoReMi",
+    "definition": "Procédure de repondération des domaines (domain reweighting) : un petit modèle proxy dérive, face à un modèle de référence, une pondération par domaine ensuite réutilisée pour un entraînement plus grand, sans aucun signal de tâche en aval. Itérée, les poids moyennés d'un round servant de référence au suivant, elle converge en 3 rounds sur le jeu GLaM à 6 domaines et atteint une précision en aval comparable à celle d'un oracle réglé directement sur les tâches, avec un profil de pondération similaire sans être identique (Filtered webpages à 0,51 contre 0,42). Les poids obtenus ne sont pas pour autant une propriété du corpus seul : un proxy de 280M et un proxy de 1B sur The Pile produisent des allocations qualitativement différentes, l'un favorisant Pile-CC et l'autre OpenWebText2.",
+    "see_also": "model-based filtering"
+  },
+  {
+    "term": "decontamination",
+    "definition": "Décontamination : retrait, côté corpus d'entraînement, des passages qui recoupent les jeux de test des benchmarks. Aucun critère commun de longueur ou de seuil ne s'est imposé — GPT-3 retient un chevauchement de 13-grammes, PaLM un chevauchement de 8-grammes couvrant au moins 70 % de l'exemple, GPT-4 des collisions de sous-chaînes de 50 caractères, Phi-4 une combinaison hybride de 13-grammes et 7-grammes, Gopher/MassiveText une similarité de Jaccard de 0,8 sur des 13-grammes. Deux angles morts subsistent : le matching de surface ne voit pas un item de benchmark reformulé ou traduit, et un chevauchement détecté n'implique pas mécaniquement un score gonflé, GPT-3, PaLM et GPT-4 mesurant chacun un écart clean/contaminé généralement faible sur leurs propres sous-ensembles.",
+    "see_also": "memorization, MinHash"
+  }
+]
