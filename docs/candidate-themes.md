@@ -187,21 +187,22 @@ résiduel si un candidat « pooling/expressivité avancée » émerge un jour.)
 GREEN après resume, classé dans llm-agents-generation après decoding-sampling ; section
 prefix-radix-caching complétée manuellement. Débloque le candidat `model-routing-cascades`.)
 
-### Curation des données de pré-entraînement — `pretraining-data-curation` → `llm-agents-generation`
-**Verdict : gap réel (angle neuf net).** `scaling-laws` traite le régime data-constrained
-(Muennighoff) côté allocation ; le pipeline de données lui-même (filtrage, déduplication, mélanges)
-n'est traité nulle part.
+(`pretraining-data-curation` : FAIT le 2026-08-01, retiré du backlog — 24e run /leanmonograph
+GREEN après backstop, classé dans **deep-learning-foundations** (et non llm-agents-generation
+comme prévu ici : le voisin réel est `scaling-laws`, qui traite le data-constrained ET le data
+pruning, et vit dans ce domaine) — inséré avant scaling-laws dans le portail. Deux corrections
+d'audit du backlog relevées AVANT lancement, par greps : (1) `scaling-laws` traite aussi le
+**data pruning** de Sorscher et al. (pas seulement le régime data-constrained) ; (2)
+`llm-evaluation` traite déjà la **contamination des benchmarks côté évaluation** — le thème s'est
+donc recentré sur la décontamination côté corpus.
 
-> Curation des données de pré-entraînement des LLM : ce qui entre dans le modèle. Couvrir le
-> pipeline (extraction depuis Common Crawl, détection de langue, filtres heuristiques puis filtres
-> par modèle), la déduplication exacte et approximative et ses effets (mémorisation, qualité), les
-> mélanges de domaines et leur optimisation (DoReMi, données synthétiques), la contamination des
-> benchmarks, la généalogie des corpus ouverts (C4, The Pile, RefinedWeb, FineWeb et sa démarche
-> d'ablations systématiques) et les questions de licence/PII. Public : ingénieur ML. Délimitations :
-> scaling-laws couvre le régime data-constrained et les lois d'échelle (le citer) ; la mécanique
-> MinHash/LSH de la déduplication relève du candidat minhash-dedup (un pont suffit) ;
-> text-embeddings couvre la tokenization — se centrer sur le pipeline de curation et ses ablations.
-> Domaine : llm-agents-generation.
+**Ce run a mis au jour un défaut de la garantie « ≥ 2 sources indépendantes ».** `collectSources`
+dédoublonnait les sources par URL : `arxiv.org/abs/X` et `arxiv.org/html/X` comptaient pour deux,
+de même qu'un préprint et ses actes de conférence, ou un papier et le blog de ses auteurs. Cinq
+claims du thème portaient une mention « 2 sources indépendantes » inexacte. Corrigé dans les trois
+workflows (dédoublonnage par travail : identifiant arXiv/DOI + titre dépouillé de son suffixe
+d'édition). **Reste ouvert : ≥ 39 claims sur 28 thèmes du corpus publié sont dans ce cas** — audit
+non lancé.)
 
 ### Inférence causale — `causal-inference` → `classical-ml-time-series`
 **Verdict : gap réel.** `time-series-forecasting` cite CausalImpact (séries structurelles
