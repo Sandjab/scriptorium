@@ -1,15 +1,15 @@
 {
-  "these": "Aligner un LLM sur les préférences humaines enchaîne classiquement un reward model Bradley-Terry et une optimisation PPO sous contrainte de KL divergence ; DPO démontre que la policy est secrètement son propre reward model implicite et supprime la boucle RL, mais ni l'alignement direct ni ses variantes (IPO, KTO, SimPO, ORPO, RLAIF, GRPO) n'échappent à la sur-optimisation de Goodhart, et la hiérarchie réelle PPO vs DPO tient à l'échelle, à la qualité des données et au régime online/offline bien plus qu'au choix de la perte.",
-  "part1": [
-    "Pipeline RLHF canonique : SFT sur des démonstrations → reward model entraîné sur des comparaisons par paires (perte log-sigmoid équivalente à un modèle de Bradley-Terry, où seules les différences de reward sont supervisées) → optimisation PPO-ptx de la policy sous pénalité KL contre le modèle SFT de référence ; la boucle mobilise jusqu'à quatre modèles (policy, reference, reward, critic). InstructGPT 1,3 B est préféré à GPT-3 175 B — mais seulement sur la distribution d'instruction-following, et au prix d'un alignment tax sur les benchmarks académiques.",
-    "Le pivot de DPO : l'objectif KL-régularisé admet une solution close π_r ∝ π_ref·exp(r/β) ; en la retournant pour reparamétrer r = β·log(π_θ/π_ref) + β·log Z(x), la partition function Z(x) s'annule dans la différence de Bradley-Terry et l'alignement devient une classification sur des log-ratios de policy, sans reward model séparé ni RL (61 % de win rate contre 57 % pour PPO sur TL;DR).",
-    "Le zoo des variantes offline : IPO remplace la sigmoïde par une perte quadratique à marge bornée 1/(2β) (cas ΨPO Ψ = identité) ; SimPO normalise le reward par la longueur, reference-free (+6,4 points sur AlpacaEval 2, longueurs comparables) ; KTO apprend de signaux binaires désirable/indésirable sans paires (DPO et PPO-Clip y sont prouvés HALOs) ; ORPO fusionne SFT et alignement en une phase, sans reference model.",
-    "Aligner sans labels humains et au-delà des préférences : RLAIF et Constitutional AI remplacent l'annotateur humain par un LLM juge (>10× moins cher, win rate ~50 % vs RLHF) ; GRPO supprime le critic par normalisation intra-groupe des avantages et s'appuie sur des récompenses vérifiables — socle de DeepSeek-R1-Zero, qui passe de 15,6 % à 71,0 % sur AIME 2024 par RL pur, sans aucune phase SFT."
-  ],
-  "part2": [
-    "Le reward model n'est qu'un proxy : la loi de Goodhart frappe, le gold reward culminant puis chutant à mesure que la KL divergence croît (R_RL(d) = d·(α − β·log d), d = √KL ; Gao et al. 2023). Des reward models plus larges repoussent le pic sans l'annuler, et la pénalité KL de PPO équivaut à un early stopping — elle ne déplace pas la frontière atteignable.",
-    "L'alignement direct n'est PAS immunisé : en supprimant le reward model explicite, DPO retire un mécanisme de hacking mais introduit le sien — la reward implicite encodée dans les log-ratios π_θ/π_ref est tout aussi sur-optimisable, se dégradant souvent avant la fin d'une seule époque (Rafailov et al., NeurIPS 2024), avec un length bias où la longueur explique 30 à 46 % de la variance du reward hors distribution.",
-    "DPO n'est pas universellement supérieur à PPO : bien implémenté, PPO le surpasse au-delà de la seule grande échelle, notamment en raisonnement et en code (CodeContest : PPO 22,4 % en 10@1k contre 0,0 % pour DPO vanilla, devançant AlphaCode-41B + clustering à 16,4 %). L'avantage de DPO tient surtout aux régimes sans reward model explicite ou à faible budget d'annotation.",
-    "Ce qui pèse le plus n'est pas la perte : la qualité des données de préférence (jusqu'à +8 %) domine le choix d'algorithme (~1–2,5 %), et la taille du modèle (~50 pp) domine les deux, avec des inversions de classement DPO/PPO selon l'échelle (3 B vs 7 B). Côté coûts, ~84-100 Go (DPO 7 B) contre ~140-200 Go (PPO) en entraînement plein, mais le partage actor-critic (TRL, OpenRLHF) invalide tout ratio fixe 2:1."
-  ]
+ "these": "Aligner un modèle sur des préférences humaines n'échappe pas à la loi de Goodhart, pas même l'alignement direct, qui n'a fait que rendre son modèle de récompense implicite.",
+ "part1": [
+  "Le pipeline canonique enchaîne un réglage supervisé, un modèle de récompense entraîné sur des comparaisons par paires, puis une optimisation de politique sous pénalité de divergence.",
+  "Le pivot de l'alignement direct tient en une réécriture : l'objectif régularisé admet une solution en forme fermée qu'on retourne pour lire la récompense dans les rapports de vraisemblance de la politique.",
+  "Un zoo de variantes hors ligne décline ensuite la perte, entre marge bornée, normalisation par la longueur, signal binaire sans paires et fusion du réglage supervisé avec l'alignement.",
+  "On peut enfin remplacer l'annotateur humain par un modèle juge, ou supprimer le réseau critique en normalisant les avantages à l'intérieur d'un groupe de réponses."
+ ],
+ "part2": [
+  "Le modèle de récompense n'est qu'un proxy : la récompense mesurée croît sans fin quand la récompense visée culmine puis chute, et l'élargir repousse le pic sans l'annuler.",
+  "L'alignement direct n'est pas immunisé, sa récompense implicite se dégradant souvent avant même la fin d'une seule époque d'entraînement.",
+  "Il n'est pas non plus universellement supérieur : bien implémentée, la boucle de renforcement le dépasse en raisonnement et en code, là où l'exploration en ligne compte.",
+  "Ce qui pèse le plus n'est pas la perte choisie mais la qualité des données de préférence et la taille du modèle, au point d'inverser les classements selon l'échelle."
+ ]
 }

@@ -1,13 +1,15 @@
 {
-  "these": "HyperLogLog estime le nombre d'éléments distincts de jeux de données massifs avec une erreur relative de l'ordre de 1 à 2 % pour seulement quelques kilo-octets de mémoire ; mais cette frugalité repose sur un estimateur biaisé hors de sa plage centrale, rattrapé par des corrections et toute une ingénierie (HLL++, successeurs space-efficient), et reste fragile en milieu adversarial.",
-  "part1": [
-    "HyperLogLog clôt la lignée Flajolet-Martin (1985) → LogLog (2003) → HLL (2007) : il hache chaque élément, le route vers l'un de m = 2^p registres qui retiennent le maximum du rang ρ (nombre de zéros de tête), puis combine ces registres par harmonic mean plutôt que par moyenne géométrique.",
-    "L'estimateur E = α_m · m² · Z atteint une erreur standard de ≈ 1,04/√m, indépendante de la cardinalité, pour quelques kilo-octets : par exemple 16 384 registres donnent ≈ 0,81 % d'erreur en une dizaine de kilo-octets, et permettent d'estimer des milliards de distincts.",
-    "L'union de deux sketches est exacte et se calcule registre par registre en O(m), sans relire les données ni accéder aux éléments d'origine — d'où l'adoption massive en agrégation distribuée (BigQuery, Spark, Druid, Redis)."
-  ],
-  "part2": [
-    "L'estimateur n'est pas sans biais : il faut Linear Counting sous 5m/2 et une correction de saturation au-delà de 2³²/30 ; HLL est near-optimal à ≈ 4 % de sa classe (Chassaing-Gérin), mais c'est PCSA, et non HyperLogLog, qui atteint l'optimum information-théorique absolu (Pettie & Wang, STOC 2021).",
-    "L'ingénierie a prolongé l'algorithme : HyperLogLog++ (Google, 2013) corrige le biais pratique et passe au hachage 64 bits ; HyperLogLogLog (KDD 2022), UltraLogLog et ExaLogLog gagnent 28 à 43 % d'espace tout en préservant le contrat merge et l'insertion O(1).",
-    "L'erreur est probabiliste, non déterministe, et l'algorithme est vulnérable en milieu adversarial : un attaquant en accès oracle peut gonfler l'estimation sans connaître la fonction de hachage, et un attaquant en white-box peut la réduire à une valeur exponentiellement petite, y compris sur la variante utilisée par Redis."
-  ]
+ "these": "HyperLogLog échange un peu de précision contre un gain massif de mémoire : quelques milliers de petits registres suffisent à dénombrer des milliards de valeurs distinctes.",
+ "part1": [
+  "Le sketch hache chaque élément, route le haché vers un registre et n'y retient que le plus long préfixe de zéros rencontré.",
+  "Combiner ces registres par moyenne harmonique, et non par moyenne géométrique comme son prédécesseur, est le levier qui fait tenir l'estimation dans si peu de mémoire.",
+  "L'union de deux sketches est exacte et se calcule registre par registre, sans relire les données — d'où l'adoption massive en agrégation distribuée.",
+  "HyperLogLog++ puis une lignée de successeurs compriment encore la structure sans sacrifier la fusion ni l'insertion en temps constant."
+ ],
+ "part2": [
+  "L'erreur promise est relative et ne dépend que du nombre de registres : l'incertitude absolue, elle, grandit avec la cardinalité comptée.",
+  "Hors de sa plage centrale, l'estimateur brut est biaisé et cède la place à d'autres formules, aux très petites comme aux très grandes cardinalités.",
+  "La garantie est probabiliste et non déterministe : rien n'assure qu'un comptage donné tombe dans la marge annoncée.",
+  "Tout repose sur l'hypothèse d'un hachage uniforme, qui s'effondre en milieu adversarial : un attaquant peut gonfler l'estimation sans connaître la fonction de hachage."
+ ]
 }

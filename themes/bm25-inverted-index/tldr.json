@@ -1,15 +1,15 @@
 {
-  "these": "BM25 n'est pas une formule isolée mais le mariage d'une structure de données — l'inverted index, qui seul rend le scoring calculable à l'échelle — et d'une fonction de rang probabiliste héritée du cadre Robertson–Spärck Jones : saturation du term frequency, normalisation par longueur, IDF discriminant. Ses « valeurs par défaut » (k₁ = 1,2 / b = 0,75) ne sont ni canoniques ni universelles, sa nature bag-of-words reste sa limite structurelle, et c'est l'élagage dynamique — pas la formule — qui le rend rapide en production.",
-  "part1": [
-    "Origines probabilistes : BM25 prolonge le Probabilistic Relevance Framework de Robertson & Spärck Jones (article fondateur 1976). Sa composante IDF dérive du Binary Independence Model, mais ses pondérations TF et de longueur vont au-delà du BIM. Première présentation publique à SIGIR 1994 (Robertson & Walker, approximations du modèle 2-Poisson), première application dans Okapi at TREC-3 (1994) ; le « 25 » est un marqueur de version, non une 25ᵉ formule d'une suite.",
-    "L'index inversé est la structure qui rend tout calculable : un dictionary (vocabulaire + n(t) + pointeurs) et des posting lists triées par DocID. C'est lui — non la formule BM25 — qui évite de scanner les N documents : on ne parcourt que les posting lists des termes interrogés, O(Σ n(qᵢ)) en base, contre O(k·N) pour un scan naïf.",
-    "La fonction de score somme, sur les termes de la requête, IDF(qᵢ) × une composante TF saturée. La saturation (paramètre k₁) plafonne l'apport des occurrences répétées à k₁ + 1 ; le half-saturation point est atteint quand le term frequency égale k₁. La normalisation par longueur (paramètre b, défaut 0,75) pénalise les documents longs ; BM11 (b = 1) et BM15 (b = 0) en sont les cas dégénérés.",
-    "Les variantes pullulent — d'où la question « quel BM25 ? » (Kamphuis et al., ECIR 2020). BM25F agrège un term frequency effectif par champ (chacun avec son poids w_f et son b_f) avant la saturation, plutôt que de sommer des scores par champ ; BM25+ ajoute un plancher δ, BM25L recale la longueur, BM25-Adpt rend k₁ propre à chaque terme."
-  ],
-  "part2": [
-    "Les « defaults » ne sont pas canoniques. k₁ = 1,2 / b = 0,75 dans Lucene/Elasticsearch : b = 0,75 remonte directement à TREC-3, mais k₁ = 1,2 est la borne basse de la plage [1,2 ; 2,0] recommandée plus tard par Robertson & Zaragoza (2009) ; Anserini/Pyserini posent k₁ = 0,9 / b = 0,4. Le +1 hors fraction de l'IDF est un ajout de Lucene (la formule originale peut être négative si n > N/2), et un grid search sur MS MARCO Document trouve k₁ ≈ 4,46 — l'inadéquation des defaults newswire sur de longs documents.",
-    "Garanties théoriques et efficacité. WAND garantit l'exactitude du top-k (aucun document du vrai top-k omis) ; Block-Max WAND saute 85 à 93 % des postings ; l'Elias-Fano encoding compresse les posting lists près de la borne information-théorique (⌈log₂(U/n)⌉ + 2 bits par élément, accès aléatoire constant). Kamphuis et al. (2020) ne trouvent aucune différence d'efficacité statistiquement significative entre les variantes BM25, y compris l'approximation lossy des longueurs de Lucene.",
-    "Les limites sont structurelles, pas accidentelles. Modèle bag-of-words pur : l'ordre est ignoré (« New York » = « York New ») ; le vocabulary mismatch fait scorer 0 « car » contre « automobile » faute de token commun. BM25 viole aussi la TF normalization lower bound (un document très long peut voir la contribution d'un terme tendre vers zéro), corrigée par le plancher δ de BM25+. Ces limites motivent l'enrichissement par voisins denses (LexBoost, +7 à +16,8 % de MAP selon le benchmark).",
-    "En production : dans Lucene, BM25 est une Similarity pluggable (pattern Strategy), mais le changement n'est pas purement une opération de requête — elle pilote computeNorm() à l'indexation, donc changer de Similarity sur un index existant produit des scores « not well-defined ». Elasticsearch 5.0 (2016, Lucene 6) a fait de BM25 la similarity par défaut. En RAG, le hybrid retrieval BM25 + embeddings denses réduit les hallucinations (~50 % vs BM25 seul sur HaluBench, benchmark limité), gain bien moindre face au dense seul."
-  ]
+ "these": "BM25 n'est pas une formule isolée mais le mariage d'une fonction de rang probabiliste et de l'index inversé, seul à rendre son calcul praticable à l'échelle.",
+ "part1": [
+  "BM25 prolonge un cadre probabiliste de la pertinence dont il hérite la pondération des termes rares, avant d'y ajouter la saturation et la normalisation par la longueur.",
+  "L'index inversé — un vocabulaire et des listes d'occurrences triées — évite de parcourir la collection : seules les listes des termes interrogés sont lues.",
+  "Le score somme, sur les termes de la requête, un poids de rareté multiplié par une fréquence saturée : les occurrences répétées cessent vite de compter.",
+  "La normalisation pénalise les documents longs, et les variantes déclinent ce socle par agrégation par champ, plancher de score ou saturation ajustée terme à terme."
+ ],
+ "part2": [
+  "Les valeurs par défaut des moteurs n'ont rien de canonique : héritées d'une campagne d'évaluation sur dépêches, elles se révèlent inadaptées à des documents longs.",
+  "Aucune différence d'efficacité statistiquement significative ne sépare les variantes usuelles, y compris l'approximation des longueurs que pratiquent les moteurs.",
+  "La rapidité en production vient de l'élagage dynamique et non de la formule : il saute l'essentiel des occurrences sans jamais omettre un document du vrai top-k.",
+  "La limite est structurelle : un sac de mots ignore l'ordre et ne rapproche jamais deux formulations qui ne partagent aucun terme."
+ ]
 }

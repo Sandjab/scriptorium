@@ -1,15 +1,15 @@
 {
-  "these": "L'extraction structurée d'information par LLM repose sur une frontière nette : le constrained decoding (structured outputs, function calling en mode strict) garantit la conformité SYNTAXIQUE au schéma — le contrat JSON — mais jamais la fidélité sémantique, qu'on ne regagne qu'en ancrant chaque valeur extraite à son empan source (source grounding, façon LangExtract) et en assumant une « alignment tax » quand le format dégrade le raisonnement.",
-  "part1": [
-    "L'information extraction — NER (reconnaissance d'entités nommées), RE (extraction de relations), EE (extraction d'événements), souvent ABSA — bascule du discriminatif vers le génératif : les LLM gagnent sur l'extraction d'événements, mais les modèles discriminatifs fine-tunés restent compétitifs voire supérieurs sur la NER, sans supériorité générative généralisée.",
-    "Deux voies produisent le contrat JSON : le function calling (juin 2023), comportement appris « best-effort » sans garantie de conformité, et les structured outputs (août 2024), qui ajoutent un constrained decoding par grammaire garantissant la conformité syntaxique au schéma — gpt-4o-2024-08-06 atteint 100 % là où gpt-4-0613 reste sous 40 %.",
-    "Le constrained decoding (XGrammar, surcoût < 40 µs/token sur JSON ; SynCode, DFA mask store prouvé sound) masque à chaque étape les tokens invalides pour garantir la SYNTAXE, pas le SENS : un JSON parfaitement conforme au schéma peut halluciner la totalité de ses valeurs.",
-    "Le source grounding referme l'écart côté vérification : LangExtract ancre chaque extraction à un char_interval (intervalle de caractères) du texte source — char_interval = None filtre des spans hallucinés sans aucun appel LLM supplémentaire — et lx.visualize() rend les empans inspectables."
-  ],
-  "part2": [
-    "La garantie de conformité n'est ni absolue ni sémantique : strict: true fait descendre la non-conformité sous 0,1 % mais jamais à zéro (refus de sécurité, schémas profonds, forte concurrence), et un champ obligatoire pousse le modèle à fabriquer une valeur confiante plutôt qu'à exprimer l'incertitude.",
-    "Contraindre le format se paie en raisonnement (« alignment tax ») : GPT-3.5-Turbo perd 26,74 pts sur GSM8K sous JSON-mode via le court-circuit du chain-of-thought par l'ordre des clés. L'effet dépend de la tâche — bénéfique en classification à réponse finie (+18,7 pts sur DDXPlus), nuisible en raisonnement multi-étapes.",
-    "Le filtre char_interval = None est utile mais incomplet (correspondances floues et hallucinations sémantiques ancrables passent inaperçues) ; des couches de post-traitement découplé (SLOT, ~99,5 % de schema accuracy) et d'optimisation de schéma (PARSE) restaurent la fiabilité sans contraindre le raisonnement du modèle principal.",
-    "Certaines limites sont structurelles, pas d'ingénierie : un argument de diagonalisation adversariale montre que toute famille de modèles énumérable hallucine sur au moins un input (preprint non relu par les pairs), et la sample complexity des faits rares (long-tail) croît en Ω(m/ε²·log(m/δ)) — le passage à l'échelle atténue sans annuler."
-  ]
+ "these": "Une sortie structurée conforme au schéma ne dit rien de sa fidélité au document — la garantie porte sur la forme, la vérification se joue ailleurs.",
+ "part1": [
+  "L'extraction d'information — entités, relations, événements — est passée de l'étiquetage token par token à la génération directe de la structure de sortie.",
+  "Deux voies produisent le contrat JSON : l'appel de fonctions, comportement appris sans garantie, et les sorties structurées, qui contraignent le décodage par une grammaire.",
+  "Le décodage contraint masque à chaque pas les tokens invalides, si bien qu'un objet parfaitement conforme au schéma peut halluciner toutes ses valeurs.",
+  "L'ancrage à la source referme une part de l'écart : chaque valeur extraite est reliée à son empan dans le texte, et l'échec d'alignement dénonce l'hallucination sans appel supplémentaire."
+ ],
+ "part2": [
+  "La conformité n'est ni absolue ni sémantique : un champ obligatoire pousse le modèle à fabriquer une valeur assurée plutôt qu'à signaler son incertitude.",
+  "Contraindre le format pendant la génération se paie en raisonnement, l'ordre des clés pouvant faire répondre le modèle avant qu'il ait raisonné.",
+  "Le sens de l'effet dépend de la tâche : la contrainte aide là où l'espace de réponse est fini, elle nuit là où la réponse demande une exploration ouverte — d'où l'idée de générer d'abord librement, puis de mettre en forme.",
+  "Certaines limites échappent à l'ingénierie : l'ancrage laisse les attributs normalisés sans preuve, et aucun extracteur calculable ne serait universellement fidèle en domaine ouvert."
+ ]
 }

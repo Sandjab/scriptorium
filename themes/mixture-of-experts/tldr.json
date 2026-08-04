@@ -1,15 +1,15 @@
 {
-  "these": "La couche sparsely-gated MoE remplace le FFN dense par N experts et un routeur appris qui n'en active que k par token, découplant — approximativement — la capacité (paramètres totaux) du calcul (FLOPs actifs), au prix d'une empreinte mémoire « dense » au service et d'un équilibrage de charge à maîtriser de bout en bout.",
-  "part1": [
-    "Principe — conditional computation : pour chaque token, un routeur (gating) sélectionne k experts parmi N (top-1 Switch, top-2 GShard / Mixtral / GLaM) et la sortie est la somme pondérée de leurs k sorties. La capacité croît avec N, le calcul expert reste ∝ k.",
-    "Le découplage capacité/calcul n'est qu'approximatif : avant le top-k, le routeur score les N experts (projection d×N, coût O(N)), donc le coût total par token garde une composante en N — amortie seulement quand les experts sont assez lourds (d_ff ≫ d·N/k).",
-    "Sans contrainte, le routing s'effondre (expert collapse, boucle rich-get-richer avec gradient starvation) ; on l'équilibre par auxiliary load-balancing loss (Switch : L_aux = α·N·Σ fᵢ·Pᵢ, α=0,01), capacity factor + token dropping, noisy gating, ou — sans loss — un biais dynamique par expert (DeepSeek-V3).",
-    "Variantes structurantes : token-choice vs expert-choice routing (ce dernier incompatible avec la génération autoregressive) ; fine-grained + shared experts (DeepSeekMoE), qui démultiplient les combinaisons de routing à coût de calcul nominal constant."
-  ],
-  "part2": [
-    "Gains corroborés : Switch jusqu'à 7× plus rapide que T5-Base à iso-FLOPs ; DeepSeekMoE-16B atteint LLaMA 2 7B avec ~40 % de ses FLOPs ; Mixtral 8×7B (46,7 B totaux / ~13 B actifs) dépasse LLaMA 2 70B sur 10/12 benchmarks ; GLaM (1,2 T) entraîné pour une fraction de l'énergie de GPT-3.",
-    "Coût mémoire « dense » au service : tous les experts résident en VRAM (Mixtral ≈ 93 Go en FP16 pour ~13 B actifs) ; atténuable par expert offloading ou compression sub-1-bit (QMoE comprime Switch-C 1,6 T sous 160 Go, < 5 % de surcoût à l'inférence).",
-    "Systèmes : l'expert parallelism impose deux all-to-all (dispatch puis combine) par couche MoE ; cette communication domine souvent le temps d'entraînement hors topologie intra-rack tout-NVLink, malgré le recouvrement calcul/communication.",
-    "Un MoE n'est PAS un ensemble : routing sparse appris de bout en bout (k experts calculés, poids conjoints, attention/embeddings partagés dans un Transformer MoE), pas une agrégation dense où tous les membres traitent chaque exemple (coût O(N)). Limites résiduelles : instabilités d'entraînement (Switch garde le softmax du routeur en float32), fine-tuning délicat, spécialisation des experts ni systématique ni nécessairement sémantique."
-  ]
+ "these": "Router chaque token vers quelques experts seulement découple la capacité d'un modèle de son coût de calcul — un découplage réel, mais approximatif et payé en mémoire.",
+ "part1": [
+  "Une couche à experts n'est pas un ensemble : son routeur, appris de bout en bout, n'active qu'une poignée de sous-réseaux par token au lieu de tous les calculer.",
+  "Le calcul actif suit le nombre d'experts retenus et non leur nombre total, sauf le score du routeur qui les parcourt tous et rend le découplage approximatif.",
+  "Livré à lui-même, le routeur concentre les tokens sur quelques favoris, que la perte auxiliaire d'équilibrage, la capacité bornée par expert ou un biais dynamique viennent débloquer.",
+  "Les variantes structurantes se jouent sur qui choisit — le token ou l'expert — et sur la finesse du découpage, jusqu'aux experts partagés toujours actifs."
+ ],
+ "part2": [
+  "À budget de calcul égal, les modèles à experts battent régulièrement leurs homologues denses, et l'écart est corroboré aussi bien en qualité qu'en énergie de pré-entraînement.",
+  "Au service, la mémoire reste dense : tous les experts résident en mémoire vive, et seule une compression agressive des poids ramène les plus gros modèles sur du matériel abordable.",
+  "Le parallélisme d'experts impose deux échanges tous-à-tous par couche, dont le trafic domine souvent le temps d'entraînement hors interconnexion très rapide.",
+  "L'entraînement reste fragile et l'affinage délicat, et la spécialisation des experts n'a rien de systématique ni de nécessairement sémantique."
+ ]
 }

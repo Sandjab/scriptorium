@@ -1,15 +1,15 @@
 {
-  "these": "Un VLM moderne ne réapprend pas la vision : il réutilise un encodeur pré-entraîné contrastivement (CLIP) et le branche sur un LLM via un connecteur léger — cross-attention, Q-Former ou simple projection — puis apprend à converser par instruction-tuning multimodal ; mais l'ancrage visuel obtenu reste fragile, comme le révèlent hallucination d'objets, compositionnalité en trompe-l'œil et benchmarks contournables.",
-  "part1": [
-    "L'alignement contrastif de CLIP crée l'espace commun image-texte : ViT-L/14 à 336px atteint 76,2 % top-1 zero-shot sur ImageNet — au niveau d'un ResNet-50 entièrement supervisé — et cet encodeur pré-entraîné devient le point de départ que BLIP-2, Flamingo et LLaVA réutilisent au lieu d'apprendre la vision depuis zéro.",
-    "Trois voies de fusion sur LLM gelé : Flamingo insère des couches de cross-attention (GATED XATTN-DENSE, tanh-gating initialisé à zéro) entre les blocs du LLM ; BLIP-2 comprime la vision en 32 tokens de requête via son Q-Former, préfixés comme soft visual prompts ; LLaVA projette sans compression les 576 tokens de patchs directement dans l'espace d'embedding du LLM.",
-    "La simplicité gagne souvent : BLIP-2 dépasse Flamingo-80B de 8,7 points en zero-shot sur VQAv2 en n'entraînant que 1/54e de ses paramètres, et LLaVA-1.5 — un MLP à deux couches comme connecteur, ~26h sur un nœud 8×A100 — surpasse BLIP-2 et InstructBLIP sur plusieurs benchmarks standards.",
-    "L'instruction-tuning multimodal s'apprend en deux étapes découplées (alignement de la seule projection, puis fine-tuning bout-en-bout) sur des données largement synthétiques : les 158K instructions de LLaVA ont été générées par GPT-4 texte-seul, qui n'a jamais vu les images, seulement légendes et boîtes englobantes."
-  ],
-  "part2": [
-    "Les benchmarks se lisent avec précaution : l'accuracy VQA est un consensus souple sur 10 annotateurs, VQAv2 réduit sans l'éliminer le biais de langage (un modèle aveugle à l'image atteint encore 41,4 %), et le CircularEval de MMBench fait chuter OpenFlamingo v2 de 36,7 % à 2,6 % par simple permutation des options.",
-    "La compositionnalité mesurée est en partie illusoire : l'encodeur texte de CLIP se comporte en sac de mots (ARO), et SugarCrepe montre que des modèles aveugles surpassent des VLM état de l'art sur ARO/CREPE — les gains y reflètent des raccourcis textuels, pas une compréhension des relations.",
-    "L'hallucination d'objets est structurelle : corrélée aux co-occurrences des données d'entraînement (POPE, CHAIR) et héritée en partie des priors du LLM ; le RLHF naïf ne la corrige pas fiablement — il induit un reward hacking, d'où l'ancrage factuel du reward model dans Fact-RLHF.",
-    "Sur le terrain, le budget de tokens visuels est devenu une cible d'ingénierie (FastVLM : 16 fois moins de tokens, TTFT jusqu'à 85x plus rapide) et les déploiements réels restent assistifs ou hybrides : Be My AI décrit des scènes pour des utilisateurs déficients visuels, DriveVLM-Dual couple le VLM à un pipeline classique de conduite — le VLM seul ne conduit pas."
-  ]
+ "these": "Faire voir un modèle de langage est un problème résolu — un encodeur contrastif, un connecteur, des instructions — mais garantir qu'il décrit bien cette image-là ne l'est pas.",
+ "part1": [
+  "L'alignement contrastif fournit l'espace commun où une image et sa légende atterrissent au même endroit, et toutes les architectures suivantes repartent de cet encodeur au lieu d'apprendre à voir.",
+  "Trois voies branchent la vision sur un modèle de langage gelé : insérer des couches d'attention croisée, comprimer l'image en quelques tokens de requête, ou projeter les patchs tels quels.",
+  "Le connecteur le plus simple l'emporte : une projection adossée aux bonnes données dépasse les modules dédiés, pour une fraction de leur coût d'entraînement.",
+  "L'assistant naît de l'instruction-tuning, dont les données sont largement synthétiques — un modèle aveugle a écrit le manuel de conversation d'un modèle voyant."
+ ],
+ "part2": [
+  "Les benchmarks se lisent avec précaution : chaque génération a dû être blindée contre un raccourci que les modèles avaient trouvé avant les évaluateurs.",
+  "La compositionnalité mesurée est en partie illusoire, des modèles aveugles à l'image dépassant des modèles de pointe sur les bancs censés l'évaluer.",
+  "L'hallucination d'objets est structurelle : le modèle décrit ce qui accompagne d'habitude la scène, et l'alignement par préférences humaines ne la corrige pas sans ancrage factuel.",
+  "Sur le terrain, le budget de tokens visuels est devenu une cible d'ingénierie et les déploiements restent assistifs ou hybrides — le modèle seul ne conduit pas."
+ ]
 }
