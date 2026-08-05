@@ -112,18 +112,11 @@ l'indexation/similarité.
 > se centrer sur les modèles de préférence et l'évaluation ; learning-to-rank (FAIT)
 > traite l'ordonnancement supervisé générique. Domaine : information-retrieval-representation.
 
-### Réseaux antagonistes génératifs (GAN) — `generative-adversarial-networks` → `deep-learning-foundations`
-**Verdict : nouveau gap.** `diffusion-models` est le seul thème génératif.
-
-> Réseaux antagonistes génératifs (GAN) : générer par un jeu à deux joueurs. Couvrir la formulation
-> min-max (générateur vs discriminateur, l'objectif de Goodfellow 2014 et son interprétation en
-> divergence de Jensen-Shannon), les pathologies d'entraînement (instabilité, mode collapse,
-> vanishing gradients) et leurs remèdes (Wasserstein GAN, gradient penalty WGAN-GP, spectral
-> normalization), les architectures marquantes (DCGAN, conditional GAN, StyleGAN, CycleGAN), et
-> l'évaluation (FID, Inception Score). Positionnement : paradigme génératif historique majeur,
-> contrepoint de la diffusion. Public : ingénieur ML. Délimitations : diffusion-models couvre le
-> génératif par score/diffusion (FID/IS) — se centrer sur l'entraînement adversarial et ses
-> pathologies. Domaine : deep-learning-foundations.
+(`generative-adversarial-networks` : FAIT le 2026-08-05, retiré du backlog — 25e run
+/leanmonograph GREEN direct, backstop propre, classé dans deep-learning-foundations entre
+variational-autoencoders et diffusion-models. Gap re-vérifié par lecture avant lancement :
+les voisins génératifs publiés depuis le classement du candidat ne citaient les GAN qu'en
+contrepoint. Premier run dont le tldr naît des règles de résumé du 2026-08-04.)
 
 ### Régression régularisée & GLM — `regression-reguliere` → `classical-ml-time-series`
 **Verdict : nouveau gap.** Éparpillé (lasso/elastic net dans Sparse PCA, biais-variance dans
