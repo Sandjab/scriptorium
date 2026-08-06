@@ -42,6 +42,22 @@ Substacks) ; le sujet de fond — topologies, frameworks et modes d'échec des s
 est retenu en priorité moyenne. L'acception « context/knowledge graphs pour agents » est déjà
 couverte (agentic-memory, knowledge-graph-construction, retrieval-augmented-generation).
 
+**Passe d'enrichissement du 2026-08-06** (corpus à 65 thèmes, backlog à 0 candidat « haute ») : veille
+web sur les tendances 2026 — bibliométrie arXiv H1 2026 (long-horizon planning +510 %, agentic
+workflows ×2,3, synthetic data −24 %, state space models −20 %), revue LLM 2026 de Raschka
+(« long-context efficiency is king », hybrides sparse+linéaire), post-training (GRPO/DAPO/RLVR),
+sécurité des agents (OWASP 2026), SWE-bench Pro, SLM embarqués, génération vidéo. Sept candidats
+retenus, quatre sujets à la mode **écartés** parce que déjà couverts. Vérification de gap par
+LECTURE de la prose des voisins (greps de localisation, puis lecture des sections concernées) —
+trois trouvailles ont décidé des verdicts : (1) `transformer-attention` **exclut explicitement**
+les attentions linéaires et parcimonieuses de son périmètre (« FlashAttention n'est pas
+sous-quadratique… le ranger parmi les attentions linéaires ou parcimonieuses confond une
+optimisation IO-aware avec une approximation algorithmique »), et n'aborde l'attention sink que
+côté interprétation ; (2) `calibration-classifieurs` **ne mentionne jamais les LLM** — la
+calibration y est traitée sur classifieurs, la couverture conforme sur ensembles de prédiction ;
+(3) `agentic-ai` traite déjà tool poisoning, CVE MCP et confused deputy, ce qui réduit fortement
+l'angle « sécurité des agents ».
+
 - **Fabrication** : `/leanmonograph « <prompt riche> »` (défaut depuis le test GREEN du 2026-07-02 ;
   `/frugalmonograph` en repli) puis `/arrange <slug>`.
 - **Domaine** = celui de `tools/taxonomy.json` (source de vérité). Un thème = un seul domaine.
@@ -57,6 +73,52 @@ couverte (agentic-memory, knowledge-graph-construction, retrieval-augmented-gene
 (`reinforcement-learning-fundamentals` : FAIT le 2026-07-10, retiré du backlog.)
 (`context-engineering` : FAIT le 2026-07-11, retiré du backlog.)
 (`distributed-training-parallelism` : FAIT le 2026-07-11, retiré du backlog.)
+
+### Attention parcimonieuse & long contexte — `sparse-attention-long-context` → `deep-learning-foundations`
+**Verdict : gap réel (ajout 2026-08-06).** `transformer-attention` pose le mur quadratique puis
+traite l'attention EXACTE (FlashAttention 1/2/3, MQA/GQA/MLA) et **écarte nommément** les familles
+linéaire et parcimonieuse ; il n'aborde l'attention sink que sous l'angle « l'attention n'est pas
+une explication ». `state-space-models` couvre l'attention linéaire par la dualité SSD et les
+hybrides attention+SSM (MambaFormer, Samba, Jamba). `context-engineering` cite BigBird/Longformer
+en deux phrases, au titre du coût. Personne ne traite la parcimonie comme design d'architecture —
+or c'est la direction dominante de 2026 (efficacité du long contexte pour les harnesses d'agents).
+
+> Attention parcimonieuse (sparse attention) et efficacité du long contexte : réduire le calcul de
+> l'attention, pas seulement ses accès mémoire. Couvrir les motifs statiques fondateurs (attention
+> locale à fenêtre glissante, tokens globaux, aléatoire : Longformer, BigBird, et la longueur de
+> chemin qu'ils préservent), le streaming par tokens-puits (StreamingLLM et la mécanique de
+> l'attention sink), la sélection dynamique de KV à l'inférence (éviction et budget par tête, sparse
+> prefill), l'attention parcimonieuse NATIVE entraînée de bout en bout (NSA de DeepSeek, MoBA,
+> InfLLM-v2), les hybrides parcimonieux+linéaires de 2026 et leurs ratios de couches, et
+> l'arbitrage mesuré : ce que la parcimonie coûte en rappel exact et en raisonnement. Public :
+> ingénieur ML. ⚠️ Délimitations strictes : transformer-attention couvre l'attention exacte et son
+> optimisation IO-aware (FlashAttention) ainsi que MQA/GQA/MLA — NE PAS les re-dériver, et
+> reprendre sa distinction exact/approché comme point de départ ; state-space-models couvre
+> l'attention linéaire (dualité SSD) et les hybrides attention+SSM — ici la parcimonie, pas la
+> récurrence ; llm-inference-serving couvre le KV cache côté système (PagedAttention, préfixes) ;
+> context-engineering couvre le context rot côté usage. Domaine : deep-learning-foundations.
+
+### Détection d'hallucinations & incertitude des LLM — `hallucination-detection-uncertainty` → `llm-agents-generation`
+**Verdict : gap réel (ajout 2026-08-06).** `calibration-classifieurs` ne parle QUE de classifieurs
+(zéro occurrence de « LLM ») ; `retrieval-augmented-generation` borne le risque du pipeline RAG
+(C-RAG conforme, Merlin-Arthur, SGI, théorème d'impossibilité) mais côté ancrage, pas côté
+détection en génération libre ; `llm-evaluation` traite le juge-LLM et ses biais. Semantic entropy,
+SelfCheckGPT, FActScore, confiance verbalisée : 0 occurrence dans le corpus.
+
+> Détecter les hallucinations et estimer l'incertitude d'un LLM : savoir quand la réponse ne vaut
+> rien. Couvrir la typologie (confabulation vs erreur de connaissance, incertitude aléatoire vs
+> épistémique), l'entropie sémantique (regroupement par équivalence de sens plutôt que par
+> séquence de tokens, et les sondes qui l'approchent depuis les états cachés en une seule
+> génération), les méthodes par échantillonnage et cohérence (SelfCheckGPT, auto-consistance), les
+> signaux internes et déclarés (probabilité de séquence, p(true), confiance verbalisée et sa
+> sur-confiance), la vérification factuelle décomposée (FActScore et les métriques par atome), la
+> décision qui en découle — abstention, escalade, déférence à un humain — et l'évaluation
+> (TruthfulQA, HaluEval, jeux dédiés, et le piège de mesurer un détecteur sur des hallucinations
+> fabriquées). Public : ingénieur ML. Délimitations : calibration-classifieurs couvre la calibration
+> et la prédiction conforme sur classifieurs (les citer comme socle, ne pas re-dériver ECE ni la
+> couverture conforme) ; retrieval-augmented-generation couvre l'ancrage documentaire et ses
+> garanties formelles (C-RAG, SGI) — ici le cas sans corpus de référence ; llm-evaluation couvre
+> le juge-LLM. Domaine : llm-agents-generation.
 
 ---
 
@@ -342,6 +404,53 @@ réfutation, mais le rejet GriTS, single-source équivalent aux 4 rejets hedgés
 du 18e run, re-vérifiée ici). Premier run réel de `/arrange` étendu : proposition d'insertion bien
 calibrée.)
 
+### Génération de code par LLM — `llm-code-generation` → `llm-agents-generation`
+**Verdict : gap réel mais ⚠️ frontière à caler (ajout 2026-08-06).** Le corpus n'a AUCUN thème
+code-centré : le code y apparaît toujours comme *application* d'autre chose — `agentic-ai` a une
+section « Applications : code, science et entreprise » (Claude Code, ChatDev, taux de succès),
+`agent-harness-engineering` traite les harnesses de code (SWE-agent, OpenHands, Aider),
+`agent-evaluation-observability` dissèque SWE-bench comme benchmark d'agents, `ia-productivite-esn`
+mesure les effets organisationnels, `agentic-rl-environments` fabrique des environnements
+vérifiables. Le modèle qui écrit du code — sa lignée, ses formats d'entraînement, ses garanties —
+n'est traité nulle part. Sujet au sommet de la visibilité 2026 (leaderboards SWE-bench Pro).
+
+> La génération de code par modèle de langage : ce que le modèle apprend et ce qu'on peut en
+> garantir. Couvrir la lignée d'évaluation (Codex et HumanEval, MBPP, puis le basculement vers les
+> tâches de dépôt réel : SWE-bench, sa variante Verified, Pro, et les pipelines de collecte
+> automatisée type SWE-rebench), les formats d'entraînement propres au code (fill-in-the-middle et
+> l'infilling, contexte au niveau du dépôt, dépendances inter-fichiers), les tests comme oracle et
+> comme récompense vérifiable (exécution, pass@k et ce qu'il masque, solver-verifier), la
+> correction et la réparation de programmes (patch, itération sur l'échec de test), la sécurité du
+> code produit (vulnérabilités générées, dépendances hallucinées) et la contamination des
+> benchmarks. Public : ingénieur ML/logiciel. ⚠️ Délimitations strictes : agent-harness-engineering
+> couvre la BOUCLE et l'outillage (ne pas re-traiter les harnesses) ; agent-evaluation-observability
+> couvre SWE-bench comme instrument d'évaluation d'AGENTS et l'écart de harness — s'appuyer dessus
+> plutôt que le refaire ; agentic-rl-environments couvre le RLVR et ses environnements ;
+> ia-productivite-esn couvre l'effet sur les organisations ; reasoning-test-time-compute couvre le
+> raisonnement générique. L'angle propre : le code comme modalité d'entraînement et d'évaluation.
+> Domaine : llm-agents-generation.
+
+### Édition de connaissances & désapprentissage — `model-editing-unlearning` → `deep-learning-foundations`
+**Verdict : gap réel (ajout 2026-08-06).** `mechanistic-interpretability` couvre le steering par
+features de SAE et l'intervention causale, et ne cite MEMIT que dans un blurb bibliographique ;
+« unlearning », « désapprentissage », « droit à l'oubli », TOFU : 0 occurrence dans le corpus.
+`lora` traite l'adaptation, pas la suppression ciblée. Sujet porté en 2026 par la conformité
+(effacement sur demande) autant que par la sûreté (retirer une capacité dangereuse).
+
+> Éditer et faire oublier un modèle entraîné : modifier une connaissance sans tout ré-entraîner.
+> Couvrir la localisation-puis-édition (ROME et l'hypothèse des MLP comme mémoires associatives,
+> MEMIT pour l'édition massive, les méta-apprenants type MEND), les critères d'une bonne édition
+> (efficacité, généralisation aux paraphrases, localité/spécificité) et leurs échecs mesurés (effets
+> de ricochet sur les faits liés, dégradation après éditions séquentielles), puis le désapprentissage
+> machine (ascension de gradient et ses instabilités, NPO, RMU ; désapprentissage exact vs
+> approché), ses benchmarks (TOFU, WMDP, MUSE), ses attaques (réapprentissage, extraction résiduelle,
+> désapprentissage « superficiel » qui masque sans effacer) et le cadre réglementaire du droit à
+> l'effacement. Public : ingénieur ML / conformité. Délimitations : mechanistic-interpretability
+> couvre le steering et l'activation patching (les citer : localiser n'est pas éditer) ; lora couvre
+> l'adaptation par adaptateurs (un support d'édition, pas son objectif) ; privacy-preserving-ml
+> (candidat) couvre la confidentialité différentielle et la mémorisation — se délimiter
+> mutuellement : ici on retire après coup ce qui a été appris. Domaine : deep-learning-foundations.
+
 ---
 
 ## Priorité basse / marginale
@@ -498,6 +607,71 @@ qualité/coût par requête, en délimitant contre la section routage de llm-inf
 > citer en contrepoint) ; ensemble-learning couvre l'agrégation de prédictions (tous les modèles
 > répondent) vs le routage (un seul répond). Domaine : llm-agents-generation.
 
+### Petits modèles & inférence embarquée — `small-language-models-edge` → `llm-agents-generation`
+**Verdict : partiel (ajout 2026-08-06).** Les briques existent séparément — `quantization` (PTQ,
+formats FP8/FP4), `knowledge-distillation` (fabriquer de petits modèles), `llm-inference-serving`
+(servir côté datacenter) — mais le déploiement local est absent : « NPU » = 0 occurrence, et
+« on-device » n'apparaît que dans `multimodal-vlm`. Tendance industrielle nette en 2026 (SLM au
+bord, arbitrage local/cloud) mais valeur de référence moindre : beaucoup de produit, peu de théorie.
+⚠️ **Verdict renversé** : la passe du 2026-07-09 avait écarté ce sujet d'un mot (« croise
+llm-inference-serving »). La lecture montre que `llm-inference-serving` traite le serving en
+datacenter (batching continu, PagedAttention, SLO) et jamais l'appareil — le recouvrement portait
+sur la compression, pas sur le déploiement local. Priorité basse tout de même : sujet de produit.
+
+> Petits modèles de langage et inférence embarquée : faire tourner un LLM sur l'appareil. Couvrir
+> ce qui fait un « petit » modèle utile (budget de paramètres vs budget de tokens, MoE à faible
+> activation, distillation et données curées), les contraintes matérielles du bord (NPU et TOPS,
+> bande passante mémoire comme goulot réel, énergie et enveloppe thermique), les runtimes
+> (llama.cpp/GGUF, MLX, ONNX Runtime, exécution mobile), les compromis de qualité mesurés à
+> quantification agressive, et l'architecture hybride bord/cloud (ce qu'on garde local, ce qu'on
+> escalade, et pourquoi — latence, coût, confidentialité). Public : ingénieur ML/produit.
+> Délimitations : quantization couvre les méthodes de compression (GPTQ/AWQ, FP4) et
+> knowledge-distillation la fabrication d'élèves — les citer sans re-dériver ;
+> llm-inference-serving couvre le serving à l'échelle (batching continu, PagedAttention) ;
+> model-routing-cascades (candidat) couvre l'arbitrage qualité/coût par requête. Domaine :
+> llm-agents-generation (à trancher par /arrange).
+
+### Génération vidéo — `video-generation-models` → `deep-learning-foundations`
+**Verdict : partiel, ⚠️ angle réduit (ajout 2026-08-06).** `diffusion-models` a une section
+« Au-delà de l'image : audio, vidéo » et couvre latent diffusion, DDIM/DPM-Solver, guidage,
+consistency models ; `world-models` traite « Générer des mondes : de Sora à Genie 3 » côté
+simulation. Reste l'angle proprement vidéo — tokenizer spatio-temporel, cohérence, audio joint,
+évaluation — mais il faut le tenir serré pour ne pas refaire les deux voisins.
+
+> Modèles de génération vidéo : produire des séquences cohérentes dans le temps. Couvrir la
+> compression spatio-temporelle (VAE 3D, tokenisation en patches d'espace-temps) et pourquoi elle
+> commande tout le reste, l'architecture DiT appliquée à la vidéo, la cohérence temporelle et
+> l'identité des objets d'un plan à l'autre, le conditionnement (texte, image de départ, trajectoire
+> de caméra), la génération audio-vidéo synchronisée, le coût d'inférence et les stratégies
+> d'accélération, et l'évaluation (VBench et les axes qu'il décompose, ce que les préférences
+> humaines mesurent réellement). Public : ingénieur ML. ⚠️ Délimitations strictes :
+> diffusion-models couvre le cadre diffusion complet, y compris sa section audio/vidéo — NE PAS le
+> re-dériver ; world-models couvre Sora et Genie 3 comme simulateurs de mondes et la physical AI ;
+> generative-adversarial-networks couvre la lignée GAN. L'angle propre : la vidéo comme problème de
+> représentation spatio-temporelle. Domaine : deep-learning-foundations.
+
+### Sécurité des agents outillés — `agent-tool-security` → `llm-agents-generation`
+**Verdict : partiel, ⚠️ chevauchement fort (ajout 2026-08-06).** À ne lancer que si l'angle
+« défense en profondeur » tient sans redite : `llm-safety-jailbreaks` a une section entière
+« Prompt injection directe et indirecte » (Greshake, taxonomie OWASP, cinq classes d'impact) et une
+sur les défenses au niveau du modèle ; `agentic-ai` traite déjà tool poisoning, rug pull, CVE MCP
+et confused deputy. Reste non couvert : les défenses ARCHITECTURALES et leur évaluation —
+AgentDojo, « lethal trifecta », séparation de privilèges, capacités et flux d'information : 0
+occurrence.
+
+> Sécuriser un agent qui agit : quand l'injection ne trompe plus un texte mais déclenche une action.
+> Couvrir la conjonction dangereuse (accès à des données privées + exposition à du contenu non
+> fiable + capacité d'exfiltrer), les patterns de défense architecturaux (dual-LLM et séparation
+> quarantaine/privilège, action-selector, plan-then-execute, systèmes à capacités et contrôle de
+> flux d'information), le confinement d'exécution (permissions, bac à sable, approbation humaine
+> sur action irréversible), l'identité et la délégation entre agents, et l'évaluation adaptative
+> (AgentDojo et les bancs d'attaque, pourquoi une défense évaluée sur attaques fixes surestime sa
+> protection). Public : ingénieur ML/sécurité. ⚠️ Délimitations strictes : llm-safety-jailbreaks
+> couvre jailbreaks, injection directe/indirecte et défenses côté modèle (classificateurs,
+> alignement) — NE PAS les re-traiter ; agentic-ai couvre MCP/A2A et leurs vulnérabilités connues ;
+> agent-harness-engineering couvre le design d'outils côté fiabilité. L'angle propre : contenir les
+> conséquences plutôt qu'empêcher la tromperie. Domaine : llm-agents-generation.
+
 ---
 
 ## Écartés — déjà couverts en profondeur (vérifié dans le texte)
@@ -516,3 +690,26 @@ qualité/coût par requête, en délimitant contre la section routage de llm-inf
   SYSTÈME est désormais traité par `llm-inference-serving` (FAIT le 2026-07-18).
 - **Embeddings statiques (word2vec, GloVe, fastText)** → `text-embeddings` (lignée historique
   couverte au sein du thème embeddings).
+
+Écartés lors de la passe du 2026-08-06, malgré leur visibilité dans la veille 2026 :
+
+- **Post-training RL moderne (GRPO, DAPO, et le zoo des variantes)** → `rlhf-dpo` (section « GRPO et
+  le RL pour le raisonnement », plus le zoo offline IPO/KTO/ORPO/SimPO) et `agentic-rl-environments`
+  (section « GRPO et ses descendants : les algorithmes du RLVR », dont DAPO). Le sujet le plus cité
+  des revues post-training 2026 est déjà traité deux fois, sous deux angles complémentaires.
+- **Deep research agents / agents de recherche** → réparti et couvert : `recursive-language-models`
+  traite le deep research multi-documents comme cas d'usage central (BrowseComp-Plus),
+  `retrieval-augmented-generation` a « RAG actif, correctif et adaptatif »,
+  `multi-agent-orchestration` les topologies de délégation, `agent-evaluation-observability` les
+  environnements exécutables et la contamination. Angle résiduel trop mince : la génération de
+  rapports longs sourcés et son évaluation par rubriques.
+- **Données synthétiques & self-play** → `pretraining-data-curation` (section « Réécrire plutôt que
+  jeter », Nemotron-CC/WRAP, et le model collapse), `knowledge-distillation` (traces de raisonnement
+  pour fabriquer de petits LLM), `rlhf-dpo` (RLAIF et Constitutional AI),
+  `agentic-rl-environments` (fabriquer des environnements vérifiables à l'échelle). À noter : la
+  bibliométrie H1 2026 donne le sujet en recul (−24 %).
+- **Planification à horizon long** (le topic le plus en croissance de H1 2026, +510 %) →
+  `agentic-ai` (fiabilité à horizon long, meltdown de Vending-Bench, pass^k de τ²-bench),
+  `recursive-language-models` (section « Récursion, agents et raisonnement long-horizon »),
+  `agentic-memory` et `world-models` (planification en imagination). Le buzz nomme un phénomène
+  que le corpus traite déjà par ses mécanismes.
