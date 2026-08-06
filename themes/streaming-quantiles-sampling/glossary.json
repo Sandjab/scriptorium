@@ -1,0 +1,37 @@
+[
+  {
+    "term": "ε-approximate quantile summary",
+    "definition": "Résumé de quantiles ε-approché : structure qui, après un unique passage sur un flux de n éléments, répond à toute requête de quantile en garantissant que le rang de la réponse s'écarte du rang réel d'au plus εn — avec probabilité au moins 1−δ pour les variantes randomisées. Le φ-quantile étant défini comme l'élément de position ⌊φ×N⌋, la garantie porte sur le RANG et jamais sur la VALEUR : entre les rangs (φ−ε)n et (φ+ε)n, l'écart numérique peut couvrir toute la dynamique des données là où la densité locale est faible. Ce contrat existe parce que l'exactitude est hors de portée : calculer la médiane exacte en un seul passage déterministe exige un espace linéaire en la longueur du flux (Munro et Paterson, 1980).",
+    "see_also": "Greenwald-Khanna (GK), KLL sketch, mergeable summary"
+  },
+  {
+    "term": "Greenwald-Khanna (GK)",
+    "definition": "Résumé de quantiles déterministe (SIGMOD 2001) qui conserve une liste ordonnée de tuples associant à une valeur observée un compte g et une borne d'incertitude Δ sur son rang. L'invariant max_i(g_i+Δ_i) ≤ 2εn, posé à l'insertion puis rétabli par l'opération de compression, garantit qu'aucune réponse ne s'écarte du rang réel de plus de εN. GK tient en O((1/ε)·log(εN)) dans le pire cas sans connaître N à l'avance — contre O((1/ε)·log²(εN)) et N requis pour l'algorithme antérieur de Manku-Rajagopalan-Lindsay — et cette borne est prouvée optimale pour tout résumé déterministe fondé sur des comparaisons (Cormode et Veselý, PODS 2020), mais pour ce modèle seulement. Apache Spark en implémente une variante dans DataFrame.approxQuantile.",
+    "see_also": "ε-approximate quantile summary, KLL sketch, mergeable summary"
+  },
+  {
+    "term": "KLL sketch",
+    "definition": "Sketch de quantiles randomisé de Karnin, Lang et Liberty (FOCS 2016), bâti sur une hiérarchie de compactors. Un compactor trie k éléments de même poids, en élimine la moitié par un tirage aléatoire entre positions paires et impaires, puis double le poids des survivants : l'opération laisse le rang d'un point fixé inchangé ou le décale de ±w avec probabilité 1/2, si bien que l'erreur cumulée sur les niveaux se borne par une inégalité de type Hoeffding. La variante non fusionnable atteint O((1/ε)·log log(1/δ)), borne accompagnée d'une borne inférieure correspondante pour tout algorithme randomisé fondé sur des comparaisons ; la variante pleinement fusionnable, décrite dans le même article, coûte un facteur log log(1/δ) de plus.",
+    "see_also": "ε-approximate quantile summary, mergeable summary, Greenwald-Khanna (GK)"
+  },
+  {
+    "term": "t-digest",
+    "definition": "Résumé de quantiles (Dunning et Ertl) fondé sur des centroïdes — un poids et une moyenne — dont la taille admissible dépend de la position q dans la distribution, fixée par une scale function (fonction d'échelle) parmi k0 à k3. Les fonctions k1, k2 et k3 imposent des clusters minuscules près des rangs extrêmes et larges près de la médiane, d'où une précision définie relativement à max(q, 1−q) plutôt qu'en erreur absolue uniforme : t-digest privilégie explicitement les quantiles extrêmes, à l'inverse de GK et KLL. La fonction k0, linéaire, produit au contraire des clusters de taille quasi uniforme. Le nombre de centroïdes d'un digest pleinement fusionné est borné par le paramètre de compression ⌈δ⌉ et non par la longueur du flux. En revanche, t-digest n'offre aucune borne d'erreur pire-cas démontrée : sa précision est validée empiriquement.",
+    "see_also": "ε-approximate quantile summary, KLL sketch, mergeable summary"
+  },
+  {
+    "term": "mergeable summary",
+    "definition": "Résumé fusionnable au sens d'Agarwal et al. (PODS 2012 / TODS 2013), qui en distingue formellement deux degrés. La full mergeability (fusionnabilité complète) exige un algorithme de fusion valable pour un nombre indéfini de fusions successives, la taille du résultat restant bornée par une fonction de la taille de l'union ; la one-way mergeability (fusionnabilité unilatérale) est un modèle asymétrique plus faible, de type flux par lots. Les auteurs prouvent que GK atteint la seconde, et conjecturent seulement — sans démonstration — qu'aucun résumé de quantiles déterministe fondé sur des comparaisons n'atteint la première. La propriété se paie : les meilleures bornes pleinement fusionnables restent au-dessus des meilleures bornes obtenues sans cette exigence, aussi bien pour le résumé randomisé d'Agarwal et al. que pour KLL.",
+    "see_also": "Greenwald-Khanna (GK), KLL sketch, weighted quantile sketch"
+  },
+  {
+    "term": "reservoir sampling",
+    "definition": "Échantillonnage par réservoir : maintenir un échantillon uniforme de m éléments d'un flux dont la longueur N reste inconnue. Algorithm R (Vitter) remplace séquentiellement un élément du réservoir avec probabilité m/(t+1) et confère à chaque item une probabilité finale m/N d'y figurer, au prix d'un tirage aléatoire par élément vu ; les algorithmes à saut (Z de Vitter 1985, L de Li 1994) tirent directement combien d'éléments ignorer et atteignent un temps attendu optimal à une constante multiplicative près. La variante pondérée A-Res (Efraimidis et Spirakis) attribue à chaque item la clé u^(1/w) et garde les clés les plus grandes ; A-Chao traite le cas d'un item dont le poids relatif dépasse 1/m, inclus alors avec probabilité exactement 1. Fusionner deux réservoirs de partitions distinctes demande un tirage hypergéométrique, non un tirage binomial par place.",
+    "see_also": "weighted quantile sketch, mergeable summary"
+  },
+  {
+    "term": "weighted quantile sketch",
+    "definition": "Résumé de quantiles pondéré introduit par XGBoost (Chen et Guestrin, 2016) pour le split finding (recherche du point de coupure) approché des arbres boostés. Chaque itération réécrit l'objectif d'entraînement comme une perte quadratique pondérée où l'instance i pèse son gradient du second ordre h_i, et la fonction de rang pondéré r_k(z) = (1/Σh)·Σ_{x<z} h prend ce même h_i pour poids : un candidat de coupure qui minimise l'erreur de rang sous cette pondération approxime le point de coupure qui minimise réellement la perte. L'opération MERGE combine deux résumés de garanties ε1 et ε2 en un résumé de garantie max(ε1, ε2), et PRUNE ramène un résumé à b+1 entrées en portant sa garantie de ε à ε + 1/b — ensemble, elles rendent le sketch fusionnable entre workers.",
+    "see_also": "ε-approximate quantile summary, mergeable summary"
+  }
+]

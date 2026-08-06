@@ -1,0 +1,578 @@
+{
+  "edition": "monographie",
+  "slug": "streaming-quantiles-sampling",
+  "meta": {
+    "title": "Quantiles et échantillonnage en flux : ce qu'on peut garantir en mémoire bornée",
+    "kicker": "Quantiles en flux · monographie",
+    "h1": "Quantiles et échantillonnage en flux : ce qu'on peut garantir en mémoire bornée",
+    "lede": "Un flux ne se relit pas : voici ce qu'un résumé de quelques kilo-octets peut réellement promettre sur un quantile — une erreur bornée sur le rang, jamais sur la valeur — de l'invariant de Greenwald-Khanna aux compactors randomisés de KLL, du t-digest empirique au reservoir sampling, et de ce que la fusion distribuée fait payer à chacun.",
+    "meta_chips": [
+      "Monographie"
+    ],
+    "footer": "Quantiles et échantillonnage en flux : ce qu'on peut garantir en mémoire bornée · scriptorium"
+  },
+  "elements": [
+    {
+      "type": "abstract"
+    },
+    {
+      "type": "section",
+      "id": "probleme-et-contrat-epsilon",
+      "heading": "Résumer un flux sans le garder : le contrat de l'ε-approximation",
+      "level": 3,
+      "prose": "<p>Un flux ne se relit pas. Les éléments arrivent un à un, dans l'ordre où ils sont produits, et le programme qui les observe n'a droit qu'à un seul regard sur chacun : c'est le modèle du data stream (flux de données), où la longueur totale <em>N</em> reste le plus souvent inconnue à l'avance et peut croître arbitrairement. Les questions qu'on y pose sont pourtant banales — quelle est la médiane des latences observées depuis ce matin, où passe le quantile 0,99 ? — et leur réponse exacte suppose de trier, donc de tout garder. Sur un flux qu'aucune mémoire ne contient, cette voie est fermée d'emblée : la mémoire de travail doit rester sous-linéaire en <em>N</em>.</p>\n<p>L'obstacle n'est pas d'ingénierie, il est prouvé. Munro et Paterson l'établissent dès 1980 dans « Selection and sorting with limited storage » (<em>Theoretical Computer Science</em>) : sélectionner exactement une statistique d'ordre — la médiane, ou n'importe quel rang — en <em>p</em> passes séquentielles sur une bande en lecture seule réclame Ω(<em>N</em><sup>1/p</sup>) de mémoire interne. Une seule passe, et l'exposant vaut 1 : il faut Ω(<em>N</em>), c'est-à-dire garder le flux. Deux passes ramènent la borne à Ω(√<em>N</em>), et O(√<em>N</em> log <em>N</em>) suffit alors. Le hasard seul ne renverse pas ce verdict : une méthode randomisée en une passe qui ne trouve la médiane qu'avec forte probabilité en réclame encore Θ(√<em>N</em>), ce qui abaisse le coût sans l'amener au régime que vise le streaming. Ce qui achète une mémoire vraiment petite, ce n'est donc pas la relaxation de la correction, c'est la relaxation de la réponse elle-même.</p>\n<p>D'où le contrat que la suite de ce document verra honorer, contourner ou trahir. Un quantile sketch ε-approché (résumé de quantiles) reçoit un flux <em>x</em><sub>1</sub>, …, <em>x</em><sub>n</sub> et permet d'approcher le rang de n'importe quelle requête à une erreur additive ε<em>n</em> près, avec probabilité au moins 1 − δ : c'est la définition que posent Karnin, Lang et Liberty dans l'article fondant le sketch KLL, à FOCS 2016, et que la littérature du domaine reprend. Deux boutons la gouvernent, ε pour la précision et δ pour la probabilité d'échec tolérée. Et l'objet approché est un rang, non une valeur — le φ-quantile d'un ensemble de <em>N</em> éléments est par définition celui qui occupe la position ⌊φ × <em>N</em>⌋ dans l'ordre.</p>\n<p>La conséquence doit être posée tout de suite, car elle décide de la lecture de toutes les garanties qui suivent. Apache DataSketches en donne le contre-exemple canonique : une erreur de rang de 1 % autour du rang 0,50 place la réponse quelque part entre les rangs 0,49 et 0,51 ; que la distribution comporte une marche à cet endroit, et l'écart entre les valeurs situées à ces deux rangs peut couvrir toute la plage dynamique des données. Le sketch respecte alors son contrat à la lettre en rendant un nombre arbitrairement loin de la médiane cherchée. Aucun des invariants qu'on verra à l'œuvre ne borne l'écart en valeur : celui-ci dépend de la densité locale des données, dont le résumé ne sait rien.</p>\n<p>Le mot recouvre par ailleurs des objets qui ne sont pas le sujet, et autant les écarter maintenant. Il existe une seconde route vers les requêtes de rang, par les fréquences : le Count-Min Sketch de Cormode et Muthukrishnan (<em>Journal of Algorithms</em>, 2005) traite une requête d'intervalle en le décomposant en sous-intervalles dyadiques et en interrogeant un sketch par niveau. Cette voie fait l'objet d'une monographie distincte du corpus ; elle est citée ici comme approche concurrente, non re-dérivée. Restent deux homonymies franches : le quantile forecasting des modèles de série temporelle, qui produit des prévisions probabilistes à plusieurs horizons, et le quantile empirique de la prédiction conforme, calculé exactement sur un jeu de calibration et hors de tout flux.</p>\n<p>Reste le prix du contrat. Pour un résumé déterministe fondé sur des comparaisons — un résumé qui ne fait rien d'autre que comparer des éléments du flux et en conserver —, Cormode et Veselý ont prouvé à PODS 2020 qu'il faut Ω((1/ε)·log(ε<em>N</em>)) dans le pire cas. Cette borne est atteinte, et depuis longtemps : c'est exactement l'espace du résumé publié en 2001 par Greenwald et Khanna (GK), qu'aucune structure déterministe de cette classe ne peut donc améliorer asymptotiquement, ni ramener à une forme <em>f</em>(ε)·o(log <em>N</em>) pour une fonction <em>f</em> indépendante de <em>N</em>. Le hasard, lui, échappe à cette dépendance : KLL tient en O((1/ε)·log log(1/δ)), sans le moindre terme logarithmique en la longueur du flux. Commençons par la structure qui honore le contrat sans rien laisser au tirage.</p>",
+      "claims": [
+        "claim:1",
+        "claim:2",
+        "claim:3",
+        "claim:4"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-rang-contre-valeur"
+    },
+    {
+      "type": "section",
+      "id": "greenwald-khanna",
+      "heading": "Greenwald-Khanna : un invariant qui borne l'incertitude de rang",
+      "level": 3,
+      "prose": "<p>Le contrat posé, il faut une structure qui le tienne. Greenwald et Khanna la présentent à SIGMOD 2001, à Santa Barbara, sous le titre « Space-Efficient Online Computation of Quantile Summaries ». L'idée directrice tient dans un refus, celui d'estimer. Plutôt que de garder des valeurs en espérant que leur rang soit à peu près correct, le résumé conserve une liste ordonnée de représentants dont chacun transporte ce qu'on sait de son propre rang — et ce savoir est un encadrement, pas un nombre. Chaque entrée est un triplet (<em>v</em><sub>i</sub>, <em>g</em><sub>i</sub>, Δ<sub>i</sub>).</p>\n<p>Les deux entiers qui accompagnent la valeur disent des choses différentes. <em>g</em><sub>i</sub> mesure l'écart de rang entre le représentant courant et son prédécesseur, soit <em>r</em><sub>min</sub>(<em>v</em><sub>i</sub>) − <em>r</em><sub>min</sub>(<em>v</em><sub>i−1</sub>) ; Δ<sub>i</sub> mesure l'incertitude résiduelle sur le rang du représentant lui-même, soit <em>r</em><sub>max</sub>(<em>v</em><sub>i</sub>) − <em>r</em><sub>min</sub>(<em>v</em><sub>i</sub>). Les rangs eux-mêmes ne sont pas stockés : on les reconstruit par sommes préfixes des <em>g</em><sub>j</sub> qui précèdent la valeur interrogée. De cette comptabilité découle l'invariant de correction, une seule inégalité : max<sub>i</sub>(<em>g</em><sub>i</sub> + Δ<sub>i</sub>) ≤ 2ε<em>n</em>, où <em>n</em> compte les éléments vus jusque-là. Tant qu'elle tient, à chaque insertion comme à chaque compression, aucune réponse à une requête de φ-quantile ne s'écarte du rang réel de plus de ε<em>N</em>.</p>\n<p>Deux opérations suffisent à la maintenir. L'insertion est locale, et toute valeur entre avec <em>g</em> = 1 ; ce qui change d'un cas à l'autre, c'est le Δ qu'on lui attribue. Un nouveau minimum ou un nouveau maximum du résumé prend Δ = 0, ses rangs extrêmes étant connus exactement ; une valeur intercalée hérite du voisin la marge de manœuvre encore disponible à cet endroit, <em>g</em><sub>i</sub> + Δ<sub>i</sub> − 1. Le nettoyage, lui, est périodique. COMPRESS se déclenche quand le compteur d'éléments devient multiple de ⌊1/(2ε)⌋ — donc tous les ⌊1/(2ε)⌋ éléments insérés — et fusionne des représentants voisins tant que la somme de leurs <em>g</em>, augmentée du Δ du survivant, reste sous 2ε<em>N</em>. Deux voisins qui, une fois fondus, tiennent encore sous le seuil ne méritaient pas d'être deux.</p>\n<p>Ce que cette mécanique achète tient dans le résumé de l'article : O((1/ε)·log(ε<em>N</em>)) dans le pire cas, sans qu'il faille connaître <em>N</em> à l'avance. L'algorithme antérieur de Manku, Rajagopalan et Lindsay, présenté à SIGMOD 1998, occupait O((1/ε)·log²(ε<em>N</em>)) et exigeait de surcroît que la longueur du flux soit fournie au départ. Deux limites levées d'un coup, dont la seconde compte autant que la première : un flux dont on connaît la longueur n'est déjà plus tout à fait un flux.</p>\n<p>L'algorithme n'est pas resté sur le papier. Apache Spark en implémente une variante, assortie d'optimisations de vitesse, derrière la méthode <code>approxQuantile</code> de DataFrame ; la garantie affichée s'écrit floor((<em>p</em> − err)·<em>N</em>) ≤ rank(<em>x</em>) ≤ ceil((<em>p</em> + err)·<em>N</em>), soit l'invariant précédent traduit en contrat d'API. Le calcul s'y distribue de la manière attendue, un résumé par partition puis une fusion finale sur le driver. Cette fusion ne va pourtant pas de soi pour un résumé de rang, et c'est même le point où le classement des structures se rebattra.</p>\n<p>L'optimalité, enfin, appelle une réponse double. La borne de Cormode et Veselý citée plus haut tranche le premier versant : aucun résumé déterministe fondé sur des comparaisons ne tient en <em>f</em>(ε)·o(log <em>N</em>), quelle que soit la fonction <em>f</em> indépendante de <em>N</em>. GK est donc optimal dans son modèle, et ce modèle est étroit sur un point précis, il interdit le tirage aléatoire. Dès qu'on l'autorise, la dépendance en la longueur du flux s'évapore et l'espace tombe à O((1/ε)·log log(1/δ)), une quantité qui ne regarde plus que la probabilité d'échec tolérée. Comment un peu de hasard efface-t-il un facteur logarithmique ? La brique qui l'explique tient en une opération.</p>",
+      "claims": [
+        "claim:5",
+        "claim:6",
+        "claim:7",
+        "claim:8"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-greenwald-khanna-triplets"
+    },
+    {
+      "type": "section",
+      "id": "kll-compactors-et-bornes",
+      "heading": "KLL, les compactors et les bornes : jusqu'où peut-on comprimer ?",
+      "level": 3,
+      "prose": "<p>Cette opération est d'une simplicité désarmante : le compactor (compacteur). Il prend <em>k</em> éléments de même poids <em>w</em>, les trie, puis tire à pile ou face entre les positions paires et les positions impaires. Les élus survivent avec un poids doublé à 2<em>w</em>, les autres disparaissent. La moitié des éléments a quitté la mémoire, la masse totale est préservée, et rien n'a coûté davantage qu'un tri et un bit d'aléa.</p>\n<p>Pourquoi cela ne détruit pas l'information de rang demande un instant d'attention. Fixons un point de requête <em>x</em>. Si son rang à l'intérieur du compactor est pair, la compaction le laisse inchangé ; sinon elle le décale de +<em>w</em> ou de −<em>w</em>, avec probabilité 1/2 de chaque côté. La perturbation est symétrique, d'espérance nulle, et indépendante d'une compaction à l'autre. Les erreurs ne s'additionnent donc pas, elles se compensent, et le Lemme 1 de l'article en tire une concentration de type Hoeffding : pour <em>m</em> compactions de poids <em>w</em><sub>i</sub> au même niveau, Pr[|erreur de rang| &gt; ε<em>n</em>] ≤ 2·exp(−ε²<em>n</em>² / (2·Σ<em>w</em><sub>i</sub>²)). Là où un résumé déterministe doit provisionner le pire cas, un résumé randomisé ne provisionne qu'un écart-type.</p>\n<p>Un compactor seul ne résume rien : c'est leur empilement qui fait le sketch. Les survivants d'un étage alimentent l'étage supérieur, dont le poids double à chaque niveau — <em>w</em><sub>h</sub> = 2<sup>h−1</sup> — pour au plus <em>H</em> ≤ log(<em>n</em>/<em>k</em>) niveaux. Le trait qui distingue KLL de ses prédécesseurs est de ne pas accorder à tous les étages la même capacité : celle-ci décroît géométriquement à mesure qu'on descend depuis le sommet, <em>k</em><sub>h</sub> ≈ <em>k</em>·<em>c</em><sup>H−h</sup> avec <em>c</em> compris entre 0,5 et 1, si bien que la somme des capacités reste en O(<em>k</em>) au lieu de <em>k</em> par niveau. Les étages du bas, réduits à une capacité de deux éléments, coûteraient encore un facteur logarithmique ; KLL les remplace par un sampler (échantillonneur) qui ne retient qu'un élément sur 2<sup>h</sup> en espace constant — le mécanisme concret derrière ce que les implémentations appellent lazy compaction (compaction paresseuse).</p>\n<p>Le résultat que cette construction délivre est le Théorème 5 de l'article : un algorithme de streaming qui rend un quantile ε-approché avec probabilité 1 − δ en espace O((1/ε)·log log(1/δ)). La borne antérieure de Felber et Ostrovsky, O((1/ε)·log(1/ε)) à δ fixé, tombe. Le tableau récapitulatif situe le nouveau venu face à ses aînés, l'algorithme de Manku et ses coauteurs en log²(ε<em>n</em>) et GK en log(ε<em>n</em>), et montre où le terme en longueur de flux s'est évanoui. Mais le résultat qui referme la question est le Théorème 6, sa borne inférieure Ω((1/ε)·log log(1/δ)) valable pour tout algorithme randomisé fondé sur des comparaisons : KLL n'est pas seulement meilleur, il est optimal. En pratique, DataSketches livre son implémentation avec un paramètre <em>K</em> de 200 par défaut, ce qui place l'erreur de rang normalisée autour de 1,65 % — comparable à celle du sketch Classic Quantiles de la même bibliothèque, pour une taille sérialisée nettement plus petite, et sans contrainte de puissance de deux sur <em>K</em>.</p>\n<p>Ces deux bornes ne flottent pas isolées : Cormode et Veselý ont cartographié le paysage entier. Leur Théorème 2 verrouille le versant déterministe — pour ε &lt; 1/16, aucun résumé fondé sur des comparaisons ne tient en o((1/ε)·log(ε<em>N</em>)) éléments sur un flux de longueur <em>N</em> — et un corollaire étend la borne à la seule médiane approchée par une réduction standard : une structure trop petite échoue nécessairement sur au moins un φ-quantile. Une réduction différente leur donne, du côté randomisé, la même borne Ω((1/ε)·log log(1/δ)) que KLL sature. L'écart entre les deux régimes cesse alors d'être une impression : il est prouvé des deux côtés, et le facteur logarithmique en longueur de flux qui pèse sur le déterminisme disparaît complètement dès qu'on autorise le tirage.</p>\n<p>Le versant déterministe n'est pas resté immobile pour autant. En mai 2024, Gribelyuk, Sawettamalya, Wu et Yu publient « Simple &amp; Optimal Quantile Sketch: Combining Greenwald-Khanna with Khanna-Greenwald », un algorithme qui tient en (2 + o(1))·ε<sup>−1</sup>·log(ε<em>n</em>) éléments : la constante du sketch GK original s'en trouve améliorée, l'analyse simplifiée, le temps par élément reste logarithmique et les quantiles pondérés entrent dans le cadre. Vingt-trois ans auront séparé l'algorithme de sa simplification prouvée.</p>\n<p>Une précaution pour finir, car la borne optimale de KLL est aussi la plus citée, et souvent hors de son domaine. O((1/ε)·log log(1/δ)) est le coût de la variante qui traite un flux unique ; la variante pleinement mergeable (fusionnable), celle qu'on peut combiner à volonté sur un calcul distribué, relève d'un autre théorème du même article et paie un facteur log log(1/δ) supplémentaire, soit O((1/ε)·log²log(1/δ)). Le tableau récapitulatif distingue explicitement les deux lignes, et la leçon dépasse KLL : l'espace n'est pas la seule monnaie, une garantie de fusion s'achète. Avant d'en faire le critère central, il faut examiner une famille qui a renoncé à quelque chose de plus fondamental encore — l'erreur uniforme elle-même.</p>",
+      "claims": [
+        "claim:9",
+        "claim:10",
+        "claim:11",
+        "claim:12"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-compactor-et-pile-kll"
+    },
+    {
+      "type": "section",
+      "id": "t-digest-centroides",
+      "heading": "t-digest : des centroïdes calibrés par la position dans la distribution",
+      "level": 3,
+      "prose": "<p>Cette famille a un nom, deux auteurs et une date : le t-digest, décrit par Ted Dunning et Otmar Ertl dans « Computing Extremely Accurate Quantiles Using t-Digests », déposé sur arXiv en février 2019. Sa structure tient en peu de chose. Un centroïde est un couple — une moyenne et un poids, le nombre d'échantillons qu'il agrège — et un digest n'est que la suite ordonnée de ces centroïdes, sans borne inférieure ni supérieure mémorisée par cluster. Là où GK retient des valeurs réellement vues et leur attache une incertitude de rang, le t-digest ne garde que des barycentres. On résume volontiers l'affaire par une formule commode, « un k-means en dimension 1 », venue du dépôt de référence tdunning/t-digest — l'implémentation Java que le papier cite lui-même — dont le README annonce une « variant of 1-dimensional k-means clustering ». L'article, lui, prend ses distances : il énumère ce qui l'écarte du k-means, des échantillons tirés de ℝ¹ plutôt que d'un espace métrique quelconque, des clusters bornés en taille par une règle spéciale, au lieu d'en revendiquer l'équivalence. La nuance n'est pas de politesse académique : c'est cette règle de taille, étrangère au k-means, qui porte tout le reste.</p>\n\n<p>Elle passe par une scale function (fonction d'échelle) <em>k</em>(<em>q</em>), qui transforme le rang normalisé <em>q</em> en une coordonnée d'échelle ; un cluster n'est autorisé que si son étendue dans cette coordonnée — son <em>k</em>-size — reste inférieure à l'unité. Un paramètre de compression δ pilote l'ensemble, et la collision de notation mérite d'être signalée tout de suite : ce δ n'a rien à voir avec la probabilité d'échec posée plus haut, il ne fixe que la finesse du résumé. Avec <em>k</em><sub>1</sub>(<em>q</em>) = (δ/2π)·arcsin(2<em>q</em> − 1), la taille autorisée varie comme √(<em>q</em>(1−<em>q</em>)) : elle s'effondre quand <em>q</em> approche de 0 ou de 1, elle s'élargit vers la médiane. Les variantes logarithmiques <em>k</em><sub>2</sub> et <em>k</em><sub>3</sub>, la seconde asymétrique en min(<em>q</em>, 1−<em>q</em>), serrent les queues plus fort encore.</p>\n\n<p>Il serait commode d'en conclure que le t-digest, c'est « des clusters minuscules aux extrêmes ». La quatrième scale function dément la généralisation. <em>k</em><sub>0</sub>(<em>q</em>) = (δ/2)<em>q</em> est linéaire : elle produit des clusters de taille à peu près uniforme sur tout le domaine et une erreur absolue à peu près constante en <em>q</em> — comportement que le papier rapproche explicitement de celui de la plupart des algorithmes d'approximation de quantiles publiés avant lui. <em>k</em><sub>0</sub> n'est donc pas une version dégradée de ses trois sœurs, mais le réglage qui ramène le t-digest dans le régime d'erreur uniforme dont elles s'écartent.</p>\n\n<p>Le résultat qui justifie la structure est un bornage du nombre de centroïdes : pour un digest pleinement fusionné, il reste sous ⌈δ⌉, plafond que le papier énonce pour les quatre scale functions. Deux d'entre elles l'assortissent d'une réserve de validité qui ne mord qu'au-delà de tailles de flux inatteignables, de l'ordre de 10<sup>60</sup> échantillons — autant dire jamais. La mémoire se trouve ainsi fixée par le paramètre de compression et non par la longueur du flux, ce qui sépare le t-digest de GK, dont l'espace croît avec elle. Les auteurs chiffrent : à δ = 100, sur un million de tirages uniformes, le digest final compte entre cinquante et soixante centroïdes ; une autre de leurs expériences en fait tenir un millier de front, chacun sérialisé dans environ un kilo-octet. Et puisque <em>k</em><sub>0</sub> atteint ce même plafond sans rien serrer aux extrêmes, le bornage et la calibration par la position sont deux propriétés distinctes, non deux faces d'une seule.</p>\n\n<p>Reste à dire ce que la calibration achète. Le t-digest n'énonce pas une erreur absolue uniforme mais une précision définie relativement à max(<em>q</em>, 1−<em>q</em>) : plus on s'approche d'une queue, plus la garantie se resserre en proportion. C'est le contrat inverse de celui de GK et de KLL, qui bornent l'erreur de rang par la même quantité ε<em>N</em> sur tout le domaine. DataSketches le formule sans détour — le t-digest « prioritizes both ends of the rank domain and has lower accuracy towards the middle of the rank domain (median) ». Pour qui surveille des latences de service, où décident le p99 et le p999, les quantiles d'ordre 0,99 et 0,999, et où la médiane n'apprend rien à personne, l'échange est avantageux. Mais c'est un échange, et il porte sur la garantie elle-même, pas sur un détail d'implémentation.</p>\n\n<p>Deux digests construits avec la même scale function se combinent sans cérémonie : on prend l'union ordonnée de leurs centroïdes, puis on relance l'algorithme de consolidation, qui rétablit la contrainte de taille. Les auteurs préviennent que cette clôture n'a rien d'automatique — elle vaut pour les fonctions qu'ils ont retenues précisément parce qu'elles l'ont, pas pour une scale function arbitraire. Elle autorise un schéma d'exploitation à deux niveaux, où l'on ingère dans des sous-digests peu comprimés quitte à recompresser plus fort au moment de fusionner : vitesse d'écriture d'un côté, précision de lecture de l'autre.</p>\n\n<p>Une pièce manque pourtant, et les auteurs sont les premiers à le dire : « a rigorous explanation of the scaling of error with δ is still not available », écrivent-ils, avant d'ajouter qu'en pratique la structure se comporte manifestement bien. Face à l'invariant de GK, qui borne l'erreur de rang par construction, et à la borne de KLL, démontrée optimale, la différence n'est pas de degré. D'un côté une garantie prouvée, de l'autre une précision constatée. Il faut regarder de près ce que vaut la seconde.</p>",
+      "claims": [
+        "claim:13",
+        "claim:14",
+        "claim:15",
+        "claim:16"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-fonctions-echelle-t-digest"
+    },
+    {
+      "type": "section",
+      "id": "preuve-contre-mesure",
+      "heading": "Ce qui est prouvé, ce qui est seulement observé",
+      "level": 3,
+      "prose": "<p>Regarder de près commence par écarter un raisonnement tacite, celui qui circule au moment de choisir un sketch : si le t-digest est partout — bases analytiques, moteurs de flux, tableaux de bord de latence — c'est bien que quelqu'un, quelque part, a démontré quelque chose. L'inférence ne tient pas, et la bibliothèque qui l'implémente le dit elle-même. DataSketches classe le t-digest à part de tout son catalogue : il y est « empirical and has no mathematical basis for estimating its error and its results are dependent on the input data », la même page ajoutant aussitôt que sur beaucoup de distributions courantes il produit d'excellents résultats. Les deux moitiés de la phrase comptent également. Plus net encore : les critères d'admission de la bibliothèque exigent d'un sketch « an openly published and reviewed theoretical basis » pour son erreur et ses propriétés de fusion, et précisent que « Empirical algorithms do not qualify ». Le t-digest y figure quand même, exception assumée à la doctrine maison.</p>\n\n<p>Ce que la mesure montre, elle le montre avec ses irrégularités propres. La même documentation relève un biais léger mais orienté — le t-digest sous-estime les rangs bas et surestime les hauts, tout en restant très bon au voisinage immédiat des extrêmes — et note que l'effet s'accentue à mesure que le flux grossit. Rien dans l'implémentation de référence ne permet d'encadrer ce biais : elle n'expose aucune méthode pour obtenir une borne d'erreur de rang, là où KLL documente formellement son ε. Quant à l'erreur empirique, elle suit deux régimes selon le paramètre de compression, une décroissance rapide puis nettement plus lente, avec un point de bascule qui dépend du quantile visé. C'est un comportement qu'on peut tracer, pas une fonction qu'on peut majorer.</p>\n\n<p>Ce que coûte l'absence de preuve a été mesuré dans le pire cas. Cormode, Mishra, Ross et Veselý, dans « Theory meets Practice at the Median: A Worst Case Comparison of Relative Error Quantile Algorithms » (KDD 2021), construisent des entrées taillées contre la structure : une distribution « signed log-uniform² » dont les valeurs courent de 10<sup>−302</sup> à 10<sup>302</sup>. La variante « merging » du t-digest y approche 30 % d'erreur absolue au quantile 0,8 — pas dans une queue exotique, dans le haut du domaine utile — quand le ReqSketch, le sketch à erreur relative de la même bibliothèque, reste au voisinage de zéro sur l'entrée identique.</p>\n\n<p>Les mêmes auteurs referment pourtant leur démonstration sur une concession qu'on cite rarement : « For most realistic data patterns encountered in practice, the t-digest will remain a compelling choice, due to its simplicity and ease of use. » Une entrée adversariale ne prouve pas qu'un algorithme est mauvais ; elle prouve que sa garantie dépend des données, donc qu'elle n'en est pas une. Sur un flux de latences ordinaire, le t-digest tiendra. Sur un flux dont on ne maîtrise ni la forme ni la provenance, personne n'est en position de le promettre.</p>\n\n<p>Le procès serait malhonnête s'il s'arrêtait là, car le camp des algorithmes prouvés entretient ses propres écarts entre l'étiquette et le contenu. La borne d'espace de GK est optimale, Cormode et Veselý l'ont établi pour tout résumé déterministe fondé sur des comparaisons ; il n'en découle pas que le composant baptisé « GK » dans un système de production porte cette garantie. Gribelyuk, Sawettamalya, Wu et Yu le disent crûment : la complexité de l'algorithme d'origine « has led to over-simplified versions being implemented in practice, often without theoretical guarantees ». Leur variante déterministe simplifiée, croisée plus haut, répond exactement à ce constat — rester implémentable sans que la simplification coûte la borne optimale.</p>\n\n<p>L'écart symétrique est un piège d'attribution. Le sketch « Classic Quantiles » d'Apache DataSketches, croisé plus haut comme point de comparaison, n'implémente pas GK : c'est le « Low Discrepancy Mergeable Quantiles Sketch » de la section 3.2 d'Agarwal et al., retenu pour une raison étrangère à l'économie d'espace — il se fusionne, et GK n'est pas connu pour se fusionner en préservant sa borne. Une bibliothèque ne prend pas toujours l'algorithme le plus économe ; elle prend celui dont la propriété décisive survit à son architecture.</p>\n\n<p>Un malentendu annoncé d'entrée subsiste, que les sketches prouvés partagent avec le t-digest et qu'aucun ne corrige : la garantie porte sur le rang normalisé, jamais sur la valeur retournée. DataSketches l'écrit pour KLL — « there are no error guarantees in terms of values, only the [rank] bounds are provided » — et pour le t-digest, qui « does not provide any accuracy guarantees in the value space ». L'explication usuelle est celle de la densité locale : un intervalle de rang de largeur fixe s'ouvre en valeur d'autant plus que les données se raréfient autour du quantile visé. Elle convainc, et il faut résister à la muscler. La source qui l'appuie est une note de comparaison empirique entre KLL et t-digest, pas une preuve qu'aucun algorithme sous-linéaire ne saurait borner l'erreur en valeur sans hypothèse sur la distribution : régularité observée et documentée, pas théorème d'impossibilité.</p>\n\n<p>Il existe enfin une réponse principée au besoin de précision dans les queues, et elle ne demande pas d'abandonner les preuves. Le constat de départ est celui-là même qui motivait le t-digest : une garantie additive ε<em>N</em> devient dérisoire quand le rang approche de 0 ou de 1, puisqu'elle autorise une erreur du même ordre que la quantité estimée. Cormode, Karnin, Liberty, Thaler et Veselý changent alors la définition plutôt que l'algorithme — l'erreur admise devient relative au rang — et les structures qui la réalisent, le ReqSketch et la variante KLL± issue du même travail, offrent aux extrêmes ce que le t-digest y promet, la borne en plus. Le dilemme entre garantie uniforme et précision des queues cesse d'être le bon. Il se déplace vers une contrainte qu'on vient de voir décider du choix de DataSketches sans encore la nommer.</p>",
+      "claims": [
+        "claim:17",
+        "claim:18",
+        "claim:19",
+        "claim:20"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "fusionnabilite-resumes-de-rang",
+      "heading": "Fusionnabilité : ce que le calcul distribué exige d'un résumé de rang",
+      "level": 3,
+      "prose": "<p>Cette contrainte s'appelle la fusionnabilité, et un article lui a donné sa définition formelle. Agarwal, Cormode, Huang, Phillips, Wei et Yi la posent dans « Mergeable Summaries » (PODS 2012, puis TODS 2013) : un mergeable summary (résumé fusionnable) au sens plein satisfait deux conditions tenues ensemble. Sa taille est bornée par une fonction du seul jeu de données résumé — et non du chemin par lequel on y est parvenu — et il existe un algorithme qui, de deux résumés portant sur des jeux disjoints, produit un résumé de leur union, applicable un nombre arbitraire et indéfini de fois. La seconde condition est la difficile. Fusionner n'est rien ; fusionner sans que l'erreur ni la taille ne dérivent au fil des fusions est le problème.</p>\n\n<p>L'article ne reconnaît qu'un second degré, et il faut y insister parce que les relectures en inventent volontiers un troisième. À côté de la full mergeability (fusionnabilité pleine) de la définition 1.1, la définition 1.2 introduit la one-way mergeability (fusionnabilité à sens unique) : un modèle asymétrique où un premier algorithme construit un résumé depuis un jeu frais, tandis qu'un second fusionne un résumé déjà fusionné avec un résumé neuf — ce que les auteurs décrivent comme un « batched streaming », un flux traité par lots. Le résumé de l'article parle bien d'« a restricted form of mergeability », mais le résultat formel nomme cette même propriété one-way : « restreint » y est un synonyme du cas non plein, pas une troisième catégorie.</p>\n\n<p>Appliqué à GK, le verdict est précis et à double tranchant. GK est prouvé one-way mergeable à sa taille native, par un argument économe : fusionner toujours le plus petit résumé dans le plus grand borne logarithmiquement le nombre de fusions auxquelles un élément donné peut participer, donc l'erreur qu'il accumule. Ce que les auteurs ne parviennent pas à établir, c'est la full mergeability — ni à la démontrer, ni à la réfuter. Ils la conjecturent hors d'atteinte : aucun résumé de quantiles déterministe et pleinement mergeable n'aurait, dans le modèle des comparaisons, une taille polynomiale en 1/ε et log <em>n</em>, ce qui reviendrait à le voir croître linéairement avec le flux. Conjecture, pas théorème ; l'écrire autrement referait l'erreur que la section précédente vient de démonter.</p>\n\n<p>Ce qui donne du poids à cette conjecture n'est pas une intuition mais un contraste. Pour les heavy hitters (les éléments les plus fréquents), les mêmes auteurs prouvent que les résumés de Misra-Gries et SpaceSaving, isomorphes l'un à l'autre, sont déterministes, pleinement mergeables et de taille optimale O(1/ε). Le problème voisin cède donc exactement là où celui des quantiles résiste. L'asymétrie est le meilleur argument dont dispose l'article, et elle reste un argument.</p>\n\n<p>Puisque le déterminisme bloque, il reste le hasard, et son prix se lit. Agarwal et al. construisent un résumé randomisé pleinement mergeable de taille O((1/ε)·log<sup>1,5</sup>(1/ε)), indépendante de la longueur du flux comme du nombre de fusions, là où la meilleure borne randomisée antérieure en flux simple s'établissait à O((1/ε)·log³(1/ε)). Sa brique élémentaire mérite un regard : pour combiner deux résumés portant sur des jeux de même taille, on trie leur union, on garde à pile ou face les indices pairs ou les indices impairs, puis on double les poids restants. C'est le compactor, employé ici comme opération de fusion plutôt que comme étage d'une pile. Les auteurs partent de ce « restricted merging model », puis lèvent la contrainte d'égalité des tailles par un arbre de fusion doublé d'un tirage aléatoire. KLL acquitte la même taxe sous une forme qu'on avait annoncée sans la chiffrer : sa construction en flux, asymptotiquement optimale, tient en O((1/ε)·log log(1/δ)), tandis que sa construction pleinement mergeable coûte O((1/ε)·log² log(1/δ)) — un facteur log-log acheté pour la seule capacité de fusion.</p>\n\n<p>Le classement se rebat alors pour de bon. GK reste optimal en espace sur une machine, au sens que Cormode et Veselý ont établi, et cette optimalité ne se transporte pas : les auteurs de « Mergeable Summaries » notent que l'algorithme de fusion connu pour GK « does not work in an indefinite merging process, so it is not mergeable by our definition », et la littérature ultérieure traite le point comme rédhibitoire — un article de quantiles en flux écarte une solution candidate au motif qu'elle « is not mergeable due to the use of GK … as a subroutine ». Le champ a répondu en construisant des alternatives dédiées, de la lignée de Manku, Rajagopalan et Lindsay aux variantes pleinement mergeables de KLL et au ReqSketch. Le meilleur sketch en espace n'est pas le meilleur sketch en fusion : ce n'est pas une nuance, c'est un renversement de critère.</p>\n\n<p>Et le t-digest ? Il fusionne, et c'est même son argument le plus fort, le papier présentant la fusion comme ce qui rend le traitement parallèle de gros jeux « relatively simple », des digests indépendants se formant sur des partitions disjointes avant d'être recombinés. Ce qui se perd en chemin est plus discret. Un digest est dit strongly ordered (fortement ordonné) quand l'ordre des indices de centroïdes suit strictement l'ordre des valeurs, faiblement ordonné quand cela ne vaut qu'à un décalage près ; or l'union de deux digests fortement ordonnés n'est en général que faiblement ordonnée, des centroïdes venus des deux sources pouvant se retrouver presque au même endroit. Dunning et Ertl l'écrivent eux-mêmes : cette perte d'ordre strict « makes it difficult to compute rigorous error bounds », et ils ajoutent ne pas encore bien comprendre à quel point l'ordre s'affaiblit dans un digest fusionné.</p>\n\n<p>Une chose est pourtant démontrée, et il faut lui rendre sa portée exacte : l'invariant de taille survit à la fusion pour les quatre scale functions, si bien qu'une fusion de t-digests produit un t-digest valide. Cette preuve n'est pas celle du papier commun — elle est due à Dunning seul, dans « Conservation of the t-digest Scale Invariant » (arXiv, 2019). La structure est donc préservée, l'erreur ne l'est pas, et on confond volontiers les deux. Presto montre ce qu'il en reste côté production : sa documentation affirme que les t-digests « may be merged without losing precision » via merge_tdigest(), énoncé opérationnel dont rien, dans la littérature citée, ne fournit la contrepartie formelle.</p>\n\n<p>À l'usage, les bibliothèques tranchent par ce qu'elles exposent. L'implémentation KLL d'Apache DataSketches offre un merge() direct, sans objet d'union séparé, documenté comme fonctionnant indifféremment entre sketches en mémoire gérée, hors tas ou enveloppés dans un tableau d'octets compact : la fusionnabilité y est une signature de méthode autant qu'un théorème. Les cas faciles, eux, sont traités ailleurs dans ce corpus — Agarwal et al. citent le Count-Min Sketch comme exemple canonique de fusion triviale, parce qu'un sketch linéaire s'additionne cellule à cellule, et HyperLogLog se fusionne pour des raisons de même famille. Les résumés de rang n'ont pas cette chance : n'étant pas linéaires, chacun doit acheter sa fusionnabilité séparément. Or, pour y parvenir, Agarwal et al. ont fini par adjoindre à leur résumé un tirage aléatoire — et ce n'est pas un accident de démonstration. Garder un échantillon plutôt qu'un résumé de rang est l'autre façon de résumer un flux, la plus ancienne, avec ses garanties propres, ses optimisations propres et ses propres pièges de fusion.</p>",
+      "claims": [
+        "claim:21",
+        "claim:22",
+        "claim:23",
+        "claim:24"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "synopsis-fusion-distribuee-quantile"
+    },
+    {
+      "type": "section",
+      "id": "reservoir-sampling",
+      "heading": "Reservoir sampling : de l'Algorithm R à l'échantillonnage pondéré et distribué",
+      "level": 3,
+      "prose": "<p>Le reservoir sampling (échantillonnage par réservoir) renonce à résumer l'ordre du flux pour en conserver des morceaux intacts. Le contrat change alors de nature : il ne porte plus sur le rang d'une valeur restituée, mais sur la chance qu'a chaque élément d'être retenu. Un échantillon uniforme de k places promet que le premier élément vu comme le dernier ont la même probabilité de figurer dans le réservoir final, et cette promesse ne dépend d'aucune propriété de la distribution, puisqu'elle ne parle pas des valeurs. On note ici k la capacité du réservoir et N la longueur du flux ; les articles cités écrivent plutôt n et N, ou m et n.</p><p>L'algorithme qui tient ce contrat est d'une brièveté suspecte. Algorithm R, attribué à Waterman et analysé par Vitter dans les ACM Transactions on Mathematical Software en 1985, remplit d'abord les k places avec les k premiers éléments, puis accepte l'élément d'indice i avec probabilité k/i et, s'il l'accepte, évince une place tirée uniformément. Rien d'autre. La longueur du flux n'apparaît nulle part dans la règle, ce qui est exactement le point : l'inclusion reste uniforme à tout instant, donc on peut s'arrêter n'importe quand et rendre un échantillon valide de ce qui a défilé.</p><p>Cette économie de moyens a un coût caché. Algorithm R s'exécute en O(N) : le flux entier doit passer, et chaque enregistrement consomme un tirage aléatoire même quand il est rejeté aussitôt, soit N−k tirages en moyenne d'après la table de coûts de l'article. Or presque aucun de ces éléments n'entre effectivement dans le réservoir. Leur nombre moyen vaut k(1+H_N−H_k), où H désigne le nombre harmonique, c'est-à-dire de l'ordre de k(1+ln(N/k)). Le travail utile est logarithmique, le travail réel est linéaire, et tout l'effort algorithmique qui suit consiste à réconcilier les deux.</p><p>Combler l'écart demande de renverser la question : au lieu de demander à chaque élément s'il entre, tirer directement combien d'éléments seront ignorés avant la prochaine acceptation. C'est le principe des algorithmes à saut de Vitter, X, Y puis Z, dont le dernier atteint le temps attendu optimal O(k(1+log(N/k))) en une passe et en espace constant, avec de l'ordre de 3k·ln(N/k) tirages aléatoires. Li reprend la construction en 1994 dans la même revue et en propose trois variantes, L, K et M, qui atteignent le même optimum à une constante multiplicative près ; L est la plus simple des quatre.</p><p>Tout cela suppose que les éléments se valent. Dès qu'ils portent un poids — une durée, un montant, une fréquence d'occurrence —, l'uniformité cesse d'être ce qu'on veut. Efraimidis et Spirakis proposent en 2006, dans Information Processing Letters, une idée qui tient en une ligne : associer à chaque élément de poids w une clé u^(1/w), où u est tiré uniformément entre 0 et 1, et ne garder que les k plus grandes clés vues. Tout nouvel élément dont la clé dépasse le seuil T, la plus petite clé présente dans le réservoir, remplace le porteur de ce seuil. Le théorème 1 de l'article établit que la procédure produit un échantillon pondéré valide, dont la probabilité de sélection est proportionnelle au poids.</p><p>Le cas dégénéré de cette construction est instructif. Quand tous les poids valent 1, l'exposant s'évanouit, la clé se réduit à u, et le tri par clés uniformes redonne un échantillonnage uniforme de taille k, avec la même probabilité d'inclusion qu'Algorithm R. L'équivalence est en distribution et non en mécanisme : comparer des clés d'un côté, remplacer séquentiellement une place avec probabilité k/i de l'autre, ce sont deux procédures distinctes qui produisent la même loi. Une même garantie peut donc s'obtenir par deux chemins dont un seul se généralise aux poids.</p><p>Le coût d'A-Res, l'algorithme à clés décrit plus haut, se mesure comme celui d'Algorithm R et se répare de la même façon. Le nombre attendu de remplacements y est de l'ordre de k·log(N/k), mais chaque élément consomme une variable aléatoire, ce qui en laisse O(N) au total. A-ExpJ, pour exponential jumps, produit exactement la même distribution en tirant directement combien d'éléments ignorer avant le prochain remplacement, ce qui ramène le nombre de variables aléatoires générées au même ordre que le nombre de remplacements. Le seuil T doit alors être maintenu à jour à chaque insertion, ce qu'un tas assure pour un coût amorti modeste.</p><p>Reste à savoir ce que « pondéré » signifie, car deux définitions circulent sous le même mot. Efraimidis les sépare explicitement : dans la première, le poids fixe la probabilité d'inclusion finale de l'élément dans l'échantillon ; dans la seconde, celle que résolvent A-Res et A-ExpJ, il fixe la probabilité d'être sélectionné à chaque tour d'une procédure séquentielle hypothétique. Sans remise, les deux ne coïncident pas. Le plan de sondage de Chao répond à la première sémantique : un élément entre avec une probabilité égale à son poids rapporté à la somme des poids, en remplaçant un occupant tiré uniformément, et un élément dont le poids relatif dépasse 1/k est inclus avec probabilité exactement 1, puisqu'une probabilité proportionnelle dépasserait l'unité et qu'il faut donc la saturer. La clé u^(1/w) ne traite pas ce cas de la même manière.</p><p>Le distribué expose une dernière fois la fragilité de ces garanties. La recette évidente consiste à faire tourner un réservoir par partition, puis à composer l'échantillon final en tirant pour chacune de ses places de quel côté elle provient, avec une probabilité proportionnelle au nombre d'éléments vus par la partition. Elle est fausse. Sur deux partitions de deux éléments chacune, dont on veut retenir deux, ce tirage donne une chance sur quatre de prendre les deux éléments à gauche, alors qu'un échantillon uniforme de l'union n'en accorde qu'une sur six : le nombre d'éléments pris d'un côté suit une loi binomiale là où l'uniformité exige une loi hypergéométrique. L'erreur a circulé, un article de 2014 recommandant cette fusion binomiale sans qu'un commentaire de correction n'en signale le défaut avant des années. La fusion correcte tire ce nombre selon la loi hypergéométrique, ce que fait HRMerge, l'algorithme de fusion de Brown et Haas présenté à ICDE en 2006 et formalisé dans le brevet US 7 543 006.</p><p>D'autres constructions contournent la fusion plutôt que de la réparer. Pour le cas pondéré, Efraimidis et Spirakis font tourner k instances indépendantes réduites à une seule place sur des portions différentes du flux et prennent l'union des réservoirs, ce qui donne un échantillon pondéré avec remise, présenté par les auteurs comme le premier algorithme connu pour ce problème en cadre parallèle. Hübschle-Schneider et Sanders vont plus loin en 2019, avec des algorithmes conçus pour minimiser les échanges réseau sur des flux répartis en lots entre nœuds, évalués jusqu'à 256 nœuds. Quelle que soit la finesse de sa fusion, l'échantillon ne borne rien sur le rang : il fournit des estimations de quantiles, pas les garanties que les sections précédentes ont patiemment établies. Il existe pourtant un cas où ni l'échantillon ni le résumé de rang ordinaire ne conviennent, celui où le poids d'un élément n'est pas son nombre d'occurrences mais une quantité recalculée à chaque itération d'un algorithme d'apprentissage.</p>",
+      "claims": [
+        "claim:25",
+        "claim:26",
+        "claim:27",
+        "claim:28"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-fusion-binomiale-vs-hypergeometrique"
+    },
+    {
+      "type": "section",
+      "id": "xgboost-weighted-quantile-sketch",
+      "heading": "Le weighted quantile sketch de XGBoost : des quantiles pondérés pour choisir un split",
+      "level": 3,
+      "prose": "<p>Ce cas est celui du gradient boosting, où chaque arbre corrige les erreurs des précédents. L'objectif d'une itération s'y réécrit, après un développement de Taylor au second ordre, comme une perte quadratique où chaque instance porte un poids qui lui est propre : la somme des termes (1/2)·h_i·(f_t(x_i) − g_i/h_i)², augmentée du terme de régularisation Ω(f_t) et d'une constante. Le facteur h_i est la statistique du second ordre de la perte pour cette instance. Autrement dit, une instance dont la perte est fortement courbée pèse davantage dans l'objectif qu'une instance dont elle est plate, et cette inégalité de poids n'a rien d'accidentel : elle est la forme même du problème que XGBoost, introduit par Chen et Guestrin en 2016, doit résoudre à chaque itération.</p><p>D'où la question que pose le split finding, la recherche du point de coupure. Chercher le meilleur seuil sur une feature — une variable explicative — revient à découper au mieux cette perte pondérée ; les valeurs de la feature comptent donc non par leur nombre mais par la masse de h qu'elles portent. L'article définit pour cela, sur le multi-ensemble des couples valeur-poids d'une feature d'indice k, une fonction de rang pondéré r_k(z) qui somme les poids des instances de valeur inférieure à z et normalise par la somme totale des poids. C'est un rang au sens des sections précédentes, à ceci près que l'unité n'est plus l'élément mais le poids, et ce déplacement suffit à rendre inutilisables les résumés bâtis sur l'hypothèse d'un poids unitaire.</p><p>Le weighted quantile sketch, ou résumé de quantiles pondéré, se construit alors selon un critère qui découle directement de cette définition. Les candidats de split retenus pour une feature sont choisis pour que deux candidats consécutifs soient séparés par un écart de rang pondéré inférieur à ε, ce qui en produit de l'ordre de 1/ε par feature, indépendamment du nombre de lignes. Le paramètre de précision du sketch devient ainsi, sans intermédiaire, la granularité de la grille de coupures sur laquelle l'arbre délibère. Une garantie de rang se convertit en budget de candidats.</p><figure class='fig'><svg viewBox='0 0 880 464' role='img' aria-label='Comparaison de deux grilles de candidats de split sur une meme feature. Douze instances sont dessinees en barres verticales dont la hauteur vaut le poids h de chaque instance, la masse de h etant concentree sur une portion etroite du domaine et negligeable ailleurs. Une courbe en escalier superposee donne le rang pondere r de k en z, qui monte tres vite dans la zone de masse et reste plate ailleurs. Sous l axe figurent deux rubans de coupures a six candidats chacun : ruban a, candidats equi-espaces en rang par comptage, repartis sur tout le domaine sans egard pour la masse ; ruban b, candidats equi-espaces en rang pondere, obtenus en projetant sur l axe des valeurs des paliers reguliers de r espaces de epsilon, donc resserres dans la zone de masse et absents des zones ou h est negligeable. Le critere produit de l ordre de un sur epsilon candidats par feature, quel que soit le nombre de lignes.'><line x1='352' y1='232' x2='352' y2='270' stroke='var(--bordeaux,#7C2A38)' stroke-width='1' stroke-dasharray='2 4' stroke-opacity='0.55'/><line x1='352' y1='322' x2='352' y2='378' stroke='var(--bordeaux,#7C2A38)' stroke-width='1' stroke-dasharray='2 4' stroke-opacity='0.55'/><line x1='400' y1='196' x2='400' y2='270' stroke='var(--bordeaux,#7C2A38)' stroke-width='1' stroke-dasharray='2 4' stroke-opacity='0.55'/><line x1='400' y1='322' x2='400' y2='378' stroke='var(--bordeaux,#7C2A38)' stroke-width='1' stroke-dasharray='2 4' stroke-opacity='0.55'/><line x1='424' y1='160' x2='424' y2='270' stroke='var(--bordeaux,#7C2A38)' stroke-width='1' stroke-dasharray='2 4' stroke-opacity='0.55'/><line x1='424' y1='322' x2='424' y2='378' stroke='var(--bordeaux,#7C2A38)' stroke-width='1' stroke-dasharray='2 4' stroke-opacity='0.55'/><line x1='448' y1='124' x2='448' y2='270' stroke='var(--bordeaux,#7C2A38)' stroke-width='1' stroke-dasharray='2 4' stroke-opacity='0.55'/><line x1='448' y1='322' x2='448' y2='378' stroke='var(--bordeaux,#7C2A38)' stroke-width='1' stroke-dasharray='2 4' stroke-opacity='0.55'/><text x='440' y='24' text-anchor='middle' font-size='14.5' font-weight='700' fill='var(--ink,#15202E)'>Deux grilles de candidats de split, à budget égal</text><text x='440' y='43' text-anchor='middle' font-size='10.5' fill='var(--ink-faint,#7A889B)'>Douze instances d'une même feature ; hauteur de barre = h_i. Chaque ruban compte six candidats, placés selon deux définitions du rang.</text><line x1='80' y1='88' x2='80' y2='268' stroke='var(--ink-faint,#7A889B)' stroke-width='0.8'/><line x1='74' y1='268' x2='80' y2='268' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='70' y='271' text-anchor='end' font-size='8' fill='var(--ink-faint,#7A889B)'>0</text><line x1='74' y1='224' x2='80' y2='224' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='70' y='227' text-anchor='end' font-size='8' fill='var(--ink-faint,#7A889B)'>1</text><line x1='74' y1='180' x2='80' y2='180' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='70' y='183' text-anchor='end' font-size='8' fill='var(--ink-faint,#7A889B)'>2</text><line x1='74' y1='136' x2='80' y2='136' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='70' y='139' text-anchor='end' font-size='8' fill='var(--ink-faint,#7A889B)'>3</text><text x='70' y='100' text-anchor='end' font-size='9' font-weight='700' fill='var(--blue,#23537F)'>h_i</text><rect x='131' y='241.6' width='10' height='26.4' fill='var(--blue,#23537F)' fill-opacity='0.28' stroke='var(--blue,#23537F)' stroke-width='1'/><rect x='203' y='237.2' width='10' height='30.8' fill='var(--blue,#23537F)' fill-opacity='0.28' stroke='var(--blue,#23537F)' stroke-width='1'/><rect x='275' y='246' width='10' height='22' fill='var(--blue,#23537F)' fill-opacity='0.28' stroke='var(--blue,#23537F)' stroke-width='1'/><rect x='347' y='136' width='10' height='132' fill='var(--blue,#23537F)' fill-opacity='0.28' stroke='var(--blue,#23537F)' stroke-width='1'/><rect x='371' y='136' width='10' height='132' fill='var(--blue,#23537F)' fill-opacity='0.28' stroke='var(--blue,#23537F)' stroke-width='1'/><rect x='395' y='109.6' width='10' height='158.4' fill='var(--blue,#23537F)' fill-opacity='0.28' stroke='var(--blue,#23537F)' stroke-width='1'/><rect x='419' y='118.4' width='10' height='149.6' fill='var(--blue,#23537F)' fill-opacity='0.28' stroke='var(--blue,#23537F)' stroke-width='1'/><rect x='443' y='162.4' width='10' height='105.6' fill='var(--blue,#23537F)' fill-opacity='0.28' stroke='var(--blue,#23537F)' stroke-width='1'/><rect x='467' y='206.4' width='10' height='61.6' fill='var(--blue,#23537F)' fill-opacity='0.28' stroke='var(--blue,#23537F)' stroke-width='1'/><rect x='539' y='246' width='10' height='22' fill='var(--blue,#23537F)' fill-opacity='0.28' stroke='var(--blue,#23537F)' stroke-width='1'/><rect x='635' y='241.6' width='10' height='26.4' fill='var(--blue,#23537F)' fill-opacity='0.28' stroke='var(--blue,#23537F)' stroke-width='1'/><rect x='731' y='254.8' width='10' height='13.2' fill='var(--blue,#23537F)' fill-opacity='0.28' stroke='var(--blue,#23537F)' stroke-width='1'/><line x1='352' y1='232' x2='792' y2='232' stroke='var(--bordeaux,#7C2A38)' stroke-width='0.9' stroke-dasharray='3 3' stroke-opacity='0.6'/><line x1='400' y1='196' x2='792' y2='196' stroke='var(--bordeaux,#7C2A38)' stroke-width='0.9' stroke-dasharray='3 3' stroke-opacity='0.6'/><line x1='424' y1='160' x2='792' y2='160' stroke='var(--bordeaux,#7C2A38)' stroke-width='0.9' stroke-dasharray='3 3' stroke-opacity='0.6'/><line x1='448' y1='124' x2='792' y2='124' stroke='var(--bordeaux,#7C2A38)' stroke-width='0.9' stroke-dasharray='3 3' stroke-opacity='0.6'/><polyline points='80,268 136,268 136,262.6 208,262.6 208,256.3 280,256.3 280,251.8 352,251.8 352,224.8 376,224.8 376,197.8 400,197.8 400,165.4 424,165.4 424,134.8 448,134.8 448,113.2 472,113.2 472,100.6 544,100.6 544,96.1 640,96.1 640,90.7 736,90.7 736,88 792,88' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='2'/><circle cx='352' cy='232' r='3.6' fill='var(--bordeaux,#7C2A38)'/><circle cx='400' cy='196' r='3.6' fill='var(--bordeaux,#7C2A38)'/><circle cx='424' cy='160' r='3.6' fill='var(--bordeaux,#7C2A38)'/><circle cx='448' cy='124' r='3.6' fill='var(--bordeaux,#7C2A38)'/><line x1='792' y1='88' x2='792' y2='268' stroke='var(--ink-faint,#7A889B)' stroke-width='0.8'/><line x1='792' y1='268' x2='797' y2='268' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='801' y='271' font-size='8' fill='var(--ink-faint,#7A889B)'>0</text><line x1='792' y1='232' x2='797' y2='232' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='801' y='235' font-size='8' fill='var(--ink-faint,#7A889B)'>0,2</text><line x1='792' y1='196' x2='797' y2='196' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='801' y='199' font-size='8' fill='var(--ink-faint,#7A889B)'>0,4</text><line x1='792' y1='160' x2='797' y2='160' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='801' y='163' font-size='8' fill='var(--ink-faint,#7A889B)'>0,6</text><line x1='792' y1='124' x2='797' y2='124' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='801' y='127' font-size='8' fill='var(--ink-faint,#7A889B)'>0,8</text><line x1='792' y1='88' x2='797' y2='88' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='801' y='91' font-size='8' fill='var(--ink-faint,#7A889B)'>1</text><text x='801' y='76' font-size='9' font-weight='700' fill='var(--bordeaux,#7C2A38)'>r_k(z)</text><line x1='770' y1='196' x2='770' y2='232' stroke='var(--bordeaux,#7C2A38)' stroke-width='1'/><line x1='766' y1='196' x2='774' y2='196' stroke='var(--bordeaux,#7C2A38)' stroke-width='1'/><line x1='766' y1='232' x2='774' y2='232' stroke='var(--bordeaux,#7C2A38)' stroke-width='1'/><text x='762' y='217' text-anchor='end' font-size='9' font-weight='700' fill='var(--bordeaux,#7C2A38)'>ε</text><line x1='80' y1='268' x2='792' y2='268' stroke='var(--ink,#15202E)' stroke-width='1.4'/><line x1='136' y1='268' x2='136' y2='272' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='136' y='281' text-anchor='middle' font-size='7.8' fill='var(--ink-faint,#7A889B)'>2</text><line x1='208' y1='268' x2='208' y2='272' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='208' y='281' text-anchor='middle' font-size='7.8' fill='var(--ink-faint,#7A889B)'>5</text><line x1='280' y1='268' x2='280' y2='272' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='280' y='281' text-anchor='middle' font-size='7.8' fill='var(--ink-faint,#7A889B)'>8</text><line x1='352' y1='268' x2='352' y2='272' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='352' y='281' text-anchor='middle' font-size='7.8' fill='var(--ink-faint,#7A889B)'>11</text><line x1='376' y1='268' x2='376' y2='272' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='376' y='281' text-anchor='middle' font-size='7.8' fill='var(--ink-faint,#7A889B)'>12</text><line x1='400' y1='268' x2='400' y2='272' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='400' y='281' text-anchor='middle' font-size='7.8' fill='var(--ink-faint,#7A889B)'>13</text><line x1='424' y1='268' x2='424' y2='272' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='424' y='281' text-anchor='middle' font-size='7.8' fill='var(--ink-faint,#7A889B)'>14</text><line x1='448' y1='268' x2='448' y2='272' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='448' y='281' text-anchor='middle' font-size='7.8' fill='var(--ink-faint,#7A889B)'>15</text><line x1='472' y1='268' x2='472' y2='272' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='472' y='281' text-anchor='middle' font-size='7.8' fill='var(--ink-faint,#7A889B)'>16</text><line x1='544' y1='268' x2='544' y2='272' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='544' y='281' text-anchor='middle' font-size='7.8' fill='var(--ink-faint,#7A889B)'>19</text><line x1='640' y1='268' x2='640' y2='272' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='640' y='281' text-anchor='middle' font-size='7.8' fill='var(--ink-faint,#7A889B)'>23</text><line x1='736' y1='268' x2='736' y2='272' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='736' y='281' text-anchor='middle' font-size='7.8' fill='var(--ink-faint,#7A889B)'>27</text><text x='80' y='294' font-size='8.5' fill='var(--ink-faint,#7A889B)'>z — valeurs de la feature k, triées</text><rect x='80' y='309' width='8' height='8' fill='var(--blue,#23537F)'/><text x='94' y='316' font-size='9.5' font-weight='600' fill='var(--ink,#15202E)'>(a) rang par COMPTAGE — un candidat tous les 20 % des lignes, indifférent à la masse de h</text><rect x='80' y='322' width='712' height='20' fill='var(--ink-faint,#7A889B)' fill-opacity='0.08' stroke='var(--ink-faint,#7A889B)' stroke-width='0.7'/><line x1='136' y1='322' x2='136' y2='342' stroke='var(--blue,#23537F)' stroke-width='2.4'/><line x1='280' y1='322' x2='280' y2='342' stroke='var(--blue,#23537F)' stroke-width='2.4'/><line x1='376' y1='322' x2='376' y2='342' stroke='var(--blue,#23537F)' stroke-width='2.4'/><line x1='448' y1='322' x2='448' y2='342' stroke='var(--blue,#23537F)' stroke-width='2.4'/><line x1='544' y1='322' x2='544' y2='342' stroke='var(--blue,#23537F)' stroke-width='2.4'/><line x1='736' y1='322' x2='736' y2='342' stroke='var(--blue,#23537F)' stroke-width='2.4'/><rect x='80' y='365' width='8' height='8' fill='var(--bordeaux,#7C2A38)'/><text x='94' y='372' font-size='9.5' font-weight='600' fill='var(--ink,#15202E)'>(b) rang PONDÉRÉ r_k(z) — deux candidats consécutifs séparés de moins de ε en rang pondéré</text><rect x='80' y='378' width='712' height='20' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.07' stroke='var(--ink-faint,#7A889B)' stroke-width='0.7'/><line x1='136' y1='378' x2='136' y2='398' stroke='var(--bordeaux,#7C2A38)' stroke-width='2.4'/><line x1='352' y1='378' x2='352' y2='398' stroke='var(--bordeaux,#7C2A38)' stroke-width='2.4'/><line x1='400' y1='378' x2='400' y2='398' stroke='var(--bordeaux,#7C2A38)' stroke-width='2.4'/><line x1='424' y1='378' x2='424' y2='398' stroke='var(--bordeaux,#7C2A38)' stroke-width='2.4'/><line x1='448' y1='378' x2='448' y2='398' stroke='var(--bordeaux,#7C2A38)' stroke-width='2.4'/><line x1='736' y1='378' x2='736' y2='398' stroke='var(--bordeaux,#7C2A38)' stroke-width='2.4'/><text x='244' y='391.5' text-anchor='middle' font-size='7.6' fill='var(--ink-faint,#7A889B)'>h négligeable — aucun candidat</text><text x='592' y='391.5' text-anchor='middle' font-size='7.6' fill='var(--ink-faint,#7A889B)'>h négligeable — aucun candidat</text><path d='M352 402 q0 6 6 6 h36 q6 0 6 6 q0 -6 6 -6 h36 q6 0 6 -6' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.3'/><text x='400' y='426' text-anchor='middle' font-size='8.5' font-weight='700' fill='var(--bordeaux,#7C2A38)'>écarts de rang pondéré inférieurs à ε</text><text x='440' y='446' text-anchor='middle' font-size='9.5' fill='var(--ink,#15202E)'>Ce critère produit de l'ordre de 1/ε candidats par feature — ici ε = 0,2 — quel que soit le nombre de lignes.</text></svg><figcaption><span class='fcap-k'></span>Le poids d'une instance n'est pas son nombre d'occurrences mais la courbure de la perte, si bien que des paliers réguliers de rang pondéré se projettent en candidats resserrés là où la masse de h s'accumule et inexistants ailleurs — un placement qu'aucun résumé bâti sur l'hypothèse d'un poids unitaire ne sait produire.</figcaption></figure><p>Ce résumé ne servirait à rien s'il fallait rassembler toutes les instances au même endroit pour le bâtir. L'annexe de l'article le dote donc de deux opérations. MERGE combine deux résumés de garanties ε1 et ε2 en un résumé de garantie max(ε1, ε2) : fusionner ne dégrade pas au-delà du pire des deux, ce qui autorise un nombre quelconque de fusions successives sans accumulation. PRUNE, à l'inverse, réduit un résumé à b+1 entrées et fait passer sa garantie de ε à ε + 1/b ; c'est là, et là seulement, que la précision se paie. Alternées, les deux opérations permettent de construire un résumé par bloc de données ou par worker, puis de les recombiner et de les élaguer indéfiniment.</p><p>La formule du MERGE demande qu'on s'y arrête, car les présentations secondaires de l'article ne s'accordent pas : certaines additionnent les garanties là où l'annexe prend leur maximum. La différence n'est pas cosmétique. Une somme rendrait la fusion inutilisable à grande échelle, chaque niveau d'agrégation dégradant un peu plus le résumé ; un maximum la rend gratuite, et c'est cette gratuité qui fait du sketch pondéré un objet distribuable et non un simple prétraitement local.</p><p>Une dernière décision porte sur la place du sketch dans l'arbre. L'article décrit deux schémas : le global, calculé une fois avant le premier split et réutilisé tel quel à tous les niveaux, et le local, recalculé à chaque nœud juste après un split. Sur le jeu Higgs, la variante locale atteint une précision de test donnée avec moins de points candidats que la globale, laquelle ne l'égale qu'en s'en accordant davantage, et les auteurs suggèrent que le raffinement après chaque split convient mieux aux arbres profonds sans pour autant désigner un schéma par défaut. La suite est plus embrouillée qu'il n'y paraît. Une discussion de la communauté XGBoost affirme que l'implémentation retient la variante locale, alors que le code actuel de la méthode approchée construit le sketch une seule fois par arbre, à la racine et sur toutes les lignes, ce qui relève de l'usage global. La documentation secondaire et le code ne racontent pas la même histoire, et c'est le second qui décide de ce que voit l'utilisateur.</p><p>L'abstract de l'article met le weighted quantile sketch au rang de ses deux contributions algorithmiques, à côté du split finding tenant compte de la sparsité : les auteurs y voyaient un manque de la littérature, non un détail d'ingénierie, puisque aucun résumé de quantiles existant ne traitait alors les jeux de données pondérés. La monographie de ce corpus consacrée aux méthodes d'ensemble cite ce sketch parmi les techniques qui ont permis à XGBoost de passer à l'échelle, sans en décrire le mécanisme ; le voici, et il n'a rien d'une astuce d'implémentation puisqu'il transporte une garantie de rang, fusion comprise, jusqu'au choix des coupures. Là où un sous-échantillonnage sans garantie laisserait l'arbre délibérer sur une grille dont on ne sait rien, la pondération par h et le critère de rang bornent l'écart entre la coupure retenue et celle qu'un balayage exact aurait choisie.</p>",
+      "claims": [
+        "claim:29",
+        "claim:30",
+        "claim:31",
+        "claim:32"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "ecosysteme",
+      "heading": "Écosystème & pour aller plus loin",
+      "level": 3,
+      "prose": "<p>Des garanties, des preuves et des contre-exemples : il reste à savoir où tout cela se trouve, sous quels noms et avec quels paramètres. Apache DataSketches est le catalogue le plus explicite sur ce qu'il promet, puisqu'il range ses familles selon la nature de leur garantie plutôt que selon leur ancienneté. Les sketches Classic Quantiles, KLL et ReqSketch y annoncent une erreur de rang additive bornée, assortie d'un intervalle de confiance ; le t-digest y est signalé comme empirique. Le ReqSketch ajoute un réglage qui choisit l'extrémité du domaine des rangs où concentrer la précision, selon qu'on s'intéresse aux rangs hauts ou aux rangs bas ; l'article dont il descend a reçu le prix du meilleur article à PODS en 2021, puis une invitation au Journal of the ACM en 2023.</p><p>L'implémentation, elle, se démultiplie. DataSketches distribue seize variantes du sketch KLL, croisant le type des données avec le mode de stockage, sur le tas ou hors du tas, sous forme modifiable ou compacte. Toutes se fusionnent entre elles, y compris une instance hors tas avec un tableau d'octets compact, sous un critère de conformité explicite : le résumé de l'union doit approcher l'union des résumés, et la propriété doit tenir même lorsque les deux instances ont été créées avec des tailles différentes. Cette fusionnabilité n'est pas une invention de la bibliothèque. La branche pleinement mergeable figure dans l'article de 2016, à côté de la variante non mergeable qui atteint l'optimum d'espace ; DataSketches en réalise une version pratique, avec sa propre stratégie de lazy compaction, mais n'en est pas l'origine.</p><p>Dans les moteurs de requêtes, le même sketch se présente sous des noms qui ne disent pas toujours de quoi il s'agit. Apache Druid expose le sketch Classic Quantiles derrière un agrégateur SQL dont le paramètre k, une puissance de deux, vaut 128 par défaut, et loge KLL dans un module distinct. BigQuery superpose deux surfaces : un agrégat direct qui rend les seuils demandés, en acceptant au passage un argument de poids, et une famille de fonctions KLL séparées en initialisation, fusion et extraction, qui permet de stocker et de recombiner les sketches eux-mêmes plutôt que leurs résultats. Spark, lui, documente sa garantie plutôt que son algorithme : approxQuantile repose sur la variante de Greenwald-Khanna déjà croisée et reprend le même encadrement du rang, entre floor((p−err)·N) et ceil((p+err)·N), une erreur nulle forçant le calcul exact et son coût.</p><p>ClickHouse offre le panorama le plus complet, et le plus instructif, en une seule page de documentation : quantileGK nomme son algorithme et prend une précision en argument, quantileTDigest annonce une mémoire logarithmique et une précision élevée aux queues, tandis que la fonction quantile tout court repose sur du reservoir sampling. Trois familles de ce document, trois contrats différents, sous un même préfixe. Presto et Trino documentent l'arbitrage plus franchement encore. Le t-digest y est présenté comme plus performant et bien plus précis aux extrémités, mais le q-digest, un résumé de quantiles dont la taille dépend de celle de l'univers des valeurs, introduit par Shrivastava et ses coauteurs à SenSys en 2004, accepte davantage de types numériques et surtout se voit reconnaître une fusion formellement prouvée sans perte, quand celle du t-digest n'est étayée qu'empiriquement. DuckDB juxtapose sans commentaire un approx_quantile fondé sur le t-digest et un reservoir_quantile dont la taille d'échantillon vaut 8192 par défaut. Redis Stack, enfin, expose le t-digest comme un type natif, avec un paramètre de compression à la création et un comportement défini aux bords, exact aux quantiles 0 et 1, indéfini sur un sketch vide.</p><p>Côté bibliothèques, le paysage porte les traces de son histoire. stream-lib, qui rassemblait dans un même paquet Java le Count-Min Sketch, le q-digest et le t-digest, est archivée depuis juillet 2020. Sa documentation annonçait pour ce dernier une précision de l'ordre du ppm aux quantiles extrêmes, et généralement meilleure que le millier de ppm au centre de la distribution : l'ordre de grandeur qui a fait la réputation du t-digest, énoncé comme une mesure et non comme une borne, ce qui résume assez bien le statut de cette famille. L'extension PostgreSQL tvondra/tdigest fournit de son côté un type tdigest à part entière, ce qui permet de précalculer un digest par sous-ensemble puis de les combiner, les digests partiels restant sensiblement plus petits que les données dont ils sortent.</p><p>Pour prolonger, quelques lectures couvrent les angles laissés ouverts. Mergeable Summaries reste le texte qui formalise la fusion et situe chaque famille par rapport à elle ; il rappelle au passage que le q-digest était déjà fusionnable avant lui, mais au prix de cette dépendance de taille à l'univers des valeurs, ce qui relativise la nouveauté sans l'annuler. Relative Error Streaming Quantiles donne le versant théorique du ReqSketch, pour qui a besoin d'une erreur proportionnelle au rang plutôt qu'uniforme. KLL±, présenté à PVLDB en 2021, étend KLL au modèle où l'on supprime des éléments autant qu'on en insère, en espace O(⌈1/ε⌉·log(n/δ) + log²(n/ε)), et se présente comme le premier algorithme de quantiles à opérer dans ce cadre. Du côté de l'échantillon, les travaux sur l'échantillonnage parallèle à faible communication traitent le cas que la fusion binomiale manquait. Le weighted quantile sketch de XGBoost, enfin, prolonge la famille vers les données pondérées, un besoin que les résumés antérieurs, bâtis sur l'hypothèse d'un poids unitaire par enregistrement, ne prenaient pas en charge.</p><p>Reste, une fois ces points d'entrée en main, la seule question qui vaille au moment de choisir. Un résumé de flux ne se compare pas à un autre par la précision qu'il affiche, mais par ce qu'il accepte de garantir : une erreur de rang bornée et démontrée, une erreur relative aux extrémités, une précision constatée sur des données réalistes, ou une simple probabilité d'inclusion uniforme. Les quatre sont des réponses légitimes à la contrainte de mémoire bornée, et aucune n'est la même promesse. Lire une documentation de sketch, c'est d'abord retrouver laquelle des quatre elle énonce — et remarquer quand elle n'en énonce aucune.</p><figure class='fig'><svg viewBox='0 0 880 604' role='img' aria-label='Arbre a quatre branches classant les resumes de flux par la NATURE de leur garantie, et non par leur precision. Branche 1, erreur de rang additive bornee uniformement sur tout le domaine et prouvee au pire cas : ecart entre rang restitue et rang exact au plus epsilon N, la meme largeur au centre et dans les queues ; portee par Greenwald-Khanna en deterministe, par KLL en randomise avec probabilite 1 moins delta, et par le sketch Classic Quantiles de DataSketches. Branche 2, erreur relative au rang, prouvee elle aussi : ecart au plus epsilon fois le rang, donc une precision qui se resserre vers une extremite du domaine choisie au reglage ; portee par le ReqSketch de DataSketches et par son versant theorique, Relative Error Streaming Quantiles, PODS 2021. Branche 3, precision aux queues seulement constatee : t-digest definit sa precision relativement au maximum de q et de 1 moins q, mesuree sur des donnees realistes et classee empirique par DataSketches, sans base mathematique pour estimer son erreur. Branche 4, probabilite d inclusion uniforme : chaque element vu a la meme chance k sur N de figurer dans le reservoir, garantie qui ne dit rien du rang de la valeur restituee ; portee par Algorithm R et par A-Res. Sous les quatre branches, un bandeau transversal en pointilles porte ce qu aucune ne fournit : une borne d erreur dans l espace des valeurs, deux rangs voisins pouvant porter des valeurs arbitrairement eloignees.'><text x='440' y='24' font-size='14.5' fill='var(--ink,#15202E)' font-weight='700' text-anchor='middle'>Quatre natures de garantie — et ce qu'aucune des quatre ne borne</text><text x='440' y='43' font-size='10.5' fill='var(--ink-faint,#7A889B)' text-anchor='middle'>N = nombre d'éléments vus ; k = places du réservoir. Chaque branche porte la formulation exacte de ce qu'elle promet.</text><rect x='20' y='56' width='280' height='28' fill='var(--card,#FFFFFF)' stroke='var(--ink,#15202E)' stroke-width='1.2' rx='4'/><text x='160' y='74' font-size='11' fill='var(--ink,#15202E)' font-weight='700' text-anchor='middle'>Résumé de flux en mémoire bornée</text><line x1='40' y1='84' x2='40' y2='468' stroke='var(--ink,#15202E)' stroke-width='1.2'/><line x1='40' y1='144' x2='56' y2='144' stroke='var(--ink,#15202E)' stroke-width='1.2'/><circle cx='40' cy='144' r='3.2' fill='var(--ink,#15202E)'/><rect x='56' y='96' width='804' height='96' fill='var(--blue,#23537F)' fill-opacity='0.045' stroke='var(--line,#D7DFE9)' stroke-width='0.8' rx='4'/><rect x='56' y='96' width='4' height='96' fill='var(--blue,#23537F)'/><line x1='288' y1='110' x2='288' y2='178' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><line x1='628' y1='110' x2='628' y2='178' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><rect x='74' y='112' width='16' height='16' fill='var(--blue,#23537F)' rx='3'/><text x='82' y='124' font-size='10.5' fill='var(--card,#FFFFFF)' font-weight='700' text-anchor='middle'>1</text><text x='98' y='125' font-size='11.5' fill='var(--ink,#15202E)' font-weight='700'>Erreur de RANG additive,</text><text x='98' y='140' font-size='11.5' fill='var(--ink,#15202E)' font-weight='700'>uniforme sur tout le domaine</text><rect x='98' y='152' width='136' height='17' fill='var(--blue,#23537F)' fill-opacity='0.13' stroke='var(--blue,#23537F)' stroke-width='0.8' stroke-opacity='0.55' rx='3'/><text x='166.0' y='164' font-size='8' fill='var(--blue,#23537F)' font-weight='700' text-anchor='middle' letter-spacing='0.06em'>PROUVÉE · BORNE PIRE CAS</text><rect x='300' y='108' width='320' height='72' fill='var(--card,#FFFFFF)' stroke='var(--blue,#23537F)' stroke-width='0.9' stroke-opacity='0.4' rx='4'/><text x='312' y='123' font-size='7.6' fill='var(--ink-faint,#7A889B)' font-weight='700' letter-spacing='0.13em'>CE QU'ELLE PROMET</text><text x='312' y='141' font-size='10.5' fill='var(--blue,#23537F)' font-weight='700'>| rang restitué − rang exact | ≤ εN</text><text x='312' y='154' font-size='8.6' fill='var(--ink-soft,#43536A)'>Pour tout point du domaine : la même largeur</text><text x='312' y='165' font-size='8.6' fill='var(--ink-soft,#43536A)'>d'erreur au centre et dans les queues, garantie</text><text x='312' y='176' font-size='8.6' fill='var(--ink-soft,#43536A)'>au pire cas et non mesurée après coup.</text><text x='636' y='123' font-size='7.6' fill='var(--ink-faint,#7A889B)' font-weight='700' letter-spacing='0.13em'>QUI L'ÉNONCE</text><rect x='636' y='132' width='6' height='6' fill='var(--blue,#23537F)'/><text x='648' y='138' font-size='8.5' fill='var(--ink,#15202E)' font-weight='700'>Greenwald-Khanna — déterministe</text><rect x='636' y='147' width='6' height='6' fill='var(--blue,#23537F)'/><text x='648' y='153' font-size='8.5' fill='var(--ink-soft,#43536A)'>KLL — randomisé, εN avec probabilité 1 − δ</text><rect x='636' y='162' width='6' height='6' fill='var(--blue,#23537F)'/><text x='648' y='168' font-size='8.5' fill='var(--ink-soft,#43536A)'>Classic Quantiles (Apache DataSketches)</text><line x1='40' y1='252' x2='56' y2='252' stroke='var(--ink,#15202E)' stroke-width='1.2'/><circle cx='40' cy='252' r='3.2' fill='var(--ink,#15202E)'/><rect x='56' y='204' width='804' height='96' fill='var(--blue-bright,#2C77B6)' fill-opacity='0.045' stroke='var(--line,#D7DFE9)' stroke-width='0.8' rx='4'/><rect x='56' y='204' width='4' height='96' fill='var(--blue-bright,#2C77B6)'/><line x1='288' y1='218' x2='288' y2='286' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><line x1='628' y1='218' x2='628' y2='286' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><rect x='74' y='220' width='16' height='16' fill='var(--blue-bright,#2C77B6)' rx='3'/><text x='82' y='232' font-size='10.5' fill='var(--card,#FFFFFF)' font-weight='700' text-anchor='middle'>2</text><text x='98' y='233' font-size='11.5' fill='var(--ink,#15202E)' font-weight='700'>Erreur RELATIVE au rang,</text><text x='98' y='248' font-size='11.5' fill='var(--ink,#15202E)' font-weight='700'>resserrée aux extrémités</text><rect x='98' y='260' width='136' height='17' fill='var(--blue-bright,#2C77B6)' fill-opacity='0.13' stroke='var(--blue-bright,#2C77B6)' stroke-width='0.8' stroke-opacity='0.55' rx='3'/><text x='166.0' y='272' font-size='8' fill='var(--blue-bright,#2C77B6)' font-weight='700' text-anchor='middle' letter-spacing='0.06em'>PROUVÉE · BORNE PIRE CAS</text><rect x='300' y='216' width='320' height='72' fill='var(--card,#FFFFFF)' stroke='var(--blue-bright,#2C77B6)' stroke-width='0.9' stroke-opacity='0.4' rx='4'/><text x='312' y='231' font-size='7.6' fill='var(--ink-faint,#7A889B)' font-weight='700' letter-spacing='0.13em'>CE QU'ELLE PROMET</text><text x='312' y='249' font-size='10.5' fill='var(--blue-bright,#2C77B6)' font-weight='700'>| rang restitué − rang exact | ≤ ε · rang</text><text x='312' y='262' font-size='8.6' fill='var(--ink-soft,#43536A)'>L'erreur admise rétrécit avec le rang — ou avec</text><text x='312' y='273' font-size='8.6' fill='var(--ink-soft,#43536A)'>N − rang, selon l'extrémité du domaine où l'on</text><text x='312' y='284' font-size='8.6' fill='var(--ink-soft,#43536A)'>choisit de concentrer la précision.</text><text x='636' y='231' font-size='7.6' fill='var(--ink-faint,#7A889B)' font-weight='700' letter-spacing='0.13em'>QUI L'ÉNONCE</text><rect x='636' y='240' width='6' height='6' fill='var(--blue-bright,#2C77B6)'/><text x='648' y='246' font-size='8.5' fill='var(--ink,#15202E)' font-weight='700'>ReqSketch (Apache DataSketches)</text><rect x='636' y='255' width='6' height='6' fill='var(--blue-bright,#2C77B6)'/><text x='648' y='261' font-size='8.5' fill='var(--ink-soft,#43536A)'>Relative Error Streaming Quantiles — PODS 2021</text><rect x='636' y='270' width='6' height='6' fill='var(--blue-bright,#2C77B6)'/><text x='648' y='276' font-size='8.5' fill='var(--ink-soft,#43536A)'>Erreur proportionnelle, non uniforme</text><line x1='40' y1='360' x2='56' y2='360' stroke='var(--ink,#15202E)' stroke-width='1.2'/><circle cx='40' cy='360' r='3.2' fill='var(--ink,#15202E)'/><rect x='56' y='312' width='804' height='96' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.045' stroke='var(--line,#D7DFE9)' stroke-width='0.8' rx='4'/><rect x='56' y='312' width='4' height='96' fill='var(--bordeaux,#7C2A38)'/><line x1='288' y1='326' x2='288' y2='394' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><line x1='628' y1='326' x2='628' y2='394' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><rect x='74' y='328' width='16' height='16' fill='var(--bordeaux,#7C2A38)' rx='3'/><text x='82' y='340' font-size='10.5' fill='var(--card,#FFFFFF)' font-weight='700' text-anchor='middle'>3</text><text x='98' y='341' font-size='11.5' fill='var(--ink,#15202E)' font-weight='700'>Précision aux queues</text><text x='98' y='356' font-size='11.5' fill='var(--ink,#15202E)' font-weight='700'>CONSTATÉE, non bornée</text><rect x='98' y='368' width='136' height='17' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.13' stroke='var(--bordeaux,#7C2A38)' stroke-width='0.8' stroke-opacity='0.55' rx='3'/><text x='166.0' y='380' font-size='8' fill='var(--bordeaux,#7C2A38)' font-weight='700' text-anchor='middle' letter-spacing='0.06em'>EMPIRIQUE · AUCUNE BORNE</text><rect x='300' y='324' width='320' height='72' fill='var(--card,#FFFFFF)' stroke='var(--bordeaux,#7C2A38)' stroke-width='0.9' stroke-opacity='0.4' rx='4'/><text x='312' y='339' font-size='7.6' fill='var(--ink-faint,#7A889B)' font-weight='700' letter-spacing='0.13em'>CE QU'ELLE PROMET</text><text x='312' y='357' font-size='10.5' fill='var(--bordeaux,#7C2A38)' font-weight='700'>Précision relative à max(q, 1 − q)</text><text x='312' y='370' font-size='8.6' fill='var(--ink-soft,#43536A)'>Mesurée sur des données réalistes, jamais démontrée :</text><text x='312' y='381' font-size='8.6' fill='var(--ink-soft,#43536A)'>DataSketches la classe « empirique, sans base</text><text x='312' y='392' font-size='8.6' fill='var(--ink-soft,#43536A)'>mathématique pour estimer son erreur ».</text><text x='636' y='339' font-size='7.6' fill='var(--ink-faint,#7A889B)' font-weight='700' letter-spacing='0.13em'>QUI L'ÉNONCE</text><rect x='636' y='348' width='6' height='6' fill='var(--bordeaux,#7C2A38)'/><text x='648' y='354' font-size='8.5' fill='var(--ink,#15202E)' font-weight='700'>t-digest — centroïdes à compression variable</text><rect x='636' y='363' width='6' height='6' fill='var(--bordeaux,#7C2A38)'/><text x='648' y='369' font-size='8.5' fill='var(--ink-soft,#43536A)'>Le plus déployé : ClickHouse, DuckDB, Redis</text><rect x='636' y='378' width='6' height='6' fill='var(--bordeaux,#7C2A38)'/><text x='648' y='384' font-size='8.5' fill='var(--ink-soft,#43536A)'>Un ordre de grandeur mesuré, pas une borne</text><line x1='40' y1='468' x2='56' y2='468' stroke='var(--ink,#15202E)' stroke-width='1.2'/><circle cx='40' cy='468' r='3.2' fill='var(--ink,#15202E)'/><rect x='56' y='420' width='804' height='96' fill='var(--ink-faint,#7A889B)' fill-opacity='0.045' stroke='var(--line,#D7DFE9)' stroke-width='0.8' rx='4'/><rect x='56' y='420' width='4' height='96' fill='var(--ink-faint,#7A889B)'/><line x1='288' y1='434' x2='288' y2='502' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><line x1='628' y1='434' x2='628' y2='502' stroke='var(--line-soft,#E7ECF3)' stroke-width='1'/><rect x='74' y='436' width='16' height='16' fill='var(--ink-faint,#7A889B)' rx='3'/><text x='82' y='448' font-size='10.5' fill='var(--card,#FFFFFF)' font-weight='700' text-anchor='middle'>4</text><text x='98' y='449' font-size='11.5' fill='var(--ink,#15202E)' font-weight='700'>Probabilité d'INCLUSION</text><text x='98' y='464' font-size='11.5' fill='var(--ink,#15202E)' font-weight='700'>uniforme, hors du rang</text><rect x='98' y='476' width='121' height='17' fill='var(--ink-faint,#7A889B)' fill-opacity='0.13' stroke='var(--ink-faint,#7A889B)' stroke-width='0.8' stroke-opacity='0.55' rx='3'/><text x='158.5' y='488' font-size='8' fill='var(--ink-faint,#7A889B)' font-weight='700' text-anchor='middle' letter-spacing='0.06em'>GARANTIE HORS DU RANG</text><rect x='300' y='432' width='320' height='72' fill='var(--card,#FFFFFF)' stroke='var(--ink-faint,#7A889B)' stroke-width='0.9' stroke-opacity='0.4' rx='4'/><text x='312' y='447' font-size='7.6' fill='var(--ink-faint,#7A889B)' font-weight='700' letter-spacing='0.13em'>CE QU'ELLE PROMET</text><text x='312' y='465' font-size='10.5' fill='var(--ink-faint,#7A889B)' font-weight='700'>P(élément retenu) = k / N, la même pour tous</text><text x='312' y='478' font-size='8.6' fill='var(--ink-soft,#43536A)'>Le premier élément vu et le dernier ont la même</text><text x='312' y='489' font-size='8.6' fill='var(--ink-soft,#43536A)'>chance de figurer dans le réservoir ; la promesse</text><text x='312' y='500' font-size='8.6' fill='var(--ink-soft,#43536A)'>ne dit rien du rang de la valeur restituée.</text><text x='636' y='447' font-size='7.6' fill='var(--ink-faint,#7A889B)' font-weight='700' letter-spacing='0.13em'>QUI L'ÉNONCE</text><rect x='636' y='456' width='6' height='6' fill='var(--ink-faint,#7A889B)'/><text x='648' y='462' font-size='8.5' fill='var(--ink,#15202E)' font-weight='700'>Algorithm R — accepte le i-ème avec prob. k/i</text><rect x='636' y='471' width='6' height='6' fill='var(--ink-faint,#7A889B)'/><text x='648' y='477' font-size='8.5' fill='var(--ink-soft,#43536A)'>A-Res (Efraimidis-Spirakis) — clé u^(1/w)</text><rect x='636' y='486' width='6' height='6' fill='var(--ink-faint,#7A889B)'/><text x='648' y='492' font-size='8.5' fill='var(--ink-soft,#43536A)'>Poids unitaires : même loi qu'Algorithm R</text><line x1='40' y1='468' x2='40' y2='563' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2' stroke-dasharray='4 4'/><line x1='40' y1='563' x2='56' y2='563' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2' stroke-dasharray='4 4'/><circle cx='40' cy='563' r='3.2' fill='var(--bordeaux,#7C2A38)'/><rect x='56' y='534' width='804' height='58' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.06' stroke='var(--bordeaux,#7C2A38)' stroke-width='1' stroke-opacity='0.55' rx='4' stroke-dasharray='6 4'/><rect x='56' y='534' width='4' height='58' fill='var(--bordeaux,#7C2A38)'/><text x='72' y='553' font-size='9' fill='var(--bordeaux,#7C2A38)' font-weight='700' letter-spacing='0.12em'>CE QU'AUCUNE DES QUATRE NE FOURNIT</text><text x='72' y='570' font-size='9.5' fill='var(--ink,#15202E)'>une borne d'erreur dans l'espace des VALEURS : deux rangs voisins peuvent porter des valeurs arbitrairement éloignées.</text><text x='72' y='584' font-size='8.8' fill='var(--ink-soft,#43536A)'>DataSketches l'écrit pour KLL — « no error guarantees in terms of values » — comme pour t-digest.</text></svg><figcaption><span class='fcap-k'></span>Quatre promesses de natures différentes, et non quatre degrés de précision : lire une documentation de sketch, c'est d'abord retrouver laquelle des quatre elle énonce — et voir qu'aucune ne borne l'écart en valeur.</figcaption></figure>",
+      "claims": [
+        "claim:33",
+        "claim:34",
+        "claim:35",
+        "claim:36"
+      ]
+    },
+    {
+      "type": "exercise",
+      "part": "Le contrat ε : ce qu'il borne, ce qu'il ne borne pas",
+      "question": "<p>Un collègue règle un sketch de quantiles sur ε = 1 % et en conclut : « la médiane que la requête me rendra sera à 1 % près de la vraie médiane ; et si ça ne suffit pas, je calculerai la médiane exacte en une passe, quitte à ce que ce soit un peu plus lent. » Reprenez les deux affirmations. Dites ensuite quel espace un résumé déterministe fondé sur des comparaisons doit consommer dans le pire cas, et pourquoi un algorithme randomisé s'affranchit de cette dépendance.</p>",
+      "answer": "<p>(1) Le contrat ne porte pas sur la valeur, mais sur le <em>rang</em>. Un sketch ε-approché approche le rang de n'importe quelle requête à une erreur additive ε<em>n</em> près, avec probabilité au moins 1 − δ ; le φ-quantile lui-même est défini comme l'élément occupant la position ⌊φ × <em>N</em>⌋. Rien là-dedans ne borne l'écart en valeur. Apache DataSketches donne le contre-exemple : une erreur de rang de 1 % au rang 0,50 place la réponse quelque part entre les rangs 0,49 et 0,51, et sur une distribution en marche l'écart entre les valeurs situées à ces deux rangs peut couvrir toute la plage dynamique des données. L'invariant de Greenwald-Khanna, max<sub>i</sub>(<em>g</em><sub>i</sub> + Δ<sub>i</sub>) ≤ 2ε<em>n</em>, borne le rang et ne dit rien de la distance entre ces deux valeurs.</p><p>(2) La médiane exacte en une passe n'est pas « plus lente », elle est hors de portée en mémoire bornée. Munro et Paterson (1980) montrent que sélectionner exactement une statistique d'ordre en <em>p</em> passes séquentielles réclame Ω(<em>N</em><sup>1/p</sup>) de mémoire : à <em>p</em> = 1, cela vaut Ω(<em>N</em>), c'est-à-dire garder le flux. Deux passes ramènent la borne à Ω(√<em>N</em>), et O(√<em>N</em> log <em>N</em>) suffit alors. Le hasard ne sauve pas l'exactitude : une méthode randomisée en une passe qui trouve la médiane avec forte probabilité réclame encore Θ(√<em>N</em>). Ce qui achète la mémoire sous-linéaire, c'est de relâcher la réponse, pas la correction.</p><p>(3) Pour un résumé déterministe fondé sur des comparaisons, Cormode et Veselý (PODS 2020) ont prouvé qu'il faut Ω((1/ε)·log(ε<em>N</em>)) dans le pire cas — exactement l'espace atteint par Greenwald-Khanna (2001), qui est donc optimal dans son modèle. Autoriser le tirage aléatoire change de régime : KLL tient en O((1/ε)·log log(1/δ)), sans aucun terme en la longueur du flux, et cette borne est elle-même optimale, les mêmes auteurs prouvant un Ω((1/ε)·log log(1/δ)) pour tout algorithme randomisé fondé sur des comparaisons. L'écart entre les deux régimes est prouvé des deux côtés.</p>"
+    },
+    {
+      "type": "exercise",
+      "part": "Fusionner : ce que le calcul distribué change au classement",
+      "question": "<p>Une équipe monte un calcul de percentiles réparti sur plusieurs partitions et arbitre ainsi : « on prend Greenwald-Khanna, puisqu'il est prouvé optimal en espace ; sinon KLL, qui tient en O((1/ε)·log log(1/δ)) de toute façon ; et pour l'échantillon de contrôle, on fusionnera les deux réservoirs en tirant chaque place à gauche ou à droite avec une probabilité proportionnelle au nombre d'éléments vus par chaque partition. » Corrigez les trois décisions.</p>",
+      "answer": "<p>(1) L'optimalité de GK ne se transporte pas au distribué. Agarwal, Cormode, Huang, Phillips, Wei et Yi définissent exactement deux degrés dans « Mergeable Summaries » — la fusionnabilité pleine (définition 1.1 : taille bornée par une fonction du jeu résumé, fusion applicable un nombre arbitraire et indéfini de fois) et la fusionnabilité à sens unique (définition 1.2). Ils <em>prouvent</em> GK one-way mergeable à sa taille native, et notent que son algorithme de fusion connu « does not work in an indefinite merging process, so it is not mergeable by our definition ». La pleine fusionnabilité de GK n'est ni démontrée ni réfutée : les auteurs la conjecturent hors d'atteinte pour les résumés déterministes du modèle des comparaisons. Symptôme concret de cet arbitrage : le sketch « Classic Quantiles » d'Apache DataSketches n'implémente pas GK, mais le « Low Discrepancy Mergeable Quantiles Sketch » de la section 3.2 d'Agarwal et al., retenu précisément parce qu'il se fusionne.</p><p>(2) La borne citée est celle de la mauvaise variante. O((1/ε)·log log(1/δ)) est le Théorème 5 de l'article KLL, celui de la construction en flux <em>non</em> fusionnable ; la variante pleinement fusionnable relève du Théorème 4 et paie un facteur log log supplémentaire, O((1/ε)·log² log(1/δ)) — le tableau récapitulatif de l'article distingue explicitement les deux lignes. La fusion s'achète : Agarwal et al. paient de la même façon, leur résumé randomisé pleinement mergeable tenant en O((1/ε)·log<sup>1,5</sup>(1/ε)).</p><p>(3) La fusion « proportionnelle » des réservoirs est fausse. Sur deux partitions de deux éléments chacune, dont on veut retenir deux, ce tirage donne une chance sur quatre de prendre les deux éléments à gauche, là où un échantillon uniforme de l'union n'en accorde qu'une sur six : le nombre d'éléments pris d'un côté suit alors une loi binomiale, quand l'uniformité exige une loi hypergéométrique. La fusion correcte tire ce nombre selon l'hypergéométrique — ce que fait HRMerge, l'algorithme de Brown et Haas formalisé dans le brevet US 7 543 006. Et même réparé, l'échantillon ne borne rien sur le rang : c'est une probabilité d'inclusion uniforme, pas une garantie de quantile.</p>"
+    },
+    {
+      "type": "biblio",
+      "entries": [
+        {
+          "label": "Optimal Quantile Approximation in Streams (Karnin, Lang, Liberty)",
+          "href": "https://arxiv.org/abs/1603.05346"
+        },
+        {
+          "label": "Quantiles on Streams — Encyclopedia of Database Systems (Buragohain & Suri)",
+          "href": "https://sites.cs.ucsb.edu/~suri/psdir/ency.pdf"
+        },
+        {
+          "label": "Greenwald–Khanna quantile summary algorithm — course notes (Emory CS 584)",
+          "href": "http://www.cs.emory.edu/~cheung/Courses/584/Syllabus/08-Quantile/Greenwald.html"
+        },
+        {
+          "label": "A Tight Lower Bound for Comparison-Based Quantile Summaries (Cormode & Veselý)",
+          "href": "https://arxiv.org/abs/1905.03838"
+        },
+        {
+          "label": "Selection and sorting with limited storage (Munro & Paterson, 1980) — hosted copy",
+          "href": "https://www.cs.dartmouth.edu/~ac/Teach/CS85-Fall09/Notes/munro-paterson.pdf"
+        },
+        {
+          "label": "Quantiles Overview — Apache DataSketches documentation",
+          "href": "https://datasketches.apache.org/docs/QuantilesAll/QuantilesOverview.html"
+        },
+        {
+          "label": "Computing accurate percentiles with DDSketch — Datadog Engineering Blog",
+          "href": "https://www.datadoghq.com/blog/engineering/computing-accurate-percentiles-with-ddsketch/"
+        },
+        {
+          "label": "DDSketch: A fast and fully-mergeable quantile sketch with relative-error guarantees (arXiv:1908.10693)",
+          "href": "https://arxiv.org/abs/1908.10693"
+        },
+        {
+          "label": "Generalizing Greenwald-Khanna Streaming Quantile Summaries for Weighted Inputs (Assadi, Joshi, Prabhu, Shah)",
+          "href": "https://arxiv.org/abs/2303.06288"
+        },
+        {
+          "label": "CS 598CSC: Algorithms for Big Data — Lecture 10, Approximate Quantiles and Summaries (Chandra Chekuri, UIUC)",
+          "href": "https://courses.grainger.illinois.edu/cs598csc/fa2014/Lectures/lecture_10.pdf"
+        },
+        {
+          "label": "Generalizing Greenwald-Khanna Streaming Quantile Summaries for Weighted Inputs (Assadi, Joshi, Prabhu, Shah, arXiv:2303.06288)",
+          "href": "https://arxiv.org/pdf/2303.06288"
+        },
+        {
+          "label": "A Tight Lower Bound for Comparison-Based Quantile Summaries (Cormode & Veselý, PODS 2020 / arXiv full text)",
+          "href": "https://arxiv.org/html/1905.03838"
+        },
+        {
+          "label": "QuantileSummaries.scala — Apache Spark source (catalyst)",
+          "href": "https://github.com/apache/spark/blob/master/sql/catalyst/src/main/scala/org/apache/spark/sql/catalyst/util/QuantileSummaries.scala"
+        },
+        {
+          "label": "pyspark.sql.DataFrame.approxQuantile — Apache Spark docs",
+          "href": "https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.approxQuantile.html"
+        },
+        {
+          "label": "Apache Spark source — DataFrameStatFunctions.scala (v3.5.5), scaladoc de approxQuantile",
+          "href": "https://github.com/apache/spark/blob/v3.5.5/sql/core/src/main/scala/org/apache/spark/sql/DataFrameStatFunctions.scala"
+        },
+        {
+          "label": "A Review of Recent Results in Streaming Quantiles (MIT 6.854 reading project)",
+          "href": "https://courses.csail.mit.edu/6.854/20/sample-projects/B/streaming-quantiles.pdf"
+        },
+        {
+          "label": "Generalizing Greenwald-Khanna Streaming Quantile Summaries for Weighted Inputs (Assadi, Joshi, Prabhu, Shah, ICDT 2023)",
+          "href": "https://drops.dagstuhl.de/storage/00lipics/lipics-vol255-icdt2023/LIPIcs.ICDT.2023.19/LIPIcs.ICDT.2023.19.pdf"
+        },
+        {
+          "label": "\"Learned Interpolation for Better Streaming Quantile Approximation with Worst-Case Guarantees\" (arXiv:2304.07652), rendered via ar5iv — independent secondary source discussing both KLL bounds",
+          "href": "https://ar5iv.labs.arxiv.org/html/2304.07652"
+        },
+        {
+          "label": "Theory Meets Practice at the Median: A Worst Case Comparison of Relative-Error Quantile Algorithms (Cormode, Mishra, Ross, Veselý)",
+          "href": "https://arxiv.org/abs/2102.09299"
+        },
+        {
+          "label": "Efficient Data Estimation with T-Digests — G-Research engineering blog",
+          "href": "https://www.gresearch.com/news/approximate-percentiles-with-t-digests/"
+        },
+        {
+          "label": "Dunning & Ertl — Computing Extremely Accurate Quantiles Using t-Digests (arXiv:1902.04023)",
+          "href": "https://ar5iv.labs.arxiv.org/html/1902.04023"
+        },
+        {
+          "label": "tdunning/t-digest — README (implémentation de référence)",
+          "href": "https://github.com/tdunning/t-digest"
+        },
+        {
+          "label": "t-Digest — Apache DataSketches documentation",
+          "href": "https://datasketches.apache.org/docs/tdigest/tdigest.html"
+        },
+        {
+          "label": "KLL Sketch vs t-Digest — Apache DataSketches Quantiles Studies",
+          "href": "https://datasketches.apache.org/docs/QuantilesStudies/KllSketchVsTDigest.html"
+        },
+        {
+          "label": "Cormode, Mishra, Ross, Veselý — \"Theory meets Practice at the Median: A Worst Case Comparison of Relative Error Quantile Algorithms\" (KDD 2021)",
+          "href": "https://ar5iv.labs.arxiv.org/html/2102.09299"
+        },
+        {
+          "label": "Theory meets Practice at the Median: A Worst Case Comparison of Relative Error Quantile Algorithms (Cormode, Mishra, Ross, Veselý) — ACM DL record, KDD '21",
+          "href": "https://dl.acm.org/doi/10.1145/3447548.3467152"
+        },
+        {
+          "label": "Gribelyuk, Sawettamalya, Wu, Yu — \"Simple & Optimal Quantile Sketch: Combining Greenwald-Khanna with Khanna-Greenwald\" (PODS 2024)",
+          "href": "https://par.nsf.gov/servlets/purl/10526808"
+        },
+        {
+          "label": "Simple & Optimal Quantile Sketch: Combining Greenwald-Khanna with Khanna-Greenwald (Gribelyuk, Sawettamalya, Wu, Yu, PODS 2024)",
+          "href": "https://dl.acm.org/doi/10.1145/3651610"
+        },
+        {
+          "label": "Apache datasketches-java issue #133 \"Quantile error bounds\" (commentaire du mainteneur AlexanderSaydakov)",
+          "href": "https://github.com/apache/datasketches-java/issues/133"
+        },
+        {
+          "label": "Classic Quantiles Sketch Overview — Apache DataSketches",
+          "href": "https://datasketches.apache.org/docs/Quantiles/QuantilesSketchOverview.html"
+        },
+        {
+          "label": "Agarwal, Cormode, Huang, Phillips, Wei, Yi — \"Mergeable Summaries\" (journal version, ACM TODS)",
+          "href": "https://users.cs.utah.edu/~jeffp/papers/merge-summ.pdf"
+        },
+        {
+          "label": "Domes & Veselý, \"Relative Error Streaming Quantiles with Seamless Mergeability via Adaptive Compactors\" (arXiv:2511.17396)",
+          "href": "https://arxiv.org/abs/2511.17396"
+        },
+        {
+          "label": "Ivkin, Liberty, Lang, Karnin & Braverman, \"Streaming Quantiles Algorithms with Small Space and Update Time\" (arXiv:1907.00236 / Sensors 2022)",
+          "href": "https://arxiv.org/abs/1907.00236"
+        },
+        {
+          "label": "Agarwal, Cormode, Huang, Phillips, Wei, Yi — Mergeable Summaries (preprint of PODS 2012/TODS 2013 paper)",
+          "href": "https://users.cs.utah.edu/~jeffp/papers/mergeSumm-MASSIVE11.pdf"
+        },
+        {
+          "label": "Cormode — Relative Error Streaming Quantiles [Extended Abstract]",
+          "href": "https://sigmodrecord.org/publications/sigmodRecord/2203/pdfs/18_rerr-cormode.pdf"
+        },
+        {
+          "label": "Dunning & Ertl — Computing Extremely Accurate Quantiles Using t-Digests",
+          "href": "https://arxiv.org/abs/1902.04023"
+        },
+        {
+          "label": "Dunning — Conservation of the t-digest Scale Invariant",
+          "href": "https://arxiv.org/abs/1903.09919"
+        },
+        {
+          "label": "Cormode & Veselý — A Tight Lower Bound for Comparison-Based Quantile Summaries (PODS 2020)",
+          "href": "https://www.cs.princeton.edu/~hy2/teaching/fall21-cos597J/files/cos597J-papers/quantiles-pods.pdf"
+        },
+        {
+          "label": "Reservoir sampling — Wikipedia",
+          "href": "https://en.wikipedia.org/wiki/Reservoir_sampling"
+        },
+        {
+          "label": "Weighted Random Sampling (2005; Efraimidis, Spirakis) — Encyclopedia of Algorithms entry",
+          "href": "https://utopia.duth.gr/~pefraimi/research/data/2007EncOfAlg.pdf"
+        },
+        {
+          "label": "Random Sampling with a Reservoir — Jeffrey Scott Vitter (1985)",
+          "href": "https://www.cs.umd.edu/~samir/498/vitter.pdf"
+        },
+        {
+          "label": "US Patent 7543006 — reservoir sample merging via hypergeometric distribution (HRMerge)",
+          "href": "https://patents.google.com/patent/US7543006"
+        },
+        {
+          "label": "US Patent Application 2018/0181621 — Multi-level reservoir sampling over distributed databases and streams (Teradata)",
+          "href": "https://www.freepatentsonline.com/y2018/0181621.html"
+        },
+        {
+          "label": "Distributed/parallel reservoir sampling — Balls and Bins blog",
+          "href": "https://ballsandbins.wordpress.com/2014/04/13/distributedparallel-reservoir-sampling/"
+        },
+        {
+          "label": "Understanding Chao's Method of Probability Proportional to Size Sampling — Tommy Wright, U.S. Census Bureau Research Report #2023-05",
+          "href": "https://www2.census.gov/library/working-papers/2023/adrm/RRS2023-05.pdf"
+        },
+        {
+          "label": "Weighted Random Sampling over Data Streams — Pavlos S. Efraimidis, arXiv:1012.0256",
+          "href": "https://arxiv.org/pdf/1012.0256"
+        },
+        {
+          "label": "XGBoost: A Scalable Tree Boosting System — Chen & Guestrin, 2016 (arXiv:1603.02754)",
+          "href": "https://arxiv.org/abs/1603.02754"
+        },
+        {
+          "label": "XGBoost Explained – Random Realizations (independent derivation of the weighted-quadratic objective with h_i as instance weight)",
+          "href": "https://randomrealizations.com/posts/xgboost-explained/"
+        },
+        {
+          "label": "xgboost source code — src/common/quantile.h (implémentation WQuantileSketch, merge/prune de niveau, référence Greenwald-Khanna 2001)",
+          "href": "https://github.com/dmlc/xgboost/blob/master/src/common/quantile.h"
+        },
+        {
+          "label": "XGBoost documentation — Tree Methods (doc/treemethod.rst) : 'approx runs sketching before building each tree using all the rows'",
+          "href": "https://github.com/dmlc/xgboost/blob/master/doc/treemethod.rst"
+        },
+        {
+          "label": "Mergeable Summaries — Agarwal, Cormode, Huang, Phillips, Wei, Yi (PODS'12 / ACM TODS 2013) : les résumés de quantiles à la Greenwald-Khanna sont « one-way mergeable », et fusionner deux résumés ε-approximatifs produit un résumé ε-approximatif (préservation, pas addition, des garanties)",
+          "href": "https://dl.acm.org/doi/10.1145/2500128"
+        },
+        {
+          "label": "Optimal Quantile Approximation in Streams (Karnin, Lang, Liberty) — arXiv 1603.05346, via ar5iv",
+          "href": "https://ar5iv.labs.arxiv.org/html/1603.05346"
+        },
+        {
+          "label": "Streaming Quantiles Algorithms with Small Space and Update Time (Ivkin, Liberty, Lang, Karnin, Braverman) — arXiv 1907.00236, via ar5iv",
+          "href": "https://ar5iv.labs.arxiv.org/html/1907.00236"
+        },
+        {
+          "label": "KLL Sketches — Apache DataSketches documentation",
+          "href": "https://datasketches.apache.org/docs/KLL/KLLSketch.html"
+        },
+        {
+          "label": "A Survey of Approximate Quantile Computation on Large-Scale Data — arXiv 2004.08255",
+          "href": "https://arxiv.org/pdf/2004.08255"
+        },
+        {
+          "label": "Medians and Beyond: New Aggregation Techniques for Sensor Networks (Shrivastava, Buragohain, Agrawal, Suri, SenSys 2004)",
+          "href": "https://arxiv.org/abs/cs/0408039"
+        },
+        {
+          "label": "Presto qdigest documentation",
+          "href": "https://prestodb.io/docs/current/functions/qdigest.html"
+        },
+        {
+          "label": "XGBoost: A Scalable Tree Boosting System (Chen & Guestrin) — arXiv 1603.02754, via ar5iv",
+          "href": "https://ar5iv.labs.arxiv.org/html/1603.02754"
+        },
+        {
+          "label": "XGBoost: its Genealogy, its Architectural Features, and its Innovation (Michio Suginoo) — Towards Data Science",
+          "href": "https://towardsdatascience.com/xgboost-its-genealogy-its-architectural-features-and-its-innovation-bf32b15b45d2/"
+        }
+      ]
+    },
+    {
+      "type": "pointers",
+      "title": "Pour aller plus loin",
+      "items": [
+        {
+          "name": "tdunning/t-digest",
+          "url": "https://github.com/tdunning/t-digest",
+          "kind": "implementation",
+          "blurb": "Implémentation Java de référence du t-digest (MergingDigest), citée par le papier original, avec compromis vitesse/précision documenté."
+        },
+        {
+          "name": "Apache DataSketches — t-digest (module)",
+          "url": "https://datasketches.apache.org/docs/tdigest/tdigest.html",
+          "kind": "reading",
+          "blurb": "Documentation officielle qui qualifie elle-même t-digest d'empirique, sans base mathématique pour son erreur, et signale son biais aux rangs extrêmes."
+        },
+        {
+          "name": "Computing Extremely Accurate Quantiles Using t-Digests (Dunning & Ertl, 2019)",
+          "url": "https://arxiv.org/abs/1902.04023",
+          "kind": "reading",
+          "blurb": "Papier de référence du t-digest : centroïdes, fonctions d'échelle k0-k3, bornes de taille, et ce que la fusion préserve ou non."
+        },
+        {
+          "name": "Apache DataSketches — Sketch Criteria",
+          "url": "https://datasketches.apache.org/docs/Architecture/SketchCriteria.html",
+          "kind": "reading",
+          "blurb": "Critères d'admission d'un sketch dans la bibliothèque : base théorique publiée exigée sur l'erreur et la fusion, algorithmes empiriques exclus en principe."
+        },
+        {
+          "name": "Apache DataSketches — KLL sketch vs t-digest",
+          "url": "https://datasketches.apache.org/docs/QuantilesStudies/KllSketchVsTDigest.html",
+          "kind": "reading",
+          "blurb": "Étude comparative officielle : t-digest n'a aucune méthode pour obtenir une borne d'erreur de rang, contrairement à KLL."
+        },
+        {
+          "name": "Cormode, Mishra, Ross, Veselý — Theory meets Practice at the Median (KDD 2021)",
+          "url": "https://ar5iv.labs.arxiv.org/html/2102.09299",
+          "kind": "reading",
+          "blurb": "Construit des entrées adversariales qui font exploser l'erreur de t-digest malgré une taille bornée, et compare à ReqSketch."
+        },
+        {
+          "name": "Gribelyuk, Sawettamalya, Wu, Yu — Simple & Optimal Quantile Sketch (PODS 2024)",
+          "url": "https://par.nsf.gov/servlets/purl/10526808",
+          "kind": "reading",
+          "blurb": "Simplifie l'algorithme GK à (2+o(1))ε⁻¹log(εn) éléments tout en conservant sa borne de temps asymptotique optimale."
+        },
+        {
+          "name": "Apache DataSketches — KLL Sketch",
+          "url": "https://datasketches.apache.org/docs/KLL/KLLSketch.html",
+          "kind": "library",
+          "blurb": "Implémentation open-source du KLL avec une méthode merge() dédiée, en 16 variantes heap/off-heap/compact selon type et stockage."
+        },
+        {
+          "name": "Mergeable Summaries (Agarwal, Cormode, Huang, Phillips, Wei, Yi)",
+          "url": "https://users.cs.utah.edu/~jeffp/papers/mergeSumm-MASSIVE11.pdf",
+          "kind": "reading",
+          "blurb": "Article fondateur qui définit formellement la fusionnabilité pleine et à sens unique, et prouve un résumé de quantiles mergeable de taille O((1/ε)log^{3/2}(1/ε))."
+        },
+        {
+          "name": "Apache DataSketches — Reservoir Sampling Sketches",
+          "url": "https://datasketches.apache.org/docs/Sampling/ReservoirSamplingSketches.html",
+          "kind": "library",
+          "blurb": "Implémentation en production du reservoir sampling uniforme, avec sérialisation et opérations d'union entre esquisses."
+        },
+        {
+          "name": "Apache DataSketches — VarOpt Sampling Sketches",
+          "url": "https://datasketches.apache.org/docs/Sampling/VarOptSamplingSketches.html",
+          "kind": "library",
+          "blurb": "Échantillonnage pondéré à variance optimale (Cohen et al.), qui redevient un reservoir sampling classique quand tous les poids valent 1."
+        },
+        {
+          "name": "Chris Wyman — Weighted Reservoir Sampling: Randomly Sampling Streams (Ray Tracing Gems II, ch. 22)",
+          "url": "https://cwyman.org/papers/rtg2-weightedReservoir.pdf",
+          "kind": "reading",
+          "blurb": "Tutoriel NVIDIA (2021) sur le reservoir sampling pondéré appliqué au rendu temps réel."
+        },
+        {
+          "name": "XGBoost (dmlc/xgboost)",
+          "url": "https://github.com/dmlc/xgboost",
+          "kind": "library",
+          "blurb": "Bibliothèque open-source de gradient boosting sur arbres dont l'algorithme approché de split-finding implémente le weighted quantile sketch."
+        },
+        {
+          "name": "XGBoost — Tree Methods (docs)",
+          "url": "https://xgboost.readthedocs.io/en/stable/treemethod.html",
+          "kind": "reading",
+          "blurb": "Documentation officielle : la méthode approx exécute un sketch de quantiles avec le Hessien comme poids avant de construire chaque arbre."
+        },
+        {
+          "name": "XGBoost: A Scalable Tree Boosting System (Chen & Guestrin, KDD 2016)",
+          "url": "https://arxiv.org/abs/1603.02754",
+          "kind": "reading",
+          "blurb": "Article original dont l'algorithme introduit un weighted quantile sketch pour l'apprentissage d'arbres approché."
+        },
+        {
+          "name": "Weighted quantile sketch algorithm — RFC (discuss.xgboost.ai)",
+          "url": "https://discuss.xgboost.ai/t/weighted-quantile-sketch-algorithm/1416",
+          "kind": "reading",
+          "blurb": "Fil de discussion communautaire sur la logique des niveaux (levels) du sketch pondéré, au-delà de ce que détaille l'article original."
+        },
+        {
+          "name": "Apache DataSketches",
+          "url": "https://datasketches.apache.org/",
+          "kind": "library",
+          "blurb": "Bibliothèque de référence pour les sketches à garantie d'erreur prouvée, disponible en Java, C++, Python, Rust et Go."
+        },
+        {
+          "name": "datasketches-java (implémentation de référence)",
+          "url": "https://github.com/apache/datasketches-java",
+          "kind": "implementation",
+          "blurb": "Composant Java central de la bibliothèque DataSketches, qui contient l'ensemble des algorithmes de sketching."
+        },
+        {
+          "name": "Apache Druid — DataSketches Quantiles module",
+          "url": "https://druid.apache.org/docs/latest/development/extensions-core/datasketches-quantiles/",
+          "kind": "tool",
+          "blurb": "Extension Druid exposant la Classic Quantiles Sketch (DoublesSketch) de DataSketches comme agrégateur pour les requêtes natives."
+        },
+        {
+          "name": "BigQuery — fonctions KLL_QUANTILES",
+          "url": "https://docs.cloud.google.com/bigquery/docs/reference/standard-sql/kll_functions",
+          "kind": "tool",
+          "blurb": "Entrepôt managé exposant une famille de fonctions KLL_QUANTILES (INIT/MERGE/EXTRACT) pour construire, fusionner et interroger des sketches séparément."
+        },
+        {
+          "name": "Spark — DataFrame.approxQuantile",
+          "url": "https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql/api/pyspark.sql.DataFrame.approxQuantile.html",
+          "kind": "tool",
+          "blurb": "API DataFrame implémentant une variante du Greenwald-Khanna, avec un paramètre relativeError réglable et une borne d'erreur de rang déterministe."
+        },
+        {
+          "name": "ClickHouse — quantileGK",
+          "url": "https://clickhouse.com/docs/sql-reference/aggregate-functions/reference/quantileGK",
+          "kind": "tool",
+          "blurb": "Moteur OLAP colonne exposant Greenwald-Khanna comme fonction d'agrégation SQL à précision réglable (depuis la 23.4), distincte de sa fonction quantileTDigest."
+        },
+        {
+          "name": "Redis Stack — commandes TDIGEST",
+          "url": "https://redis.io/docs/latest/commands/tdigest.quantile/",
+          "kind": "tool",
+          "blurb": "Type de données t-digest natif dans Redis, avec commandes CREATE/ADD/QUANTILE/MERGE pour des requêtes de percentile en production."
+        },
+        {
+          "name": "Presto/Trino — qdigest et tdigest",
+          "url": "https://prestodb.io/docs/current/functions/qdigest.html",
+          "kind": "tool",
+          "blurb": "Moteur SQL fédéré documentant deux algorithmes de rang approché, qdigest et t-digest, aux compromis explicites entre types supportés et précision aux extrêmes."
+        },
+        {
+          "name": "PostgreSQL — extension tdigest (tvondra/tdigest)",
+          "url": "https://github.com/tvondra/tdigest",
+          "kind": "package",
+          "blurb": "Type Postgres natif pour pré-agréger des t-digests par sous-ensemble puis les fusionner via tdigest_union()."
+        },
+        {
+          "name": "DuckDB — approx_quantile / reservoir_quantile",
+          "url": "https://duckdb.org/docs/current/sql/functions/aggregates",
+          "kind": "tool",
+          "blurb": "Base analytique embarquée proposant deux fonctions de quantile approché : l'une par T-Digest, l'autre par reservoir sampling (taille par défaut 8192)."
+        }
+      ]
+    },
+    {
+      "type": "glossary"
+    }
+  ]
+}

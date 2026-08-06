@@ -163,18 +163,28 @@ deep-learning-foundations après state-space-models. Section pooling-graphes éc
 (3 claims single-source) : le pooling n'est couvert que par un paragraphe DiffPool — angle
 résiduel si un candidat « pooling/expressivité avancée » émerge un jour.)
 
-### Sketches en flux : quantiles & échantillonnage — `streaming-quantiles-sampling` → `probabilistic-structures-hashing`
-**Verdict : gap réel.** Complète `count-min-sketch` (fréquences) et `hyperloglog` (cardinalité).
+(`streaming-quantiles-sampling` : FAIT le 2026-08-05, retiré du backlog — 26e run /leanmonograph
+GREEN après backstop [1 correction dure : divergence INTERNE au document sur la variante mergeable
+de KLL, `log²log(1/δε)` dans une section contre `log²log(1/δ)` dans une autre — les deux formes
+existent dans l'article original mais pour des problèmes différents (Tableau 1 : un quantile vs
+tous les quantiles), et la phrase fautive comparait deux régimes], classé dans
+probabilistic-structures-hashing après count-min-sketch, en clôture du bloc des sketches de flux.
 
-> Sketches de flux pour quantiles et échantillonnage : résumer un flux de données en mémoire bornée.
-> Couvrir l'estimation de quantiles approchés (Greenwald-Khanna et la garantie ε, t-digest et les
-> centroïdes à compression variable, KLL et son optimalité), et l'échantillonnage en flux (reservoir
-> sampling : Algorithm R, échantillonnage pondéré A-Res, échantillonnage distribué), avec les
-> garanties d'erreur et la fusionnabilité (mergeable summaries) pour le calcul distribué.
-> Positionnement : complète la famille des sketches de flux du domaine. Public : ingénieur ML/data.
-> Délimitations : count-min-sketch et hyperloglog couvrent d'autres sketches en flux (fréquences,
-> cardinalité) — les citer comme voisins ; se centrer sur quantiles et échantillonnage. Domaine :
-> probabilistic-structures-hashing.
+Gap re-vérifié par LECTURE avant lancement (5e fois payante) : quatre délimitations absentes du
+prompt d'origine ont été ajoutées au brief — (1) `count-min-sketch` traite EN PROFONDEUR les range
+queries par décomposition dyadique, la voie « par les fréquences » vers les requêtes de rang ;
+(2) la fusionnabilité est déjà exposée des deux côtés (linéarité CMS, PFMERGE), seul le versant
+résumés-de-rang était neuf ; (3) `ensemble-learning` NOMME le « weighted quantile sketch » de
+XGBoost sans l'expliquer — pont applicatif devenu une section entière ; (4) deux homonymies à
+écarter, le *quantile forecasting* de `time-series-forecasting` et le quantile conforme de
+`calibration-classifieurs`. Le document écarte explicitement les deux homonymies dès sa première
+section.
+
+**Premier run à 0 rejet sur 26** — non par laxisme : les 13 claims `corrected` sont des
+contestables que le council a AMENDÉS, plusieurs en inversant le sens. D'où une leçon de backstop :
+`lint.py` ne traque que les claims REJETÉS, donc une prose qui garderait la version d'origine d'un
+claim corrigé serait invisible au lint. Vérifiés un par un ici, tous rendus dans leur version
+amendée.)
 
 (`llm-inference-serving` : FAIT le 2026-07-17/18, retiré du backlog — 14e run /leanmonograph
 GREEN après resume, classé dans llm-agents-generation après decoding-sampling ; section

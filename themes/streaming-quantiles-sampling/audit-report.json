@@ -1,0 +1,1204 @@
+{
+  "generator": "leanmonograph",
+  "theme": {
+    "slug": "streaming-quantiles-sampling",
+    "title": "Quantiles et échantillonnage en flux : ce qu'on peut garantir en mémoire bornée"
+  },
+  "summary": {
+    "sections_total": 9,
+    "sections_retained": 9,
+    "claims_total": 36,
+    "confirmed": 23,
+    "corrected": 13,
+    "rejected": 0,
+    "retained": 36
+  },
+  "claims": [
+    {
+      "id": "claim:1",
+      "section": "probleme-et-contrat-epsilon",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "A quantile sketch's ε-approximation guarantee is defined over the RANK of a queried value within the stream — not over the value itself: the rank of any query is approximated to within an additive εn, with probability at least 1−δ.",
+      "original_statement": "A quantile sketch's ε-approximation guarantee is defined over the RANK of a queried value within the stream — not over the value itself: the rank of any query is approximated to within an additive εn, with probability at least 1−δ.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "KLL's abstract defines the guarantee almost verbatim as claimed: rank of any query approximated to additive εn with probability ≥1−δ. Buragohain & Suri (independent, predates KLL, unrelated authorship) confirm the same rank/quantile-range framing ('[φ−ε, φ+ε] quantile range', 'precision εn, with probability at least 1−δ' for the sampling variant) — note the '1−δ' clause is strictly a randomized-sketch feature (deterministic GK has δ=0 implicitly), a minor nuance but not a factual error in the general framing."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "The KLL paper defines an ε-approximate quantile sketch exactly this way, verbatim: 'approximate the rank of any query up to additive error εn with probability at least 1−δ.' GK confirms the rank-based framing; GK itself is the deterministic special case (δ=0), which is still consistent with 'probability at least 1−δ', not a contradiction."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:2",
+      "section": "probleme-et-contrat-epsilon",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Computing the exact median (or any exact order statistic) of a stream in a single deterministic pass requires space linear in the stream length N — a result due to Munro and Paterson (1980), who showed that p sequential passes require Ω(N^{1/p}) storage, which collapses to Ω(N) at p=1 — which is why streaming quantile methods trade exactness for a bounded-memory, ε-approximate rank guarantee.",
+      "original_statement": "Computing the exact median (or any exact order statistic) of a stream in a single deterministic pass requires space linear in the stream length N — a result due to Munro and Paterson (1980), who showed that p sequential passes require Ω(N^{1/p}) storage, which collapses to Ω(N) at p=1 — which is why streaming quantile methods trade exactness for a bounded-memory, ε-approximate rank guarantee.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Cormode & Veselý (arxiv.org/html/1905.03838): '[Munro-Paterson] showed that finding the exact median in p passes over the data requires Ω(N^{1/p}) memory.' Buragohain & Suri, independently: 'Munro and Paterson [1980] proved that any algorithm that determines the median... by making at most p sequential scans... requires at least Ω(n^{1/p}) working memory. Thus, computing the true median will require memory linear in the size of the set.' Both confirm the general result and its p=1 collapse to Ω(N); I could not directly read the ScienceDirect original (403 Forbidden) but both independent secondary sources agree on venue/year (Theoretical Computer Science, 1980)."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "This exact Ω(N^{1/p}) / collapsing-to-Ω(N)-at-p=1 framing is repeated consistently across independent secondary citations of Munro–Paterson (course notes, encyclopedia/survey entries, GK-lineage papers). Caveat: direct full-text extraction of the 1980 PDF itself failed (binary/encoding issue in both fetch attempts), so this rests on convergent independent citation rather than a directly quoted primary sentence — worth a light re-check if the claim is load-bearing."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:3",
+      "section": "probleme-et-contrat-epsilon",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Because an ε-approximate quantile sketch bounds rank error to εn, the VALUE it returns for a queried quantile carries NO comparable guarantee: for skewed or non-uniform distributions, the numeric gap between the values at rank (φ−ε)n and (φ+ε)n can be arbitrarily large — up to the entire dynamic range of the data — even though the rank error itself stays tightly bounded.",
+      "original_statement": "Because an ε-approximate quantile sketch bounds rank error to εn, the VALUE it returns for a queried quantile is also guaranteed to lie within a comparably small margin of the true value.",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 3,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Directly contradicted by two independent sources. DataSketches: 'the size of the quantile confidence interval may not be meaningful and is not constrained by the defined rank error of the sketch,' with an example where a 1% rank error can correspond to a value gap spanning 'the entire dynamic range of all quantiles.' Buragohain & Suri, independently: 'for skewed distributions, the numeric value of the exact φ-th quantile can be arbitrarily far from the numeric values of the (φ ± ε)-th quantile.'"
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Apache DataSketches' own docs state the quantile confidence interval's size 'is not constrained by the defined rank error' and give an example where a 1% rank error spans the sketch's entire dynamic range in value; the DDSketch/Datadog writeup gives a concrete latency example (median in ms, tail in minutes) where small rank error yields huge value error. Both directly contradict the claim."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "The seed source itself (DataSketches docs) explicitly refutes the claim: it states the ε bound is \"specified with respect to rank and not with respect to quantiles,\" and gives a worked example where a 1% rank-error window (ranks .49–.51) can correspond to a value gap spanning the entire dynamic range if the data has a step/discontinuity there. This is corroborated by an independent primary source, the DDSketch paper (VLDB 2019, Masson/Rim/Lee), whose abstract states plainly: \"rank error guarantees do not preclude arbitrarily large relative errors, and this often occurs in practice when the data is heavily skewed\" — which is precisely why DDSketch was designed to offer relative-error (value) guarantees as a distinct, additional property rather than one implied by rank-error bounds. The claim conflates two genuinely different, well-documented guarantee types in the quantile-sketch literature."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « Because an ε-approximate quantile sketch bounds rank error to εn, the VALUE it returns for a queried quantile is also guaranteed to lie within a comparably small margin of the true value. »"
+    },
+    {
+      "id": "claim:4",
+      "section": "probleme-et-contrat-epsilon",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "For deterministic, comparison-based ε-approximate quantile summaries, Ω((1/ε)·log(εN)) space is necessary in the worst case — matching the O((1/ε)·log(εN)) upper bound achieved by Greenwald–Khanna (2001) and proving that no deterministic comparison-based summary can do asymptotically better.",
+      "original_statement": "For deterministic, comparison-based ε-approximate quantile summaries, Ω((1/ε)·log(εN)) space is necessary in the worst case — matching the O((1/ε)·log(εN)) upper bound achieved by Greenwald–Khanna (2001) and proving that no deterministic comparison-based summary can do asymptotically better.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Cormode & Veselý is the origin paper proving the Ω((1/ε)·log εN) lower bound for deterministic comparison-based summaries, matching GK01's upper bound, and ruling out any f(ε)·o(log N) construction. Independently (different, unrelated authors), Assadi/Joshi/Prabhu/Shah confirm: 'The best known deterministic quantile summary is the ... Greenwald-Khanna (GK) summary that uses O((1/eps) log(eps n)) space [SIGMOD'01]. This bound was recently proved to be optimal for all deterministic comparison-based summaries by Cormode and Veselý [PODS'20].'"
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "The paper's own abstract states this near-verbatim: GK (SIGMOD'01) 'stores at most O(1/ε · log εN) items', and 'this space bound is optimal' via 'a matching lower bound' — i.e. Ω((1/ε)·log(εN)) for deterministic comparison-based summaries. A second independent full-text confirmation of GK's original upper bound was attempted but blocked (ACM DL 403); the claim is nonetheless directly and precisely supported by the primary lower-bound paper itself."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:5",
+      "section": "greenwald-khanna",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le résumé Greenwald-Khanna garantit qu'aucune réponse à une requête de φ-quantile ne s'écarte du rang réel de plus de εN, via l'invariant max_i(g_i+Δ_i) ≤ 2εn maintenu à chaque insertion et compression.",
+      "original_statement": "Le résumé Greenwald-Khanna garantit qu'aucune réponse à une requête de φ-quantile ne s'écarte du rang réel de plus de εN, via l'invariant max_i(g_i+Δ_i) ≤ 2εn maintenu à chaque insertion et compression.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Deux jeux de notes de cours indépendants (universités et auteurs distincts, aucun ne cite l'autre) confirment mot pour mot l'invariant max_i(g_i+Δ_i) ≤ 2εn et la garantie de précision εn pour toute requête de quantile ; le PDF d'Illinois (lu intégralement) précise même explicitement que l'invariant est préservé à la fois par INSERT et par la compression/merge."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "L'invariant maxi(gi+Δi) ≤ 2εn et son Corollaire 1 (garantie ±εN) sont confirmés par les notes de cours citant directement le papier GK01 ; Assadi et al. (2023) confirment indépendamment que maintenir cet invariant implique un résumé ε-approché (leur Claim 2.1), et décrivent Insert/Compress comme les deux opérations qui le préservent. La source primaire (infolab.stanford.edu) était injoignable (connexion refusée), mais deux sources indépendantes convergent sur le même énoncé technique."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:6",
+      "section": "greenwald-khanna",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "GK est le premier algorithme de quantiles en flux à obtenir un espace pire-cas de O((1/ε)·log(εN)) sans connaître N à l'avance, contre le O((1/ε)·log²(εN)) de l'algorithme antérieur de Manku-Rajagopalan-Lindsay (SIGMOD 1998) qui exigeait N connu.",
+      "original_statement": "GK est le premier algorithme de quantiles en flux à obtenir un espace pire-cas de O((1/ε)·log(εN)) sans connaître N à l'avance, contre le O((1/ε)·log²(εN)) de l'algorithme antérieur de Manku-Rajagopalan-Lindsay (SIGMOD 1998) qui exigeait N connu.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Cormode & Veselý énoncent textuellement : GK « needs just O(1/ε·log εN) words and does not require any advance information about the stream », contre MRL qui « uses space O(1/ε·log² εN), although it relies on the advance knowledge of the stream length N ». Les notes de cours d'Illinois (lues en entier) redérivent indépendamment les deux mêmes bornes O(1/ε log(εN)) pour GK et O(1/ε log²(εN)) pour l'algorithme de Manku et al. Le papier MRL est bien publié dans ACM SIGMOD Record vol. 27 (1998), confirmé par la page ACM DOI 10.1145/276305.276342."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les deux papiers confirment mot pour mot : MRL98 utilise O((1/ε)log²(εN)) et 'requires prior knowledge of the length of the stream' ; GK01 l'améliore à O((1/ε)log(εN)) et 'no longer requires knowing the length of the stream'. MRL98 (Manku-Rajagopalan-Lindsay) est bien la conférence SIGMOD 1998 (Seattle)."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:7",
+      "section": "greenwald-khanna",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "La borne d'espace O((1/ε)·log(εN)) de Greenwald-Khanna est optimale pour tout résumé de quantiles DÉTERMINISTE et FONDÉ SUR DES COMPARAISONS — mais pas pour n'importe quel algorithme : des approches randomisées (KLL, Karnin-Lang-Liberty) l'améliorent asymptotiquement en espace O((1/ε)·log log(1/δ)), indépendant de N.",
+      "original_statement": "La borne d'espace O((1/ε)·log(εN)) de Greenwald-Khanna est optimale pour n'importe quel résumé de quantiles approché en flux — GK ne peut donc pas être amélioré asymptotiquement, quel que soit l'algorithme envisagé.",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 3,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Cormode & Veselý bornent explicitement leur résultat aux « deterministic comparison-based » quantile summaries et notent eux-mêmes que les méthodes randomisées peuvent nettement dépasser cette borne, citant Karnin-Lang-Liberty (O(1/ε·log log(1/(εδ)))). Karnin-Lang-Liberty (lu séparément) confirme atteindre O((1/ε)·log log(1/δ)) avec preuve de borne inférieure assortie — un algorithme randomisé qui bat asymptotiquement la borne de GK pour N grand. L'énoncé « quel que soit l'algorithme envisagé » est donc faux ; l'optimalité de GK ne vaut que dans le modèle déterministe par comparaisons."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Réfuté par sa propre source candidate : l'abstract de Cormode & Veselý restreint explicitement l'optimalité aux résumés 'comparison-based', et Assadi et al. précisent que la randomisation permet de faire mieux, sans dépendance à N (KLL16, O((1/ε)log log(1/εδ))) — le papier KLL lui-même revendique 'a qualitative gap between randomized and deterministic quantile sketching'. Le claim sur-généralise une borne inférieure scopée à tout algorithme."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "L'énoncé généralise abusivement une borne inférieure de portée restreinte. arXiv:1905.03838 (Cormode & Veselý) prouve bien que O(1/ε·log εN) est optimal — mais explicitement pour la sous-classe des résumés « comparison-based » et déterministes (l'abstract le dit noir sur blanc : \"We focus on comparison-based quantile summaries... The best such deterministic quantile summary...\"). arXiv:1603.05346 (Karnin, Lang & Liberty) montre qu'un algorithme randomisé atteint O(1/ε·log log(1/δ)), un espace qui ne dépend plus de N — donc asymptotiquement meilleur que celui de GK quand N croît — avec borne inférieure assortie côté randomisé ; les auteurs qualifient ce résultat d'« écart qualitatif » entre randomisé et déterministe, ce qui contredit directement « GK ne peut donc pas être amélioré asymptotiquement, quel que soit l'algorithme »."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « La borne d'espace O((1/ε)·log(εN)) de Greenwald-Khanna est optimale pour n'importe quel résumé de quantiles approché en flux — GK ne peut donc pas être amélioré asymptotiquement, quel que soit l'algorithme envisagé. »"
+    },
+    {
+      "id": "claim:8",
+      "section": "greenwald-khanna",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "L'algorithme de Greenwald-Khanna est aujourd'hui déployé en production : Apache Spark implémente une variante de GK dans DataFrame.approxQuantile, avec une garantie de rang floor((p−err)·N) ≤ rank(x) ≤ ceil((p+err)·N).",
+      "original_statement": "L'algorithme de Greenwald-Khanna est aujourd'hui déployé en production : Apache Spark implémente une variante de GK dans DataFrame.approxQuantile, avec une garantie de rang floor((p−err)·N) ≤ rank(x) ≤ ceil((p+err)·N).",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le code source Spark (artefact distinct de la doc, lu directement) cite nommément « Space-efficient Online Computation of Quantile Summaries » de Greenwald et Khanna et reproduit l'invariant GK (max(g_ab+delta_ab) ≤ floor(2·eps_ab·(n_a+n_b))) ; la doc officielle Spark donne la garantie de rang floor((p−err)·N) ≤ rank(x) ≤ ceil((p+err)·N), identique à l'énoncé. Réserve d'honnêteté : ces deux artefacts proviennent tous deux du projet Apache Spark lui-même (pas de tiers externe) — c'est ici la source primaire qui fait foi sur ce que Spark implémente, conformément à la consigne, mais ce n'est pas une confirmation par un tiers indépendant du projet."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Le scaladoc de Spark confirme verbatim les deux éléments : 'This method implements a variation of the Greenwald-Khanna algorithm (with some speed optimizations)' et la formule exacte 'floor((p - err) * N) <= rank(x) <= ceil((p + err) * N)'. Source unique (le projet Spark lui-même, recoupée doc officielle + code source du même projet) — légitime pour un fait sur le comportement documenté d'un logiciel, mais pas une corroboration par deux auteurs indépendants."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:9",
+      "section": "kll-compactors-et-bornes",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le compactor du KLL sketch trie k éléments de même poids, en jette la moitié par un tirage aléatoire entre positions paires et impaires, double le poids des survivants, et cette opération laisse le rang de tout point fixé inchangé ou le décale symétriquement de ±w avec probabilité 1/2 — l'erreur cumulée sur plusieurs niveaux de compaction est alors bornée par une inégalité de type Hoeffding (Lemme 1).",
+      "original_statement": "Le compactor du KLL sketch trie k éléments de même poids, en jette la moitié par un tirage aléatoire entre positions paires et impaires, double le poids des survivants, et cette opération laisse le rang de tout point fixé inchangé ou le décale symétriquement de ±w avec probabilité 1/2 — l'erreur cumulée sur plusieurs niveaux de compaction est alors bornée par une inégalité de type Hoeffding (Lemme 1).",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Confirmed near-verbatim against the KLL primary source (arXiv:1603.05346, p.3-4 compactor description, Fig.1 caption, and Lemma 1 'Hoeffding' p.6 used exactly to bound cumulative multi-level error). Independently reproduced (same mechanism, same error decomposition, same Hoeffding application) by an unrelated MIT course review."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Confirmé mot pour mot : le texte du papier (§1.2 'Main Contribution') décrit exactement ce mécanisme ('the items are sorted... either the even or odd elements... are chosen... The weight of the chosen elements is doubled'), et la légende de la Figure 1 énonce littéralement 'The rank of a query remains unchanged if its rank within the compactor is even. If it is odd, its rank is increased or decreased by w with equal probability.' Le Lemme 1 est explicitement intitulé '(Hoeffding)' et sert précisément à borner la somme des erreurs sur les H niveaux de compaction. Source unique vérifiée (le papier primaire), mais restitution fidèle sans distorsion ni sur-généralisation."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:10",
+      "section": "kll-compactors-et-bornes",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le KLL sketch atteint un espace O((1/ε)·log log(1/δ)) pour l'estimation ε-approchée d'un quantile avec probabilité 1−δ, et cette borne est optimale : les auteurs prouvent une borne inférieure correspondante Ω((1/ε)·log log(1/δ)) pour tout algorithme randomisé fondé sur les comparaisons, améliorant la borne antérieure O((1/ε)·log(1/ε)) de Felber & Ostrovsky.",
+      "original_statement": "Le KLL sketch atteint un espace O((1/ε)·log log(1/δ)) pour l'estimation ε-approchée d'un quantile avec probabilité 1−δ, et cette borne est optimale : les auteurs prouvent une borne inférieure correspondante Ω((1/ε)·log log(1/δ)) pour tout algorithme randomisé fondé sur les comparaisons, améliorant la borne antérieure O((1/ε)·log(1/ε)) de Felber & Ostrovsky.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Confirmed by KLL's own abstract, Theorem 5 (upper bound), Theorem 6 (matching lower bound Omega((1/eps)loglog(1/delta)) for randomized comparison-based algorithms), and the Felber-Ostrovsky comparison. Independently confirmed by Cormode & Vesely's related-work section (different authors) and by the MIT review."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Théorème 5 (KLL) énonce exactement O((1/ε) log log(1/δ)) pour le quantile unique ; Théorème 6 énonce la borne inférieure Ω((1/ε) log log(1/δ)) pour 'any randomized comparison based algorithm' résolvant le quantile unique ; l'introduction cite explicitement Felber-Ostrovsky à O((1/ε) log(1/ε)) 'for a fixed δ' comme borne antérieure. Corroboré par un second papier (auteurs différents) : Cormode & Veselý (Related Work) résument indépendamment ce même résultat de KLL dans des termes identiques."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:11",
+      "section": "kll-compactors-et-bornes",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Cormode & Veselý (PODS 2020) encadrent tout le paysage des bornes de quantiles : ils prouvent que la borne O(1/ε · log(εN)) de Greenwald-Khanna est optimale pour tout résumé déterministe fondé sur les comparaisons (y compris pour la médiane approchée), puis établissent par une réduction distincte une borne inférieure Ω(1/ε · log log(1/δ)) pour le cas randomisé — formalisant l'écart prouvé entre déterminisme et randomisation que KLL sature.",
+      "original_statement": "Cormode & Veselý (PODS 2020) encadrent tout le paysage des bornes de quantiles : ils prouvent que la borne O(1/ε · log(εN)) de Greenwald-Khanna est optimale pour tout résumé déterministe fondé sur les comparaisons (y compris pour la médiane approchée), puis établissent par une réduction distincte une borne inférieure Ω(1/ε · log log(1/δ)) pour le cas randomisé — formalisant l'écart prouvé entre déterminisme et randomisation que KLL sature.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "C&V's Theorem 2.2 proves the deterministic Omega(1/eps*log(epsN)) bound (matching GK, including the median case), and their intro explicitly derives the randomized Omega(1/eps*loglog(1/delta)) bound 'applying a reduction from [15]' (=KLL). Deterministic-optimality half independently confirmed by an unrelated ICDT 2023 paper; the randomized half is independently corroborated by KLL's own paper (a separate document by different authors), whose Theorem 6 states and saturates the identical bound. Minor nuance: the reduction technique itself is credited by C&V to KLL, not invented by C&V -- this does not misrepresent the claim, which only says C&V 'establish' (state/derive) the bound in their paper."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Théorème 2.2 prouve Ω(1/ε·log(εN)) pour tout résumé déterministe comparaison-based ; le Théorème 6.1 (§6.1) étend explicitement ce résultat à la médiane ε-approchée via une réduction standard. Le Théorème 6.4 (§6.3-6.4) — bien distinct du Théorème 6.3 qui n'est qu'une reformulation explicitement étiquetée 'Theorem 6 in [15]' (KLL) — applique la technique de réduction de KLL à LEUR PROPRE borne déterministe améliorée pour obtenir Ω(1/ε·log log(1/δ)) valable pour toute longueur de flux N : c'est bien une contribution propre, pas une citation. Nuance à noter : cette borne randomisée n'est prouvée que pour δ=1/N! précisément (les auteurs qualifient eux-mêmes δ=1/poly(N) de problème ouvert) — la formulation compressée du claim reflète cependant fidèlement celle du papier source lui-même."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:12",
+      "section": "kll-compactors-et-bornes",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "On pourrait croire que la borne O((1/ε)·log log(1/δ)) du KLL sketch, souvent citée comme LE résultat de Karnin-Lang-Liberty, s'applique telle quelle dès qu'on veut fusionner des sketches sur un calcul distribué — en réalité cette borne optimale est celle de la variante NON fusionnable (Théorème 5) ; la variante pleinement fusionnable de KLL (Théorème 4) coûte un facteur log log(1/δ) de plus, O((1/ε)·log²log(1/δ)).",
+      "original_statement": "On pourrait croire que la borne O((1/ε)·log log(1/δ)) du KLL sketch, souvent citée comme LE résultat de Karnin-Lang-Liberty, s'applique telle quelle dès qu'on veut fusionner des sketches sur un calcul distribué — en réalité cette borne optimale est celle de la variante NON fusionnable (Théorème 5) ; la variante pleinement fusionnable de KLL (Théorème 4) coûte un facteur log log(1/δ) de plus, O((1/ε)·log²log(1/δ)).",
+      "corroborated": 3,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Confirmed verbatim against arXiv:1603.05346: Theorem 4 (p.10) gives O((1/eps)log^2log(1/delta)) and states 'This algorithm also produces mergeable summaries'; Theorem 5, under the section titled 'Gaining Space Optimality; Potentially Losing Mergeability', gives the optimal O((1/eps)loglog(1/delta)) and the paper explicitly notes the GK-based construction loses full mergeability. Independently reproduced in substance (same bounds, same trade-off) by the unrelated MIT course review."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Confirmé structurellement par la Table 1 du papier KLL, qui liste deux lignes 'KLL [This paper]' : O((1/ε) log log(1/δ)) → colonne Mergeable='No', et O((1/ε) log²log(1/δ)) → colonne Mergeable='Yes'. Le Théorème 5 (§4.1, titré 'Gaining Space Optimality; Potentially Losing Mergeability') est le premier ; le Théorème 4 (§4) est le second et énonce explicitement 'This algorithm also produces mergeable summaries.' Source unique vérifiée (le papier lui-même) mais citation fidèle et vérifiable structurellement via la table récapitulative de l'article."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Vérifié sur la source primaire (arXiv:1603.05346, rendu ar5iv, citations verbatim obtenues sur deux fetchs distincts) : Théorème 4 énonce « There exists a streaming algorithm ... whose space complexity is O((1/ε)log²log(1/δ)). This algorithm also produces mergeable summaries. » ; Théorème 5 énonce « ... O((1/ε)log log(1/δ)) » et perd la fusionnabilité car il incorpore un sketch GK (« not known to be mergeable »). Corroboré indépendamment par arXiv:2304.07652 (Learned Interpolation), qui cite la même distinction (variante optimale à base de GK = O((1/ε)log log(1/δ)) ; variante simplifiée/mergeable communément implémentée = O((1/ε)log²log(1/δ))). Note méthodo : un premier WebFetch du PDF brut d'arXiv avait renvoyé une synthèse incohérente (bornes sans log log du tout, numérotation différente) — écartée comme erreur de parsing du petit modèle sur le PDF ; le rendu HTML ar5iv avec citations entre guillemets, reproduit à l'identique sur deux appels séparés, fait foi.</parameter>\n</invoke>\n"
+        }
+      ],
+      "audit_note": "Confirmé : 3/3 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:13",
+      "section": "t-digest-centroides",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Le nombre de centroïdes d'un t-digest pleinement fusionné est borné par ⌈δ⌉ (le paramètre de compression) et non par la longueur du flux — ce bornage est énoncé par le papier pour les quatre fonctions d'échelle k0 à k3 (avec, pour k2 et k3, une validité jusqu'à des tailles de flux astronomiques, ~10^60 échantillons, donc non contraignante en pratique). Mais le mécanisme n'est PAS commun aux quatre : seules k1, k2 et k3 forcent des clusters minuscules près des rangs extrêmes (q→0, q→1) et larges près de la médiane. k0 est linéaire et produit au contraire des clusters de taille quasi uniforme sur tout le domaine, avec une erreur absolue quasi constante en q — un comportement que le papier compare explicitement à celui « de la plupart des algorithmes d'approximation de quantiles rapportés précédemment ». k0 atteint donc le même bornage ⌈δ⌉ par une voie différente, pas par la petitesse des clusters aux extrêmes.",
+      "original_statement": "Le nombre de centroïdes d'un t-digest pleinement fusionné est borné par ⌈δ⌉ (le paramètre de compression) et non par la longueur du flux, parce que les fonctions d'échelle k0 à k3 forcent des clusters minuscules près des rangs extrêmes (q→0, q→1) et larges près de la médiane.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le papier de référence (Dunning & Ertl, ar5iv 1902.04023) énonce exactement ce résultat en §2.8 : « The number of centroids in a fully merged t-digest is bounded by ⌈δ⌉ as the number of samples increases without bound » — vrai pour k0-k3 (nuance mineure : pour k2/k3 la garantie asymptotique ne tient qu'au-delà de 10^60 échantillons, un seuil sans portée pratique, non mentionné par le claim mais qui ne l'invalide pas). Confirmé indépendamment par Cormode et al. 2021 : « the space parameter δ is used to enforce that there are at most δ centroids maintained, no matter what order the items in the input stream arrive in, for any of the scale functions considered » ; le blog G-Research corrobore qualitativement le mécanisme (petits clusters aux extrêmes via la fonction d'échelle)."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Le bornage par ⌈δ⌉ est réel et bien énoncé dans le papier, mais l'attribution du mécanisme « clusters minuscules aux extrêmes, larges au centre » à k0 est fausse : le papier dit explicitement que k0 (linéaire) produit des clusters quasi uniformes et une erreur absolue quasi constante — l'exact opposé du mécanisme décrit. Seules k1 à k3 ont ce comportement asymétrique."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Le nombre de centroïdes d'un t-digest pleinement fusionné est borné par ⌈δ⌉ (le paramètre de compression) et non par la longueur du flux, parce que les fonctions d'échelle k0 à k3 forcent des clusters minuscules près des rangs extrêmes (q→0, q→1) et larges près de la médiane. »"
+    },
+    {
+      "id": "claim:14",
+      "section": "t-digest-centroides",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "t-digest définit sa garantie de précision relativement à max(q, 1−q) plutôt qu'en erreur absolue uniforme, privilégiant explicitement les quantiles extrêmes (p99, p999) au détriment de la région médiane — un choix de garantie inverse de celui de GK et KLL, qui bornent l'erreur de rang uniformément sur tout le domaine (εN).",
+      "original_statement": "t-digest définit sa garantie de précision relativement à max(q, 1−q) plutôt qu'en erreur absolue uniforme, privilégiant explicitement les quantiles extrêmes (p99, p999) au détriment de la région médiane — un choix de garantie inverse de celui de GK et KLL, qui bornent l'erreur de rang uniformément sur tout le domaine (εN).",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le papier de référence dit littéralement : « the method allows a quantile q to be computed with an accuracy relative to max(q,1-q) rather than absolute accuracy as with most other methods ». Cormode et al. 2021 (auteurs indépendants) confirment le contraste : les fonctions d'échelle de t-digest « grow rapidly near the tails q=0,1 but are flat near q=0.5 », contre la « uniform (additive) rank estimation guarantee » de GK/KLL. Le papier KLL lui-même (Karnin, Lang, Liberty — auteurs indépendants de Dunning/Ertl) revendique une erreur additive uniforme εn, cohérent avec le claim."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Confirmé mot pour mot dans l'abstract du papier t-digest (« accuracy relative to max(q,1−q) rather than absolute accuracy »), avec le corps du texte précisant une précision quasi constante relativement à q(1−q) — donc meilleure aux extrêmes, moins bonne au centre. L'abstract KLL confirme symétriquement une garantie uniforme (« approximate the rank of any query up to additive error εn »); GK partage cette uniformité (invariant g_i+Δ_i ≤ 2εn, indépendant de q). Le cadrage « inverse » est fidèle."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:15",
+      "section": "t-digest-centroides",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "Le t-digest est souvent présenté comme littéralement « un k-means en dimension 1 », mais son propre papier de référence prend soin de le distinguer du k-means (échantillons restreints à ℝ¹, clusters bornés en taille par une règle spéciale) plutôt que d'en revendiquer une équivalence stricte — la formule « variante de k-means » vient de la documentation de l'implémentation de référence, pas de l'article académique.",
+      "original_statement": "Le t-digest est souvent présenté comme littéralement « un k-means en dimension 1 », mais son propre papier de référence prend soin de le distinguer du k-means (échantillons restreints à ℝ¹, clusters bornés en taille par une règle spéciale) plutôt que d'en revendiquer une équivalence stricte — la formule « variante de k-means » vient de la documentation de l'implémentation de référence, pas de l'article académique.",
+      "corroborated": 3,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Vérifié par lecture directe des deux documents nommés par le claim : le papier (ar5iv 1902.04023) dit « The t-digest differs from more well-known forms of clustering such as k-means in that the samples are from ℝ¹... and because the clusters are limited by size in a special way » (distinction, pas équivalence) ; le README de l'implémentation dit « The t-digest construction algorithm uses a variant of 1-dimensional k-means clustering ». Réserve d'indépendance : les deux documents ont le même auteur principal (Dunning) — ce n'est pas une confirmation par un tiers, mais une lecture directe des deux sources primaires nommées, adaptée à ce type de claim bibliographique/attributif ; aucune source tierce indépendante discutant explicitly cette distinction paper-vs-doc n'a été trouvée."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le papier dit explicitement que t-digest « differs from more well-known forms of clustering such as k-means in that the samples are from ℝ¹ ... and because the clusters are limited by size in a special way » — une distinction, pas une équivalence. Le README de l'implémentation de référence dit au contraire « uses a variant of 1-dimensional k-means clustering ». La distinction source-académique vs source-implémentation est exacte."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Vérifié mot pour mot dans les deux sources. Le papier (section 1.2, seule occurrence de « k-means » dans tout le texte) dit exactement : « The t-digest differs from more well-known forms of clustering such as k-means in that the samples are from ℝ¹ rather than taken from any space with a metric and because the clusters are limited by size in a special way. » — donc distinction explicite, pas d'équivalence revendiquée ; correspond exactement à « échantillons restreints à ℝ¹, clusters bornés en taille par une règle spéciale ». Le README de l'implémentation de référence (tdunning/t-digest, dépôt officiel de l'auteur du papier) dit : « The t-digest construction algorithm uses a variant of 1-dimensional k-means clustering… » — c'est bien de ce texte que vient la formule « variante de k-means », absente du papier académique. Cette phrase du README est aussi celle qui se propage telle quelle dans les docs dérivées (CRAN, PyPI), ce qui corrobore le constat que le raccourci « k-means en 1D » circule via l'implémentation plutôt que via l'article. Seul le qualificatif « souvent présenté » est une caractérisation d'usage non mesurée par une source unique, mais elle n'affaiblit pas le cœur factuel vérifié."
+        }
+      ],
+      "audit_note": "Confirmé : 3/3 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:16",
+      "section": "t-digest-centroides",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "t-digest n'offre pas de borne d'erreur pire-cas prouvée comme celles de Greenwald-Khanna (invariant max(g_i+Δ_i) ≤ 2εn) ou de KLL (borne optimale prouvée O((1/ε)·log log(1/δ))) : ses propres auteurs reconnaissent qu'une explication rigoureuse de la croissance de l'erreur avec δ « n'est pas encore disponible », la précision étant validée empiriquement plutôt que démontrée.",
+      "original_statement": "t-digest n'offre pas de borne d'erreur pire-cas prouvée comme celles de Greenwald-Khanna (invariant max(g_i+Δ_i) ≤ 2εn) ou de KLL (borne optimale prouvée O((1/ε)·log log(1/δ))) : ses propres auteurs reconnaissent qu'une explication rigoureuse de la croissance de l'erreur avec δ « n'est pas encore disponible », la précision étant validée empiriquement plutôt que démontrée.",
+      "corroborated": 3,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 7,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Citation quasi verbatim du papier de référence : « In practical terms, however, the t-digest clearly performs well... a rigorous explanation of the scaling of error with δ is still not available » — correspond exactement à « n'est pas encore disponible ». Confirmé indépendamment par Apache DataSketches : « Unlike all other algorithms in the library, t-digest is empirical and has no mathematical basis for estimating its error » ; et par Cormode et al. 2021, qui opposent l'approche « pragmatique » de t-digest à l'approche « théorique » de ReqSketch, ce dernier seul doté de garanties formelles. La borne KLL O((1/ε)·log log(1/δ)) est elle-même revendiquée par le papier KLL original (Karnin/Lang/Liberty, source indépendante des auteurs de t-digest)."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Citation quasi littérale confirmée : le papier dit « a rigorous explanation of the scaling of error with δ is still not available ». Corroboré indépendamment par la doc Apache DataSketches : « t-digest is empirical and has no mathematical basis for estimating its error ». L'abstract KLL confirme O((1/ε)log log(1/δ)) avec « a matching lower bound » (donc prouvé optimal) ; l'invariant GK max(g_i+Δ_i) ≤ 2εn est corroboré par une source secondaire (aakinshin.net, non listée en candidate mais vérifiée)."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": true,
+          "n_sources": 4,
+          "note": "La citation « n'est pas encore disponible » est vérifiée verbatim dans le papier (section 3.3 : « a rigorous explanation of the scaling of error with δ is still not available », précédée de la discussion sur k1/k2/k3 et suivie de « In practical terms, however, the t-digest clearly performs well »). L'invariant GK max(g_i+Δ_i) ≤ 2εn et la borne KLL O((1/ε)·log log(1/δ)) (Karnin-Lang-Liberty, avec borne inférieure correspondante) sont tous deux corroborés. Seule nuance mineure : la borne KLL citée est formellement une borne d'ESPACE optimale garantissant l'erreur ε avec probabilité 1−δ, pas une « borne d'erreur » au sens strict comme l'invariant GK — la formulation de l'énoncé mérite cette précision mais n'invalide pas le fond, largement corroboré par une source tierce indépendante (Apache DataSketches, qui contraste explicitement l'absence de base mathématique de t-digest avec les garanties formelles de KLL)."
+        }
+      ],
+      "audit_note": "Confirmé : 3/3 jurés, 7 sources indépendantes."
+    },
+    {
+      "id": "claim:17",
+      "section": "preuve-contre-mesure",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "L'adoption industrielle massive de t-digest est souvent lue comme une preuve implicite qu'il offre une garantie d'erreur de rang bornée comparable à GK ou KLL — c'est faux : la documentation Apache DataSketches le classe explicitement comme « empirique, sans base mathématique pour estimer son erreur », et des entrées adversariales construites par Cormode, Mishra, Ross et Veselý (KDD 2021) induisent une erreur presque arbitrairement grande, même si les mêmes auteurs concèdent que t-digest reste un choix pertinent sur des données réalistes.",
+      "original_statement": "L'adoption industrielle massive de t-digest est souvent lue comme une preuve implicite qu'il offre une garantie d'erreur de rang bornée comparable à GK ou KLL — c'est faux : la documentation Apache DataSketches le classe explicitement comme « empirique, sans base mathématique pour estimer son erreur », et des entrées adversariales construites par Cormode, Mishra, Ross et Veselý (KDD 2021) induisent une erreur presque arbitrairement grande, même si les mêmes auteurs concèdent que t-digest reste un choix pertinent sur des données réalistes.",
+      "corroborated": 3,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "La doc Apache cite mot pour mot : « Unlike all other algorithms in the library, t-digest is empirical and has no mathematical basis for estimating its error ». Le papier KDD 2021 (mêmes 4 auteurs cités dans le claim) construit en section 4 des entrées adversariales induisant une erreur presque arbitrairement grande, tout en concluant que t-digest « will remain a compelling choice... for most realistic data patterns ». Les deux sources sont indépendantes (doc d'un projet Apache vs. article de recherche) et chacune fait autorité pour la partie du claim qu'elle couvre."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "DataSketches docs state verbatim that t-digest is 'empirical and has no mathematical basis for estimating its error'; the KDD 2021 paper (confirmed authors/venue via arXiv abstract and ACM DOI 10.1145/3447548.3467152) constructs adversarial 'lopsided centroid' inputs pushing error toward worst-case bounds while conceding t-digest 'will remain a compelling choice' on realistic data — the claim's hedges ('presque arbitrairement grande', concession) match the source's own hedges."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Chaque élément factuel vérifié tient. (1) La doc DataSketches dit mot pour mot, à propos de t-digest : « t-digest is empirical and has no mathematical basis for estimating its error » — correspond exactement à « empirique, sans base mathématique pour estimer son erreur » (trouvé sur tdigest.html, pas sur SketchCriteria.html qui ne mentionne t-digest que dans une liste sans le qualifier — la 3e source candidate ne supporte donc pas directement ce point, mais l'énoncé dit juste « la documentation Apache DataSketches », ce qui reste exact). (2) Le papier KDD 2021 de Cormode, Mishra, Ross et Veselý (confirmé via ACM DL comme distinct du papier PODS 2021 « Relative Error Streaming Quantiles » de Cormode/Karnin/Liberty/Thaler/Veselý — bonne désambiguïsation dans l'énoncé) dit littéralement « show how to construct inputs for t-digest that induce an almost arbitrarily large error », portant sur l'erreur de RANG (le papier définit l'erreur de quantile comme |q − R(y)/n|, contrastant avec les garanties de rang uniformes de GK/KLL) — cohérent avec « erreur de rang bornée » évoqué dans l'énoncé pour GK/KLL. (3) Les mêmes auteurs concèdent explicitement : « For most realistic data patterns encountered in practice, the t-digest will remain a compelling choice » — correspond à « choix pertinent sur des données réalistes ». Seule partie non sourcée par une citation externe : l'amorce rhétorique (« l'adoption industrielle massive... est souvent lue comme preuve implicite... c'est faux ») est une formulation de cadrage, pas un fait à sourcer — elle sert à introduire la correction, qui elle est intégralement vérifiée."
+        }
+      ],
+      "audit_note": "Confirmé : 3/3 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:18",
+      "section": "preuve-contre-mesure",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "La borne d'espace O(ε⁻¹log(εN)) de Greenwald-Khanna (SIGMOD 2001) a été prouvée essentiellement optimale pour tout résumé de quantiles déterministe fondé sur des comparaisons par Cormode et Veselý (PODS 2020), mais les implémentations « GK » réellement déployées en production sont fréquemment des versions sur-simplifiées sans aucune garantie théorique connue sur leur erreur ou leur espace — un écart que Gribelyuk, Sawettamalya, Wu et Yu (PODS 2024) comblent avec une variante déterministe simplifiée conservant la borne optimale à (2+o(1))·ε⁻¹·log(εN) éléments.",
+      "original_statement": "La borne d'espace O(ε⁻¹log(εN)) de Greenwald-Khanna (SIGMOD 2001) a été prouvée essentiellement optimale pour tout résumé de quantiles déterministe fondé sur des comparaisons par Cormode et Veselý (PODS 2020), mais les implémentations « GK » réellement déployées en production sont fréquemment des versions sur-simplifiées sans aucune garantie théorique connue sur leur erreur ou leur espace — un écart que Gribelyuk, Sawettamalya, Wu et Yu (PODS 2024) comblent avec une variante déterministe simplifiée conservant la borne optimale à (2+o(1))·ε⁻¹·log(εN) éléments.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Extraction texte du PDF Gribelyuk et al. (via pdftotext) : « this algorithm was shown to be optimal by Cormode and Vesleý in 2020 [...] over-simplified versions of the algorithm are implemented in practical applications, often without any known theoretical guarantees [...] a simplified deterministic algorithm that stores at most (2+o(1))ε⁻¹log(εn) elements ». Correspond mot pour mot au claim. Cormode-Veselý (arXiv abs, confirmé PODS 2020) prouve l'optimalité citée. Deux équipes d'auteurs distinctes, sources primaires directement lues."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "arXiv:1905.03838 abstract confirms the matching lower bound proving GK's O(ε⁻¹log(εN)) essentially optimal for deterministic comparison-based summaries. The 2024 paper's abstract (cross-verified via par.nsf.gov, researchr.org and dl.acm.org listings) states its deterministic simplification 'stores at most (2+o(1))ε⁻¹log(εn) elements' — an exact match — and explicitly frames deployed GK implementations as over-simplified without known theoretical guarantees."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:19",
+      "section": "preuve-contre-mesure",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Les résumés de quantiles fondés sur des comparaisons (GK, KLL) et les sketches de quantiles de DataSketches bornent l'erreur sur le rang normalisé, jamais sur la valeur retournée — la documentation DataSketches le confirme explicitement pour KLL ('there are no error guarantees in terms of values, only the [rank] bounds are provided') et pour t-digest ('does not provide any accuracy guarantees in the value space'). L'intuition usuelle est qu'un intervalle de rang de largeur fixe peut correspondre à un intervalle de valeur arbitrairement large si la densité locale est faible — mais l'affirmation qu'AUCUN algorithme sous-linéaire ne peut par principe borner l'erreur en valeur sans hypothèse distributionnelle n'est pas un résultat établi par la source citée, qui est une note de comparaison empirique KLL/t-digest, pas une preuve d'impossibilité générale.",
+      "original_statement": "Toutes les garanties de précision des sketches de quantiles fondés sur des comparaisons (GK, KLL, DataSketches) bornent l'erreur sur le RANG normalisé et jamais sur la VALEUR retournée, parce qu'aucun algorithme sous-linéaire ne peut borner l'erreur en valeur sans hypothèse sur la distribution sous-jacente — un intervalle de rang de largeur fixe peut correspondre à un intervalle de valeur arbitrairement large si la densité locale est faible.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "La page d'étude confirme que KLL/REQ ne garantissent l'erreur qu'en rang normalisé (« there are no error guarantees in the value space »). Le mainteneur DataSketches écrit indépendamment : « error bounds on values are not achievable in a general case. And that is not a limitation of this particular sketch, but any approximation of quantiles » — généralisation cohérente avec le claim. Nuance : aucune des deux sources n'énonce formellement un théorème d'impossibilité \"sous-linéaire\", c'est un raisonnement standard du domaine plutôt qu'une preuve citée telle quelle ; je considère que le claim tient tel qu'énoncé mais la justification causale reste un raisonnement d'expert plutôt qu'un théorème publié et référencé comme tel."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "The rank-vs-value distinction is solidly confirmed by direct quotes for KLL and t-digest specifically. But the claim's causal clause — a general impossibility theorem for 'no sub-linear algorithm' absent distributional assumptions — is not supported by the single candidate source, which only documents the pattern for two specific sketches; I found no primary source establishing the stronger universal claim, only an unverifiable AI-synthesized search snippet. This reads as an unsourced generalization presented with more certainty than warranted."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « Toutes les garanties de précision des sketches de quantiles fondés sur des comparaisons (GK, KLL, DataSketches) bornent l'erreur sur le RANG normalisé et jamais sur la VALEUR retournée, parce qu'aucun algorithme sous-linéaire ne peut borner l'erreur en valeur sans hypothèse sur la distribution sous-jacente — un intervalle de rang de largeur fixe peut correspondre à un intervalle de valeur arbitrairement large si la densité locale est faible. »"
+    },
+    {
+      "id": "claim:20",
+      "section": "preuve-contre-mesure",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le sketch « Classic Quantiles » d'Apache DataSketches — que l'on pourrait supposer être une implémentation de Greenwald-Khanna — implémente en réalité le « Low Discrepancy Mergeable Quantiles Sketch » d'Agarwal et al. (Mergeable Summaries, section 3.2), choisi précisément parce qu'il est fusionnable, une propriété que GK n'est pas connu pour préserver à borne d'espace constante.",
+      "original_statement": "Le sketch « Classic Quantiles » d'Apache DataSketches — que l'on pourrait supposer être une implémentation de Greenwald-Khanna — implémente en réalité le « Low Discrepancy Mergeable Quantiles Sketch » d'Agarwal et al. (Mergeable Summaries, section 3.2), choisi précisément parce qu'il est fusionnable, une propriété que GK n'est pas connu pour préserver à borne d'espace constante.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "La doc Apache dit explicitement : « The quantiles algorithm is an implementation of the Low Discrepancy Mergeable Quantiles Sketch [...] described in section 3.2 of the journal version of the paper 'Mergeable Summaries' ». Extraction texte du PDF (pdftotext) confirme que la section 3.2 s'intitule bien « Low-discrepancy-based summaries » et contient : « Corollary 2 The GK algorithm is one-way mergeable [...] we cannot show that the GK summary is (fully) mergeable, nor can we give a negative proof. We conjecture it is not ». Correspond exactement au claim : fusionnabilité de GK non connue (ni prouvée ni infirmée), d'où le choix du résumé low-discrepancy pour la sketch DataSketches."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "DataSketches docs state almost verbatim: 'The quantiles algorithm is an implementation of the Low Discrepancy Mergeable Quantiles Sketch... described in section 3.2 of... Mergeable Summaries by Agarwal, Cormode, Huang, Phillips, Wei, and Yi' — no mention of GK. GK's lack of known full mergeability (only 'one-way mergeable', size grows on merge) is corroborated by independent search results and is DDSketch's own stated motivation ('fully-mergeable' as a distinguishing feature). The 'chosen precisely because mergeable' framing is an inference, not a direct DataSketches quote, but is strongly grounded in the library's published sketch-inclusion criteria requiring merging properties plus the source algorithm's name/provenance."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:21",
+      "section": "fusionnabilite-resumes-de-rang",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Agarwal et al. (Mergeable Summaries, PODS 2012 / TODS 2013) formally define exactly two mergeability degrees for a summary — full mergeability (Def. 1.1: size bounded by a function of the union's size, merge algorithm works for an arbitrary/indefinite number of successive merges) and one-way mergeability (Def. 1.2: a weaker, asymmetric 'batched streaming' model) — and PROVE that GK achieves one-way mergeability (Cor. 3.1, size O((1/ε)log(εn))); they only CONJECTURE, without proof, that GK (and deterministic comparison-based summaries generally) cannot achieve full mergeability.",
+      "original_statement": "Agarwal et al. (PODS 2012 / TODS 2013) formally define exactly two mergeability degrees for a rank summary — full mergeability (a merge algorithm works for an arbitrary, indefinite number of successive merges, with size bounded only by a function of the union) and one-way mergeability (a weaker, asymmetric 'batched streaming' model) — and prove GK reaches only the second.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Verified directly against the origin paper (Agarwal et al., mergeSumm-MASSIVE11.pdf): Definition 1.1 (full mergeability) and Definition 1.2 (one-way mergeability) are stated as exactly the two variants studied, and Corollary 3.1 proves GK 'is one-way mergeable, although not fully mergeable.' Domes & Veselý independently state verbatim 'the Greenwald-Khanna summary is not fully mergeable, only \"one-way mergeable\" as discussed in [Aga+13]' (arXiv:2511.17396, p.5). Ivkin et al. independently corroborate with the slightly more hedged 'It is not known to be fully mergeable' (arXiv:1907.00236, p.1). Both sources are independent of Agarwal et al. and of each other."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Read the full paper: Def 1.1/1.2 match, and Corollary 3.1 proves GK is one-way mergeable — but the paper never proves GK is confined to that level. It only states 'we conjecture that there are no deterministic quantile summaries of size poly(1/ε,log n) that is fully mergeable.' Karnin-Lang-Liberty independently confirm this is a conjecture: 'Agarwal et al [7] conjecture that the GK sketch is not mergeable.' 'Prove GK reaches only the second' overclaims a proof that does not exist in the source."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « Agarwal et al. (PODS 2012 / TODS 2013) formally define exactly two mergeability degrees for a rank summary — full mergeability (a merge algorithm works for an arbitrary, indefinite number of successive merges, with size bounded only by a function of the union) and one-way mergeability (a weaker, asymmetric 'batched streaming' model) — and prove GK reaches only the second. »"
+    },
+    {
+      "id": "claim:22",
+      "section": "fusionnabilite-resumes-de-rang",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Full mergeability for quantile summaries is a paid-for property, not a free one: the best fully-mergeable bounds carry a measurable space premium over the best bound achievable without the full-mergeability requirement.",
+      "original_statement": "Full mergeability for quantile summaries is a paid-for property, not a free one: the best fully-mergeable bounds carry a measurable space premium over the best bound achievable without the full-mergeability requirement.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Domes & Veselý give a direct quantified premium: 'ReqSketch is fully mergeable but requires O(ε⁻¹·log^1.5(εN)) space, still by log(εN) larger than the lower bound of Ω(ε⁻¹·log(εN)) that holds even for non-comparison-based randomized algorithms' (arXiv:2511.17396, p.5). Ivkin et al. give an apples-to-apples comparison within the same KLL family: the non-mergeable optimum is O(1/ε·log log 1/ε) while 'the fully mergeable algorithm' costs O(1/ε·log²log 1/ε) (arXiv:1907.00236, p.1) — a genuine extra-log-factor premium, not a free property. Both sources are independent of each other and of Agarwal et al."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Read the KLL paper directly: it gives O((1/ε)loglog(1/δ)) space when the top compactors are replaced by a GK sketch ('this prevents the sketch from being mergeable'), versus O((1/ε)log²log(1/δ)) — an explicit loglog(1/δ) factor larger — for the variant that 'is fully mergeable.' Cormode's independent survey corroborates: GK-style optimal sketches 'are not known to be mergeable' while KLL is 'mergeable and NEARLY optimal' (i.e. not optimal). The claim's hedged, qualitative framing ('measurable... premium') matches this concrete, quantified gap."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:23",
+      "section": "fusionnabilite-resumes-de-rang",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "A t-digest merge does not preserve the strong centroid ordering of the inputs — the union of two individually strongly-ordered t-digests is in general only weakly ordered, and Dunning & Ertl's paper (arXiv:1902.04023, 2019) itself states this loss of strict ordering 'makes it difficult to compute rigorous error bounds,' unlike GK/KLL whose merged rank error stays provably bounded. However, the size-k invariant-survives-merging proof is due to Dunning alone, in a separate paper (\"Conservation of the t-digest Scale Invariant,\" arXiv:1903.09919, 2019) — not a joint Dunning & Ertl proof.",
+      "original_statement": "A t-digest merge is well-defined (its size-k invariant survives merging, per Dunning & Ertl's 2019 proof) but does not preserve the strong centroid ordering of the inputs — the union of two individually strongly-ordered t-digests is in general only weakly ordered, and the original t-digest paper states this loss of strict ordering makes rigorous error bounds hard to compute, unlike GK/KLL whose merged rank error stays provably bounded.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Fetched both candidate PDFs directly (local pdftotext extraction). Dunning & Ertl (arXiv:1902.04023) itself confirms the weak-ordering-under-merge and 'hard to compute rigorous error bounds' statements verbatim — but contains no proof of the size-k invariant surviving merges. That proof lives in a DIFFERENT, solo-authored Dunning paper (arXiv:1903.09919). The independent KDD'21 paper (Cormode/Mishra/Ross/Veselý) corroborates this exact split, citing 'Dunning [6]' (=1903.09919, solo) for the invariant-preservation result, distinct from Dunning & Ertl's paper in its own bibliography. The claim's attribution of the merge-invariant proof to 'Dunning & Ertl' is therefore a misattribution, even though every other element of the claim is accurate."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "The ordering-loss / hard-to-compute-error-bounds statement is verified nearly verbatim in §2.5 of the original paper. But arXiv:1903.09919, the paper that actually PROVES the size-k invariant survives (title: 'Conservation of the t-digest Scale Invariant'), is authored by Ted Dunning alone — I read the full text, only one author is listed. Attributing that specific proof to 'Dunning & Ertl' misassigns authorship of the source the claim itself cites."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « A t-digest merge is well-defined (its size-k invariant survives merging, per Dunning & Ertl's 2019 proof) but does not preserve the strong centroid ordering of the inputs — the union of two individually strongly-ordered t-digests is in general only weakly ordered, and the original t-digest paper states this loss of strict ordering makes rigorous error bounds hard to compute, unlike GK/KLL whose merged rank error stays provably bounded. »"
+    },
+    {
+      "id": "claim:24",
+      "section": "fusionnabilite-resumes-de-rang",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "GK is proven space-optimal among deterministic comparison-based quantile summaries on a single machine (Cormode & Veselý, PODS 2020), but this optimality does not transfer to distributed settings requiring repeated merges: GK achieves only one-way mergeability, and the paper that established that framework (Agarwal et al.) notes GK's known merge algorithm 'does not work in an indefinite merging process, so it is not mergeable by our definition.' Independent literature treats this as disqualifying: a later streaming-quantiles paper states that a candidate solution 'is not mergeable due to the use of GK ... as a subroutine,' and the field instead developed dedicated fully-mergeable alternatives (e.g. Manku-Rajagopalan-Lindsay-style summaries, fully-mergeable KLL variants, ReqSketch) specifically for repeated cross-machine merging.",
+      "original_statement": "The quantile summary that is space-optimal on a single machine (GK, proven space-optimal among deterministic comparison-based sketches by Cormode & Veselý, PODS 2020) remains the best choice once the computation is distributed and summaries must be repeatedly merged across machines.",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 3,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 0,
+          "note": "Claim as stated is not supported — it conflates single-machine space-optimality with fitness for repeated distributed merging. Independently verified refutation: Ivkin, Liberty, Lang, Karnin & Braverman (arXiv:1907.00236, p.3) state a GK-based pipeline 'is not mergeable due to the use of GK [9] as a subroutine.' The origin paper itself (Agarwal et al., mergeSumm-MASSIVE11.pdf) also states GK's merge algorithm fails for indefinite merging, so it is 'not mergeable by our definition' — internally consistent with claim [0]'s finding that GK is only one-way mergeable. No independent source found that confirms GK as the preferred choice once repeated cross-machine merging is required; the literature points the opposite way. Leaving independent_sources empty since none confirms the original (uncorrected) claim."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Read Cormode's survey directly: 'space-optimal algorithms like GK ... are not known to be mergeable' while 'KLL ... is mergeable and nearly optimal in space,' explicitly making KLL — not GK — the preferred choice for distributed/merged settings. The KLL paper corroborates: swapping in a GK sketch 'prevents the sketch from being mergeable.' I also checked the Cormode-Veselý PODS 2020 paper itself: its optimality proof is scoped to the single-stream setting and does not address or claim anything about repeated distributed merging. The claim's premise (GK's single-machine optimality) is true; its conclusion (GK remains best under distributed merging) is directly contradicted by the literature."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Both candidate sources given were directly checked (the second required local pdftotext extraction since WebFetch's PDF parser returned only binary-stream noise for both PDFs). Source 1 confirms GK's single-machine space-optimality; source 2 explicitly states GK is \"one-way mergeable, although not fully mergeable,\" that merge error grows with each merge, and that the authors built a new fully-mergeable summary precisely because GK does not scale to indefinite distributed merging — directly refuting the claim's second half."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « The quantile summary that is space-optimal on a single machine (GK, proven space-optimal among deterministic comparison-based sketches by Cormode & Veselý, PODS 2020) remains the best choice once the computation is distributed and summaries must be repeatedly merged across machines. »"
+    },
+    {
+      "id": "claim:25",
+      "section": "reservoir-sampling",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "L'algorithme A-Res d'Efraimidis & Spirakis (clé k_i = u_i^(1/w_i)) se réduit, quand tous les poids valent 1, à un tirage par clés uniformes équivalent en DISTRIBUTION à un échantillonnage uniforme par réservoir de taille m (même garantie qu'Algorithm R de Vitter — probabilité m/n pour chaque item — mais par un mécanisme différent : comparaison de clés vs remplacement séquentiel avec probabilité m/(t+1)), et le Théorème 1 de leur article (portant sur Algorithm A, dont hérite A-Res) prouve que la procédure produit un échantillon pondéré valide dont la probabilité de sélection est proportionnelle au poids.",
+      "original_statement": "L'algorithme A-Res d'Efraimidis & Spirakis (clé k_i = u_i^(1/w_i)) redonne exactement Algorithm R de Vitter quand tous les poids valent 1, et le Théorème 1 de leur article prouve que la procédure produit un échantillon pondéré valide dont la probabilité de sélection est proportionnelle au poids.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Le volet Théorème 1 est confirmé en lisant l'article lui-même (2007EncOfAlg.pdf) : 'Algorithm A generates a WRS' et 'Algorithm A-Res performs the calculations required by algorithm A and hence by Theorem 1 A-Res generates a WRS' — mais cette source EST l'origine du claim (auto-citation), pas une source indépendante. Wikipédia confirme indépendamment la formule de la clé mais ne mentionne nulle part une équivalence à 'Algorithm R' de Vitter. Recherches ciblées (Vitter lui-même, chapitre Chris Wyman, blog mikemarcin.com) : aucune source indépendante n'affirme que A-Res à poids unitaires redonne EXACTEMENT Algorithm R — mécaniquement ce sont deux procédures différentes (clés vs remplacement séquentiel probabiliste) qui ne partagent que la même distribution de sortie. Le libellé 'redonne exactement Algorithm R' est donc une sur-précision non corroborée ; je penche vers holds=false par prudence sur ce point précis, la partie Théorème 1 étant, elle, correcte."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "J'ai lu le texte intégral des deux sources (pdftotext) : le PDF d'Efraimidis & Spirakis ne mentionne jamais 'Algorithm R' ni Vitter par le nom dans le corps du texte, et le PDF de Vitter ne contient AUCUNE occurrence du mot 'weight' — aucune des deux sources ne prouve ni même n'énonce la réduction 'exacte' à Algorithm R. C'est une inférence non sourcée qui confond équivalence distributionnelle (même garantie d'uniformité) et identité procédurale (mêmes opérations) ; le Théorème 1 en revanche est correctement rapporté."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « L'algorithme A-Res d'Efraimidis & Spirakis (clé k_i = u_i^(1/w_i)) redonne exactement Algorithm R de Vitter quand tous les poids valent 1, et le Théorème 1 de leur article prouve que la procédure produit un échantillon pondéré valide dont la probabilité de sélection est proportionnelle au poids. »"
+    },
+    {
+      "id": "claim:26",
+      "section": "reservoir-sampling",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Les algorithmes à saut pour reservoir sampling (Z de Vitter 1985, L de Li 1994) atteignent un temps attendu O(n(1+log(N/n))), optimal à une constante multiplicative près, en tirant directement combien d'éléments ignorer plutôt qu'en testant chaque élément comme le fait Algorithm R en O(N).",
+      "original_statement": "Les algorithmes à saut pour reservoir sampling (Z de Vitter 1985, L de Li 1994) atteignent un temps attendu O(n(1+log(N/n))), optimal à une constante multiplicative près, en tirant directement combien d'éléments ignorer plutôt qu'en testant chaque élément comme le fait Algorithm R en O(N).",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Confirmé en lisant l'intégralité de l'article de Vitter (pages 1-10) : abstract — 'the design and analysis of Algorithm Z; it does the sampling ... in O(n(1+log(N/n))) expected time ... optimum, up to a constant factor' ; section 2 — 'It is clear that Algorithm R runs in time O(N) because the entire file must be scanned' ; Table I confirme R=O(N) vs Z=O(n(1+log(N/n))). Wikipédia (source indépendante, ouverte séparément) confirme que l'algorithme L de Li (1994) atteint la même complexité asymptotique O(k(1+log(n/k))) par un mécanisme de saut plutôt que de test item par item, contrastant explicitement avec Algorithm R. Les deux sources sont indépendantes l'une de l'autre et de l'origine (Vitter est la source primaire du résultat Z ; Wikipédia synthétise indépendamment Li 1994)."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Confirmé mot pour mot dans le PDF de Vitter lu directement : 'Algorithm Z ... O(n(1+log(N/n))) expected time, which is optimum, up to a constant factor' et 'Algorithm R runs in time O(N) because the entire file must be [read]'. Le lien dl.acm.org pour Li 1994 était bloqué (403) ; j'ai substitué Wikipédia comme seconde source indépendante, qui confirme la même borne O(k(1+log(n/k))) pour l'Algorithme L et le mécanisme de saut vs test-par-item."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:27",
+      "section": "reservoir-sampling",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "Pour fusionner deux réservoirs indépendants issus de deux partitions d'un flux distribué, il suffirait de tirer, pour chaque place du réservoir final, un côté au hasard avec une probabilité proportionnelle à la taille de flux vue par chaque partition (un tirage binomial par item) — cette méthode intuitive produit en réalité un échantillon NON uniforme ; la fusion correcte exige de tirer le nombre d'éléments pris de chaque côté selon une loi hypergéométrique.",
+      "original_statement": "Pour fusionner deux réservoirs indépendants issus de deux partitions d'un flux distribué, il suffirait de tirer, pour chaque place du réservoir final, un côté au hasard avec une probabilité proportionnelle à la taille de flux vue par chaque partition (un tirage binomial par item) — cette méthode intuitive produit en réalité un échantillon NON uniforme ; la fusion correcte exige de tirer le nombre d'éléments pris de chaque côté selon une loi hypergéométrique.",
+      "corroborated": 3,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les deux brevets, indépendants l'un de l'autre (déposants différents), confirment que la méthode correcte de fusion tire le NOMBRE d'éléments pris de chaque côté selon une loi hypergéométrique (formules explicites (S1 choose i)(S2 choose R-i)/(S1+S2 choose R) et équivalent), et que la méthode naïve proportionnelle produit strictement moins de combinaisons possibles que le nombre correct — donc un biais. Le blog candidat (ballsandbins) corrobore avec un contre-exemple chiffré explicite dans les commentaires : le tirage pièce-par-slot donne une loi BINOMIALE (1/4, 1/2, 1/4 pour un cas k=2) au lieu de la loi hypergéométrique correcte (1/6, 4/6, 1/6) — cohérent avec l'énoncé du claim, mais ce commentaire de blog est une source plus faible (contenu généré par un lecteur anonyme) que les deux brevets, que je retiens donc comme sources indépendantes principales."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le billet donne la méthode naïve (coin flip par slot avec p=m/(m+n), proportionnel aux tailles de flux m et n) et un commentaire vérifié arithmétiquement (2 items pris à gauche parmi 2+2 : la méthode naïve donne 1/4-1/2-1/4 (binomiale), la bonne donne 1/6-4/6-1/6 (hypergéométrique) — vérifié par calcul indépendant, ça colle). Le brevet IBM (Brown & Haas), source totalement indépendante, formalise explicitement une loi hypergéométrique pour fusionner deux échantillons de réservoirs disjoints."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Source primaire faisant autorité : le brevet US7543006B2 (Brown & Haas, IBM), motivé explicitement par le cas d'un « incoming stream split over a number of machines » avec des « concurrent sampling processes » à fusionner, définit HRMerge — la fusion correcte de deux réservoirs S1, S2 issus de partitions D1, D2 — en tirant L (le nombre d'éléments pris de S1) selon P(l) = C(|D1|,l)·C(|D2|,k−l) / C(|D1|+|D2|,k), explicitement qualifiée de « loi de probabilité hypergéométrique » dans le texte du brevet. C'est une correspondance exacte avec la partie « correcte » de l'énoncé. Pour la partie « la méthode intuitive est non uniforme » : le billet de blog décrit précisément la méthode naïve contestée (à chaque tirage, choisir R avec probabilité p=m/(m+n) sinon S, répété k fois — un Bernoulli(p) par item, dont le total suit Binomial(k,p)) et un commentaire correctif chiffre l'écart sur un cas k=2 : la méthode naïve donne (1/4, 1/2, 1/4) pour (0,1,2) éléments pris à gauche, contre (1/6, 4/6, 1/6) pour la loi hypergéométrique correcte — vérifié indépendamment par calcul direct (C(2,l)·C(2,2−l)/C(4,2)), confirmant que les deux lois divergent réellement et que la méthode intuitive n'est pas uniforme. Seule nuance mineure, non disqualifiante : la comparaison patent/binomial-naïf n'est pas faite dans un unique document — le brevet établit le « correct » (hypergéométrique), le blog+commentaire établit le « faux » (binomial) avec un contre-exemple chiffré, et le calcul combinatoire élémentaire (définition même de la loi hypergéométrique comme distribution du nombre de succès d'un tirage sans remise dans une population mixte) relie les deux sans ambiguïté."
+        }
+      ],
+      "audit_note": "Confirmé : 3/3 jurés, 5 sources indépendantes."
+    },
+    {
+      "id": "claim:28",
+      "section": "reservoir-sampling",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le plan de sondage de Chao (algorithme A-Chao, qui résout WRS-N-P) garantit qu'un item dont le poids relatif dépasse 1/m de la somme totale des poids est inclus dans le réservoir avec probabilité exactement 1, plutôt qu'avec une probabilité proportionnelle qui excéderait 1 — une contrainte que la clé u^(1/w) d'A-Res ne traite pas de la même manière.",
+      "original_statement": "Le plan de sondage de Chao (algorithme A-Chao, qui résout WRS-N-P) garantit qu'un item dont le poids relatif dépasse 1/m de la somme totale des poids est inclus dans le réservoir avec probabilité exactement 1, plutôt qu'avec une probabilité proportionnelle qui excéderait 1 — une contrainte que la clé u^(1/w) d'A-Res ne traite pas de la même manière.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le rapport du U.S. Census Bureau (auteur et institution totalement indépendants d'Efraimidis/Spirakis) explicite le mécanisme de Chao (1982) : 'it is possible that π(k;i) > 1 for some i ... When this happens, we ... take the U_i with the largest value π(k;i) > 1 and set this value equal to 1 (i.e., we set π(k;i)=1 so U_i is included in the sample with certainty)' — confirmant l'inclusion à probabilité EXACTEMENT 1 pour les items sur-pondérés. Le papier d'Efraimidis (2010) confirme le même point pour A-Chao ('the main idea to handle this case[overweight >1/m], is to sample each overweight item with probability 1') ET explique que A-ES/A-Res résout un problème différent (WRS-N-W, pas WRS-N-P) où 'the final selection probabilities of the items seem to be hard to calculate' — donc la contrainte n'y est pas traitée de la même manière explicite. Attention : Efraimidis est aussi l'auteur d'A-Res, donc partiellement lié à l'origine du claim pour le volet comparatif ; le rapport Census Bureau est en revanche pleinement indépendant et fait autorité sur le mécanisme de Chao lui-même."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Confirmé verbatim dans le PDF lu directement : 'For heavy items with relative weight larger than 1/m we say that the respective items are infeasible or overweight ... the overweight items are handled in a special way that guarantees that they are selected with probability exactly 1', et le texte distingue explicitement A-Chao (WRS-N-P, sujet à cette contrainte) de A-ES/A-Res (WRS-N-W, formulation différente). Une seule source pleinement concordante trouvée (un second chapitre consulté, cwyman.org, traite la variante AVEC remise de A-Chao et ne couvre pas ce mécanisme précis) ; le fait recoupe cependant la littérature classique de sondage à probabilités inégales (strate de certitude chez Chao 1982) que je connais par ailleurs."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:29",
+      "section": "xgboost-weighted-quantile-sketch",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "XGBoost réécrit son objectif d'entraînement par itération comme une perte quadratique pondérée où chaque instance est pondérée par son gradient du second ordre (Hessienne) h_i, et définit la fonction de rang pondéré r_k(z) du split-finding avec ce même h_i comme poids du sketch, de sorte qu'un candidat de split minimisant l'erreur de rang sous cette pondération approxime le vrai split minimisant la perte pondérée.",
+      "original_statement": "XGBoost réécrit son objectif d'entraînement par itération comme une perte quadratique pondérée où chaque instance est pondérée par son gradient du second ordre (Hessienne) h_i, et définit la fonction de rang pondéré r_k(z) du split-finding avec ce même h_i comme poids du sketch, de sorte qu'un candidat de split minimisant l'erreur de rang sous cette pondération approxime le vrai split minimisant la perte pondérée.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Vérifié en lisant le corps de l'article (ar5iv) : l'objectif est bien réécrit en perte quadratique pondérée de poids h_i et de labels g_i/h_i (Eq. 3→4), et r_k(z) est bien défini avec h_i comme poids. Nuance : le lien 'candidat minimisant l'erreur de rang ≈ vrai meilleur split' est justifié par l'article comme un choix de conception + validation empirique (Fig. 3, précision comparable au greedy exact), pas comme un théorème formel — la formulation du claim ('approxime') reste fidèle à ce niveau de preuve."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Confirmed against the paper: h_i is explicitly the second-order gradient (Hessian), Eq. 3 is rewritten as a weighted squared loss with weights h_i ('Each data point is weighted by h_i... which is exactly weighted squared loss with labels g_i/h_i and weights h_i'), and Eq. 8 defines r_k(z) using this same h as the sketch weight — this weighting-by-Hessian link is exactly the stated rationale of §3.3. The independent blog only thinly corroborates 'quantile cut is based on the hessian values' but does not add depth."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:30",
+      "section": "xgboost-weighted-quantile-sketch",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le résumé de quantiles pondéré de XGBoost supporte une opération MERGE qui combine deux résumés de garanties ε1 et ε2 en un résumé unique de garantie max(ε1, ε2), et une opération PRUNE qui réduit un résumé à b+1 entrées au prix d'une garantie passant de ε à ε + 1/b, ce qui rend ensemble le sketch fusionnable à travers des workers distribués.",
+      "original_statement": "Le résumé de quantiles pondéré de XGBoost supporte une opération MERGE qui combine deux résumés de garanties ε1 et ε2 en un résumé unique de garantie max(ε1, ε2), et une opération PRUNE qui réduit un résumé à b+1 entrées au prix d'une garantie passant de ε à ε + 1/b, ce qui rend ensemble le sketch fusionnable à travers des workers distribués.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "L'annexe de l'article énonce littéralement : merge de ε1,ε2 → max(ε1,ε2) ; prune à b+1 entrées → ε+1/b. Le code source (indépendant de l'article, c'est l'implémentation) confirme que ces deux opérations existent réellement et outillent la fusion entre workers."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Verified verbatim in the appendix (§A.1 intro, obtained via two separate consistent fetches): 'A merge operation that combines two summaries with approximation error ε1 and ε2 together and create a merged summary with approximation error max(ε1,ε2)' and 'A prune operation that reduces the number of elements in the summary to b+1 and changes approximation error from ε to ε+1/b' — matches the claim exactly. Could not reach a second independent source (discuss.xgboost.ai and a third-party blog were unreachable), so only the primary paper is reported as verified."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:31",
+      "section": "xgboost-weighted-quantile-sketch",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "L'algorithme de split-finding approché de XGBoost propose deux schémas de candidats pour le sketch de quantiles pondéré — un schéma 'global' calculé une fois avant tout split et réutilisé à chaque niveau de l'arbre, et un schéma 'local' recalculé à chaque nœud après un split. Le schéma local nécessite moins de candidats pour une précision donnée et est présenté par les auteurs comme potentiellement mieux adapté aux arbres profonds, mais l'article ne déclare aucun schéma par défaut ; l'implémentation XGBoost actuelle pour tree_method=approx recalcule le sketch une seule fois par arbre sur toutes les lignes à la racine, un usage de type 'global', pas 'local' par défaut.",
+      "original_statement": "L'algorithme de split-finding approché de XGBoost propose deux schémas de candidats pour le sketch de quantiles pondéré — un schéma 'global' calculé une fois avant tout split et réutilisé à chaque niveau de l'arbre, et un schéma 'local' recalculé à chaque nœud après un split — et XGBoost adopte par défaut la variante locale car elle nécessite moins de candidats pour une précision donnée et généralise mieux sur des arbres profonds.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "La description des deux schémas et l'avantage du local en nombre de candidats/arbres profonds sont bien dans l'article — mais l'article ne tranche PAS de défaut, et la doc XGBoost actuelle décrit un comportement de type global (sketch calculé une fois par arbre sur toute la racine) pour tree_method=approx. L'assertion 'XGBoost adopte le local par défaut' n'est pas confirmée, et est plutôt contredite."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Two separate fetches of the paper's §3.2 text and Figure 3 discussion found no statement of a default variant — the paper frames global vs. local as a user-configurable choice, and only says local 'can potentially be more appropriate for deeper trees' (hedged), never that XGBoost adopts it by default or that it 'generalizes better'. The claim invents a default that the source does not state."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « L'algorithme de split-finding approché de XGBoost propose deux schémas de candidats pour le sketch de quantiles pondéré — un schéma 'global' calculé une fois avant tout split et réutilisé à chaque niveau de l'arbre, et un schéma 'local' recalculé à chaque nœud après un split — et XGBoost adopte par défaut la variante locale car elle nécessite moins de candidats pour une précision donnée et généralise mieux sur des arbres profonds. »"
+    },
+    {
+      "id": "claim:32",
+      "section": "xgboost-weighted-quantile-sketch",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Fusionner deux résumés de quantiles pondérés construits indépendamment (par exemple un par shard dans un job distribué), de garanties d'erreur ε1 et ε2, combine ces erreurs par un maximum et non par une somme : le résumé fusionné a une garantie max(ε1, ε2), selon l'opération MERGE définie dans l'annexe de l'article XGBoost (Chen & Guestrin, 2016).",
+      "original_statement": "Fusionner deux résumés de quantiles pondérés construits indépendamment (par exemple un par shard dans un job distribué), de garanties d'erreur ε1 et ε2, combine ces erreurs de façon additive : le résumé fusionné aurait une garantie ε1 + ε2.",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 3,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Lu directement dans l'annexe (ar5iv) : le merge de deux résumés d'erreur ε1, ε2 donne max(ε1, ε2), pas ε1+ε2 — ce claim contredit frontalement le mécanisme établi pour le claim [1] et doit être rejeté tel quel. Je n'ai pas trouvé de seconde source véritablement indépendante énonçant explicitement cette formule (le code source confirme l'existence du merge/prune mais n'en documente pas l'arithmétique en commentaire) — à signaler."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Directly contradicted by the paper's own appendix text (same passage verified for claim 1): merging produces max(ε1,ε2), not an additive ε1+ε2 combination. This is precisely the wrong intuition the candidate note flagged for scrutiny, and it does not hold."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Source primaire vérifiée directement (fetch texte intégral, deux voies de récupération convergentes — rendu HTML ar5iv et extraction indépendante du PDF arxiv.org via la recherche — mot pour mot identiques) : l'annexe de l'article XGBoost énonce explicitement qu'un merge combine ε1 et ε2 en max(ε1,ε2), et que c'est le prune (élagage à b+1 éléments) qui dégrade l'erreur de façon additive (ε → ε+1/b). L'énoncé contesté inverse donc la mécanique : il attribue au merge le comportement additif qui appartient en réalité au prune. La corroboration via Agarwal et al. (Mergeable Summaries) confirme la doctrine générale — un résumé « one-way mergeable » de type GK préserve sa garantie d'erreur au merge plutôt que de l'additionner — mais je n'ai pu en extraire un texte intégral propre (PDF non parsable par l'outil de fetch sur plusieurs miroirs testés) ; cette corroboration s'appuie donc sur les extraits retournés par la recherche web, pas sur une lecture intégrale comme pour la source primaire."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « Fusionner deux résumés de quantiles pondérés construits indépendamment (par exemple un par shard dans un job distribué), de garanties d'erreur ε1 et ε2, combine ces erreurs de façon additive : le résumé fusionné aurait une garantie ε1 + ε2. »"
+    },
+    {
+      "id": "claim:33",
+      "section": "ecosysteme",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Le sketch KLL (Karnin-Lang-Liberty, FOCS 2016) atteint, dans sa variante non fusionnable (Théorème 5 de l'article original), la borne d'espace asymptotiquement optimale O((1/ε) log log(1/δ)) pour l'approximation ε de quantiles en flux. Mais les mêmes auteurs présentent, dans le même article de 2016, une variante pleinement fusionnable de taille légèrement supérieure O((1/ε) log² log(1/δ)) (Théorème 4) : la fusionnabilité de KLL est donc déjà établie théoriquement dans l'article original, et non ajoutée après coup par un schéma de compaction propre à l'implémentation Apache DataSketches — celle-ci implémente une variante pratique de la branche fusionnable, avec sa propre stratégie de compaction paresseuse pour l'accuracy par bit, mais n'en est pas l'origine.",
+      "original_statement": "Le sketch KLL (Karnin-Lang-Liberty, FOCS 2016) atteint la borne d'espace asymptotiquement optimale pour l'approximation ε de quantiles en flux, mais l'algorithme théorique original n'est pas lui-même fusionnable : la fusion pratique vient du schéma de compaction paresseuse ajouté par l'implémentation Apache DataSketches.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le papier original (Théorèmes 4 et 5) distingue lui-même une variante optimale non fusionnable d'une variante pleinement fusionnable un peu plus coûteuse en espace — confirmé indépendamment par le survey d'Ivkin et al. La fusionnabilité pratique hérite de cette construction théorique de 2016, pas d'un ajout de DataSketches."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le papier original (Théorème 4) définit lui-même une construction KLL fusionnable, légèrement sous-optimale en espace ; seule la variante hybride GK strictement optimale (Théorème 5) perd la fusionnabilité. La mergeabilité fait donc partie de l'algorithme théorique d'origine, pas d'un ajout de DataSketches via « compaction paresseuse » — ce terme désigne le déclenchement différé de la compaction dans le compacteur, un trait de conception originel, pas un mécanisme de fusion ajouté."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Le sketch KLL (Karnin-Lang-Liberty, FOCS 2016) atteint la borne d'espace asymptotiquement optimale pour l'approximation ε de quantiles en flux, mais l'algorithme théorique original n'est pas lui-même fusionnable : la fusion pratique vient du schéma de compaction paresseuse ajouté par l'implémentation Apache DataSketches. »"
+    },
+    {
+      "id": "claim:34",
+      "section": "ecosysteme",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "L'article « Mergeable Summaries » (Agarwal, Cormode, Huang, Phillips, Wei, Yi, ACM TODS 2013) a établi la fusionnabilité complète (« full mergeability »), indépendante de la taille de l'univers, des résumés ε-approchés de quantiles en flux dans le modèle par comparaison, ainsi que celle des résumés de heavy hitters MG/SpaceSaving, et a montré que le résumé GK était fusionnable au sens restreint (« one-way »). Avant cet article, le q-digest (Shrivastava et al., SenSys 2004) était déjà connu comme fusionnable, mais seulement à univers borné (taille dépendant de log u) — la propriété n'était donc pas totalement inconnue pour les résumés de quantiles avant 2013, contrairement à l'énoncé général du claim.",
+      "original_statement": "L'article « Mergeable Summaries » (Agarwal, Cormode, Huang, Phillips, Wei, Yi, ACM TODS 2013) a été le premier à établir formellement que les résumés de quantiles ε-approchés (et les heavy hitters) sont fusionnables, avant quoi cette propriété n'était pas connue pour ces structures.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le texte même du papier (extrait par pdftotext) reconnaît que « the q-digest [30] is mergeable » avant leur travail, ce que confirme indépendamment le survey arXiv 2004.08255 qui décrit l'algorithme de fusion COMPRESS du q-digest dès 2004 ; l'apport réel est plus étroit (fusionnabilité indépendante de l'univers, GK one-way, heavy hitters) que l'énoncé général « cette propriété n'était pas connue »."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le claim généralise abusivement à « les résumés de quantiles ε-approchés » ce qui n'est vrai que pour la famille fondée sur les comparaisons (GK) : le q-digest avait déjà une fusion prouvée dès 2004. La vraie nouveauté de l'article de 2012/2013 est la formalisation générale du cadre de fusionnabilité et son application à GK / MG / SpaceSaving, pas la découverte de la fusionnabilité des résumés de quantiles en général."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « L'article « Mergeable Summaries » (Agarwal, Cormode, Huang, Phillips, Wei, Yi, ACM TODS 2013) a été le premier à établir formellement que les résumés de quantiles ε-approchés (et les heavy hitters) sont fusionnables, avant quoi cette propriété n'était pas connue pour ces structures. »"
+    },
+    {
+      "id": "claim:35",
+      "section": "ecosysteme",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Le q-digest (comme le sketch KLL et l'algorithme GK) garantit une opération de fusion avec des bornes d'erreur prouvées mathématiquement. Le t-digest, en revanche, n'a pas de fondement mathématique prouvé pour sa fusion ni pour l'estimation de son erreur : son comportement de fusion est empirique — généralement fiable en pratique, mais non démontré.",
+      "original_statement": "Le t-digest garantit, tout comme le q-digest ou les sketches KLL/GK, une opération de fusion (merge) sans perte prouvée mathématiquement.",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 3,
+      "n_sources": 7,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Deux sources indépendantes (équipe Presto et équipe Apache DataSketches) affirment explicitement l'inverse du claim pour le t-digest : Presto — « Quantile digests are also formally proven to support lossless merges, while T-digest is not (but does empirically demonstrate lossless merges) » ; DataSketches — le t-digest « is empirical and has no mathematical basis for estimating its error »."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "La documentation Presto est explicite et contredit directement le claim : « Quantile digests are also formally proven to support lossless merges, while T-digest is not (but does empirically demonstrate lossless merges). » DataSketches qualifie de même le t-digest d'« empirical » et sans base mathématique pour son erreur — cela concerne l'erreur d'estimation, cohérent avec l'absence de preuve de fusion sans perte."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "La documentation Presto (qdigest) énonce explicitement : « Quantile digests are also formally proven to support lossless merges, while T-digest is not (but does empirically demonstrate lossless merges) ». La documentation Apache DataSketches confirme indépendamment que le t-digest est le seul sketch de quantiles de la famille (Classic/GK, KLL, REQ, T-Digest) classé comme « empirical algorithm » sans bornes d'erreur mathématiquement prouvables, les trois autres en ayant. L'énoncé original inverse donc la réalité en présentant le t-digest comme équivalent au q-digest/KLL/GK sur ce point précis — c'est justement l'exception qui n'a pas de preuve. Le cas du GK sketch est en outre plus fragile que l'énoncé ne le suppose : sa fusion optimale n'a été formellement établie qu'en 2024 (papier SIGMOD/VLDB « Combining Greenwald-Khanna with Khanna-Greenwald »), après avoir longtemps été seulement « one-way mergeable ». Les deux PDF arXiv du papier original du t-digest (Dunning & Ertl, 1902.04023) et du papier sur les fonctions d'échelle asymétriques (2005.09599) n'ont pas pu être extraits en texte lisible par l'outil de fetch, donc non retenus comme sources vérifiées malgré des indices convergents en snippet de recherche."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (7 sources indépendantes). Origine : « Le t-digest garantit, tout comme le q-digest ou les sketches KLL/GK, une opération de fusion (merge) sans perte prouvée mathématiquement. »"
+    },
+    {
+      "id": "claim:36",
+      "section": "ecosysteme",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le weighted quantile sketch de XGBoost généralise les résumés de quantiles en flux aux jeux de données pondérés en définissant une fonction de rang pondérée par la statistique du second ordre (hessien) de chaque instance, comblant une lacune que les auteurs présentent comme inédite avant leur travail.",
+      "original_statement": "Le weighted quantile sketch de XGBoost généralise les résumés de quantiles en flux aux jeux de données pondérés en définissant une fonction de rang pondérée par la statistique du second ordre (hessien) de chaque instance, comblant une lacune que les auteurs présentent comme inédite avant leur travail.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "La source primaire (section 3.3 et annexe) définit r_k(z) pondéré par le hessien h et affirme explicitement l'absence de sketch de quantiles pondéré antérieur ('there is no existing quantile sketch for the weighted datasets ... we introduced a novel distributed weighted quantile sketch algorithm ... with a provable theoretical guarantee') ; un article tiers indépendant (Towards Data Science) cite et confirme cette même présentation de nouveauté sans être un simple miroir de l'article."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Vérifié directement contre l'article : la fonction de rang pondérée pèse chaque instance par h_i (statistique de second ordre / hessien), et les auteurs affirment explicitement « there is no existing quantile sketch for the weighted datasets », présentant leur algorithme de fusion-et-élagage comme comblant cette lacune avec une garantie prouvée équivalente à GK. Le claim ne prétend que rapporter la présentation des auteurs, ce qui est fidèle au texte."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    }
+  ]
+}
