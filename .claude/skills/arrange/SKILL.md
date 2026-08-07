@@ -22,6 +22,8 @@ des fichiers + `build_site.py` sont **déterministes**. Ne modifie QUE `tools/ta
 
 1. **Lire l'état** :
    - `tools/taxonomy.json` s'il existe (sinon = premier amorçage : tout est « à classer »).
+     Schéma v2 : `meta_domains[]` (méta-domaines) contenant chacun ses `domains[]`
+     (cf. `docs/2026-08-07-meta-domaines-sante-design.md`).
    - `tools/portals/*.json` : les domaines qui en ont un (l'existence du fichier suffit à le
      déclarer). Pour un thème à insérer, lire aussi sa `these` dans `themes/<slug>/tldr.json`
      — c'est ce que le portail affichera, inutile de la reformuler.
@@ -36,14 +38,19 @@ des fichiers + `build_site.py` sont **déterministes**. Ne modifie QUE `tools/ta
    - domaine sous-peuplé (1-2 thèmes → fusionner ou nourrir ?) ;
    - thème dont le sujet colle mieux à un autre domaine (candidat déplacement) ;
    - orphelins (aucun domaine naturel).
-4. **PROPOSER** un plan explicite : pour chaque nouveau thème, le domaine cible + 1 phrase de
-   justification ; pour chaque ajustement (déplacement / fusion / scission / renommage /
+4. **PROPOSER** un plan explicite : pour chaque nouveau thème, le méta-domaine puis le domaine
+   cible + 1 phrase de justification (créer méta-domaine ou domaine au passage si le thème
+   inaugure un espace prévu par le backlog — ex. santé : cf. la section méta-domaine
+   `sante-nutrition` de `docs/candidate-themes.md`, qui fixe ids, labels, blurbs et `notice`) ;
+   pour chaque ajustement (déplacement / fusion / scission / renommage /
    réordonnancement), la raison. **Si le domaine cible a un portail**, proposer dans le même
    plan : la place du thème dans le `parcours` + son `pourquoi`, les `aretes` vers ses voisins,
    et une `delimitations` si un voisin est assez proche pour qu'on les confonde. Présenter à
    l'utilisateur et **attendre sa validation**. Ne rien écrire avant le feu vert.
-5. **Écrire** `tools/taxonomy.json` (mêmes clés : `version`, `domains[]` ordonné avec
-   `id`/`label`/`blurb`/`themes`). Conserver l'ordre validé. Un thème = un seul domaine.
+5. **Écrire** `tools/taxonomy.json` (clés : `version: 2`, `meta_domains[]` ordonné avec
+   `id`/`label`/`blurb`/(`notice` optionnelle)/`domains[]`, chaque domaine avec
+   `id`/`label`/`blurb`/`themes`). Conserver l'ordre validé. Un thème = un seul domaine,
+   un domaine = un seul méta-domaine ; jamais de domaine ni de méta-domaine vide.
    Puis, le cas échéant, `tools/portals/<domaine>.json` (clés : `domain`, `intro`, `parcours`,
    `aretes`, `delimitations`). Un thème déplacé sort du portail de son ancien domaine et entre
    dans celui du nouveau.
