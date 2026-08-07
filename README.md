@@ -19,7 +19,7 @@ themes/<slug>/            un dossier par thème (slug kebab-case, sans accents)
 .claude/skills/leanmonograph/    variante « vérifier d'abord, écrire une fois » (+ lint déterministe)
 tools/                    assemblage du site publié
   build_site.py           génère _site/ (home + portails) — échoue bruyamment
-  taxonomy.json           classement des thèmes par domaine (skill /arrange)
+  taxonomy.json           classement des thèmes par domaine, groupés en méta-domaines (skill /arrange)
   portals/<domaine>.json  couche éditoriale d'un portail de domaine (skill /arrange)
   portal.py               chargement, validation et rendu d'un portail
 ```
@@ -139,10 +139,11 @@ flowchart TD
 Chaque document est sous `themes/<slug>/dist/`. Le corpus compte **64 thèmes** (66 documents),
 tous générés par `/monograph`, `/frugalmonograph` ou `/leanmonograph` — sauf
 **automatic-prompt-optimization**, construit à la main avant le skill (triptyque à 3 éditions)
-et conservé gelé sous `themes/automatic-prompt-optimization/legacy/`. La liste complète, groupée
-par domaine (`tools/taxonomy.json`, skill `/arrange`), est publiée sur la
-[home GitHub Pages](https://sandjab.github.io/scriptorium/) régénérée à chaque push par
-`tools/build_site.py`.
+et conservé gelé sous `themes/automatic-prompt-optimization/legacy/`. Le classement
+(`tools/taxonomy.json`, skill `/arrange`) range chaque thème dans un domaine, et chaque domaine
+dans un méta-domaine : la [home GitHub Pages](https://sandjab.github.io/scriptorium/) est un hub
+des méta-domaines, chacun ayant sa page qui liste ses thèmes groupés par domaine. Elle est
+régénérée à chaque push par `tools/build_site.py`.
 
 Les trois domaines les plus fournis ont un **portail** (`tools/portals/<domaine>.json`, rendu
 sous `domaines/<domaine>.html`) : un parcours de lecture, les arêtes entre thèmes et les
