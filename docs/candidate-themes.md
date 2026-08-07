@@ -103,27 +103,24 @@ la nature de ses sources, et `audit-report.md` le dit en tête. Document final :
 transitions — un document peut donc sortir du pipeline en promettant une suite qui n'existe pas.
 Sur un plan à plus de 9 entrées, vérifier la dernière phrase de la dernière section retenue.)
 
-### Détection d'hallucinations & incertitude des LLM — `hallucination-detection-uncertainty` → `llm-agents-generation`
-**Verdict : gap réel (ajout 2026-08-06).** `calibration-classifieurs` ne parle QUE de classifieurs
-(zéro occurrence de « LLM ») ; `retrieval-augmented-generation` borne le risque du pipeline RAG
-(C-RAG conforme, Merlin-Arthur, SGI, théorème d'impossibilité) mais côté ancrage, pas côté
-détection en génération libre ; `llm-evaluation` traite le juge-LLM et ses biais. Semantic entropy,
-SelfCheckGPT, FActScore, confiance verbalisée : 0 occurrence dans le corpus.
+(`hallucination-detection-uncertainty` : FAIT le 2026-08-07, retiré du backlog — 28e run
+/leanmonograph GREEN après backstop, classé dans llm-agents-generation **entre llm-evaluation et
+agent-evaluation-observability** (le juge externe, puis les signaux internes du modèle, puis la
+trajectoire). 9/9 sections, 36 claims 19✓/16corr/1rej, 76 sources, 4 widgets (revue visuelle
+faite, clair + sombre) ; 7,33M tok / 121 agents / ~3 h 03 en deux runs — le premier s'est arrêté
+en Author sur un garde-fou du script : l'agent de la tranche 1 a rendu `sections: []` validé par
+le schéma, reprise par checkpoints `resume: true`.
 
-> Détecter les hallucinations et estimer l'incertitude d'un LLM : savoir quand la réponse ne vaut
-> rien. Couvrir la typologie (confabulation vs erreur de connaissance, incertitude aléatoire vs
-> épistémique), l'entropie sémantique (regroupement par équivalence de sens plutôt que par
-> séquence de tokens, et les sondes qui l'approchent depuis les états cachés en une seule
-> génération), les méthodes par échantillonnage et cohérence (SelfCheckGPT, auto-consistance), les
-> signaux internes et déclarés (probabilité de séquence, p(true), confiance verbalisée et sa
-> sur-confiance), la vérification factuelle décomposée (FActScore et les métriques par atome), la
-> décision qui en découle — abstention, escalade, déférence à un humain — et l'évaluation
-> (TruthfulQA, HaluEval, jeux dédiés, et le piège de mesurer un détecteur sur des hallucinations
-> fabriquées). Public : ingénieur ML. Délimitations : calibration-classifieurs couvre la calibration
-> et la prédiction conforme sur classifieurs (les citer comme socle, ne pas re-dériver ECE ni la
-> couverture conforme) ; retrieval-augmented-generation couvre l'ancrage documentaire et ses
-> garanties formelles (C-RAG, SGI) — ici le cas sans corpus de référence ; llm-evaluation couvre
-> le juge-LLM. Domaine : llm-agents-generation.
+**Correction du backstop — classe d'angle mort NOUVELLE : le faux rejet par jurés à information
+asymétrique.** Deux claims (Kadavath P(True)/P(IK), Tian confiance verbalisée) rejetés sur une
+égalité 1-1 : les DEUX jurés avaient vérifié le contenu verbatim exact, mais seul le juré soutien
+avait trouvé et vérifié une seconde source indépendante (survey Princeton arXiv:2412.05563) — le
+juré réfutation n'a compté que les 2 candidates initiales (à raison jugées même travail) et a
+rejeté sur le seuil. Conséquence en cascade : la prose portait un hedge FAUX (« source unique,
+non corroborée »). Re-vérifiés à la source puis re-adjugés confirmed, hedges retirés (celui du
+chiffre −50 % d'ECE, réellement single-source, conservé), re-adjudication tracée en tête
+d'audit-report. **Réflexe : sur tout rejet « seuil non atteint » d'un claim established, comparer
+les listes de sources des deux jurés avant de croire le rejet.**)
 
 ---
 
