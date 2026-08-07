@@ -736,21 +736,23 @@ des publications — jamais à vide. Paramètres fixés :
   `pharmacologie-metabolique` « Pharmacologie métabolique & perte de poids » (blurb
   « La promesse minceur, du médicament efficace au complément inefficace. »).
 
-**PILOTE = `creatine`** (le mieux documenté : calibre la doctrine au moindre risque).
+**PILOTE = `creatine`** : FAIT le 2026-08-08 — la doctrine a tenu (voir l'entrée FAIT
+dans `nutrition-sportive`), le méta-domaine et le domaine sont créés.
 
 ## `nutrition-sportive`
 
-- **creatine** (haute, PILOTE) — 📝 « Créatine monohydrate : le complément ergogène le
-  mieux documenté. Couvrir la biochimie (système phosphocréatine/ATP, saturation des
-  stocks musculaires), les protocoles (charge 20 g/j puis entretien vs 3-5 g/j
-  d'emblée), les effets démontrés en méta-analyses (force/1RM, masse maigre, sprints
-  répétés — avec tailles d'effet), les effets cognitifs (preuve plus récente et plus
-  faible : distinguer nettement), répondeurs/non-répondeurs, la sécurité (fonction
-  rénale : mythe vs données longitudinales ; rétention d'eau ; usage long terme), et
-  les formes commerciales (HCl, tamponnée, éthyl-ester : aucune supériorité démontrée
-  sur le monohydrate). Position stand ISSN attendue comme source de rang fort. Public :
-  lecteur exigeant sans formation médicale. Doctrine : docs/evidence-sante.md (recopier).
-  Domaine : nutrition-sportive. »
+(`creatine` : FAIT le 2026-08-08, retiré du backlog — 29e run /leanmonograph, **premier
+thème hors IA** : GREEN direct, backstop 100 % propre (une première sur un run à 16
+corrections). La doctrine de preuve santé, injectée en bloc dans le `subject`, a été
+appliquée par le council : mythe de la charge « indispensable » corrigé sur RCT + position
+ISSN, plage de rétention d'eau complétée (1-3 kg vs la seule borne 0,5-1 L), hedge sprints
+« une seule méta-analyse vérifiée » exact ; l'unique rejet — une inversion arithmétique
+« 116 % de moins » sur l'étude de marché Escalante 2022 — est corrigé et hedgé dans la
+prose. 9/9 sections, 33 claims 16✓/16corr/1rej, 62 sources, 4 widgets (revue visuelle
+faite ; financement industriel et rang mécanistique signalés dans leurs notes) ; 6,05M
+tok / 86 agents / 2 h 07 en un seul run. Crée le méta `sante-nutrition` et le domaine
+`nutrition-sportive` ; première `notice` réellement injectée dans `_site/`, vérifiée
+avant `</main>`, `dist/` propre.)
 - **proteines-besoins-timing** (haute) — 📝 « Protéines et hypertrophie : besoins,
   qualité, timing. Couvrir les besoins quotidiens (méta-analyses dose-réponse, plateau
   ~1,6 g/kg/j chez le pratiquant en résistance, plage jusqu'à 2,2), la qualité (whey vs
