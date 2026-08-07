@@ -715,3 +715,109 @@ occurrence.
   `recursive-language-models` (section « Récursion, agents et raisonnement long-horizon »),
   `agentic-memory` et `world-models` (planification en imagination). Le buzz nomme un phénomène
   que le corpus traite déjà par ses mécanismes.
+
+---
+
+# Méta-domaine `sante-nutrition` — backlog de lancement (2026-08-07)
+
+Premier méta-domaine hors IA (spec : `docs/2026-08-07-meta-domaines-sante-design.md` ;
+doctrine de preuve : `docs/evidence-sante.md`, à recopier dans chaque brief).
+Méta-domaine et domaines sont créés dans `tools/taxonomy.json` par `/arrange` au fil
+des publications — jamais à vide. Paramètres fixés :
+
+- Méta : id `sante-nutrition`, label « Santé, nutrition & performance humaine »,
+  blurb « Ce que disent réellement les essais cliniques et méta-analyses — doses,
+  tailles d'effet, sécurité — derrière les promesses des compléments et traitements. »,
+  `notice` = texte du bandeau dans `docs/evidence-sante.md`.
+- Domaines : `nutrition-sportive` « Nutrition & supplémentation sportive » (blurb
+  « Performance, récupération et composition corporelle : ce qui est démontré, à
+  quelle dose. ») ; `complements-sante` « Compléments & santé générale » (blurb
+  « Les compléments en vente libre à visée santé/longévité, au tamis des essais. ») ;
+  `pharmacologie-metabolique` « Pharmacologie métabolique & perte de poids » (blurb
+  « La promesse minceur, du médicament efficace au complément inefficace. »).
+
+**PILOTE = `creatine`** (le mieux documenté : calibre la doctrine au moindre risque).
+
+## `nutrition-sportive`
+
+- **creatine** (haute, PILOTE) — 📝 « Créatine monohydrate : le complément ergogène le
+  mieux documenté. Couvrir la biochimie (système phosphocréatine/ATP, saturation des
+  stocks musculaires), les protocoles (charge 20 g/j puis entretien vs 3-5 g/j
+  d'emblée), les effets démontrés en méta-analyses (force/1RM, masse maigre, sprints
+  répétés — avec tailles d'effet), les effets cognitifs (preuve plus récente et plus
+  faible : distinguer nettement), répondeurs/non-répondeurs, la sécurité (fonction
+  rénale : mythe vs données longitudinales ; rétention d'eau ; usage long terme), et
+  les formes commerciales (HCl, tamponnée, éthyl-ester : aucune supériorité démontrée
+  sur le monohydrate). Position stand ISSN attendue comme source de rang fort. Public :
+  lecteur exigeant sans formation médicale. Doctrine : docs/evidence-sante.md (recopier).
+  Domaine : nutrition-sportive. »
+- **proteines-besoins-timing** (haute) — 📝 « Protéines et hypertrophie : besoins,
+  qualité, timing. Couvrir les besoins quotidiens (méta-analyses dose-réponse, plateau
+  ~1,6 g/kg/j chez le pratiquant en résistance, plage jusqu'à 2,2), la qualité (whey vs
+  caséine vs végétales, seuil de leucine, DIAAS), la « fenêtre anabolique »
+  péri-entraînement (démystification chiffrée : l'apport TOTAL domine le timing), la
+  distribution des prises, et protéines & perte de poids (préservation de masse maigre,
+  satiété). Public : lecteur exigeant sans formation médicale. Doctrine :
+  docs/evidence-sante.md (recopier). Domaine : nutrition-sportive. Délimitation : la
+  créatine et le collagène (protéine incomplète) sont des thèmes distincts — renvoyer. »
+- **cafeine-ergogene** (moyenne) — caféine comme ergogène : doses 3-6 mg/kg, endurance
+  vs force, tolérance/habituation, génotype CYP1A2, position stand ISSN.
+- **beta-alanine-tampons** (moyenne) — bêta-alanine/carnosine et bicarbonate : tampons
+  intracellulaire/extracellulaire, efforts 1-4 min, paresthésies, méta-analyses.
+- **hydratation-electrolytes** (basse) — déshydratation et performance (seuils réels vs
+  folklore des 2 %), sodium, hyponatrémie d'effort, boissons de l'effort.
+
+## `complements-sante`
+
+- **berberine** (haute) — 📝 « Berbérine : l'alcaloïde vendu comme « Ozempic naturel ».
+  Couvrir le mécanisme (activation AMPK), les effets glycémiques (méta-analyses vs
+  metformine : ampleur réelle, qualité des essais — petits, hétérogènes, biais de
+  publication à documenter), les lipides, la biodisponibilité très faible et ses
+  conséquences, la sécurité (troubles digestifs, interactions CYP3A4/P-gp, grossesse),
+  et le démontage chiffré de la comparaison aux agonistes GLP-1 (ordres de grandeur de
+  perte de poids incomparables). Public : lecteur exigeant sans formation médicale.
+  Doctrine : docs/evidence-sante.md (recopier). Domaine : complements-sante. Arête
+  attendue vers le futur thème incrétines (pharmacologie-metabolique). »
+- **collagene** (haute) — 📝 « Collagène hydrolysé : que peut un peptide incomplet ?
+  Couvrir la composition (profil d'acides aminés, absence de tryptophane, DIAAS ~0),
+  l'argument « inutile vs whey » examiné honnêtement (peptides bioactifs
+  hydroxyproline : ce qui est démontré), articulations/tendons (méta-analyses douleur
+  et fonction, doses 5-15 g/j, co-ingestion vitamine C), peau (essais majoritairement
+  financés par l'industrie — le signaler claim par claim), os, et la sécurité. Public :
+  lecteur exigeant sans formation médicale. Doctrine : docs/evidence-sante.md
+  (recopier). Domaine : complements-sante. Délimitation : proteines-besoins-timing
+  pour la protéine complète. »
+- **vitamine-d** (moyenne) — statut vs supplémentation, VITAL et les grands RCT nuls,
+  os/chutes/immunité, seuils sériques contestés, doses et toxicité.
+- **omega-3** (moyenne) — EPA/DHA : triglycérides (démontré) vs événements cardio
+  (REDUCE-IT vs STRENGTH), cognition, doses, oxydation des huiles.
+- **magnesium** (basse) — carence réelle vs marketing, formes (citrate, bisglycinate,
+  oxyde), sommeil/crampes/anxiété : tri par niveau de preuve.
+
+## `pharmacologie-metabolique`
+
+- **incretines-glp1** (haute) — 📝 « Agonistes des incrétines : sémaglutide,
+  tirzépatide, rétatrutide. Couvrir la physiologie incrétine (GLP-1, GIP), les
+  résultats des programmes STEP (sémaglutide ~15 %) et SURMOUNT (tirzépatide ~20 % :
+  double agonisme) avec les tailles d'effet exactes et les bras placebo, le pipeline
+  (rétatrutide triple agoniste — phase 2/3 : le dire), les effets indésirables
+  (gastro-intestinaux, perte de masse maigre, débat pancréas/thyroïde), le regain à
+  l'arrêt (STEP 1 extension), l'accès (coût, pénuries, compounding/marché gris — sans
+  mode d'emploi d'approvisionnement). Public : lecteur exigeant sans formation
+  médicale. Doctrine : docs/evidence-sante.md (recopier). Domaine :
+  pharmacologie-metabolique. Arêtes : berberine (le faux équivalent), amincissants OTC
+  (le contraste d'efficacité). »
+- **complements-amincissants** (haute) — 📝 « Compléments amincissants en vente libre :
+  ce que montrent les méta-analyses. Couvrir molécule par molécule — thé vert/EGCG,
+  CLA, L-carnitine, garcinia cambogia, cétones de framboise, chrome, glucomannane,
+  caféine — les effets mesurés (au mieux 1-2 kg, souvent indiscernables de zéro), la
+  qualité des essais, l'historique éphédra (efficace ET retiré : pourquoi), le cadre
+  réglementaire complément vs médicament (allégations EFSA/FDA), et l'adultération
+  (produits dopés aux principes actifs pharmaceutiques). Sujet largement contre-
+  intuitif : la monographie assume le debunking chiffré. Public : lecteur exigeant
+  sans formation médicale. Doctrine : docs/evidence-sante.md (recopier). Domaine :
+  pharmacologie-metabolique. Arête : incretines-glp1 (ce qui marche vraiment). »
+- **peptides-gris** (moyenne, ⚠️ DIFFÉRÉ) — BPC-157, sécrétagogues GH (ipamoréline,
+  CJC-1295), TB-500 : littérature quasi exclusivement animale/mécanistique, vente
+  « research chemicals ». ⚠️ Ne lancer qu'après ≥ 2 runs santé GREEN : taux de rejet
+  élevé attendu, c'est le stress-test de la doctrine, pas son rodage.
