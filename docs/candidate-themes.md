@@ -88,13 +88,20 @@ s'est pas matérialisé** : NSA, MoBA et InfLLM-V2 sont chacun corroborés par 2
 indépendantes. Le seul rejet (TidalDecode) est bien single-source, et son `statement` en anglais
 en a fait un cas `foreign_statements` — vérifié à la main, la prose l'attribue et le hedge.
 
-**Angle résiduel :** le plan comptait 11 entrées pour un plafond de 9 ; `cout-en-qualite` est
-tombé à l'arbitrage et n'a pas été absorbé. L'étude comparative de référence (« The Sparse
-Frontier », arXiv:2504.17768 — la tolérance à la parcimonie dépend massivement de la tâche, et un
-grand modèle très parcimonieux bat souvent un petit modèle dense) n'est citée qu'en bibliographie.
-Le document tient son « ce que ça coûte » côté vitesse (une section entière) et côté théorie
-(séparation de profondeur de BigBird), mais l'arbitrage empirique en qualité y est mince —
-candidat à une section ajoutée si le thème est repris.)
+**Angle résiduel COMBLÉ le même jour** : le plan comptait 11 entrées pour un plafond de 9, et les
+deux sections tombées à l'arbitrage (`cout-en-qualite`, `ecosysteme`) ont été rédigées et ajoutées
+à la main. Le manque était réel et visible dans le rendu : la section sur la mesure des
+accélérations se terminait par « Elles ne disent rien de ce qu'elle fait perdre, et c'est l'autre
+moitié de l'arbitrage » — une transition sans suite, et « The Sparse Frontier » (arXiv:2504.17768)
+figurait en bibliographie sans être lue. ⚠️ Les 11 claims ajoutés (claim:36 à claim:46)
+**n'ont pas été jugés par le council** : vérifiés à la source, chacun porte dans son `audit_note`
+la nature de ses sources, et `audit-report.md` le dit en tête. Document final : **11 sections,
+46 claims**. Effet de bord notable : les 6 flags non hedgés du lint sont tombés à 0, « 2025 »
+étant devenu non distinctif en entrant dans un claim retenu.
+
+**Leçon pour le skill** : le plafond `MAX_SECTIONS=9` coupe *après* que le Plan a écrit les
+transitions — un document peut donc sortir du pipeline en promettant une suite qui n'existe pas.
+Sur un plan à plus de 9 entrées, vérifier la dernière phrase de la dernière section retenue.)
 
 ### Détection d'hallucinations & incertitude des LLM — `hallucination-detection-uncertainty` → `llm-agents-generation`
 **Verdict : gap réel (ajout 2026-08-06).** `calibration-classifieurs` ne parle QUE de classifieurs
