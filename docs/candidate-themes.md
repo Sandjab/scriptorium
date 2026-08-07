@@ -74,29 +74,27 @@ l'angle « sécurité des agents ».
 (`context-engineering` : FAIT le 2026-07-11, retiré du backlog.)
 (`distributed-training-parallelism` : FAIT le 2026-07-11, retiré du backlog.)
 
-### Attention parcimonieuse & long contexte — `sparse-attention-long-context` → `deep-learning-foundations`
-**Verdict : gap réel (ajout 2026-08-06).** `transformer-attention` pose le mur quadratique puis
-traite l'attention EXACTE (FlashAttention 1/2/3, MQA/GQA/MLA) et **écarte nommément** les familles
-linéaire et parcimonieuse ; il n'aborde l'attention sink que sous l'angle « l'attention n'est pas
-une explication ». `state-space-models` couvre l'attention linéaire par la dualité SSD et les
-hybrides attention+SSM (MambaFormer, Samba, Jamba). `context-engineering` cite BigBird/Longformer
-en deux phrases, au titre du coût. Personne ne traite la parcimonie comme design d'architecture —
-or c'est la direction dominante de 2026 (efficacité du long contexte pour les harnesses d'agents).
+(`sparse-attention-long-context` : FAIT le 2026-08-07, retiré du backlog — 27e run /leanmonograph
+GREEN après backstop [1 correction : une plage de mesures tronquée aux deux bouts, « 1,03–1,16× »
+pour des gains horloge réels allant de 1,00× à 1,24× — la borne basse, l'absence pure et simple
+d'accélération, renforçait pourtant la thèse du passage], classé dans deep-learning-foundations
+**entre transformer-attention et state-space-models** : le parcours présentait les SSM comme « la
+réponse au coût quadratique », il en montre désormais deux — élaguer le motif ou renoncer à revoir
+le passé. 9/9 sections retenues, 35 claims 22✓/12corr/1rej, 77 sources, 4 widgets ;
+7,10M tok / 92 agents / 3 h 57.
 
-> Attention parcimonieuse (sparse attention) et efficacité du long contexte : réduire le calcul de
-> l'attention, pas seulement ses accès mémoire. Couvrir les motifs statiques fondateurs (attention
-> locale à fenêtre glissante, tokens globaux, aléatoire : Longformer, BigBird, et la longueur de
-> chemin qu'ils préservent), le streaming par tokens-puits (StreamingLLM et la mécanique de
-> l'attention sink), la sélection dynamique de KV à l'inférence (éviction et budget par tête, sparse
-> prefill), l'attention parcimonieuse NATIVE entraînée de bout en bout (NSA de DeepSeek, MoBA,
-> InfLLM-v2), les hybrides parcimonieux+linéaires de 2026 et leurs ratios de couches, et
-> l'arbitrage mesuré : ce que la parcimonie coûte en rappel exact et en raisonnement. Public :
-> ingénieur ML. ⚠️ Délimitations strictes : transformer-attention couvre l'attention exacte et son
-> optimisation IO-aware (FlashAttention) ainsi que MQA/GQA/MLA — NE PAS les re-dériver, et
-> reprendre sa distinction exact/approché comme point de départ ; state-space-models couvre
-> l'attention linéaire (dualité SSD) et les hybrides attention+SSM — ici la parcimonie, pas la
-> récurrence ; llm-inference-serving couvre le KV cache côté système (PagedAttention, préfixes) ;
-> context-engineering couvre le context rot côté usage. Domaine : deep-learning-foundations.
+Le risque annoncé au council — littérature 2026 portée par un seul rapport de laboratoire — **ne
+s'est pas matérialisé** : NSA, MoBA et InfLLM-V2 sont chacun corroborés par 2 à 3 sources
+indépendantes. Le seul rejet (TidalDecode) est bien single-source, et son `statement` en anglais
+en a fait un cas `foreign_statements` — vérifié à la main, la prose l'attribue et le hedge.
+
+**Angle résiduel :** le plan comptait 11 entrées pour un plafond de 9 ; `cout-en-qualite` est
+tombé à l'arbitrage et n'a pas été absorbé. L'étude comparative de référence (« The Sparse
+Frontier », arXiv:2504.17768 — la tolérance à la parcimonie dépend massivement de la tâche, et un
+grand modèle très parcimonieux bat souvent un petit modèle dense) n'est citée qu'en bibliographie.
+Le document tient son « ce que ça coûte » côté vitesse (une section entière) et côté théorie
+(séparation de profondeur de BigBird), mais l'arbitrage empirique en qualité y est mince —
+candidat à une section ajoutée si le thème est repris.)
 
 ### Détection d'hallucinations & incertitude des LLM — `hallucination-detection-uncertainty` → `llm-agents-generation`
 **Verdict : gap réel (ajout 2026-08-06).** `calibration-classifieurs` ne parle QUE de classifieurs

@@ -1,0 +1,1166 @@
+{
+  "generator": "leanmonograph",
+  "theme": {
+    "slug": "sparse-attention-long-context",
+    "title": "Attention parcimonieuse et long contexte : ne plus tout regarder, et ce que ça coûte"
+  },
+  "summary": {
+    "sections_total": 9,
+    "sections_retained": 9,
+    "claims_total": 35,
+    "confirmed": 22,
+    "corrected": 12,
+    "rejected": 1,
+    "retained": 34
+  },
+  "claims": [
+    {
+      "id": "claim:1",
+      "section": "approximer-le-motif",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "FlashAttention réorganise les accès mémoire du calcul d'attention sans changer son résultat numérique (O(N²) opérations inchangées, algorithme exact et IO-aware), tandis que l'attention parcimonieuse modifie le motif de paires (requête, clé) effectivement évaluées et donc la sortie elle-même — ce sont deux catégories distinctes, une optimisation IO-aware contre une approximation algorithmique.",
+      "original_statement": "FlashAttention réorganise les accès mémoire du calcul d'attention sans changer son résultat numérique (O(N²) opérations inchangées, algorithme exact et IO-aware), tandis que l'attention parcimonieuse modifie le motif de paires (requête, clé) effectivement évaluées et donc la sortie elle-même — ce sont deux catégories distinctes, une optimisation IO-aware contre une approximation algorithmique.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le papier source (primaire) confirme explicitement : algorithme EXACT, IO-aware, O(N²d) FLOPs inchangé — vs méthodes approchées qui 'trade off model quality to reduce compute complexity'. Le blog indépendant de Shreyansh Singh (tiers, non-auteur) confirme la même distinction avec les mêmes termes (exact, O(N²d) FLOPs, IO-awareness vs approximation). Les deux volets du claim (FlashAttention exact/IO-aware ; attention parcimonieuse = catégorie distincte qui change le motif QK et donc la sortie) sont couverts par les deux sources, mutuellement indépendantes."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le titre même du papier ('Exact Attention with IO-Awareness') et son abstract confirment : mêmes FLOPs O(N²), pas d'approximation, gain uniquement par réorganisation des accès mémoire (HBM/SRAM) via tiling+recomputation. Corroboré par le monograph local (transformer-attention.html) qui pose explicitement cette frontière catégorielle exact/IO-aware vs approximatif. Rien à corriger."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:2",
+      "section": "approximer-le-motif",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le mot « sparse » désigne dans le corpus cinq formes de parcimonie distinctes et sans rapport avec la parcimonie d'un motif d'attention : les experts activés du MoE sparsely-gated, les features apprises par un sparse autoencoder d'interprétabilité, le vecteur de vocabulaire creux du learned sparse retrieval (SPLADE), les poids élagués d'un réseau (pruning), et les postings sautés d'un index inversé (WAND / Block-Max WAND).",
+      "original_statement": "Le mot « sparse » désigne dans le corpus cinq formes de parcimonie distinctes et sans rapport avec la parcimonie d'un motif d'attention : les experts activés du MoE sparsely-gated, les features apprises par un sparse autoencoder d'interprétabilité, le vecteur de vocabulaire creux du learned sparse retrieval (SPLADE), les poids élagués d'un réseau (pruning), et les postings sautés d'un index inversé (WAND / Block-Max WAND).",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 7,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 6,
+          "note": "Chacune des cinq formes de parcimonie est vérifiée à sa source primaire propre (le claim est une taxonomie de cinq usages distincts du mot 'sparse', pas un fait empirique unique nécessitant deux confirmations croisées) : MoE = sparsité des experts activés (gating network) ; SAE = sparsité des features apprises, confirmé par Anthropic ET par un papier indépendant (Cunningham et al., équipe distincte publiée quasi simultanément) ; SPLADE = vecteur creux de vocabulaire (bag-of-words) ; Deep Compression = élagage des POIDS ; WAND = saut de postings dans un index inversé. Les cinq notions sont bien sans rapport avec un motif d'attention."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 5,
+          "note": "Les cinq homonymies vérifiées une à une correspondent exactement à la liste de délimitation du brief : experts activés (MoE), features de sparse autoencoder (pénalité L1, Anthropic), vecteur de vocabulaire creux (SPLADE), poids élagués (Deep Compression), postings sautés (WAND/Block-Max WAND). Le fetch direct de transformer-circuits.pub a échoué (page trop lourde) mais la description du sparse autoencoder est corroborée par une source secondaire indépendante et par des connaissances bien établies. Aucune des cinq ne recouvre la parcimonie d'un motif d'attention."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 7 sources indépendantes."
+    },
+    {
+      "id": "claim:3",
+      "section": "approximer-le-motif",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le prefill et le décodage d'un LLM sont limités par des ressources différentes — le prefill par le calcul (FLOPs, opérations matrice-matrice denses), le décodage par la bande passante mémoire (relecture du KV cache depuis la HBM à chaque token généré) — si bien que le proxy de coût pertinent pour mesurer une accélération (FLOPs ou octets transférés) dépend de la phase mesurée.",
+      "original_statement": "Le prefill et le décodage d'un LLM sont limités par des ressources différentes — le prefill par le calcul (FLOPs, opérations matrice-matrice denses), le décodage par la bande passante mémoire (relecture du KV cache depuis la HBM à chaque token généré) — si bien que le proxy de coût pertinent pour mesurer une accélération (FLOPs ou octets transférés) dépend de la phase mesurée.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Deux articles d'auteurs et de publications distincts (Towards Data Science vs Redis), sans dépendance de citation l'un envers l'autre, confirment indépendamment : prefill = compute-bound (matmuls denses, FLOPs), decode = memory-bandwidth-bound (relecture du KV cache depuis la HBM à chaque token) — donc le proxy pertinent (FLOPs vs octets transférés) dépend de la phase mesurée, exactement l'énoncé du claim."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Les deux sources confirment explicitement et indépendamment la dichotomie : prefill compute-bound (matmuls denses, tensor cores saturés) vs decode memory-bandwidth-bound (relecture intégrale du KV cache depuis la HBM à chaque token). La conséquence énoncée — le proxy pertinent (FLOPs vs octets transférés) dépend de la phase — découle directement de cette dichotomie. Rien à corriger."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:4",
+      "section": "approximer-le-motif",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "Réduire la quantité de données du KV cache lues par un motif d'attention parcimonieux réduit automatiquement son coût de calcul (FLOPs) — une équivalence fréquemment supposée mais fausse en général, car un élagage fin non structuré peut charger les données de façon parcimonieuse tout en les calculant de façon dense (« load-as-sparse, compute-as-dense »), économisant de la bande passante sans économiser de calcul et donc sans accélérer les phases liées au calcul comme le prefill.",
+      "original_statement": "Réduire la quantité de données du KV cache lues par un motif d'attention parcimonieux réduit automatiquement son coût de calcul (FLOPs) — une équivalence fréquemment supposée mais fausse en général, car un élagage fin non structuré peut charger les données de façon parcimonieuse tout en les calculant de façon dense (« load-as-sparse, compute-as-dense »), économisant de la bande passante sans économiser de calcul et donc sans accélérer les phases liées au calcul comme le prefill.",
+      "corroborated": 2,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le papier NSA (source primaire du champ) documente que des méthodes comme H2O/MInference réduisent la sparsité sur une seule phase et 'fail to achieve acceleration across all inference stages', et que prefill/training sont compute-bound tandis que le décodage est memory-bound. HieraSparse — équipe totalement indépendante (NTU, pas DeepSeek) — formule LITTÉRALEMENT le mécanisme du claim : 'existing sparse execution frameworks adopt a load-as-sparse, compute-as-dense scheme: while memory bandwidth is reduced, the compute cost remains unchanged'. Les deux sources sont indépendantes l'une de l'autre (auteurs et institutions différents) et confirment l'énoncé, y compris sa conséquence sur le prefill compute-bound."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Le mécanisme général (bande passante réduite ≠ FLOPs réduits) est réel et attesté par NSA (l'exemple H2O : sparsité au décodage mais prétraitement dense coûteux au prefill, 'fail to achieve acceleration across all inference stages'). Mais le terme précis mis entre guillemets « load-as-sparse, compute-as-dense » — présenté comme une expression établie — est INTROUVABLE tel quel dans les deux sources candidates (marktechpost n'aborde pas du tout cette distinction ; le papier NSA ne l'emploie pas verbatim) ni dans les papiers connexes vérifiés (MUSTAFAR emploie 'load-as-compressed, compute-as-dense' pour décrire SON PROPRE noyau, pas comme critique nommée des méthodes antérieures ; le papier SAC ne mentionne pas la phrase). Une première synthèse WebSearch avait attribué ce terme exact à MUSTAFAR — un fetch direct du texte complet a infirmé cette attribution. Je recommande de retenir le mécanisme (vrai, sourcé par NSA/H2O) mais de retirer la citation entre guillemets non vérifiable."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Les deux sources candidates fournies (NSA / marktechpost) ne portent PAS ce point précis : NSA distingue bien prefill compute-bound vs decoding memory-bound et vise séparément la réduction de calcul (prefill/training) et la réduction d'accès mémoire (decoding), mais ne mentionne jamais « load-as-sparse, compute-as-dense » ni ne critique explicitement les méthodes qui ne réduiraient que la bande passante. J'ai dû remonter à la vraie source primaire du terme, hors des candidates : le papier Flash-LLM (VLDB 2024, arXiv 2309.10285) qui INTRODUIT littéralement « Load-as-Sparse, Compute-as-Dense » et énonce explicitement qu'il « tolère des calculs redondants » (donc n'économise PAS de FLOPs, peut même en ajouter) pour ne réduire que le trafic mémoire, en justifiant que « the bottleneck for LLM inference is not at the computation side ». MUSTAFAR (NeurIPS 2025, arXiv 2505.22913) adopte explicitement ce pipeline (crédité à Flash-LLM) pour l'élagage non structuré du KV cache, et l'applique UNIQUEMENT au decode (memory-bound) en laissant le prefill dense/inchangé — confirmant mot pour mot le mécanisme et la conséquence (pas d'accélération du prefill) décrits dans l'énoncé. L'énoncé tient donc tel quel sur le fond (mécanisme, périmètre, causalité), mais s'appuie sur des sources différentes de celles indiquées en amont — la phrase « fréquemment supposée » reste une évaluation qualitative non chiffrable, non une inexactitude factuelle."
+        }
+      ],
+      "audit_note": "Confirmé : 2/3 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:5",
+      "section": "motifs-statiques-fondateurs",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le Sparse Transformer (Child, Gray, Radford, Sutskever — OpenAI, arXiv:1904.10509, avril 2019) est le précurseur des motifs de parcimonie structurée : ses deux factorisations (strided, fixed) ramènent la complexité de l'attention de O(n²) à O(n√n) tout en garantissant qu'une paire de positions reste reliée par un chemin d'au plus p+1 sauts dans le graphe d'attention.",
+      "original_statement": "Le Sparse Transformer (Child, Gray, Radford, Sutskever — OpenAI, arXiv:1904.10509, avril 2019) est le précurseur des motifs de parcimonie structurée : ses deux factorisations (strided, fixed) ramènent la complexité de l'attention de O(n²) à O(n√n) tout en garantissant qu'une paire de positions reste reliée par un chemin d'au plus p+1 sauts dans le graphe d'attention.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le papier primaire (via ar5iv) confirme littéralement les trois éléments : les deux patterns 'strided' (une tête voisinage local, une tête tous les l-èmes tokens) et 'fixed', la réduction O(n²)→O(n√n), et la connectivité 'path of locations with maximum length p+1'. La survey Tay et al. (indépendante des auteurs) confirme séparément strided/fixed + O(n√n)."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Vérifié mot pour mot sur le PDF primaire : abstract donne O(n√n) ; Sec. 4.2/4.3 confirment les deux factorisations 'strided' et 'fixed' pour p=2, et le critère explicite 'i can attend to j through a path of locations with maximum length p+1'. Longformer confirme indépendamment que Sparse Transformer est le motif le plus proche de son propre design (fenêtre glissante dilatée par blocs 8x8)."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:6",
+      "section": "motifs-statiques-fondateurs",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Longformer remplace l'attention complète par une combinaison d'attention locale à fenêtre glissante et d'attention globale motivée par la tâche, en complexité O(n×w), et étend son champ réceptif via la dilatation selon la formule l×d×w sans coût de calcul supplémentaire.",
+      "original_statement": "Longformer remplace l'attention complète par une combinaison d'attention locale à fenêtre glissante et d'attention globale motivée par la tâche, en complexité O(n×w), et étend son champ réceptif via la dilatation selon la formule l×d×w sans coût de calcul supplémentaire.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le papier primaire (ar5iv) donne littéralement 'O(n×w)' pour l'attention locale et 'receptive field is l×d×w' pour la dilatation, en précisant que la dilatation augmente le champ réceptif 'without increasing computation'. Une source secondaire indépendante (anwarvic.github.io) reproduit la même formule l×d×w avec la même complexité O(n×w)."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Toutes les composantes vérifiées verbatim dans le PDF (Sec. 3.1) : 'The computation complexity of this pattern is O(n × w)', 'the receptive field is ℓ × d × w', 'To further increase the receptive field without increasing computation, the sliding window can be dilated', et 'task motivated global attention'. Nuance mineure non disqualifiante : le papier donne O(n×w) pour la fenêtre glissante SEULE et O(n) pour la combinaison locale+globale complète (équivalent si w est traité comme une constante) — l'énoncé attribue O(n×w) à 'la combinaison', ce qui est une simplification mais pas une erreur factuelle."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:7",
+      "section": "motifs-statiques-fondateurs",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "BigBird combine fenêtre locale, tokens globaux et attention aléatoire construite sur un graphe d'Erdős–Rényi pour atteindre une complexité linéaire tout en préservant les propriétés théoriques de l'attention complète (approximateur universel, Turing-complet) — et démontre formellement qu'un motif parcimonieux à Õ(n) arêtes (pas seulement BigBird) requiert Ω̃(n) couches pour certaines tâches que l'attention complète résout en O(1) couche.",
+      "original_statement": "BigBird combine fenêtre locale, tokens globaux et attention aléatoire construite sur un graphe d'Erdős–Rényi pour atteindre une complexité linéaire tout en préservant les propriétés théoriques de l'attention complète (approximateur universel, Turing-complet) — et démontre formellement qu'un motif parcimonieux à Õ(n) arêtes (pas seulement BigBird) requiert Ω̃(n) couches pour certaines tâches que l'attention complète résout en O(1) couche.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Le papier primaire (ar5iv) confirme le modèle d'Erdős–Rényi pour l'attention aléatoire, l'universal approximator + Turing complete, et la Proposition 1 : pour tout graphe d'attention parcimonieux à Õ(n) arêtes, il faut Ω̃(n^(1-o(1))) couches pour une tâche que l'attention complète résout en une couche — l'énoncé du claim ('Ω̃(n)') est la reformulation standard, reprise à l'identique par les résumés tiers trouvés. Deux sources secondaires indépendantes (Sik-Ho Tsang, notes de cours CSE 5539) confirment séparément Erdős–Rényi et universal-approximator/Turing-complete ; aucune des deux ne détaille la Proposition 1, qui reste vérifiée uniquement par la source primaire."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Vérifié verbatim sur le PDF primaire, Sec. 2-3.4 : trois composantes (g globaux, w fenêtre, r aléatoire) explicitement motivées par le modèle 'Erdős-Rényi' pour sa propriété de plus court chemin logarithmique ; complexité linéaire confirmée ; Theorem 1 (universel) et Sec. 3.3 (Turing complet) confirmés. La borne inférieure est EXACTEMENT celle du papier : Sec. 3.4 'this problem requires Ω̃(n)-layers for any sparse attention layers with Õ(n) edges (not BIGBIRD)' contre O(1) couche pour l'attention complète — portée générale confirmée textuellement, pas limitée à BigBird. Seule nuance : le graphe aléatoire implémenté est r-régulier (r clés fixes par requête), pas un tirage Erdős–Rényi G(n,p) au sens strict — le papier le présente comme 'inspiré par'/'construit sur' ce raisonnement, ce qui correspond à la formulation du claim."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:8",
+      "section": "motifs-statiques-fondateurs",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "L'attention locale à fenêtre glissante de Longformer limite le champ réceptif d'UNE seule couche à la taille de la fenêtre w ; empilée sur l couches, le champ réceptif effectif du MODÈLE croît linéairement (l×w, ou l×d×w avec dilatation), et non à w seul.",
+      "original_statement": "L'attention locale à fenêtre glissante (Longformer) limite le champ réceptif effectif du modèle à la taille de la fenêtre w.",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 3,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le papier primaire dit explicitement l'inverse de l'énoncé : 'the receptive field size at the top layer is l×w' — une couche unique est bornée par w, mais le champ réceptif du MODÈLE croît avec l'empilement de couches (et avec la dilatation, jusqu'à l×d×w, 'des dizaines de milliers de tokens'). Confirmé indépendamment par anwarvic.github.io. Le claim, tel qu'énoncé, confond fenêtre d'une couche et champ réceptif du modèle — à corriger, pas à retenir tel quel."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Directement contredit par la source elle-même (Sec. 3.1) : 'Using multiple stacked layers of such windowed attention results in a large receptive field, where top layers have access to all input locations' et 'the receptive field size at the top layer is ℓ × w'. Le claim confond le champ réceptif d'UNE couche (=w) avec celui du MODÈLE empilé sur ℓ couches, que le papier dit explicitement croissant et non borné à w."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "L'énoncé confond la fenêtre w d'une seule couche avec le champ réceptif effectif du MODÈLE. Le papier original dit explicitement l'inverse : « The receptive field size at the top layer is ℓ×w » et compare le mécanisme aux CNN, où l'empilement de couches permet aux couches supérieures d'accéder à l'ensemble de l'entrée — le champ réceptif n'est donc PAS plafonné à w à l'échelle du modèle, il croît linéairement avec la profondeur. Confirmé indépendamment par le texte du papier (ar5iv, miroir fidèle d'arXiv) et par l'article dair-ai qui reformule le même point (« top layers have access to all input locations »)."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « L'attention locale à fenêtre glissante (Longformer) limite le champ réceptif effectif du modèle à la taille de la fenêtre w. »"
+    },
+    {
+      "id": "claim:9",
+      "section": "longueur-de-chemin-expressivite",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "BigBird's Theorem 1 proves that any sparse-attention graph containing a star graph — one global token connected to every position (and connected from every position) — makes the resulting transformer a universal approximator of continuous sequence-to-sequence functions f:[0,1]^{n×d}→ℝ^{n×d} in the ℓ_p-topology (the theorem's precondition is literally 'D is any graph containing star graph S'; no local window or random edges are required). The O(n) inner-product-evaluation count (vs. O(n²) for full attention) is NOT part of what Theorem 1 proves — the theorem statement contains no complexity bound at all. That linear-cost property is a separate, general fact about BigBird's star+window+random sparse pattern stated elsewhere in the paper (Section 2), true simply because a star graph has O(n) edges.",
+      "original_statement": "BigBird's Theorem 1 proves that any sparse-attention graph containing a star graph — one global token connected to every position (and connected from every position) — makes the resulting transformer a universal approximator of continuous sequence-to-sequence functions with the same expressive power as full attention, at O(n) inner-product evaluations instead of O(n²); no local window or random edges are required by the theorem's precondition.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Vérifié mot pour mot sur ar5iv : Theorem 1 exige seulement que D contienne le star graph S (aucune fenêtre locale ni arête aléatoire requise), conclusion = approximateur universel. DOCSAID confirme précisément le précondition star-graph-only ; Tsang confirme indépendamment la conclusion (universal approximator + Turing complete) mais sans détailler le précondition — corroboration partielle mais réelle."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Verified against the paper's actual Theorem 1 statement and its Section 3.1 parameter definitions: the theorem's content is purely an approximation-class result (D ⊇ star graph S ⇒ universal approximator), with no mention of inner-product counts. The claim conflates this with an unrelated, separately-stated complexity property (Section 2), misattributing it to 'Theorem 1 proves.' The star-graph-only precondition part of the claim is otherwise accurate."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « BigBird's Theorem 1 proves that any sparse-attention graph containing a star graph — one global token connected to every position (and connected from every position) — makes the resulting transformer a universal approximator of continuous sequence-to-sequence functions with the same expressive power as full attention, at O(n) inner-product evaluations instead of O(n²); no local window or random edges are required by the theorem's precondition. »"
+    },
+    {
+      "id": "claim:10",
+      "section": "longueur-de-chemin-expressivite",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "BigBird's own limitation result (Proposition 1), conditional on the Orthogonal Vector Conjecture from fine-grained complexity theory, shows that any sparse-attention graph with Õ(n) edges requires Ω̃(n^{1-o(1)}) layers to solve a task — finding, for each of n unit vectors, its furthest counterpart — that a single layer of full self-attention solves in O(1) layers, establishing a formal (not just empirical) depth separation between sparse and dense attention.",
+      "original_statement": "BigBird's own limitation result (Proposition 1), conditional on the Orthogonal Vector Conjecture from fine-grained complexity theory, shows that any sparse-attention graph with Õ(n) edges requires Ω̃(n^{1-o(1)}) layers to solve a task — finding, for each of n unit vectors, its furthest counterpart — that a single layer of full self-attention solves in O(1) layers, establishing a formal (not just empirical) depth separation between sparse and dense attention.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Confirmé verbatim sur ar5iv (Õ(n) arêtes ⇒ Ω̃(n^{1-o(1)}) couches, vs 1 couche d'attention complète, sous OVC). DOCSAID reprend la même borne, la même tâche (plus lointain vecteur) et la même conditionnalité OVC de façon indépendante et précise — seule source secondaire trouvée qui traite réellement Proposition 1 (Tsang et le blog HuggingFace ne l'abordent pas du tout)."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Matches the paper closely: Proposition 1 (Section 3.4) states a single layer of full self-attention (H=1) solves Task 1, while any sparse-attention graph D with Õ(n) edges needs Ω̃(n^{1-o(1)}) layers; the impossibility is explicitly derived from the Orthogonal Vector Conjecture. Task 1 is defined as finding, for every j∈[n] simultaneously, its furthest counterpart u_k — confirming the 'for each of n unit vectors' phrasing is accurate, not an overgeneralization."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:11",
+      "section": "longueur-de-chemin-expressivite",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "BigBird motivates its random-attention component with a graph-diameter argument: an Erdős–Rényi random graph built with just Θ̃(n) edges has shortest paths of length O(log n) between any two nodes and approximates the complete graph spectrally, giving rapid random-walk mixing — so random edges act as shortcuts keeping the number of attention hops between any two distant tokens logarithmic rather than linear in sequence length.",
+      "original_statement": "BigBird motivates its random-attention component with a graph-diameter argument: an Erdős–Rényi random graph built with just Θ̃(n) edges has shortest paths of length O(log n) between any two nodes and approximates the complete graph spectrally, giving rapid random-walk mixing — so random edges act as shortcuts keeping the number of attention hops between any two distant tokens logarithmic rather than linear in sequence length.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Le texte exact (Θ̃(n) arêtes, chemins O(log n), approximation spectrale, mixing rapide) est vérifié verbatim sur ar5iv. Les sources secondaires indépendantes ne reproduisent que la partie qualitative — DOCSAID confirme 'spectral properties similar to full graphs, acting as expanders', HuggingFace confirme 'information can travel very rapidly... with just a few layers' — aucune ne réénonce le O(log n) exact, qui reste propre au papier source ; l'énoncé tient mais sa corroboration indépendante est qualitative, pas quantitative."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Section 2 explicitly invokes the Erdős–Rényi random graph model and states that with Θ̃(n) edges the shortest path between any two nodes is O(log n), that such a graph approximates the complete graph spectrally (large spectral gap), and that this yields rapid random-walk mixing letting information flow fast between any pair of nodes — the claim's 'shortcut/logarithmic hops' framing is a faithful ML-facing paraphrase of this graph-diameter/mixing argument."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:12",
+      "section": "longueur-de-chemin-expressivite",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "Idée reçue à départager : parce que BigBird prouve que l'attention parcimonieuse avec étoile est un approximateur universel et Turing-complet comme l'attention complète, on affirme souvent qu'elle ne perd AUCUNE expressivité par rapport à l'attention complète — mais le MÊME article prouve dans sa Proposition 1 une séparation formelle de profondeur (Ω̃(n) contre O(1) couches) pour une tâche précise, donc l'équivalence n'est vraie qu'à profondeur non bornée : à profondeur fixée (le régime pratique), l'attention parcimonieuse a prouvablement besoin de plus de couches que l'attention dense pour au moins certaines tâches.",
+      "original_statement": "Idée reçue à départager : parce que BigBird prouve que l'attention parcimonieuse avec étoile est un approximateur universel et Turing-complet comme l'attention complète, on affirme souvent qu'elle ne perd AUCUNE expressivité par rapport à l'attention complète — mais le MÊME article prouve dans sa Proposition 1 une séparation formelle de profondeur (Ω̃(n) contre O(1) couches) pour une tâche précise, donc l'équivalence n'est vraie qu'à profondeur non bornée : à profondeur fixée (le régime pratique), l'attention parcimonieuse a prouvablement besoin de plus de couches que l'attention dense pour au moins certaines tâches.",
+      "corroborated": 2,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Le papier lui-même (section Limitations, vérifiée sur ar5iv) pose Proposition 1 comme un coût-en-profondeur qui coexiste avec l'universalité du Theorem 1 — la classe de fonctions 𝒯_D^{H,m,q} ne borne pas le nombre de couches, donc l'équivalence est bien un résultat à profondeur non fixée. DOCSAID corrobore indépendamment les deux résultats séparément et qualifie Proposition 1 de limitation pratique ('may require significantly more layers... becoming a limitation in practical applications'), sans toutefois formuler la synthèse en une phrase unique — la reconstruction logique reste la mienne, appuyée sur le texte du papier."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "The core synthesis (Thm 1 vs Prop 1 = depth separation) is sound and even reinforced by the paper: Theorem 1's own proof construction requires O(n) layers (not fixed depth), and Section 3.3 does add a Turing-completeness result, both confirmed by direct reading. But the claim states Prop 1's separation as an unconditional fact ('a prouvablement besoin de plus de couches') without carrying forward the Orthogonal Vector Conjecture conditionality that the paper itself attaches to it (and that claim 1 correctly states) — an unqualified 'provably' overstates a conjecture-conditional complexity result. Judged standalone, this is a real omission."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Vérifié par lecture directe du PDF NeurIPS (pages 5-6, sections 3.2-3.4). Le papier encadre lui-même ses deux résultats comme une paire thèse/antithèse : Théorème 1 (universalité, via le graphe en étoile) + Turing-complétude en 3.2-3.3, puis section 3.4 « Limitations » qui ouvre littéralement par « there is no free lunch » et énonce « O(1)-layers » pour l'attention complète contre « Ω̃(n)-layers » pour la parcimonieuse — formulation reprise texto par l'énoncé contestable. Seule nuance technique : la Proposition 1 elle-même (l'énoncé mathématique formel, distinct du paragraphe d'intro de 3.4) précise l'exposant Ω̃(n^{1-o(1)}) plutôt que Ω̃(n) tout court — un détail qui n'affecte pas la validité de l'énoncé puisque le papier utilise les deux formulations à une phrase d'écart. À noter aussi : la borne inférieure sur la parcimonieuse est conditionnelle (hypothèse Orthogonal Vector Conjecture), pas une preuve absolue inconditionnelle — nuance implicite dans « prouvablement » mais standard en complexité fine-grained."
+        }
+      ],
+      "audit_note": "Confirmé : 2/3 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:13",
+      "section": "attention-sink-streaming",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le phénomène d'attention sink s'explique par la contrainte de normalisation du softmax (les scores doivent sommer à 1, sans possibilité d'abstention), qui force l'excédent de masse d'attention à se déverser sur les positions structurellement les plus visibles — les premiers tokens sous masquage causal — indépendamment de leur contenu sémantique.",
+      "original_statement": "Le phénomène d'attention sink s'explique par la contrainte de normalisation du softmax (les scores doivent sommer à 1, sans possibilité d'abstention), qui force l'excédent de masse d'attention à se déverser sur les positions structurellement les plus visibles — les premiers tokens sous masquage causal — indépendamment de leur contenu sémantique.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Deux papiers indépendants du MIT/Song Han corroborent le mécanisme : Ran-Milo et al. prouvent théoriquement que la contrainte de normalisation softmax est le moteur structurel du sink (un modèle ReLU/non-normalisé résout la même tâche sans sink) ; Gu et al. montrent empiriquement que remplacer softmax par une attention sigmoïde non-normalisée fait disparaître le sink jusqu'à 1B paramètres — confirmant que c'est bien la contrainte « somme = 1 » qui force le déversement sur les premiers tokens, indépendamment du contenu."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Correspond quasi mot pour mot à l'explication du papier primaire : le softmax 'prevents all attended tokens from having zero values', forçant le modèle à 'dump unnecessary attention values' ; les tokens initiaux deviennent sinks car 'visible to all subsequent tokens' sous masquage causal, et l'expérience de substitution par '\\n' montre l'indépendance au contenu sémantique. Une survey indépendante (2604.10098) corrobore l'explication softmax MAIS présente aussi des théories complémentaires (outlier circuits, biais implicite, ancrage géométrique) — l'explication softmax est donc l'explication FONDATRICE (celle de Xiao et al.), pas la seule retenue par la littérature 2024-2026 ; à formuler comme attribution historique plutôt que fait définitivement clos, mais l'énoncé tel quel n'est pas contredit."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:14",
+      "section": "attention-sink-streaming",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "StreamingLLM permet à des LLM entraînés avec une fenêtre d'attention finie de générer de façon stable jusqu'à des millions de tokens sans aucun fine-tuning, en conservant en permanence le KV d'un petit nombre de tokens initiaux à côté d'une fenêtre glissante de tokens récents.",
+      "original_statement": "StreamingLLM permet à des LLM entraînés avec une fenêtre d'attention finie de générer de façon stable jusqu'à des millions de tokens sans aucun fine-tuning, en conservant en permanence le KV d'un petit nombre de tokens initiaux à côté d'une fenêtre glissante de tokens récents.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Le papier d'origine (2309.17453) est la source qui fait foi pour le chiffre « 4 millions de tokens » testé par les auteurs. Aarsen (Hugging Face, auteur indépendant) reproduit lui-même le mécanisme — génération fluide sans fine-tuning avec sink tokens + fenêtre glissante — mais sur ~10k tokens, pas des millions ; sa réplication confirme le mécanisme général, pas l'échelle exacte revendiquée. L'adoption indépendante en production (HuggingFace Transformers, NVIDIA TensorRT-LLM — voir claim 3) constitue une confirmation comportementale supplémentaire que le mécanisme fonctionne comme décrit."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Reprend quasi verbatim l'abstract : 'enables LLMs trained with a finite length attention window to generalize to infinite sequence length without any fine-tuning' et 'up to 4 million tokens and more', mécanisme = 4 tokens sink + fenêtre glissante récente. Survey indépendante confirme le mécanisme. Nuance à noter pour la prose (pas une raison de holds=false) : 'stable' ne veut dire que stabilité de perplexité/fluidité — StreamingLLM ne restaure PAS le rappel d'information évincée de la fenêtre glissante ; le claim tel qu'écrit ne prétend pas le contraire donc il tient."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:15",
+      "section": "attention-sink-streaming",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Le chiffre « 4 tokens initiaux » est une propriété empirique des modèles entraînés SANS sink dédié ; quand un token placeholder est ajouté délibérément comme sink pendant le pré-entraînement, un seul token suffit — le nombre de tokens-sink nécessaires est donc un choix de conception ajustable par l'entraînement, pas une propriété fixe et intrinsèque de l'architecture transformer.",
+      "original_statement": "Le nombre de tokens nécessaires comme attention sink (souvent cité comme « 4 tokens initiaux ») est une propriété fixe et intrinsèque de l'architecture transformer, non un paramètre de conception ajustable par l'entraînement.",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 3,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Le claim est contredit par le papier d'origine lui-même (2309.17453 v3) : « the model trained with a sink token achieved satisfactory streaming performance using just the sink token » contre 4 tokens pour un modèle vanille. Gu et al., indépendants du MIT, confirment que l'émergence et la localisation du sink dépendent de choix d'entraînement (optimisation, distribution des données, fonction de perte — sigmoid attention sans normalisation supprime le sink jusqu'à 1B paramètres), renforçant que ce n'est pas une propriété figée de l'architecture."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "Directement réfuté par la source primaire elle-même : le papier montre qu'introduire 1-2 tokens initiaux 'usually doesn't suffice', d'où le chiffre 4 pour les modèles existants — mais propose ensuite d'ajouter un token de sink APPRIS pendant le pré-entraînement, ce qui ramène le besoin à 1 seul token. C'est l'inverse d'une 'propriété fixe et intrinsèque non ajustable par l'entraînement' : le papier en fait explicitement une recommandation de design pour l'entraînement futur."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le papier source (StreamingLLM, section 3.3) dit explicitement que le besoin de « 4 tokens initiaux » vient du fait que « the model didn't include a consistent starting token across all training samples during pre-training », et démontre qu'en pré-entraînant avec un « Sink Token » apprenable prépendu à chaque échantillon, un seul token suffit (« the model trained with a sink token achieves satisfactory streaming performance using just the sink token »). C'est donc explicitement présenté par les auteurs comme un choix/artefact de pré-entraînement modifiable, pas comme une contrainte architecturale figée — l'énoncé contestable inverse la conclusion du papier qu'il cite."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Le nombre de tokens nécessaires comme attention sink (souvent cité comme « 4 tokens initiaux ») est une propriété fixe et intrinsèque de l'architecture transformer, non un paramètre de conception ajustable par l'entraînement. »"
+    },
+    {
+      "id": "claim:16",
+      "section": "attention-sink-streaming",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le mécanisme d'attention sink de StreamingLLM est passé de la publication de recherche à l'intégration en production dans des moteurs d'inférence en quelques mois seulement.",
+      "original_statement": "Le mécanisme d'attention sink de StreamingLLM est passé de la publication de recherche à l'intégration en production dans des moteurs d'inférence en quelques mois seulement.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Deux organisations indépendantes du MIT confirment une intégration rapide : la PR HuggingFace référence explicitly arXiv:2309.17453, ouverte le 9 octobre 2023 et mergée le 8 décembre 2023 (~2,3 mois après la publication du 29 septembre 2023) ; TensorRT-LLM v0.8.0 (NVIDIA), sorti le 29 février 2024, ajoute le support StreamingLLM (~5 mois après publication). « Quelques mois » est donc vérifié, avec une fourchette de ~2 à ~5 mois selon le moteur."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Papier soumis fin septembre 2023 (arXiv 2309.17453). PR HuggingFace créée le 9 oct. 2023, mergée le 8 déc. 2023 (~2,3 mois), par un ingénieur HF (tomaarsen) indépendant des auteurs — source vraiment indépendante. TensorRT-LLM v0.8.0 sorti le 29 fév. 2024 (~5 mois) documente le support StreamingLLM, mais cette intégration a été portée par Song Han (co-auteur du papier, chez NVIDIA) — moins indépendante de l'équipe d'origine ; je la garde comme confirmation FACTUELLE de la date de sortie officielle, pas comme validation scientifique indépendante. Les deux confirment un délai de quelques mois, cohérent avec le claim."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:17",
+      "section": "eviction-kv-cache",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "H2O formulates KV-cache eviction as a dynamic submodular optimization problem with a theoretical near-optimality guarantee, built on the empirical observation that cumulative attention scores are power-law-concentrated in a small set of tokens, and it retains a fixed budget mixing these 'Heavy Hitters' with the most recent tokens.",
+      "original_statement": "H2O formulates KV-cache eviction as a dynamic submodular optimization problem with a theoretical near-optimality guarantee, built on the empirical observation that cumulative attention scores are power-law-concentrated in a small set of tokens, and it retains a fixed budget mixing these 'Heavy Hitters' with the most recent tokens.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Confirmé par la source primaire (abstract H2O + §3.2 : « accumulated attention scores... follow a power-law distribution », formulation submodular avec garantie 'sous hypothèses légères') et corroboré indépendamment par deux papiers tiers non affiliés (DynamicKV, KV-Compress) qui décrivent chacun, sans être des miroirs, le mécanisme heavy-hitter/attention cumulée et le mélange heavy-hitters + tokens récents."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Vérifié sur le texte complet (arxiv.org/html/2306.14048) : Theorem 4.4 donne une borne (1-α)(1-1/e)-approximation sous mild assumptions (near-optimal, formulation submodulaire gloutonne classique) ; l'observation power-law est citée mot pour mot ; la politique d'éviction (budget fixe recent + heavy hitters) est confirmée."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:18",
+      "section": "eviction-kv-cache",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "SnapKV, comme H2O, calcule ses scores d'importance indépendamment par tête (le cache KV étant structurellement per-head) ; ce que SnapKV change n'est pas le fait d'être per-head mais LA FAÇON de scorer par tête : au lieu de la somme cumulée sur tout l'historique utilisée par H2O, SnapKV agrège (pooling max) l'attention d'une petite fenêtre d'observation en fin de prompt et vote, par tête, sur les positions KV du PROMPT à garder — ciblant la compression du prefill plutôt que la compression pendant la génération que fait H2O.",
+      "original_statement": "SnapKV replaces H2O's flat, globally-accumulated attention score with a per-head selection mechanism: it pools attention from a small 'observation window' located at the end of the prompt and votes, per attention head, for which KV positions to keep.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Confirmé par l'abstract SnapKV et indépendamment par KV-Compress (cite explicitement « SnapKV mitigates this issue by limiting the aggregation to queries generated for the final tokens of the input prompt », budget par tête) et par DynamicKV (« selecting key positions per head ») — deux papiers tiers non affiliés à SnapKV, non des reposts l'un de l'autre."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Les mécaniques SnapKV (fenêtre d'observation, pooling, vote per-head) sont vérifiées mot pour mot. Mais le contraste 'H2O = flat/global, SnapKV = per-head' est trompeur : la lecture directe de H2O montre un score DÉJÀ calculé par tête (Algorithme 1, aucune agrégation cross-head), et Ada-KV lui-même groupe H2O+SnapKV comme partageant le défaut d'un budget uniforme PAR tête — pas d'une absence de granularité per-head chez H2O. La vraie ligne de fracture (section related-work de SnapKV) est prefill vs génération et fenêtre-pooling vs cumul plein-historique."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « SnapKV replaces H2O's flat, globally-accumulated attention score with a per-head selection mechanism: it pools attention from a small 'observation window' located at the end of the prompt and votes, per attention head, for which KV positions to keep. »"
+    },
+    {
+      "id": "claim:19",
+      "section": "eviction-kv-cache",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Ada-KV identifie le budget d'éviction uniforme par tête (H2O/SnapKV) comme un défaut de conception et le remplace par une réallocation adaptative bornée théoriquement (Théorèmes 3.1–3.3, borne sur la perte d'éviction) à travers les têtes d'attention. PyramidKV identifie la taille de cache uniforme par couche comme un défaut et la remplace par une réallocation pyramidale adaptative à travers les couches, motivée par une observation empirique (« pyramidal information funneling ») — mais, contrairement à Ada-KV, sans borne théorique formelle comparable.",
+      "original_statement": "Ada-KV and PyramidKV both identify the uniform eviction budget used by H2O/SnapKV (fixed per head, fixed per layer) as a design flaw and replace it with an adaptive, theoretically-bounded reallocation — Ada-KV across attention heads, PyramidKV across layers — moving budget away from concentrated heads/layers toward dispersed ones.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 0,
+          "note": "Le volet Ada-KV tient (bornes théoriques confirmées par lecture directe du PDF ainsi que par DynamicKV, tiers, qui décrit Ada-KV comme « optimizing eviction loss bounds over uniform strategies »). Mais le volet PyramidKV ne tient pas : lecture directe du papier (arxiv.org/html/2406.02069v1) — aucune occurrence de 'theorem/proof/bound/guarantee', la réallocation pyramidale est justifiée uniquement par une observation empirique, pas par une borne théorique. Le claim surgénéralise « theoretically-bounded » aux deux méthodes."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Vérifié sur les deux textes complets : Ada-KV a bien Theorem 3.1–3.3 (bornée) ; PyramidKV n'a AUCUN théorème/borne — 'zero formal theorems, lemmas, or proven guarantees', réallocation justifiée par observation empirique et ablation seulement. Le claim attribue à tort 'theoretically-bounded' à PyramidKV."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « Ada-KV and PyramidKV both identify the uniform eviction budget used by H2O/SnapKV (fixed per head, fixed per layer) as a design flaw and replace it with an adaptive, theoretically-bounded reallocation — Ada-KV across attention heads, PyramidKV across layers — moving budget away from concentrated heads/layers toward dispersed ones. »"
+    },
+    {
+      "id": "claim:20",
+      "section": "eviction-kv-cache",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Les méthodes d'éviction du KV cache classent et écartent les tokens selon un score d'attention agrégé/poolé, mais ce signal d'importance varie fortement selon la tête et la couche (p. ex. un petit sous-ensemble de « têtes de récupération » est disproportionnellement important, et la concentration d'attention diffère largement d'une tête/couche à l'autre) — c'est précisément pourquoi Ada-KV et PyramidKV remplacent un budget d'éviction uniforme (identique par tête/couche) par une allocation adaptative ; rien ne montre qu'une éviction uniforme fondée sur l'importance soit sûre indépendamment des têtes auxquelles elle s'applique.",
+      "original_statement": "Because KV-cache eviction methods rank and discard tokens by aggregated/pooled attention-score importance, the tokens they throw away are — by construction — the ones the model doesn't need, so uniform importance-based eviction is a safe compression strategy regardless of which heads it is applied to.",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 3,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 0,
+          "note": "Faux par construction : le papier sur les « retrieval heads » (arxiv 2404.15574, candidate) montre que <5% des têtes sont des têtes de récupération et que les pruner cause des hallucinations — l'importance n'est pas interchangeable entre têtes. Ada-KV (2407.11550, candidate) prouve précisément l'inverse du claim : un budget uniforme par tête est sous-optimal (borne de perte supérieure vs. allocation adaptative). Les deux sources candidates réfutent le claim au lieu de le confirmer."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Réfuté directement par Ada-KV lui-même, dont toute la motivation est que l'allocation uniforme 'results in inefficiencies—either wasting cache budgets on heads with sparse concentration or incurring significant eviction losses in heads with dispersed distribution'. Le papier retrieval-heads (vérifié, ne traite pas l'éviction directement mais corrobore l'hétérogénéité critique des têtes : <5% des têtes sont des retrieval heads, leur élagage cause hallucination) renforce que 'peu importe quelle tête' est faux par construction."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Both primary sources directly contradict the \"regardless of which heads\" clause. The retrieval-head paper shows <5% of heads (\"retrieval heads\") are critical and non-fungible — masking them specifically collapses long-context retrieval while masking random other heads doesn't, meaning aggregated/pooled importance can evict tokens a small head subset actually needs. Ada-KV explicitly frames uniform, head-agnostic budget allocation as the flawed baseline (higher theoretical eviction loss) that its head-wise adaptive allocation improves on, i.e. prior authors themselves argue uniform importance-based eviction across heads is suboptimal, not safe by construction."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « Because KV-cache eviction methods rank and discard tokens by aggregated/pooled attention-score importance, the tokens they throw away are — by construction — the ones the model doesn't need, so uniform importance-based eviction is a safe compression strategy regardless of which heads it is applied to. »"
+    },
+    {
+      "id": "claim:21",
+      "section": "selection-dynamique-inference",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Quest is a training-free, query-aware KV-cache page-SELECTION method: it keeps the full KV cache in memory and, per query, estimates each page's criticality from per-page min/max key-channel bounds against the current query vector, then loads only the top-K highest-scoring pages for attention — a fundamentally different operation from EVICTION methods (H2O, TOVA) that permanently discard entries: H2O based on the sum of historical/cumulative attention scores, TOVA based solely on the current query at the moment of eviction — but in both cases the decision, once made, is never reconsidered for a future, different query, unlike Quest's fresh per-query re-selection over a retained full cache.",
+      "original_statement": "Quest is a training-free, query-aware KV-cache page-SELECTION method: it keeps the full KV cache in memory and, per query, estimates each page's criticality from per-page min/max key-channel bounds against the current query vector, then loads only the top-K highest-scoring pages for attention — a fundamentally different operation from EVICTION methods (H2O, TOVA) that permanently discard entries using query-agnostic historical/cumulative scores.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Primary source (arXiv 2406.10774) confirms full-cache retention, per-page min/max key-channel bounds scored against the current query, top-K page loading, and self-contrasts with H2O/TOVA as discarding based on 'historical information or current states.' The two independent write-ups corroborate the mechanism and the training-free/plug-and-play framing. Minor nuance not fatal to the claim: TOVA's own paper scores by 'the last token's attention' (current-state) rather than strictly historical/cumulative — H2O is the cumulative one — but both make a permanent, one-shot decision agnostic to future queries, matching Quest's own framing."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "The claim's own candidate source contradicts it: the Quest paper explicitly writes 'TOVA simplifies the policy by deciding which tokens to permanently discard based solely on the current query' (contrast with H2O, 'based on the sum of historical attention scores'). So TOVA is NOT query-agnostic — only H2O is historical/cumulative. Everything else in claim 0 (training-free, full cache retained, per-page min/max key-channel bounds vs. query, top-K page loading, permanent-discard character of both eviction methods) is verified accurate."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « Quest is a training-free, query-aware KV-cache page-SELECTION method: it keeps the full KV cache in memory and, per query, estimates each page's criticality from per-page min/max key-channel bounds against the current query vector, then loads only the top-K highest-scoring pages for attention — a fundamentally different operation from EVICTION methods (H2O, TOVA) that permanently discard entries using query-agnostic historical/cumulative scores. »"
+    },
+    {
+      "id": "claim:22",
+      "section": "selection-dynamique-inference",
+      "section_retained": true,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "TidalDecode shows that WHERE in the network selection happens matters as much as the per-step token budget: by confining full-attention token selection to just two dedicated 'token selection layers' (one early, one mid-network) and reusing that same selected token set — 'position persistence' — across all other layers, it reports higher retrieval accuracy than Quest at comparable or smaller budgets while cutting end-to-end decoding latency.",
+      "original_statement": "TidalDecode shows that WHERE in the network selection happens matters as much as the per-step token budget: by confining full-attention token selection to just two dedicated 'token selection layers' (one early, one mid-network) and reusing that same selected token set — 'position persistence' — across all other layers, it reports higher retrieval accuracy than Quest at comparable or smaller budgets while cutting end-to-end decoding latency.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Primary source (arXiv 2410.05076) confirms exactly two token-selection layers (one right after the initial full-attention layer, one mid-network, e.g. layers 2 and 13 in their figure), the 'position persistent' term for reusing that selected set, higher accuracy than Quest at equal/smaller budgets (e.g. 100% vs 65% at a 128-token budget on 100K context; consistently lower PG-19 perplexity; wins on LongBench), and up to 2.1x decode latency reduction. An independent third-party review reproduces the same mechanism description and figures."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Verified against the paper: exactly two 'token selection layers' (one early, one mid-network, e.g. layer 13/32 for LLaMA-3-8B), reused via what the paper itself names 'position persistent sparse attention'; its own Needle-in-a-Haystack table shows it beating Quest at matched or smaller budgets (e.g. 92% vs Quest's 50% at K=64; 100% vs 87% at K=256; up to 8x smaller budget for the same 100% accuracy) while cutting end-to-end decoding latency by up to 2.1x vs full attention. Only one primary source found (arXiv preprint and its ICLR 2025 camera-ready are the same authors, not independent), but claim content matches the source closely."
+        }
+      ],
+      "audit_note": "Rejeté : 2 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+    },
+    {
+      "id": "claim:23",
+      "section": "selection-dynamique-inference",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "MInference targets the PREFILL phase specifically (decode stays fully dense in its design): it classifies each attention head OFFLINE into one of three recurring sparse patterns (A-shape, Vertical-Slash, Block-Sparse), then builds the actual sparse attention indices ONLINE per input before computing attention with that pattern, cutting prefill latency substantially at million-token context on a single A100 and adopted by Qwen2.5-1M.",
+      "original_statement": "MInference targets the PREFILL phase specifically (decode stays fully dense in its design): it classifies each attention head OFFLINE into one of three recurring sparse patterns (A-shape, Vertical-Slash, Block-Sparse), then builds the actual sparse attention indices ONLINE per input before computing attention with that pattern, cutting prefill latency substantially at million-token context on a single A100 and adopted by Qwen2.5-1M.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Primary source (arXiv 2407.02490) confirms MInference targets prefill only (decode left dense), the three offline head patterns (A-shape, Vertical-Slash, Block-Sparse), per-input online index construction, and up to 10x prefill speedup (30min to 3min) at 1M-token context on one A100 (1.8x/4.1x/6.8x/10x at 100K/300K/500K/1M). Independently confirmed for the mechanism by a third-party review, and for the Qwen2.5-1M adoption by Qwen's own blog, which states verbatim: 'We introduce a sparse attention mechanism based on MInference to accelerate the prefill phase' — a source from a different organization than MInference's authors (Microsoft)."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Verified prefill-only scope ('perform sparse computation only during the pre-filling stage, while retaining dense computation during the decoding stage'), offline per-head classification into A-shape/Vertical-Slash/Block-Sparse plus online index construction, and the 10x prefill speedup (30min -> 3min) at 1M-token context on a single A100. Qwen2.5-1M adoption independently confirmed by the Qwen team's own blog ('sparse attention mechanism based on MInference to accelerate the prefill phase', 3.2x-6.7x measured on their stack) — a different author group from the MInference authors, satisfying independence."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:24",
+      "section": "selection-dynamique-inference",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "It is often assumed a single dynamic sparse-attention recipe can serve both the prefill and decode phases of long-context inference equally well — in practice the published mechanisms are phase-specific and not interchangeable: query-conditioned page/token selection re-run at every decode step (Quest, TidalDecode) targets the per-token KV-cache-loading bottleneck of decode, while offline per-head pattern classification amortized once per prompt (MInference) targets the one-shot quadratic-compute bottleneck of prefill and leaves decode dense.",
+      "original_statement": "It is often assumed a single dynamic sparse-attention recipe can serve both the prefill and decode phases of long-context inference equally well — in practice the published mechanisms are phase-specific and not interchangeable: query-conditioned page/token selection re-run at every decode step (Quest, TidalDecode) targets the per-token KV-cache-loading bottleneck of decode, while offline per-head pattern classification amortized once per prompt (MInference) targets the one-shot quadratic-compute bottleneck of prefill and leaves decode dense.",
+      "corroborated": 3,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "This synthesis follows directly from the individually-verified mechanisms in claims 0/1/2: Quest/TidalDecode re-run query-conditioned selection every decode step against the KV-cache-loading bottleneck, while MInference classifies patterns offline once per prompt against prefill's quadratic-compute bottleneck and leaves decode dense. An independent third-party survey explicitly organizes sparse-attention methods along this same prefill-vs-decode bottleneck distinction ('during decoding, token-to-page selection becomes cheap since only one query is processed per step' vs. prefill methods that 'select attention patterns offline'), corroborating the phase-specificity thesis."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Confirmed on both anchor papers: Quest re-estimates page criticality per decode-step query and explicitly leaves prefill to dense FlashAttention ('we use Flash-Attention with the full KV cache' for the prompt, sparse selection only 'in every decode stage'); MInference confines its offline-classified, per-input-built sparse patterns to prefill and states baselines/itself 'retain dense computation during the decoding stage.' TidalDecode (not re-fetched separately here beyond claim 1's check) is likewise framed throughout its own paper as a decoding-latency method. The phase-specific, non-interchangeable characterization holds as stated."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Les trois sources primaires corroborent l'énoncé. Quest (abstract) : le ralentissement du decode \"is primarily caused by loading a large KV cache during self-attention\" ; le criticality dépend de la Query, et la sélection Top-K des pages est recalculée \"at each decoding step\" (confirmé par le corps du papier). TidalDecode (abstract) : cible explicitement \"the decoding phase\" / la mémoire du KV cache ; \"In each decoding step, TidalDecode uses three types of attention layers\" — la sélection de tokens est refaite à chaque step (à quelques couches dédiées), puis partagée entre couches au sein du même step (nuance mineure vs Quest qui sélectionne à chaque couche, mais la caractéristique \"re-run à chaque decode step\" reste exacte). MInference — titre exact \"Accelerating Pre-filling for Long-Context LLMs via Dynamic Sparse Attention\" : la classification par tête (A-shape/Vertical-Slash/Block-Sparse) est faite offline au niveau du modèle (indépendamment du prompt), la construction des indices sparse est faite une fois par prompt pendant le prefill ; confirmation directe dans le corps du texte : \"for all baselines, we perform sparse computation only during the pre-filling stage, while retaining dense computation during the decoding stage\" — et ceci s'applique à MInference lui-même (nécessite d'être combiné à SnapKV pour du gain côté decode). Seule imprécision mineure et non bloquante : la formule \"offline per-head pattern classification amortized once per prompt\" fusionne deux étapes distinctes (classification par tête = offline au niveau modèle ; construction des indices = une fois par prompt) — la substance du contraste prefill/decode reste correcte."
+        }
+      ],
+      "audit_note": "Confirmé : 3/3 jurés, 4 sources indépendantes."
+    },
+    {
+      "id": "claim:25",
+      "section": "parcimonie-native-entrainee",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "NSA's central architectural argument is that post-hoc sparsity forces a pretrained model off its learned optimization trajectory, whereas natively trained sparsity — three parallel branches (learned block compression, blockwise selection, sliding window) combined through a per-branch learned gate (MLP + sigmoid) — lets sparsity patterns be jointly optimized with the rest of the model, provided selection is blockwise-contiguous and shared across each GQA group so the memory-access savings actually materialize on GPU.",
+      "original_statement": "NSA's central architectural argument is that post-hoc sparsity forces a pretrained model off its learned optimization trajectory, whereas natively trained sparsity — three parallel branches (learned block compression, blockwise selection, sliding window) combined through a per-branch learned gate (MLP + sigmoid) — lets sparsity patterns be jointly optimized with the rest of the model, provided selection is blockwise-contiguous and shared across each GQA group so the memory-access savings actually materialize on GPU.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Verified against the NSA paper itself (arxiv.org/html/2502.11089v1, origin — not counted as independent): it states post-hoc sparsity 'forces models to deviate from their pretrained optimization trajectory', combines the three branches via gate scores 'derived from input features via an MLP and sigmoid activation' (eq.5), and shares blockwise selection across GQA-group heads (eq.10) explicitly to minimize KV-cache loading on GPU. The independent Medium write-up corroborates the MLP+sigmoid gate, the native-vs-post-hoc argument, and GQA group-centric loading almost verbatim; MarkTechPost independently corroborates the three-branch design and the blockwise/hardware rationale (silent on the post-hoc argument specifically). Claim holds as stated."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Verified against the NSA paper itself: the post-hoc-vs-native framing, the three branches (compression/selection/sliding window), the per-branch MLP+sigmoid gate (g_t^c ∈ [0,1]), blockwise-contiguous selection, and GQA-group-shared selection justified explicitly by minimizing KV cache loading on GPU during decoding are all directly supported. Single-source (DeepSeek-AI) as flagged by the RISQUE COUNCIL note, but the claim does not misrepresent it."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:26",
+      "section": "parcimonie-native-entrainee",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "MoBA transposes MoE-style routing to attention with a parameter-free gate — an affinity score between the query and each block's mean-pooled keys, followed by top-k block selection — and its authors explicitly present prior static patterns (sliding-window attention, attention sink) as constrained special cases of this more general gating mechanism, while the official repo notes MoBA still requires continued training of an existing model rather than being a training-free drop-in.",
+      "original_statement": "MoBA transposes MoE-style routing to attention with a parameter-free gate — an affinity score between the query and each block's mean-pooled keys, followed by top-k block selection — and its authors explicitly present prior static patterns (sliding-window attention, attention sink) as constrained special cases of this more general gating mechanism, while the official repo notes MoBA still requires continued training of an existing model rather than being a training-free drop-in.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "MoBA paper (arxiv.org/html/2502.13189, origin) confirms verbatim: affinity score s_i = <q, mean_pool(K[I_i])> with top-k gating, and explicitly 'both [sliding window attention and attention sink] can be viewed as special cases of MoBA'. The official MoonshotAI GitHub repo states MoBA 'requires continue training of existing models... It is not a drop-in sparse attention solution'. MarkTechPost (independent) corroborates the affinity/top-k gating description but is silent on the 'special case' framing and training requirement — those two sub-points rest on the paper/repo's own text rather than triangulated third-party reporting, in line with the brief's note to treat 2026 systems as attributed illustration."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Confirmed near-verbatim in the paper: parameter-free affinity score = inner product of query with mean-pooled block keys, top-k gating, and an explicit statement that sliding-window attention and attention sink are 'variants of MoBA' with constrained gating — i.e. special cases. The repo README explicitly states MoBA 'requires continue training of existing models' and is 'not a drop-in sparse attention solution.' Paper and repo share the same authors (MoonshotAI), so these two sources are not editorially independent of each other — flagged per the section's RISQUE COUNCIL note."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:27",
+      "section": "parcimonie-native-entrainee",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "InfLLM-V2 diverges from NSA specifically by removing NSA's separate compressed-attention output branch (keeping only its scores to guide block selection) and by reusing a single shared set of dense attention's pretrained K/V projection parameters instead of introducing NSA's three separate parameter sets — a change motivated by evidence that NSA's extra parameters cause a visible training-loss disruption when switching from short dense pretraining to long sparse fine-tuning.",
+      "original_statement": "InfLLM-V2 diverges from NSA specifically by removing NSA's separate compressed-attention output branch (keeping only its scores to guide block selection) and by reusing a single shared set of dense attention's pretrained K/V projection parameters instead of introducing NSA's three separate parameter sets — a change motivated by evidence that NSA's extra parameters cause a visible training-loss disruption when switching from short dense pretraining to long sparse fine-tuning.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "InfLLM-V2 paper (arxiv.org/html/2509.24663, origin) confirms verbatim: 'we eliminate the output of the Compressed Attention module, only retaining its attention scores... for block selection'; 'a single shared set of projection parameters, W_K and W_V, initialized with the pretrained dense attention parameters' vs NSA's three sets; and Figure 5's caption states 'NSA causes a disruption in the loss, while InfLLM-V2 is closer to FullAttn' during the short-pretrain-to-long-finetune switch. The 36Kr article (independent Chinese AI-media outlet, not the authors) corroborates the compressed-attention-scores-only change and NSA's unstable-convergence critique, but is thinner on the parameter-reuse rationale and the loss-disruption evidence specifically — independent corroboration is weaker here than for claim 0, matching the brief's flag that this rests on a single lab report."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 1,
+          "note": "Confirmed: InfLLM-V2 'eliminates the output of the Compressed Attention module, only retaining its attention scores for block selection', and reuses 'a single shared set of projection parameters W_K, W_V, initialized with the pretrained dense attention parameters' versus NSA's three KV parameter sets. The paper attributes the mismatch to NSA's three parameter sets forcing an abrupt single-output-to-multi-output switch that 'destabilizes training, erases what the model has already learned' (Fig. 5 shows a visible loss disruption for NSA vs. FullAttn/InfLLM-V2) inside the short-pretrain/long-finetune workflow — matching the claim's causal framing. Single-source (Tsinghua/OpenBMB-affiliated team), as expected per the RISQUE COUNCIL note; no independent corroboration found."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:28",
+      "section": "parcimonie-native-entrainee",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Because NSA is trained end-to-end, it reports matching or exceeding full attention's AVERAGE scores on general, long-context and reasoning benchmark suites — but not on every individual metric within them (NSA scores below full attention on MMLU in the general suite, and on the single/multi-doc-QA and government-report subtasks of LongBench) — so the results support comparable-to-superior aggregate performance under NSA's own benchmark suite, not that sparsity has 'fully' preserved long-range dependency modeling relative to dense attention on every measure.",
+      "original_statement": "Because NSA is trained end-to-end and reports matching or exceeding full-attention scores on general, long-context and reasoning benchmarks, its sparsity has fully preserved the model's long-range dependency modeling relative to dense attention.",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 3,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 0,
+          "note": "The NSA paper's own Table 1 (general benchmarks) shows NSA below full attention on MMLU, and Table 2 (LongBench) shows NSA below full attention on at least two subtasks (single-doc QA, government-report/code summarization), even though the reported AVERAGES are higher for NSA. 'Fully preserved... relative to dense attention' is a stronger claim than the source supports (the paper itself says 'comparable or superior... on most benchmarks', not 'all'); no source, including the origin, confirms full/universal preservation, so the claim does not hold as stated."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 1,
+          "note": "The claim's 'fully preserved' is a logical overreach the primary source does not support: NSA's own Table 1/2 show it underperforming Full Attention on individual benchmarks (MMLU, MATH, GovRpt-style LongBench subtask) even while winning on aggregate averages — matching/exceeding an average score does not entail full preservation on every axis, and the paper itself never claims 'full' preservation, only 'comparable or superior' aggregate performance. This is exactly the kind of overgeneralization the section's 'arbitrage mesuré' framing should guard against."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "The NSA abstract does support the factual premises (end-to-end training; benchmark parity/superiority on general, long-context, reasoning benchmarks) — verified verbatim. But the causal conclusion \"sparsity has fully preserved long-range dependency modeling\" is not a claim NSA's own paper makes (it claims global-context/local-precision balance, not full preservation), and is directly contradicted by the independent InfLLM-V2 paper, which shows NSA's LongPPL perplexity indicates inadequately learned long-range dependencies despite matching aggregate scores — i.e., benchmark-score parity masks a real gap in long-range dependency modeling."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « Because NSA is trained end-to-end and reports matching or exceeding full-attention scores on general, long-context and reasoning benchmarks, its sparsity has fully preserved the model's long-range dependency modeling relative to dense attention. »"
+    },
+    {
+      "id": "claim:29",
+      "section": "hybrides-parcimonieux-lineaires",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Kimi Linear (Moonshot AI) et Qwen3-Next (Alibaba) convergent sur un même ratio 3:1 (trois couches d'attention linéaire pour une couche d'attention complète), mais définissent différemment la couche « complète » — MLA façon DeepSeek pour Kimi Linear, Gated Attention pour Qwen3-Next — et Kimi précise que ce ratio a été retenu après ablation (7:1 dégrade la validation, 1:1 alourdit l'inférence sans gain).",
+      "original_statement": "Kimi Linear (Moonshot AI) et Qwen3-Next (Alibaba) convergent sur un même ratio 3:1 (trois couches d'attention linéaire pour une couche d'attention complète), mais définissent différemment la couche « complète » — MLA façon DeepSeek pour Kimi Linear, Gated Attention pour Qwen3-Next — et Kimi précise que ce ratio a été retenu après ablation (7:1 dégrade la validation, 1:1 alourdit l'inférence sans gain).",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "Le ratio 3:1 pour les deux modèles et la distinction MLA (Kimi Linear) vs Gated Attention (Qwen3-Next) sont confirmés indépendamment par Raschka (analyse tierce détaillée). La direction de l'ablation (3:1 optimal, 7:1 moins bon en validation, 1:1 moins bon en débit/inférence) est corroborée qualitativement par TheMoonlight.io et par le blog de Jianyu Huang (\"better than 1:1 or 7:1\" en throughput et validation loss) ; les chiffres de perplexité précis n'ont pas pu être vérifiés directement dans un texte que j'ai ouvert, mais l'énoncé tel que formulé (qualitatif, sans chiffres) tient."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "3:1 convergence et la distinction MLA (Kimi Linear, façon DeepSeek) vs Gated Attention (Qwen3-Next) sont solidement confirmées par Raschka (source indépendante des deux labos) et le blog vLLM. La partie ablation (7:1 dégrade la validation, 1:1 alourdit l'inférence sans gain) est plus fragile à vérifier : 2 tentatives de lecture directe du PDF arXiv n'ont pas fait remonter le tableau, et emergentmind.com liste même l'absence d'ablation sur ce ratio comme un « knowledge gap ». Mais 3 sources convergentes citant le Tableau 1 (HF papers, acingai.com, vizuara.substack — confirmant \"extensive ablation studies\") donnent la même direction, donc je retiens le claim tel quel plutôt que de le rejeter sur une seule dissidence probablement due à une extraction PDF ratée."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 5 sources indépendantes."
+    },
+    {
+      "id": "claim:30",
+      "section": "hybrides-parcimonieux-lineaires",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "MiniCPM-SALA inverse la logique de ratio de Kimi Linear/Qwen3-Next (25% de couches parcimonieuses InfLLM-V2, 75% de couches linéaires Lightning Attention, obtenues par transformation continue d'un Transformer pré-entraîné — checkpoint MiniCPM-4.0 — plutôt que depuis zéro) précisément pour corriger un défaut résiduel documenté de la parcimonie seule : même si le calcul baisse, le modèle doit toujours conserver l'intégralité du KV cache pour la récupération contextuelle. Le papier décrit ce défaut (les mécanismes d'attention parcimonieuse existants \"reduce computation but retain dense KV-cache storage\") sans toutefois le nommer littéralement \"sparse computation, dense storage\" — cette expression exacte n'apparaît pas dans le texte du papier.",
+      "original_statement": "MiniCPM-SALA inverse la logique de ratio de Kimi Linear/Qwen3-Next (25% de couches parcimonieuses InfLLM-V2, 75% de couches linéaires Lightning Attention, obtenues par transformation continue d'un Transformer pré-entraîné plutôt que depuis zéro) précisément pour corriger le défaut résiduel documenté de la parcimonie seule : même si le calcul baisse, le modèle doit toujours conserver l'intégralité du KV cache pour la récupération contextuelle — un défaut que le papier nomme « sparse computation, dense storage ».",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Le ratio 25/75, la conversion continue depuis un Transformer pré-entraîné et la motivation (limite résiduelle de la parcimonie seule sur le KV cache) sont bien confirmés par deux write-ups tiers indépendants. Mais une recherche plein texte directe dans le PDF du papier (arxiv.org/pdf/2602.11761) montre que la citation exacte \"sparse computation, dense storage\" n'y figure pas verbatim — c'est une reformulation/paraphrase, pas un terme que le papier nomme ainsi ; l'attribution de citation dans le claim est donc inexacte."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Vérifié mot pour mot dans le papier : ratio 1:3 confirmé (\"25% of the layers adopt sparse attention while the remaining 75% employ linear attention\"), conversion continue depuis un Transformer pré-entraîné confirmée (~2T tokens, ~25% du volume d'un entraînement from-scratch), et l'expression exacte \"sparse computation, dense storage\" est citée telle quelle par le papier pour désigner le défaut. Seule réserve : c'est une auto-attestation du papier sur sa propre terminologie/conception — logique ici puisque le claim porte sur \"ce que le papier nomme\", donc la source primaire fait autorité ; pas de second papier indépendant décrivant SALA (normal, système 2026 single-lab)."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « MiniCPM-SALA inverse la logique de ratio de Kimi Linear/Qwen3-Next (25% de couches parcimonieuses InfLLM-V2, 75% de couches linéaires Lightning Attention, obtenues par transformation continue d'un Transformer pré-entraîné plutôt que depuis zéro) précisément pour corriger le défaut résiduel documenté de la parcimonie seule : même si le calcul baisse, le modèle doit toujours conserver l'intégralité du KV cache pour la récupération contextuelle — un défaut que le papier nomme « sparse computation, dense storage ». »"
+    },
+    {
+      "id": "claim:31",
+      "section": "hybrides-parcimonieux-lineaires",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "L'expérience documentée de MiniMax avec M2 va à l'inverse de cet énoncé : malgré des tentatives de calibration (proxy metrics itérées jusqu'à sembler égaler la MHA sur les benchmarks standards), les variantes hybrides/à fenêtre glissante testées à grande échelle ont montré des déficits marqués en raisonnement multi-sauts et se sont dégradées nettement en contexte long et en scénarios agentiques/multi-tours — ce qui a conduit MiniMax à abandonner l'attention hybride/linéaire et revenir à l'attention complète pure pour M2. Aucun motif hybride n'a, à ce jour, démontré de façon convaincante une parité fiable avec l'attention complète sur le raisonnement multi-sauts à l'échelle de production.",
+      "original_statement": "Un motif hybride bien dosé (mélange de couches linéaires et complètes) suffit à égaler la qualité de l'attention complète pure, y compris en raisonnement multi-sauts et en dialogue multi-tours, dès lors que le ratio de couches est correctement calibré.",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 3,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Deux sources tierces indépendantes (LMSYS, Kaitchup — auteurs et organisations distincts de MiniMax) rapportent explicitement l'inverse du claim : la parité apparente sur les leaderboards standards masquait des déficits réels en raisonnement multi-sauts et en tâches longues/agentiques, ce qui a motivé le retour de MiniMax à l'attention complète pure pour M2. Le claim tel que formulé (un ratio bien calibré suffit à égaler l'attention complète y compris en raisonnement multi-sauts) est donc contredit par le cas empirique cité en source."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Contredit frontalement par les deux sources candidates elles-mêmes (donc pas seulement par des tiers) : MiniMax rapporte que malgré \"hundreds of billions to trillions of tokens\" de pré-entraînement continué sur plusieurs configurations de ratio SWA/full, \"all variants, without exception, performed extremely poorly on agent tasks and complex long-context evaluations\" — et le déficit en raisonnement multi-sauts n'a été masqué que par des métriques proxy, pas résolu. LMSYS confirme indépendamment : \"no layer ratio adjustment succeeded\". Le claim inverse exactement la conclusion documentée par ses propres sources ; la mention \"dialogue multi-tours\" n'est même pas le terme employé (les sources parlent de tâches d'agent / long contexte)."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "L'énoncé contredit directement la source primaire (le compte-rendu de MiniMax lui-même sur le développement de M2) : elle affirme que l'attention hybride a échoué en raisonnement multi-sauts (« clear deficits in complex, multi-hop reasoning tasks ») et en contexte long/tâches agentiques, et ce quel que soit le ratio de couches testé (« Adjusting the ratio between SWA and full attention » a été essayé et a échoué, tout comme le mixing inter/intra-couches) — aucune calibration du ratio n'a résolu le problème, c'est même la raison de l'abandon de l'hybride. À noter : les deux URL fournies ne sont pas des sources indépendantes au sens du corpus (le post LMSYS est co-écrit par la MiniMax LLM Team elle-même) — il s'agit d'un seul récit primaire publié à deux endroits, pas de deux sources corroborantes distinctes. Le sujet « dialogue multi-tours » n'est explicitement traité dans aucune des deux pages (seulement « agentic scenarios » et « long-context »), donc cette partie précise de l'énoncé reste non confirmée faute de mention directe, en plus d'être contredite dans son ensemble par le raisonnement multi-sauts."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (5 sources indépendantes). Origine : « Un motif hybride bien dosé (mélange de couches linéaires et complètes) suffit à égaler la qualité de l'attention complète pure, y compris en raisonnement multi-sauts et en dialogue multi-tours, dès lors que le ratio de couches est correctement calibré. »"
+    },
+    {
+      "id": "claim:32",
+      "section": "mesurer-l-acceleration",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Because feedforward/projection FLOPs scale with model width while attention FLOPs scale quadratically with sequence length, attention's share of prefill compute grows with context length — for a ~175B-parameter model it goes from well under 1% of total FLOPs at a few hundred tokens to roughly 31% at 32K tokens (Casson); but this crossover is width-dependent (attention/total ≈ T/(8·d_model) per the scaling-book derivation), so narrower models reach the same share at shorter sequences (e.g. Gemma-27B, d_model=4,608, crosses ~50% around 37K tokens). The qualitative point — a fixed attention-sparsity ratio buys a smaller end-to-end prefill speedup at short context than at very long context — holds, but pinning it to 16K vs. 128K specifically, or to fixed percentages, without a model-width caveat overstates what either source establishes.",
+      "original_statement": "Because feedforward/projection FLOPs scale with model width while attention FLOPs scale quadratically with sequence length, attention's share of prefill compute grows from well under 1% of total FLOPs at a few hundred tokens to roughly a third of total FLOPs by 32K tokens — so the same attention-sparsity ratio yields a much smaller end-to-end prefill speedup at 16K than at 128K.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Casson's post (175B-scale model) gives the exact figures: <1% of FLOPs at 256-512 tokens, 31% at 32,768 tokens — matching 'well under 1%' / 'roughly a third'. The scaling-book's independent T/(8D) formula, derived a completely different way, reproduces near-identical numbers for GPT-3-scale D≈12k (≈0.3% at ~500 tok, ≈25-33% at 32K), and the Amdahl's-law tail (smaller end-to-end speedup at 16K vs 128K for a fixed sparsity ratio) is corroborated empirically by tensoreconomics, which reports DeepSeek sparse attention only paying off past ~40K tokens. Note the exact crossover token count is model-width-dependent (smaller D crosses over earlier), so treat the anchors as representative-of-large-models, not universal constants — the claim itself only asserts 'roughly'."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 2,
+          "note": "Casson's own numbers (<1% at 256-512 tok, 31% at 32K) are correctly quoted but apply to a specific 175B model only; the scaling-book's T>8·d_model formula shows the crossover point scales with model width, so stating fixed thresholds as if model-size-agnostic, and extrapolating a precise 16K-vs-128K comparison beyond the sourced 32K ceiling, over-generalizes a single narrow data point."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (4 sources indépendantes). Origine : « Because feedforward/projection FLOPs scale with model width while attention FLOPs scale quadratically with sequence length, attention's share of prefill compute grows from well under 1% of total FLOPs at a few hundred tokens to roughly a third of total FLOPs by 32K tokens — so the same attention-sparsity ratio yields a much smaller end-to-end prefill speedup at 16K than at 128K. »"
+    },
+    {
+      "id": "claim:33",
+      "section": "mesurer-l-acceleration",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "On a given accelerator, attention decoding is memory-bandwidth-bound rather than compute-bound, so a sparse-attention method's decode speedup tracks the reduction in KV-cache bytes moved per step — predictable from bytes-moved/bandwidth — not the reduction in FLOPs; and this memory-bound regime intensifies rather than relieves as batch size grows, since each sequence in the batch streams its own KV cache from HBM.",
+      "original_statement": "On a given accelerator, attention decoding is memory-bandwidth-bound rather than compute-bound, so a sparse-attention method's decode speedup tracks the reduction in KV-cache bytes moved per step — predictable from bytes-moved/bandwidth — not the reduction in FLOPs; and this memory-bound regime intensifies rather than relieves as batch size grows, since each sequence in the batch streams its own KV cache from HBM.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 3,
+          "note": "All three independently confirm decode is memory-bandwidth-bound and speedup tracks bytes moved (tensoreconomics measures wall-clock time matching bytes-loaded/HBM-bandwidth; NVIDIA shows an 8x arithmetic-intensity gain from reducing memory traffic at constant FLOPs). Batch-size intensification is explicit in tensoreconomics ('as we increase batch size, KV cache quickly becomes the bottleneck') and in the Dao et al. paper ('decoding is bottlenecked for large batches ... by loading the KV cache from HBM'); the NVIDIA post confirms the bytes-tracking mechanism but doesn't itself discuss batch scaling."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "Tensoreconomics directly confirms decode is memory-bandwidth-bound (measured latency tracks bytes-moved/HBM-bandwidth) and that DSA's ~5x fewer bytes moved at 131K produces ~proportional speedup, plus that batch growth intensifies the KV-cache bottleneck since each sequence caches independently; NVIDIA's roofline analysis independently confirms decode sits below the ridge point (memory-bound) while prefill is compute-bound."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 5 sources indépendantes."
+    },
+    {
+      "id": "claim:34",
+      "section": "mesurer-l-acceleration",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Whether a sparse attention method's reduced FLOP or byte count converts into real wall-clock speedup depends heavily on the regularity of its access pattern: contiguous block-sparse selection compatible with IO-aware tiled kernels converts well, while methods built on irregular multi-stage filtering can run slower than an optimized dense baseline at moderate sequence lengths.",
+      "original_statement": "Whether a sparse attention method's reduced FLOP or byte count converts into real wall-clock speedup depends heavily on the regularity of its access pattern: contiguous block-sparse selection compatible with IO-aware tiled kernels converts well, while methods built on irregular multi-stage filtering can run slower than an optimized dense baseline at moderate sequence lengths.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "BSFA directly demonstrates the failure mode: SpargeAttention's irregular two-stage filtering runs SLOWER than dense FlashAttention at 32K (0.87-0.91x) because thread workload imbalance from variable-sparsity blocks bottlenecks the kernel, while BSFA's own regular fixed-k blockwise design converts reliably (modest but positive 1.03-1.16x). NSA independently gives the mechanistic rationale from the design side: blockwise/contiguous selection is 'crucial' because GPUs favor continuous block access, whereas token-granular (irregular) selection 'prevents efficient adaptation of fast attention techniques like FlashAttention.' Two independent primary sources, converging from opposite directions (measurement vs. design rationale)."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "n_sources": 2,
+          "note": "The Block Sparse Flash Attention paper directly documents SpargeAttention's irregular two-stage filtering running 0.87-0.91x (slower than dense) at 32K sequences while its own contiguous block-sparse kernel stays 1.03-1.07x; NSA independently attributes its real hardware speedup to contiguous/coalesced block access that avoids scattered-index loads underutilizing bandwidth — both corroborate the claim's regularity-vs-speedup mechanism."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:35",
+      "section": "mesurer-l-acceleration",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "A sparse-attention method's headline FLOPs-reduction or speedup multiplier is a narrowly-scoped figure — tied to a specific sequence length, baseline, and kernel/hardware — and should not be read as the end-to-end production wall-clock speedup an engineer should expect: NSA's 9x/6x/11.6x (forward/backward/decode) are measured at exactly 64k context on A100s with Triton kernels and explicitly grow with sequence length; MoBA's 6.5x (at 1M tokens) and 16x (at 10M tokens) are attention-layer-only, excluding FFN, so far from an end-to-end figure; StreamingLLM's 22.2x is measured against a sliding-window-recomputation baseline, not against dense/full attention. Independent benchmarking (tensoreconomics) found DeepSeek's own sparse-attention numbers hard to replicate, with sparse kernels running SLOWER than dense FlashAttention-3 at short sequences and only overtaking it past roughly 40K tokens; a comparable independent benchmark (Block Sparse Flash Attention) likewise found real wall-clock speedups (1.03-1.16x) far below headline FLOP-reduction ratios, varying with sequence length.",
+      "original_statement": "A sparse-attention method's headline FLOPs-reduction or speedup multiplier (e.g. NSA's up to 9-11.6x, MoBA's 6.5-16x, StreamingLLM's up to 22.2x) can be read as the end-to-end wall-clock speedup an engineer should expect in production, independent of sequence length, batch size, or kernel implementation.",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 3,
+      "n_sources": 6,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 5,
+          "note": "Each primary paper's own text shows its multiplier is conditioned on a specific sequence length/baseline/kernel and grows or shrinks with those factors, directly contradicting 'independent of sequence length, batch size, or kernel implementation.' Two independent third-party analyses (tensoreconomics measuring real hardware, BSFA benchmarking against SpargeAttention/dense baselines) confirm real production speedups are markedly smaller than headline figures and sequence-length dependent, sometimes negative at short/moderate lengths."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 3,
+          "note": "Every cited multiplier is condition-specific and non-constant: NSA's decoding speedup itself scales up with sequence length (4x to 11.6x across 8k-64k) on fixed A100/Triton hardware; MoBA's numbers are prefill-only at extreme 1M-10M contexts (decode uses full attention); StreamingLLM's 22.2x is vs. a deliberately inefficient recomputation baseline and rises with cache size — none is a fixed, hardware/length-independent production speedup."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "n_sources": 4,
+          "note": "Full-text check of all three primary papers shows each headline number is scoped to one sequence length / one hardware target / one sub-operation (kernel, attention layer, or per-token decode), not measured end-to-end, and explicitly grows with sequence length (MoBA: 6.5x@1M vs 16x@10M). The TensorEconomics piece (on a closely related method, DeepSeek Sparse Attention) independently corroborates the theory-practice gap with a concrete number: ~1.5x real end-to-end speedup at 128K vs. much larger theoretical FLOPs savings, driven by kernel implementation. The BSFA paper (arXiv 2512.07011) was checked but does not evaluate NSA/MoBA and only mentions StreamingLLM in passing, so it was not used as a verification source."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (6 sources indépendantes). Origine : « A sparse-attention method's headline FLOPs-reduction or speedup multiplier (e.g. NSA's up to 9-11.6x, MoBA's 6.5-16x, StreamingLLM's up to 22.2x) can be read as the end-to-end wall-clock speedup an engineer should expect in production, independent of sequence length, batch size, or kernel implementation. »"
+    }
+  ]
+}
