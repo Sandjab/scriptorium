@@ -8,6 +8,15 @@ Thème : `sparse-attention-long-context`
 
 Légende jurés : `lentille✓` corrobore · `lentille✗` réfute · `~` propose une correction.
 
+## Ajout post-run (2026-08-07) — hors council
+
+Deux sections que le plafond de 9 avait écartées du plan (`cout-en-qualite`, `ecosysteme`) ont été
+rédigées et ajoutées **après** le run, avec 11 claims (`claim:36` à `claim:46`). **Ces claims n'ont
+pas été soumis aux jurés adversariaux** : ils ont été vérifiés à la source, et chacun porte dans son
+`audit_note` la nature de ses sources — « deux write-ups tiers indépendants » pour les résultats de
+l'étude comparative, « source unique, le dépôt officiel » pour les faits d'outillage, attribués comme
+tels dans la prose. Le tableau ci-dessous ne couvre que les 35 claims issus du council.
+
 ## Par claim
 
 | id | section | kind | audit | corrob. | réfut. | corrig. | sources | jurés | énoncé |
