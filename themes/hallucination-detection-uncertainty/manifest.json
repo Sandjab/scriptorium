@@ -1,0 +1,611 @@
+{
+  "edition": "monographie",
+  "slug": "hallucination-detection-uncertainty",
+  "meta": {
+    "title": "Détection des hallucinations et incertitude des LLM",
+    "kicker": "Hallucinations & incertitude · monographie",
+    "h1": "Détection des hallucinations et incertitude des LLM",
+    "lede": "Pourquoi les modèles de langage inventent avec aplomb, ce que leurs signaux d'incertitude permettent — et ne permettent pas — de détecter, et comment transformer un score faillible en décision garantie de répondre ou de s'abstenir.",
+    "meta_chips": [
+      "Monographie"
+    ],
+    "footer": "Détection des hallucinations et incertitude des LLM · scriptorium"
+  },
+  "elements": [
+    {
+      "type": "abstract"
+    },
+    {
+      "type": "section",
+      "id": "genealogie-taxonomie",
+      "heading": "D'Esquirol aux LLM : généalogie et taxonomie d'un mot",
+      "level": 3,
+      "prose": "<p>« Hallucination » est un emprunt, et l'histoire du mot commence loin des machines. Son étymologie même est disputée : les uns le font descendre du latin <em>allucinor</em>, qu'emploie Cicéron au sens d'induire en erreur, les autres du composé <em>ad lucem</em>, « près de la lumière ». C'est Jean-Étienne Esquirol qui le formalise en psychiatrie, dans son traité <em>Des maladies mentales</em> de 1838 : est halluciné celui qui a la conviction intime de percevoir une sensation alors qu'aucun objet extérieur n'a impressionné ses sens — un phénomène qu'Esquirol range explicitement du côté du délire, non de la perception. Quant à la formule « perception sans objet », qu'on lui prête presque partout, c'est une attribution erronée, propagée plus tard par Falret, en 1864. L'ironie vaut d'être notée : la définition fondatrice de l'hallucination circule elle-même sous la forme d'une citation apocryphe, répétée avec assurance.</p>\n<p>L'informatique s'approprie le mot par un détour. Vers 2000, en vision par ordinateur, Baker et Kanade parlent de <em>face hallucination</em> pour la super-résolution de visages : halluciner, c'est alors synthétiser du détail plausible, et le terme porte une connotation positive. Son acception négative en NLG (Natural Language Generation, génération de langage naturel) — un texte qui donne l'impression d'être fluide et naturel tout en étant infidèle ou dénué de sens — est plus tardive, mais moins qu'on ne le raconte : on la date volontiers d'« autour de 2020 », dans le sillage de Maynez et al., alors qu'elle est attestée dès 2018 en traduction automatique neuronale, chez Lee et al. (« Hallucinations in Neural Machine Translation »). Maynez et al. ont popularisé et systématisé le terme pour le résumé automatique ; ils n'en sont pas à l'origine.</p>\n<p>La première formalisation quantitative vient du légendage d'images. À EMNLP 2018, Rohrbach et al. définissent l'<em>object hallucination</em> (hallucination d'objets) — le modèle décrit un objet absent de l'image — et proposent la métrique CHAIR, qui confronte les objets mentionnés dans une légende aux annotations vérité-terrain de MSCOCO. Elle se décline en deux variantes : CHAIR<sub>i</sub>, la part d'objets hallucinés parmi tous les objets mentionnés, et CHAIR<sub>s</sub>, la part de légendes qui en contiennent au moins un. Le constat qui accompagne la métrique a fait date : les modèles les mieux notés sur les métriques standard du légendage ne sont pas nécessairement ceux qui hallucinent le moins, et ces erreurs sont en partie pilotées par les a priori linguistiques du modèle plutôt que par l'image.</p>\n<p>Deux ans plus tard, la taxonomie qui structure encore la littérature naît du résumé abstractif. À partir d'une évaluation humaine à grande échelle de plusieurs systèmes, Maynez et al. (ACL 2020) distinguent l'hallucination <em>intrinsèque</em>, qui contredit directement la source, de l'hallucination <em>extrinsèque</em>, qui ajoute une information que la source ne confirme ni n'infirme. Un résumé qui date une approbation vaccinale « en 2021 » quand la source dit 2019 commet la première ; celui qui glisse un fait absent du document commet la seconde. La distinction n'est pas cosmétique : elle sépare ce qu'on peut réfuter en relisant la source de ce qui exige d'aller vérifier ailleurs.</p>\n<p>La confabulation vient affiner ce vocabulaire. Farquhar, Kossen, Kuhn et Gal la présentent comme une sous-catégorie précise de l'hallucination : une réponse arbitraire et incorrecte, reconnaissable au fait que le modèle en produit une autre si l'on ré-échantillonne la même question avec une graine aléatoire différente. Ils y voient « la forme d'hallucination la plus directe », par contraste avec le sens fourre-tout qu'a pris le mot, devenu chez beaucoup un synonyme de presque toute erreur d'un LLM. Ce critère du ré-échantillonnage n'est d'ailleurs pas qu'une définition : c'est déjà, en germe, une méthode de détection.</p>\n<figure class='fig'><svg viewBox='0 0 760 462' role='img' aria-label='Taxonomie des hallucinations : racine, branches intrinsèque et extrinsèque, confabulation transverse et annexe multimodale'><path d='M380 64 V94 M205 94 H555 M205 94 V120 M555 94 V120' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1.2'/><rect x='250' y='18' width='260' height='46' rx='6' fill='none' stroke='var(--ink,#15202E)' stroke-width='1.5'/><text x='380' y='38' text-anchor='middle' font-size='15' font-weight='bold' fill='var(--ink,#15202E)'>Hallucination</text><text x='380' y='54' text-anchor='middle' font-size='10.5' fill='var(--ink-faint,#7A889B)'>sortie fluide mais infidèle ou invérifiable</text><rect x='60' y='120' width='290' height='104' rx='6' fill='none' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='205' y='143' text-anchor='middle' font-size='14' font-weight='bold' fill='var(--blue,#23537F)'>Intrinsèque</text><text x='205' y='162' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)'>contredit directement la source</text><text x='205' y='182' text-anchor='middle' font-size='11.5' fill='var(--ink,#15202E)'>ex. « approuvée en <tspan font-weight='bold' fill='var(--bordeaux,#7C2A38)'>2021</tspan> »</text><text x='205' y='197' text-anchor='middle' font-size='11.5' fill='var(--ink,#15202E)'>quand la source dit 2019</text><text x='205' y='215' text-anchor='middle' font-size='10.5' font-style='italic' fill='var(--ink-faint,#7A889B)'>Maynez et al., ACL 2020</text><rect x='410' y='120' width='290' height='104' rx='6' fill='none' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='555' y='143' text-anchor='middle' font-size='14' font-weight='bold' fill='var(--blue,#23537F)'>Extrinsèque</text><text x='555' y='162' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)'>ajoute une information que la source</text><text x='555' y='177' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)'>ne confirme ni n'infirme</text><text x='555' y='197' text-anchor='middle' font-size='11.5' fill='var(--ink,#15202E)'>invérifiable sans aller chercher ailleurs</text><text x='555' y='215' text-anchor='middle' font-size='10.5' font-style='italic' fill='var(--ink-faint,#7A889B)'>Maynez et al., ACL 2020</text><path d='M205 224 V258 M555 224 V258' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2' stroke-dasharray='5 4'/><rect x='60' y='258' width='640' height='84' rx='6' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.5' stroke-dasharray='7 4'/><text x='380' y='281' text-anchor='middle' font-size='13' font-weight='bold' fill='var(--bordeaux,#7C2A38)'>Confabulation — sous-catégorie transverse</text><text x='380' y='301' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)'>critère opératoire : la réponse change si l'on ré-échantillonne la même question</text><text x='380' y='316' text-anchor='middle' font-size='11.5' fill='var(--ink,#15202E)'>avec une graine aléatoire différente</text><text x='380' y='334' text-anchor='middle' font-size='10.5' font-style='italic' fill='var(--ink-faint,#7A889B)'>Farquhar et al.</text><rect x='60' y='368' width='640' height='84' rx='6' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='75' y='388' font-size='10' letter-spacing='1' fill='var(--ink-faint,#7A889B)'>ANNEXE — MULTIMODAL</text><text x='380' y='410' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)'>Object hallucination : décrire un objet absent de l'image</text><text x='380' y='426' text-anchor='middle' font-size='11.5' fill='var(--ink,#15202E)'>métrique CHAIR — CHAIR<tspan baseline-shift='sub' font-size='8.5'>i</tspan> (objets) et CHAIR<tspan baseline-shift='sub' font-size='8.5'>s</tspan> (légendes)</text><text x='380' y='444' text-anchor='middle' font-size='10.5' font-style='italic' fill='var(--ink-faint,#7A889B)'>Rohrbach et al., EMNLP 2018</text></svg><figcaption><span class='fcap-k'></span>Taxonomie des hallucinations : les branches intrinsèque et extrinsèque de Maynez et al. (ACL 2020), la confabulation définie par Farquhar et al. via le ré-échantillonnage, et l'object hallucination multimodale de Rohrbach et al. (EMNLP 2018).</figcaption></figure>\n<p>Le vocabulaire posé, la question du document peut l'être aussi. Si les modèles les mieux notés ne sont pas nécessairement les plus fidèles, si l'erreur peut être fluide, assurée, indiscernable en surface d'une réponse juste, comment savoir quand la réponse ne vaut rien ? Avant d'y répondre, il faut comprendre pourquoi ces modèles hallucinent — car si le phénomène n'était qu'un défaut de jeunesse, la question se dissoudrait d'elle-même avec la prochaine génération de modèles. La théorie dit précisément le contraire.</p>",
+      "claims": [
+        "claim:1",
+        "claim:2",
+        "claim:3",
+        "claim:4"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "inevitabilite-et-incitations",
+      "heading": "Pourquoi les modèles hallucinent : bornes statistiques et incitation à deviner",
+      "level": 3,
+      "prose": "<p>Le contraire, donc. Kalai et Vempala l'établissent d'abord sur le terrain statistique (« Calibrated Language Models Must Hallucinate », STOC 2024) : un modèle de langage calibré doit halluciner sur les faits « singletons » — ceux qui n'apparaissent qu'une seule fois dans le corpus d'entraînement — à un taux proche d'un estimateur de type Good-Turing, c'est-à-dire de la fraction de faits vus exactement une fois. Le résultat tient même si les données d'entraînement sont parfaitement exactes : ce n'est pas le bruit du corpus qui est en cause, mais la structure statistique de l'apprentissage. La borne a toutefois un périmètre précis. Elle vise les faits arbitraires dont la véracité ne se déduit pas des données, et le même article montre qu'aucune contrainte équivalente ne pèse sur les faits vus plus d'une fois.</p>\n<p>Un second résultat, issu d'OpenAI, généralise l'argument. Kalai, Nachum et Zhang, rejoints par Vempala — collaborateur académique de Georgia Tech —, ramènent l'hallucination générative à un problème de classification binaire baptisé <em>Is-It-Valid</em> (IIV) : décider si un énoncé est valide ou non. Leur théorème 1 énonce que, sous hypothèse de données d'entraînement sans erreur, le taux d'erreur génératif vaut au moins deux fois le taux de mauvaise classification IIV, à des termes correctifs près : l'hallucination générative hérite, amplifiée, de la difficulté d'un simple problème de classification. Publié sur arXiv en septembre 2025 sous le titre « Why Language Models Hallucinate », le travail a ensuite passé la revue par les pairs de <em>Nature</em> en avril 2026 — sous un titre remanié qui annonce déjà la suite de cette section : « Evaluating large language models for accuracy incentivizes hallucinations ».</p>\n<p>Des cadres théoriques indépendants renforcent le verdict, chacun par un angle différent. Karbasi, Montasser, Sous et Velegkas (Yale) prouvent une équivalence formelle entre la détection d'hallucinations et l'identification de langages au sens de Gold et Angluin : tout détecteur se convertit en algorithme d'identification, et réciproquement. Conséquence : entraînée sur les seuls exemples positifs — des énoncés corrects —, la détection est prouvablement impossible pour la plupart des familles de langages ; l'ajout d'exemples négatifs étiquetés par des experts la rend en revanche possible pour toute collection dénombrable de langages, un appui théorique aux retours de type RLHF (Reinforcement Learning from Human Feedback). Xu, Jain et Kankanhalli attaquent par la calculabilité. Formalisant l'hallucination comme un désaccord entre un LLM calculable et une fonction de vérité-terrain calculable, ils montrent — aucun apprenant ne pouvant apprendre toutes les fonctions calculables — qu'elle est inévitable pour tout LLM employé en résolveur généraliste, quels que soient l'architecture, les données ou le prompt.</p>\n<p>Karpowicz déplace le problème vers la conception de mécanismes. En modélisant l'inférence d'un LLM comme une « enchère d'idées » entre composants internes, il démontre qu'aucune règle d'agrégation ne peut garantir simultanément quatre propriétés : rapport sincère des connaissances partagées, confiance calibrée, mobilisation des composants pertinents et optimalité de la réponse — la preuve combine le théorème de Green-Laffont, les <em>proper scoring rules</em> (règles de score qui récompensent l'annonce sincère des probabilités) de Savage et la convexité log-sum-exp des transformers. Guo et Li, enfin (ICML 2026), formulent la mémorisation de faits comme un problème de test d'appartenance à la manière d'un filtre de Bloom : sous contrainte de capacité, la stratégie optimale au sens de l'information attribue nécessairement une confiance élevée à certains non-faits. L'hallucination y devient un comportement optimal sous un compromis débit-distorsion, non un défaut d'entraînement.</p>\n<p>Ces théorèmes forment le premier étage de l'argument ; le second est socio-technique, et c'est lui que le titre remanié de l'article de <em>Nature</em> met en avant. Les benchmarks dominants notent les réponses en exactitude binaire, un point ou zéro, et n'accordent aucun crédit à l'abstention. Face à une question qu'il ne maîtrise pas, un modèle qui parie systématiquement obtient donc en moyenne un meilleur score que celui qui avoue son ignorance : l'écosystème d'évaluation récompense précisément le comportement qu'il faudrait décourager. Le remède proposé par les auteurs ne consiste pas à créer des évaluations spécialisées de l'hallucination, mais à changer la notation des benchmarks existants, en y intégrant des <em>explicit confidence targets</em> (cibles de confiance explicites).</p>\n<p>Que retenir ? Sous leurs conditions énoncées, ces résultats interdisent l'élimination complète : une part d'hallucination est mathématiquement irréductible. Ils ne condamnent pas pour autant à l'impuissance en amont — les mêmes travaux proposent des leviers d'entraînement et d'évaluation, du post-entraînement de calibration chez Kalai et Vempala à la refonte des incitations chez Kalai, Nachum, Vempala et Zhang, en passant par les exemples négatifs de Karbasi et al. La détection en aval n'est donc pas le seul levier viable ; c'est en revanche le seul qui reste à qui déploie un modèle sans contrôler ni son entraînement ni les benchmarks qui l'ont façonné. Le reste du document lui est consacré : estimer, au moment où le modèle répond, s'il sait ou s'il devine.</p>",
+      "claims": [
+        "claim:5",
+        "claim:6",
+        "claim:7",
+        "claim:8"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-pari-abstention-notation"
+    },
+    {
+      "type": "section",
+      "id": "signaux-incertitude",
+      "heading": "Les signaux d'incertitude : des logits à la confiance verbalisée",
+      "level": 3,
+      "prose": "<p>Estimer si le modèle devine : encore faut-il un signal. L'hypothèse centrale de toute la famille de méthodes qui suit tient en une phrase — une incertitude élevée signale que le modèle devine au lieu de s'appuyer sur un motif appris, et les sorties à faible confiance méritent donc d'être signalées comme hallucinations potentielles. C'est une hypothèse, pas un théorème ; la fin de cette section, puis une section entière plus loin, en montreront les failles. Elle fournit néanmoins un programme de travail : extraire du modèle une mesure de sa propre confiance, la moins coûteuse et la plus fiable possible.</p>\n<p>Les estimateurs de première génération lisent les logits. La perplexité de séquence — l'exponentielle de la log-vraisemblance négative moyenne des tokens générés — mesure à quel point le modèle est surpris par les tokens qu'il a lui-même choisis : élevée, elle trahit un modèle peu sûr de sa propre production. L'entropie de tokens procède du même esprit, en quantifiant l'étalement de la distribution à chaque pas de génération. Ces signaux sont quasi gratuits, disponibles token par token, branchés directement sur ce que le modèle calcule de toute façon.</p>\n<p>Une deuxième idée consiste à demander au modèle de se juger. Chez Anthropic, Kadavath et al. (« Language Models (Mostly) Know What They Know », 2022) en tirent deux quantités : P(True), la probabilité que le modèle attribue, après avoir proposé une réponse, à la correction de cette réponse ; et P(IK), la probabilité qu'il connaisse la réponse, estimée sans réponse proposée. Le bilan est nuancé, comme le « mostly » du titre l'annonce. Les grands modèles se révèlent bien calibrés sur P(True) pour des tâches variées à choix multiples ou en vrai/faux ; P(IK) généralise partiellement d'une tâche à l'autre, mais sa calibration se dégrade sur des tâches nouvelles.</p>\n<p>Troisième voie : faire verbaliser la confiance, en clair, dans la réponse elle-même. « Just Ask for Calibration » (Tian et al., EMNLP 2023) établit un résultat contre-intuitif : pour des modèles affinés par RLHF — ChatGPT, GPT-4, Claude —, les confiances exprimées en toutes lettres sont mieux calibrées que les probabilités conditionnelles internes du modèle, avec une réduction relative d'environ 50 % de l'ECE (<em>expected calibration error</em>, erreur de calibration attendue) sur TriviaQA, SciQ et TruthfulQA — chiffre que seule la source primaire avance, sans réplication indépendante. Le paradoxe s'explique : le RLHF dégrade la calibration des probabilités brutes héritées du seul pré-entraînement. Le signal le plus naïf — demander au modèle à quel point il est sûr — bat ici le signal le plus interne.</p>\n<p>Ces estimateurs se rangent le long d'une partition devenue standard. Les méthodes <em>white-box</em> (« boîte blanche ») exigent un accès aux signaux internes du modèle — logits, probabilités de tokens, états cachés, cartes d'attention — et la perplexité en fait partie. Les méthodes <em>black-box</em> (« boîte noire ») n'utilisent que le texte généré, typiquement en comparant la cohérence de plusieurs échantillons : si le modèle connaît réellement un fait, ses réponses échantillonnées convergent ; s'il l'hallucine, elles divergent. C'est le principe de SelfCheckGPT (Manakul, Liusie et Gales, EMNLP 2023), sur lequel le bestiaire des détecteurs reviendra. La partition n'a rien d'académique : les modèles propriétaires les plus capables — GPT, Claude, Gemini — ne s'utilisent que par API, sans états internes et, selon le fournisseur, sans logits complets, ce qui a fortement orienté la recherche vers le black-box.</p>\n<p>Reste la faille, déjà annoncée. Tous ces signaux reposent sur l'équation « confiance élevée = réponse fiable », et cette équation ne tient pas en général : un LLM peut produire une réponse fausse avec une grande confiance apparente. Cette <em>hallucination confiante</em> — perplexité basse, P(True) élevée, confiance verbalisée ferme, réponse fausse — échappe par construction aux estimateurs de première génération pris isolément. Le signal n'est pas un oracle, mais il est perfectible, et la génération suivante part d'un diagnostic précis : perplexité et entropie de tokens mesurent l'incertitude sur la formulation, alors que ce qui importe est l'incertitude sur le sens. C'est le déplacement qu'opère la section suivante.</p>",
+      "claims": [
+        "claim:9",
+        "claim:10"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "semantic-entropy",
+      "heading": "Semantic entropy : mesurer l'incertitude au niveau du sens",
+      "level": 3,
+      "prose": "<p>Mesurer l'incertitude sur le sens plutôt que sur la forme : ce déplacement a un nom, la semantic entropy (entropie sémantique), proposée par Kuhn, Gal et Farquhar en présentation orale à l'ICLR 2023, puis étendue et publiée dans <em>Nature</em> en juin 2024 — l'article, signé Farquhar, Kossen, Kuhn et Gal (université d'Oxford), est celui-là même qui a donné son sens strict à la confabulation. Le diagnostic de départ est simple. L'entropie de tokens travaille sur des séquences exactes : deux réponses lexicalement différentes mais synonymes comptent pour deux issues distinctes, et l'estimateur surestime l'incertitude dès que la question admet une formulation libre. Ce qui intéresse un détecteur d'hallucinations n'est pourtant pas la variabilité de la surface, mais celle du contenu.</p>\n<p>La méthode procède en trois temps, sans supervision ni modification du modèle — elle s'applique à un LLM off-the-shelf. Échantillonner d'abord : le protocole de référence génère dix réponses par question à température 1, plus une réponse « best guess » à basse température qui servira à juger l'exactitude. Regrouper ensuite ces réponses en classes d'équivalence sémantique par implication bidirectionnelle : deux réponses tombent dans le même cluster si chacune implique l'autre, au sens de la NLI (Natural Language Inference, l'inférence en langage naturel : décider si un énoncé en implique un autre). Calculer enfin l'entropie sur ces clusters de sens plutôt que sur les séquences — SE(x) ≈ −Σᵢ P(cᵢ|x) log P(cᵢ|x), où les cᵢ sont les classes d'équivalence. Un modèle qui répond dix fois la même chose sous dix formulations a une entropie sémantique nulle ; un modèle qui change de réponse au ré-échantillonnage — la confabulation, exactement — la voit grimper.</p>\n<p>Les chiffres ont fait de la méthode la référence du domaine. Moyennée sur trente combinaisons tâche×modèle — des modèles allant de LLaMA 2 Chat 7B à GPT-4, des tâches allant de TriviaQA aux biographies de FactualBio —, la semantic entropy atteint un AUROC (aire sous la courbe ROC : 1 pour un détecteur parfait, 0,5 pour le hasard) de 0,790, quand l'entropie de tokens naïve plafonne à 0,691. Les autres baselines (méthodes de référence) ne comblent pas l'écart : P(True) atteint 0,698, et une régression logistique sur les embeddings (les représentations vectorielles internes) reste en deçà. Le résultat est stable d'un découpage à l'autre : la moyenne demeure comprise entre 0,78 et 0,81.</p>\n<p>Deux aménagements élargissent le périmètre. Pour les modèles servis derrière une API sans accès aux probabilités de tokens — GPT-4, typiquement —, une variante discrète approxime P(cᵢ|x) par la fraction des générations tombées dans le cluster i, sans la moindre log-probabilité, et converge asymptotiquement vers l'estimateur standard. Le clustering, lui, ne réclame pas de gros moyens : soit un LLM généraliste prompté en zero-shot (GPT-3.5-Turbo dans l'étude), soit un modèle NLI dédié et bien plus petit — un DeBERTa-Large fine-tuné sur le corpus MNLI, de l'ordre de 350 à 400 millions de paramètres. Pour les textes longs comme les biographies, où l'implication bidirectionnelle stricte devient trop exigeante, un critère assoupli dit « non-defeating » prend le relais : au moins une des deux réponses implique l'autre, sans contradiction.</p>\n<p>Tout cela se paie : échantillonner dix réponses par question multiplie le coût d'inférence par cinq à dix. Les Semantic Entropy Probes (Kossen et al., groupe OATML d'Oxford, juin 2024) suppriment presque entièrement ce surcoût en apprenant à prédire la semantic entropy depuis les états cachés d'une seule génération, avec une bonne généralisation hors distribution — là où les méthodes de probing antérieures (des sondes entraînées sur les activations) généralisaient moins bien. La manœuvre dit plus qu'une économie de calcul : le signal d'accord sémantique entre échantillons est déjà inscrit quelque part dans les activations. Les états cachés ne sont donc qu'un des endroits où le lire — il y a aussi les échantillons eux-mêmes, les cartes d'attention, les tokens repondérés. C'est tout un bestiaire qu'il faut maintenant parcourir.</p>",
+      "claims": [
+        "claim:13",
+        "claim:14",
+        "claim:16"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-entropie-semantique"
+    },
+    {
+      "type": "section",
+      "id": "bestiaire-detecteurs",
+      "heading": "SelfCheckGPT, états internes, attention : le bestiaire des détecteurs",
+      "level": 3,
+      "prose": "<p>Premier guichet, les échantillons eux-mêmes. SelfCheckGPT, dont on a posé le principe — des échantillons qui convergent signalent un fait su, des échantillons qui divergent une invention probable —, l'instrumente en régime zero-resource (sans base de connaissances externe) et black-box : aucun logit, seulement des réponses ré-échantillonnées et cinq variantes de scoring pour mesurer leur accord — BERTScore, questions-réponses, n-grammes, NLI, et un prompt qui demande au LLM lui-même si une phrase est étayée par les autres échantillons. Sur son banc d'essai, des biographies WikiBio générées par GPT-3 puis annotées à la main pour la factualité, les variantes Prompt et NLI corrèlent le mieux avec le jugement humain ; la variante Prompt est la plus précise, et la plus coûteuse.</p>\n<p>Lire directement dans les états internes est le pari inverse : renoncer à la boîte noire pour gagner en accès. SAPLMA (Azaria et Mitchell, 2023 — un classifieur entraîné sur les activations du LLM) le motive frontalement : la probabilité de sortie corrèle avec la longueur des phrases et la fréquence des mots plus qu'avec la véracité, autant chercher l'information à la source. Son classifieur à trois couches cachées, entraîné sur les activations d'une seule couche du modèle, prédit si un énoncé est vrai ; la couche optimale varie d'un modèle à l'autre — pour LLaMA2-7B, la couche médiane, avec 83 % de précision en généralisation entre sujets. INSIDE (Chen et al., ICLR 2024 — un cadre de détection dans les représentations internes) pousse l'idée plus loin avec l'EigenScore : la moyenne des log-valeurs propres de la matrice de covariance de K réponses échantillonnées, prises dans l'espace des embeddings denses — une mesure de dispersion sémantique de type entropie différentielle, motivée par l'argument que l'information sémantique se perd au décodage token par token. Le même article ajoute un « feature clipping » au moment du test : tronquer les activations extrêmes freine les générations sur-confiantes et les hallucinations qui en découlent.</p>\n<p>Lookback Lens (EMNLP 2024) déplace encore le point de lecture : les cartes d'attention, dans le cadre de la génération ancrée sur un contexte fourni — celui du RAG (Retrieval-Augmented Generation, génération augmentée par récupération de documents). Son signal tient en un ratio par tête d'attention, le lookback ratio : la part d'attention portée au contexte, rapportée à l'attention totale (contexte plus tokens déjà générés). Un modèle qui cesse de regarder ses sources est en train de broder ; concaténés, les ratios de toutes les têtes et couches nourrissent une simple régression logistique. Fait notable, c'est le seul article fondateur du lot à battre, sur son propre banc, des représentants d'autres approches : en transfert de CNN/DM vers XSum, Lookback Lens atteint un AUROC de 66,1, quand un classifieur sur états cachés façon SAPLMA plafonne à 57,7 — et un modèle NLI de l'état de l'art à peine moins. Deux chiffres de suivi ne doivent pas être confondus : un décodage guidé par le classifieur, sur le même modèle, relève la précision factuelle sur XSum de 49,0 % à 58,6 %. Le transfert du classifieur d'un 7B vers un 13B sans ré-entraînement est plus modeste, avec 3,2 points d'hallucinations en moins.</p>\n<p>SAR (Shifting Attention to Relevance, ACL 2024), enfin, ne change pas de guichet mais de pondération. Tous les tokens n'ont pas le même poids sémantique, et les entropies uniformes diluent le signal. tokenSAR mesure le changement de sens que provoque le retrait de chaque token, puis repondère sa contribution à l'entropie par cette pertinence normalisée ; sentSAR opère symétriquement au niveau des phrases, en croisant similarité sémantique aux autres échantillons et probabilité de génération. Le gain revendiqué sur la semantic entropy est net : environ 7,1 points d'AUROC en moyenne sur des modèles instruction-tuned (affinés pour suivre des instructions), jusqu'à 11,9 dans le meilleur cas.</p>\n<figure class='fig'><svg viewBox='0 0 940 486' role='img' aria-label='Un LLM en génération et les quatre guichets de lecture du signal d’incertitude : réponses ré-échantillonnées pour SelfCheckGPT, états cachés pour SAPLMA et EigenScore/INSIDE, cartes d’attention pour Lookback Lens, tokens repondérés pour SAR, répartis entre zone white-box et zone black-box'><defs><marker id='hdb-arr' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0 0L10 5L0 10z' fill='var(--ink-faint,#7A889B)'/></marker></defs><rect x='18' y='46' width='468' height='420' rx='10' fill='var(--blue,#23537F)' fill-opacity='0.06' stroke='var(--blue,#23537F)' stroke-opacity='0.35' stroke-dasharray='6 4'/><rect x='502' y='46' width='420' height='420' rx='10' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.05' stroke='var(--bordeaux,#7C2A38)' stroke-opacity='0.3' stroke-dasharray='6 4'/><text x='252' y='68' text-anchor='middle' font-size='12' font-weight='700' letter-spacing='1' fill='var(--blue,#23537F)'>WHITE-BOX · accès aux poids et activations</text><text x='252' y='84' text-anchor='middle' font-size='10' fill='var(--ink-faint,#7A889B)'>requiert le modèle en local</text><text x='712' y='68' text-anchor='middle' font-size='12' font-weight='700' letter-spacing='1' fill='var(--bordeaux,#7C2A38)'>BLACK-BOX · ce qu’une API propriétaire expose</text><text x='712' y='84' text-anchor='middle' font-size='10' fill='var(--ink-faint,#7A889B)'>sorties texte, parfois probabilités des tokens</text><line x1='494' y1='46' x2='494' y2='258' stroke='var(--ink-faint,#7A889B)' stroke-width='1.5' stroke-dasharray='3 5'/><line x1='494' y1='352' x2='494' y2='466' stroke='var(--ink-faint,#7A889B)' stroke-width='1.5' stroke-dasharray='3 5'/><text x='494' y='309' text-anchor='middle' font-size='10' fill='var(--ink-faint,#7A889B)' transform='rotate(-90 494 305)'>frontière API</text><rect x='36' y='140' width='120' height='60' rx='8' fill='none' stroke='var(--ink,#15202E)' stroke-opacity='0.5'/><text x='96' y='166' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)'>Prompt</text><text x='96' y='184' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)'>+ contexte</text><line x1='158' y1='170' x2='172' y2='170' stroke='var(--ink-faint,#7A889B)' stroke-width='1.5' marker-end='url(#hdb-arr)'/><rect x='180' y='92' width='290' height='230' rx='10' fill='none' stroke='var(--ink,#15202E)' stroke-opacity='0.7' stroke-width='1.5'/><text x='325' y='114' text-anchor='middle' font-size='13' font-weight='700' fill='var(--ink,#15202E)'>LLM en génération</text><rect x='206' y='132' width='11' height='11' fill='var(--blue,#23537F)' fill-opacity='0.85'/><rect x='206' y='146' width='11' height='11' fill='var(--blue,#23537F)' fill-opacity='0.55'/><rect x='220' y='146' width='11' height='11' fill='var(--blue,#23537F)' fill-opacity='0.8'/><rect x='206' y='160' width='11' height='11' fill='var(--blue,#23537F)' fill-opacity='0.35'/><rect x='220' y='160' width='11' height='11' fill='var(--blue,#23537F)' fill-opacity='0.5'/><rect x='234' y='160' width='11' height='11' fill='var(--blue,#23537F)' fill-opacity='0.8'/><rect x='206' y='174' width='11' height='11' fill='var(--blue,#23537F)' fill-opacity='0.25'/><rect x='220' y='174' width='11' height='11' fill='var(--blue,#23537F)' fill-opacity='0.35'/><rect x='234' y='174' width='11' height='11' fill='var(--blue,#23537F)' fill-opacity='0.5'/><rect x='248' y='174' width='11' height='11' fill='var(--blue,#23537F)' fill-opacity='0.8'/><rect x='206' y='188' width='11' height='11' fill='var(--blue,#23537F)' fill-opacity='0.15'/><rect x='220' y='188' width='11' height='11' fill='var(--blue,#23537F)' fill-opacity='0.2'/><rect x='234' y='188' width='11' height='11' fill='var(--blue,#23537F)' fill-opacity='0.35'/><rect x='248' y='188' width='11' height='11' fill='var(--blue,#23537F)' fill-opacity='0.55'/><rect x='262' y='188' width='11' height='11' fill='var(--blue,#23537F)' fill-opacity='0.8'/><text x='240' y='216' text-anchor='middle' font-size='11' fill='var(--ink,#15202E)'>cartes</text><text x='240' y='230' text-anchor='middle' font-size='11' fill='var(--ink,#15202E)'>d’attention</text><rect x='315' y='136' width='130' height='12' rx='6' fill='var(--blue,#23537F)' fill-opacity='0.15'/><rect x='315' y='160' width='130' height='12' rx='6' fill='var(--blue,#23537F)' fill-opacity='0.25'/><rect x='315' y='184' width='130' height='12' rx='6' fill='var(--blue,#23537F)' fill-opacity='0.15'/><circle cx='327' cy='166' r='3' fill='var(--blue,#23537F)' fill-opacity='0.9'/><circle cx='349' cy='166' r='3' fill='var(--blue,#23537F)' fill-opacity='0.6'/><circle cx='371' cy='166' r='3' fill='var(--blue,#23537F)' fill-opacity='0.85'/><circle cx='393' cy='166' r='3' fill='var(--blue,#23537F)' fill-opacity='0.4'/><circle cx='415' cy='166' r='3' fill='var(--blue,#23537F)' fill-opacity='0.7'/><text x='380' y='216' text-anchor='middle' font-size='11' fill='var(--ink,#15202E)'>états cachés</text><text x='380' y='230' text-anchor='middle' font-size='11' fill='var(--ink,#15202E)'>activations</text><circle cx='240' cy='252' r='11' fill='var(--blue,#23537F)'/><text x='240' y='256' text-anchor='middle' font-size='11' font-weight='700' fill='#fff'>3</text><line x1='240' y1='263' x2='139' y2='356' stroke='var(--blue,#23537F)' stroke-opacity='0.5'/><circle cx='380' cy='252' r='11' fill='var(--blue,#23537F)'/><text x='380' y='256' text-anchor='middle' font-size='11' font-weight='700' fill='#fff'>2</text><line x1='380' y1='263' x2='371' y2='356' stroke='var(--blue,#23537F)' stroke-opacity='0.5'/><line x1='472' y1='170' x2='498' y2='170' stroke='var(--ink-faint,#7A889B)' stroke-width='1.5' marker-end='url(#hdb-arr)'/><rect x='510' y='140' width='150' height='60' rx='8' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-opacity='0.6'/><text x='585' y='163' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)'>tokens générés</text><text x='585' y='181' text-anchor='middle' font-size='10' fill='var(--ink-faint,#7A889B)'>+ probabilités</text><rect x='545' y='241' width='12' height='9' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.7'/><rect x='565' y='228' width='12' height='22' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.7'/><rect x='585' y='237' width='12' height='13' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.7'/><rect x='605' y='224' width='12' height='26' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.7'/><rect x='625' y='242' width='12' height='8' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.7'/><line x1='540' y1='250' x2='642' y2='250' stroke='var(--ink-faint,#7A889B)'/><circle cx='585' cy='272' r='11' fill='var(--bordeaux,#7C2A38)'/><text x='585' y='276' text-anchor='middle' font-size='11' font-weight='700' fill='#fff'>4</text><line x1='585' y1='283' x2='610' y2='356' stroke='var(--bordeaux,#7C2A38)' stroke-opacity='0.5'/><line x1='662' y1='170' x2='700' y2='170' stroke='var(--ink-faint,#7A889B)' stroke-width='1.5' marker-end='url(#hdb-arr)'/><rect x='706' y='120' width='170' height='52' rx='6' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-opacity='0.35'/><rect x='718' y='140' width='170' height='52' rx='6' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.04' stroke='var(--bordeaux,#7C2A38)' stroke-opacity='0.55'/><rect x='730' y='160' width='170' height='52' rx='6' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.07' stroke='var(--bordeaux,#7C2A38)'/><text x='815' y='190' text-anchor='middle' font-size='11' fill='var(--ink,#15202E)'>réponse k</text><text x='805' y='236' text-anchor='middle' font-size='11' fill='var(--ink,#15202E)'>K réponses ré-échantillonnées</text><circle cx='805' cy='262' r='11' fill='var(--bordeaux,#7C2A38)'/><text x='805' y='266' text-anchor='middle' font-size='11' font-weight='700' fill='#fff'>1</text><line x1='805' y1='273' x2='820' y2='356' stroke='var(--bordeaux,#7C2A38)' stroke-opacity='0.5'/><rect x='30' y='356' width='218' height='86' rx='8' fill='var(--blue,#23537F)' fill-opacity='0.08' stroke='var(--blue,#23537F)' stroke-opacity='0.4'/><text x='42' y='377' font-size='12' font-weight='700' fill='var(--blue,#23537F)'>3 · Lookback Lens</text><text x='42' y='396' font-size='11' fill='var(--ink,#15202E)'>lit les cartes d’attention :</text><text x='42' y='411' font-size='11' fill='var(--ink,#15202E)'>part du contexte vs tokens</text><text x='42' y='426' font-size='11' fill='var(--ink,#15202E)'>déjà générés (lookback ratio)</text><rect x='262' y='356' width='218' height='86' rx='8' fill='var(--blue,#23537F)' fill-opacity='0.08' stroke='var(--blue,#23537F)' stroke-opacity='0.4'/><text x='274' y='377' font-size='12' font-weight='700' fill='var(--blue,#23537F)'>2 · SAPLMA · INSIDE</text><text x='274' y='396' font-size='11' fill='var(--ink,#15202E)'>lit les états cachés : sonde sur</text><text x='274' y='411' font-size='11' fill='var(--ink,#15202E)'>une couche ; EigenScore sur la</text><text x='274' y='426' font-size='11' fill='var(--ink,#15202E)'>covariance de K réponses</text><rect x='512' y='356' width='196' height='86' rx='8' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.07' stroke='var(--bordeaux,#7C2A38)' stroke-opacity='0.4'/><text x='524' y='377' font-size='12' font-weight='700' fill='var(--bordeaux,#7C2A38)'>4 · SAR</text><text x='524' y='394' font-size='11' fill='var(--ink,#15202E)'>tokens repondérés par leur</text><text x='524' y='408' font-size='11' fill='var(--ink,#15202E)'>pertinence sémantique dans</text><text x='524' y='422' font-size='11' fill='var(--ink,#15202E)'>l’entropie (token, phrase)</text><text x='524' y='436' font-size='9.5' fill='var(--ink-faint,#7A889B)'>exige les probabilités des tokens</text><rect x='722' y='356' width='196' height='86' rx='8' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.07' stroke='var(--bordeaux,#7C2A38)' stroke-opacity='0.4'/><text x='734' y='377' font-size='12' font-weight='700' fill='var(--bordeaux,#7C2A38)'>1 · SelfCheckGPT</text><text x='734' y='396' font-size='11' fill='var(--ink,#15202E)'>compare K réponses</text><text x='734' y='411' font-size='11' fill='var(--ink,#15202E)'>ré-échantillonnées : leur</text><text x='734' y='426' font-size='11' fill='var(--ink,#15202E)'>désaccord signale l’invention</text></svg><figcaption><span class='fcap-k'></span>Les quatre guichets de lecture du signal d’incertitude : états cachés et cartes d’attention côté white-box, tokens repondérés et réponses ré-échantillonnées du côté qu’une API propriétaire laisse visible.</figcaption></figure>\n<p>Faut-il couronner un vainqueur ? La littérature ne le permet pas. Chaque article fondateur s'évalue sur son propre banc — WikiBio pour SelfCheckGPT ; CoQA, SQuAD, NQ et TriviaQA pour l'EigenScore ; un jeu de phrases vrai/faux construit sur mesure pour SAPLMA — et aucun ne livre de comparaison AUROC tête-à-tête entre ces familles. Les confrontations chiffrées qui circulent entre états internes et cohérence multi-échantillons sont d'ailleurs mesurées sur des modèles ouverts, où l'accès aux activations est acquis pour tout le monde — pas dans les conditions d'accès restreint, un GPT-4 derrière une API, pour lesquelles SelfCheckGPT est précisément conçu et reste seul déployable. Les deux surveys (articles de synthèse) de 2025 disent la même chose par des taxonomies indépendantes. Kang et al. classent par mécanique statistique — bayésien, ensembliste, sémantique et entropique, token-level, calibration entraînée, états internes — et notent que les méthodes fondées sur la probabilité de token tendent à sur-prédire l'hallucination ; Alansari et Luqman classent par stratégie de détection — incertitude, cohérence multi-échantillons, vérification factuelle externe, analyse sémantique, RAG. Deux découpages, un même constat : ces familles coexistent et se complètent, aucune ne supplante l'autre.</p>\n<p>Toutes, cependant, lisent des proxys d'une même grandeur cachée — la confiance réelle du modèle dans ce qu'il affirme — et un proxy, si bien choisi soit-il, n'est qu'un nombre. Il ordonne les réponses de la plus sûre à la plus douteuse sans dire où couper, ni ce que vaut la coupe. Transformer ce nombre en décision assortie d'une garantie chiffrée est l'objet du cadre qui vient.</p>",
+      "claims": [
+        "claim:17",
+        "claim:18",
+        "claim:19",
+        "claim:20"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "garanties-conformes",
+      "heading": "Répondre ou s'abstenir : conformal prediction et garanties de risque",
+      "level": 3,
+      "prose": "<p>Un score ordonne ; il ne s'engage pas. Pour passer du signal à la décision — répondre ou s'abstenir —, il faut un cadre qui transforme un seuil arbitraire en contrat statistique. Ce cadre est la conformal prediction (prédiction conforme). Sa propriété fondatrice : sous la seule hypothèse d'échangeabilité entre données de calibration et donnée de test — aucune hypothèse paramétrique sur le modèle, aucune sur la distribution des données, d'où le qualificatif distribution-free —, elle produit des ensembles de prédiction C(X) tels que P(Y ∈ C(X)) ≥ 1−α, à échantillon fini, quel que soit le modèle sous-jacent. La variante opératoire, la split conformal prediction (prédiction conforme scindée), calibre un seuil sur n exemples : le quantile empirique d'ordre ⌈(n+1)(1−α)⌉/n des scores de non-conformité — la correction en (n+1) est ce qui garantit la couverture même à petit n, là où un quantile classique sous-couvrirait.</p>\n<p>Adapter ce cadre aux LLM génératifs demandait un détour : l'espace des réponses libres n'est pas une liste finie de classes. Conformal Language Modeling (Quach et al., ICLR 2024) ouvre la voie par un échantillonnage calibré — une règle d'arrêt et une règle de rejet font croître un ensemble de candidats jusqu'à garantir, avec haute probabilité, qu'il contient au moins une réponse acceptable, tout en le gardant petit en moyenne. ConU (Wang, Duan et al., Findings of EMNLP 2024) resserre ensuite la contrainte d'accès : aucun logit requis. Sa mesure d'incertitude repose sur la self-consistency (auto-cohérence) sémantique entre réponses échantillonnées — la même intuition que la cohérence multi-échantillons du bestiaire —, intégrée à la split conformal prediction ; la validation couvre sept LLM et quatre jeux de données de génération libre, scénarios médicaux compris, avec des ensembles calibrés de petite taille.</p>\n<p>Encore faut-il lire la garantie pour ce qu'elle est. La couverture 1−α porte sur l'ensemble : avec probabilité au moins 1−α, l'ensemble construit contient au moins une réponse correcte. Elle ne dit pas que la réponse individuelle la plus probable du LLM est correcte avec cette probabilité ; et elle est marginale — une moyenne sur le tirage conjoint calibration-test, non une promesse conditionnelle à chaque question. Conséquence pratique : les ensembles produits contiennent souvent, à côté d'une réponse acceptable, des candidats incorrects. Pour un système qui doit rendre une réponse, une seule, la couverture laisse l'essentiel en suspens.</p>\n<p>C'est ce défaut que corrige COIN (AAAI-26), conçu par une équipe qui recoupe largement celle de ConU. Le renversement : ne plus livrer un ensemble couvert, mais filtrer une seule réponse par question sous une contrainte de FDR (false discovery rate, taux de fausse découverte) que l'utilisateur fixe. La mécanique estime le taux d'erreur empirique sur un jeu de calibration, le majore par une borne de Clopper-Pearson, puis sélectionne le plus grand seuil d'incertitude qui maintient cette borne sous le niveau demandé — le plus grand, afin de maximiser la proportion de questions auxquelles le système accepte de répondre. La validation traverse le texte (CommonsenseQA et TriviaQA, cinq LLM) et le multimodal (le benchmark MMVet, cinq LVLM — grands modèles vision-langage), avec un contrôle du risque qui tient même quand les données de calibration sont rares.</p>\n<p>Le choix de Clopper-Pearson n'est pas décoratif. Cet intervalle de confiance pour une proportion binomiale, publié par Clopper et Pearson en 1934, est exact : sa couverture est garantie au moins égale au niveau nominal pour toute vraie proportion, sans approximation normale asymptotique — au prix d'intervalles plus conservateurs que les approximations classiques. C'est ce conservatisme assumé qui autorise COIN à borner le FDR à échantillon fini, jeu de calibration limité compris.</p>\n<p>On mesure alors le chemin parcouru depuis la borne de Kalai et Vempala. Si un modèle calibré doit halluciner sur les faits singletons, l'élimination est hors de portée ; l'abstention sélective, elle, devient un contrat paramétrable — au plus telle fraction de réponses fausses parmi celles que le système rend — et tenu à échantillon fini. Un contrat n'est pourtant pas un oracle : la garantie est marginale, muette sur chaque réponse prise isolément, et le seuil qu'elle calibre repose sur un score d'incertitude qui a ses propres angles morts. Ce sont eux qu'il est temps de regarder en face.</p>",
+      "claims": [
+        "claim:21",
+        "claim:22",
+        "claim:23",
+        "claim:24"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-quantile-conforme-couverture"
+    },
+    {
+      "type": "section",
+      "id": "limites-faux-signaux",
+      "heading": "Ce que l'incertitude ne dit pas : hallucinations confiantes et faux signaux",
+      "level": 3,
+      "prose": "<p>La garantie conforme borne un risque moyen ; elle vaut ce que vaut le score qu'elle seuille. Or le premier angle mort de ce score est structurel. L'hallucination confiante, déjà rencontrée chez les estimateurs de première génération, échappe aux méthodes fondées sur l'entropie : un modèle qui a appris un fait faux de façon cohérente le répète avec la même assurance à chaque tirage — distribution piquée, échantillons concordants, entropie basse. Les auteurs de la semantic entropy le reconnaissent sans détour : leur méthode cible la confabulation, cette incohérence d'un essai à l'autre, et ne détecte ni l'erreur systématique ancrée dans l'entraînement, ni l'erreur due à un contexte d'usage différent du contexte d'apprentissage, ni une éventuelle tromperie délibérée — des mécanismes qu'ils jugent relever d'autres solutions.</p><figure class='fig'><svg viewBox='0 0 760 312' role='img' aria-label='Trois panneaux de distributions de réponses échantillonnées : fait su piqué à entropie basse accepté, confabulation étalée à entropie haute signalée, fait faux appris de façon cohérente piqué à entropie basse accepté à tort — les profils (a) et (c) sont identiques'><rect x='16' y='16' width='224' height='180' rx='8' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='128' y='40' text-anchor='middle' font-size='13' font-weight='bold' fill='var(--ink,#15202E)'>(a) Fait su</text><text x='128' y='56' text-anchor='middle' font-size='10' fill='var(--ink-faint,#7A889B)'>10 tirages, même réponse juste</text><path d='M40 158 H216' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><path d='M68 158 V162 M98 158 V162 M158 158 V162 M188 158 V162' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='117' y='70' width='22' height='88' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='128' y='64' text-anchor='middle' font-size='10' font-weight='bold' fill='var(--blue,#23537F)'>10/10</text><text x='128' y='182' text-anchor='middle' font-size='11.5' font-weight='bold' fill='var(--ink,#15202E)'>entropie ≈ 0</text><rect x='16' y='206' width='224' height='42' rx='6' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='128' y='223' text-anchor='middle' font-size='10.5' fill='var(--ink,#15202E)'>entropie basse → réponse acceptée</text><text x='128' y='239' text-anchor='middle' font-size='11.5' font-weight='bold' fill='var(--blue,#23537F)'>réponse juste ✓</text><rect x='268' y='16' width='224' height='180' rx='8' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='380' y='40' text-anchor='middle' font-size='13' font-weight='bold' fill='var(--ink,#15202E)'>(b) Confabulation</text><text x='380' y='56' text-anchor='middle' font-size='10' fill='var(--ink-faint,#7A889B)'>10 tirages, réponses divergentes</text><path d='M292 158 H468' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='309' y='132' width='22' height='26' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.5'/><rect x='339' y='140' width='22' height='18' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.5'/><rect x='369' y='140' width='22' height='18' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.5'/><rect x='399' y='140' width='22' height='18' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.5'/><rect x='429' y='149' width='22' height='9' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='320' y='127' text-anchor='middle' font-size='9' fill='var(--ink-faint,#7A889B)'>3</text><text x='350' y='135' text-anchor='middle' font-size='9' fill='var(--ink-faint,#7A889B)'>2</text><text x='380' y='135' text-anchor='middle' font-size='9' fill='var(--ink-faint,#7A889B)'>2</text><text x='410' y='135' text-anchor='middle' font-size='9' fill='var(--ink-faint,#7A889B)'>2</text><text x='440' y='144' text-anchor='middle' font-size='9' fill='var(--ink-faint,#7A889B)'>1</text><text x='380' y='182' text-anchor='middle' font-size='11.5' font-weight='bold' fill='var(--ink,#15202E)'>entropie élevée</text><rect x='268' y='206' width='224' height='42' rx='6' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='380' y='223' text-anchor='middle' font-size='10.5' fill='var(--ink,#15202E)'>entropie haute → réponse signalée</text><text x='380' y='239' text-anchor='middle' font-size='11.5' font-weight='bold' fill='var(--blue,#23537F)'>confabulation détectée ✓</text><rect x='520' y='16' width='224' height='180' rx='8' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='632' y='40' text-anchor='middle' font-size='13' font-weight='bold' fill='var(--ink,#15202E)'>(c) Fait faux appris cohérent</text><text x='632' y='56' text-anchor='middle' font-size='10' fill='var(--ink-faint,#7A889B)'>10 tirages, même réponse fausse</text><path d='M544 158 H720' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><path d='M572 158 V162 M602 158 V162 M662 158 V162 M692 158 V162' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><rect x='621' y='70' width='22' height='88' fill='var(--blue-wash,#E7EEF6)' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='632' y='64' text-anchor='middle' font-size='10' font-weight='bold' fill='var(--blue,#23537F)'>10/10</text><text x='632' y='182' text-anchor='middle' font-size='11.5' font-weight='bold' fill='var(--ink,#15202E)'>entropie ≈ 0</text><rect x='520' y='206' width='224' height='42' rx='6' fill='var(--bordeaux-wash,#F3E3E6)' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.5'/><text x='632' y='223' text-anchor='middle' font-size='10.5' fill='var(--ink,#15202E)'>entropie basse → réponse acceptée</text><text x='632' y='239' text-anchor='middle' font-size='11.5' font-weight='bold' fill='var(--bordeaux,#7C2A38)'>réponse fausse ✗ — non détectée</text><text x='380' y='280' text-anchor='middle' font-size='11.5' font-style='italic' fill='var(--bordeaux,#7C2A38)'>profils d’échantillonnage identiques : (a) et (c) sont indiscernables pour un détecteur entropique</text><path d='M128 296 H632' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2' stroke-dasharray='5 4'/><path d='M137 291 L128 296 L137 301 M623 291 L632 296 L623 301' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.2'/></svg><figcaption><span class='fcap-k'></span>En (a) comme en (c), la distribution des tirages est piquée et l’entropie basse : le fait faux appris de façon cohérente est accepté avec la même assurance que le fait su — seule la confabulation (b), qui disperse les réponses, est détectable par l’entropie.</figcaption></figure><p>Même dans son périmètre, la méthode a ses ratés. Le regroupement par NLI peut confondre des termes sémantiquement distincts selon le contexte — « cerveau » et « système nerveux central » comptés comme un seul sens. Et son coût, environ dix fois celui d'un simple appel question-réponse, soit l'ordre de grandeur du chain-of-thought (raisonnement déroulé pas à pas), freine l'adoption en production.</p><p>Le doute empirique va plus loin. Une étude dédiée a confronté trois familles d'estimateurs — information-théoriques, par échantillonnage, réflexifs — à quatre benchmarks complémentaires, dont RAGTruth et HalluLens. Sa conclusion tient en une phrase : l'association entre score d'incertitude et hallucination réelle est « très variable et souvent faible », selon que l'hallucination est intrinsèque ou extrinsèque et selon le LLM évalué. L'hypothèse centrale du document — une incertitude élevée signale que le modèle devine — tient en tendance, pas cas par cas.</p><p>Autre désillusion : les scores ne sont pas des probabilités. La plupart des méthodes d'uncertainty quantification (quantification de l'incertitude — UQ dans la littérature) produisent des sorties sur des échelles arbitraires, pas sur l'intervalle [0, 1] qu'on aimerait lire comme une chance d'avoir juste. On peut les calibrer, mais au prix de données de référence supplémentaires, supervisées ou simplement non annotées — un point que seule la survey de Kang et al. documente à ce jour. La mesure de référence de l'incertitude épistémique — ce que le modèle ignore, par opposition à l'incertitude aléatoire, la variabilité intrinsèque de la tâche — serait un ensemble de modèles entraînés indépendamment ; l'option est jugée « prohibitivement coûteuse » pour les LLM, et la quasi-totalité des méthodes approxime donc l'incertitude depuis un seul modèle pré-entraîné. Cette dichotomie épistémique-aléatoire paraît d'ailleurs elle-même trop étroite pour les LLM : des travaux récents y ajoutent la sous-spécification de la tâche ou du contexte. Et le score reste figé au snapshot d'entraînement — demander combien de buts Messi a marqués cette année, c'est interroger un fait qui bouge quand le score, lui, ne bouge pas.</p><p>Le signal est aussi abîmé en amont, par l'alignement lui-même. Plusieurs études indépendantes documentent que le RLHF standard gonfle la surconfiance verbalisée : les données de préférence pénalisent le langage qui exprime l'incertitude au profit d'affirmations catégoriques, que la réponse soit juste ou non. Une étude de 2024 (Leng, Huang, Zhu et Huang) décrit le mécanisme — le RLHF « affûte » les distributions de sortie, les modèles de récompense favorisant systématiquement les scores de confiance élevés indépendamment de la qualité de la réponse — et propose deux correctifs à PPO (Proximal Policy Optimization, l'algorithme d'optimisation du RLHF) : PPO-M intègre un score de confiance explicite dans l'entraînement du modèle de récompense, PPO-C pénalise l'écart entre la récompense courante et une moyenne mobile exponentielle des récompenses passées. Les deux réduiraient l'erreur de calibrage sur Llama3-8B et Mistral-7B, sans données supervisées additionnelles ni perte de performance — un résultat que seule cette étude rapporte à ce jour, sans réplication indépendante.</p><p>Le décodage, enfin, fabrique ses propres artefacts. La stratégie d'échantillonnage — la température en tête — affecte fortement la qualité des estimations ; une température basse peut produire une fausse cohérence, c'est-à-dire une incertitude artificiellement basse qui reflète un réglage de décodage et non une connaissance fiable. Ce mécanisme précis est avancé par Kang et al., sans réplication indépendante trouvée. Et dès que la réponse s'allonge, l'estimation au niveau claim-level (l'affirmation individuelle) décroche : les performances restent nettement inférieures à celles de la QA courte, et attribuer un score unique à une réponse qui empile des affirmations aux statuts de vérité différents est « à la fois impraticable et indésirable ».</p><p>Rien de tout cela ne rend le signal inutile. L'inévitabilité démontrée en amont — Xu, Jain et Kankanhalli concluaient qu'aucune amélioration d'architecture, de données ou de prompting n'éliminera l'hallucination — rend précieux tout indicateur, même faillible, de ce que le modèle devine. Mais un signal n'est pas une défense. C'est la leçon qu'a tirée l'industrie : en production, l'incertitude s'adosse à des dispositifs qui ne lui demandent pas d'être un oracle.</p>",
+      "claims": [
+        "claim:25",
+        "claim:26",
+        "claim:27",
+        "claim:28"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "production-guardrails",
+      "heading": "En production : grounding, citations et vérification factuelle",
+      "level": 3,
+      "prose": "<p>Avant de corriger, il a fallu mesurer, et deux benchmarks ont durablement cadré l'exercice. TruthfulQA (Lin, Hilton et Evans, ACL 2022) aligne 817 questions réparties en trente-huit catégories — santé, droit, finance, politique — conçues pour piéger le modèle sur des idées fausses répandues ; le meilleur modèle testé n'était véridique que sur 58 % des questions, contre 94 % pour l'humain, et les plus gros modèles tendaient à être les moins véridiques : ils imitent mieux les fausses croyances humaines. HaluEval (Li et al., EMNLP 2023) a industrialisé la mesure avec 35 000 échantillons — des réponses de ChatGPT annotées par des humains, complétées d'exemples générés automatiquement pour la QA, le dialogue et le résumé. Sur les requêtes utilisateur testées, ChatGPT fabrique de l'information invérifiable environ une fois sur cinq.</p><p>Mesurer ne suffit pas : il faut vérifier, affirmation par affirmation. FActScore (Min et al., EMNLP 2023) a posé le geste — décomposer une génération longue en « faits atomiques » auto-suffisants, puis calculer la part que la source de connaissance étaye. Sur des biographies générées, ChatGPT plafonne à un FActScore de 58 % ; l'estimateur automatisé reproduit le jugement humain à moins de 2 % d'erreur près, ce qui permet d'évaluer à l'échelle sans annotateurs. SAFE (Search-Augmented Factuality Evaluator ; Google DeepMind et Stanford) pousse la logique un cran plus loin : mêmes faits atomiques, mais vérifiés par requêtes Google Search itératives. Le vérificateur s'accorde avec des annotateurs humains crowdsourcés dans 72 % des cas. Surtout, quand ils divergent, c'est lui qui a raison trois fois sur quatre — l'humain, moins d'une fois sur cinq. Et il coûte plus de vingt fois moins cher que l'annotation humaine.</p><p>Deuxième famille industrielle, les juges spécialisés : des modèles entraînés spécifiquement à détecter l'hallucination. Lynx (Patronus AI), décliné en 8B et 70B, est entraîné sur HaluBench, un benchmark de quinze mille triplets contexte-question-réponse tirés de domaines réels, finance et médecine comprises. Ses concepteurs le donnent gagnant contre des LLM généralistes employés comme juges — la pratique dite LLM-as-a-judge : la version 8B dépasse GPT-3.5 de 24,5 points sur HaluBench et fut la première à y battre GPT-4 ; la 70B est 8,3 points plus précise que GPT-4o sur le sous-ensemble médical PubMedQA. Chez Vectara, le modèle HHEM (le juge maison de détection d'hallucination) note un leaderboard public : chaque LLM résume plus de 7 700 articles de domaines variés sous consigne stricte — n'utiliser que le passage donné, ne rien inférer, température zéro — et le juge compte les écarts ; une version ouverte, HHEM-2.1-Open, est publiée sur Hugging Face.</p><p>Deux réserves s'imposent pourtant. Ces performances sont auto-rapportées : mesurées par les concepteurs de ces outils, sur leurs propres benchmarks. Et une étude tierce réellement indépendante, qui compare juges spécialisés et généralistes sur six applications RAG, trouve des résultats hétérogènes selon le jeu de données — certains évaluateurs spécialisés ne dépassant guère le hasard sur certains domaines — sans confirmer d'avantage systématique des spécialistes.</p><p>Troisième étage : les guardrails (garde-fous) managés des plateformes cloud, qui vérifient le grounding (ancrage documentaire) de la réponse contre une source fournie. Le contextual grounding check d'Amazon Bedrock Guardrails, lancé en juillet 2024, produit deux scores indépendants — la réponse est-elle fondée sur la source, et répond-elle à la question — car une réponse peut être fidèle mais hors sujet, ou l'inverse. Le seuil se règle de 0 à 0,99, le contrôle vise des tâches bornées (résumé, paraphrase, QA) et la documentation exclut explicitement le chatbot conversationnel. La groundedness detection d'Azure AI Content Safety suit le même principe avec ses propres axes — mode Reasoning ou temps réel, domaine médical ou générique, plus une correction en préversion qui réécrit le passage non fondé, limitée à l'anglais. Ses tâches documentées se limitent en revanche au résumé et à la QnA, et elle n'exclut pas le chatbot : sa documentation cite même la validation de réponses de chatbots de support client comme cas d'usage borné. Deux produits, deux périmètres — lire les limites d'usage fait partie de l'intégration.</p><p>Anthropic a pris un chemin voisin avec son API Citations, disponible en général depuis juin 2025 : les documents fournis sont segmentés en phrases, transmis au modèle avec la requête, et Claude est contraint de citer précisément le passage source pour toute affirmation qui en dérive — sans coût de tokens de sortie pour le texte cité. Le client Endex, en recherche financière, rapporte être passé de 10 % à zéro hallucination ou erreur de formatage, avec au passage 20 % de références en plus par réponse.</p><p>Ce que valent les promesses commerciales une fois confrontées au terrain, une étude de Stanford l'a mesuré dans un domaine où l'erreur coûte cher. Les outils de recherche juridique assistée par IA s'annonçaient sans hallucination — LexisNexis revendiquait des citations juridiques « 100 % hallucination-free », Westlaw assurait ne pas fabriquer de faits. L'évaluation préenregistrée de Stanford RegLab et HAI, portant sur 202 requêtes légales notées par des juristes, a mesuré plus de 17 % d'hallucinations pour Lexis+ AI ; Westlaw AI-Assisted Research dépasse 33 %. LexisNexis a depuis restreint sa promesse aux seules citations juridiques liées.</p><p>La boucle est bouclée. La semantic entropy agit en amont, au moment de la génération, sans document de référence ; les guardrails de grounding vérifient a posteriori contre une source fournie ; les juges et vérificateurs factuels contrôlent en aval. Aucune couche ne se suffit — l'article d'OpenAI sur l'origine des hallucinations le rappelait à sa façon : l'erreur générative vaut au moins le double de celle du classifieur Is-It-Valid correspondant, raison de plus pour ne pas tout miser sur un signal unique. La pratique combine donc signal d'incertitude, grounding et vérification externe. Reste à savoir avec quoi s'outiller.</p>",
+      "claims": [
+        "claim:29",
+        "claim:30",
+        "claim:31",
+        "claim:32"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "ecosysteme",
+      "heading": "Écosystème & pour aller plus loin",
+      "level": 3,
+      "prose": "<p>Tout ce qui précède s'installe. Pour l'estimation d'incertitude, LM-Polygraph fait office de référence : un framework open source sous licence MIT qui implémente 47 méthodes — accessibles d'un simple <code>pip install lm-polygraph</code> — couvrant les grandes familles du bestiaire : information-based (probabilité de séquence, perplexité, entropie de tokens), meaning diversity (la semantic entropy, tokenSAR et sentSAR, EigenScore), density-based (distance de Mahalanobis sur les représentations), reflexive (P(True), confiance verbalisée) et ensembling. Le framework prend en charge les modèles Hugging Face, vLLM et les API compatibles OpenAI ; son article de benchmark, publié à TACL (vol. 13, 2025), en fait le point de départ le plus court pour comparer les méthodes entre elles sur son propre cas d'usage.</p><p>Deux autres boîtes à outils occupent des niches voisines. Le package selfcheckgpt (licence MIT) livre les cinq variantes vues au bestiaire ; la variante LLM-Prompt atteint, avec GPT-3.5-turbo, 93,42 d'AUC-PR (aire sous la courbe précision-rappel) en détection de factualité. UQLM, maintenu par CVS Health sous licence Apache 2.0, ratisse plus large : scorers black-box par cohérence (dont une semantic entropy discrète), white-box par probabilités de tokens, LLM-as-a-judge sous plusieurs formats, scorers d'ensemble, et des scorers dédiés au texte long au niveau des affirmations.</p><p>La semantic entropy elle-même se reproduit depuis le dépôt officiel des auteurs (licence BSD), qui couvre douze modèles open-weight (à poids ouverts) — les familles LLaMA-2, Falcon et Mistral, en versions de base et instruction-tuned — sur cinq jeux de question-réponse, de TriviaQA à BioASQ. Un avertissement s'impose au moment d'en faire une brique de production : la méthode est souvent citée comme une solution générale à la détection d'hallucination, alors que ses auteurs restreignent explicitement son périmètre aux confabulations. Le fait faux appris de façon stable, on l'a vu, laisse l'entropie basse — les limites détaillées plus haut valent mode d'emploi.</p><p>Côté vérification factuelle, FActScore s'installe aussi (<code>pip install factscore</code>), avec une dépendance à voir avant de l'adopter : chaque fait atomique est vérifié contre un corpus de référence externe — par défaut un dump de Wikipedia figé au 1er avril 2023 —, non contre une véracité qui serait intrinsèque au modèle évalué. Traiter l'intégralité de la partie anglaise du corpus demande environ huit heures et 18 Go ; les deux configurations recommandées, l'une à base de ChatGPT, l'autre entièrement ouverte, sont corrélées entre elles à 0,99. Pour le contrôle de grounding en continu, HHEM-2.1-Open prend un couple prémisse-réponse et renvoie un score entre 0 (non étayé) et 1 (entièrement étayé) ; contrairement à sa première version limitée à 512 tokens, il gère un contexte illimité, tient dans moins de 600 Mo de RAM et traite un texte de deux mille tokens en environ une seconde et demie sur un CPU courant. Le leaderboard Vectara qu'alimente la version propriétaire s'étage, au dernier pointage, de moins de 2 % de taux d'hallucination en tête de classement à environ 24 % en queue. Dans les pipelines RAG, enfin, la métrique faithfulness (fidélité) de RAGAS (framework d'évaluation des pipelines RAG) applique la recette de FActScore au contexte récupéré : décomposer la réponse en affirmations, faire vérifier chacune par un LLM juge, rendre la fraction étayée.</p><p>Pour la lecture de fond, deux synthèses balisent le champ. Celle de Huang et al., publiée à ACM Transactions on Information Systems, reste l'entrée générale : taxonomie des hallucinations, analyse des causes, revue des détections et des atténuations, directions ouvertes — dont l'hallucination en vision-langage et les frontières de connaissance des LLM. La survey de Kang et al. est son pendant côté incertitude : fondations de l'UQ, distinction épistémique-aléatoire, catégorisation des méthodes et seuillage de l'incertitude comme décision binaire. Quant aux articles d'inévitabilité croisés en début de parcours — Kalai et Vempala, celui d'OpenAI —, ils se relisent autrement une fois l'outillage en main : ils expliquent pourquoi cet outillage existera encore longtemps.</p><p>La documentation d'Anthropic condense enfin l'état de l'art opérationnel en recommandations directement applicables : autoriser explicitement le modèle à répondre « je ne sais pas » ; pour les documents longs — au-delà de 20 000 tokens —, faire extraire des citations exactes avant la tâche pour ancrer la réponse dans le texte ; exiger une citation source pour chaque affirmation et retirer celles qui n'en ont pas ; vérifier par chain-of-thought ou par comparaison best-of-N de plusieurs générations pour repérer les incohérences ; restreindre la réponse aux informations des documents fournis. Rien là que le document n'ait déjà justifié pièce par pièce.</p><p>Le mot qu'Esquirol forgeait pour la clinique aura fait du chemin. Au terme du parcours, l'hallucination des LLM n'est ni un scandale ni une anomalie passagère : c'est une propriété démontrée des modèles génératifs, entretenue par des évaluations qui récompensent le pari. Face à elle, l'incertitude est le signal le moins cher et le plus général dont on dispose — et un signal faillible, aveugle à l'erreur confiante, sensible au décodage, jamais tout à fait une probabilité. La réponse mûre n'est pas de choisir entre détecter et vérifier, mais d'empiler : un score d'incertitude pour trier, un grounding pour contraindre, une vérification externe pour trancher. Savoir quand la réponse ne vaut rien restera un travail d'ingénierie — mais un travail désormais instrumenté.</p>",
+      "claims": [
+        "claim:33",
+        "claim:34",
+        "claim:35",
+        "claim:36"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "synopsis-defense-en-couches"
+    },
+    {
+      "type": "exercise",
+      "part": "Fondements — inévitabilité et incitations",
+      "question": "<p>Un modèle de langage est entraîné sur un corpus dont chaque fait est exact, puis calibré. Peut-il ne jamais halluciner ? Précisez le périmètre exact du résultat théorique en jeu, et ce qu'il implique — et n'implique pas — pour qui déploie un modèle sans contrôler son entraînement.</p>",
+      "answer": "<p>Non. Kalai et Vempala (STOC 2024, « Calibrated Language Models Must Hallucinate ») prouvent qu'un modèle calibré doit halluciner sur les faits « singletons » — vus exactement une fois dans le corpus — à un taux proche d'un estimateur de type Good-Turing, <em>même si les données d'entraînement sont parfaitement exactes</em> : la cause est la structure statistique de l'apprentissage, pas le bruit du corpus. Le périmètre est précis : la borne vise les faits arbitraires dont la véracité ne se déduit pas des données, et aucune contrainte équivalente ne pèse sur les faits vus plus d'une fois. Conséquence : l'élimination complète est hors de portée, mais ces mêmes travaux proposent des leviers en amont (post-entraînement de calibration, refonte des incitations d'évaluation par <em>explicit confidence targets</em>, exemples négatifs étiquetés). La détection en aval n'est donc pas le seul levier viable — c'est en revanche le seul qui reste à qui déploie un modèle sans contrôler ni son entraînement ni les benchmarks qui l'ont façonné.</p>"
+    },
+    {
+      "type": "exercise",
+      "part": "Détection — entropie sémantique et garanties conformes",
+      "question": "<p>Trois situations : (a) le modèle connaît le fait et répond dix fois la même chose ; (b) il change de réponse à chaque ré-échantillonnage ; (c) il a appris un fait faux de façon cohérente et le répète dix fois à l'identique. Lesquelles un détecteur par entropie sémantique distingue-t-il ? Et si l'on adosse ensuite la décision à une garantie conforme de type ConU, que promet exactement la couverture 1−α — et que ne promet-elle pas ?</p>",
+      "answer": "<p>L'entropie sémantique ne détecte que (b), la confabulation : les réponses divergent en <em>sens</em>, l'entropie sur les classes d'équivalence sémantique grimpe. Les cas (a) et (c) produisent des profils d'échantillonnage identiques — distribution piquée, entropie basse — et sont indiscernables : l'hallucination confiante du cas (c) échappe par construction aux méthodes entropiques, et l'association entre score d'incertitude et hallucination réelle est de toute façon « très variable et souvent faible » selon le type d'hallucination et le modèle. Quant à la garantie de ConU : elle promet que l'<em>ensemble</em> de réponses candidates contient au moins une réponse correcte avec probabilité ≥ 1−α — c'est une garantie marginale, en moyenne sur le tirage calibration-test. Elle ne promet ni que la réponse individuelle la plus probable du LLM est correcte avec cette probabilité, ni une couverture conditionnelle à chaque question ; l'ensemble peut contenir des candidats incorrects. C'est ce défaut que corrige COIN, qui filtre une seule réponse par question sous une contrainte de taux de fausse découverte fixée par l'utilisateur, via une borne de Clopper-Pearson à échantillon fini.</p>"
+    },
+    {
+      "type": "biblio",
+      "entries": [
+        {
+          "label": "Telles-Correia, Moreira & Gonçalves (2015), \"Hallucinations and related concepts—their conceptual background\", Frontiers in Psychology",
+          "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC4515540/"
+        },
+        {
+          "label": "Construction autour du terme d'hallucination (APCOF)",
+          "href": "https://www.apcof.fr/texte/evolution-autour-du-phenomene-dhallucination/"
+        },
+        {
+          "label": "Rohrbach, Hendricks, Burns, Darrell & Saenko, \"Object Hallucination in Image Captioning\", EMNLP 2018",
+          "href": "https://aclanthology.org/D18-1437/"
+        },
+        {
+          "label": "OECD.AI Catalogue — \"Caption Hallucination Assessment with Image Relevance (CHAIR)\"",
+          "href": "https://oecd.ai/en/catalogue/metrics/caption-hallucination-assessment-with-image-relevance-chair"
+        },
+        {
+          "label": "Maynez, Narayan, Bohnet & McDonald, \"On Faithfulness and Factuality in Abstractive Summarization\", ACL 2020",
+          "href": "https://aclanthology.org/2020.acl-main.173/"
+        },
+        {
+          "label": "Ji et al., \"Survey of Hallucination in Natural Language Generation\", ACM Computing Surveys 2022 (arXiv:2202.03629)",
+          "href": "https://arxiv.org/html/2202.03629"
+        },
+        {
+          "label": "Venkit, Chakravorti, Gupta et al., \"Confidently Nonsensical?: A Critical Survey on the Perspectives and Challenges of 'Hallucinations' in NLP\" (arXiv:2404.07461)",
+          "href": "https://arxiv.org/html/2404.07461v1"
+        },
+        {
+          "label": "Hallucinations in Neural Machine Translation (Google Research, Lee et al. 2018)",
+          "href": "https://research.google/pubs/hallucinations-in-neural-machine-translation/"
+        },
+        {
+          "label": "Miao & Miranda Muqing / Kearns — \"Hallucination, Monofacts, and Miscalibration: An Empirical Investigation\" (arXiv 2502.08666, published in PNAS)",
+          "href": "https://arxiv.org/abs/2502.08666"
+        },
+        {
+          "label": "Calibrated Language Models Must Hallucinate (Kalai & Vempala, STOC 2024)",
+          "href": "https://arxiv.org/abs/2311.14648"
+        },
+        {
+          "label": "Adnan Masood — \"Why Language Models Hallucinate — A practical reading of OpenAI's Kalai, Nachum, Vempala, and Zhang's argument\" (Medium)",
+          "href": "https://medium.com/@adnanmasood/why-language-models-hallucinate-a-practical-reading-of-openais-kalai-nachum-vempala-and-faaef2e10930"
+        },
+        {
+          "label": "Gyana Swain — \"OpenAI admits AI hallucinations are mathematically inevitable, not just engineering flaws\" (Computerworld/IDG)",
+          "href": "https://www.computerworld.com/article/4059383/openai-admits-ai-hallucinations-are-mathematically-inevitable-not-just-engineering-flaws.html"
+        },
+        {
+          "label": "Evaluating large language models for accuracy incentivizes hallucinations (Nature, April 2026)",
+          "href": "https://www.nature.com/articles/s41586-026-10549-w"
+        },
+        {
+          "label": "Karbasi, Montasser, Sous & Velegkas — \"(Im)possibility of Automated Hallucination Detection in Large Language Models\" (ICML 2025)",
+          "href": "https://arxiv.org/abs/2504.17004"
+        },
+        {
+          "label": "Xu, Jain & Kankanhalli — \"Hallucination is Inevitable: An Innate Limitation of Large Language Models\"",
+          "href": "https://arxiv.org/abs/2401.11817"
+        },
+        {
+          "label": "Karpowicz — \"On the Fundamental Impossibility of Hallucination Control in Large Language Models\"",
+          "href": "https://arxiv.org/abs/2506.06382"
+        },
+        {
+          "label": "Why Language Models Hallucinate (Kalai, Nachum, Vempala, Zhang)",
+          "href": "https://arxiv.org/abs/2509.04664"
+        },
+        {
+          "label": "Alansari & Luqman, \"A Comprehensive Survey of Hallucination in Large Language Models: Causes, Detection, and Mitigation\" (arXiv:2510.06265)",
+          "href": "https://arxiv.org/html/2510.06265v1"
+        },
+        {
+          "label": "Shorinwa, Mei, Lidard, Ren & Majumdar, \"A Survey on Uncertainty Quantification of Large Language Models: Taxonomy, Open Research Challenges, and Future Directions\" (arXiv:2412.05563)",
+          "href": "https://arxiv.org/html/2412.05563v2"
+        },
+        {
+          "label": "Liu, Chen, Da, Chen, Lin & Wei, \"Uncertainty Quantification and Confidence Calibration in Large Language Models: A Survey\" (KDD '25, arXiv:2503.15850)",
+          "href": "https://arxiv.org/html/2503.15850v2"
+        },
+        {
+          "label": "Simhi, Itzhak, Barez, Stanovsky, Belinkov, \"Trust Me, I'm Wrong: LLMs Hallucinate with Certainty Despite Knowing the Answer\" (arXiv 2502.12964)",
+          "href": "https://arxiv.org/abs/2502.12964"
+        },
+        {
+          "label": "Liu, Chen, Da, Chen, Lin, Wei, \"Uncertainty Quantification and Confidence Calibration in Large Language Models: A Survey\" (arXiv 2503.15850)",
+          "href": "https://arxiv.org/abs/2503.15850"
+        },
+        {
+          "label": "Bouchard & Chauhan, \"Uncertainty Quantification for Language Models: A Suite of Black-Box, White-Box, LLM Judge, and Ensemble Scorers\" (arXiv 2504.19254)",
+          "href": "https://arxiv.org/abs/2504.19254"
+        },
+        {
+          "label": "Kadavath et al., \"Language Models (Mostly) Know What They Know\" — source primaire (arXiv:2207.05221)",
+          "href": "https://arxiv.org/abs/2207.05221"
+        },
+        {
+          "label": "Tian et al., \"Just Ask for Calibration: Strategies for Eliciting Calibrated Confidence Scores from Language Models Fine-Tuned with Human Feedback\" — source primaire, EMNLP 2023 (arXiv:2305.14975)",
+          "href": "https://arxiv.org/abs/2305.14975"
+        },
+        {
+          "label": "Semantic Uncertainty: Linguistic Invariances for Uncertainty Estimation in Natural Language Generation (arXiv:2302.09664, ICLR 2023 Spotlight) — Kuhn, Gal, Farquhar",
+          "href": "https://arxiv.org/abs/2302.09664"
+        },
+        {
+          "label": "Detecting hallucinations in large language models using semantic entropy (Nature 630, 625–630, 2024) — Farquhar, Kossen, Kuhn, Gal, Univ. Oxford OATML",
+          "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC11186750/"
+        },
+        {
+          "label": "Semantic Entropy Probes: Robust and Cheap Hallucination Detection in LLMs (arXiv:2406.15927) — Kossen, Han, Razzak, Schut, Malik, Gal",
+          "href": "https://arxiv.org/abs/2406.15927"
+        },
+        {
+          "label": "Semantic Entropy Probes (SEPs) — résumé tiers indépendant",
+          "href": "https://www.emergentmind.com/topics/semantic-entropy-probes-seps"
+        },
+        {
+          "label": "microsoft/deberta-large-mnli — config.json (Hugging Face)",
+          "href": "https://huggingface.co/microsoft/deberta-large-mnli/blob/main/config.json"
+        },
+        {
+          "label": "SelfCheckGPT: Black-Box Hallucination Detection (Emergent Mind paper summary)",
+          "href": "https://www.emergentmind.com/papers/2303.08896"
+        },
+        {
+          "label": "SelfCheckGPT: Zero-Resource Black-Box Hallucination Detection for Generative Large Language Models (Manakul, Liusie, Gales, EMNLP 2023)",
+          "href": "https://arxiv.org/abs/2303.08896"
+        },
+        {
+          "label": "INSIDE: LLMs' Internal States Retain the Power of Hallucination Detection (EigenScore)",
+          "href": "https://arxiv.org/abs/2402.03744"
+        },
+        {
+          "label": "Lookback Lens: Detecting and Mitigating Contextual Hallucinations Using Only Attention Maps",
+          "href": "https://arxiv.org/abs/2407.07071"
+        },
+        {
+          "label": "The Internal State of an LLM Knows When It's Lying (Azaria & Mitchell — SAPLMA)",
+          "href": "https://arxiv.org/abs/2304.13734"
+        },
+        {
+          "label": "Uncertainty Quantification for Hallucination Detection in Large Language Models: Foundations, Methodology, and Future Directions (Kang, Bakman, Yaldiz, Buyukates, Avestimehr — USC/Birmingham, Oct. 2025)",
+          "href": "https://arxiv.org/pdf/2510.12040"
+        },
+        {
+          "label": "Large Language Models Hallucination: A Comprehensive Survey (Alansari & Luqman — KFUPM, 2025/2026)",
+          "href": "https://arxiv.org/pdf/2510.06265"
+        },
+        {
+          "label": "SCOPE: Selective Conformal Optimized Pairwise LLM Judging (Badshah, Emami, Sajjad)",
+          "href": "https://arxiv.org/html/2602.13110v2"
+        },
+        {
+          "label": "COIN: Uncertainty-Guarding Selective Question Answering for Foundation Models with Provable Risk Guarantees (arXiv:2506.20178)",
+          "href": "https://arxiv.org/abs/2506.20178"
+        },
+        {
+          "label": "TECP: Token-Entropy Conformal Prediction for LLMs (Beining Xu)",
+          "href": "https://arxiv.org/html/2509.00461v1"
+        },
+        {
+          "label": "ConU: Conformal Uncertainty in Large Language Models with Correctness Coverage Guarantees (Findings of ACL: EMNLP 2024)",
+          "href": "https://aclanthology.org/2024.findings-emnlp.404/"
+        },
+        {
+          "label": "A Gentle Introduction to Conformal Prediction and Distribution-Free Uncertainty Quantification (Angelopoulos & Bates)",
+          "href": "https://arxiv.org/abs/2107.07511"
+        },
+        {
+          "label": "Conformal Language Modeling (Quach et al.)",
+          "href": "https://arxiv.org/abs/2306.10193"
+        },
+        {
+          "label": "ConU, HTML version — Equation (6), formal coverage guarantee",
+          "href": "https://arxiv.org/html/2407.00499v3"
+        },
+        {
+          "label": "The cost of using exact confidence intervals for a binomial proportion (Thulin)",
+          "href": "https://arxiv.org/abs/1303.1288"
+        },
+        {
+          "label": "Evaluating the Relevance of Uncertainty Estimators for LLM Hallucination (Agnimo, Korba, Blangero, Chesneau, Alahari, arXiv 2605.27016, mai 2026)",
+          "href": "https://arxiv.org/abs/2605.27016"
+        },
+        {
+          "label": "Detecting hallucinations in large language models using semantic entropy — OATML blog (Farquhar, Kossen, Kuhn, Gal, Oxford)",
+          "href": "https://oatml.cs.ox.ac.uk/blog/2024/06/19/detecting_hallucinations_2024.html"
+        },
+        {
+          "label": "A Deep Dive into Calibration of Language Models: Platt Scaling, Isotonic Regression, Temperature Scaling (Nate Rosidi, KDnuggets)",
+          "href": "https://www.kdnuggets.com/a-deep-dive-into-calibration-of-language-models-platt-scaling-isotonic-regression-temperature-scaling"
+        },
+        {
+          "label": "Uncertainty Quantification for Hallucination Detection in Large Language Models: Foundations, Methodology, and Future Directions (Kang, Bakman, Yaldiz, Buyukates, Avestimehr)",
+          "href": "https://arxiv.org/html/2510.12040v1"
+        },
+        {
+          "label": "Relying on the Unreliable: The Impact of Language Models' Reluctance to Express Uncertainty (Zhou, Hwang, Ren, Sap, arXiv 2401.06730)",
+          "href": "https://arxiv.org/abs/2401.06730"
+        },
+        {
+          "label": "Taming Overconfidence in LLMs: Reward Calibration in RLHF (Leng, Huang, Zhu, Huang — ICLR 2025)",
+          "href": "https://arxiv.org/abs/2410.09724"
+        },
+        {
+          "label": "IUQ: Interrogative Uncertainty Quantification for Long-Form Large Language Model Generation (Fan, Duan, Xu, arXiv 2604.15109)",
+          "href": "https://arxiv.org/abs/2604.15109"
+        },
+        {
+          "label": "Monte Carlo Temperature: a robust sampling strategy for LLM's uncertainty quantification methods (Cecere, Bacciu, Fernández-Tobías, Mantrach, arXiv 2502.18389)",
+          "href": "https://arxiv.org/abs/2502.18389"
+        },
+        {
+          "label": "Wei, Yang et al., \"Long-form factuality in large language models\" (SAFE / LongFact, Google DeepMind, arXiv:2403.18802)",
+          "href": "https://arxiv.org/abs/2403.18802"
+        },
+        {
+          "label": "Lilian Weng, \"Extrinsic Hallucinations in LLMs\" (independent blog, discusses SAFE's results)",
+          "href": "https://lilianweng.github.io/posts/2024-07-07-hallucination/"
+        },
+        {
+          "label": "Microsoft Learn — Groundedness detection in Azure AI Content Safety",
+          "href": "https://learn.microsoft.com/en-us/azure/ai-services/content-safety/concepts/groundedness"
+        },
+        {
+          "label": "AWS Docs — Use contextual grounding check to filter hallucinations in responses (Amazon Bedrock Guardrails)",
+          "href": "https://docs.aws.amazon.com/bedrock/latest/userguide/guardrails-contextual-grounding-check.html"
+        },
+        {
+          "label": "Magesh, Surani, Dahl, Suzgun, Manning, Ho — \"Hallucination-Free? Assessing the Reliability of Leading AI Legal Research Tools\" (Stanford RegLab/HAI, arXiv:2405.20362)",
+          "href": "https://arxiv.org/abs/2405.20362"
+        },
+        {
+          "label": "LegalAIWorld — \"Westlaw AI and Lexis+ AI Still Hallucinate: What the Stanford Study Actually Found\"",
+          "href": "https://legalaiworld.com/westlaw-ai-and-lexis-ai-still-hallucinate-what-the-stanford-study-actually-found/"
+        },
+        {
+          "label": "In Redo of Its Study, Stanford Finds Westlaw's AI Hallucinates At Double the Rate of LexisNexis — LawNext",
+          "href": "https://www.lawnext.com/2024/06/in-redo-of-its-study-stanford-finds-westlaws-ai-hallucinates-at-double-the-rate-of-lexisnexis.html"
+        },
+        {
+          "label": "Hallucination-Free? Assessing the Reliability of Leading AI Legal Research Tools — Stanford RegLab publication page",
+          "href": "https://reglab.stanford.edu/publications/hallucination-free-assessing-the-reliability-of-leading-ai-legal-research-tools/"
+        },
+        {
+          "label": "Sardana, \"Real-Time Evaluation Models for RAG: Who Detects Hallucinations Best?\" (arXiv:2503.21157) — comparaison tierce de LLM-as-a-Judge, Lynx, HHEM, Prometheus, TLM",
+          "href": "https://arxiv.org/abs/2503.21157"
+        },
+        {
+          "label": "Lynx: An Open Source Hallucination Evaluation Model, arXiv:2407.08488",
+          "href": "https://arxiv.org/abs/2407.08488"
+        },
+        {
+          "label": "Real-Time Evaluation Models for RAG: Who Detects Hallucinations Best? — Cleanlab",
+          "href": "https://cleanlab.ai/blog/rag-evaluation-models/"
+        },
+        {
+          "label": "Benchmarking Uncertainty Quantification Methods for Large Language Models with LM-Polygraph — ACL Anthology (TACL 2025, vol. 13)",
+          "href": "https://aclanthology.org/2025.tacl-1.11/"
+        },
+        {
+          "label": "Literature Review: Benchmarking Uncertainty Quantification Methods for LLMs with LM-Polygraph — themoonlight.io",
+          "href": "https://www.themoonlight.io/en/review/benchmarking-uncertainty-quantification-methods-for-large-language-models-with-lm-polygraph"
+        },
+        {
+          "label": "GitHub — IINemo/lm-polygraph",
+          "href": "https://github.com/IINemo/lm-polygraph"
+        },
+        {
+          "label": "Cisco Research — PolygraphLLM (autre toolkit open-source de détection d'hallucination/UQ pour LLM)",
+          "href": "https://research.cisco.com/research-projects/polygraphllm"
+        },
+        {
+          "label": "Research into 'hallucinating' generative models advances reliability of artificial intelligence — TechXplore",
+          "href": "https://techxplore.com/news/2024-06-hallucinating-generative-advances-reliability-artificial.html"
+        },
+        {
+          "label": "Beyond Semantic Entropy: Boosting LLM Uncertainty Quantification with Pairwise Semantic Similarity (Nguyen, Payani, Mirzasoleiman — UCLA)",
+          "href": "https://arxiv.org/abs/2506.00245"
+        },
+        {
+          "label": "GitHub — jlko/semantic_uncertainty (dépôt de Jannik Kossen, co-auteur à parité du papier Nature)",
+          "href": "https://github.com/jlko/semantic_uncertainty"
+        },
+        {
+          "label": "Detecting LLM confabulations with semantic entropy — J. Schrier, Fordham University (tiers indépendant)",
+          "href": "https://jschrier.github.io/blog/2024/07/31/Detecting-LLM-confabulations-with-semantic-entropy.html"
+        },
+        {
+          "label": "An Analysis of Multilingual FActScore (Kim, Krumdick, Reddy, Dernoncourt, Lai — EMNLP 2024)",
+          "href": "https://aclanthology.org/2024.emnlp-main.247/"
+        },
+        {
+          "label": "Multi-FAct: Assessing Factuality of Multilingual LLMs using FActScore (Shafayat, Kim, Oh, Oh)",
+          "href": "https://arxiv.org/abs/2402.18045"
+        },
+        {
+          "label": "GitHub — shmsw25/FActScore",
+          "href": "https://github.com/shmsw25/FActScore"
+        },
+        {
+          "label": "FActScore: Fine-grained Atomic Evaluation of Factual Precision in Long Form Text Generation — ACL Anthology (EMNLP 2023)",
+          "href": "https://aclanthology.org/2023.emnlp-main.741/"
+        }
+      ]
+    },
+    {
+      "type": "pointers",
+      "title": "Pour aller plus loin",
+      "items": [
+        {
+          "name": "jlko/semantic_uncertainty",
+          "url": "https://github.com/jlko/semantic_uncertainty",
+          "kind": "implementation",
+          "blurb": "Code officiel (BSD-3) de reproduction des expériences courtes/phrase du papier Nature sur l'entropie sémantique, par Jannik Kossen (OATML, Oxford) — 12 modèles × 5 jeux de données."
+        },
+        {
+          "name": "jlko/long_hallucinations",
+          "url": "https://github.com/jlko/long_hallucinations",
+          "kind": "implementation",
+          "blurb": "Codebase pour les expériences à l'échelle du paragraphe (dataset FactualBio, biographies) du papier Nature sur l'entropie sémantique."
+        },
+        {
+          "name": "OATML/semantic-entropy-probes",
+          "url": "https://github.com/OATML/semantic-entropy-probes",
+          "kind": "implementation",
+          "blurb": "Code (MIT, arXiv:2406.15927) des Semantic Entropy Probes, qui approximent l'entropie sémantique depuis les états cachés d'une seule génération, à coût quasi nul."
+        },
+        {
+          "name": "OATML blog — Detecting hallucinations using semantic entropy",
+          "url": "https://oatml.cs.ox.ac.uk/blog/2024/06/19/detecting_hallucinations_2024.html",
+          "kind": "reading",
+          "blurb": "Billet du groupe OATML (Oxford, S. Farquhar, J. Kossen, L. Kuhn, Y. Gal) expliquant la méthode et ses résultats en langage accessible."
+        },
+        {
+          "name": "SAFE / LongFact (google-deepmind/long-form-factuality)",
+          "url": "https://github.com/google-deepmind/long-form-factuality",
+          "kind": "implementation",
+          "blurb": "Code et benchmark LongFact (2 280 prompts) du papier SAFE (Google DeepMind/Stanford, arXiv:2403.18802) pour la vérification factuelle automatisée par recherche web."
+        },
+        {
+          "name": "FActScore",
+          "url": "https://github.com/shmsw25/FActScore",
+          "kind": "implementation",
+          "blurb": "Implémentation de référence de FActScore (EMNLP 2023) : décompose un texte en affirmations atomiques et les vérifie contre un corpus de référence."
+        },
+        {
+          "name": "Vectara Hallucination Leaderboard",
+          "url": "https://github.com/vectara/hallucination-leaderboard",
+          "kind": "tool",
+          "blurb": "Classement public de plus de 80 LLM sur le taux d'hallucination en résumé strict (7 700+ articles), jugé par le modèle HHEM et mis à jour régulièrement."
+        },
+        {
+          "name": "HHEM-2.1-Open",
+          "url": "https://huggingface.co/vectara/hallucination_evaluation_model",
+          "kind": "tool",
+          "blurb": "Modèle open source de Vectara (Apache 2.0, base FLAN-T5) déployable localement pour scorer la cohérence factuelle d'un résumé, sans limite de contexte, <600 Mo RAM."
+        },
+        {
+          "name": "Patronus Lynx (8B / 70B)",
+          "url": "https://huggingface.co/PatronusAI/Llama-3-Patronus-Lynx-70B-Instruct",
+          "kind": "tool",
+          "blurb": "Modèle open source (CC BY-NC 4.0) de Patronus AI, affiné sur Llama-3-70B, spécialisé dans la détection d'hallucination en contexte RAG (87,4 % sur HaluBench, chiffre auto-rapporté)."
+        },
+        {
+          "name": "HaluBench",
+          "url": "https://huggingface.co/datasets/PatronusAI/HaluBench",
+          "kind": "reading",
+          "blurb": "Benchmark de ~15k triplets contexte-question-réponse sourcés de domaines réels (dont finance et médecine) pour évaluer les modèles de détection d'hallucination."
+        },
+        {
+          "name": "TruthfulQA",
+          "url": "https://github.com/sylinrl/TruthfulQA",
+          "kind": "reading",
+          "blurb": "Benchmark (Oxford/OpenAI) de 817 questions conçues pour piéger les modèles sur des idées fausses répandues plutôt que sur un manque de connaissances."
+        },
+        {
+          "name": "HaluEval",
+          "url": "https://github.com/RUCAIBox/HaluEval",
+          "kind": "reading",
+          "blurb": "Benchmark de 35 000 échantillons générés et annotés (QA, dialogue, résumé, requêtes générales) pour évaluer la capacité des LLM à reconnaître leurs hallucinations."
+        },
+        {
+          "name": "Azure AI Content Safety — Groundedness detection",
+          "url": "https://learn.microsoft.com/en-us/azure/ai-services/content-safety/concepts/groundedness",
+          "kind": "tool",
+          "blurb": "Garde-fou managé Microsoft qui détecte, et en option corrige, le contenu non ancré dans une source fournie (modes résumé/QnA, domaine médical ou générique)."
+        },
+        {
+          "name": "Amazon Bedrock Guardrails — Contextual grounding check",
+          "url": "https://docs.aws.amazon.com/bedrock/latest/userguide/guardrails-contextual-grounding-check.html",
+          "kind": "tool",
+          "blurb": "Garde-fou managé AWS qui bloque les réponses de tout foundation model sous un seuil configurable de grounding et de relevance (0 à 0,99)."
+        },
+        {
+          "name": "Anthropic Citations API",
+          "url": "https://claude.com/blog/introducing-citations-api",
+          "kind": "tool",
+          "blurb": "API qui force Claude à citer précisément le passage source d'un document pour chaque affirmation dérivée, avec jusqu'à +15 % de recall vs implémentations maison."
+        },
+        {
+          "name": "LM-Polygraph",
+          "url": "https://github.com/IINemo/lm-polygraph",
+          "kind": "library",
+          "blurb": "Framework Python (MIT) implémentant des dizaines de méthodes d'estimation d'incertitude pour LLM (entropie, Mahalanobis, ensembles…), publié à TACL 2025."
+        },
+        {
+          "name": "SelfCheckGPT",
+          "url": "https://github.com/potsawee/selfcheckgpt",
+          "kind": "library",
+          "blurb": "Détection d'hallucination en boîte noire par cohérence d'échantillons multiples (BERTScore, QA, NLI, prompting LLM), sans ressource externe (EMNLP 2023)."
+        },
+        {
+          "name": "UQLM",
+          "url": "https://github.com/cvs-health/uqlm",
+          "kind": "library",
+          "blurb": "Librairie Python (Apache 2.0, CVS Health) de scorers black-box, white-box, LLM-as-judge et d'ensemble pour la quantification d'incertitude des LLM."
+        },
+        {
+          "name": "RAGAS — métrique faithfulness",
+          "url": "https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/faithfulness/",
+          "kind": "reading",
+          "blurb": "Documentation de la métrique de fidélité RAGAS : ratio d'affirmations atomiques de la réponse supportées par le contexte récupéré, via NLI."
+        },
+        {
+          "name": "Huang et al. — survey ACM TOIS",
+          "url": "https://arxiv.org/pdf/2311.05232",
+          "kind": "reading",
+          "blurb": "Survey de référence (accepté à ACM TOIS) : taxonomie, causes, détection, benchmarks et atténuation de l'hallucination en LLM."
+        },
+        {
+          "name": "Kang et al. 2025 — survey UQ pour hallucination",
+          "url": "https://arxiv.org/abs/2510.12040",
+          "kind": "reading",
+          "blurb": "Survey (oct. 2025, Sungmin Kang et al.) : fondations formelles (incertitude épistémique/aléatoire) et taxonomie méthodologique de la QU appliquée à la détection d'hallucination."
+        },
+        {
+          "name": "Claude Docs — Reduce hallucinations",
+          "url": "https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/reduce-hallucinations",
+          "kind": "reading",
+          "blurb": "Recommandations pratiques Anthropic : citations, grounding par citation directe, vérification par chaîne de raisonnement, best-of-N."
+        }
+      ]
+    },
+    {
+      "type": "glossary"
+    }
+  ]
+}
