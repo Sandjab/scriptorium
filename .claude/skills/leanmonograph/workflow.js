@@ -175,17 +175,19 @@ const S_BUILD = { type:'object', additionalProperties:false, required:['success'
 const S_CKPT = { type:'object', additionalProperties:false, required:['written'], properties:{ written:{type:'boolean'} } };
 // Reprise granulaire : un index (noms de fichiers + petits artefacts), puis UN loader PAR
 // section — évite le plafond de sortie 32k du loader monolithique sur les gros thèmes.
-const S_LOAD_INDEX = { type:'object', additionalProperties:false, required:['sec_ids','research','widgets','prose'], properties:{
+// I/O interne (recopie verbatim de gros fichiers) : additionalProperties TOLÉRÉ — un champ
+// parasite émis en fin de génération ne doit pas invalider 79 Ko de contenu correct.
+const S_LOAD_INDEX = { type:'object', additionalProperties:true, required:['sec_ids','research','widgets','prose'], properties:{
   sec_ids:{ type:'array', items:{type:'string'} },   // ids extraits des noms sec-<id>.json
   research:{type:'string'},                           // contenu verbatim de research.json ("" si absent)
   widgets:{type:'string'},                            // contenu verbatim de widgets.json ("" si absent)
   prose:{type:'string'} } };                          // contenu verbatim de prose.json ("" si absent)
-const S_LOAD_ONE = { type:'object', additionalProperties:false, required:['content'], properties:{ content:{type:'string'} } };
+const S_LOAD_ONE = { type:'object', additionalProperties:true, required:['content'], properties:{ content:{type:'string'} } };
 
 // ── Helpers JS (transformations déterministes — pas de jugement) ─────────────
 const normUrl = u => (u||'').trim().replace(/^https?:\/\//i,'').replace(/[#?].*$/,'').replace(/\/+$/,'').toLowerCase();
 const SECTION_CLAIM_QUOTA = 2;      // claims survivants requis pour qu'une section NORMALE survive
-const MAX_SECTIONS = 9;             // plafonds durs hérités de frugal (garde-fous d'emballement)
+const MAX_SECTIONS = Number(A0.maxSections) > 0 ? Number(A0.maxSections) : 9;  // plafonds durs hérités de frugal (garde-fous d'emballement) ; surchargeable par args.maxSections
 const MAX_CLAIMS_PER_SECTION = 4;
 const PROSE_CHUNK = 3;              // sections rédigées par tranche d'auteur (séquentiel, voix continue)
 const MAX_EDITS = 40;               // plafond d'éditions de la relecture de continuité
