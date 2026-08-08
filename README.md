@@ -136,7 +136,7 @@ flowchart TD
 
 ## Thèmes
 
-Chaque document est sous `themes/<slug>/dist/`. Le corpus compte **70 thèmes** (72 documents),
+Chaque document est sous `themes/<slug>/dist/`. Le corpus compte **71 thèmes** (73 documents),
 tous générés par `/monograph`, `/frugalmonograph` ou `/leanmonograph` — sauf
 **automatic-prompt-optimization**, construit à la main avant le skill (triptyque à 3 éditions)
 et conservé gelé sous `themes/automatic-prompt-optimization/legacy/`. Le classement
@@ -159,12 +159,13 @@ devienne invisible.
 - Phase 1 — générateur déterministe (`.claude/skills/monograph/` : charte + `build.py`, 16 tests) : ✅
 - Phase 2 — workflow multi-agents + `SKILL.md` des skills `monograph` et `frugalmonograph` : ✅
   Pipeline à **8 phases** (Sweep → Plan → Extract → Verify → Author → **Widgets** → Compose →
-  Build), document unique « best-of » + widgets pilotés par concept. Éprouvé sur **69 thèmes**
+  Build), document unique « best-of » + widgets pilotés par concept. Éprouvé sur **70 thèmes**
   hors APO et publié via GitHub Pages.
 - Skill `leanmonograph` (« vérifier d'abord, écrire une fois » + lint déterministe) : ✅
-  éprouvé — les **30 monographies les plus récentes** en sont issues.
-- Portails de domaine (`tools/portals/`, rendus sous `domaines/`) : ✅ sur les 3 domaines les
-  plus fournis ; parcours de lecture, arêtes et frontières maintenus par `/arrange`.
+  éprouvé — les **31 monographies les plus récentes** en sont issues.
+- Portails de domaine (`tools/portals/`, rendus sous `domaines/`) : ✅ sur 4 domaines — les 3
+  plus fournis, plus `pharmacologie-metabolique` qui inaugure son espace ; parcours de
+  lecture, arêtes et frontières maintenus par `/arrange`.
 
 ## Licence
 

@@ -806,17 +806,32 @@ le paramètre a été MESURÉ par la source, pas seulement non mentionné.**)
 
 ## `pharmacologie-metabolique`
 
-- **incretines-glp1** (haute) — 📝 « Agonistes des incrétines : sémaglutide,
-  tirzépatide, rétatrutide. Couvrir la physiologie incrétine (GLP-1, GIP), les
-  résultats des programmes STEP (sémaglutide ~15 %) et SURMOUNT (tirzépatide ~20 % :
-  double agonisme) avec les tailles d'effet exactes et les bras placebo, le pipeline
-  (rétatrutide triple agoniste — phase 2/3 : le dire), les effets indésirables
-  (gastro-intestinaux, perte de masse maigre, débat pancréas/thyroïde), le regain à
-  l'arrêt (STEP 1 extension), l'accès (coût, pénuries, compounding/marché gris — sans
-  mode d'emploi d'approvisionnement). Public : lecteur exigeant sans formation
-  médicale. Doctrine : docs/evidence-sante.md (recopier). Domaine :
-  pharmacologie-metabolique. Arêtes : berberine (le faux équivalent), amincissants OTC
-  (le contraste d'efficacité). »
+(`incretines-glp1` : FAIT le 2026-08-08, retiré du backlog — 31e run /leanmonograph,
+3e thème santé et premier sur des MÉDICAMENTS SUR ORDONNANCE : GREEN après backstop,
+**14/14 sections**, 52 claims 22✓/26corr/4rej, 111 sources, 5 widgets ; run interrompu
+puis repris (`resume: true`), 5,25M tok / 68 agents / 3 h 39 pour la seule reprise.
+Crée le domaine `pharmacologie-metabolique` et son portail — premier portail hors IA.
+
+Trois leçons, dont deux nouvelles :
+
+1. **La troncature du plan de sections est une décision d'édition prise par du code.**
+   `workflow.js` coupait l'outline aux N PREMIÈRES sections *dans l'ordre du plan* :
+   ici disparaissaient en silence la section sécurité (pourtant obligatoire par la
+   doctrine), le rétatrutide (pourtant dans le titre) et le pivot du fil rouge.
+   Contourné par `args.maxSections`, PAS corrigé sur le fond — le prompt de
+   l'architecte lui promet un élagage « par matière » qui n'arrive qu'après.
+   ⚠️ **Audit ouvert : 46 thèmes publiés sont pile à 9 sections.**
+2. **NOUVEAU — le lint est aveugle par CONJONCTION de deux angles morts connus.**
+   Il exige 2 pivots retrouvés, ou 1 seul d'au moins 4 caractères. La collision
+   numérique (24e run) blanchit assez de pivots pour faire tomber le compte sous 2,
+   et ce qui survit est trop court pour valoir seul (12e run). Trois rejets affirmés
+   nus dans la prose sont ainsi restés totalement invisibles : « 0,8 » et « 7,1 »
+   isolés, « 120 » blanchi. Ni l'un ni l'autre mécanisme seul n'aurait suffi.
+3. **NOUVEAU — un quota WebSearch épuisé FABRIQUE des faux rejets.** Le juré soutien
+   d'un claim a voté `false` en écrivant lui-même « WebSearch épuisé », « par prudence
+   sur l'indépendance, non sur l'exactitude ». La 2e source manquante était citée dans
+   la bibliographie du document. Poser `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION`
+   AVANT le lancement — un run dense en consomme ~300.)
 - **complements-amincissants** (haute) — 📝 « Compléments amincissants en vente libre :
   ce que montrent les méta-analyses. Couvrir molécule par molécule — thé vert/EGCG,
   CLA, L-carnitine, garcinia cambogia, cétones de framboise, chrome, glucomannane,
