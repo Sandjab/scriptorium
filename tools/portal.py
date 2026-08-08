@@ -211,11 +211,16 @@ PORTAL_CSS = PALETTE_CSS + """  *{box-sizing:border-box;}
 """
 
 
-def render(domain: dict, data: dict, entries, themes_dir: Path, built: str) -> str:
+def render(domain: dict, data: dict, entries, themes_dir: Path, built: str,
+           meta: dict) -> str:
     """HTML du portail. `entries` = [(slug, label, docs)] du domaine, docs = [(href, lbl, titre)].
 
     Les hrefs collectés sont relatifs à la racine du site ; la page vit dans
     domaines/, d'où le préfixe '../'.
+
+    `meta` = {"id", "label"} du méta-domaine qui contient ce domaine. Obligatoire :
+    le fil d'Ariane traverse les deux étages de la taxonomie (hub -> méta -> domaine),
+    et un défaut optionnel rétablirait en silence le saut de niveau qu'on corrige ici.
     """
     e = html.escape
     by_slug = {slug: (label, docs) for slug, label, docs in entries}
@@ -297,7 +302,7 @@ def render(domain: dict, data: dict, entries, themes_dir: Path, built: str) -> s
 <body>
   <header class="top">
     <div class="top-in">
-      <p class="kicker"><a href="../index.html">Scriptorium</a> · portail de domaine</p>
+      <p class="kicker"><a href="../index.html">Scriptorium</a> · <a href="../{e(meta["id"])}.html">{e(meta["label"])}</a> · portail de domaine</p>
       <h1>{e(domain["label"])}</h1>
       <p class="lede">{e(data["intro"])}</p>
       <div class="meta">

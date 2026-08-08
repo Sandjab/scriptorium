@@ -132,6 +132,10 @@ def _entries(*slugs, titre=None):
     return [(s, s.title(), [(f"{s}/{s}.html", s, titre or s)]) for s in slugs]
 
 
+# Méta-domaine porteur du domaine rendu : build_site le fournit toujours (taxonomie v2).
+META = {"id": "meta-un", "label": "Méta Un"}
+
+
 def test_short_title_drops_subtitle():
     """Dans une arête, le titre complet noierait la relation qu'on veut montrer."""
     assert portal.short_title("Décodage et sampling : des logits aux tokens") \
@@ -160,7 +164,7 @@ def test_render_uses_document_title_not_slug(tmp_path):
                ("beta", "Beta", [("beta/beta.html", "beta", "Autre titre : et sa suite")])]
 
     out = html.unescape(portal.render({"id": "d1", "label": "D1"}, data, entries,
-                                      tmp_path, "2026-01-01 00:00 UTC"))
+                                      tmp_path, "2026-01-01 00:00 UTC", META))
 
     assert "Vrai titre : sous-titre" in out        # étape = titre complet
     assert "<b>Vrai titre</b>" in out              # arête = titre court
@@ -176,7 +180,7 @@ def test_render_derives_thesis_and_links(tmp_path):
     _tldr(tmp_path, "beta", these="Thèse de beta.")
 
     out = portal.render({"id": "d1", "label": "Domaine 1"}, data,
-                        _entries(*SLUGS), tmp_path, "2026-01-01 00:00 UTC")
+                        _entries(*SLUGS), tmp_path, "2026-01-01 00:00 UTC", META)
     texte = html.unescape(out)  # l'apostrophe est échappée comme sur la home
 
     assert "Thèse de alpha." in texte and "Thèse de beta." in texte
@@ -187,6 +191,24 @@ def test_render_derives_thesis_and_links(tmp_path):
     assert "l'un mesure, l'autre agit" in texte         # délimitation
 
 
+def test_render_breadcrumb_traverses_meta_domain(tmp_path):
+    """La taxonomie a deux étages : un portail est DANS un méta-domaine, et le
+    lecteur doit pouvoir remonter à celui-ci. Un fil d'Ariane qui ne propose que
+    le hub fait sauter un niveau — on redescend alors par la home, sans savoir
+    d'où l'on vient."""
+    p = _write_portal(tmp_path, "d1")
+    data = portal.load_portal(p, "d1", SLUGS)
+    for s in SLUGS:
+        _tldr(tmp_path, s)
+
+    out = portal.render({"id": "d1", "label": "D1"}, data, _entries(*SLUGS),
+                        tmp_path, "2026-01-01 00:00 UTC", META)
+
+    assert 'href="../meta-un.html"' in out          # l'étage intermédiaire est atteignable
+    assert "Méta Un" in html.unescape(out)          # et nommé, pas seulement lié
+    assert out.index('../index.html') < out.index('../meta-un.html')  # hub, puis méta
+
+
 def test_render_escapes_editorial_text(tmp_path):
     """La couche éditoriale est écrite par un modèle : elle doit être échappée."""
     p = _write_portal(tmp_path, "d1", intro="Tension <script>alert(1)</script>")
@@ -195,7 +217,7 @@ def test_render_escapes_editorial_text(tmp_path):
     _tldr(tmp_path, "beta")
 
     out = portal.render({"id": "d1", "label": "D1"}, data,
-                        _entries(*SLUGS), tmp_path, "2026-01-01 00:00 UTC")
+                        _entries(*SLUGS), tmp_path, "2026-01-01 00:00 UTC", META)
 
     assert "<script>alert(1)</script>" not in out
     assert "&lt;script&gt;" in out
@@ -209,7 +231,7 @@ def test_render_omits_empty_sections(tmp_path):
     _tldr(tmp_path, "beta")
 
     out = portal.render({"id": "d1", "label": "D1"}, data,
-                        _entries(*SLUGS), tmp_path, "2026-01-01 00:00 UTC")
+                        _entries(*SLUGS), tmp_path, "2026-01-01 00:00 UTC", META)
 
     assert "Ce qui relie les thèmes" not in out
     assert "Frontières entre voisins" not in out

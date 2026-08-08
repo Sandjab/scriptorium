@@ -199,10 +199,12 @@ def group_by_domain(collected, domains, legacy_slug):
 
 
 def write_portals(sections, themes_dir: Path, portals_dir: Path, site_dir: Path,
-                  built: str) -> set[str]:
+                  built: str, meta_by_domain: dict) -> set[str]:
     """Écrit _site/domaines/<id>.html pour chaque domaine ayant un portail.
 
     L'existence de tools/portals/<id>.json déclare que le domaine en a un.
+    `meta_by_domain` associe chaque id de domaine à son méta-domaine, pour que le
+    fil d'Ariane du portail passe par la page méta au lieu de sauter au hub.
     Échoue bruyamment sur un portail orphelin (fichier ne correspondant à aucun
     domaine), qui serait sinon ignoré en silence après un renommage de domaine.
     """
@@ -223,7 +225,13 @@ def write_portals(sections, themes_dir: Path, portals_dir: Path, site_dir: Path,
         if not path.exists():
             continue
         data = portal.load_portal(path, sec["id"], [s for s, _, _ in sec["themes"]])
-        out = portal.render(sec, data, sec["themes"], themes_dir, built)
+        meta = meta_by_domain.get(sec["id"])
+        if meta is None:
+            raise SystemExit(
+                f"build_site: domaine '{sec['id']}' rattaché à aucun méta-domaine "
+                "(fil d'Ariane du portail impossible à construire)"
+            )
+        out = portal.render(sec, data, sec["themes"], themes_dir, built, meta)
         (site_dir / "domaines").mkdir(parents=True, exist_ok=True)
         (site_dir / "domaines" / f"{sec['id']}.html").write_text(out, encoding="utf-8")
         rendered.add(sec["id"])
@@ -477,7 +485,10 @@ def main(themes_dir: Path = THEMES_DIR, taxonomy_path: Path = TAXONOMY_PATH,
                 shutil.copy2(src, site_dir / href)
 
     built = _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    portals = write_portals(sections, themes_dir, portals_dir, site_dir, built)
+    meta_by_domain = {d["id"]: {"id": m["id"], "label": m["label"]}
+                      for m in metas for d in m["domains"]}
+    portals = write_portals(sections, themes_dir, portals_dir, site_dir, built,
+                            meta_by_domain)
 
     domain_secs = {s["id"]: s for s in sections if s["kind"] == "domain"}
     tail = [s for s in sections if s["kind"] in ("unclassified", "legacy")]
