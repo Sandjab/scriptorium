@@ -61,7 +61,7 @@ dédié par claim « contestable ») et la **prose est rédigée après l'audit*
 (charte de voix, fil rouge, relecture de continuité) — la dérive « prose pré-council » disparaît
 par construction. Un **lint déterministe** (`scripts/lint.py`) traque les pivots des claims
 rejetés et les chiffres absents de `knowledge.json`, vérifiés à la source avant l'assemblage.
-Cible : moins de tokens que `/frugalmonograph` et une prose plus homogène. Éprouvé : les **19
+Cible : moins de tokens que `/frugalmonograph` et une prose plus homogène. Éprouvé : les **29
 monographies les plus récentes** du corpus en sont issues.
 
 > [!WARNING]
@@ -136,7 +136,7 @@ flowchart TD
 
 ## Thèmes
 
-Chaque document est sous `themes/<slug>/dist/`. Le corpus compte **64 thèmes** (66 documents),
+Chaque document est sous `themes/<slug>/dist/`. Le corpus compte **69 thèmes** (71 documents),
 tous générés par `/monograph`, `/frugalmonograph` ou `/leanmonograph` — sauf
 **automatic-prompt-optimization**, construit à la main avant le skill (triptyque à 3 éditions)
 et conservé gelé sous `themes/automatic-prompt-optimization/legacy/`. Le classement
@@ -159,10 +159,10 @@ devienne invisible.
 - Phase 1 — générateur déterministe (`.claude/skills/monograph/` : charte + `build.py`, 16 tests) : ✅
 - Phase 2 — workflow multi-agents + `SKILL.md` des skills `monograph` et `frugalmonograph` : ✅
   Pipeline à **8 phases** (Sweep → Plan → Extract → Verify → Author → **Widgets** → Compose →
-  Build), document unique « best-of » + widgets pilotés par concept. Éprouvé sur **63 thèmes**
+  Build), document unique « best-of » + widgets pilotés par concept. Éprouvé sur **68 thèmes**
   hors APO et publié via GitHub Pages.
 - Skill `leanmonograph` (« vérifier d'abord, écrire une fois » + lint déterministe) : ✅
-  éprouvé — les **24 monographies les plus récentes** en sont issues.
+  éprouvé — les **29 monographies les plus récentes** en sont issues.
 - Portails de domaine (`tools/portals/`, rendus sous `domaines/`) : ✅ sur les 3 domaines les
   plus fournis ; parcours de lecture, arêtes et frontières maintenus par `/arrange`.
 
