@@ -753,15 +753,23 @@ faite ; financement industriel et rang mécanistique signalés dans leurs notes)
 tok / 86 agents / 2 h 07 en un seul run. Crée le méta `sante-nutrition` et le domaine
 `nutrition-sportive` ; première `notice` réellement injectée dans `_site/`, vérifiée
 avant `</main>`, `dist/` propre.)
-- **proteines-besoins-timing** (haute) — 📝 « Protéines et hypertrophie : besoins,
-  qualité, timing. Couvrir les besoins quotidiens (méta-analyses dose-réponse, plateau
-  ~1,6 g/kg/j chez le pratiquant en résistance, plage jusqu'à 2,2), la qualité (whey vs
-  caséine vs végétales, seuil de leucine, DIAAS), la « fenêtre anabolique »
-  péri-entraînement (démystification chiffrée : l'apport TOTAL domine le timing), la
-  distribution des prises, et protéines & perte de poids (préservation de masse maigre,
-  satiété). Public : lecteur exigeant sans formation médicale. Doctrine :
-  docs/evidence-sante.md (recopier). Domaine : nutrition-sportive. Délimitation : la
-  créatine et le collagène (protéine incomplète) sont des thèmes distincts — renvoyer. »
+(`proteines-besoins-timing` : FAIT le 2026-08-08, retiré du backlog — 30e run
+/leanmonograph, 2e thème santé : GREEN direct, 9/9 sections, 36 claims 17✓/18corr/1rej,
+65 travaux distincts, 3 widgets + 3 figures ; 6,03M tok / 87 agents / 2 h 31 en un seul
+run. La doctrine de preuve santé a mordu plus loin que sur `creatine` : conflits d'intérêt
+déclarés claim par claim (National Dairy Council et Dymatize sur Morton 2018, Meiji sur
+Tagawa, Axiom Foods sur Moon 2020) et repris jusque dans la ligne source des figures ;
+divergence des trois seuils (1,3 / 1,5 / 1,62 g/kg/j) discutée frontalement au lieu d'être
+lissée. L'unique rejet — comparaison DIAAS athlètes végétariens/omnivores (Ciuris 2019) —
+est single-source, hedgé dans la prose. **Backstop : 1 correction dure d'une CLASSE
+NOUVELLE, l'ARGUMENT DU SILENCE** : la section sécurité affirmait un bénéfice « sans effet
+rénal ou osseux délétère rapporté dans les essais inclus » en s'appuyant sur une
+méta-analyse (Kim et al. 2016) qui ne suit QUE la composition corporelle — ni rein ni os
+parmi les paramètres mesurés, soit une absence d'examen présentée comme une absence
+d'effet. Le fait n'étant porté par aucun claim, et ses nombres étant courts ou en toutes
+lettres, il échappait à la fois au council et à `lint.py`. ⚠️ **Réflexe pour les prochains
+runs santé : sur toute tournure « sans X rapporté » / « aucun effet observé », vérifier que
+le paramètre a été MESURÉ par la source, pas seulement non mentionné.**)
 - **cafeine-ergogene** (moyenne) — caféine comme ergogène : doses 3-6 mg/kg, endurance
   vs force, tolérance/habituation, génotype CYP1A2, position stand ISSN.
 - **beta-alanine-tampons** (moyenne) — bêta-alanine/carnosine et bicarbonate : tampons
