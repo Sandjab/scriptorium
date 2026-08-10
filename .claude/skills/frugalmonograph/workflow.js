@@ -176,6 +176,10 @@ const docKeys = s => {
   // titre dépouillé de son suffixe d'édition : « … — NeurIPS 2023 PDF », « … (blog HF) »
   const base = t.split(/\s+[—–-]\s+|\s*\(/)[0].replace(/[^a-z0-9]+/g, '');
   if (base.length >= 12) keys.push('title:' + base);
+  // Une URL = UN document : clé d'URL TOUJOURS posée, sinon la même page citée sous deux
+  // titres différents produit deux clés `title:` et compte pour deux sources indépendantes,
+  // alors que ensureSrc (indexé par normUrl) la ramène à un seul id (bug du 32e run).
+  if (u) keys.push('url:' + u);
   if (!keys.length) keys.push('url:' + u);
   return keys;
 };
@@ -650,8 +654,16 @@ if (loadedResearch && Array.isArray(loadedResearch.allFindings) && loadedResearc
 // Placé APRÈS la résolution de arch (frais ou repris du disque) pour s'appliquer dans les deux cas ;
 // déterministe, donc une reprise re-tronque à l'identique. Ordre du plan conservé.
 if (arch.outline.length > MAX_SECTIONS) {
-  log(`[frugal] plan à ${arch.outline.length} sections → tronqué aux ${MAX_SECTIONS} premières (ordre du plan).`);
-  arch.outline = arch.outline.slice(0, MAX_SECTIONS);
+  // Voir leanmonograph : la section « écosystème » est toujours en fin de plan, donc un slice
+  // des N premières la décapite à chaque fois. On la préserve et on coupe dans le reste.
+  const eco = arch.outline.filter(o => o.kind === 'ecosystem');
+  const rest = arch.outline.filter(o => o.kind !== 'ecosystem');
+  const keep = rest.slice(0, Math.max(0, MAX_SECTIONS - eco.length));
+  const dropped = rest.slice(keep.length).map(o => o.heading);
+  log(`[frugal] plan à ${arch.outline.length} sections → ${keep.length + eco.length} retenues ` +
+      `(plafond ${MAX_SECTIONS}${eco.length ? `, dont la section écosystème préservée` : ''}). ` +
+      `Écartées : ${dropped.join(' · ') || 'aucune'}`);
+  arch.outline = [...keep, ...eco];
 }
 
 // Extract → Verify en pipeline (pas de barrière entre sections)
@@ -756,7 +768,7 @@ function ensureSrc(s) {
 const claims = liveClaims.map((ac, i) => ({
   id: 'claim:' + (i + 1),
   statement: ac.statement,
-  sources: (ac.sources || []).map(ensureSrc).filter(Boolean),
+  sources: [...new Set((ac.sources || []).map(ensureSrc).filter(Boolean))],  // défense en profondeur : jamais deux fois le même id
   audit: ac.audit,
   audit_note: ac.note,
   examples: ac.examples || [],
