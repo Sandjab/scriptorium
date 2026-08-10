@@ -187,7 +187,13 @@ const S_LOAD_ONE = { type:'object', additionalProperties:true, required:['conten
 // ── Helpers JS (transformations déterministes — pas de jugement) ─────────────
 const normUrl = u => (u||'').trim().replace(/^https?:\/\//i,'').replace(/[#?].*$/,'').replace(/\/+$/,'').toLowerCase();
 const SECTION_CLAIM_QUOTA = 2;      // claims survivants requis pour qu'une section NORMALE survive
-const MAX_SECTIONS = Number(A0.maxSections) > 0 ? Number(A0.maxSections) : 9;  // plafonds durs hérités de frugal (garde-fous d'emballement) ; surchargeable par args.maxSections
+// DISJONCTEUR, pas garde-fou de coût : l'architecte ne voit JAMAIS cette valeur (son prompt dit
+// « typiquement 4 à 9 », en dur), donc la relever ne peut pas le pousser à proposer davantage —
+// elle décide seulement de ce qu'on JETTE. Sur les 32 plans de l'historique (médiane 10, max 14),
+// un plafond de 9 coupait 27 sections ; à 16 il n'en coupe aucune et ne coûte rien de plus sur
+// les plans qui tiennent en dessous. La sobriété éditoriale est portée par le prompt ; ce nombre
+// n'est là que pour arrêter un vrai déraillement. Surchargeable par args.maxSections.
+const MAX_SECTIONS = Number(A0.maxSections) > 0 ? Number(A0.maxSections) : 16;
 const MAX_CLAIMS_PER_SECTION = 4;
 const PROSE_CHUNK = 3;              // sections rédigées par tranche d'auteur (séquentiel, voix continue)
 const MAX_EDITS = 40;               // plafond d'éditions de la relecture de continuité

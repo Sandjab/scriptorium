@@ -146,7 +146,11 @@ const SECTION_CLAIM_QUOTA = 2;  // claims survivants (audit ≠ rejected) requis
 // FRUGALITÉ — plafonds durs (garde-fous coût) : bornent un Plan/Extract qui déraille AVANT
 // d'engager le council coûteux. Alignés sur ce que les prompts demandent déjà ('typiquement 4 à 9'
 // sections, '2 à 4' claims) : ils ne mordent qu'en cas d'emballement, pas sur le cas nominal.
-const MAX_SECTIONS = 9;             // sections traitées (Extract + Verify) au maximum
+// Disjoncteur, pas levier de frugalité : la frugalité de ce skill vient de ses modèles et de son
+// council à 2 jurés, pas de ce nombre. L'architecte ne le voit pas (son prompt dit « typiquement
+// 4 à 9 »), donc le relever ne peut pas faire proposer plus de sections — seulement en jeter
+// moins. Aligné sur leanmonograph le 2026-08-10.
+const MAX_SECTIONS = 16;            // sections traitées (Extract + Verify) au maximum
 const MAX_CLAIMS_PER_SECTION = 4;   // claims soumis au council par section au maximum
 
 function dedupSources(list) {
