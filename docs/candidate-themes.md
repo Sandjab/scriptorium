@@ -779,15 +779,6 @@ le paramètre a été MESURÉ par la source, pas seulement non mentionné.**)
 
 ## `complements-sante`
 
-- **berberine** (haute) — 📝 « Berbérine : l'alcaloïde vendu comme « Ozempic naturel ».
-  Couvrir le mécanisme (activation AMPK), les effets glycémiques (méta-analyses vs
-  metformine : ampleur réelle, qualité des essais — petits, hétérogènes, biais de
-  publication à documenter), les lipides, la biodisponibilité très faible et ses
-  conséquences, la sécurité (troubles digestifs, interactions CYP3A4/P-gp, grossesse),
-  et le démontage chiffré de la comparaison aux agonistes GLP-1 (ordres de grandeur de
-  perte de poids incomparables). Public : lecteur exigeant sans formation médicale.
-  Doctrine : docs/evidence-sante.md (recopier). Domaine : complements-sante. Arête
-  attendue vers le futur thème incrétines (pharmacologie-metabolique). »
 - **collagene** (haute) — 📝 « Collagène hydrolysé : que peut un peptide incomplet ?
   Couvrir la composition (profil d'acides aminés, absence de tryptophane, DIAAS ~0),
   l'argument « inutile vs whey » examiné honnêtement (peptides bioactifs
@@ -805,6 +796,36 @@ le paramètre a été MESURÉ par la source, pas seulement non mentionné.**)
   oxyde), sommeil/crampes/anxiété : tri par niveau de preuve.
 
 ## `pharmacologie-metabolique`
+
+(`berberine` : FAIT le 2026-08-10, retiré du backlog — 32e run /leanmonograph, 4e thème
+santé : GREEN après backstop, 10/10 sections, 40 claims 26✓/11corr/3rej, 69 sources,
+3 widgets + 3 figures ; 6,66M tok / 94 agents / 3 h 06 en un seul run.
+⚠️ **Classé dans `pharmacologie-metabolique` et NON dans `complements-sante` comme le
+prévoyait ce backlog** : le domaine créé la veille par `incretines-glp1` l'annonçait déjà
+dans son blurb (« les produits qui promettent de les remplacer ») et dans l'intro de son
+portail (« ceux qui promettent de s'en dispenser »). `complements-sante` reste à créer par
+le premier thème de santé/longévité (collagene, vitamine-d, omega-3, magnesium).
+
+Trois enseignements, dont deux de fond :
+
+1. **2e trou dans la garantie « ≥ 2 sources indépendantes »**, détecté par `build.py` qui a
+   refusé de valider : `docKeys` dédoublonne des travaux, mais PAS la répétition du même
+   identifiant — deux jurés citant la même page sous deux titres différents produisaient deux
+   clés `title:` distinctes, puis un seul `src:` id (`['src:27','src:27']`) sous un
+   `audit_note` affirmant « 2 sources indépendantes ». Le même document REJETAIT deux claims
+   auto-référentiels (fiches NCCIH) et en CONFIRMAIT deux autres par ce contournement.
+   **Règle document-source adoptée** ; correctif appliqué aux 3 workflows (clé d'URL toujours
+   posée + dédoublonnage des ids), prouvé par test sur le cas réel et non-régression.
+2. **Classe d'erreur factuelle nouvelle — la fausse plage par agrégation de compartiments** :
+   « la metformine élève l'AMPK de 63 à 97 % » n'était pas une plage mais deux mesures de
+   compartiments différents (63 % en lysat total, 97 % dans les lysosomes), fusionnées.
+   Invisible au lint : les deux nombres figurent dans la source. Corrigé en prose ET dans le
+   widget, qui portait la même faute.
+3. **Défaut de la charte partagée, trouvé en revue visuelle** : `--blue-deep` sert à la fois
+   d'encre de titre (`h3`, `.part-band h2`) et de couleur de fond (`th`) ; assombri en thème
+   sombre pour son rôle de fond, il rendait tous les titres illisibles (contraste 1,01:1).
+   Corrigé dans `charte.css`, **corpus entier rebuildé** (71 documents, diff purement CSS) —
+   contraste porté à 8,42:1.)
 
 (`incretines-glp1` : FAIT le 2026-08-08, retiré du backlog — 31e run /leanmonograph,
 3e thème santé et premier sur des MÉDICAMENTS SUR ORDONNANCE : GREEN après backstop,
