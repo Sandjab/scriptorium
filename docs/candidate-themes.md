@@ -853,16 +853,44 @@ Trois leçons, dont deux nouvelles :
    sur l'indépendance, non sur l'exactitude ». La 2e source manquante était citée dans
    la bibliographie du document. Poser `CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION`
    AVANT le lancement — un run dense en consomme ~300.)
-- **complements-amincissants** (haute) — 📝 « Compléments amincissants en vente libre :
-  ce que montrent les méta-analyses. Couvrir molécule par molécule — thé vert/EGCG,
-  CLA, L-carnitine, garcinia cambogia, cétones de framboise, chrome, glucomannane,
-  caféine — les effets mesurés (au mieux 1-2 kg, souvent indiscernables de zéro), la
-  qualité des essais, l'historique éphédra (efficace ET retiré : pourquoi), le cadre
-  réglementaire complément vs médicament (allégations EFSA/FDA), et l'adultération
-  (produits dopés aux principes actifs pharmaceutiques). Sujet largement contre-
-  intuitif : la monographie assume le debunking chiffré. Public : lecteur exigeant
-  sans formation médicale. Doctrine : docs/evidence-sante.md (recopier). Domaine :
-  pharmacologie-metabolique. Arête : incretines-glp1 (ce qui marche vraiment). »
+(`complements-amincissants` : FAIT le 2026-08-11, retiré du backlog — 33e run /leanmonograph,
+5e thème santé : GREEN après backstop, 10/10 sections, 40 claims 17✓/21corr/2rej, 96 sources,
+1 super-widget ; 6,86M tok / 106 agents / ~4 h 10 en DEUX runs. Classé 3e du parcours de
+`pharmacologie-metabolique`, après `berberine` : le domaine se lit désormais en gradation
+descendante — l'effet établi sur ordonnance, le substitut annoncé, puis le rayon entier où
+l'effet devient indiscernable et où la question bascule vers le réglementaire et l'adultération.
+
+Trois enseignements, dont un de fond :
+
+1. **Classe d'erreur factuelle NOUVELLE — la fausse indépendance par scission de source**,
+   symétrique exact de la fausse plage par agrégation (32e run). La prose donnait « deux séries
+   indépendantes » sur l'hépatotoxicité du thé vert — DILIN à 42 j de latence, et « une revue
+   distincte publiée en 2022 par Grajecki » à 72 j / 15-448 j / 35 % / 3 greffes — puis en tirait
+   un argument : « deux recrutements différents, pas deux mesures du même échantillon ». C'était
+   le MÊME corpus de 40 cas compté deux fois : les chiffres du second bloc sont verbatim
+   l'abstract de Hoofnagle et al. 2021 (Hepatology, PMID 32892374), le papier DILIN lui-même,
+   et le « 42 jours » vient de la fiche LiverTox qui le résume. Tout le pipeline était aveugle
+   par construction : les nombres sont EXACTS, seule leur attribution est fausse — le lint
+   compare des valeurs, jamais un couple (valeur, travail), et aucun claim ne portait le fait.
+   L'Audit-prose l'a flairé puis classé « hors périmètre » et laissé partir au build. Corrigé à
+   la main après vérification aux deux sources. ⚠️ **Réflexe : sur toute prose affirmant
+   l'indépendance de deux séries, comparer leurs EFFECTIFS et leurs valeurs secondaires — ici
+   35 % / 8 % / 3 greffes étaient identiques des deux côtés. Et un doute d'attribution soulevé
+   par l'Audit-prose n'est JAMAIS hors périmètre : c'est plus grave qu'un chiffre faux.**
+2. **Le mode d'échec « tranche d'Author vide » a récidivé** (déjà vu au 28e run) : la tranche 1
+   a rendu `sections: []` avec un `summary` complet et bien formé, en UN SEUL tour — ni
+   rate-limit ni troncature, et le schéma l'accepte puisqu'un tableau vide est valide. Réparé
+   par `resume: true` (checkpoints du skill), surtout PAS par `resumeFromRunId` qui aurait
+   rejoué la tranche fautive depuis le cache à l'octet près. Coût du premier run non perdu :
+   le council entier (40 claims, 97 sources) était en checkpoints. ⚠️ **Le workflow paie
+   pourtant les 3 tranches suivantes avant de détecter le trou à l'assemblage — un contrôle
+   des ids après chaque tranche supprimerait le gaspillage ET la reprise.**
+3. Deux défauts mineurs relevés hors périmètre, non corrigés : `--ink-faint` sur blanc donne
+   **3,61:1** en micro-texte (renvois de glossaire, libellés de widget) — sous le seuil AA,
+   défaut de la charte partagée donc des 74 documents ; et `build.py:86` imprime `len()`,
+   un nombre de CARACTÈRES étiqueté « o » (octets) — 4 726 d'écart sur ce document, soit les
+   accents. Enfin, 0 figure ici contre 3 pour `berberine` : document visuellement plus maigre
+   que ses voisins.)
 - **peptides-gris** (moyenne, ⚠️ DIFFÉRÉ) — BPC-157, sécrétagogues GH (ipamoréline,
   CJC-1295), TB-500 : littérature quasi exclusivement animale/mécanistique, vente
   « research chemicals ». ⚠️ Ne lancer qu'après ≥ 2 runs santé GREEN : taux de rejet

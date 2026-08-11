@@ -136,7 +136,7 @@ flowchart TD
 
 ## Thèmes
 
-Chaque document est sous `themes/<slug>/dist/`. Le corpus compte **72 thèmes** (74 documents),
+Chaque document est sous `themes/<slug>/dist/`. Le corpus compte **73 thèmes** (75 documents),
 tous générés par `/monograph`, `/frugalmonograph` ou `/leanmonograph` — sauf
 **automatic-prompt-optimization**, construit à la main avant le skill (triptyque à 3 éditions)
 et conservé gelé sous `themes/automatic-prompt-optimization/legacy/`. Le classement
