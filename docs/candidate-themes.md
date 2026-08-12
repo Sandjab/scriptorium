@@ -779,15 +779,40 @@ le paramètre a été MESURÉ par la source, pas seulement non mentionné.**)
 
 ## `complements-sante`
 
-- **collagene** (haute) — 📝 « Collagène hydrolysé : que peut un peptide incomplet ?
-  Couvrir la composition (profil d'acides aminés, absence de tryptophane, DIAAS ~0),
-  l'argument « inutile vs whey » examiné honnêtement (peptides bioactifs
-  hydroxyproline : ce qui est démontré), articulations/tendons (méta-analyses douleur
-  et fonction, doses 5-15 g/j, co-ingestion vitamine C), peau (essais majoritairement
-  financés par l'industrie — le signaler claim par claim), os, et la sécurité. Public :
-  lecteur exigeant sans formation médicale. Doctrine : docs/evidence-sante.md
-  (recopier). Domaine : complements-sante. Délimitation : proteines-besoins-timing
-  pour la protéine complète. »
+(`collagene` : FAIT le 2026-08-12, retiré du backlog — 34e run /leanmonograph, 6e thème
+santé : GREEN, 10/10 sections, 37 claims 21✓/9corr/7rej, 72 sources, 3 widgets + figures ;
+6,55M tok / 95 agents / 3 h 24 en un seul run. **Crée le domaine `complements-sante`**, classé
+entre `nutrition-sportive` et `pharmacologie-metabolique` — le méta santé se lit désormais en
+gradation : nutrition de performance → complément en vente libre → médicament sur ordonnance.
+Pas de portail : un `parcours` à une seule étape n'oriente personne, il viendra au 2e thème.
+
+Trois enseignements, dont un de doctrine :
+
+1. **Sur une littérature MONO-SOURCE, le seuil « ≥ 2 sources » devient le SEUL mécanisme de
+   rejet — et il rejette des faits VRAIS.** Les 7 rejets de ce run portent tous le même motif,
+   « 1 source indépendante » ; AUCUN ne porte sur l'exactitude, et six avaient reçu 1 à 3
+   confirmations de jurés. En cause : les essais du collagène sont uniques, financés par
+   l'ingrédientier, jamais répliqués par une équipe tierce (Praet 2019 sur la tendinopathie,
+   l'essai pivot UC-II à 191 sujets). Taux de rejet 19 % contre 3 à 8 % sur les cinq runs
+   santé précédents. Le pipeline se rattrape en aval : la prose garde ces essais avec la
+   réserve « source unique, non corroborée » posée par le lint sur 5 passages.
+   ⚠️ **Attendre le même profil sur `vitamine-d`, `omega-3`, `magnesium` — juger un run santé
+   à la NATURE de ses rejets, jamais à leur nombre.**
+2. **L'Audit-prose a attrapé une fausse attribution** (la classe d'erreur du 33e run) : une
+   phrase citait des masses moléculaires « 500 Da / 15 000-50 000 Da / 3 000-5 000 Da » en les
+   attribuant à une page qui ne les contient pas — vérifié par lecture directe de la source,
+   valeurs réelles rétablies (>100 000 Da natif, 3 000-8 000 hydrolysat, <3 000 « faible poids
+   moléculaire »). Le council avait par ailleurs RETOURNÉ un claim affirmant une « réplication
+   indépendante par plusieurs équipes » sur l'UC-II : tous les essais relèvent de la même
+   filiation industrielle (InterHealth, racheté par Lonza en 2016).
+3. **Deux défauts de la charte PARTAGÉE corrigés, trouvés en revue visuelle** (corpus entier
+   rebuildé, 73 documents, diff purement chromatique) : `--ink-faint` était sous AA sur TOUS
+   les fonds en thème clair (3,61 sur blanc, 2,91 sur fond teinté) → `#5C697B` / `#8393A6`,
+   porté à 4,50-5,58 ; et surtout **le correctif `--blue-deep` du 32e run était PARTIEL** — il
+   ne visait que les titres, alors que les termes du glossaire portent la même encre et
+   restaient à **1,13:1** en thème sombre depuis toujours (→ 7,52). ⚠️ **Reste ouvert** :
+   `.xptr-kind` (badges de pointeurs), blanc sur `--blue-bright` éclairci en sombre, à 2,16 —
+   mécanisme différent, un fond éclairci gardant une encre blanche.)
 - **vitamine-d** (moyenne) — statut vs supplémentation, VITAL et les grands RCT nuls,
   os/chutes/immunité, seuils sériques contestés, doses et toxicité.
 - **omega-3** (moyenne) — EPA/DHA : triglycérides (démontré) vs événements cardio
@@ -804,7 +829,8 @@ santé : GREEN après backstop, 10/10 sections, 40 claims 26✓/11corr/3rej, 69 
 prévoyait ce backlog** : le domaine créé la veille par `incretines-glp1` l'annonçait déjà
 dans son blurb (« les produits qui promettent de les remplacer ») et dans l'intro de son
 portail (« ceux qui promettent de s'en dispenser »). `complements-sante` reste à créer par
-le premier thème de santé/longévité (collagene, vitamine-d, omega-3, magnesium).
+le premier thème de santé/longévité (collagene, vitamine-d, omega-3, magnesium)
+— créé depuis, par `collagene` le 2026-08-12.
 
 Trois enseignements, dont deux de fond :
 
