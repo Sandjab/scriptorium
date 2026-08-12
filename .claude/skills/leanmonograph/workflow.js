@@ -96,16 +96,16 @@ const S_NOTES = { type:'object', additionalProperties:false, required:['id','hea
 // Verdict d'un juré BATCH : un verdict PAR claim de la section (claim_index aligné).
 const S_BATCH = { type:'object', additionalProperties:false, required:['verdicts'], properties:{
   verdicts:{ type:'array', items:{ type:'object', additionalProperties:false,
-    required:['claim_index','holds','corrected_statement','independent_sources','note'],
-    properties:{ claim_index:{type:'integer'}, holds:{type:'boolean'},
+    required:['claim_index','holds','corrected_statement','independent_sources','note','search_exhausted'],
+    properties:{ claim_index:{type:'integer'}, holds:{type:'boolean'}, search_exhausted:{type:'boolean'},
       corrected_statement:{type:'string'},
       independent_sources:{ type:'array', items:{ type:'object', additionalProperties:false, required:['title','url'],
         properties:{ title:{type:'string'}, url:{type:'string'} } } },
       note:{type:'string'} } } } } };
 
 // Verdict du juré DÉDIÉ (un claim contestable, lentille source primaire).
-const S_VERDICT = { type:'object', additionalProperties:false, required:['holds','corrected_statement','independent_sources','note'], properties:{
-  holds:{type:'boolean'},
+const S_VERDICT = { type:'object', additionalProperties:false, required:['holds','corrected_statement','independent_sources','note','search_exhausted'], properties:{
+  holds:{type:'boolean'}, search_exhausted:{type:'boolean'},
   corrected_statement:{type:'string'},
   independent_sources:{ type:'array', items:{ type:'object', additionalProperties:false, required:['title','url'],
     properties:{ title:{type:'string'}, url:{type:'string'} } } },
@@ -121,7 +121,7 @@ const S_AUTHOR = { type:'object', additionalProperties:false, required:['files_w
 
 // Une tranche de prose : les sections rédigées + le récapitulatif pour la tranche suivante.
 const S_PROSE = { type:'object', additionalProperties:false, required:['sections','summary'], properties:{
-  sections:{ type:'array', items:{ type:'object', additionalProperties:false, required:['id','prose'],
+  sections:{ type:'array', minItems:1, items:{ type:'object', additionalProperties:false, required:['id','prose'],
     properties:{ id:{type:'string'}, prose:{type:'string'} } } },
   summary:{type:'string'} } };
 
@@ -319,8 +319,8 @@ const batchVerifyPrompt = (sec, claims, lensIdx) => [
   `Claims (claim_index → énoncé + sources candidates déjà trouvées en amont) :`,
   ...claims.map((c, i) => `[${i}] « ${c.statement} »\n    candidates : ${JSON.stringify(c.candidate_sources || [])}`),
   `MÉTHODE (économie) : les claims d'une même section citent souvent LES MÊMES papiers — ouvre chaque source candidate UNE seule fois (WebFetch) et évalue à cette occasion TOUS les claims qu'elle concerne. Ne lance une NOUVELLE recherche que si les candidates sont insuffisantes pour ton rôle. ` + WEB,
-  `Rends : verdicts = UN verdict PAR claim (claim_index aligné sur la numérotation ci-dessus, tous présents) : holds (true si l'énoncé tient TEL QUEL), corrected_statement ("" si rien à corriger ; sinon l'énoncé corrigé minimal qui serait vrai), independent_sources (UNIQUEMENT les sources que TOI tu as vérifiées et qui sont indépendantes — title+url réels), note (1-2 phrases justifiant).`,
-  `N'invente jamais d'URL. En cas de doute sur l'indépendance ou la véracité, penche vers holds=false. Chaque verdict est INDIVIDUEL : ne laisse pas la solidité d'un claim déteindre sur son voisin.`,
+  `Rends : verdicts = UN verdict PAR claim (claim_index aligné sur la numérotation ci-dessus, tous présents) : holds (true si l'énoncé tient TEL QUEL), corrected_statement ("" si rien à corriger ; sinon l'énoncé corrigé minimal qui serait vrai), independent_sources (UNIQUEMENT les sources que TOI tu as vérifiées et qui sont indépendantes — title+url réels), note (1-2 phrases justifiant), search_exhausted (true UNIQUEMENT si tes moyens de recherche étaient épuisés ou indisponibles pendant cet audit — sinon false).`,
+  `N'invente jamais d'URL. holds juge l'EXACTITUDE seule : true si le contenu tient tel quel, vérifié à la source — un claim qui sur-généralise, sur-restreint ou déforme sa source ne tient PAS. L'indépendance et le seuil ≥2 sources sont tranchés par le code à partir des independent_sources de tous les jurés : ne vote JAMAIS false pour un simple doute d'indépendance — en cas de doute sur une source, ne la liste pas, c'est tout. En cas de doute sur la VÉRACITÉ, penche vers holds=false. Si tes moyens de recherche sont épuisés (quota, outil indisponible), renseigne search_exhausted=true et dis-le dans note. Chaque verdict est INDIVIDUEL : ne laisse pas la solidité d'un claim déteindre sur son voisin.`,
 ].join('\n');
 
 // Juré DÉDIÉ pour un claim contestable : confrontation au texte faisant autorité.
@@ -329,8 +329,8 @@ const extraJurorPrompt = (claim) => [
   `Sources candidates DÉJÀ trouvées en amont — COMMENCE par celles-ci (ouvre-les via WebFetch AVANT toute nouvelle recherche) : ${JSON.stringify(claim.candidate_sources || [])}`,
   `Ton rôle de juré — SOURCE PRIMAIRE : remonte à la source faisant autorité (papier original, spécification, manuel) et vérifie que l'énoncé y correspond EXACTEMENT, sans déformation (chiffres, périmètre, causalité, attribution).`,
   WEB,
-  `Rends un verdict HONNÊTE : holds (true si l'énoncé tient TEL QUEL), corrected_statement ("" si rien à corriger ; sinon l'énoncé corrigé minimal qui serait vrai), independent_sources (UNIQUEMENT les sources que TOI tu as vérifiées — title+url réels), note (1-2 phrases justifiant).`,
-  `N'invente jamais d'URL. En cas de doute, penche vers holds=false.`,
+  `Rends un verdict HONNÊTE : holds (true si l'énoncé tient TEL QUEL), corrected_statement ("" si rien à corriger ; sinon l'énoncé corrigé minimal qui serait vrai), independent_sources (UNIQUEMENT les sources que TOI tu as vérifiées — title+url réels), note (1-2 phrases justifiant), search_exhausted (true UNIQUEMENT si tes moyens de recherche étaient épuisés ou indisponibles pendant cet audit — sinon false).`,
+  `N'invente jamais d'URL. holds juge l'EXACTITUDE seule : l'indépendance des sources est tranchée par le code — ne vote JAMAIS false pour un simple doute d'indépendance ; en cas de doute sur la VÉRACITÉ, penche vers holds=false. Si tes moyens de recherche sont épuisés, renseigne search_exhausted=true et dis-le dans note.`,
 ].join('\n');
 
 const pointersPrompt = (candidates) => [
@@ -407,10 +407,11 @@ const proseAuditPrompt = (notesBySection) => [
   `   - INVÉRIFIABLE (source inaccessible, chiffre introuvable) → retire le chiffre ou reformule qualitativement. Ne laisse JAMAIS un chiffre invérifiable affirmé.`,
   `   Ne modifie QUE les passages concernés ; garde un JSON valide ; n'ajoute aucun fait.`,
   `4) S'il y a des rejected_flags non hedgés : lis le contexte ; si le passage AFFIRME le contenu rejeté, corrige-le (retrait ou réserve « source unique, non corroborée ») ; s'il le CRITIQUE ou le cite en biblio, laisse.`,
+  `5) INDÉPENDANCE DES SÉRIES : partout où la prose présente deux séries chiffrées comme INDÉPENDANTES (« deux études distinctes », « deux recrutements différents », « une revue distincte »), compare leurs effectifs et valeurs secondaires et vérifie que les deux URLs décrivent des TRAVAUX différents — pas un résumé et sa source primaire. Corrige UNIQUEMENT sur preuve de duplication (mêmes effectifs, mêmes valeurs des deux côtés) : c'est alors UNE seule source, et l'argument d'indépendance disparaît de la prose. Si les valeurs diffèrent, ne touche à rien — un hedge injustifié est une erreur au même titre qu'une affirmation fausse. Un doute d'attribution que TU soulèves n'est jamais « hors périmètre » : tranche-le avant de rendre.`,
   ``,
   `NOTES SOURCÉES par section (point → url) :\n${JSON.stringify(notesBySection)}`,
   ``,
-  `Rends : checked (chiffres vérifiés), fixed (corrections appliquées), hedged (retraits/réserves), note (résumé court, mentionne tout chiffre resté douteux).`,
+  `Rends : checked (chiffres vérifiés), fixed (corrections appliquées), hedged (retraits/réserves), note (résumé court, mentionne tout chiffre resté douteux et tout doute d'attribution tranché).`,
 ].join('\n');
 
 const widgetPlanPrompt = (secs) => [
@@ -690,6 +691,7 @@ const sectionResults = await pipeline(
         corrected: verdicts.filter(v => !v.holds && v.corrected_statement && v.corrected_statement.trim()).length,
         jurors: lensVerdicts.map(({ lens, v }) => ({ lens: LENS_NAMES[lens] || String(lens),
           holds: !!v.holds, corrected: !!(v.corrected_statement && v.corrected_statement.trim()),
+          search_exhausted: !!v.search_exhausted,
           n_sources: (v.independent_sources || []).length, note: v.note || '' })) };
       return { sectionId: sec.id, statement: d.statement, original_statement: c.statement,
                audit: d.audit, note: d.note, examples: c.examples || [], sources: d.sources, tally };
@@ -850,14 +852,24 @@ if (loadedProse && loadedProse.proseById) {
           claims: (s.kept || []).map(c => ({ statement: c.statement, examples: c.examples || [] })),
           notes: s.notes || [] };
       });
-      const r = await A(prosePrompt(arch.title, arch.fil_rouge, liveOutline, summaries, chunkSecs),
-        { schema: S_PROSE, phase: 'Author', label: `prose:${ci + 1}/${chunks.length}` });
-      if (r && Array.isArray(r.sections)) {
-        for (const s of r.sections) if (s.id && s.prose) proseById[s.id] = s.prose;
-        summaries.push(r.summary || '');
-      } else {
-        log(`[author] tranche ${ci + 1} sans sortie exploitable — sections concernées vides.`);
+      const askTranche = (again) => A(prosePrompt(arch.title, arch.fil_rouge, liveOutline, summaries, chunkSecs),
+        { schema: S_PROSE, phase: 'Author', label: `prose:${ci + 1}/${chunks.length}${again ? ':retry' : ''}` });
+      const harvest = (r) => { if (r && Array.isArray(r.sections))
+        for (const s of r.sections) if (s.id && s.prose) proseById[s.id] = s.prose; };
+      let r = await askTranche(false);
+      harvest(r);
+      let missingIds = chunks[ci].filter(o => !proseById[o.id]);
+      if (missingIds.length) {
+        log(`[author] tranche ${ci + 1} incomplète (${missingIds.map(o => o.id).join(', ')}) — un nouvel essai.`);
+        r = await askTranche(true);
+        harvest(r);
+        missingIds = chunks[ci].filter(o => !proseById[o.id]);
       }
+      if (missingIds.length) {
+        log(`[author] tranche ${ci + 1} encore incomplète après retry (${missingIds.map(o => o.id).join(', ')}) — chaîne de prose arrêtée ; réparation : relancer avec args.resume=true.`);
+        break;
+      }
+      summaries.push((r && r.summary) || '');
     }
   };
   // tldr/glossaire (lit knowledge.json, indépendant de la prose) en PARALLÈLE de la chaîne de prose.

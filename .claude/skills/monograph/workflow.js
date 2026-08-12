@@ -79,8 +79,8 @@ const S_SECTION = { type:'object', additionalProperties:false, required:['id','h
       kind:{ type:'string', enum:['library','package','tool','reading','implementation'] },
       blurb:{type:'string'} } } } } };
 
-const S_VERDICT = { type:'object', additionalProperties:false, required:['holds','corrected_statement','independent_sources','note'], properties:{
-  holds:{type:'boolean'},
+const S_VERDICT = { type:'object', additionalProperties:false, required:['holds','corrected_statement','independent_sources','note','search_exhausted'], properties:{
+  holds:{type:'boolean'}, search_exhausted:{type:'boolean'},
   corrected_statement:{type:'string'},        // "" si rien à corriger
   independent_sources:{ type:'array', items:{ type:'object', additionalProperties:false, required:['title','url'],
     properties:{ title:{type:'string'}, url:{type:'string'} } } },
@@ -259,8 +259,8 @@ const verifyPrompt = (claim, lensIdx) => [
   `Sources candidates fournies : ${JSON.stringify(claim.candidate_sources || [])}`,
   `Ton rôle de juré — ${LENSES[lensIdx]}`,
   WEB,
-  `Rends un verdict HONNÊTE : holds (true si l'énoncé tient TEL QUEL), corrected_statement ("" si rien à corriger ; sinon l'énoncé corrigé minimal qui serait vrai), independent_sources (UNIQUEMENT les sources que TOI tu as vérifiées et qui sont indépendantes — title+url réels), note (1-2 phrases justifiant).`,
-  `N'invente jamais d'URL. En cas de doute sur l'indépendance ou la véracité, penche vers holds=false.`,
+  `Rends un verdict HONNÊTE : holds (true si l'énoncé tient TEL QUEL), corrected_statement ("" si rien à corriger ; sinon l'énoncé corrigé minimal qui serait vrai), independent_sources (UNIQUEMENT les sources que TOI tu as vérifiées et qui sont indépendantes — title+url réels), note (1-2 phrases justifiant), search_exhausted (true UNIQUEMENT si tes moyens de recherche étaient épuisés ou indisponibles pendant cet audit — sinon false).`,
+  `N'invente jamais d'URL. holds juge l'EXACTITUDE seule : true si le contenu tient tel quel, vérifié à la source — un claim qui sur-généralise, sur-restreint ou déforme sa source ne tient PAS. L'indépendance et le seuil ≥2 sources sont tranchés par le code à partir des independent_sources de tous les jurés : ne vote JAMAIS false pour un simple doute d'indépendance — en cas de doute sur une source, ne la liste pas, c'est tout. En cas de doute sur la VÉRACITÉ, penche vers holds=false. Si tes moyens de recherche sont épuisés (quota, outil indisponible), renseigne search_exhausted=true et dis-le dans note.`,
 ].join('\n');
 
 const pointersPrompt = (candidates) => [
@@ -656,6 +656,7 @@ const sectionResults = await pipeline(
         corrected: verdicts.filter(v => !v.holds && v.corrected_statement && v.corrected_statement.trim()).length,
         jurors: lensVerdicts.map(({ lens, v }) => ({ lens: LENS_NAMES[lens] || String(lens),
           holds: !!v.holds, corrected: !!(v.corrected_statement && v.corrected_statement.trim()),
+          search_exhausted: !!v.search_exhausted,
           n_sources: (v.independent_sources || []).length, note: v.note || '' })) };
       return { sectionId: sec.id, statement: d.statement, original_statement: c.statement,
                audit: d.audit, note: d.note, examples: c.examples || [], sources: d.sources, tally };
