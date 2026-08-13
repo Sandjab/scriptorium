@@ -813,8 +813,21 @@ Trois enseignements, dont un de doctrine :
    restaient à **1,13:1** en thème sombre depuis toujours (→ 7,52). ⚠️ **Reste ouvert** :
    `.xptr-kind` (badges de pointeurs), blanc sur `--blue-bright` éclairci en sombre, à 2,16 —
    mécanisme différent, un fond éclairci gardant une encre blanche.)
-- **vitamine-d** (moyenne) — statut vs supplémentation, VITAL et les grands RCT nuls,
-  os/chutes/immunité, seuils sériques contestés, doses et toxicité.
+(`vitamine-d` : FAIT le 2026-08-13, retiré du backlog — 35e run /leanmonograph, 7e thème
+santé : **GREEN au premier passage**, 10/10 sections, 40 claims 26✓/11corr/3rej, 88 sources,
+4 widgets + 3 figures, verdicts 11 indications ; **5,97M tok / 95 agents / 2 h 38 — premier
+run santé sous 6M**. **Crée le portail `complements-sante`** (2e thème du domaine), classé
+AVANT collagene : la vitamine D est l'étalon méthodologique du rayon (association vs effet,
+la fabrique du besoin par le seuil), le collagène l'autre régime de preuve (mono-source).
+
+Profil de rejets inverse de collagene, comme anticipé : 3 rejets seulement (7,5 %), dont
+2 mono-source mécaniques et 1 sur-généralisation réelle attrapée par le juré réfutation
+(l'OR du sous-groupe croisé de Martineau 2017 attribué aux carencés en général) — la prose
+rend d'elle-même la version corrigée, hedgée. Le backstop n'a corrigé AUCUN fait ; ses deux
+seules retouches sont visuelles : 2 défauts sombres dans les widgets du thème, dont la
+**3e incarnation du double rôle `--blue-deep`** (consommé comme encre par un widget, 1,01:1
+sur le bandeau synthèse). ⚠️ `.xptr-kind` de la charte partagée reste à 2,16 en sombre —
+défaut ouvert depuis le 34e run, corpus entier.)
 - **omega-3** (moyenne) — EPA/DHA : triglycérides (démontré) vs événements cardio
   (REDUCE-IT vs STRENGTH), cognition, doses, oxydation des huiles.
 - **magnesium** (basse) — carence réelle vs marketing, formes (citrate, bisglycinate,
