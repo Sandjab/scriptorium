@@ -1,0 +1,1571 @@
+<div class="widget cdp-root" id="cdp-root">
+  <style>
+    .cdp-root{--cdp-ink:var(--ink,#15202E);--cdp-soft:var(--ink-soft,#43536A);
+      --cdp-faint:var(--ink-faint,#7A889B);--cdp-card:var(--card,#fff);
+      --cdp-paper:var(--paper,#F4F6FA);
+      --cdp-line:var(--line,#D7DFE9);--cdp-lines:var(--line-soft,#E7ECF3);
+      --cdp-blue:var(--blue,#23537F);--cdp-deep:var(--blue-deep,#142E49);
+      --cdp-bright:var(--blue-bright,#2C77B6);--cdp-wash:var(--blue-wash,#E7EEF6);
+      --cdp-bord:var(--bordeaux,#7C2A38);--cdp-bordb:var(--bordeaux-bright,#9B3443);
+      --cdp-bordw:var(--bordeaux-wash,#F3E3E6);--cdp-gold:#C68A2E;--cdp-goldw:#FBF3E3;
+      --cdp-green:#2F7D5B;--cdp-greenw:#EAF4EE;--cdp-violet:#5B4A8A;--cdp-violetw:#EEEAF6;
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--cdp-ink);
+      border:1px solid var(--cdp-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--cdp-card);max-width:900px}
+    .cdp-root *{box-sizing:border-box}
+
+    .cdp-k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;
+      color:var(--cdp-faint);font-weight:600;margin:0 0 2px}
+    .cdp-title{font-weight:700;font-size:1.05rem;margin:0 0 4px;line-height:1.3}
+    .cdp-sub{font-size:.84rem;color:var(--cdp-soft);margin:0 0 12px;line-height:1.5}
+    .cdp-sub b{color:var(--cdp-ink)}
+
+    /* --- carte synoptique --- */
+    .cdp-map{width:100%;height:auto;display:block;border:1px solid var(--cdp-lines);
+      border-radius:8px;background:#FBFCFE;margin:0 0 10px}
+    .cdp-map .cdp-nd{cursor:pointer}
+    .cdp-map .cdp-nd:focus{outline:none}
+    .cdp-map .cdp-nd:focus>rect{stroke:#2C77B6;stroke-width:3}
+
+    /* --- progression --- */
+    .cdp-prog{display:flex;align-items:center;gap:10px;margin:0 0 8px;flex-wrap:wrap}
+    .cdp-bar{flex:1 1 180px;height:7px;border-radius:5px;background:var(--cdp-lines);
+      overflow:hidden;min-width:120px}
+    .cdp-fill{height:100%;width:20%;background:var(--cdp-bright);transition:width .18s ease}
+    .cdp-plab{flex:0 0 auto;font:700 .76rem/1.25 ui-monospace,SFMono-Regular,Menlo,monospace;
+      color:var(--cdp-blue);text-align:right}
+
+    /* --- rail des étapes --- */
+    .cdp-rail{display:flex;gap:5px;margin:0 0 10px;flex-wrap:wrap}
+    .cdp-ph{flex:1 1 140px;min-width:132px;border:1px solid var(--cdp-line);border-radius:8px;
+      padding:6px 8px;background:var(--cdp-card);text-align:left;cursor:pointer;transition:.15s;
+      font:inherit;color:inherit;display:block}
+    .cdp-ph .cdp-pn{font-size:.55rem;letter-spacing:.05em;text-transform:uppercase;
+      color:var(--cdp-faint);font-weight:700;display:block}
+    .cdp-ph .cdp-pl{font-size:.71rem;font-weight:700;color:var(--cdp-soft);margin-top:2px;
+      display:block;line-height:1.25}
+    .cdp-ph:hover{background:var(--cdp-paper)}
+    .cdp-ph.cdp-on{border-color:var(--cdp-bright);background:var(--cdp-wash);
+      box-shadow:0 0 0 1px var(--cdp-bright)}
+    .cdp-ph.cdp-on .cdp-pl{color:var(--cdp-blue)}
+    .cdp-ph.cdp-on .cdp-pn{color:var(--cdp-bright)}
+    .cdp-ph.cdp-done .cdp-pn{color:var(--cdp-bright)}
+
+    /* --- compteurs chaînés --- */
+    .cdp-track{display:flex;gap:5px;flex-wrap:wrap;margin:0 0 10px}
+    .cdp-tc{flex:1 1 150px;min-width:144px;border:1px solid var(--cdp-line);border-radius:7px;
+      padding:5px 8px 6px;background:var(--cdp-card)}
+    .cdp-tc.cdp-cwarn{border-color:#EAD9B4;background:var(--cdp-goldw)}
+    .cdp-tc.cdp-cok{border-color:#BEDCCB;background:var(--cdp-greenw)}
+    .cdp-tc.cdp-cstop{border-color:#E2C3C9;background:var(--cdp-bordw)}
+    .cdp-tc.cdp-cvio{border-color:#CFC6E4;background:var(--cdp-violetw)}
+    .cdp-tk{font-size:.555rem;letter-spacing:.05em;text-transform:uppercase;
+      color:var(--cdp-faint);font-weight:700;line-height:1.3}
+    .cdp-tv{font:700 .8rem/1.25 ui-monospace,SFMono-Regular,Menlo,monospace;
+      color:var(--cdp-blue);margin-top:3px}
+    .cdp-tc.cdp-cwarn .cdp-tv{color:var(--cdp-gold)}
+    .cdp-tc.cdp-cok .cdp-tv{color:var(--cdp-green)}
+    .cdp-tc.cdp-cstop .cdp-tv{color:var(--cdp-bord)}
+    .cdp-tc.cdp-cvio .cdp-tv{color:var(--cdp-violet)}
+    .cdp-th{font-size:.62rem;color:var(--cdp-faint);line-height:1.35;margin-top:2px}
+
+    /* --- bandeau de l'étape courante --- */
+    .cdp-band{border:1px solid var(--cdp-bright);box-shadow:0 0 0 1px var(--cdp-bright);
+      border-radius:10px;padding:10px 12px 11px;margin:0 0 10px;background:#FCFDFF}
+    .cdp-bh{display:flex;align-items:baseline;gap:8px;margin:0 0 9px;flex-wrap:wrap}
+    .cdp-bn{font:800 .62rem/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em;
+      color:#fff;background:var(--cdp-bright);border-radius:4px;padding:4px 6px;
+      white-space:nowrap}
+    .cdp-bt{font-weight:700;font-size:.88rem;color:var(--cdp-blue)}
+    .cdp-bx{font:700 .68rem/1.3 ui-monospace,SFMono-Regular,Menlo,monospace;
+      color:var(--cdp-faint);margin-left:auto;text-align:right;border:1px solid var(--cdp-lines);
+      border-radius:5px;padding:3px 7px;background:var(--cdp-paper)}
+    .cdp-bx.cdp-warn{border-color:#EAD9B4;background:var(--cdp-goldw);color:var(--cdp-gold)}
+    .cdp-bx.cdp-stop{border-color:#E2C3C9;background:var(--cdp-bordw);color:var(--cdp-bord)}
+    .cdp-bx.cdp-good{border-color:#BEDCCB;background:var(--cdp-greenw);color:var(--cdp-green)}
+
+    .cdp-two{display:flex;gap:12px;flex-wrap:wrap;align-items:stretch}
+    .cdp-fig{flex:1 1 340px;min-width:0;display:flex;flex-direction:column}
+    .cdp-side{flex:1 1 268px;min-width:0;display:flex;flex-direction:column}
+    .cdp-svg{width:100%;height:auto;display:block;border:1px solid var(--cdp-lines);
+      border-radius:8px;background:#FBFCFE}
+
+    /* --- sélecteur contextuel de l'étape --- */
+    .cdp-ctl{margin:8px 0 0}
+    .cdp-ctllab{font-size:.6rem;letter-spacing:.07em;text-transform:uppercase;
+      color:var(--cdp-faint);font-weight:700;margin:0 0 6px}
+    .cdp-chips{display:flex;gap:5px;flex-wrap:wrap}
+    .cdp-chip{border:1px solid var(--cdp-line);border-radius:6px;background:var(--cdp-card);
+      padding:5px 9px;font:700 .72rem/1.2 inherit;color:var(--cdp-soft);cursor:pointer;
+      transition:.15s;text-align:left}
+    .cdp-chip:hover{background:var(--cdp-wash)}
+    .cdp-chip[aria-pressed="true"]{border-color:var(--cdp-bright);background:var(--cdp-wash);
+      color:var(--cdp-blue);box-shadow:0 0 0 1px var(--cdp-bright)}
+    .cdp-ctlnote{font-size:.66rem;color:var(--cdp-faint);line-height:1.45;margin:6px 0 0}
+
+    .cdp-read{font-size:.8rem;line-height:1.55;color:var(--cdp-soft);margin:0 0 8px}
+    .cdp-read b{color:var(--cdp-ink)}
+    .cdp-read i{font-style:italic}
+    .cdp-num{font:700 .78rem/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;
+      color:var(--cdp-blue)}
+
+    /* --- définitions --- */
+    .cdp-def{border-top:1px dashed var(--cdp-lines);margin:9px 0 0;padding:8px 0 0}
+    .cdp-deflab{font-size:.56rem;letter-spacing:.06em;text-transform:uppercase;
+      color:var(--cdp-faint);font-weight:700;margin:0 0 5px}
+    .cdp-defl{list-style:none;margin:0;padding:0}
+    .cdp-defl li{font-size:.72rem;line-height:1.45;color:var(--cdp-soft);margin:0 0 4px}
+    .cdp-defl li b{color:var(--cdp-blue)}
+
+    /* --- cartes de verdict --- */
+    .cdp-vlist{display:flex;flex-direction:column;gap:6px;margin:0}
+    .cdp-vc{border:1px solid var(--cdp-line);border-left-width:4px;border-radius:7px;
+      padding:7px 10px 8px;background:var(--cdp-card)}
+    .cdp-vc.cdp-vok{border-left-color:var(--cdp-green);background:var(--cdp-greenw)}
+    .cdp-vc.cdp-vnul{border-left-color:var(--cdp-bright);background:var(--cdp-wash)}
+    .cdp-vc.cdp-vbad{border-left-color:var(--cdp-bord);background:var(--cdp-bordw)}
+    .cdp-vc.cdp-vwarn{border-left-color:var(--cdp-gold);background:var(--cdp-goldw)}
+    .cdp-vc.cdp-vneu{border-left-color:var(--cdp-faint);background:var(--cdp-paper)}
+    .cdp-vt{font:700 .74rem/1.3 inherit;color:var(--cdp-ink);margin:0 0 3px}
+    .cdp-vb{font-size:.71rem;line-height:1.5;color:var(--cdp-soft);margin:0}
+    .cdp-vb b{color:var(--cdp-ink)}
+    .cdp-vs{font-size:.62rem;line-height:1.4;color:var(--cdp-faint);margin:4px 0 0;
+      font-style:italic}
+
+    /* --- synthèse --- */
+    .cdp-final{border:1px solid var(--cdp-line);border-radius:10px;padding:10px 12px 11px;
+      margin:0 0 10px;background:var(--cdp-paper)}
+    .cdp-final.cdp-idle{opacity:.5}
+    .cdp-glab{font-size:.58rem;letter-spacing:.07em;text-transform:uppercase;
+      color:var(--cdp-faint);font-weight:700;margin:0 0 7px}
+    .cdp-rec{list-style:none;margin:0 0 8px;padding:0}
+    .cdp-rec li{font-size:.74rem;line-height:1.45;color:var(--cdp-soft);margin:0 0 5px;
+      padding-left:15px;position:relative}
+    .cdp-rec li:before{content:"▸";position:absolute;left:0;color:var(--cdp-bright);
+      font-size:.7rem;top:.05em}
+    .cdp-rec li b{color:var(--cdp-ink)}
+    .cdp-rec li i{font-style:italic}
+    .cdp-lesson{font-size:.82rem;line-height:1.5;color:var(--cdp-deep);font-weight:600;
+      margin:0;border-left:3px solid var(--cdp-bright);padding-left:10px}
+    /* en sombre, --blue-deep redevient un fond (th) : encre de la synthèse repointée vers --blue */
+    html[data-theme="dark"] .cdp-lesson{color:var(--cdp-blue)}
+
+    /* --- boucle iatrogène --- */
+    .cdp-loop{border:1px solid var(--cdp-line);border-radius:10px;padding:10px 12px 11px;
+      margin:0 0 10px;background:var(--cdp-card)}
+    .cdp-loopsvg{width:100%;height:auto;display:block;border:1px solid var(--cdp-lines);
+      border-radius:8px;background:#FBFCFE;margin:0 0 8px}
+    .cdp-loopr{font-size:.73rem;line-height:1.5;color:var(--cdp-soft);margin:0 0 8px}
+    .cdp-loopr b{color:var(--cdp-ink)}
+
+    /* --- boutons --- */
+    .cdp-btns{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px}
+    .cdp-btns button{border:1px solid var(--cdp-line);border-radius:7px;
+      background:var(--cdp-card);padding:7px 11px;font:600 .78rem/1.15 inherit;
+      color:var(--cdp-soft);cursor:pointer;transition:.15s}
+    .cdp-btns button:hover{background:var(--cdp-paper);color:var(--cdp-ink)}
+    .cdp-btns button.cdp-pri{border-color:var(--cdp-bright);color:var(--cdp-blue);
+      background:var(--cdp-wash)}
+    .cdp-btns button[disabled]{opacity:.42;cursor:default}
+
+    .cdp-note{font-size:.7rem;line-height:1.5;color:var(--cdp-faint);margin:0;
+      border-top:1px solid var(--cdp-lines);padding-top:9px}
+    .cdp-note b{color:var(--cdp-soft)}
+  </style>
+
+  <p class="cdp-k">Vue d'ensemble · super-widget</p>
+  <p class="cdp-title">Du prélèvement à l'issue clinique : la chaîne de décision complète,
+    et le maillon où le verdict se retourne</p>
+  <p class="cdp-sub">Un patient jouet traverse les <b>cinq étapes chaînées</b> qui séparent son
+    sang d'une décision : ce que contient vraiment son sang, ce que le laboratoire en rend, ce
+    qu'une convention en conclut, ce que l'on décide, et ce que la littérature attend de cette
+    décision. <b>La sortie de chaque étape est l'entrée de la suivante</b>, et une seule
+    d'entre elles porte une mesure biologique — les quatre autres portent des conventions et
+    des choix. Avancez étape par étape, ou laissez dérouler d'un trait. Chaque étape offre ses
+    propres commandes : changez-y le patient, la méthode de dosage, le seuil ou le schéma, et
+    toute la chaîne en aval est recalculée. <b>Aucun tirage aléatoire</b> : tout est
+    arithmétique exacte. Aucune sortie n'est un conseil — chaque verdict cite un résultat
+    d'essai, avec sa population et sa dose.</p>
+
+  <svg class="cdp-map" id="cdp-map" viewBox="0 0 900 124" role="group"
+       aria-label="Carte des cinq étapes chaînées : statut vrai, mesure, convention de seuil, décision et schéma, issue attendue. La sortie de chaque étape est l'entrée de la suivante. Chaque étape est un bouton : Tab pour l'atteindre, Entrée ou Espace pour y aller."></svg>
+
+  <div class="cdp-prog">
+    <div class="cdp-bar"><div class="cdp-fill" id="cdp-fill"></div></div>
+    <div class="cdp-plab" id="cdp-plab">étape 1 / 5</div>
+  </div>
+
+  <div class="cdp-rail" id="cdp-rail">
+    <button type="button" class="cdp-ph" data-s="1"><span class="cdp-pn">Étape 1</span>
+      <span class="cdp-pl">Statut vrai</span></button>
+    <button type="button" class="cdp-ph" data-s="2"><span class="cdp-pn">Étape 2</span>
+      <span class="cdp-pl">Mesure</span></button>
+    <button type="button" class="cdp-ph" data-s="3"><span class="cdp-pn">Étape 3</span>
+      <span class="cdp-pl">Convention</span></button>
+    <button type="button" class="cdp-ph" data-s="4"><span class="cdp-pn">Étape 4</span>
+      <span class="cdp-pl">Décision et schéma</span></button>
+    <button type="button" class="cdp-ph" data-s="5"><span class="cdp-pn">Étape 5</span>
+      <span class="cdp-pl">Issue attendue</span></button>
+  </div>
+
+  <div class="cdp-track" id="cdp-track">
+    <div class="cdp-tc" id="cdp-t1"><div class="cdp-tk">statut vrai du patient</div>
+      <div class="cdp-tv" id="cdp-t1v">—</div><div class="cdp-th" id="cdp-t1h">—</div></div>
+    <div class="cdp-tc" id="cdp-t2"><div class="cdp-tk">chiffre rendu par le laboratoire</div>
+      <div class="cdp-tv" id="cdp-t2v">à venir</div>
+      <div class="cdp-th" id="cdp-t2h">étape 2</div></div>
+    <div class="cdp-tc" id="cdp-t3"><div class="cdp-tk">verdict de la convention</div>
+      <div class="cdp-tv" id="cdp-t3v">à venir</div>
+      <div class="cdp-th" id="cdp-t3h">étape 3</div></div>
+    <div class="cdp-tc" id="cdp-t4"><div class="cdp-tk">schéma décidé</div>
+      <div class="cdp-tv" id="cdp-t4v">à venir</div>
+      <div class="cdp-th" id="cdp-t4h">étape 4</div></div>
+    <div class="cdp-tc" id="cdp-t5"><div class="cdp-tk">issue attendue, d'après les essais</div>
+      <div class="cdp-tv" id="cdp-t5v">à venir</div>
+      <div class="cdp-th" id="cdp-t5h">étape 5</div></div>
+  </div>
+
+  <div class="cdp-band">
+    <div class="cdp-bh"><span class="cdp-bn" id="cdp-bn">Étape 1 / 5</span>
+      <span class="cdp-bt" id="cdp-bt">—</span>
+      <span class="cdp-bx" id="cdp-bx">—</span></div>
+    <div class="cdp-two">
+      <div class="cdp-fig">
+        <svg class="cdp-svg" id="cdp-svg" viewBox="0 0 560 300" role="img"
+             aria-label="figure de l'étape courante"></svg>
+        <div class="cdp-ctl" id="cdp-ctl"></div>
+      </div>
+      <div class="cdp-side">
+        <p class="cdp-read" id="cdp-read">—</p>
+        <div id="cdp-verd"></div>
+        <div class="cdp-def" id="cdp-def"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cdp-final cdp-idle" id="cdp-final">
+    <p class="cdp-glab">Synthèse · la chaîne entière, maillon par maillon — récapitulatif du
+      trajet complet, indépendant de l'étape affichée ci-dessus</p>
+    <ul class="cdp-rec" id="cdp-rec"></ul>
+    <p class="cdp-lesson" id="cdp-lesson">—</p>
+  </div>
+
+  <div class="cdp-btns">
+    <button type="button" id="cdp-prev">◀ Étape précédente</button>
+    <button type="button" id="cdp-next" class="cdp-pri">Étape suivante ▶</button>
+    <button type="button" id="cdp-play">Dérouler d'un trait jusqu'à l'issue</button>
+    <button type="button" id="cdp-reset">Réinitialiser la chaîne</button>
+  </div>
+
+  <div class="cdp-loop">
+    <p class="cdp-glab">La boucle iatrogène, à parcourir en un clic — elle ne suit pas un
+      patient mais une cohorte jouet de 1000 personnes, dépistées au seuil choisi à l'étape 3
+      et supplémentées au schéma choisi à l'étape 4</p>
+    <svg class="cdp-loopsvg" id="cdp-loopsvg" viewBox="0 0 900 208" role="img"
+         aria-label="Boucle à six maillons : élargissement du dépistage, valeurs sous le seuil, supplémentation, nouveau dosage, cas de toxicité par excès de correction, pression pour dépister davantage — le sixième maillon ramène au premier."></svg>
+    <p class="cdp-loopr" id="cdp-loopr">—</p>
+    <div class="cdp-btns">
+      <button type="button" id="cdp-lstep">Maillon suivant</button>
+      <button type="button" id="cdp-lrun" class="cdp-pri">Parcourir la boucle en un clic</button>
+    </div>
+  </div>
+
+  <p class="cdp-note"><b>Modèle jouet, entièrement déterministe.</b> Les statuts sériques des
+    sept patients sont <b>posés par le widget</b>, pas mesurés : ce sont les entrées de
+    l'exercice, choisies pour couvrir les configurations que la littérature distingue. Tout le
+    reste est repris de la documentation du thème, puis composé par arithmétique exacte : l'écart
+    moyen de 10 nmol/L entre l'immunoessai Diasorin-Liaison et la LC-MS/MS de référence, celui de
+    11,5 nmol/L entre ce même essai et l'IDS-iSYS, la sous-estimation d'environ 27 % de la forme
+    25(OH)D2 par un immunoessai au-dessus de 50 nmol/L, les critères de performance du VDSP
+    (coefficient de variation ≤ 10 %, biais moyen ≤ ±5 %) contrôlés par le programme DEQAS, les
+    seuils de 30, 50 et 75 nmol/L et les prévalences correspondantes sur une même cohorte
+    mondiale de 8 millions d'individus (76,6 %, 47,9 % et 15,7 %), la RDA de 600 à 800 UI/j et
+    la borne supérieure tolérable de 4000 UI/j de l'IOM, le NOAEL de 10 000 UI/j de Hathcock et
+    ses collègues (2007), le facteur d'incertitude de 2,5 qui relie l'un à l'autre, la zone de
+    10 000 à 40 000 UI/j en prise prolongée où se situent les cas cliniques rapportés, et les
+    résultats d'essais cités à l'étape 5. <b>Trois compositions sont faites par le widget et
+    n'ont été mesurées par personne</b> : la lecture de l'IDS-iSYS, obtenue en chaînant les deux
+    écarts publiés ; l'application d'un biais moyen d'essai au cas d'un patient unique, alors
+    qu'un biais moyen ne décrit pas un dosage individuel ; et la dose journalière moyenne d'un
+    bolus, simple division arithmétique, que Sanders et Bischoff-Ferrari montrent précisément ne
+    pas être une équivalence pharmacologique. La part de 25(OH)D2 du patient supplémenté en
+    vitamine D2 est également posée par le widget. Aucune sortie n'est un conseil personnalisé,
+    aucun schéma n'est recommandé : chaque verdict de l'étape 5 est la citation d'un résultat
+    d'essai, avec sa population et sa dose.</p>
+
+  <script>
+  (function(){
+    var R=document.getElementById("cdp-root"); if(!R) return;
+    var NS="http://www.w3.org/2000/svg";
+    function $(i){return document.getElementById(i);}
+    function el(t,a,tx){var e=document.createElementNS(NS,t),k;
+      if(a)for(k in a)if(Object.prototype.hasOwnProperty.call(a,k))e.setAttribute(k,a[k]);
+      if(tx!=null)e.appendChild(document.createTextNode(tx));return e;}
+    function clr(n){while(n.firstChild)n.removeChild(n.firstChild);}
+    function txt(n,s){clr(n);n.appendChild(document.createTextNode(s));}
+
+    /* Texte enrichi sans jamais assigner de HTML : balisage minuscule écrit en dur,
+       rendu par création de nœuds.  *gras*  _italique_  ~valeur chiffrée~  | saut de ligne */
+    function rich(host,s){
+      var i=0,n=s.length,buf="",mode=null,ch;
+      function flush(){
+        if(!buf)return;
+        var e;
+        if(mode===null){host.appendChild(document.createTextNode(buf));buf="";return;}
+        if(mode==="*"){e=document.createElement("b");}
+        else if(mode==="_"){e=document.createElement("i");}
+        else {e=document.createElement("span");e.className="cdp-num";}
+        e.appendChild(document.createTextNode(buf));
+        host.appendChild(e);buf="";
+      }
+      while(i<n){
+        ch=s.charAt(i);
+        if(ch==="|"){flush();mode=null;host.appendChild(document.createElement("br"));i++;continue;}
+        if(ch==="*"||ch==="_"||ch==="~"){
+          if(mode===ch){flush();mode=null;}
+          else if(mode===null){flush();mode=ch;}
+          else{buf+=ch;}
+          i++;continue;
+        }
+        buf+=ch;i++;
+      }
+      flush();
+    }
+
+    function nf(v,d){
+      if(v==null||!isFinite(v))return "—";
+      var neg=v<0,s=Math.abs(v).toFixed(d),p=s.split("."),i=p[0],r="";
+      while(i.length>3){r=" "+i.slice(-3)+r;i=i.slice(0,-3);}
+      return (neg?"−":"")+i+r+(p[1]?","+p[1]:"");
+    }
+    function sgn(v,d){return (v>0?"+":"")+nf(v,d);}
+
+    /* ================= constantes reprises du document ================= */
+    var BIAIS_DIASORIN=-10;      /* nmol/L, vs LC-MS/MS de référence */
+    var ECART_IDS=11.5;          /* nmol/L, Diasorin sous IDS-iSYS */
+    var SOUS_D2=0.27;            /* sous-estimation de la forme D2 au-dessus de 50 nmol/L */
+    var VDSP_BIAIS=0.05;         /* biais moyen toléré */
+    var VDSP_CV=0.10;            /* coefficient de variation toléré */
+    var NG_PAR_NMOL=2.5;         /* 1 ng/mL = 2,5 nmol/L */
+    var UL=4000, NOAEL=10000, FACT_INCERT=2.5;
+    var TOX_LO=10000, TOX_HI=40000, TOX_SERIQUE=500;
+    var HYPERCA_RR=2.21, HYPERCA_CAS=4;   /* pour 1000 sujets, à 3200-4000 UI/j */
+    var COHORTE=1000;                     /* cohorte jouet de la boucle */
+
+    var ST={ph:1,seen:1,pat:"dom45",meth:"lcms",seuil:"s50",sch:"rda",
+            maillon:0,tours:0,timer:null,ltimer:null};
+
+    /* ================= étape 1 : les patients ================= */
+    var PATIENTS=[
+      {id:"dom45",lab:"Adulte à domicile, 45 ans",court:"Adulte 45 ans",
+       vrai:62,d2:0,inst:false,
+       ctx:"vit à son domicile, sans facteur de risque particulier, et ne prend rien"},
+      {id:"inst84",lab:"Femme institutionnalisée, 84 ans",court:"Femme 84 ans",
+       vrai:28,d2:0,inst:true,
+       ctx:"vit en institution, sort peu, et présente le profil des femmes de l'essai Chapuy"},
+      {id:"sev38",lab:"Adulte à 20 nmol/L, 38 ans",court:"Adulte 20 nmol/L",
+       vrai:20,d2:0,inst:false,
+       ctx:"cumule une exposition solaire quasi nulle et une peau très pigmentée"},
+      {id:"ado15",lab:"Adolescent, 15 ans",court:"Adolescent 15 ans",
+       vrai:44,d2:0,inst:false,
+       ctx:"relève de la tranche 1-18 ans que l'Endocrine Society 2024 cible sans dosage"},
+      {id:"gross31",lab:"Grossesse, 31 ans",court:"Grossesse 31 ans",
+       vrai:55,d2:0,inst:false,
+       ctx:"est enceinte, autre sous-groupe ciblé sans dosage préalable en 2024"},
+      {id:"age78",lab:"Homme de 78 ans, à domicile",court:"Homme 78 ans",
+       vrai:48,d2:0,inst:false,
+       ctx:"a dépassé 75 ans, seuil d'âge du seul sous-groupe adulte ciblé en 2024"},
+      {id:"d2sup52",lab:"Adulte supplémenté en vitamine D2, 52 ans",court:"Supplémenté D2",
+       vrai:58,d2:30,inst:false,
+       ctx:"prend depuis des mois de la vitamine D2, dont 30 nmol/L de son statut proviennent"}
+    ];
+    function pat(){var i;for(i=0;i<PATIENTS.length;i++)if(PATIENTS[i].id===ST.pat)return PATIENTS[i];
+      return PATIENTS[0];}
+
+    /* ================= étape 2 : les méthodes ================= */
+    var METHODES=[
+      {id:"lcms",lab:"LC-MS/MS de référence",
+       note:"Méthode de référence, calibrée entre le NIST, l'université de Gand et le CDC. "+
+            "Elle sépare et quantifie les formes D2 et D3. Ici, elle rend le statut vrai par "+
+            "construction du jouet."},
+      {id:"diasorin",lab:"Immunoessai Diasorin-Liaison",
+       note:"Cet immunoessai mesurait en moyenne 10 nmol/L de moins que la LC-MS/MS de "+
+            "référence. Le widget applique cet écart moyen d'essai au patient unique, ce qu'un "+
+            "biais moyen ne décrit pas : il vaut ici comme ordre de grandeur, pas comme "+
+            "prédiction du résultat individuel."},
+      {id:"idsisys",lab:"Immunoessai IDS-iSYS",
+       note:"Position obtenue en chaînant deux écarts publiés : l'essai Diasorin-Liaison rendait "+
+            "10 nmol/L de moins que la référence et 11,5 nmol/L de moins que l'IDS-iSYS, d'où "+
+            "un écart de +1,5 nmol/L à la référence. Ce chaînage est une composition du widget, "+
+            "pas une mesure directe."},
+      {id:"d2blind",lab:"Immunoessai reconnaissant mal la D2",
+       note:"L'un des immunoessais testés sous-estimait la forme 25(OH)D2 d'environ 27 % en "+
+            "moyenne au-dessus de 50 nmol/L. L'effet ne se produit donc que chez un patient "+
+            "supplémenté en vitamine D2 dont le statut dépasse ce niveau : ailleurs, l'essai "+
+            "n'a pas de forme D2 à manquer et rend le statut vrai."}
+    ];
+    function meth(){var i;for(i=0;i<METHODES.length;i++)if(METHODES[i].id===ST.meth)return METHODES[i];
+      return METHODES[0];}
+
+    function mesure(){
+      var p=pat(),m=ST.meth,v=p.vrai,r=v,src="";
+      if(m==="diasorin"){r=v+BIAIS_DIASORIN;src="biais moyen de −10 nmol/L";}
+      else if(m==="idsisys"){r=v+BIAIS_DIASORIN+ECART_IDS;src="chaînage −10 puis +11,5 nmol/L";}
+      else if(m==="d2blind"){
+        if(p.d2>0&&v>50){r=v-SOUS_D2*p.d2;src="27 % de la part D2 manqués";}
+        else {r=v;src="aucune forme D2 à manquer";}
+      } else {src="méthode de référence";}
+      if(r<0)r=0;
+      var ecart=r-v, pct=(v>0)?100*ecart/v:0;
+      return {vrai:v,rendu:r,ecart:ecart,pct:pct,src:src,
+        tolBiais:VDSP_BIAIS*v, cvBande:VDSP_CV*r,
+        horsTol:Math.abs(ecart)>VDSP_BIAIS*v+1e-9};
+    }
+
+    /* ================= étape 3 : les conventions ================= */
+    var SEUILS=[
+      {id:"s30",T:30,lab:"30 nmol/L",sub:"carence (IOM/NAM 2011)",prev:15.7,
+       bas:"carencé",haut:"non carencé"},
+      {id:"s50",T:50,lab:"50 nmol/L",sub:"suffisance (IOM/NAM 2011)",prev:47.9,
+       bas:"insuffisant",haut:"suffisant"},
+      {id:"s75",T:75,lab:"75 nmol/L",sub:"suffisance (Endocrine Society 2011)",prev:76.6,
+       bas:"insuffisant",haut:"suffisant"},
+      {id:"none",T:null,lab:"Pas de seuil",sub:"Endocrine Society 2024",prev:null,
+       bas:"",haut:""}
+    ];
+    function seuil(){var i;for(i=0;i<SEUILS.length;i++)if(SEUILS[i].id===ST.seuil)return SEUILS[i];
+      return SEUILS[1];}
+
+    function verdictDe(x){
+      var s=seuil();
+      if(s.T==null)return "aucun verdict de statut";
+      return (x<s.T)?s.bas:s.haut;
+    }
+    function convention(){
+      var s=seuil(),M=mesure();
+      var vR=verdictDe(M.rendu), vV=verdictDe(M.vrai);
+      var inversion=(s.T!=null)&&(vR!==vV);
+      var fragile=(s.T!=null)&&(Math.abs(M.rendu-s.T)<=M.cvBande);
+      return {s:s,vRendu:vR,vVrai:vV,inversion:inversion,fragile:fragile,M:M};
+    }
+
+    /* ================= étape 4 : les schémas ================= */
+    var SCHEMAS=[
+      {id:"rien",lab:"Ne rien faire",disp:"0 UI/j",jour:0,daily:false,bolus:false,ca:false},
+      {id:"rda",lab:"600-800 UI/j (RDA IOM)",disp:"800 UI/j",jour:800,daily:true,bolus:false,
+       ca:false},
+      {id:"chapuy",lab:"800 UI/j + 1,2 g/j de calcium",disp:"800 UI/j + 1,2 g/j",jour:800,
+       daily:true,bolus:false,ca:true},
+      {id:"haut",lab:"3200-4000 UI/j",disp:"4000 UI/j",jour:4000,daily:true,bolus:false,
+       ca:false},
+      {id:"b60k",lab:"Bolus 60 000 UI/mois",disp:"60 000 UI/mois",jour:60000/30,daily:false,
+       bolus:true,ca:false},
+      {id:"b500k",lab:"Bolus 500 000 UI/an",disp:"500 000 UI/an",jour:500000/365,daily:false,
+       bolus:true,ca:false}
+    ];
+    function sch(){var i;for(i=0;i<SCHEMAS.length;i++)if(SCHEMAS[i].id===ST.sch)return SCHEMAS[i];
+      return SCHEMAS[1];}
+
+    /* ================= étape 5 : les issues, citées et non promises ================= */
+    function verdicts(){
+      var p=pat(),s=sch(),C=convention(),out=[];
+
+      /* --- os, fractures, chutes --- */
+      if(s.id==="rien"){
+        out.push({ton:"cdp-vneu",t:"Os, fractures et chutes — aucune intervention",
+          b:"Cette branche est exactement le bras témoin des essais cités plus bas. Le document "+
+            "ne lui attribue ni bénéfice ni perte : elle sert de référence à tout le reste.",
+          s:"Aucune source n'est requise pour ne rien faire."});
+      } else if(s.bolus){
+        if(s.id==="b500k"){
+          out.push({ton:"cdp-vbad",t:"Os et chutes — signal délétère, pas une absence d'effet",
+            b:"À 500 000 UI en une prise annuelle contre placebo, les chutes augmentent (RR 1,15, "+
+              "IC 95 % 1,02–1,30, p=0,03) et les fractures aussi (RR 1,26, IC 95 % 1,00–1,59, "+
+              "p=0,047). La relation dose-effet ne plafonne pas : elle s'inverse.",
+            s:"Sanders et coll., JAMA 2010 — femmes âgées vivant à domicile."});
+        } else {
+          out.push({ton:"cdp-vbad",t:"Chutes — signal délétère à la dose bolus élevée",
+            b:"À 60 000 UI par mois contre 24 000 UI par mois, la proportion de chuteurs monte à "+
+              "66,9 % contre 47,9 % (p=0,048), sans bénéfice fonctionnel supplémentaire. La "+
+              "prise annuelle de 500 000 UI donne le même sens de signal sur les chutes et les "+
+              "fractures.",
+            s:"Bischoff-Ferrari et coll., JAMA Internal Medicine 2016 ; Sanders et coll., "+
+              "JAMA 2010."});
+        }
+      } else if(p.inst&&p.vrai<30&&s.daily&&s.ca){
+        out.push({ton:"cdp-vok",t:"Os — la seule configuration où un bénéfice osseux est documenté",
+          b:"Chez 3270 femmes institutionnalisées, âgées en moyenne de 84 ans et carencées, "+
+            "800 UI/j de vitamine D3 avec 1,2 g/j de calcium pendant 18 mois ont réduit les "+
+            "fractures de hanche de 43 % (p=0,043) et les fractures non vertébrales de 32 % "+
+            "(p=0,015). Les quatre conditions comptent ensemble : carence, institution, dose "+
+            "quotidienne, calcium associé.",
+          s:"Chapuy et coll., New England Journal of Medicine 1992."});
+      } else if(p.inst&&p.vrai<30&&s.daily&&!s.ca){
+        out.push({ton:"cdp-vwarn",t:"Os — configuration de Chapuy incomplète : le calcium manque",
+          b:"La population correspond, le schéma quotidien aussi, mais l'intervention testée en "+
+            "1992 comprenait 1,2 g/j de calcium. Sans lui, on ne se trouve plus dans le seul "+
+            "essai qui a montré le bénéfice. Une méta-analyse par dose reçue trouve par ailleurs "+
+            "un effet sur les fractures non vertébrales au-dessus d'environ 400 UI/j reçues "+
+            "(RR 0,80, IC 95 % 0,72–0,89 dans le sous-groupe à 482-770 UI/j), avec ou sans "+
+            "calcium associé.",
+          s:"Chapuy et coll., NEJM 1992 ; Bischoff-Ferrari et coll., Archives of Internal "+
+            "Medicine 2009."});
+      } else {
+        out.push({ton:"cdp-vnul",t:"Os, fractures et chutes — nul en population non sélectionnée",
+          b:"Sur 81 essais randomisés et 53 537 participants non sélectionnés sur leur statut, "+
+            "aucun effet : fractures totales RR 1,00 (IC 95 % 0,93–1,07), fractures de hanche "+
+            "RR 1,11 (IC 95 % 0,97–1,26), chutes RR 0,97 (IC 95 % 0,93–1,02), la frontière de "+
+            "futilité étant franchie pour les fractures et les chutes. La sous-étude osseuse de "+
+            "VITAL (25 871 participants, 2000 UI/j) ne trouve rien non plus : fracture totale "+
+            "HR 0,98 (IC 95 % 0,89–1,08, p=0,70), hanche HR 1,01 (IC 95 % 0,70–1,47).",
+          s:"Bolland, Grey et Avenell, Lancet Diabetes & Endocrinology 2018 ; LeBoff et coll., "+
+            "NEJM 2022."});
+      }
+
+      /* --- infections respiratoires --- */
+      if(s.id==="rien"){
+        out.push({ton:"cdp-vneu",t:"Infections respiratoires — aucune intervention",
+          b:"Rien n'est administré, donc rien n'est attendu de ce côté.",
+          s:"—"});
+      } else if(s.bolus){
+        out.push({ton:"cdp-vnul",t:"Infections respiratoires — le bolus n'est pas le schéma porteur",
+          b:"Dans la mise à jour de 2021 (45 essais, 73 384 participants éligibles), l'effet "+
+            "global reste modeste (OR 0,91, IC 95 % 0,84–0,99) et se concentre sur les schémas "+
+            "quotidiens (OR 0,75, IC 95 % 0,61–0,93). Le schéma d'administration compte "+
+            "davantage que la quantité totale reçue.",
+          s:"Jolliffe et Martineau, Lancet Diabetes & Endocrinology 2021."});
+      } else if(p.vrai<25&&s.daily){
+        out.push({ton:"cdp-vok",t:"Infections respiratoires — bénéfice réservé au statut basal très bas",
+          b:"Chez les participants dont le statut de départ était inférieur à 25 nmol/L, sous "+
+            "schéma quotidien ou hebdomadaire sans dose de charge, la méta-analyse sur données "+
+            "individuelles de 2017 (25 essais, 10 933 participants) rapporte un OR de 0,30 "+
+            "(IC 95 % 0,17–0,53), soit 4 personnes à traiter pour éviter un épisode. Résultat de "+
+            "source unique, non reproduit par la mise à jour de 2021 : aucun sous-groupe défini "+
+            "par le statut de départ n'y reste significatif.",
+          s:"Martineau et coll., BMJ 2017 ; mise à jour Jolliffe et Martineau, Lancet Diabetes & "+
+            "Endocrinology 2021, qui ne la retrouve pas."});
+      } else {
+        out.push({ton:"cdp-vnul",t:"Infections respiratoires — effet global modeste, rien de spécifique ici",
+          b:"Le statut de départ de ce patient n'est pas celui du sous-groupe très carencé. Reste "+
+            "l'effet global de la mise à jour de 2021 : OR 0,91 (IC 95 % 0,84–0,99) sur 45 essais "+
+            "et 73 384 participants éligibles, avec OR 0,75 (IC 95 % 0,61–0,93) pour les schémas "+
+            "quotidiens. Un effet moyen de cohorte n'est pas une attente individuelle.",
+          s:"Jolliffe et Martineau, Lancet Diabetes & Endocrinology 2021."});
+      }
+
+      /* --- cancer, événements cardiovasculaires, mortalité --- */
+      if(s.id!=="rien"){
+        out.push({ton:"cdp-vnul",t:"Cancer, événements cardiovasculaires, mortalité — nul",
+          b:"Les trois grands essais indépendants chez l'adulte non carencé ne trouvent rien sur "+
+            "leurs critères principaux. VITAL, 25 871 participants sous 2000 UI/j : cancer "+
+            "invasif HR 0,96 (IC 95 % 0,88–1,06), événements cardiovasculaires majeurs HR 0,97 "+
+            "(IC 95 % 0,85–1,12). D-Health, 21 315 participants sous 60 000 UI/mois : mortalité "+
+            "toutes causes HR 1,04 (IC 95 % 0,93–1,18), p=0,47. ViDA, 5110 participants sous "+
+            "100 000 UI/mois : rien non plus.",
+          s:"VITAL, D-Health et ViDA — trois essais menés par des équipes distinctes."});
+        out.push({ton:"cdp-vwarn",t:"Sous-groupes exploratoires — deux signaux opposés, de même statut",
+          b:"En excluant les premières années de suivi, VITAL voit la mortalité par cancer "+
+            "descendre (HR 0,83, IC 95 % 0,67–1,02 en analyse principale de ce critère "+
+            "secondaire ; HR 0,79, IC 95 % 0,63–0,99 en excluant la première année ; HR 0,75, "+
+            "IC 95 % 0,59–0,96 en excluant les deux premières) — tandis que D-Health, sur la même "+
+            "manipulation, la voit monter (HR 1,24, IC 95 % 1,01–1,54, p=0,05). Les auteurs des "+
+            "deux essais qualifient eux-mêmes ces analyses de non prespécifiées et génératrices "+
+            "d'hypothèses. Retenir l'une sans l'autre est un choix, pas une lecture.",
+          s:"VITAL et D-Health, analyses censurées sur la durée de suivi."});
+      }
+
+      /* --- sécurité --- */
+      var secTon="cdp-vneu",secT="Sécurité — sous la borne supérieure tolérable",secB="",secS="";
+      if(s.id==="rien"){
+        secT="Sécurité — rien n'est administré";
+        secB="Aucune exposition, donc aucun risque de surdosage. C'est la seule branche pour "+
+             "laquelle cette phrase se vérifie sans mesure.";
+        secS="—";
+      } else {
+        var j=s.jour;
+        if(j>=3200){
+          secTon="cdp-vbad";
+          secT="Sécurité — un signal d'hypercalcémie existe déjà dans la zone dite tolérable";
+          secB="À 3200-4000 UI/j, une méta-analyse d'essais de longue durée mesure un excès "+
+               "d'hypercalcémie (RR "+nf(HYPERCA_RR,2)+" contre témoin, environ "+HYPERCA_CAS+
+               " cas attribuables pour 1000 sujets) — c'est-à-dire à l'intérieur même de la "+
+               "borne supérieure tolérable de 4000 UI/j, qui n'est donc pas une frontière de "+
+               "sécurité nette.";
+          secS="Méta-analyse d'essais randomisés de longue durée ; borne IOM.";
+        } else if(s.bolus){
+          secTon="cdp-vwarn";
+          secT="Sécurité — la moyenne journalière ne dit pas ce que fait le pic";
+          secB="Ce bolus revient à "+nf(j,0)+" UI/j en moyenne arithmétique, soit "+
+               nf(100*j/UL,1)+" % de la borne supérieure tolérable. Cette division est "+
+               "exactement ce que les essais de bolus démentent : le même total réparti "+
+               "autrement ne produit pas le même effet, et c'est du côté des chutes que l'écart "+
+               "se voit.";
+          secS="Sanders et coll., JAMA 2010 ; Bischoff-Ferrari et coll., JAMA Intern Med 2016.";
+        } else {
+          secTon="cdp-vneu";
+          secT="Sécurité — dose modérée, très en dessous du NOAEL";
+          secB=nf(j,0)+" UI/j représentent "+nf(100*j/UL,1)+" % de la borne supérieure "+
+               "tolérable de 4000 UI/j et "+nf(100*j/NOAEL,1)+" % du NOAEL de 10 000 UI/j. Les "+
+               "cas cliniques de toxicité rapportés se situent entre 10 000 et 40 000 UI/j en "+
+               "prise prolongée, avec des taux sériques avoisinant 500 nmol/L.";
+          secS="Hathcock et coll., Am J Clin Nutr 2007 ; rapports de cas cliniques.";
+        }
+      }
+      out.push({ton:secTon,t:secT,b:secB,s:secS});
+      return out;
+    }
+
+    /* étiquette courte de l'issue, pour la carte et le rail */
+    function issueCourte(){
+      var p=pat(),s=sch();
+      if(s.id==="rien")return "bras témoin";
+      if(s.bolus)return "signal délétère";
+      if(p.inst&&p.vrai<30&&s.daily&&s.ca)return "bénéfice osseux";
+      if(p.vrai<25&&s.daily)return "bénéfice infectieux";
+      if(s.jour>=3200)return "nul + hypercalcémie";
+      return "nul";
+    }
+    function issueTon(){
+      var p=pat(),s=sch();
+      if(s.id==="rien")return "";
+      if(s.bolus)return "cdp-cstop";
+      if(p.inst&&p.vrai<30&&s.daily&&s.ca)return "cdp-cok";
+      if(p.vrai<25&&s.daily)return "cdp-cok";
+      if(s.jour>=3200)return "cdp-cwarn";
+      return "cdp-cvio";
+    }
+
+    /* ================= définitions, à première occurrence ================= */
+    var DEFS=[
+      [["25(OH)D (calcidiol)","forme de réserve de la vitamine D dans le sang. Sa durée de vie "+
+        "d'environ deux semaines en fait le marqueur du statut, alors que la forme active, le "+
+        "calcitriol, ne dure que quelques heures."],
+       ["Statut sérique","la concentration présente dans le sang, exprimée ici en nanomoles par "+
+        "litre (nmol/L). L'autre unité en usage est le nanogramme par millilitre : 1 ng/mL vaut "+
+        "2,5 nmol/L."],
+       ["Institutionnalisé","qui vit en établissement pour personnes âgées, avec peu "+
+        "d'exposition solaire et des apports alimentaires encadrés. C'est la population de "+
+        "l'essai qui a montré un bénéfice osseux."]],
+      [["LC-MS/MS","chromatographie liquide couplée à deux spectromètres de masse. Méthode de "+
+        "référence : elle sépare et pèse chaque forme, D2 et D3, au lieu de les reconnaître par "+
+        "un anticorps."],
+       ["Immunoessai","dosage fondé sur la reconnaissance de la molécule par un anticorps. "+
+        "Rapide et répandu, mais sa réponse dépend de la forme rencontrée."],
+       ["Biais","écart systématique et orienté d'une méthode par rapport à la référence. Il ne "+
+        "se corrige pas en répétant la mesure."],
+       ["Coefficient de variation (CV)","dispersion des résultats d'une même méthode sur un "+
+        "même échantillon, rapportée à leur moyenne. Le VDSP tolère jusqu'à 10 %."],
+       ["VDSP et DEQAS","le Vitamin D Standardization Program fixe les critères de performance "+
+        "(CV ≤ 10 %, biais moyen ≤ ±5 %) ; le programme DEQAS envoie quatre fois par an des "+
+        "échantillons tests à plus de 1000 laboratoires pour les contrôler de l'extérieur."]],
+      [["Seuil","valeur de partage décidée par un comité, en dessous de laquelle on déclare une "+
+        "carence ou une insuffisance. C'est une convention, pas une propriété du sang."],
+       ["Carence et insuffisance","deux étages du même vocabulaire : la carence désigne le "+
+        "niveau le plus bas (souvent 30 nmol/L), l'insuffisance un niveau intermédiaire dont la "+
+        "borne haute varie de 50 à 75 nmol/L selon l'institution."],
+       ["Prévalence","proportion d'une population qui se trouve sous le seuil retenu. Elle "+
+        "change avec le seuil sans qu'un seul sang ait changé."],
+       ["Inversion de verdict","cas où le chiffre rendu et le statut vrai tombent de part et "+
+        "d'autre du seuil : le diagnostic vient alors de la méthode de dosage, pas du patient."]],
+      [["RDA","Recommended Dietary Allowance, apport quotidien recommandé censé couvrir les "+
+        "besoins de la quasi-totalité de la population. L'IOM la fixe à 600 UI/j jusqu'à 70 ans, "+
+        "800 UI/j au-delà."],
+       ["UL","borne supérieure tolérable, ici 4000 UI/j : le niveau au-delà duquel l'institution "+
+        "ne garantit plus l'absence de risque."],
+       ["NOAEL","no observed adverse effect level, la dose la plus élevée sans effet indésirable "+
+        "observé dans les essais examinés — 10 000 UI/j chez l'adulte sain."],
+       ["Facteur d'incertitude","diviseur de prudence appliqué au NOAEL pour fixer la borne "+
+        "officielle. Ici 2,5, ce qui ramène 10 000 à 4000 UI/j."],
+       ["Bolus","prise massive et espacée, mensuelle ou annuelle, par opposition à la prise "+
+        "quotidienne. La quantité totale peut être identique ; l'effet, non."]],
+      [["Risque relatif (RR), rapport de cotes (OR), rapport de risques (HR)","trois façons de "+
+        "comparer deux groupes. La valeur 1 signifie « aucune différence » ; en dessous de 1 "+
+        "l'événement est plus rare dans le groupe traité, au-dessus il est plus fréquent."],
+       ["Intervalle de confiance à 95 %","plage de valeurs compatibles avec les données. S'il "+
+        "contient 1, le résultat ne permet pas d'écarter l'absence d'effet."],
+       ["NNT","nombre de personnes à traiter pour éviter un événement. Plus il est petit, plus "+
+        "l'effet est utile en pratique."],
+       ["Analyse de sous-groupe exploratoire","découpage décidé après coup, non prévu au "+
+        "protocole. Elle sert à formuler une hypothèse, jamais à la démontrer."],
+       ["Hypercalcémie","excès de calcium dans le sang. C'est la manifestation habituelle du "+
+        "surdosage en vitamine D, avant les atteintes rénales et les calcifications."]]
+    ];
+
+    /* ================= titres des étapes ================= */
+    var PH=[
+      {t:"Statut vrai",s:"Statut vrai",s2:"ce que contient le sang"},
+      {t:"Mesure",s:"Mesure",s2:"ce que rend le laboratoire"},
+      {t:"Convention",s:"Convention",s2:"ce qu'un seuil en conclut"},
+      {t:"Décision et schéma",s:"Décision",s2:"ce que l'on administre"},
+      {t:"Issue attendue",s:"Issue",s2:"ce que disent les essais"}
+    ];
+
+    /* ================= sélecteurs contextuels ================= */
+    function buildChips(host,opts,cur,cb){
+      var i;
+      for(i=0;i<opts.length;i++)(function(o){
+        var b=document.createElement("button");
+        b.type="button";b.className="cdp-chip";
+        b.setAttribute("aria-pressed",o[0]===cur?"true":"false");
+        b.appendChild(document.createTextNode(o[1]));
+        b.onclick=function(){cb(o[0]);};
+        host.appendChild(b);
+      })(opts[i]);
+    }
+    function ctlBlock(labText,opts,cur,cb,note){
+      var host=$("cdp-ctl");clr(host);
+      var lab=document.createElement("p");lab.className="cdp-ctllab";
+      lab.appendChild(document.createTextNode(labText));
+      host.appendChild(lab);
+      var row=document.createElement("div");row.className="cdp-chips";
+      buildChips(row,opts,cur,cb);
+      host.appendChild(row);
+      if(note){
+        var p=document.createElement("p");p.className="cdp-ctlnote";
+        p.appendChild(document.createTextNode(note));
+        host.appendChild(p);
+      }
+    }
+
+    /* ================= axe des concentrations ================= */
+    var AX_X0=52,AX_X1=530,AX_MAX=100;
+    function ax(v){return AX_X0+(AX_X1-AX_X0)*Math.min(v,AX_MAX)/AX_MAX;}
+    function drawAxis(g,y,titre){
+      var i,x;
+      /* Titre à hauteur fixe : accroché à l'axe, il venait heurter les repères de seuil. */
+      g.appendChild(el("text",{x:16,y:26,"font-size":"12","font-weight":"700",fill:"#43536A"},
+        titre));
+      g.appendChild(el("line",{x1:AX_X0,y1:y,x2:AX_X1,y2:y,stroke:"#7A889B","stroke-width":"1.5"}));
+      for(i=0;i<=100;i+=10){
+        x=ax(i);
+        g.appendChild(el("line",{x1:x,y1:y,x2:x,y2:y+(i%50===0?7:4),stroke:"#B4BECB"}));
+        if(i%25===0)g.appendChild(el("text",{x:x,y:y+20,"font-size":"9.5",fill:"#7A889B",
+          "text-anchor":"middle"},String(i)));
+      }
+      g.appendChild(el("text",{x:AX_X1,y:y+33,"font-size":"9.5",fill:"#7A889B",
+        "text-anchor":"end"},"nmol/L"));
+    }
+    function tick(g,v,y,col,lab,sous,haut){
+      var x=ax(v);
+      g.appendChild(el("line",{x1:x,y1:y-haut,x2:x,y2:y,stroke:col,"stroke-width":"2.5"}));
+      g.appendChild(el("circle",{cx:x,cy:y-haut,r:4,fill:col}));
+      var anc=(x>AX_X1-70)?"end":((x<AX_X0+58)?"start":"middle");
+      g.appendChild(el("text",{x:x,y:y-haut-8,"font-size":"11","font-weight":"700",fill:col,
+        "text-anchor":anc},lab));
+      if(sous)g.appendChild(el("text",{x:x,y:y-haut-21,"font-size":"9.5",fill:"#7A889B",
+        "text-anchor":anc},sous));
+    }
+
+    /* ================= figures ================= */
+    function fig1(g){
+      $("cdp-svg").setAttribute("viewBox","0 0 560 300");
+      var p=pat();
+      drawAxis(g,116,"Statut vrai posé par le jouet, tel que la méthode de référence le rendrait");
+      /* zones de seuil, en repère seulement */
+      var i,zs=[[30,"30"],[50,"50"],[75,"75"]];
+      for(i=0;i<zs.length;i++){
+        g.appendChild(el("line",{x1:ax(zs[i][0]),y1:80,x2:ax(zs[i][0]),y2:116,stroke:"#E7ECF3",
+          "stroke-width":"1","stroke-dasharray":"3 3"}));
+        g.appendChild(el("text",{x:ax(zs[i][0]),y:74,"font-size":"9",fill:"#B4BECB",
+          "text-anchor":"middle"},zs[i][1]));
+      }
+      g.appendChild(el("text",{x:16,y:42,"font-size":"9.5",fill:"#B4BECB"},
+        "les trois seuils en usage, en repère : aucun n'est encore appliqué"));
+      tick(g,p.vrai,116,"#23537F",nf(p.vrai,0)+" nmol/L","statut vrai",34);
+      if(p.d2>0){
+        g.appendChild(el("rect",{x:ax(0),y:124,width:ax(p.d2)-ax(0),height:11,rx:3,
+          fill:"#EEEAF6",stroke:"#5B4A8A"}));
+        g.appendChild(el("text",{x:ax(p.d2)+8,y:133,"font-size":"9.5",fill:"#5B4A8A"},
+          "dont "+nf(p.d2,0)+" nmol/L sous forme 25(OH)D2, part posée par le widget"));
+      }
+      g.appendChild(el("rect",{x:16,y:152,width:528,height:66,rx:8,fill:"#F4F6FA",
+        stroke:"#D7DFE9"}));
+      g.appendChild(el("text",{x:28,y:172,"font-size":"11.5","font-weight":"700",fill:"#23537F"},
+        p.lab));
+      g.appendChild(el("text",{x:28,y:190,"font-size":"11",fill:"#43536A"},"Ce patient "+p.ctx+"."));
+      g.appendChild(el("text",{x:28,y:208,"font-size":"11",fill:"#43536A"},
+        "Soit "+nf(p.vrai/NG_PAR_NMOL,1)+" ng/mL dans l'autre unité en usage."));
+      g.appendChild(el("rect",{x:16,y:230,width:528,height:56,rx:8,fill:"#E7EEF6",
+        stroke:"#2C77B6"}));
+      g.appendChild(el("text",{x:28,y:250,"font-size":"11","font-weight":"700",fill:"#23537F"},
+        "Ce que ce chiffre n'est pas"));
+      g.appendChild(el("text",{x:28,y:267,"font-size":"11",fill:"#43536A"},
+        "Il ne dit ni « carence » ni « suffisance ». Aucun de ces mots n'existe avant"));
+      g.appendChild(el("text",{x:28,y:282,"font-size":"11",fill:"#43536A"},
+        "l'étape 3, où une convention, et elle seule, les fabrique."));
+    }
+
+    function fig2(g){
+      $("cdp-svg").setAttribute("viewBox","0 0 560 300");
+      var M=mesure(),m=meth();
+      drawAxis(g,150,"Deux valeurs sur le même axe : le statut vrai, et le chiffre rendu");
+      /* bande de biais toléré autour du vrai */
+      var xa=ax(Math.max(0,M.vrai-M.tolBiais)),xb=ax(M.vrai+M.tolBiais);
+      g.appendChild(el("rect",{x:xa,y:138,width:Math.max(1,xb-xa),height:12,fill:"#EAF4EE",
+        stroke:"#BEDCCB"}));
+      g.appendChild(el("text",{x:16,y:44,"font-size":"9.5",fill:"#2F7D5B"},
+        "bande verte : biais moyen toléré par le VDSP, ≤ ±5 % du vrai, soit ±"+
+        nf(M.tolBiais,1)+" nmol/L ici"));
+      tick(g,M.vrai,150,"#23537F",nf(M.vrai,0)+" nmol/L","statut vrai",70);
+      tick(g,M.rendu,150,M.horsTol?"#7C2A38":"#2F7D5B",nf(M.rendu,1)+" nmol/L","chiffre rendu",34);
+      /* Flèche d'écart sous les graduations : posée à mi-hauteur, elle passait dessus. */
+      if(Math.abs(M.ecart)>0.05){
+        var y=186,x1=ax(M.vrai),x2=ax(M.rendu),col=M.horsTol?"#7C2A38":"#2F7D5B";
+        g.appendChild(el("line",{x1:x1,y1:y,x2:x2,y2:y,stroke:col,"stroke-width":"2"}));
+        var dir=(x2>x1)?-6:6;
+        g.appendChild(el("path",{d:"M"+x2+" "+y+" L"+(x2+dir)+" "+(y-4)+" L"+(x2+dir)+" "+(y+4)+" Z",
+          fill:col}));
+        g.appendChild(el("text",{x:(x1+x2)/2,y:y+16,"font-size":"11","font-weight":"700",fill:col,
+          "text-anchor":"middle"},sgn(M.ecart,1)+" nmol/L  ("+sgn(M.pct,1)+" %)"));
+      } else {
+        g.appendChild(el("text",{x:ax(M.vrai),y:202,"font-size":"11","font-weight":"700",
+          fill:"#2F7D5B","text-anchor":"middle"},"écart nul"));
+      }
+      g.appendChild(el("rect",{x:16,y:210,width:528,height:44,rx:8,
+        fill:M.horsTol?"#F3E3E6":"#EAF4EE",stroke:M.horsTol?"#7C2A38":"#BEDCCB"}));
+      g.appendChild(el("text",{x:28,y:229,"font-size":"11","font-weight":"700",
+        fill:M.horsTol?"#7C2A38":"#2F7D5B"},
+        M.horsTol
+          ? ("Écart de "+nf(Math.abs(M.pct),1)+" %, au-delà du biais moyen toléré de 5 %")
+          : ("Écart de "+nf(Math.abs(M.pct),1)+" %, dans le biais moyen toléré de 5 %")));
+      g.appendChild(el("text",{x:28,y:246,"font-size":"10.5",fill:"#43536A"},
+        "Origine du chiffre rendu : "+M.src+" · "+m.lab));
+      g.appendChild(el("rect",{x:16,y:258,width:528,height:40,rx:8,fill:"#FBF3E3",
+        stroke:"#EAD9B4"}));
+      g.appendChild(el("text",{x:28,y:276,"font-size":"11","font-weight":"700",fill:"#C68A2E"},
+        "Même un essai conforme bouge : CV ≤ 10 %, soit ±"+nf(M.cvBande,1)+" nmol/L ici"));
+      g.appendChild(el("text",{x:28,y:292,"font-size":"10.5",fill:"#43536A"},
+        "Deux dosages du même sang peuvent donc s'écarter sans qu'aucun soit fautif."));
+    }
+
+    function fig3(g){
+      $("cdp-svg").setAttribute("viewBox","0 0 560 300");
+      var C=convention(),M=C.M,s=C.s;
+      drawAxis(g,120,"Le seuil appliqué au chiffre rendu — et, en regard, au statut vrai");
+      if(s.T!=null){
+        g.appendChild(el("line",{x1:ax(s.T),y1:52,x2:ax(s.T),y2:127,stroke:"#7C2A38",
+          "stroke-width":"2.5"}));
+        /* Légende à gauche plutôt qu'au-dessus du trait : posée sur le trait, elle venait
+           heurter l'étiquette du repère dès que le patient s'approchait du seuil. */
+        g.appendChild(el("rect",{x:16,y:32,width:8,height:11,fill:"#7C2A38"}));
+        g.appendChild(el("text",{x:29,y:41,"font-size":"11","font-weight":"700",
+          fill:"#7C2A38"},"seuil "+s.lab));
+        /* bande de tolérance du CV autour du rendu */
+        var xa=ax(Math.max(0,M.rendu-M.cvBande)),xb=ax(M.rendu+M.cvBande);
+        g.appendChild(el("rect",{x:xa,y:114,width:Math.max(1,xb-xa),height:12,
+          fill:C.fragile?"#FBF3E3":"#F4F6FA",stroke:C.fragile?"#C68A2E":"#D7DFE9"}));
+      } else {
+        g.appendChild(el("text",{x:16,y:45,"font-size":"11","font-weight":"700",
+          fill:"#5B4A8A"},"aucun seuil tracé : la ligne de partage n'existe pas"));
+      }
+      tick(g,M.vrai,120,"#23537F",nf(M.vrai,0)+" · vrai","",62);
+      tick(g,M.rendu,120,"#2C77B6",nf(M.rendu,1)+" · rendu","",26);
+      /* verdicts */
+      var yb=158;
+      g.appendChild(el("rect",{x:16,y:yb,width:258,height:46,rx:8,fill:"#FBFCFE",
+        stroke:"#D7DFE9"}));
+      g.appendChild(el("text",{x:28,y:yb+18,"font-size":"9.5","font-weight":"700",fill:"#7A889B"},
+        "VERDICT SUR LE STATUT VRAI"));
+      g.appendChild(el("text",{x:28,y:yb+36,"font-size":"12.5","font-weight":"700",fill:"#23537F"},
+        C.vVrai));
+      g.appendChild(el("rect",{x:286,y:yb,width:258,height:46,rx:8,
+        fill:C.inversion?"#F3E3E6":"#E7EEF6",stroke:C.inversion?"#7C2A38":"#2C77B6"}));
+      g.appendChild(el("text",{x:298,y:yb+18,"font-size":"9.5","font-weight":"700",
+        fill:C.inversion?"#7C2A38":"#2C77B6"},"VERDICT RENDU AU PATIENT"));
+      g.appendChild(el("text",{x:298,y:yb+36,"font-size":"12.5","font-weight":"700",
+        fill:C.inversion?"#7C2A38":"#23537F"},C.vRendu));
+      if(C.inversion){
+        g.appendChild(el("text",{x:16,y:218,"font-size":"11","font-weight":"700",fill:"#7C2A38"},
+          "Inversion : le verdict change par le seul effet de la méthode de dosage."));
+      } else if(C.fragile){
+        g.appendChild(el("text",{x:16,y:218,"font-size":"11","font-weight":"700",fill:"#C68A2E"},
+          "Verdict fragile : le seuil tombe dans la dispersion tolérée du dosage."));
+      } else if(s.T==null){
+        g.appendChild(el("text",{x:16,y:218,"font-size":"11","font-weight":"700",fill:"#5B4A8A"},
+          "Sans seuil, il n'y a rien à inverser : la chaîne saute ce maillon."));
+      } else {
+        g.appendChild(el("text",{x:16,y:218,"font-size":"11","font-weight":"700",fill:"#2F7D5B"},
+          "Les deux verdicts coïncident : ici, la méthode ne change pas la conclusion."));
+      }
+      /* prévalences sur la cohorte mondiale */
+      g.appendChild(el("text",{x:16,y:240,"font-size":"10.5","font-weight":"700",fill:"#43536A"},
+        "Même cohorte mondiale de 8 millions d'individus, trois seuils, trois épidémies"));
+      var i,bars=[[75,76.6],[50,47.9],[30,15.7]],bx=16,bw=168;
+      for(i=0;i<bars.length;i++){
+        var on=(s.T===bars[i][0]);
+        var x=bx+i*(bw+12);
+        g.appendChild(el("rect",{x:x,y:246,width:bw,height:40,rx:6,fill:on?"#E7EEF6":"#FBFCFE",
+          stroke:on?"#2C77B6":"#D7DFE9","stroke-width":on?"2":"1"}));
+        g.appendChild(el("rect",{x:x+8,y:274,width:(bw-16)*bars[i][1]/100,height:7,rx:3,
+          fill:on?"#2C77B6":"#B4BECB"}));
+        g.appendChild(el("text",{x:x+8,y:262,"font-size":"11","font-weight":"700",
+          fill:on?"#23537F":"#7A889B"},"< "+bars[i][0]+" nmol/L : "+nf(bars[i][1],1)+" %"));
+      }
+    }
+
+    function fig4(g){
+      $("cdp-svg").setAttribute("viewBox","0 0 560 300");
+      var s=sch();
+      var X0=52,X1=520,LO=Math.log(100)/Math.LN10,HI=Math.log(40000)/Math.LN10;
+      function lx(v){
+        if(v<=100)return X0;
+        return X0+(X1-X0)*((Math.log(v)/Math.LN10)-LO)/(HI-LO);
+      }
+      var y=150;
+      g.appendChild(el("text",{x:16,y:34,"font-size":"12","font-weight":"700",fill:"#43536A"},
+        "Échelle des doses journalières, en logarithme — de 100 à 40 000 UI/j"));
+      /* zone des cas de toxicité rapportés */
+      g.appendChild(el("rect",{x:lx(TOX_LO),y:y-30,width:lx(TOX_HI)-lx(TOX_LO),height:30,
+        fill:"#F3E3E6",stroke:"#E2C3C9"}));
+      g.appendChild(el("text",{x:(lx(TOX_LO)+lx(TOX_HI))/2,y:y-36,"font-size":"9.5",
+        fill:"#7C2A38","text-anchor":"middle"},"cas de toxicité rapportés"));
+      /* zone tolérable */
+      g.appendChild(el("rect",{x:X0,y:y-30,width:lx(UL)-X0,height:30,fill:"#EAF4EE",
+        stroke:"#BEDCCB"}));
+      g.appendChild(el("text",{x:(X0+lx(UL))/2,y:y-36,"font-size":"9.5",fill:"#2F7D5B",
+        "text-anchor":"middle"},"zone dite tolérable"));
+      g.appendChild(el("line",{x1:X0,y1:y,x2:X1,y2:y,stroke:"#7A889B","stroke-width":"1.5"}));
+      var i,ticks=[100,1000,10000,40000];
+      for(i=0;i<ticks.length;i++){
+        g.appendChild(el("line",{x1:lx(ticks[i]),y1:y,x2:lx(ticks[i]),y2:y+7,stroke:"#B4BECB"}));
+        g.appendChild(el("text",{x:lx(ticks[i]),y:y+20,"font-size":"9.5",fill:"#7A889B",
+          "text-anchor":"middle"},nf(ticks[i],0)));
+      }
+      g.appendChild(el("text",{x:X1+4,y:y+20,"font-size":"9.5",fill:"#7A889B"},"UI/j"));
+      /* repères UL et NOAEL */
+      g.appendChild(el("line",{x1:lx(UL),y1:y-30,x2:lx(UL),y2:y+30,stroke:"#2F7D5B",
+        "stroke-width":"2"}));
+      g.appendChild(el("text",{x:lx(UL),y:y+44,"font-size":"10","font-weight":"700",
+        fill:"#2F7D5B","text-anchor":"middle"},"UL 4000"));
+      g.appendChild(el("line",{x1:lx(NOAEL),y1:y-30,x2:lx(NOAEL),y2:y+30,stroke:"#C68A2E",
+        "stroke-width":"2"}));
+      g.appendChild(el("text",{x:lx(NOAEL),y:y+44,"font-size":"10","font-weight":"700",
+        fill:"#C68A2E","text-anchor":"middle"},"NOAEL 10 000"));
+      /* dose choisie */
+      if(s.jour>0){
+        var x=lx(s.jour);
+        g.appendChild(el("line",{x1:x,y1:y-58,x2:x,y2:y,stroke:"#23537F","stroke-width":"2.5"}));
+        g.appendChild(el("circle",{cx:x,cy:y-58,r:5,fill:"#23537F"}));
+        var anc=(x>X1-90)?"end":((x<X0+90)?"start":"middle");
+        g.appendChild(el("text",{x:x,y:y-66,"font-size":"11","font-weight":"700",fill:"#23537F",
+          "text-anchor":anc},nf(s.jour,0)+" UI/j"+(s.bolus?" en moyenne":"")));
+      } else {
+        g.appendChild(el("text",{x:X0,y:y-66,"font-size":"11","font-weight":"700",
+          fill:"#7A889B"},"aucune dose : rien n'est placé sur l'échelle"));
+      }
+      /* dérivation de l'UL */
+      g.appendChild(el("rect",{x:16,y:194,width:528,height:44,rx:8,fill:"#FBF3E3",
+        stroke:"#EAD9B4"}));
+      g.appendChild(el("text",{x:28,y:213,"font-size":"11","font-weight":"700",fill:"#C68A2E"},
+        "D'où sort la borne : "+nf(NOAEL,0)+" ÷ "+nf(FACT_INCERT,1)+" = "+
+        nf(NOAEL/FACT_INCERT,0)+" UI/j"));
+      g.appendChild(el("text",{x:28,y:230,"font-size":"10.5",fill:"#43536A"},
+        "Un facteur d'incertitude, non un plancher de toxicité observé entre les deux valeurs."));
+      /* nature du schéma */
+      g.appendChild(el("rect",{x:16,y:248,width:528,height:42,rx:8,
+        fill:s.bolus?"#F3E3E6":"#F4F6FA",stroke:s.bolus?"#7C2A38":"#D7DFE9"}));
+      g.appendChild(el("text",{x:28,y:266,"font-size":"11","font-weight":"700",
+        fill:s.bolus?"#7C2A38":"#43536A"},s.lab));
+      g.appendChild(el("text",{x:28,y:283,"font-size":"10.5",fill:"#43536A"},
+        s.bolus
+          ? ("Moyenne arithmétique de "+nf(s.jour,0)+" UI/j — une division, pas une équivalence.")
+          : (s.jour>0
+              ? ("Prise quotidienne"+(s.ca?", avec 1,2 g/j de calcium associé.":", sans calcium associé."))
+              : "Aucune administration : c'est le bras témoin des essais.")));
+    }
+
+    function fig5(g){
+      $("cdp-svg").setAttribute("viewBox","0 0 560 300");
+      var p=pat(),s=sch();
+      g.appendChild(el("text",{x:16,y:26,"font-size":"12","font-weight":"700",fill:"#43536A"},
+        "Les quatre conditions que la littérature distingue, et leur état ici"));
+      var conds=[
+        ["Statut de départ très bas (< 25 nmol/L)",p.vrai<25,
+         "porte le seul bénéfice infectieux documenté"],
+        ["Carence et vie en institution",(p.inst&&p.vrai<30),
+         "population du seul essai osseux positif"],
+        ["Schéma quotidien, sans dose de charge",!!s.daily,
+         "le bolus retourne le signe sur les chutes"],
+        ["Calcium associé, 1,2 g/j",!!s.ca,
+         "faisait partie de l'intervention testée en 1992"]
+      ];
+      var i,y=44;
+      for(i=0;i<conds.length;i++){
+        var ok=conds[i][1];
+        g.appendChild(el("rect",{x:16,y:y,width:528,height:38,rx:7,
+          fill:ok?"#EAF4EE":"#F4F6FA",stroke:ok?"#BEDCCB":"#D7DFE9"}));
+        g.appendChild(el("circle",{cx:36,cy:y+19,r:9,fill:ok?"#2F7D5B":"#FBFCFE",
+          stroke:ok?"#2F7D5B":"#B4BECB"}));
+        g.appendChild(el("text",{x:36,y:y+23,"font-size":"11","font-weight":"700",
+          fill:ok?"#fff":"#B4BECB","text-anchor":"middle"},ok?"✓":"✕"));
+        g.appendChild(el("text",{x:56,y:y+16,"font-size":"11","font-weight":"700",
+          fill:ok?"#2F7D5B":"#7A889B"},conds[i][0]));
+        g.appendChild(el("text",{x:56,y:y+31,"font-size":"10",fill:"#7A889B"},conds[i][2]));
+        y+=44;
+      }
+      var ton=issueTon(),col="#5B4A8A",bg="#EEEAF6";
+      if(ton==="cdp-cok"){col="#2F7D5B";bg="#EAF4EE";}
+      else if(ton==="cdp-cstop"){col="#7C2A38";bg="#F3E3E6";}
+      else if(ton==="cdp-cwarn"){col="#C68A2E";bg="#FBF3E3";}
+      else if(ton===""){col="#7A889B";bg="#F4F6FA";}
+      g.appendChild(el("rect",{x:16,y:y+8,width:528,height:64,rx:8,fill:bg,stroke:col}));
+      g.appendChild(el("text",{x:28,y:y+28,"font-size":"9.5","font-weight":"700",fill:col},
+        "ISSUE ATTENDUE, D'APRÈS LA LITTÉRATURE DU DOCUMENT"));
+      g.appendChild(el("text",{x:28,y:y+48,"font-size":"13","font-weight":"700",fill:col},
+        issueCourte()));
+      g.appendChild(el("text",{x:28,y:y+64,"font-size":"10",fill:"#43536A"},
+        "Le détail chiffré, avec population, dose et intervalle, figure ci-contre."));
+    }
+
+    /* ================= carte synoptique ================= */
+    function drawMap(){
+      var g=$("cdp-map");clr(g);
+      var C=convention(),M=C.M,s=sch(),p=pat();
+      var n=5,w=164,gap=14,x0=(900-(n*w+(n-1)*gap))/2,i;
+      var vals=[
+        nf(p.vrai,0)+" nmol/L",
+        nf(M.rendu,1)+" nmol/L",
+        (C.s.T==null?"pas de verdict":C.vRendu),
+        s.disp,
+        issueCourte()
+      ];
+      for(i=0;i<n;i++){
+        var x=x0+i*(w+gap),on=(i+1===ST.ph),done=(i+1<=ST.seen);
+        var grp=el("g",{"class":"cdp-nd",tabindex:"0",role:"button",
+          "aria-label":"Aller à l'étape "+(i+1)+" : "+PH[i].t,
+          "aria-current":on?"step":"false"});
+        grp.appendChild(el("rect",{x:x,y:18,width:w,height:52,rx:8,
+          fill:on?"#E7EEF6":(done?"#FBFCFE":"#F4F6FA"),
+          stroke:on?"#2C77B6":(done?"#9FBBD6":"#D7DFE9"),
+          "stroke-width":on?"2":"1"}));
+        grp.appendChild(el("text",{x:x+10,y:33,"font-size":"9.5","font-weight":"700",
+          "letter-spacing":"0.8",fill:on?"#2C77B6":"#7A889B"},"ÉTAPE "+(i+1)));
+        grp.appendChild(el("text",{x:x+10,y:48,"font-size":"12.5","font-weight":"700",
+          fill:on?"#23537F":(done?"#43536A":"#7A889B")},PH[i].s));
+        grp.appendChild(el("text",{x:x+10,y:62,"font-size":"10.5",
+          fill:on?"#43536A":"#7A889B"},PH[i].s2));
+        (function(k){
+          grp.addEventListener("click",function(){go(k);});
+          grp.addEventListener("keydown",function(e){
+            if(e.key==="Enter"||e.key===" "||e.key==="Spacebar"){e.preventDefault();go(k);}
+          });
+        })(i+1);
+        g.appendChild(grp);
+        g.appendChild(el("text",{x:x+w/2,y:88,"font-size":"11","font-weight":"700",
+          "text-anchor":"middle",fill:done?"#23537F":"#B4BECB"},done?vals[i]:"—"));
+        if(i<n-1){
+          var axx=x+w+1,ay=44;
+          g.appendChild(el("path",{d:"M"+axx+" "+ay+" L"+(axx+gap-2)+" "+ay,
+            stroke:done?"#2C77B6":"#D7DFE9","stroke-width":"2"}));
+          g.appendChild(el("path",{d:"M"+(axx+gap-6)+" "+(ay-3.5)+" L"+(axx+gap-2)+" "+ay+
+            " L"+(axx+gap-6)+" "+(ay+3.5)+" Z",fill:done?"#2C77B6":"#D7DFE9"}));
+        }
+      }
+      g.appendChild(el("text",{x:450,y:112,"font-size":"10.5",fill:"#7A889B",
+        "text-anchor":"middle"},
+        "La sortie de chaque étape est l'entrée de la suivante · une seule d'entre elles porte une mesure"));
+    }
+
+    /* ================= boucle iatrogène ================= */
+    /* Deux lignes courtes par maillon : au-delà, le texte déborde de sa boîte et passe
+       sous celle du maillon suivant, dessinée après lui. */
+    var MAILLONS=[
+      ["Dépister large","une cohorte non triée","est dosée d'un bloc"],
+      ["Sous le seuil","le seuil décide seul","combien il y en a"],
+      ["Supplémenter","au schéma retenu","à l'étape 4"],
+      ["Re-doser","le même biais de","méthode se rejoue"],
+      ["Excès de correction","cas d'hypercalcémie","attribuables"],
+      ["Dépister encore","la pression revient","au maillon 1"]
+    ];
+    function loopChiffres(){
+      var s=seuil(),sc=sch();
+      var sous=(s.prev==null)?0:Math.round(COHORTE*s.prev/100);
+      var cas=(sc.jour>=3200)?HYPERCA_CAS*sous/COHORTE:0;
+      return {sous:sous,cas:cas,sansSeuil:(s.prev==null),dose:sc.jour};
+    }
+    function drawLoop(){
+      var g=$("cdp-loopsvg");clr(g);
+      var L=loopChiffres(),i;
+      var n=6,w=140,gap=6,x0=(900-(n*w+(n-1)*gap))/2;
+      var vals=[
+        nf(COHORTE,0)+" personnes",
+        L.sansSeuil?"aucun seuil":nf(L.sous,0)+" sous le seuil",
+        L.sansSeuil?"personne":nf(L.sous,0)+" supplémentées",
+        L.sansSeuil?"—":"même biais qu'en 2",
+        (L.dose>=3200?nf(L.cas,1)+" cas":"non chiffré ici"),
+        "tour "+ST.tours
+      ];
+      for(i=0;i<n;i++){
+        var x=x0+i*(w+gap),on=(ST.maillon===i+1);
+        g.appendChild(el("rect",{x:x,y:26,width:w,height:56,rx:8,
+          fill:on?"#F3E3E6":"#FBFCFE",stroke:on?"#7C2A38":"#D7DFE9",
+          "stroke-width":on?"2":"1"}));
+        g.appendChild(el("text",{x:x+9,y:41,"font-size":"9","font-weight":"700",
+          "letter-spacing":"0.7",fill:on?"#7C2A38":"#B4BECB"},"MAILLON "+(i+1)));
+        g.appendChild(el("text",{x:x+9,y:56,"font-size":"11","font-weight":"700",
+          fill:on?"#7C2A38":"#43536A"},MAILLONS[i][0]));
+        g.appendChild(el("text",{x:x+9,y:68,"font-size":"9",fill:"#7A889B"},MAILLONS[i][1]));
+        g.appendChild(el("text",{x:x+9,y:78,"font-size":"9",fill:"#7A889B"},MAILLONS[i][2]));
+        g.appendChild(el("text",{x:x+w/2,y:100,"font-size":"10.5","font-weight":"700",
+          "text-anchor":"middle",fill:on?"#7C2A38":"#7A889B"},vals[i]));
+        if(i<n-1){
+          var axx=x+w+1,ay=54;
+          g.appendChild(el("path",{d:"M"+axx+" "+ay+" L"+(axx+gap-2)+" "+ay,
+            stroke:"#D7DFE9","stroke-width":"2"}));
+          g.appendChild(el("path",{d:"M"+(axx+gap-6)+" "+(ay-3.5)+" L"+(axx+gap-2)+" "+ay+
+            " L"+(axx+gap-6)+" "+(ay+3.5)+" Z",fill:"#D7DFE9"}));
+        }
+      }
+      /* retour du maillon 6 au maillon 1 */
+      var xa=x0+5*(w+gap)+w/2, xb=x0+w/2;
+      g.appendChild(el("path",{d:"M"+xa+" 118 L"+xa+" 146 L"+xb+" 146 L"+xb+" 118",
+        fill:"none",stroke:"#7C2A38","stroke-width":"2","stroke-dasharray":"5 4"}));
+      g.appendChild(el("path",{d:"M"+(xb-4)+" 124 L"+xb+" 116 L"+(xb+4)+" 124 Z",fill:"#7C2A38"}));
+      g.appendChild(el("text",{x:450,y:164,"font-size":"10.5","font-weight":"700",fill:"#7C2A38",
+        "text-anchor":"middle"},"la boucle se referme : le sixième maillon relance le premier"));
+      g.appendChild(el("text",{x:450,y:182,"font-size":"10",fill:"#7A889B","text-anchor":"middle"},
+        "Les effectifs ne grossissent pas d'un tour à l'autre : aucune source ne chiffre cette amplification."));
+      g.appendChild(el("text",{x:450,y:198,"font-size":"10",fill:"#7A889B","text-anchor":"middle"},
+        "Le compteur de tours dit seulement que le circuit est fermé."));
+    }
+    function loopTexte(){
+      var L=loopChiffres(),s=seuil(),sc=sch(),t;
+      if(L.sansSeuil){
+        t="*Sans seuil, la boucle ne s'amorce pas.* Le maillon 2 n'a plus de contenu : aucune "+
+          "valeur ne peut « tomber en dessous » de rien. C'est exactement ce que fait "+
+          "l'Endocrine Society en 2024 quand elle recommande contre le dépistage systématique "+
+          "et abandonne toute cible sérique unique — elle coupe le circuit à son deuxième "+
+          "maillon, pas à son cinquième.";
+      } else {
+        t="Sur une cohorte jouet de ~"+nf(COHORTE,0)+" personnes~ dépistées au seuil de *"+
+          s.lab+"*, ~"+nf(L.sous,0)+"~ tombent en dessous — c'est la prévalence de ~"+
+          nf(s.prev,1)+" %~ mesurée sur la cohorte mondiale de 8 millions d'individus, "+
+          "reportée telle quelle. Toutes reçoivent le schéma retenu, *"+sc.disp+"*. ";
+        if(L.dose>=3200){
+          t+="À cette dose, la méta-analyse d'essais de longue durée attribue environ ~"+
+             HYPERCA_CAS+" cas d'hypercalcémie pour 1000 sujets~ (RR ~"+nf(HYPERCA_RR,2)+
+             "~), soit ~"+nf(L.cas,1)+" cas~ ici — dans la zone pourtant réputée tolérable. "+
+             "Le re-dosage, fait avec la même méthode, reproduit le biais de l'étape 2 : le "+
+             "circuit se referme sur lui-même.";
+        } else {
+          t+="À cette dose, la source ne chiffre aucun excès d'hypercalcémie : le signal n'est "+
+             "mesuré qu'entre 3200 et 4000 UI/j. Le maillon 5 reste donc vide — passez au "+
+             "schéma à 3200-4000 UI/j à l'étape 4 pour le voir se remplir.";
+        }
+        if(ST.tours>0)t+=" |*Tours parcourus : "+ST.tours+".* Le dépistage relancé ramène les "+
+          "mêmes ~"+nf(L.sous,0)+"~ personnes sous le même seuil, avec la même méthode.";
+      }
+      var host=$("cdp-loopr");clr(host);rich(host,t);
+    }
+
+    /* ================= lecture de l'étape ================= */
+    function readText(){
+      var p=pat(),M=mesure(),C=convention(),s=sch(),m=meth();
+      if(ST.ph===1){
+        return "*Étape 1 — le statut vrai.* Le sang de ce patient contient ~"+nf(p.vrai,0)+
+          " nmol/L~ de 25(OH)D, soit ~"+nf(p.vrai/NG_PAR_NMOL,1)+" ng/mL~. Ce chiffre est "+
+          "_posé_ par le jouet : c'est le point de départ, non le résultat d'un dosage. Le "+
+          "patient "+p.ctx+". |Rien ici ne constitue encore un diagnostic. Les mots « carence » "+
+          "et « suffisance » n'apparaîtront qu'à l'étape 3, produits par une convention que "+
+          "des comités ont fixée — et sur laquelle ils ne s'accordent pas.";
+      }
+      if(ST.ph===2){
+        return "*Étape 2 — la mesure.* La méthode retenue, *"+m.lab+"*, rend ~"+nf(M.rendu,1)+
+          " nmol/L~ là où le statut vrai vaut ~"+nf(M.vrai,0)+" nmol/L~, soit un écart de ~"+
+          sgn(M.ecart,1)+" nmol/L~ (~"+sgn(M.pct,1)+" %~). "+
+          (M.horsTol
+            ? "Cet écart dépasse le biais moyen de ±5 % toléré par le VDSP, contrôlé de "+
+              "l'extérieur par le programme DEQAS."
+            : "Cet écart tient dans le biais moyen de ±5 % toléré par le VDSP, contrôlé de "+
+              "l'extérieur par le programme DEQAS.")+
+          " |La sortie de cette étape n'est plus le statut du patient : c'est *le chiffre porté "+
+          "sur le compte rendu*. Les deux se séparent ici, et rien en aval ne les réunira — "+
+          "toute la chaîne travaille désormais sur le chiffre rendu. À quoi s'ajoute la "+
+          "dispersion tolérée d'un dosage à l'autre, jusqu'à 10 % du résultat, soit ~±"+
+          nf(M.cvBande,1)+" nmol/L~ ici.";
+      }
+      if(ST.ph===3){
+        var base="*Étape 3 — la convention.* ";
+        if(C.s.T==null){
+          return base+"Aucun seuil n'est appliqué : c'est la position de l'Endocrine Society en "+
+            "2024, qui abandonne toute cible sérique unique pour la population générale et "+
+            "recommande contre le dépistage systématique, faute de preuve d'essai qu'un seuil "+
+            "particulier prédise un bénéfice. |La chaîne saute donc ce maillon : on passe "+
+            "directement à la question de la décision, par sous-groupe d'âge ou de situation, "+
+            "sans passer par un verdict de statut.";
+        }
+        return base+"Le seuil de *"+C.s.lab+"* — "+C.s.sub+" — appliqué au chiffre rendu de ~"+
+          nf(M.rendu,1)+" nmol/L~ donne le verdict : *"+C.vRendu+"*. Appliqué au statut vrai de ~"+
+          nf(M.vrai,0)+" nmol/L~, il donnerait : *"+C.vVrai+"*. "+
+          (C.inversion
+            ? "|_Le verdict s'inverse par le seul effet de l'étape 2._ Ce n'est pas le patient "+
+              "qui a changé, c'est l'automate du laboratoire."
+            : (C.fragile
+                ? "|Les deux verdicts coïncident, mais de justesse : le seuil tombe à "+
+                  "l'intérieur de la dispersion tolérée du dosage (~±"+nf(M.cvBande,1)+
+                  " nmol/L~). Un second prélèvement, parfaitement conforme, pourrait basculer."
+                : "|Les deux verdicts coïncident, et le seuil se tient hors de la dispersion "+
+                  "tolérée du dosage : ici, la méthode ne fabrique pas le diagnostic."))+
+          " |Sur la même cohorte mondiale de 8 millions d'individus, ce seuil classe ~"+
+          nf(C.s.prev,1)+" %~ des gens en dessous. Changer de seuil change ce chiffre du simple "+
+          "au quintuple sans qu'un seul sang ait bougé.";
+      }
+      if(ST.ph===4){
+        var t="*Étape 4 — la décision.* Schéma retenu : *"+s.lab+"*";
+        if(s.jour===0){
+          return t+". Aucune administration. C'est le bras témoin des essais, et la seule "+
+            "branche dont la sécurité se démontre sans mesure. |Les trois quarts de la "+
+            "littérature citée à l'étape 5 comparent quelque chose à _cette_ branche.";
+        }
+        t+=", soit ~"+nf(s.jour,0)+" UI/j~"+(s.bolus?" en moyenne arithmétique":"")+
+          ". La borne supérieure tolérable de l'IOM vaut ~4000 UI/j~ ; elle vient du NOAEL de ~"+
+          nf(NOAEL,0)+" UI/j~ divisé par un facteur d'incertitude de ~"+nf(FACT_INCERT,1)+"~. "+
+          "Les cas cliniques de toxicité rapportés se situent entre ~10 000~ et ~40 000 UI/j~ "+
+          "en prise prolongée, avec des taux sériques avoisinant ~"+nf(TOX_SERIQUE,0)+
+          " nmol/L~.";
+        if(s.bolus){
+          t+=" |_La moyenne journalière affichée est une division, pas une équivalence._ C'est "+
+             "précisément ce que démentent les essais de bolus : à quantité totale comparable, "+
+             "la répartition change le résultat, et l'étape 5 le montre.";
+        } else if(s.jour>=3200){
+          t+=" |Cette dose se tient _à l'intérieur_ de la zone dite tolérable, et pourtant un "+
+             "signal d'hypercalcémie y est déjà mesuré. La borne n'est pas une frontière de "+
+             "sécurité.";
+        } else {
+          t+=" |Cette dose représente ~"+nf(100*s.jour/UL,1)+" %~ de la borne tolérable et ~"+
+             nf(100*s.jour/NOAEL,1)+" %~ du NOAEL."+
+             (s.ca?" Le calcium associé n'est pas un détail : il faisait partie de "+
+                   "l'intervention testée dans le seul essai osseux positif.":"");
+        }
+        return t;
+      }
+      return "*Étape 5 — l'issue attendue.* Ce que la littérature du document permet d'attendre "+
+        "de la configuration construite aux quatre étapes précédentes — *"+pat().court+"*, "+
+        (meth().id==="lcms"?"dosage de référence":"dosage par immunoessai")+", seuil *"+
+        seuil().lab+"*, schéma *"+sch().disp+"*. |Chaque carte ci-dessous *cite un résultat "+
+        "d'essai avec sa population et sa dose*. Aucune n'est une prédiction pour ce patient : "+
+        "un effet moyen mesuré sur des milliers de personnes ne se transporte pas sur une seule.";
+    }
+
+    /* ================= cartes de verdict ================= */
+    function drawVerdicts(){
+      var host=$("cdp-verd");clr(host);
+      if(ST.ph!==5)return;
+      var vs=verdicts(),i;
+      var wrap=document.createElement("div");wrap.className="cdp-vlist";
+      for(i=0;i<vs.length;i++){
+        var c=document.createElement("div");c.className="cdp-vc "+vs[i].ton;
+        var t=document.createElement("p");t.className="cdp-vt";
+        t.appendChild(document.createTextNode(vs[i].t));
+        c.appendChild(t);
+        var b=document.createElement("p");b.className="cdp-vb";
+        b.appendChild(document.createTextNode(vs[i].b));
+        c.appendChild(b);
+        var s=document.createElement("p");s.className="cdp-vs";
+        s.appendChild(document.createTextNode("Source : "+vs[i].s));
+        c.appendChild(s);
+        wrap.appendChild(c);
+      }
+      host.appendChild(wrap);
+    }
+
+    /* ================= compteurs chaînés ================= */
+    function setTile(i,val,hint,cls){
+      $("cdp-t"+i).className="cdp-tc"+(cls?" "+cls:"");
+      txt($("cdp-t"+i+"v"),val);
+      txt($("cdp-t"+i+"h"),hint);
+    }
+    function tiles(){
+      var p=pat(),M=mesure(),C=convention(),s=sch();
+      setTile(1,nf(p.vrai,0)+" nmol/L",p.court+" · posé par le jouet","");
+      if(ST.seen>=2)setTile(2,nf(M.rendu,1)+" nmol/L",
+        meth().lab+" · écart "+sgn(M.ecart,1)+" nmol/L",
+        M.horsTol?"cdp-cwarn":"cdp-cok");
+      else setTile(2,"à venir","étape 2","");
+      if(ST.seen>=3)setTile(3,(C.s.T==null?"pas de verdict":C.vRendu),
+        (C.s.T==null?"Endocrine Society 2024":("seuil "+C.s.lab+
+          (C.inversion?" · inversé par la mesure":(C.fragile?" · verdict fragile":"")))),
+        C.inversion?"cdp-cstop":(C.fragile?"cdp-cwarn":"cdp-cvio"));
+      else setTile(3,"à venir","étape 3","");
+      if(ST.seen>=4)setTile(4,s.disp,
+        (s.jour>0?(nf(100*s.jour/UL,1)+" % de la borne tolérable"):"bras témoin"),
+        (s.jour>=3200||s.bolus)?"cdp-cwarn":"");
+      else setTile(4,"à venir","étape 4","");
+      if(ST.seen>=5)setTile(5,issueCourte(),"d'après les essais cités",issueTon());
+      else setTile(5,"à venir","étape 5","");
+    }
+
+    /* ================= synthèse ================= */
+    function synth(){
+      var box=$("cdp-final"),ul=$("cdp-rec"),i;
+      clr(ul);
+      if(ST.seen<5){
+        box.className="cdp-final cdp-idle";
+        txt($("cdp-lesson"),
+          "La synthèse s'écrit quand la chaîne a été menée jusqu'à l'étape 5.");
+        return;
+      }
+      box.className="cdp-final";
+      var p=pat(),M=mesure(),C=convention(),s=sch();
+      var items=[
+        "*Étape 1* — statut vrai posé à ~"+nf(p.vrai,0)+" nmol/L~ chez "+p.lab.toLowerCase()+
+          ". Aucun mot de diagnostic n'existe encore.",
+        "*Étape 2* — "+meth().lab+" rend ~"+nf(M.rendu,1)+" nmol/L~, écart de ~"+sgn(M.ecart,1)+
+          " nmol/L~ (~"+sgn(M.pct,1)+" %~), "+(M.horsTol?"au-delà":"dans")+
+          " le biais moyen de ±5 % toléré. À partir d'ici, la chaîne ne travaille plus sur le "+
+          "patient mais sur son compte rendu.",
+        (C.s.T==null
+          ? "*Étape 3* — aucun seuil appliqué : le maillon est sauté, et avec lui toute la "+
+            "fabrique du verdict."
+          : "*Étape 3* — seuil de ~"+C.s.lab+"~ : verdict *"+C.vRendu+"* sur le chiffre rendu, *"+
+            C.vVrai+"* sur le statut vrai"+
+            (C.inversion?", _soit une inversion produite par la seule méthode de dosage_."
+                        :(C.fragile?", identiques mais à portée de la dispersion tolérée du dosage."
+                                   :", identiques et hors de portée de la dispersion tolérée."))+
+            " Ce seuil classe ~"+nf(C.s.prev,1)+" %~ de la cohorte mondiale en dessous."),
+        "*Étape 4* — schéma *"+s.disp+"*"+
+          (s.jour>0?((s.bolus?", soit ~"+nf(s.jour,0)+" UI/j~ en moyenne arithmétique":"")+
+                     ", ~"+nf(100*s.jour/UL,1)+" %~ de la borne tolérable de 4000 UI/j.")
+                   :", c'est-à-dire le bras témoin des essais."),
+        "*Étape 5* — issue attendue : *"+issueCourte()+"*. Le détail chiffré, avec population, "+
+          "dose et intervalle de confiance, figure dans les cartes de l'étape 5."
+      ];
+      for(i=0;i<items.length;i++){
+        var li=document.createElement("li");
+        rich(li,items[i]);
+        ul.appendChild(li);
+      }
+      var lec;
+      if(C.inversion){
+        lec="Un seul maillon a bougé — la méthode de dosage — et le verdict s'est retourné. "+
+            "Le patient, lui, n'a pas changé d'un nanomole.";
+      } else if(s.bolus){
+        lec="La quantité totale reçue ne dit pas l'effet : le même total en bolus retourne le "+
+            "signe sur les chutes et les fractures. Le schéma fait partie du traitement.";
+      } else if(pat().inst&&pat().vrai<30&&s.daily&&s.ca){
+        lec="Le seul bénéfice osseux documenté tient à quatre conditions simultanées. Retirez-en "+
+            "une — le calcium, l'institution, la carence, la prise quotidienne — et la "+
+            "littérature ne le promet plus.";
+      } else if(C.s.T==null){
+        lec="Supprimer le seuil ne supprime pas la question de la décision : cela supprime "+
+            "seulement le verdict de statut qui la déguisait en diagnostic.";
+      } else {
+        lec="Sur cinq maillons, un seul mesure quelque chose. Les quatre autres sont des "+
+            "conventions et des choix — et c'est là que le verdict se retourne.";
+      }
+      txt($("cdp-lesson"),lec);
+    }
+
+    /* ================= badge de l'étape ================= */
+    function badge(){
+      var M=mesure(),C=convention(),s=sch();
+      if(ST.ph===1)return {t:"statut posé, pas mesuré",c:""};
+      if(ST.ph===2)return M.horsTol
+        ? {t:"écart "+sgn(M.pct,1)+" % · hors du biais toléré",c:"cdp-stop"}
+        : {t:"écart "+sgn(M.pct,1)+" % · dans le biais toléré",c:"cdp-good"};
+      if(ST.ph===3){
+        if(C.s.T==null)return {t:"aucun verdict de statut",c:""};
+        if(C.inversion)return {t:"verdict inversé par la mesure",c:"cdp-stop"};
+        if(C.fragile)return {t:"verdict fragile",c:"cdp-warn"};
+        return {t:"verdict stable",c:"cdp-good"};
+      }
+      if(ST.ph===4){
+        if(s.jour===0)return {t:"bras témoin",c:""};
+        if(s.bolus)return {t:"bolus · "+nf(s.jour,0)+" UI/j en moyenne",c:"cdp-warn"};
+        if(s.jour>=3200)return {t:nf(100*s.jour/UL,0)+" % de la borne tolérable",c:"cdp-warn"};
+        return {t:nf(100*s.jour/UL,1)+" % de la borne tolérable",c:""};
+      }
+      var ton=issueTon();
+      return {t:issueCourte(),
+        c:(ton==="cdp-cstop"?"cdp-stop":(ton==="cdp-cok"?"cdp-good":
+           (ton==="cdp-cwarn"?"cdp-warn":"")))};
+    }
+
+    /* ================= commandes contextuelles ================= */
+    function buildCtl(){
+      var host=$("cdp-ctl");clr(host);
+      var i,opts=[];
+      if(ST.ph===1){
+        for(i=0;i<PATIENTS.length;i++)opts.push([PATIENTS[i].id,PATIENTS[i].court]);
+        ctlBlock("Étape 1 · choisir le patient — la chaîne entière est recalculée",
+          opts,ST.pat,function(x){ST.pat=x;replay();},
+          "Statuts posés par le widget, choisis pour couvrir les configurations que la "+
+          "littérature distingue : population générale, institution, carence sévère, "+
+          "sous-groupes ciblés sans dosage en 2024, et supplémentation en vitamine D2.");
+      } else if(ST.ph===2){
+        for(i=0;i<METHODES.length;i++)opts.push([METHODES[i].id,METHODES[i].lab]);
+        ctlBlock("Étape 2 · choisir la méthode de dosage",opts,ST.meth,
+          function(x){ST.meth=x;replay();},meth().note);
+      } else if(ST.ph===3){
+        for(i=0;i<SEUILS.length;i++)opts.push([SEUILS[i].id,SEUILS[i].lab]);
+        ctlBlock("Étape 3 · appliquer une convention de seuil",opts,ST.seuil,
+          function(x){ST.seuil=x;replay();},
+          seuil().T==null
+            ? ("Endocrine Society 2024 : abandon de toute cible sérique unique pour la "+
+               "population générale et recommandation contre le dépistage systématique, la "+
+               "supplémentation empirique étant réservée à des sous-groupes — 1-18 ans, "+
+               "≥75 ans, grossesse, prédiabète à haut risque.")
+            : ("Seuil de "+seuil().lab+" — "+seuil().sub+". Sur une même cohorte mondiale de "+
+               "8 millions d'individus issus de 81 pays, il classe "+nf(seuil().prev,1)+
+               " % des gens en dessous."));
+      } else if(ST.ph===4){
+        for(i=0;i<SCHEMAS.length;i++)opts.push([SCHEMAS[i].id,SCHEMAS[i].lab]);
+        ctlBlock("Étape 4 · décider un schéma",opts,ST.sch,
+          function(x){ST.sch=x;replay();},
+          "Aucun de ces schémas n'est recommandé ici : ce sont les bras d'essais publiés, "+
+          "repris pour que l'étape 5 puisse citer leurs résultats.");
+      } else {
+        var lab=document.createElement("p");lab.className="cdp-ctllab";
+        lab.appendChild(document.createTextNode(
+          "Étape 5 · aucune commande — l'issue découle des quatre choix précédents"));
+        host.appendChild(lab);
+        var p=document.createElement("p");p.className="cdp-ctlnote";
+        p.appendChild(document.createTextNode(
+          "Revenez à n'importe quelle étape par la carte du haut ou par le rail : chaque "+
+          "changement rejoue toute la chaîne jusqu'ici."));
+        host.appendChild(p);
+      }
+    }
+
+    /* ================= rendu ================= */
+    function render(){
+      var i;
+      drawMap();
+      $("cdp-fill").style.width=(100*ST.ph/5)+"%";
+      txt($("cdp-plab"),"étape "+ST.ph+" / 5 · "+PH[ST.ph-1].s);
+      var rail=$("cdp-rail").getElementsByTagName("button");
+      for(i=0;i<rail.length;i++){
+        rail[i].className="cdp-ph"+((i+1===ST.ph)?" cdp-on":"")+((i+1<=ST.seen)?" cdp-done":"");
+      }
+      tiles();
+
+      txt($("cdp-bn"),"Étape "+ST.ph+" / 5");
+      var titres=[
+        "Statut vrai — ce que contient le sang, avant tout vocabulaire",
+        "Mesure — le chiffre rendu se sépare du statut",
+        "Convention — le seuil fabrique le verdict",
+        "Décision et schéma — la dose, et où elle tombe sur l'échelle de sécurité",
+        "Issue attendue — des résultats d'essais cités, pas une promesse"
+      ];
+      txt($("cdp-bt"),titres[ST.ph-1]);
+      var bg=badge();
+      $("cdp-bx").className="cdp-bx"+(bg.c?" "+bg.c:"");
+      txt($("cdp-bx"),bg.t);
+
+      var svg=$("cdp-svg");clr(svg);
+      if(ST.ph===1)fig1(svg);
+      else if(ST.ph===2)fig2(svg);
+      else if(ST.ph===3)fig3(svg);
+      else if(ST.ph===4)fig4(svg);
+      else fig5(svg);
+
+      var rd=$("cdp-read");clr(rd);rich(rd,readText());
+      drawVerdicts();
+
+      var dv=$("cdp-def");clr(dv);
+      var lab=document.createElement("p");lab.className="cdp-deflab";
+      lab.appendChild(document.createTextNode("Termes définis à cette étape"));
+      dv.appendChild(lab);
+      var ul=document.createElement("ul");ul.className="cdp-defl";
+      var ds=DEFS[ST.ph-1];
+      for(i=0;i<ds.length;i++){
+        var li=document.createElement("li");
+        var b=document.createElement("b");
+        b.appendChild(document.createTextNode(ds[i][0]));
+        li.appendChild(b);
+        li.appendChild(document.createTextNode(" — "+ds[i][1]));
+        ul.appendChild(li);
+      }
+      dv.appendChild(ul);
+
+      buildCtl();
+      synth();
+      drawLoop();
+      loopTexte();
+      $("cdp-prev").disabled=(ST.ph<=1);
+      $("cdp-next").disabled=(ST.ph>=5);
+    }
+
+    /* ================= pilotage ================= */
+    function setPhase(p){
+      p=Math.max(1,Math.min(5,p));
+      ST.ph=p;
+      if(ST.ph>ST.seen)ST.seen=ST.ph;
+    }
+    function go(p){stop();setPhase(p);render();}
+    function replay(){
+      var was=!!ST.timer;
+      stop();
+      render();
+      if(was)play();
+    }
+    function stop(){
+      if(ST.timer){clearTimeout(ST.timer);ST.timer=null;}
+      txt($("cdp-play"),"Dérouler d'un trait jusqu'à l'issue");
+      $("cdp-play").className="";
+    }
+    function play(){
+      txt($("cdp-play"),"Interrompre le déroulé");
+      $("cdp-play").className="cdp-pri";
+      ST.timer=setTimeout(step,900);
+    }
+    function step(){
+      if(ST.ph>=5){stop();render();return;}
+      setPhase(ST.ph+1);
+      render();
+      txt($("cdp-play"),"Interrompre le déroulé");
+      $("cdp-play").className="cdp-pri";
+      ST.timer=setTimeout(step,1100);
+    }
+    function lstop(){
+      if(ST.ltimer){clearTimeout(ST.ltimer);ST.ltimer=null;}
+      txt($("cdp-lrun"),"Parcourir la boucle en un clic");
+    }
+    /* Un tour est compté quand la boucle atteint son sixième maillon — celui qui relance le
+       dépistage. Le parcours automatique passe par la même fonction : les deux pilotages
+       comptent donc à l'identique. */
+    function lnext(){
+      if(ST.maillon>=6)ST.maillon=1;
+      else ST.maillon=ST.maillon+1;
+      if(ST.maillon===6)ST.tours=ST.tours+1;
+      drawLoop();loopTexte();
+    }
+    function lrun(){
+      txt($("cdp-lrun"),"Interrompre le parcours");
+      ST.maillon=0;
+      var k=0;
+      function tick2(){
+        lnext();k++;
+        if(k<6){ST.ltimer=setTimeout(tick2,420);}
+        else {lstop();}
+      }
+      tick2();
+    }
+
+    $("cdp-prev").onclick=function(){go(ST.ph-1);};
+    $("cdp-next").onclick=function(){go(ST.ph+1);};
+    $("cdp-play").onclick=function(){
+      if(ST.timer){stop();return;}
+      if(ST.ph>=5){setPhase(1);ST.seen=1;render();}
+      play();
+    };
+    $("cdp-reset").onclick=function(){
+      stop();lstop();
+      ST.ph=1;ST.seen=1;ST.pat="dom45";ST.meth="lcms";ST.seuil="s50";ST.sch="rda";
+      ST.maillon=0;ST.tours=0;
+      render();
+    };
+    $("cdp-lstep").onclick=function(){lstop();lnext();};
+    $("cdp-lrun").onclick=function(){
+      if(ST.ltimer){lstop();return;}
+      lrun();
+    };
+    var rb=$("cdp-rail").getElementsByTagName("button");
+    for(var j=0;j<rb.length;j++)(function(b){
+      b.onclick=function(){go(parseInt(b.getAttribute("data-s"),10));};
+    })(rb[j]);
+
+    render();
+  })();
+  </script>
+</div>
