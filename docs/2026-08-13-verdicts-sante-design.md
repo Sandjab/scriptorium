@@ -19,7 +19,8 @@ sécurité et les effets indésirables de la substance.
    fois — tableau dans la monographie ET page compilée du métadomaine. Une seule
    donnée, aucune divergence possible entre les deux vues.
 2. **Note d'efficacité dérivée des claims confirmés + garde-fou build** : la
-   gradation est une synthèse rédactionnelle de claims `confirmed` de
+   gradation est une synthèse rédactionnelle de claims vérifiés (`confirmed`
+   ou `corrected`) de
    `knowledge.json`, relue en passe d'exactitude ; `build.py` échoue si une ligne
    ne s'appuie pas sur du vérifié. Pas de conseil de jurés dédié, pas de
    gradations externes importées.
@@ -70,8 +71,11 @@ Extensions de `validate_refs`, échec bruyant dans tous les cas :
 
 - Ligne, `safety` ou `adverse` **sans aucun claim id** → die.
 - Claim id inexistant → die (comportement actuel, étendu à verdicts.json).
-- Claim référencé dont `audit != "confirmed"` → die (nouveau : le tableau ne
-  s'appuie que sur du vérifié).
+- Claim référencé dont `audit` n'est ni `confirmed` ni `corrected` → die
+  (nouveau : le tableau ne s'appuie que sur du vérifié). `corrected` compte
+  comme vérifié : c'est la sémantique du pipeline lean (`lint.py` garde
+  confirmed+corrected, les manifestes référencent des claims corrected) — un
+  claim corrected a un énoncé rectifié par les jurés, pas un énoncé douteux.
 - `efficacy` ou `safety.status` hors enum → die.
 - Élément `{"type": "verdicts"}` au manifeste sans `verdicts.json` → die ;
   `verdicts.json` présent sans élément au manifeste → die (aucun tableau perdu
@@ -107,11 +111,11 @@ Extensions de `validate_refs`, échec bruyant dans tous les cas :
 
 ## 4. Production du contenu et vérification
 
-- Rétrofit : les notes et textes libres sont dérivés des claims confirmés
-  existants, rédigés **en lisant la monographie** (jamais au grep), sans
+- Rétrofit : les notes et textes libres sont dérivés des claims vérifiés
+  (confirmed/corrected) existants, rédigés **en lisant la monographie** (jamais au grep), sans
   nouvelle recherche web. Relecture d'exactitude après rédaction.
 - Futurs runs santé : le workflow **lean** produit `verdicts.json` après le
-  Council (au moment où les claims confirmés sont connus). Les workflows
+  Council (au moment où les claims vérifiés sont connus). Les workflows
   monograph et frugal suivront dans une passe ultérieure, comme pour les
   durcissements précédents.
 
@@ -119,7 +123,8 @@ Extensions de `validate_refs`, échec bruyant dans tous les cas :
 
 Sous `tools/` pour la page compilée, à côté de `build.py` pour le reste :
 
-- Une ligne de verdict sans claim confirmé fait échouer le build — c'est la
+- Une ligne de verdict sans claim vérifié (confirmed/corrected) fait échouer
+  le build — c'est la
   doctrine « vérité non négociable » encodée en test.
 - Une valeur d'`efficacy` hors enum fait échouer le build — ferme la porte aux
   gradations inventées.
@@ -142,7 +147,7 @@ Sous `tools/` pour la page compilée, à côté de `build.py` pour le reste :
 - Pas de rétrofit des thèmes non-santé (le modèle verdicts est propre au
   métadomaine `sante-nutrition`).
 - Pas de nouvelle recherche ni de nouveaux claims : la donnée existante suffit ;
-  si un trou factuel apparaît pendant le rétrofit (ex. aucun claim confirmé sur
+  si un trou factuel apparaît pendant le rétrofit (ex. aucun claim vérifié sur
   la sécurité d'une substance), la ligne porte `indeterminee`/`pas-avis` plutôt
   que d'inventer, et le trou est signalé à JP.
 - Le `legacy/` reste gelé.
