@@ -60,6 +60,15 @@ _META_ID_RESERVE = "index"
 # bandeau tomberait derrière le colophon et hors de la grille .wrap de charte.css.
 NOTICE_ANCHOR = "</main>"
 
+# Verdicts (métadomaine santé) : enums dupliquées depuis components.py du skill
+# monograph — pas d'import runtime entre tools/ et .claude/ ; un test verrouille
+# l'égalité (test_efficacy_enums_match_monograph_components).
+EFFICACY_LEVELS = ("nulle", "faible", "modeste", "bonne", "tres-bonne", "indeterminee")
+SAFETY_STATUS = ("autorise", "interdit", "restreint", "pas-avis")
+EFFICACY_LABELS = {"nulle": "Nulle", "faible": "Faible", "modeste": "Modeste",
+                   "bonne": "Bonne", "tres-bonne": "Très bonne",
+                   "indeterminee": "Indéterminée"}
+
 
 def extract_title(path: Path) -> str:
     """Titre lisible d'un document = contenu de sa balise <title>.
@@ -303,6 +312,33 @@ PAGE_CSS = PALETTE_CSS + """  *{box-sizing:border-box;}
   .kicker a{color:#9DC2E0;text-decoration:none;border-bottom:1px solid rgba(157,194,224,.4);}
 """
 
+PAGE_CSS += """  /* synthèse des verdicts (santé) */
+  .synth-caveat{background:var(--bordeaux-wash);border:1px solid var(--bordeaux);border-radius:8px;
+    padding:14px 18px;margin:18px 0 26px;color:var(--ink);font-size:14.5px;line-height:1.55;font-weight:600;}
+  .synth-scope{color:var(--ink-faint);font-size:13.5px;margin:0 0 18px;}
+  .synth-theme{margin:30px 0 8px;}
+  .synth-theme h2{font-family:"Archivo";font-size:20px;color:var(--blue-deep);margin:0 0 2px;}
+  .synth-theme h2 a{color:inherit;text-decoration:none;border-bottom:1px solid var(--line);}
+  .synth-theme h3{font-family:"Archivo";font-size:15px;color:var(--ink);margin:14px 0 4px;}
+  .synth-tbl{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--card);margin:10px 0 4px;}
+  .synth-tbl table{border-collapse:collapse;width:100%;font-size:14px;}
+  .synth-tbl th{background:var(--blue-deep);color:#E7F0F8;text-align:left;padding:10px 13px;font-size:12px;font-weight:600;}
+  .synth-tbl td{padding:10px 13px;border-top:1px solid var(--line);vertical-align:top;line-height:1.45;color:var(--ink-soft);}
+  .synth-tbl td:first-child{color:var(--ink);font-weight:600;font-family:"Archivo";font-size:13.5px;}
+  .vmeter{display:inline-flex;align-items:center;gap:3px;white-space:nowrap;}
+  .vmeter i{width:9px;height:9px;border-radius:2px;background:var(--line);display:inline-block;}
+  .vmeter i.on{background:var(--bordeaux);}
+  .vmeter b{margin-left:6px;font-family:"Archivo";font-size:12.5px;font-weight:700;color:var(--ink);}
+  .vmeter.vm-na{font-family:"Archivo";font-size:12.5px;font-weight:700;color:var(--ink-soft);font-style:italic;}
+  .vbadge{display:inline-block;font-family:"Archivo";font-size:12px;font-weight:700;padding:2px 9px;
+    border-radius:30px;border:1px solid var(--line);color:var(--ink);background:var(--card);}
+  .vbadge.vb-interdit{color:var(--bordeaux);border-color:var(--bordeaux);}
+  .vd-safety{font-size:14px;color:var(--ink-soft);margin:8px 2px 4px;line-height:1.5;}
+  .synth-rappel{color:var(--ink-faint);font-size:12.5px;margin:6px 2px 0;}
+  .synth-link{margin:10px 0 0;}
+  .synth-link a{font-family:"Archivo";font-weight:700;color:var(--bordeaux);}
+"""
+
 
 def render_sections(sections, portals=()) -> str:
     """Rend les sections (domaine / à classer / legacy) en HTML.
@@ -396,20 +432,105 @@ def _shell(page_title: str, header_inner: str, main_html: str) -> str:
 '''
 
 
-def render_meta_page(meta, sections, portals=()) -> str:
+def load_verdicts(themes_dir: Path, metas) -> dict:
+    """{meta_id: [(slug, verdicts), …]} pour les thèmes ayant un verdicts.json,
+    dans l'ordre taxonomique. Un verdicts.json sous un métadomaine SANS notice
+    est refusé : la page synthèse ne peut pas exister sans son caveat."""
+    out = {}
+    for m in metas:
+        entries = []
+        for d in m["domains"]:
+            for slug in d["themes"]:
+                vp = themes_dir / slug / "verdicts.json"
+                if not vp.exists():
+                    continue
+                if not m.get("notice"):
+                    raise SystemExit(
+                        f"build_site: {slug} a un verdicts.json mais le méta-domaine "
+                        f"'{m['id']}' n'a pas de notice — synthèse sans caveat refusée")
+                entries.append((slug, json.loads(vp.read_text(encoding="utf-8"))))
+        if entries:
+            out[m["id"]] = entries
+    return out
+
+
+def _efficacy_cell(lvl: str) -> str:
+    if lvl not in EFFICACY_LEVELS:
+        raise SystemExit(f"build_site: efficacité inconnue dans un verdicts.json : {lvl!r}")
+    label = EFFICACY_LABELS[lvl]
+    if lvl == "indeterminee":
+        return f'<span class="vmeter vm-na">{label}</span>'
+    n = EFFICACY_LEVELS.index(lvl)
+    bars = "".join(f'<i class="{"on" if i < n else ""}"></i>' for i in range(4))
+    return f'<span class="vmeter">{bars}<b>{label}</b></span>'
+
+
+def render_synthese_page(meta, entries, title_by_slug, n_meta_themes) -> str:
+    """Page compilée des verdicts d'un métadomaine : caveat proéminent en tête,
+    un bloc par monographie couverte, liens ancrés vers les sections."""
+    e = html.escape
+    blocks = [f'    <aside class="synth-caveat">{e(meta["notice"])}</aside>',
+              f'    <p class="synth-scope">{len(entries)} monographie'
+              f'{"s" if len(entries) > 1 else ""} couverte'
+              f'{"s" if len(entries) > 1 else ""} sur {n_meta_themes} du méta-domaine.</p>']
+    for slug, v in entries:
+        doc_href = f"{slug}/{slug}.html"
+        parts = [f'    <section class="synth-theme">\n'
+                 f'      <h2><a href="{e(doc_href)}">{e(title_by_slug.get(slug, slug))}</a></h2>']
+        for sub in v["substances"]:
+            parts.append(f'      <h3>{e(sub["label"])}</h3>')
+            rows = []
+            for r in sub["rows"]:
+                ind = e(r["indication"])
+                if r.get("anchor"):
+                    ind = f'<a href="{e(doc_href)}#{e(r["anchor"])}">{ind}</a>'
+                rows.append(
+                    f'<tr><td>{ind}</td><td>{_efficacy_cell(r["efficacy"])}</td>'
+                    f'<td>{e(r.get("ci") or "—")}</td>'
+                    f'<td>{e(r.get("official") or "—")}</td>'
+                    f'<td>{e(r.get("note") or "")}</td></tr>')
+            saf, adv = sub["safety"], sub["adverse"]
+            if saf.get("status") not in SAFETY_STATUS:
+                raise SystemExit(
+                    f"build_site: statut sécurité inconnu dans {slug}/verdicts.json : "
+                    f"{saf.get('status')!r}")
+            parts.append(
+                '      <div class="synth-tbl"><table><thead><tr><th>Indication</th>'
+                '<th>Efficacité</th><th>IC / taille d’effet</th><th>Statut officiel</th>'
+                '<th>Note</th></tr></thead><tbody>' + "".join(rows)
+                + "</tbody></table></div>")
+            parts.append(
+                f'      <p class="vd-safety"><b>Sécurité</b> : '
+                f'<span class="vbadge vb-{saf["status"]}">{e(saf["label"])}</span> · '
+                f'<b>Effets indésirables</b> : {e(adv["text"])}</p>')
+        parts.append(f'      <p class="synth-rappel">{e(meta["notice"])}</p>')
+        parts.append('    </section>')
+        blocks.append("\n".join(parts))
+    header = f'''      <p class="kicker"><a href="index.html">Scriptorium</a> · <a href="{e(meta["id"])}.html">{e(meta["label"])}</a></p>
+      <h1>Synthèse des verdicts — efficacité &amp; sécurité</h1>
+      <p class="lede">Pour chaque complément ou médicament du méta-domaine : les indications
+        discutées dans sa monographie, l'efficacité que les essais soutiennent, le statut
+        officiel et la sécurité — chaque ligne dérivée de faits vérifiés (≥ 2 sources).</p>'''
+    return _shell(f'Scriptorium — synthèse {meta["label"]}', header, "\n".join(blocks))
+
+
+def render_meta_page(meta, sections, portals=(), synthese_href=None) -> str:
     """Page d'un méta-domaine : l'ancienne home, ciblée sur ses domaines."""
     e = html.escape
     n_domains = sum(1 for s in sections if s["kind"] == "domain")
     n_themes = sum(len(s["themes"]) for s in sections if s["kind"] == "domain")
     notice = (f'\n      <aside class="notice-sante">{e(meta["notice"])}</aside>'
               if meta.get("notice") else "")
+    synth = (f'\n      <p class="synth-link"><a href="{e(synthese_href)}">'
+             'Tableaux de synthèse : efficacité &amp; sécurité &rarr;</a></p>'
+             if synthese_href else "")
     header = f'''      <p class="kicker"><a href="index.html">Scriptorium</a> · fabrique de monographies</p>
       <h1>{e(meta["label"])}</h1>
       <p class="lede">{e(meta["blurb"])}</p>{notice}
       <div class="meta">
         <span>{n_domains} domaines</span>
         <span>{n_themes} thèmes</span>
-      </div>'''
+      </div>{synth}'''
     return _shell(f'Scriptorium — {meta["label"]}', header,
                   render_sections(sections, portals))
 
@@ -490,13 +611,25 @@ def main(themes_dir: Path = THEMES_DIR, taxonomy_path: Path = TAXONOMY_PATH,
     portals = write_portals(sections, themes_dir, portals_dir, site_dir, built,
                             meta_by_domain)
 
+    verdicts_by_meta = load_verdicts(themes_dir, metas)
+    title_by_slug = {slug: docs[0][2] for slug, _, docs in collected}
+
     domain_secs = {s["id"]: s for s in sections if s["kind"] == "domain"}
     tail = [s for s in sections if s["kind"] in ("unclassified", "legacy")]
     hub_metas = []
     for m in metas:
         m_secs = [domain_secs[d["id"]] for d in m["domains"]]
+        synth_href = None
+        if m["id"] in verdicts_by_meta:
+            synth_href = f"{m['id']}-syntheses.html"
+            n_meta_themes = sum(len(d["themes"]) for d in m["domains"])
+            (site_dir / synth_href).write_text(
+                render_synthese_page(m, verdicts_by_meta[m["id"]],
+                                     title_by_slug, n_meta_themes),
+                encoding="utf-8")
         (site_dir / f"{m['id']}.html").write_text(
-            render_meta_page(m, m_secs, portals), encoding="utf-8")
+            render_meta_page(m, m_secs, portals, synthese_href=synth_href),
+            encoding="utf-8")
         hub_metas.append({
             "id": m["id"], "label": m["label"], "blurb": m["blurb"],
             "n_domains": len(m_secs),

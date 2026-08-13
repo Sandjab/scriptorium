@@ -432,3 +432,125 @@ def test_main_notice_needs_exactly_one_anchor(tmp_path, corps):
         build_site.main(themes_dir=themes, taxonomy_path=taxo,
                         site_dir=tmp_path / "_site",
                         portals_dir=tmp_path / "portals-absent")
+
+
+# --- synthèse des verdicts ---------------------------------------------------
+
+def _publish_main(themes_dir, slug, title):
+    """Document minimal MAIS porteur de </main> : le métadomaine santé des tests
+    a une notice, dont l'injection exige cette ancre."""
+    _publish_doc(themes_dir, slug,
+                 f"<title>{title}</title><body><main>corps</main></body>")
+
+
+def _write_verdicts(themes_dir, slug, rows=None, anchor="sec-a"):
+    (pathlib.Path(themes_dir) / slug).mkdir(parents=True, exist_ok=True)
+    v = {"theme": slug, "substances": [{
+        "id": f"{slug}-sub", "label": f"Substance {slug}",
+        "safety": {"status": "autorise", "label": "Autorisée", "claims": ["claim:1"]},
+        "adverse": {"text": "effets légers", "claims": ["claim:1"]},
+        "rows": rows or [{"indication": "Indication A", "efficacy": "bonne",
+                          "ci": "SMD 0,42", "official": "Claim autorisé",
+                          "claims": ["claim:1"], "anchor": anchor}]}]}
+    (pathlib.Path(themes_dir) / slug / "verdicts.json").write_text(
+        json.dumps(v), encoding="utf-8")
+
+
+def _taxo_sante(tmp_path, themes, notice="Information documentaire, pas un avis médical."):
+    meta = {"id": "sante", "label": "Santé", "blurb": "b",
+            "domains": [{"id": "d2", "label": "D2", "blurb": "b", "themes": themes}]}
+    if notice is not None:
+        meta["notice"] = notice
+    return _write_taxo_v2(tmp_path, [meta])
+
+
+def test_synthese_page_written_linked_and_caveated(tmp_path):
+    """La page synthèse doit exister, porter le caveat EN TÊTE (avant le premier
+    tableau), lier chaque indication vers l'ancre de sa monographie, et être
+    atteignable depuis la page du métadomaine — sinon elle est invisible."""
+    themes = tmp_path / "themes"
+    _publish_main(themes, "creatine", "Créatine")
+    _publish_main(themes, "collagene", "Collagène")
+    _write_verdicts(themes, "creatine")
+    taxo = _taxo_sante(tmp_path, ["creatine", "collagene"])
+    site = tmp_path / "_site"
+    build_site.main(themes_dir=themes, taxonomy_path=taxo, site_dir=site,
+                    portals_dir=tmp_path / "portals-absent")
+    page = (site / "sante-syntheses.html").read_text(encoding="utf-8")
+    assert "pas un avis médical" in page
+    assert page.index("pas un avis médical") < page.index("<table")   # caveat AVANT les données
+    assert 'href="creatine/creatine.html#sec-a"' in page              # ancre vers la section
+    assert "Substance creatine" in page
+    assert 'class="vmeter"' in page                                   # meter rendu
+    meta_page = (site / "sante.html").read_text(encoding="utf-8")
+    assert 'href="sante-syntheses.html"' in meta_page                 # lien depuis la page méta
+
+
+def test_synthese_lists_only_covered_themes(tmp_path):
+    """Un thème sans verdicts.json ne doit PAS figurer dans la synthèse : la page
+    annonce son périmètre réel, pas une fausse exhaustivité."""
+    themes = tmp_path / "themes"
+    _publish_main(themes, "creatine", "Créatine")
+    _publish_main(themes, "collagene", "Collagène")
+    _write_verdicts(themes, "creatine")
+    taxo = _taxo_sante(tmp_path, ["creatine", "collagene"])
+    site = tmp_path / "_site"
+    build_site.main(themes_dir=themes, taxonomy_path=taxo, site_dir=site,
+                    portals_dir=tmp_path / "portals-absent")
+    page = (site / "sante-syntheses.html").read_text(encoding="utf-8")
+    assert "Substance creatine" in page
+    assert "Substance collagene" not in page
+    assert "1 monographie couverte sur 2" in page                     # périmètre annoncé
+
+
+def test_no_verdicts_no_page_no_dead_link(tmp_path):
+    themes = tmp_path / "themes"
+    _publish_main(themes, "creatine", "Créatine")
+    taxo = _taxo_sante(tmp_path, ["creatine"])
+    site = tmp_path / "_site"
+    build_site.main(themes_dir=themes, taxonomy_path=taxo, site_dir=site,
+                    portals_dir=tmp_path / "portals-absent")
+    assert not (site / "sante-syntheses.html").exists()
+    assert "syntheses" not in (site / "sante.html").read_text(encoding="utf-8")
+
+
+def test_verdicts_in_meta_without_notice_fails(tmp_path):
+    """Un verdicts.json dont le métadomaine n'a pas de notice ne peut PAS être
+    publié en synthèse : le caveat est structurel, pas décoratif."""
+    themes = tmp_path / "themes"
+    _publish_main(themes, "creatine", "Créatine")
+    _write_verdicts(themes, "creatine")
+    taxo = _taxo_sante(tmp_path, ["creatine"], notice=None)
+    with pytest.raises(SystemExit, match="notice"):
+        build_site.main(themes_dir=themes, taxonomy_path=taxo,
+                        site_dir=tmp_path / "_site",
+                        portals_dir=tmp_path / "portals-absent")
+
+
+def test_synthese_unknown_efficacy_fails(tmp_path):
+    """build.py est le garde-fou amont, mais un verdicts.json édité à la main ne
+    doit pas produire une page fausse en silence."""
+    themes = tmp_path / "themes"
+    _publish_main(themes, "creatine", "Créatine")
+    _write_verdicts(themes, "creatine",
+                    rows=[{"indication": "I", "efficacy": "miraculeuse",
+                           "claims": ["claim:1"]}])
+    taxo = _taxo_sante(tmp_path, ["creatine"])
+    with pytest.raises(SystemExit, match="efficacité"):
+        build_site.main(themes_dir=themes, taxonomy_path=taxo,
+                        site_dir=tmp_path / "_site",
+                        portals_dir=tmp_path / "portals-absent")
+
+
+def test_efficacy_enums_match_monograph_components():
+    """build_site duplique volontairement les enums (pas d'import runtime entre
+    tools/ et les scripts du skill) : ce test est le verrou anti-divergence."""
+    import importlib.util
+    p = (pathlib.Path(build_site.__file__).resolve().parent.parent
+         / ".claude" / "skills" / "monograph" / "scripts" / "components.py")
+    spec = importlib.util.spec_from_file_location("mono_components", p)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    assert build_site.EFFICACY_LEVELS == mod.EFFICACY_LEVELS
+    assert build_site.EFFICACY_LABELS == mod.EFFICACY_LABELS
+    assert build_site.SAFETY_STATUS == mod.SAFETY_STATUS
