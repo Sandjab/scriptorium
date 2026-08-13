@@ -33,6 +33,46 @@ def validate_refs(manifest, kb, widgets):
         if el["type"] == "widget" and el["ref"] not in widgets:
             die(f"widget inconnu : {el['ref']}")
 
+def validate_verdicts(manifest, kb, verdicts):
+    has_el = any(el.get("type") == "verdicts" for el in manifest["elements"])
+    if verdicts is None:
+        if has_el:
+            die("élément verdicts au manifeste mais verdicts.json absent")
+        return
+    if not has_el:
+        die("verdicts.json présent mais aucun élément verdicts au manifeste")
+    ok = {c["id"] for c in kb.get("claims", []) if c.get("audit") in ("confirmed", "corrected")}
+    sections = {el["id"] for el in manifest["elements"] if el.get("type") == "section"}
+
+    def check(ids, where):
+        if not ids:
+            die(f"verdicts : {where} sans claim vérifié")
+        for cid in ids:
+            if cid not in ok:
+                die(f"verdicts : {where} référence {cid} (inexistant ou non vérifié)")
+
+    subs = verdicts.get("substances", [])
+    if not subs:
+        die("verdicts.json : aucune substance")
+    for sub in subs:
+        sid = sub.get("id", "?")
+        for k in ("safety", "adverse"):
+            if k not in sub:
+                die(f"verdicts : {sid} sans bloc {k}")
+            check(sub[k].get("claims", []), f"{sid}/{k}")
+        if sub["safety"].get("status") not in C.SAFETY_STATUS:
+            die(f"verdicts : {sid} statut sécurité inconnu : {sub['safety'].get('status')}")
+        rows = sub.get("rows", [])
+        if not rows:
+            die(f"verdicts : {sid} sans ligne d'indication")
+        for r in rows:
+            w = f"{sid}/{r.get('indication', '?')}"
+            if r.get("efficacy") not in C.EFFICACY_LEVELS:
+                die(f"verdicts : {w} efficacité inconnue : {r.get('efficacy')}")
+            check(r.get("claims", []), w)
+            if r.get("anchor") and r["anchor"] not in sections:
+                die(f"verdicts : {w} ancre inconnue : {r['anchor']}")
+
 def structural_checks(htmls):
     for name, s in htmls.items():
         if "file:///" in s: die(f"{name} : file:/// résiduel")
@@ -72,12 +112,15 @@ def build_theme(theme):
            "glossary": json.loads(read(theme/"glossary.json")),
            "tldr": json.loads(read(theme/"tldr.json")),
            "widgets": load_widgets(theme), "kb": kb}
+    vp = theme / "verdicts.json"
+    ctx["verdicts"] = json.loads(read(vp)) if vp.exists() else None
     mp = theme/"manifest.json"
     if not mp.exists():
         die(f"manifeste absent : {mp}")
     manifest = json.loads(read(mp))
     validate_manifest(manifest)
     validate_refs(manifest, kb, ctx["widgets"])
+    validate_verdicts(manifest, kb, ctx["verdicts"])
     name = f"{manifest['slug']}.html"
     htmls = {name: render_edition(manifest, ctx)}
     structural_checks(htmls)

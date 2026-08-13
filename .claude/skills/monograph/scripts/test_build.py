@@ -113,3 +113,77 @@ def test_figure_with_single_quoted_attrs_is_numbered(tmp_path):
     out = (pathlib.Path(theme)/"dist"/"demo.html").read_text(encoding="utf-8")
     assert '<span class="fcap-k">Figure 1</span>' in out         # apostrophes tolérées, sortie en "
     assert "<span class='fcap-k'></span>" not in out             # plus aucun gabarit vide
+
+# --- verdicts ---------------------------------------------------------------
+
+_VCLAIMS = [
+    {"id": "claim:ok",  "statement": "s", "sources": ["src:1", "src:2"], "audit": "confirmed"},
+    {"id": "claim:fix", "statement": "s", "sources": ["src:1", "src:2"], "audit": "corrected"},
+    {"id": "claim:bad", "statement": "s", "sources": ["src:1"],          "audit": "rejected"},
+]
+
+def _valid_verdicts():
+    return {"theme": "demo", "substances": [{
+        "id": "s1", "label": "S1",
+        "safety": {"status": "autorise", "label": "OK", "claims": ["claim:fix"]},
+        "adverse": {"text": "t", "claims": ["claim:ok"]},
+        "rows": [{"indication": "I", "efficacy": "bonne",
+                  "claims": ["claim:ok"], "anchor": "sec-a"}]}]}
+
+def _mk_vtheme(tmp, verdicts, with_element=True):
+    els = [{"type": "abstract"}]
+    if with_element:
+        els.append({"type": "verdicts"})
+    els.append({"type": "section", "id": "sec-a", "heading": "A", "prose": "<p>x</p>"})
+    theme = _mk_theme(tmp, els, claims=_VCLAIMS)
+    if verdicts is not None:
+        (pathlib.Path(theme) / "verdicts.json").write_text(
+            json.dumps(verdicts), encoding="utf-8")
+    return theme
+
+def test_verdicts_valid_builds_and_accepts_corrected(tmp_path):
+    # safety cite un claim « corrected » : vérifié au même titre que confirmed (sémantique lint.py)
+    theme = _mk_vtheme(tmp_path, _valid_verdicts())
+    build.build_theme(theme)
+    out = (pathlib.Path(theme) / "dist" / "demo.html").read_text(encoding="utf-8")
+    assert '<section id="verdicts"' in out
+
+def test_verdicts_row_without_claims_fails(tmp_path):
+    v = _valid_verdicts(); v["substances"][0]["rows"][0]["claims"] = []
+    with pytest.raises(SystemExit):
+        build.build_theme(_mk_vtheme(tmp_path, v))
+
+def test_verdicts_rejected_claim_fails(tmp_path):
+    v = _valid_verdicts(); v["substances"][0]["rows"][0]["claims"] = ["claim:bad"]
+    with pytest.raises(SystemExit):
+        build.build_theme(_mk_vtheme(tmp_path, v))
+
+def test_verdicts_unknown_claim_fails(tmp_path):
+    v = _valid_verdicts(); v["substances"][0]["adverse"]["claims"] = ["claim:nope"]
+    with pytest.raises(SystemExit):
+        build.build_theme(_mk_vtheme(tmp_path, v))
+
+def test_verdicts_efficacy_out_of_enum_fails(tmp_path):
+    # ferme la porte aux gradations inventées (« miraculeuse » n'est pas un verdict)
+    v = _valid_verdicts(); v["substances"][0]["rows"][0]["efficacy"] = "miraculeuse"
+    with pytest.raises(SystemExit):
+        build.build_theme(_mk_vtheme(tmp_path, v))
+
+def test_verdicts_safety_status_out_of_enum_fails(tmp_path):
+    v = _valid_verdicts(); v["substances"][0]["safety"]["status"] = "douteux"
+    with pytest.raises(SystemExit):
+        build.build_theme(_mk_vtheme(tmp_path, v))
+
+def test_verdicts_element_without_file_fails(tmp_path):
+    with pytest.raises(SystemExit):
+        build.build_theme(_mk_vtheme(tmp_path, None))
+
+def test_orphan_verdicts_file_fails(tmp_path):
+    # verdicts.json présent sans élément au manifeste : aucun tableau perdu en silence
+    with pytest.raises(SystemExit):
+        build.build_theme(_mk_vtheme(tmp_path, _valid_verdicts(), with_element=False))
+
+def test_verdicts_unknown_anchor_fails(tmp_path):
+    v = _valid_verdicts(); v["substances"][0]["rows"][0]["anchor"] = "ghost"
+    with pytest.raises(SystemExit):
+        build.build_theme(_mk_vtheme(tmp_path, v))
