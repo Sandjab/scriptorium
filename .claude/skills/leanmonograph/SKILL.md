@@ -45,8 +45,12 @@ Identique à `/monograph`, au **scriptPath** près.
    - `args` : `{ "subject": "<sujet>", "slug": "<slug>", "themeDir": "<abs>/themes/<slug>" }`
    - (texte seul : `"widget": false`.) **Note le `runId`**. 1er lancement **sans** `resume` ;
      relance après interruption **avec** `"resume": true`.
+   - **Thème santé** (métadomaine à `notice`) : ajoute `"verdicts": true` — le workflow
+     produit alors `themes/<slug>/verdicts.json` (tableau efficacité/sécurité par indication,
+     validé par build.py) et insère son élément au manifeste après l'abstract. Défaut :
+     absent (thèmes non-santé inchangés).
 6. **Rapporte** : `dist/<slug>.html`, le bilan d'audit (`confirmed`/`corrected`/`rejected`,
-   ≥2 sources vérifié), les widgets retenus, et le **bilan lint** (`lint_flags`/`lint_fixed`
+   ≥2 sources vérifié), les widgets retenus, le tableau de verdicts (si santé), et le **bilan lint** (`lint_flags`/`lint_fixed`
    du retour de build + `checked/fixed/hedged` de l'Audit-prose). Rapport d'audit annexe :
    `themes/<slug>/audit-report.json` + `.md` (mêmes champs que frugal — comparables).
    Si `build.success` est faux, **remonte l'erreur** — ne déclare pas un succès.

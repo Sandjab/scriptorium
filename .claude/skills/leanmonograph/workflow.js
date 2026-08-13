@@ -12,6 +12,7 @@ export const meta = {
     { title: 'Audit-prose', detail: 'lint.py --pre + vérification des chiffres prose-only contre leurs sources', model: 'sonnet' },
     { title: 'Widgets',     detail: 'sélection des concepts (planner) puis fan-out codeurs + critic' },
     { title: 'Compose',     detail: 'écrit le manifeste unique (best-of)' },
+    { title: 'Verdicts',    detail: "tableau efficacité/sécurité par indication (thème santé, si args.verdicts) — écrit verdicts.json + insère l'élément au manifeste" },
     { title: 'Style',       detail: 'relecture accents/calques du texte visible des widgets', model: 'sonnet' },
     { title: 'Build',       detail: 'build.py + lint.py (adjudication des flags) → 1 HTML + auto-vérifs' },
   ],
@@ -42,6 +43,7 @@ const repoRoot = themeDir.replace(/\/themes\/[^/]+\/?$/, '');
 const buildScript = repoRoot + '/.claude/skills/monograph/scripts/build.py';
 const lintScript = repoRoot + '/.claude/skills/leanmonograph/scripts/lint.py';
 const RESUME = (A0.resume === true) || (String(A0.resume) === 'true');
+const WANT_VERDICTS = (A0.verdicts === true) || (String(A0.verdicts) === 'true');
 const ckptDir = themeDir + '/.leanmonograph';   // checkpoints isolés de /monograph et /frugalmonograph
 
 const WEB = 'Utilise WebSearch et WebFetch (charge-les via ToolSearch "select:WebSearch,WebFetch" si absents). Cite des URL réelles, jamais inventées.';
@@ -140,6 +142,10 @@ const S_COMPOSE = { type:'object', additionalProperties:false, required:['files_
   files_written:{ type:'array', items:{type:'string'} },
   element_counts:{ type:'object', additionalProperties:false, required:['document'],
     properties:{ document:{type:'integer'} } } } };
+
+const S_VERDICTS = { type:'object', additionalProperties:false, required:['files_written','n_substances','n_rows'], properties:{
+  files_written:{ type:'array', items:{type:'string'} },
+  n_substances:{type:'integer'}, n_rows:{type:'integer'} } };
 
 const S_WIDGET_PLAN = { type:'object', additionalProperties:false, required:['widgets'], properties:{
   widgets:{ type:'array', items:{ type:'object', additionalProperties:false,
@@ -519,6 +525,16 @@ const composePrompt = (title, biblioEntries, widgets, pointers) => [
   ``,
   `meta OBLIGATOIRE : title = "${title}", kicker = "<sujet court> · monographie", h1 = "${title}", lede = 1 phrase d'accroche, meta_chips = ["Monographie"], footer = "${title} · scriptorium".`,
   `Les claims référencés doivent exister dans knowledge.json ; chaque widget ref doit exister. Crée le dossier si besoin (mkdir -p ${themeDir}). Rends files_written + element_counts:{document:<nb total d'elements>}.`,
+].join('\n');
+
+const verdictsPrompt = () => [
+  `Tu produis le TABLEAU DE VERDICTS de la monographie santé « ${slug} » : ${themeDir}/verdicts.json, puis tu insères son élément au manifeste.`,
+  `LIS d'abord : ${themeDir}/knowledge.json (statements + audit de chaque claim) et ${themeDir}/manifest.json (ids de sections).`,
+  `SCHÉMA EXACT de verdicts.json : {"theme":"${slug}","substances":[{"id":<kebab>,"label":<nom affiché>,"safety":{"status":<autorise|interdit|restreint|pas-avis>,"label":<phrase courte>,"claims":[ids]},"adverse":{"text":<phrase>,"claims":[ids]},"rows":[{"indication":<indication discutée>,"efficacy":<nulle|faible|modeste|bonne|tres-bonne|indeterminee>,"ci":<optionnel>,"official":<optionnel>,"note":<optionnel>,"claims":[ids],"anchor":<id de section, optionnel>}]}]}`,
+  `RÈGLES NON NÉGOCIABLES : (1) une ligne par indication/allégation réellement discutée dans le document ; (2) chaque ligne, safety et adverse citent UNIQUEMENT des claims dont audit vaut confirmed ou corrected — jamais rejected ; (3) "ci" recopie un intervalle/taille d'effet présent DANS le statement d'un claim cité — jamais depuis ta mémoire ; (4) sans donnée exploitable : efficacy "indeterminee", pas d'invention ; (5) "anchor" = l'id exact de la section du manifeste qui détaille la ligne ; (6) une monographie multi-substances → une entrée "substances" par substance traitée.`,
+  `PUIS insère {"type":"verdicts"} dans ${themeDir}/manifest.json en position 1 de "elements" (juste après {"type":"abstract"}) : Read du fichier, puis Edit/Write en préservant le formatage (indent 2).`,
+  `build.py validera derrière toi (claims vérifiés, enums, ancres) et échouera bruyamment sur toute entorse : ne compte pas sur lui pour rattraper, rends un fichier déjà conforme.`,
+  `Rends : files_written (chemins écrits), n_substances, n_rows.`,
 ].join('\n');
 
 const buildPrompt = () => [
@@ -978,6 +994,15 @@ const _wroteManifest = (composed.files_written || []).some(p => /(^|\/)manifest\
 if (!_wroteManifest) throw new Error(
   `Compose n'a pas (ré)écrit ${themeDir}/manifest.json. files_written=${JSON.stringify(composed.files_written)}. ` +
   `Abandon AVANT build pour ne pas assembler un manifeste périmé sur le knowledge.json courant.`);
+
+// ── Verdicts (thème santé : flag explicite args.verdicts) ────────────────────
+if (WANT_VERDICTS) {
+  phase('Verdicts');
+  const v = await A(verdictsPrompt(), { schema: S_VERDICTS, phase: 'Verdicts', label: 'verdicts' });
+  if (!(v.files_written || []).some(p => /(^|\/)verdicts\.json$/.test(p)))
+    throw new Error(`Verdicts n'a pas écrit ${themeDir}/verdicts.json. files_written=${JSON.stringify(v.files_written)}`);
+  log(`Verdicts : ${v.n_substances} substance(s), ${v.n_rows} indication(s).`);
+}
 
 // ── Style : widgets uniquement (la prose est née stylée + relue en continuité) ──
 if (widgets.length) {
