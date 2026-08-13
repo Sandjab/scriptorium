@@ -54,6 +54,46 @@ def render_pointers(el):
     return (f'<section id="pointers"><h3>{title}</h3>'
             '<div class="xptr-grid">' + "\n".join(cards) + "</div></section>")
 
+EFFICACY_LEVELS = ("nulle", "faible", "modeste", "bonne", "tres-bonne", "indeterminee")
+SAFETY_STATUS = ("autorise", "interdit", "restreint", "pas-avis")
+EFFICACY_LABELS = {"nulle": "Nulle", "faible": "Faible", "modeste": "Modeste",
+                   "bonne": "Bonne", "tres-bonne": "Très bonne",
+                   "indeterminee": "Indéterminée"}
+
+def _efficacy_cell(lvl):
+    label = EFFICACY_LABELS[lvl]
+    if lvl == "indeterminee":
+        return f'<span class="vmeter vm-na">{label}</span>'
+    n = EFFICACY_LEVELS.index(lvl)                     # nulle=0 … tres-bonne=4
+    bars = "".join(f'<i class="{"on" if i < n else ""}"></i>' for i in range(4))
+    return f'<span class="vmeter">{bars}<b>{label}</b></span>'
+
+def render_verdicts(v):
+    parts = ['<section id="verdicts" class="verdicts"><h3>Verdicts par indication</h3>']
+    for sub in v["substances"]:
+        parts.append(f'<h4 class="vd-sub">{esc(sub["label"])}</h4>')
+        rows = []
+        for r in sub["rows"]:
+            ind = esc(r["indication"])
+            if r.get("anchor"):
+                ind = f'<a href="#{r["anchor"]}">{ind}</a>'
+            rows.append(
+                f'<tr><td>{ind}</td><td>{_efficacy_cell(r["efficacy"])}</td>'
+                f'<td>{esc(r.get("ci") or "—")}</td>'
+                f'<td>{esc(r.get("official") or "—")}</td>'
+                f'<td>{esc(r.get("note") or "")}</td></tr>')
+        parts.append(
+            '<div class="tbl-w"><table><thead><tr><th>Indication</th><th>Efficacité</th>'
+            '<th>IC / taille d’effet</th><th>Statut officiel</th><th>Note</th></tr></thead><tbody>'
+            + "".join(rows) + "</tbody></table></div>")
+        saf, adv = sub["safety"], sub["adverse"]
+        parts.append(
+            f'<p class="vd-safety"><b>Sécurité</b> : '
+            f'<span class="vbadge vb-{saf["status"]}">{esc(saf["label"])}</span> · '
+            f'<b>Effets indésirables</b> : {esc(adv["text"])}</p>')
+    parts.append("</section>")
+    return "\n".join(parts)
+
 def render_toc(manifest):
     return "\n".join(f'<a href="#{el["id"]}">{esc(el["heading"])}</a>'
                      for el in manifest["elements"] if el.get("type") == "section")
@@ -67,4 +107,5 @@ RENDERERS = {
     "callout":  lambda el, ctx: render_callout(el),
     "biblio":   lambda el, ctx: render_biblio(el),
     "pointers": lambda el, ctx: render_pointers(el),
+    "verdicts": lambda el, ctx: render_verdicts(ctx["verdicts"]),
 }
