@@ -930,7 +930,3 @@ Trois enseignements, dont un de fond :
    un nombre de CARACTÈRES étiqueté « o » (octets) — 4 726 d'écart sur ce document, soit les
    accents. Enfin, 0 figure ici contre 3 pour `berberine` : document visuellement plus maigre
    que ses voisins.)
-- **peptides-gris** (moyenne, ⚠️ DIFFÉRÉ) — BPC-157, sécrétagogues GH (ipamoréline,
-  CJC-1295), TB-500 : littérature quasi exclusivement animale/mécanistique, vente
-  « research chemicals ». ⚠️ Ne lancer qu'après ≥ 2 runs santé GREEN : taux de rejet
-  élevé attendu, c'est le stress-test de la doctrine, pas son rodage.
