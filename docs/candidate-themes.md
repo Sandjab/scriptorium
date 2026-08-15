@@ -751,7 +751,10 @@ qui tiennent à ce que le corpus dit **de lui-même** :
    corpus** et non repris ici. » Ce n'est traité nulle part : `proteines-besoins-timing` porte sur
    l'hypertrophie du sujet entraîné, pas sur la préservation musculaire sous −20 % de poids.
    Un renvoi vers un document inexistant est le signal de gap le plus fiable dont ce corpus
-   dispose. → `masse-maigre-sous-glp1`, priorité haute.
+   dispose. → `masse-maigre-sous-glp1`, priorité haute — **FAIT le jour même**, voir son entrée
+   dans `pharmacologie-metabolique`. ⚠️ L'heuristique reste ouverte pour les autres : balayer le
+   corpus sur « traité ailleurs », « relève de », « non repris ici », puis vérifier PAR LECTURE
+   que la cible existe.
 2. **Le format « une monographie par objectif » est validé mais tenu rare.** Il existe déjà —
    `complements-amincissants` *est* une monographie par objectif — et il est cher : run le plus
    coûteux du corpus (6,86M tok, deux runs, ~4 h 10) et classe d'erreur factuelle nouvelle (fausse
@@ -774,19 +777,19 @@ qui tiennent à ce que le corpus dit **de lui-même** :
    **non retenu ce tour-ci** : son profil (adultération PDE5, marché gris, contrôle du contenu réel
    des gélules) redirait la méthode de `complements-amincissants` et `peptides-gris`.
 
-**Ordre de lancement retenu** (le backlog santé n'est plus à 0 haute) :
+**Ordre de lancement** — mis à jour le 2026-08-15 après la publication de
+`masse-maigre-sous-glp1` (n° 1, FAIT ; voir son entrée dans `pharmacologie-metabolique`) :
 
 | # | thème | priorité | domaine |
 |---|---|---|---|
-| 1 | `masse-maigre-sous-glp1` | **haute** | `pharmacologie-metabolique` |
-| 2 | `nootropiques-stimulants-prescrits` | **haute** | `performance-cognitive` (le crée) |
-| 3 | `omega-3` | moyenne-haute | `complements-sante` |
-| 4 | `acide-alpha-lipoique` | moyenne-haute | `complements-sante` |
-| 5 | `nootropiques-vegetaux` | moyenne | `performance-cognitive` (ouvre le portail) |
-| 6 | `beta-alanine-tampons` | moyenne | `nutrition-sportive` |
-| 7 | `cafeine-cognition-vigilance` | moyenne | `performance-cognitive` |
-| 8 | `microdosage-psychedeliques` | moyenne | `performance-cognitive` |
-| 9 | `magnesium`, `hydratation-electrolytes` | basses | — |
+| 1 | `nootropiques-stimulants-prescrits` | **haute** | `performance-cognitive` (le crée) |
+| 2 | `omega-3` | moyenne-haute | `complements-sante` |
+| 3 | `acide-alpha-lipoique` | moyenne-haute | `complements-sante` |
+| 4 | `nootropiques-vegetaux` | moyenne | `performance-cognitive` (ouvre le portail) |
+| 5 | `beta-alanine-tampons` | moyenne | `nutrition-sportive` |
+| 6 | `cafeine-cognition-vigilance` | moyenne | `performance-cognitive` |
+| 7 | `microdosage-psychedeliques` | moyenne | `performance-cognitive` |
+| 8 | `magnesium`, `hydratation-electrolytes` | basses | — |
 
 ## `nutrition-sportive`
 
@@ -1040,80 +1043,53 @@ Trois enseignements, dont un de fond :
    accents. Enfin, 0 figure ici contre 3 pour `berberine` : document visuellement plus maigre
    que ses voisins.)
 
-### Ce qui préserve le muscle sous GLP-1 — `masse-maigre-sous-glp1` → `pharmacologie-metabolique`
-**Verdict : gap réel, PRIORITÉ HAUTE — le corpus renvoie déjà vers ce document inexistant.**
-(Voir la passe du 2026-08-15, point 1.) `incretines-glp1` établit la contrepartie — sous
-tirzépatide, environ trois quarts de graisse et un quart de « tout le reste » ; jusqu'à 6,4 kg de
-masse maigre sous rétatrutide 12 mg — puis **renvoie explicitement ailleurs** ce qui pourrait la
-limiter. Personne ne le traite. C'est aussi la **première monographie d'interaction** du corpus :
-une potentialisation est un effet d'interaction, elle ne se démontre que par un plan add-on ou
-factoriel (le maître seul, l'ajout seul, les deux) — ce que font les essais ci-dessous et
-qu'**aucun essai de complément n'a jamais fait**. La conclusion s'écrit d'elle-même : la
-potentialisation existe, elle coûte un anticorps monoclonal de phase 2, et le rayon qui vend le
-mot n'a pas un seul bras de randomisation. ⚠️ Les essais listés viennent d'une recherche web du
-2026-08-15 et sont donnés comme **pistes à corroborer au sweep**, pas comme faits établis.
+(`masse-maigre-sous-glp1` : FAIT le 2026-08-15, retiré du backlog — 38e run /leanmonograph,
+10e thème santé, 4e de `pharmacologie-metabolique` : GREEN après backstop, 9/9 sections,
+34 claims 22✓/10corr/2rej (20/10/4 au council, avant re-adjudication), 75 sources, 4 widgets +
+2 figures, tableau de verdicts à 7 substances, ~7 250 mots ; **6,28M tok / 87 agents / 2 h 24 en
+un seul run, 0 erreur d'agent — sous la fourchette annoncée** (6-8M / 3 h-3 h 45). Classé **2e du
+parcours**, pas en fin de file : il continue littéralement la section « Ce qui est perdu »
+d'`incretines-glp1`, dont il répare le renvoi cassé. Le domaine se lit désormais en deux temps —
+l'effet établi puis la composition de cet effet — avant la descente déjà en place. Blurb du
+domaine et intro du portail élargis à l'axe qui manquait : ce qu'on prétend AJOUTER au traitement.
 
-**Enrichi le 2026-08-15 après examen d'un protocole de « stack » tiers** (artefact de recherche
-généré, 9 compléments sous tirzépatide, non versionné). Trois apports, plus une règle :
+Trois enseignements, dont deux de fond :
 
-- **Section obligatoire à ajouter — le déficit micronutritionnel, la seule supplémentation
-  réellement recommandée.** Vérifié par lecture : `incretines-glp1` n'en dit RIEN (0 occurrence de
-  carence, micronutriment, vitamine, B12, calcium, os dans ses 14 sections). Or NICE **TA1026**
-  (déc. 2024) porte une recommandation réelle — *envisager un complément apportant les apports de
-  référence pour toutes les vitamines et minéraux si l'apport alimentaire est jugé insuffisant*.
-  C'est la version honnête de « se supplémenter sous GLP-1 », et elle tient en une ligne : un
-  multivitamine aux ANC quand l'apport s'effondre, pas neuf produits à doses supra-nutritionnelles.
-  Ne PAS confondre avec les critères d'éligibilité (IMC ≥ 35 + 1 comorbidité, poursuite si ≥ 5 % à
-  6 mois). Si le sweep trouve assez de matière (B12, fer, densité osseuse, sujet âgé), basculer en
-  thème autonome `carences-sous-glp1` ; sinon, section.
-- **Passage obligatoire — le récepteur est déjà occupé.** Tout le discours du « stack » repose sur
-  *potentialiser la production endogène de GLP-1* (berbérine, oméga-3/GPR120, probiotiques, fibres)
-  chez un patient sous agoniste double GLP-1/GIP à dose pharmacologique. L'argument ne se réfute pas
-  molécule par molécule, il se réfute d'un coup : ajouter un sécrétagogue marginal quand un agoniste
-  supraphysiologique de longue durée occupe déjà le récepteur. Aucun de ces protocoles ne pose la
-  question.
-- **Pivot de la section contrepoint — l'attribution fabriquée à SURMOUNT.** Le discours du stack
-  affirme que « les essais SURMOUNT confirment que 1,2-1,6 g/kg/j de protéines préviennent la perte
-  de masse maigre ». SURMOUNT n'a randomisé aucun apport protéique, et l'essai conçu pour répondre
-  (LEAN-PREP) est un **protocole** : la question est ouverte. C'est la contre-affirmation exacte de
-  la vraie réponse — elle mérite d'ouvrir la section, pas d'y figurer en note.
-- ⚠️ **RÈGLE — un protocole de stack n'est JAMAIS une source.** Ces documents (artefacts de
-  recherche générés, blogs de clinique, protocoles nominatifs) n'ont pas de provenance vérifiable,
-  citent des institutions sans référence, et déplacent la portée de faits réels : « −59 % de Cmax »
-  devient « absorption réduite de 21-59 % » (**fausse plage par agrégation de compartiments**,
-  classe du 32e run), un conseil de multivitamine devient un critère NICE, `Amuc_1100`/`Amuc_1631`
-  deviennent un `Amuc_1434` qui stimulerait le GLP-1 via TLR2. Au moins une de leurs valeurs
-  contredit frontalement un document vérifié du corpus (chrome picolinate : « 3-5 % du poids
-  corporel en plus » contre les −0,50 à −1,1 kg de `complements-amincissants`, non significatifs
-  après retrait de l'essai dominant). Ils sont un **objet à décrire**, jamais une source à citer.
+1. **L'heuristique de gap la plus fiable trouvée à ce jour, et elle est réutilisable** : ce thème
+   est né d'un **renvoi vers un document inexistant**. `incretines-glp1` refermait sa section « Ce
+   qui est perdu » sur « apports protéiques, entraînement en résistance — relève du versant
+   nutritionnel, traité ailleurs dans ce corpus et non repris ici », alors que ce n'était nulle
+   part. ⚠️ **Chercher les autres** : balayer le corpus sur « traité ailleurs », « relève de »,
+   « non repris ici », puis VÉRIFIER PAR LECTURE que la cible existe.
+2. **Les 4 rejets du council portaient TOUS le seuil de sources, AUCUN l'exactitude** — 2 à 3
+   jurés tenaient chaque énoncé, zéro ne le réfutait ; les trois passages étaient dans la prose,
+   affirmés, dont deux sans attribution. Trois réparations, par ordre de généralité :
+   **(a) la seconde source était citée PAR l'article source** (Willoughby 2018, en introduction de
+   Look 2025) — ⚠️ réflexe neuf : sur un rejet « 1 source », lire la BIBLIOGRAPHIE de la source
+   retenue, le juré cherche sur le web et pas dans les références ; **(b) exception
+   document-source ratée par manque d'unanimité** — un juré sur deux avait coché `document_source`,
+   l'autre l'avait écrit en prose dans sa note, et la branche fail-closed a refusé de s'ouvrir
+   (code correct, c'est le prompt du juré qui laisse la qualification s'exprimer en texte libre) ;
+   **(c) un claim composite se répare en le SCINDANT** — la part corroborable devient le claim, la
+   part mono-source reste en prose sous attribution explicite à son essai.
+   Un 4e rejet est maintenu à raison (énoncé d'exhaustivité, qu'une source unique ne peut établir),
+   et un cinquième cas est resté rejeté après trois tentatives infructueuses de second travail :
+   attribution en prose plutôt que corroboration fabriquée.
+   ⚠️ **`lint.py` était vert et ne prouvait rien** : deux de ces énoncés n'ont ni chiffre ni nom
+   propre distinctif, et les pivots du troisième sont blanchis par collision avec des claims
+   retenus — la conjonction d'angles morts du 31e run, sur un run par ailleurs impeccable.
+3. **Piège de MESURE du contraste, classe nouvelle** : une remontée d'arbre qui ne lit que
+   `backgroundColor` rate un bandeau peint en `linear-gradient`, file jusqu'au `body` clair et
+   sort un 1,05:1 sur un titre parfaitement lisible. Première mesure : 5 violations dont **4
+   fausses**. Après prise en compte du premier arrêt de couleur du dégradé : 1 seule réelle
+   (micro-texte de widget à 4,29:1 sur fond teinté), corrigée, puis 0 violation en clair ET en
+   sombre. Les 4 widgets du run ne posent aucun fond en dur et portent tous leur règle sombre.
 
-> Préserver la masse maigre sous agonistes des incrétines : ce que change ce qu'on ajoute au
-> traitement. Partir de la contrepartie établie (part de masse maigre dans le poids perdu, et
-> l'écart entre « masse maigre » mesurée et fonction musculaire — DXA, impédancemétrie et
-> pléthysmographie ne mesurent pas la même chose ; aucune des sous-études pivots ne mesure la
-> force). Couvrir les ajouts réellement randomisés contre le maître seul : inhibiteurs de la voie
-> myostatine/activine — bimagrumab + sémaglutide (BELIEVE, n ≈ 507, 48/72 sem., préservation nette
-> mais élévation du LDL et tolérance discutée), apitegromab + tirzépatide (EMBRACE, n ≈ 102,
-> 24 sem., *Nature Medicine* 2026, ~55 % de la perte de masse maigre évitée à perte de poids
-> identique), trevogrumab + sémaglutide (COURAGE, 26 sem.) — puis le versant non pharmacologique
-> (protéines et entraînement en résistance sous déficit énergétique, protocole LEAN-PREP), et
-> enfin le contrepoint : berbérine, picolinate de chrome, CLA, L-carnitine, HMB, aucun essai
-> add-on — en ouvrant sur l'attribution fabriquée à SURMOUNT (protéines) et en réfutant d'un bloc
-> le rationnel du « stack » (potentialiser la sécrétion endogène de GLP-1 quand un agoniste
-> supraphysiologique de longue durée occupe déjà le récepteur). Traiter aussi **la seule
-> supplémentation réellement recommandée** : le déficit d'apport micronutritionnel quand l'apport
-> alimentaire s'effondre, et la recommandation NICE TA1026 correspondante — un complément aux
-> apports de référence, à ne pas confondre avec les critères d'éligibilité du traitement.
-> Fil rouge méthodologique : **ce qu'exige la démonstration d'une potentialisation**
-> (plan factoriel ou add-on, puissance sur un effet d'interaction, critère = qualité de la perte
-> et non son ampleur), et pourquoi « potentialisateur » est un mot de rayon quand aucun bras ne
-> l'a testé. Sécurité : effets propres des inhibiteurs de myostatine, statut investigationnel de
-> tous ces produits. Délimitations : `incretines-glp1` couvre la pharmacologie des maîtres, les
-> tailles d'effet, l'arrêt du traitement et le marché gris — ne pas les refaire, partir de sa
-> section « Ce qui est perdu » ; `proteines-besoins-timing` couvre le besoin protéique du sujet
-> entraîné en surplus ou à l'équilibre, pas la préservation sous déficit marqué ;
-> `complements-amincissants` a rendu le verdict du rayon minceur en monothérapie ;
-> `peptides-gris` couvre les sécrétagogues GH du marché gris. Domaine : pharmacologie-metabolique.
+**Bon comportement à reconduire mot pour mot** : les pistes issues de la recherche préliminaire
+étaient passées dans `args.subject` comme « à corroborer en source primaire, jamais des faits — si
+une piste ne se corrobore pas, la retirer, ne pas la sauver ». La consigne a tenu, et le pipeline a
+corrigé une contamination venue du brief : l'essai s'appelle **EMBRAZE**, pas EMBRACE — le document
+signale de lui-même que la graphie qui circule dans les reprises est fausse.)
 
 ---
 
