@@ -52,11 +52,15 @@ a par ailleurs été régénéré en déterministe depuis les checkpoints (l'age
    corrigé par un jeton `--crc-onbright` (`#fff` en clair, `#0B131C` en sombre), porté à
    **8,70:1**. `.sdc-pn` (libellé d'étape du synopsis, 8,8 px) était à **4,06:1** en clair,
    passé de `--sdc-bright` à `--sdc-blue`, soit **6,86:1** en clair et 5,53:1 en sombre.
-   ⚠️ **Restent ouverts, hors périmètre car dans la charte PARTAGÉE** (correctif = rebuild du
-   corpus entier) : `--bordeaux-bright` (#C66875) sur `--card` en sombre donne **4,37:1** sur
-   du petit texte — touche `.fcap-k` (clé de légende de figure) et `.xk`, donc les
-   77 documents ; et la couleur de lien `--blue-bright` en clair donne **4,39:1** à 11,9 px.
-   Les deux sont juste sous le seuil AA de 4,5.
+   ✅ **Les 2 défauts de la charte PARTAGÉE ont été corrigés depuis** (2026-08-15, corpus
+   rebuildé — 76 documents, diff purement chromatique). Rectification au passage : le jeton en
+   cause en thème sombre n'était pas `--bordeaux-bright` mais **`--bordeaux`** (#C66875), encre
+   d'une quinzaine de libellés d'accent dont `.fcap-k` et `.xk` — l'énumération
+   `grep 'color:var(--x)'` l'a montré, la mesure seule ne le disait pas. Corrigé à #C86F7B
+   (4,37 → **4,66** sur `--card`). En clair, `--blue-bright` #2C77B6 → #2B73B1
+   (4,39 → **4,63** sur `--paper`). Un troisième défaut a été trouvé par l'énumération et non
+   par la mesure : le survol d'un exercice en sombre pose un fond PLUS CLAIR que `--card`, où
+   l'encre d'accent tombait à **3,83** — encre dédiée sur ce seul état, portée à 4,63.
 
 ## Synthèse
 - Sections : 12/12 retenues
