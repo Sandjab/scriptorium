@@ -778,18 +778,24 @@ qui tiennent à ce que le corpus dit **de lui-même** :
    des gélules) redirait la méthode de `complements-amincissants` et `peptides-gris`.
 
 **Ordre de lancement** — mis à jour le 2026-08-15 après la publication de
-`masse-maigre-sous-glp1` (n° 1, FAIT ; voir son entrée dans `pharmacologie-metabolique`) :
+`nootropiques-stimulants-prescrits` (FAIT le jour même, comme `masse-maigre-sous-glp1` ; voir
+leurs entrées dans `performance-cognitive` et `pharmacologie-metabolique`) :
 
 | # | thème | priorité | domaine |
 |---|---|---|---|
-| 1 | `nootropiques-stimulants-prescrits` | **haute** | `performance-cognitive` (le crée) |
-| 2 | `omega-3` | moyenne-haute | `complements-sante` |
-| 3 | `acide-alpha-lipoique` | moyenne-haute | `complements-sante` |
-| 4 | `nootropiques-vegetaux` | moyenne | `performance-cognitive` (ouvre le portail) |
+| 1 | `nootropiques-vegetaux` | **haute** | `performance-cognitive` (**ouvre le portail**) |
+| 2 | `cafeine-cognition-vigilance` | moyenne-haute | `performance-cognitive` |
+| 3 | `omega-3` | moyenne-haute | `complements-sante` |
+| 4 | `acide-alpha-lipoique` | moyenne-haute | `complements-sante` |
 | 5 | `beta-alanine-tampons` | moyenne | `nutrition-sportive` |
-| 6 | `cafeine-cognition-vigilance` | moyenne | `performance-cognitive` |
-| 7 | `microdosage-psychedeliques` | moyenne | `performance-cognitive` |
-| 8 | `magnesium`, `hydratation-electrolytes` | basses | — |
+| 6 | `microdosage-psychedeliques` | moyenne | `performance-cognitive` |
+| 7 | `magnesium`, `hydratation-electrolytes` | basses | — |
+
+**Pourquoi `nootropiques-vegetaux` passe en tête** (il était n° 4) : `performance-cognitive`
+existe désormais mais **n'a qu'un thème et pas de portail**. Un domaine à un seul thème est un
+domaine à moitié né — compléter le domaine tout juste créé rend plus qu'ajouter un 3e complément
+à `complements-sante`, qui en a déjà deux et son portail. `cafeine-cognition-vigilance` remonte
+pour la même raison, et parce que son voisin `cafeine-ergogene` fournit une frontière déjà écrite.
 
 ## `nutrition-sportive`
 
@@ -1114,27 +1120,33 @@ d'entrée, pas de couverture.
   un domaine vide), et le portail exige un 2e thème — donc **deux runs** pour qu'il existe
   pleinement. Arête à poser dès le 1er thème : `creatine` → section « Cerveau et cognition ».
 
-### Modafinil et stimulants prescrits — `nootropiques-stimulants-prescrits` → `performance-cognitive`
-**Verdict : gap réel, PRIORITÉ HAUTE — crée le domaine.** Densité de preuve la plus forte du
-domaine, et l'écart promesse/preuve maximal : la revue systématique de Battleday & Brem (2015,
-*Eur Neuropsychopharmacol*) conclut à un bénéfice réel mais **confiné** — attention, fonctions
-exécutives et apprentissage, sur les tâches complexes seulement — là où l'usage détourné promet
-une augmentation générale. Reprend et généralise le fil rouge de `creatine` : cerveau privé de
-sommeil vs cerveau reposé.
+(`nootropiques-stimulants-prescrits` : **FAIT le 2026-08-15**, retiré du backlog — 39e run
+/leanmonograph, 11e thème santé, **crée le domaine `performance-cognitive`**. 11/11 sections,
+42 claims 24✓/9corr/9rej, 52 sources, 3 widgets (aucun fond clair en dur). Coût réel **9,3M tok /
+~5 h 30 / 130 agents**, très au-dessus de la fourchette : deux réparations post-build en sont la
+cause entière. Le fil rouge de `creatine` est bien généralisé — l'effet est *conditionnel* à la
+difficulté de la tâche, à la ligne de base et à l'état du cerveau — et la section « Ce qu'on croit
+ressentir, ce qu'on mesure » est le meilleur apport du document : l'écart le mieux documenté de
+cette littérature n'oppose pas la molécule au placebo mais la performance mesurée à la performance
+ressentie.
 
-> Modafinil et stimulants sur ordonnance utilisés hors AMM comme rehausseurs cognitifs chez le
-> sujet sain. Couvrir : ce que le modafinil fait chez le narcoleptique (indication autorisée) vs
-> chez le sujet sain non privé de sommeil ; la revue systématique de Battleday & Brem et les
-> méta-analyses antérieures, avec le **détail des domaines cognitifs** où l'effet tient et de ceux
-> où il ne tient pas ; la dépendance du verdict à la complexité de la tâche et à la ligne de base
-> du sujet (effet plus net chez les performeurs bas) ; la privation de sommeil comme condition qui
-> fabrique l'effet ; le méthylphénidate et les amphétamines en usage détourné (populations
-> étudiantes, prévalence déclarée vs mesurée) ; les échelles de mesure elles-mêmes — pourquoi
-> « tester une cognition normale ou supra-normale de façon fiable » reste un problème ouvert ;
-> sécurité, dépendance, sommeil, effets cardiovasculaires ; statut réglementaire et cadre du
-> hors-AMM. Délimitations : `creatine` a la section cognition du corpus (privation de sommeil,
-> double comptage, refus EFSA) — s'y arrimer, ne pas la refaire ; `cafeine-ergogene` est purement
-> ergogène et ne dit rien du versant vigilance. Domaine : performance-cognitive (à créer).
+**Trois classes d'échec nouvelles, toutes découvertes APRÈS un `build.success: true`** — c'est le
+vrai rendement de ce run, détaillé en mémoire :
+1. **Un faux rejet coûte une SECTION, pas un fait.** L'élagage déterministe coupe toute section
+   sous 2 claims retenus (`SECTION_CLAIM_QUOTA`). Un claim que les deux jurés tenaient, rejeté
+   faute d'une 2e source, a fait tomber « Quand la complexité de la tâche retourne le verdict » —
+   la 1re des trois conditions du fil rouge. Un ré-audit ciblé (1 agent) a trouvé la vraie 2e
+   source en lisant le texte intégral d'une primaire citée par la revue, **et corrigé une erreur
+   de fond au passage** (le sous-groupe *localise* l'effet, il ne le révèle pas).
+   Traces qui trahissent la perte : anaphore sans antécédent, entrée de glossaire orpheline.
+2. **Le compte de sections annoncé est un proxy.** Le workflow a rapporté « 11/11 retenues » alors
+   que le manifeste écrit par Compose n'en avait que 10. Compter sur le HTML (`<h3>`).
+3. **`prose.json` est PRÉ-Audit-prose** : y auditer les rejets fait re-signaler du déjà corrigé
+   (j'y ai ajouté une réserve redondante, retirée depuis). Auditer le manifeste ou le dist.
+
+⚠️ **Portail `performance-cognitive` non créé** (1 seul thème ; `build_site.py` refuse un portail
+orphelin). L'arête `creatine` → section « Cerveau et cognition » **reste à poser** : elle attend
+le 2e thème du domaine.)
 
 ### Nootropiques végétaux — `nootropiques-vegetaux` → `performance-cognitive`
 **Verdict : gap réel (moyenne) — ouvre le portail du domaine.** Le verdict de rayon, format
