@@ -8,6 +8,23 @@ Thème : `incretines-glp1`
 
 Légende jurés : `lentille✓` corrobore · `lentille✗` réfute · `~` propose une correction.
 
+## Correction post-run (2026-08-15) — fait de prose, hors council
+
+La section `securite-doses-interactions` affirmait que le tirzépatide « abaisse d'environ 60 %
+**l'exposition** aux contraceptifs oraux combinés ». Le 60 % est un chiffre de **pic de
+concentration**, pas d'exposition. Vérifié sur le label FDA (DailyMed, MOUNJARO, section 7) :
+après une dose de 5 mg, la **Cmax** de l'éthinylestradiol, du norgestimate et de la norelgestromine
+recule de **59 %, 66 % et 55 %**, tandis que l'**AUC** — l'exposition — recule de **20 %, 21 % et
+23 %**. Un compartiment de mesure était donc étiqueté par un autre : même famille d'erreur que la
+fausse plage par agrégation relevée sur `berberine` (32e run), dans l'autre sens. Prose corrigée
+(les deux valeurs sont désormais nommées et distinguées) ; la conséquence pratique — méthode non
+orale ou barrière pendant 4 semaines après l'instauration et chaque escalade — est inchangée et
+reste exacte.
+
+**Aucun claim de `knowledge.json` ne portait ce fait** : c'est ce qui l'a rendu invisible au council,
+et le lint ne pouvait rien voir puisque « 59/60 » figure bien dans la source. Le tableau ci-dessous
+est inchangé.
+
 ## Par claim
 
 | id | section | kind | audit | corrob. | réfut. | corrig. | sources | jurés | énoncé |
