@@ -98,16 +98,16 @@ const S_NOTES = { type:'object', additionalProperties:false, required:['id','hea
 // Verdict d'un juré BATCH : un verdict PAR claim de la section (claim_index aligné).
 const S_BATCH = { type:'object', additionalProperties:false, required:['verdicts'], properties:{
   verdicts:{ type:'array', items:{ type:'object', additionalProperties:false,
-    required:['claim_index','holds','corrected_statement','independent_sources','note','search_exhausted'],
-    properties:{ claim_index:{type:'integer'}, holds:{type:'boolean'}, search_exhausted:{type:'boolean'},
+    required:['claim_index','holds','corrected_statement','independent_sources','note','search_exhausted','document_source'],
+    properties:{ claim_index:{type:'integer'}, holds:{type:'boolean'}, search_exhausted:{type:'boolean'}, document_source:{type:'boolean'},
       corrected_statement:{type:'string'},
       independent_sources:{ type:'array', items:{ type:'object', additionalProperties:false, required:['title','url'],
         properties:{ title:{type:'string'}, url:{type:'string'} } } },
       note:{type:'string'} } } } } };
 
 // Verdict du juré DÉDIÉ (un claim contestable, lentille source primaire).
-const S_VERDICT = { type:'object', additionalProperties:false, required:['holds','corrected_statement','independent_sources','note','search_exhausted'], properties:{
-  holds:{type:'boolean'}, search_exhausted:{type:'boolean'},
+const S_VERDICT = { type:'object', additionalProperties:false, required:['holds','corrected_statement','independent_sources','note','search_exhausted','document_source'], properties:{
+  holds:{type:'boolean'}, search_exhausted:{type:'boolean'}, document_source:{type:'boolean'},
   corrected_statement:{type:'string'},
   independent_sources:{ type:'array', items:{ type:'object', additionalProperties:false, required:['title','url'],
     properties:{ title:{type:'string'}, url:{type:'string'} } } },
@@ -259,6 +259,24 @@ function decideAudit(claim, verdicts) {
       return { audit:'confirmed', statement: claim.statement, sources,
                note: `Confirmé : ${holds.length}/${verdicts.length} jurés, ${sources.length} sources indépendantes.` };
   }
+  // Exception « document-source » : un énoncé qui décrit le CONTENU d'un document de référence
+  // (position de société savante, avis d'agence, fiche officielle) n'a qu'UNE source par nature —
+  // on ne corrobore pas « ce document dit X » par un second document. Le lui refuser au décompte
+  // fabrique un faux rejet (règle adoptée le 2026-08-10 sur berberine, reconfirmée le 2026-08-15
+  // sur cafeine-ergogene ; jusque-là appliquée à la main APRÈS le build, deux fois).
+  // Garde-fous, dans cet ordre : (1) elle ne se déclenche QUE si le seuil normal a échoué, la
+  // branche ci-dessus étant essayée d'abord ; (2) UNANIMITÉ — tous les jurés tiennent l'énoncé ET
+  // le qualifient de document-source, un seul oubli et on retombe sur le rejet (fail closed) ;
+  // (3) la note DIT que la source est unique par nature, elle ne prétend jamais 2 sources.
+  // Elle ne couvre PAS un résultat empirique mono-source : cette distinction est portée par le
+  // prompt du juré, c'est un jugement, pas un test.
+  if (holds.length >= 2 && holds.length === verdicts.length &&
+      holds.every(v => v.document_source === true)) {
+    const sources = collectSources(holds);
+    if (sources.length >= 1)
+      return { audit:'confirmed', statement: claim.statement, sources,
+               note: `Confirmé sur lecture directe (règle document-source) : ${holds.length}/${verdicts.length} jurés. Ce claim décrit le contenu d'un document de référence — SA SOURCE EST UNIQUE PAR NATURE, le seuil ≥2 ne s'y applique pas.` };
+  }
   if ((holds.length + corrected.length) >= 2) {
     const sources = collectSources([...holds, ...corrected]);
     if (sources.length >= 2)
@@ -327,6 +345,7 @@ const batchVerifyPrompt = (sec, claims, lensIdx) => [
   `MÉTHODE (économie) : les claims d'une même section citent souvent LES MÊMES papiers — ouvre chaque source candidate UNE seule fois (WebFetch) et évalue à cette occasion TOUS les claims qu'elle concerne. Ne lance une NOUVELLE recherche que si les candidates sont insuffisantes pour ton rôle. ` + WEB,
   `Rends : verdicts = UN verdict PAR claim (claim_index aligné sur la numérotation ci-dessus, tous présents) : holds (true si l'énoncé tient TEL QUEL), corrected_statement ("" si rien à corriger ; sinon l'énoncé corrigé minimal qui serait vrai), independent_sources (UNIQUEMENT les sources que TOI tu as vérifiées et qui sont indépendantes — title+url réels), note (1-2 phrases justifiant), search_exhausted (true UNIQUEMENT si tes moyens de recherche étaient épuisés ou indisponibles pendant cet audit — sinon false).`,
   `N'invente jamais d'URL. holds juge l'EXACTITUDE seule : true si le contenu tient tel quel, vérifié à la source — un claim qui sur-généralise, sur-restreint ou déforme sa source ne tient PAS. L'indépendance et le seuil ≥2 sources sont tranchés par le code à partir des independent_sources de tous les jurés : ne vote JAMAIS false pour un simple doute d'indépendance — en cas de doute sur une source, ne la liste pas, c'est tout. En cas de doute sur la VÉRACITÉ, penche vers holds=false. Si tes moyens de recherche sont épuisés (quota, outil indisponible), renseigne search_exhausted=true et dis-le dans note. Chaque verdict est INDIVIDUEL : ne laisse pas la solidité d'un claim déteindre sur son voisin.`,
+  `document_source : true UNIQUEMENT si l'énoncé décrit le CONTENU d'un DOCUMENT DE RÉFÉRENCE que tu as lu toi-même — position de société savante, recommandation, avis d'agence, fiche officielle, norme — et dont le contenu EST le fait énoncé (« la position stand ISSN retient 3-6 mg/kg », « l'EFSA fixe le seuil à 400 mg/j »). Un tel énoncé n'a qu'une source PAR NATURE : on ne corrobore pas « ce document dit X » par un second document, et le code lui appliquera une exception au seuil ≥2 — mais SEULEMENT si TOUS les jurés le qualifient ainsi. Sinon false. En particulier false pour un RÉSULTAT EMPIRIQUE (« une méta-analyse de 13 études trouve un gradient SMD 0,30 », « cet essai mesure +4,9 % »), même publié dans une revue de rang fort et même s'il n'existe qu'une seule publication au monde : ce fait-là reste soumis au seuil ≥2 sources, et la réserve « source unique, non corroborée » en prose est le bon traitement. Dans le doute, false.`,
 ].join('\n');
 
 // Juré DÉDIÉ pour un claim contestable : confrontation au texte faisant autorité.
@@ -337,6 +356,7 @@ const extraJurorPrompt = (claim) => [
   WEB,
   `Rends un verdict HONNÊTE : holds (true si l'énoncé tient TEL QUEL), corrected_statement ("" si rien à corriger ; sinon l'énoncé corrigé minimal qui serait vrai), independent_sources (UNIQUEMENT les sources que TOI tu as vérifiées — title+url réels), note (1-2 phrases justifiant), search_exhausted (true UNIQUEMENT si tes moyens de recherche étaient épuisés ou indisponibles pendant cet audit — sinon false).`,
   `N'invente jamais d'URL. holds juge l'EXACTITUDE seule : l'indépendance des sources est tranchée par le code — ne vote JAMAIS false pour un simple doute d'indépendance ; en cas de doute sur la VÉRACITÉ, penche vers holds=false. Si tes moyens de recherche sont épuisés, renseigne search_exhausted=true et dis-le dans note.`,
+  `document_source : true UNIQUEMENT si l'énoncé décrit le CONTENU d'un DOCUMENT DE RÉFÉRENCE que tu as lu toi-même — position de société savante, recommandation, avis d'agence, fiche officielle, norme — et dont le contenu EST le fait énoncé (« la position stand ISSN retient 3-6 mg/kg », « l'EFSA fixe le seuil à 400 mg/j »). Un tel énoncé n'a qu'une source PAR NATURE : on ne corrobore pas « ce document dit X » par un second document, et le code lui appliquera une exception au seuil ≥2 — mais SEULEMENT si TOUS les jurés le qualifient ainsi. Sinon false. En particulier false pour un RÉSULTAT EMPIRIQUE (« une méta-analyse de 13 études trouve un gradient SMD 0,30 », « cet essai mesure +4,9 % »), même publié dans une revue de rang fort et même s'il n'existe qu'une seule publication au monde : ce fait-là reste soumis au seuil ≥2 sources, et la réserve « source unique, non corroborée » en prose est le bon traitement. Dans le doute, false.`,
 ].join('\n');
 
 const pointersPrompt = (candidates) => [

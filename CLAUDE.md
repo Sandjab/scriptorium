@@ -18,6 +18,17 @@ Fabrique de documents multi-thèmes : chaque thème → une monographie HTML vé
 
 ## Vérité non négociable
 - Tout fait `confirmed` dans `knowledge.json` s'appuie sur **≥ 2 sources indépendantes**.
+  - **Une seule exception, nommée : `document-source`.** Un énoncé qui décrit le *contenu* d'un
+    document de référence — position de société savante, avis d'agence, fiche officielle, norme —
+    n'a qu'une source **par nature** : on ne corrobore pas « ce document dit X » par un second
+    document. Il est alors `confirmed` sur lecture directe, à trois conditions tenues par le code
+    (`decideAudit`, les 3 workflows) : le seuil normal a été essayé d'abord, **tous** les jurés
+    tiennent l'énoncé *et* le qualifient de `document_source`, et l'`audit_note` **déclare** la
+    source unique par nature — jamais « 2 sources ».
+  - L'exception ne couvre **pas** un résultat empirique mono-source (un essai, une méta-analyse
+    isolée) : celui-là reste rejeté, et la réserve « source unique, non corroborée » en prose est
+    son traitement correct. Bornes vérifiées par
+    `.claude/skills/monograph/scripts/test_audit_document_source.mjs`.
 - `build.py` **échoue bruyamment** sur référence manquante ou vérification structurelle cassée.
 - **Un audit de couverture se fait en lisant les documents, jamais au grep.** Pour décider
   qu'un sujet est déjà couvert (ou absent) du corpus, lire la prose des monographies
