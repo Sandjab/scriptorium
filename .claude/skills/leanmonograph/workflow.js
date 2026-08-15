@@ -404,6 +404,7 @@ const prosePrompt = (title, filRouge, outline, prevSummaries, chunkSecs) => [
   `RÈGLES DURES SUR LES FAITS :`,
   `- Chaque fait PRÉCIS et falsifiable (chiffre, pourcentage, date, attribution d'auteurs, nom de système, benchmark) de ta prose provient des claims (priorité — leur énoncé exact fait foi) ou des notes fournies. N'introduis AUCUN fait précis de ta propre mémoire : si un point te semble manquer, formule-le qualitativement ou omets-le.`,
   `- Tisse les claims dans le récit (le lecteur verra aussi leur carte de fait sous la section : la prose CONTEXTUALISE, elle ne les recopie pas mot à mot).`,
+  `- GARDE-FOUS : si une section porte un champ "garde_fous", chaque entrée signale un point sur lequel un juré a vérifié à la source qu'une formulation candidate était FAUSSE ("version_fautive"), avec la formulation exacte ("version_exacte"). Ces énoncés n'ont PAS passé le council : n'en fais jamais un fait porteur, et ne les mets pas en avant. Mais les NOTES ci-dessus peuvent porter le même fait dans sa version fautive — si tu l'emploies malgré tout, emploie la VERSION EXACTE ; si elle ne te suffit pas, omets le fait. Ne recopie jamais la version fautive.`,
   `- Ne délaye pas : autant de paragraphes que la matière l'exige, pas plus.`,
   `Format : pour chaque section, prose = paragraphes HTML (<p>…</p>) uniquement, sans titre (le heading est ajouté à l'assemblage).`,
   `Rends : sections = [{id, prose}] (tes sections, dans l'ordre) ; summary = récapitulatif COMPACT pour l'auteur de la tranche suivante — concepts/sigles/systèmes introduits (avec la formulation de 1re occurrence utilisée), exemples filés, notations posées. 5-10 lignes.`,
@@ -727,10 +728,19 @@ const sectionResults = await pipeline(
         corrected: verdicts.filter(v => !v.holds && v.corrected_statement && v.corrected_statement.trim()).length,
         jurors: lensVerdicts.map(({ lens, v }) => ({ lens: LENS_NAMES[lens] || String(lens),
           holds: !!v.holds, corrected: !!(v.corrected_statement && v.corrected_statement.trim()),
+          // Le TEXTE, pas seulement le booléen : sur un claim rejeté au seuil de sources, la
+          // correction du juré était jusqu'ici perdue ici même (classe d'échec du 37e run).
+          corrected_statement: (v.corrected_statement || '').trim(),
           search_exhausted: !!v.search_exhausted,
           n_sources: (v.independent_sources || []).length, note: v.note || '' })) };
+      // Sur un claim REJETÉ, la correction proposée par un juré était jusqu'ici jetée avec le
+      // claim : l'auteur, qui ne voit pas les rejets, réécrivait ensuite le fait depuis les NOTES
+      // — dans sa version fautive (classe d'échec du 37e run, cf. cafeine-ergogene). On la garde
+      // pour la lui transmettre comme garde-fou, sans jamais en refaire un fait porteur.
+      const rejectedFix = verdicts.map(v => (v.corrected_statement || '').trim()).find(Boolean) || '';
       return { sectionId: sec.id, statement: d.statement, original_statement: c.statement,
-               audit: d.audit, note: d.note, examples: c.examples || [], sources: d.sources, tally };
+               audit: d.audit, note: d.note, examples: c.examples || [], sources: d.sources, tally,
+               ...(d.audit === 'rejected' && rejectedFix ? { rejected_correction: rejectedFix } : {}) };
     }).filter(Boolean);
     const result = { section: { id: sec.id, heading: sec.heading, kind: sec.kind || 'normal' },
                      notes: ext.notes || [], claims: auditedClaims, pointers: ext.pointers || [] };
@@ -886,7 +896,10 @@ if (loadedProse && loadedProse.proseById) {
         const s = bySecId.get(o.id);
         return { id: o.id, heading: o.heading, angle: o.angle,
           claims: (s.kept || []).map(c => ({ statement: c.statement, examples: c.examples || [] })),
-          notes: s.notes || [] };
+          notes: s.notes || [],
+          garde_fous: (s.claims || [])
+            .filter(c => c.audit === 'rejected' && c.rejected_correction)
+            .map(c => ({ version_fautive: c.original_statement, version_exacte: c.rejected_correction })) };
       });
       const askTranche = (again) => A(prosePrompt(arch.title, arch.fil_rouge, liveOutline, summaries, chunkSecs),
         { schema: S_PROSE, phase: 'Author', label: `prose:${ci + 1}/${chunks.length}${again ? ':retry' : ''}` });

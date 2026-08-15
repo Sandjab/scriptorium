@@ -675,6 +675,9 @@ const sectionResults = await pipeline(
         corrected: verdicts.filter(v => !v.holds && v.corrected_statement && v.corrected_statement.trim()).length,
         jurors: lensVerdicts.map(({ lens, v }) => ({ lens: LENS_NAMES[lens] || String(lens),
           holds: !!v.holds, corrected: !!(v.corrected_statement && v.corrected_statement.trim()),
+          // Le TEXTE, pas seulement le booléen : sur un claim rejeté au seuil de sources, la
+          // correction du juré était jusqu'ici perdue ici même (classe d'échec du 37e run).
+          corrected_statement: (v.corrected_statement || '').trim(),
           search_exhausted: !!v.search_exhausted,
           n_sources: (v.independent_sources || []).length, note: v.note || '' })) };
       return { sectionId: sec.id, statement: d.statement, original_statement: c.statement,
