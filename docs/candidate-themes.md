@@ -770,8 +770,39 @@ d'effet. Le fait n'étant porté par aucun claim, et ses nombres étant courts o
 lettres, il échappait à la fois au council et à `lint.py`. ⚠️ **Réflexe pour les prochains
 runs santé : sur toute tournure « sans X rapporté » / « aucun effet observé », vérifier que
 le paramètre a été MESURÉ par la source, pas seulement non mentionné.**)
-- **cafeine-ergogene** (moyenne) — caféine comme ergogène : doses 3-6 mg/kg, endurance
-  vs force, tolérance/habituation, génotype CYP1A2, position stand ISSN.
+(`cafeine-ergogene` : FAIT le 2026-08-15, retiré du backlog — 37e run /leanmonograph, 9e thème
+santé, 3e de `nutrition-sportive` dont il **crée le portail manquant** (parcours en gradation :
+effet réel avec plafond → promesse créditée à la mauvaise variable → amplitude fabriquée par le
+protocole). 12/12 sections, 47 claims 24✓/19corr/4rej, 82 sources, 3 widgets + 2 figures,
+9 536 mots ; 7,30M tok / 104 agents / 3 h 20 en un seul run.
+
+Trois enseignements, dont deux de fond :
+
+1. **CLASSE D'ÉCHEC NOUVELLE — un rejet sur le SEUIL DE SOURCES jette aussi l'énoncé corrigé
+   du juré.** `decideAudit` exige `holds+corrected >= 2` PUIS `sources >= 2` ; quand la seconde
+   condition tombe, la correction produite par le juré n'est écrite nulle part et meurt dans sa
+   `note`. L'auteur, aveugle aux claims rejetés, réécrit alors le fait depuis les NOTES de
+   section — sans la correction. Deux erreurs de ce run viennent de là, dont une fausse
+   attribution d'auteur (essai croisé de 2020 attribué à Guest alors qu'il est de Carswell et
+   coll.) que `lint.py` ne pouvait pas voir : la tournure évitait de NOMMER Guest, et aucun
+   chiffre n'était en cause. ⚠️ **Réflexe : après chaque run, lire les notes des jurés des
+   claims rejetés en cherchant `holds=false` AVEC une correction — c'est le sous-ensemble le
+   plus rentable du backstop.** Correctif de code envisageable, non appliqué : faire remonter
+   le `corrected_statement` dans les notes transmises à l'auteur même sur un claim rejeté.
+2. **La règle document-source est enfin DANS LE CODE** (commit `fix(council)`), après deux
+   applications à la main (berberine, ce run). Branche unanime et fail-closed dans les 3
+   workflows, champ `document_source` dans les schémas et prompts, exception écrite dans le
+   `CLAUDE.md`, 9 cas × 3 workflows sous test avec mutation vérifiée. Critère de tri retenu :
+   « ce document de référence dit X » → exception ; « un seul travail a trouvé X » → rejet
+   maintenu et réserve conservée en prose. Sur ce run le partage était 2 contre 4.
+3. **Note de mémoire FAUSSE corrigée** : « forcer `data-theme` en JS ne bascule pas les widgets,
+   leurs faibles contrastes sont des artefacts » était inexact — tout bascule par `data-theme`
+   (0 occurrence de `prefers-color-scheme` dans la charte). La vraie cause des mesures
+   aberrantes est de MESURER DANS LE MÊME APPEL JS QUE LA BASCULE, donc en pleine transition
+   CSS. Séparer bascule et mesure a fait tomber 19 « violations » à 4 réelles, dont un badge de
+   widget à 2,16:1 bien réel. Restent ouverts 2 défauts de la charte partagée :
+   `--bordeaux-bright` à 4,37:1 en sombre sur `.fcap-k`/`.xk` (les 77 documents) et la couleur
+   de lien à 4,39:1 en clair.)
 - **beta-alanine-tampons** (moyenne) — bêta-alanine/carnosine et bicarbonate : tampons
   intracellulaire/extracellulaire, efforts 1-4 min, paresthésies, méta-analyses.
 - **hydratation-electrolytes** (basse) — déshydratation et performance (seuils réels vs
