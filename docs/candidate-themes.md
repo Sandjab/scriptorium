@@ -739,6 +739,55 @@ des publications — jamais à vide. Paramètres fixés :
 **PILOTE = `creatine`** : FAIT le 2026-08-08 — la doctrine a tenu (voir l'entrée FAIT
 dans `nutrition-sportive`), le méta-domaine et le domaine sont créés.
 
+**Passe d'enrichissement du 2026-08-15** (corpus à 77 thèmes, backlog santé à 4 candidats dont
+0 haute) : audit de couverture **par lecture** — balayage de localisation sur la prose des
+76 `sections_draft.json`, puis lecture intégrale des sections concernées de
+`complements-amincissants`, `incretines-glp1` et `creatine`. Quatre décisions, dont deux
+qui tiennent à ce que le corpus dit **de lui-même** :
+
+1. **Un renvoi cassé a décidé du candidat n° 1.** `incretines-glp1` clôt sa section « Ce qui est
+   perdu » par : « Ce qui peut limiter cette perte — apports protéiques, entraînement en
+   résistance sous déficit énergétique — relève du versant nutritionnel, **traité ailleurs dans ce
+   corpus** et non repris ici. » Ce n'est traité nulle part : `proteines-besoins-timing` porte sur
+   l'hypertrophie du sujet entraîné, pas sur la préservation musculaire sous −20 % de poids.
+   Un renvoi vers un document inexistant est le signal de gap le plus fiable dont ce corpus
+   dispose. → `masse-maigre-sous-glp1`, priorité haute.
+2. **Le format « une monographie par objectif » est validé mais tenu rare.** Il existe déjà —
+   `complements-amincissants` *est* une monographie par objectif — et il est cher : run le plus
+   coûteux du corpus (6,86M tok, deux runs, ~4 h 10) et classe d'erreur factuelle nouvelle (fausse
+   indépendance par scission de source), parce que multiplier les molécules multiplie les
+   attributions à vérifier. Règle retenue : **un objectif ne mérite sa monographie que si aucune
+   molécule seule ne le porte ET que le corpus n'a aucune couverture**. Sur les 8 objectifs
+   examinés (perte de poids, masse grasse, prise de masse, endurance, résistance, explosivité,
+   performances sexuelles, performances intellectuelles), un seul coche les deux.
+3. **Nouveau domaine `performance-cognitive`** (section dédiée en fin de fichier) : couverture
+   **nulle** vérifiée par lecture — 0 occurrence de `nootrop*`, `modafinil`, `racétam`, `bacopa`,
+   `ginkgo`, `rhodiola`, `ashwagandha`, `théanine`, `méthylphénidate` dans les 76 documents, et
+   `cafeine-ergogene` ne dit **rien** du versant cognitif (0 occurrence de « cognition »/« cognitif »
+   dans ses 12 sections). Le label du méta-domaine promet pourtant déjà « performance **humaine** ».
+4. **Écartés** — `objectif : perte de poids / masse grasse` (saturé à 3 documents, 4 avec le
+   candidat n° 1) ; `tirzépatide + berbérine / picolinate de chrome` comme monographie de
+   potentialisation (**aucun essai n'a randomisé ces combinaisons** : une carte du vide ne remplit
+   pas dix sections, et `complements-amincissants` a déjà rendu ce service pour le rayon) ;
+   `objectif : endurance / explosivité / prise de masse` (servis par `cafeine-ergogene`,
+   `creatine`, `proteines-besoins-timing`). `objectif : performances sexuelles` est un gap réel,
+   **non retenu ce tour-ci** : son profil (adultération PDE5, marché gris, contrôle du contenu réel
+   des gélules) redirait la méthode de `complements-amincissants` et `peptides-gris`.
+
+**Ordre de lancement retenu** (le backlog santé n'est plus à 0 haute) :
+
+| # | thème | priorité | domaine |
+|---|---|---|---|
+| 1 | `masse-maigre-sous-glp1` | **haute** | `pharmacologie-metabolique` |
+| 2 | `nootropiques-stimulants-prescrits` | **haute** | `performance-cognitive` (le crée) |
+| 3 | `omega-3` | moyenne-haute | `complements-sante` |
+| 4 | `acide-alpha-lipoique` | moyenne-haute | `complements-sante` |
+| 5 | `nootropiques-vegetaux` | moyenne | `performance-cognitive` (ouvre le portail) |
+| 6 | `beta-alanine-tampons` | moyenne | `nutrition-sportive` |
+| 7 | `cafeine-cognition-vigilance` | moyenne | `performance-cognitive` |
+| 8 | `microdosage-psychedeliques` | moyenne | `performance-cognitive` |
+| 9 | `magnesium`, `hydratation-electrolytes` | basses | — |
+
 ## `nutrition-sportive`
 
 (`creatine` : FAIT le 2026-08-08, retiré du backlog — 29e run /leanmonograph, **premier
@@ -864,6 +913,35 @@ défaut ouvert depuis le 34e run, corpus entier.)
 - **magnesium** (basse) — carence réelle vs marketing, formes (citrate, bisglycinate,
   oxyde), sommeil/crampes/anxiété : tri par niveau de preuve.
 
+### Acide alpha-lipoïque — `acide-alpha-lipoique` → `complements-sante`
+**Verdict : gap réel (moyenne-haute), mais PAS où on l'attend.** Zéro occurrence dans les
+76 documents. Le piège est de le ranger en amincissant : les méta-analyses donnent −1,27 kg
+(Kucukgoncu 2017, *Obesity Reviews*) et −0,69 kg / −0,38 kg/m² (Namazi 2018, *Clin Nutr*), soit
+exactement l'ordre de grandeur du CLA (−0,35), de la L-carnitine (−1,21) et du picolinate de
+chrome (−0,50 à −1,1) **déjà jugés molécule par molécule** dans `complements-amincissants` — un
+4e verdict en fraction de kilo n'apprendrait rien, la graduation et le verdict de catégorie sont
+posés. L'angle qui vaut le run est ailleurs : c'est le rare complément dont la meilleure preuve
+porte sur une **indication clinique étroite** (neuropathie diabétique périphérique), avec une
+variable que le corpus n'a jamais traitée — **la voie d'administration décide de l'effet**
+(IV vs orale vs séquentielle). Il s'assied à cheval sur la gradation du méta-domaine
+(nutrition → complément libre → ordonnance) puisqu'il est délivré sur prescription en Allemagne.
+
+> L'acide alpha-lipoïque (ALA, acide thioctique) : ce que la preuve établit indication par
+> indication. Couvrir la neuropathie diabétique périphérique comme dossier principal — lignée
+> ALADIN / SYDNEY / NATHAN 1, méta-analyses et network meta-analysis bayésienne comparant voies
+> orale, intraveineuse et séquentielle, doses 600–1 800 mg/j, scores TSS/NIS et ce qu'un score
+> symptomatique mesure réellement ; la dissociation entre effet aigu IV et effet oral au long
+> cours ; la sensibilité à l'insuline et les marqueurs métaboliques ; le poids uniquement pour
+> **situer** l'ordre de grandeur contre le seuil réglementaire des 5 %, pas pour refaire le
+> verdict du rayon. Sécurité : vérifier le signal de **syndrome insulinique auto-immun**
+> (hypoglycémies, allèle HLA-DRB1*04:06, séries japonaises et coréennes) — annoncé comme piste,
+> à corroborer ou à écarter au sweep, ne pas l'affirmer sur une source unique. Traiter aussi le
+> racémique vs R-énantiomère et le statut réglementaire dissocié (complément ici, médicament sur
+> prescription en Allemagne). Délimitations : `complements-amincissants` a rendu le verdict
+> minceur du rayon et posé la graduation FDA/GLP-1 — ne pas la refaire ; `vitamine-d` fournit le
+> patron « verdict par indication » ; `berberine` le patron « mécanisme cellulaire ≠ effet humain ».
+> Domaine : complements-sante.
+
 ## `pharmacologie-metabolique`
 
 (`berberine` : FAIT le 2026-08-10, retiré du backlog — 32e run /leanmonograph, 4e thème
@@ -961,3 +1039,153 @@ Trois enseignements, dont un de fond :
    un nombre de CARACTÈRES étiqueté « o » (octets) — 4 726 d'écart sur ce document, soit les
    accents. Enfin, 0 figure ici contre 3 pour `berberine` : document visuellement plus maigre
    que ses voisins.)
+
+### Ce qui préserve le muscle sous GLP-1 — `masse-maigre-sous-glp1` → `pharmacologie-metabolique`
+**Verdict : gap réel, PRIORITÉ HAUTE — le corpus renvoie déjà vers ce document inexistant.**
+(Voir la passe du 2026-08-15, point 1.) `incretines-glp1` établit la contrepartie — sous
+tirzépatide, environ trois quarts de graisse et un quart de « tout le reste » ; jusqu'à 6,4 kg de
+masse maigre sous rétatrutide 12 mg — puis **renvoie explicitement ailleurs** ce qui pourrait la
+limiter. Personne ne le traite. C'est aussi la **première monographie d'interaction** du corpus :
+une potentialisation est un effet d'interaction, elle ne se démontre que par un plan add-on ou
+factoriel (le maître seul, l'ajout seul, les deux) — ce que font les essais ci-dessous et
+qu'**aucun essai de complément n'a jamais fait**. La conclusion s'écrit d'elle-même : la
+potentialisation existe, elle coûte un anticorps monoclonal de phase 2, et le rayon qui vend le
+mot n'a pas un seul bras de randomisation. ⚠️ Les essais listés viennent d'une recherche web du
+2026-08-15 et sont donnés comme **pistes à corroborer au sweep**, pas comme faits établis.
+
+**Enrichi le 2026-08-15 après examen d'un protocole de « stack » tiers** (artefact de recherche
+généré, 9 compléments sous tirzépatide, non versionné). Trois apports, plus une règle :
+
+- **Section obligatoire à ajouter — le déficit micronutritionnel, la seule supplémentation
+  réellement recommandée.** Vérifié par lecture : `incretines-glp1` n'en dit RIEN (0 occurrence de
+  carence, micronutriment, vitamine, B12, calcium, os dans ses 14 sections). Or NICE **TA1026**
+  (déc. 2024) porte une recommandation réelle — *envisager un complément apportant les apports de
+  référence pour toutes les vitamines et minéraux si l'apport alimentaire est jugé insuffisant*.
+  C'est la version honnête de « se supplémenter sous GLP-1 », et elle tient en une ligne : un
+  multivitamine aux ANC quand l'apport s'effondre, pas neuf produits à doses supra-nutritionnelles.
+  Ne PAS confondre avec les critères d'éligibilité (IMC ≥ 35 + 1 comorbidité, poursuite si ≥ 5 % à
+  6 mois). Si le sweep trouve assez de matière (B12, fer, densité osseuse, sujet âgé), basculer en
+  thème autonome `carences-sous-glp1` ; sinon, section.
+- **Passage obligatoire — le récepteur est déjà occupé.** Tout le discours du « stack » repose sur
+  *potentialiser la production endogène de GLP-1* (berbérine, oméga-3/GPR120, probiotiques, fibres)
+  chez un patient sous agoniste double GLP-1/GIP à dose pharmacologique. L'argument ne se réfute pas
+  molécule par molécule, il se réfute d'un coup : ajouter un sécrétagogue marginal quand un agoniste
+  supraphysiologique de longue durée occupe déjà le récepteur. Aucun de ces protocoles ne pose la
+  question.
+- **Pivot de la section contrepoint — l'attribution fabriquée à SURMOUNT.** Le discours du stack
+  affirme que « les essais SURMOUNT confirment que 1,2-1,6 g/kg/j de protéines préviennent la perte
+  de masse maigre ». SURMOUNT n'a randomisé aucun apport protéique, et l'essai conçu pour répondre
+  (LEAN-PREP) est un **protocole** : la question est ouverte. C'est la contre-affirmation exacte de
+  la vraie réponse — elle mérite d'ouvrir la section, pas d'y figurer en note.
+- ⚠️ **RÈGLE — un protocole de stack n'est JAMAIS une source.** Ces documents (artefacts de
+  recherche générés, blogs de clinique, protocoles nominatifs) n'ont pas de provenance vérifiable,
+  citent des institutions sans référence, et déplacent la portée de faits réels : « −59 % de Cmax »
+  devient « absorption réduite de 21-59 % » (**fausse plage par agrégation de compartiments**,
+  classe du 32e run), un conseil de multivitamine devient un critère NICE, `Amuc_1100`/`Amuc_1631`
+  deviennent un `Amuc_1434` qui stimulerait le GLP-1 via TLR2. Au moins une de leurs valeurs
+  contredit frontalement un document vérifié du corpus (chrome picolinate : « 3-5 % du poids
+  corporel en plus » contre les −0,50 à −1,1 kg de `complements-amincissants`, non significatifs
+  après retrait de l'essai dominant). Ils sont un **objet à décrire**, jamais une source à citer.
+
+> Préserver la masse maigre sous agonistes des incrétines : ce que change ce qu'on ajoute au
+> traitement. Partir de la contrepartie établie (part de masse maigre dans le poids perdu, et
+> l'écart entre « masse maigre » mesurée et fonction musculaire — DXA, impédancemétrie et
+> pléthysmographie ne mesurent pas la même chose ; aucune des sous-études pivots ne mesure la
+> force). Couvrir les ajouts réellement randomisés contre le maître seul : inhibiteurs de la voie
+> myostatine/activine — bimagrumab + sémaglutide (BELIEVE, n ≈ 507, 48/72 sem., préservation nette
+> mais élévation du LDL et tolérance discutée), apitegromab + tirzépatide (EMBRACE, n ≈ 102,
+> 24 sem., *Nature Medicine* 2026, ~55 % de la perte de masse maigre évitée à perte de poids
+> identique), trevogrumab + sémaglutide (COURAGE, 26 sem.) — puis le versant non pharmacologique
+> (protéines et entraînement en résistance sous déficit énergétique, protocole LEAN-PREP), et
+> enfin le contrepoint : berbérine, picolinate de chrome, CLA, L-carnitine, HMB, aucun essai
+> add-on — en ouvrant sur l'attribution fabriquée à SURMOUNT (protéines) et en réfutant d'un bloc
+> le rationnel du « stack » (potentialiser la sécrétion endogène de GLP-1 quand un agoniste
+> supraphysiologique de longue durée occupe déjà le récepteur). Traiter aussi **la seule
+> supplémentation réellement recommandée** : le déficit d'apport micronutritionnel quand l'apport
+> alimentaire s'effondre, et la recommandation NICE TA1026 correspondante — un complément aux
+> apports de référence, à ne pas confondre avec les critères d'éligibilité du traitement.
+> Fil rouge méthodologique : **ce qu'exige la démonstration d'une potentialisation**
+> (plan factoriel ou add-on, puissance sur un effet d'interaction, critère = qualité de la perte
+> et non son ampleur), et pourquoi « potentialisateur » est un mot de rayon quand aucun bras ne
+> l'a testé. Sécurité : effets propres des inhibiteurs de myostatine, statut investigationnel de
+> tous ces produits. Délimitations : `incretines-glp1` couvre la pharmacologie des maîtres, les
+> tailles d'effet, l'arrêt du traitement et le marché gris — ne pas les refaire, partir de sa
+> section « Ce qui est perdu » ; `proteines-besoins-timing` couvre le besoin protéique du sujet
+> entraîné en surplus ou à l'équilibre, pas la préservation sous déficit marqué ;
+> `complements-amincissants` a rendu le verdict du rayon minceur en monothérapie ;
+> `peptides-gris` couvre les sécrétagogues GH du marché gris. Domaine : pharmacologie-metabolique.
+
+---
+
+## `performance-cognitive` — domaine À CRÉER (proposé le 2026-08-15)
+
+**Verdict : le plus gros trou du méta-domaine santé.** Trois arguments convergents : (1) le label
+du méta-domaine promet déjà « Santé, nutrition & **performance humaine** », or la performance y est
+exclusivement physique ; (2) couverture nulle vérifiée par lecture (cf. passe du 2026-08-15,
+point 3) ; (3) **la méthode est déjà éprouvée dessus** — la section « Cerveau et cognition » de
+`creatine` contient en miniature tout ce que ce domaine exige : refus d'allégation par l'EFSA,
+double comptage dans les méta-analyses pivots (sous-tests corrélés traités comme observations
+indépendantes), effet qui change de signe selon la métrique (temps de réponse vs précision), et
+surtout la thèse de **l'effet de circonstances** — le bénéfice n'apparaît que sur cerveau
+contraint (privation de sommeil), pas sur sujet sain reposé. Elle sert d'ancrage et de porte
+d'entrée, pas de couverture.
+
+- **Paramètres proposés** : id `performance-cognitive`, label « Performance cognitive », blurb
+  « Ce que les essais mesurent réellement quand on prétend augmenter l'attention, la mémoire ou
+  la vigilance — molécule par molécule, tâche par tâche. » Classé après `nutrition-sportive`
+  (performance physique → performance cognitive) et avant `complements-sante`.
+- ⚠️ **Ne pas créer le domaine à vide** : il naît avec son premier thème (`/arrange` ne crée jamais
+  un domaine vide), et le portail exige un 2e thème — donc **deux runs** pour qu'il existe
+  pleinement. Arête à poser dès le 1er thème : `creatine` → section « Cerveau et cognition ».
+
+### Modafinil et stimulants prescrits — `nootropiques-stimulants-prescrits` → `performance-cognitive`
+**Verdict : gap réel, PRIORITÉ HAUTE — crée le domaine.** Densité de preuve la plus forte du
+domaine, et l'écart promesse/preuve maximal : la revue systématique de Battleday & Brem (2015,
+*Eur Neuropsychopharmacol*) conclut à un bénéfice réel mais **confiné** — attention, fonctions
+exécutives et apprentissage, sur les tâches complexes seulement — là où l'usage détourné promet
+une augmentation générale. Reprend et généralise le fil rouge de `creatine` : cerveau privé de
+sommeil vs cerveau reposé.
+
+> Modafinil et stimulants sur ordonnance utilisés hors AMM comme rehausseurs cognitifs chez le
+> sujet sain. Couvrir : ce que le modafinil fait chez le narcoleptique (indication autorisée) vs
+> chez le sujet sain non privé de sommeil ; la revue systématique de Battleday & Brem et les
+> méta-analyses antérieures, avec le **détail des domaines cognitifs** où l'effet tient et de ceux
+> où il ne tient pas ; la dépendance du verdict à la complexité de la tâche et à la ligne de base
+> du sujet (effet plus net chez les performeurs bas) ; la privation de sommeil comme condition qui
+> fabrique l'effet ; le méthylphénidate et les amphétamines en usage détourné (populations
+> étudiantes, prévalence déclarée vs mesurée) ; les échelles de mesure elles-mêmes — pourquoi
+> « tester une cognition normale ou supra-normale de façon fiable » reste un problème ouvert ;
+> sécurité, dépendance, sommeil, effets cardiovasculaires ; statut réglementaire et cadre du
+> hors-AMM. Délimitations : `creatine` a la section cognition du corpus (privation de sommeil,
+> double comptage, refus EFSA) — s'y arrimer, ne pas la refaire ; `cafeine-ergogene` est purement
+> ergogène et ne dit rien du versant vigilance. Domaine : performance-cognitive (à créer).
+
+### Nootropiques végétaux — `nootropiques-vegetaux` → `performance-cognitive`
+**Verdict : gap réel (moyenne) — ouvre le portail du domaine.** Le verdict de rayon, format
+`complements-amincissants` mais bien moins cher (moins de molécules). Ginkgo est le cas d'école :
+deux grands essais négatifs (GEM, GuidAge) contre un marché qui n'a pas bougé. ⚠️ Profil de rejets
+attendu **identique à `collagene`** : essais uniques, souvent financés par l'ingrédientier, jamais
+répliqués par une équipe tierce — juger le run à la **nature** de ses rejets, jamais à leur nombre.
+
+> Les nootropiques d'origine végétale au tamis des essais : bacopa monnieri, ginkgo biloba,
+> rhodiola rosea, ashwagandha (et panax ginseng). Molécule par molécule : ce qui a été mesuré, sur
+> quelle population, avec quel comparateur et quelle taille d'effet. Couvrir le contre-exemple du
+> ginkgo (grands essais de prévention négatifs vs allégations de rayon), la standardisation des
+> extraits — un extrait n'est pas la plante, et deux extraits ne sont pas le même produit —, les
+> allégations refusées par l'EFSA comme instrument de lecture, l'adultération et le contenu réel
+> des gélules, et la question de l'indépendance des essais (financement par l'ingrédientier).
+> Délimitations : `complements-amincissants` donne le patron du verdict de rayon et les outils de
+> lecture d'une méta-analyse (I², analyse de sensibilité) ; `collagene` donne le patron de la
+> littérature mono-source. Domaine : performance-cognitive.
+
+- **cafeine-cognition-vigilance** (moyenne) — le rehausseur cognitif le plus consommé au monde,
+  et `cafeine-ergogene` ne le traite PAS (0 occurrence de « cognition »/« cognitif » dans ses
+  12 sections). Vigilance, dette de sommeil, sevrage et effet de restauration (le buveur régulier
+  retrouve-t-il seulement sa ligne de base ?), caféine + L-théanine, siestes caféinées.
+  ⚠️ **Ne lancer qu'avec la frontière écrite d'avance dans le brief** : pharmacocinétique, CYP1A2,
+  habituation et sécurité sont déjà rédigés chez le voisin ergogène.
+- **microdosage-psychedeliques** (moyenne) — littérature RCT désormais réelle et majoritairement
+  négative une fois l'insu tenu (essais auto-aveuglés à grande échelle) : l'écart promesse/preuve
+  est énorme et le sujet très demandé. Exige la doctrine santé au pied de la lettre.
+- **neurostimulation-tdcs** (basse) — vrai gap, excellent matériau de crise de réplication, mais
+  c'est un dispositif et non un produit de rayon : moins homogène avec le méta-domaine.
