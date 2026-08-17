@@ -464,11 +464,14 @@ const composePrompt = (title, biblioEntries, widgets, pointers) => [
   `Les claims référencés doivent exister dans knowledge.json ; chaque widget ref doit exister. Crée le dossier si besoin (mkdir -p ${themeDir}). Rends files_written + element_counts:{document:<nb total d'elements>}.`,
 ].join('\n');
 
-const buildPrompt = () => [
+const buildPrompt = (expectIds) => [
   `Assemble la monographie de façon déterministe puis vérifie l'acceptation.`,
-  `1) Exécute : python3 "${buildScript}" "${themeDir}"`,
-  `   build.py échoue bruyamment (référence manquante, type inconnu, balise déséquilibrée, file:/// résiduel, jeton non substitué).`,
+  `1) Exécute : python3 "${buildScript}" "${themeDir}"${expectIds && expectIds.length ? ` --expect-sections ${expectIds.join(',')}` : ''}`,
+  `   build.py échoue bruyamment (référence manquante, type inconnu, balise déséquilibrée, file:/// résiduel, jeton non substitué${expectIds && expectIds.length ? ', section attendue absente du manifeste' : ''}).`,
   `   S'il échoue pour une référence corrigeable (ex. claim id absent, widget ref erroné, clé meta manquante), CORRIGE le manifeste/fichier fautif dans ${themeDir} puis relance — UNE seule tentative de réparation, puis rapporte.`,
+  ...(expectIds && expectIds.length ? [
+    `   Si l'échec est « sections du manifeste ≠ sections attendues » : réinsère la/les section(s) manquante(s) dans manifest.json à leur place dans l'ordre du plan, en recopiant {"type":"section","id","heading","level":3,"prose","claims"} depuis ${themeDir}/sections_draft.json (écrit par CE run), puis relance. Ne retire JAMAIS le flag --expect-sections pour faire passer le build.`,
+  ] : []),
   `2) Lis ${themeDir}/knowledge.json et vérifie l'acceptation Phase 2 :`,
   `   - chaque claim "audit":"confirmed" a AU MOINS 2 entrées dans "sources" → all_confirmed_have_2plus_sources ;`,
   `   - quelles catégories d'audit sont présentes parmi confirmed/corrected/rejected → audit_categories_present ;`,
@@ -759,6 +762,26 @@ const liveSet = new Set(enriched.filter(s =>
     : (s.kept.length >= SECTION_CLAIM_QUOTA)                          // normale : quota de faits
 ));
 const liveSections = enriched.filter(s => liveSet.has(s));
+// Garde « faux rejet probable » (39e run, leanmonograph — même mécanique ici) : un claim rejeté
+// au SEUL seuil de sources alors que TOUS les jurés le tiennent ne doit jamais coûter une
+// section en silence — quand il est DÉCISIF (la section survivrait en le gardant), on s'arrête.
+const suspectLosses = enriched.filter(s => !liveSet.has(s)).map(s => {
+  const susp = s.claims.filter(c => c.audit === 'rejected' && c.tally
+    && c.tally.refuted === 0 && c.tally.corroborated >= 2);
+  if (!susp.length) return null;
+  const keptWith = s.kept.length + susp.length;
+  const wouldLive = (s.section.kind === 'ecosystem')
+    ? ((s.pointers && s.pointers.length > 0) || keptWith > 0)
+    : (keptWith >= SECTION_CLAIM_QUOTA);
+  return wouldLive ? { s, susp } : null;
+}).filter(Boolean);
+if (suspectLosses.length) throw new Error(
+  `[élagage] ARRÊT — faux rejet probable décisif : ` +
+  suspectLosses.map(({ s, susp }) =>
+    `la section « ${s.section.heading} » (${s.section.id}) tomberait à cause de ${susp.map(c => `« ${c.original_statement || c.statement} »`).join(' ; ')}`).join(' | ') +
+  `. Chaque énoncé listé est tenu par TOUS ses jurés (rejet au seul seuil de sources). ` +
+  `Réparation : ré-audit ciblé (1 agent) pour chercher la 2e source indépendante — souvent le texte intégral d'une étude primaire citée par la revue — ` +
+  `puis corriger le checkpoint sec-<id>.json et relancer avec args.resume=true.`);
 enriched.filter(s => !liveSet.has(s)).forEach(s =>
   log(`[élagage] section « ${s.section.heading} » coupée : ${s.kept.length} claim(s) survivant(s) < ${SECTION_CLAIM_QUOTA}`));
 if (liveSections.length === enriched.length) log('[élagage] aucune section coupée — toute la matière survit.');
@@ -1042,7 +1065,9 @@ const styleRes = (await parallel(styleTargets.map(t => () =>
 log(`Style : ${styleRes.reduce((n, r) => n + (r.n_changes || 0), 0)} correction(s) sur ${styleRes.length} fichier(s).`);
 
 phase('Build');
-const built = await A(buildPrompt(), { schema: S_BUILD, phase: 'Build', label: 'build' });
+// Les ids POST-élagage voyagent jusqu'à build.py : le manifeste réellement écrit par Compose
+// est comparé au plan vivant (39e run lean : « 11/11 retenues » annoncé, 10 dans le document).
+const built = await A(buildPrompt(liveSections.map(s => s.section.id)), { schema: S_BUILD, phase: 'Build', label: 'build' });
 
 return {
   slug, title: arch.title, themeDir,

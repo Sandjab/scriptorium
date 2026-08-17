@@ -33,6 +33,17 @@ def validate_refs(manifest, kb, widgets):
         if el["type"] == "widget" and el["ref"] not in widgets:
             die(f"widget inconnu : {el['ref']}")
 
+def validate_expected_sections(manifest, expected):
+    # Compose peut omettre une section sans qu'aucune référence ne casse : seul un
+    # appelant qui SAIT ce qui doit y être (le workflow, post-élagage) peut le voir.
+    got = [el.get("id") for el in manifest["elements"] if el.get("type") == "section"]
+    missing = [i for i in expected if i not in got]
+    extra = [i for i in got if i not in expected]
+    if missing or extra:
+        die("sections du manifeste ≠ sections attendues — "
+            f"manquantes : {missing or '(aucune)'} ; inattendues : {extra or '(aucune)'}. "
+            "Réinsérer depuis sections_draft.json (du run COURANT) puis relancer.")
+
 def validate_verdicts(manifest, kb, verdicts):
     has_el = any(el.get("type") == "verdicts" for el in manifest["elements"])
     if verdicts is None:
@@ -104,7 +115,7 @@ def render_edition(manifest, ctx):
         out = out.replace(f"<!--%{k}%-->", v)
     return out
 
-def build_theme(theme):
+def build_theme(theme, expect_sections=None):
     theme = pathlib.Path(theme)
     kb = json.loads(read(theme/"knowledge.json"))
     ctx = {"fonts": read(TPL/"fonts.css"), "charte": read(TPL/"charte.css"),
@@ -119,6 +130,8 @@ def build_theme(theme):
         die(f"manifeste absent : {mp}")
     manifest = json.loads(read(mp))
     validate_manifest(manifest)
+    if expect_sections is not None:
+        validate_expected_sections(manifest, expect_sections)
     validate_refs(manifest, kb, ctx["widgets"])
     validate_verdicts(manifest, kb, ctx["verdicts"])
     name = f"{manifest['slug']}.html"
@@ -129,5 +142,12 @@ def build_theme(theme):
     print(f"[build] écrit dist/{name} ({len(htmls[name])} o)")
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2: die("usage: build.py <theme_dir>")
-    build_theme(sys.argv[1])
+    argv, expect = sys.argv[1:], None
+    if "--expect-sections" in argv:
+        i = argv.index("--expect-sections")
+        if i + 1 >= len(argv):
+            die("usage: build.py <theme_dir> [--expect-sections id1,id2,...]")
+        expect = [s for s in argv[i + 1].split(",") if s]
+        argv = argv[:i] + argv[i + 2:]
+    if len(argv) != 1: die("usage: build.py <theme_dir> [--expect-sections id1,id2,...]")
+    build_theme(argv[0], expect_sections=expect)

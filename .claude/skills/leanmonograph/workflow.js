@@ -558,11 +558,14 @@ const verdictsPrompt = () => [
   `Rends : files_written (chemins écrits), n_substances, n_rows.`,
 ].join('\n');
 
-const buildPrompt = () => [
+const buildPrompt = (expectIds) => [
   `Assemble la monographie de façon déterministe puis vérifie l'acceptation et le lint.`,
-  `1) Exécute : python3 "${buildScript}" "${themeDir}"`,
-  `   build.py échoue bruyamment (référence manquante, type inconnu, balise déséquilibrée, file:/// résiduel, jeton non substitué).`,
+  `1) Exécute : python3 "${buildScript}" "${themeDir}"${expectIds && expectIds.length ? ` --expect-sections ${expectIds.join(',')}` : ''}`,
+  `   build.py échoue bruyamment (référence manquante, type inconnu, balise déséquilibrée, file:/// résiduel, jeton non substitué${expectIds && expectIds.length ? ', section attendue absente du manifeste' : ''}).`,
   `   S'il échoue pour une référence corrigeable (ex. claim id absent, widget ref erroné, clé meta manquante), CORRIGE le manifeste/fichier fautif dans ${themeDir} puis relance — UNE seule tentative de réparation, puis rapporte.`,
+  ...(expectIds && expectIds.length ? [
+    `   Si l'échec est « sections du manifeste ≠ sections attendues » : réinsère la/les section(s) manquante(s) dans manifest.json à leur place dans l'ordre du plan, en recopiant {"type":"section","id","heading","level":3,"prose","claims"} depuis ${themeDir}/sections_draft.json (écrit par CE run), puis relance. Ne retire JAMAIS le flag --expect-sections pour faire passer le build.`,
+  ] : []),
   `2) Exécute : python3 "${lintScript}" "${themeDir}"`,
   `   (exit 0 = propre, exit 2 = flags à adjuger, jamais bloquant en soi). Pour CHAQUE entrée de "rejected_flags" avec hedged=false : lis le contexte ; si le passage AFFIRME le contenu d'un claim rejeté comme un fait, corrige ${themeDir}/manifest.json (retrait, ou réserve explicite « source unique, non corroborée par une source indépendante ») puis relance build.py ET lint.py (une seule passe de réparation) ; si le passage CRITIQUE/RÉFUTE ce contenu, ou n'est qu'une entrée bibliographique, laisse-le (adjugé OK).`,
   `3) Lis ${themeDir}/knowledge.json et vérifie l'acceptation :`,
@@ -762,6 +765,26 @@ const liveSet = new Set(enriched.filter(s =>
     : (s.kept.length >= SECTION_CLAIM_QUOTA)
 ));
 const liveSections = enriched.filter(s => liveSet.has(s));
+// Garde « faux rejet probable » (39e run) : un claim rejeté au SEUL seuil de sources alors que
+// TOUS les jurés le tiennent ne doit jamais coûter une section en silence — quand il est
+// DÉCISIF (la section survivrait en le gardant), on s'arrête ICI, avant de payer la prose.
+const suspectLosses = enriched.filter(s => !liveSet.has(s)).map(s => {
+  const susp = s.claims.filter(c => c.audit === 'rejected' && c.tally
+    && c.tally.refuted === 0 && c.tally.corroborated >= 2);
+  if (!susp.length) return null;
+  const keptWith = s.kept.length + susp.length;
+  const wouldLive = (s.section.kind === 'ecosystem')
+    ? ((s.pointers && s.pointers.length > 0) || keptWith > 0)
+    : (keptWith >= SECTION_CLAIM_QUOTA);
+  return wouldLive ? { s, susp } : null;
+}).filter(Boolean);
+if (suspectLosses.length) throw new Error(
+  `[élagage] ARRÊT — faux rejet probable décisif : ` +
+  suspectLosses.map(({ s, susp }) =>
+    `la section « ${s.section.heading} » (${s.section.id}) tomberait à cause de ${susp.map(c => `« ${c.original_statement || c.statement} »`).join(' ; ')}`).join(' | ') +
+  `. Chaque énoncé listé est tenu par TOUS ses jurés (rejet au seul seuil de sources). ` +
+  `Réparation : ré-audit ciblé (1 agent) pour chercher la 2e source indépendante — souvent le texte intégral d'une étude primaire citée par la revue — ` +
+  `puis corriger le checkpoint sec-<id>.json et relancer avec args.resume=true.`);
 enriched.filter(s => !liveSet.has(s)).forEach(s =>
   log(`[élagage] section « ${s.section.heading} » coupée : ${s.kept.length} claim(s) survivant(s) < ${SECTION_CLAIM_QUOTA}`));
 log(`[élagage] ${liveSections.length}/${enriched.length} sections retenues.`);
@@ -1048,7 +1071,9 @@ if (widgets.length) {
 
 // ── Build (+ lint post & adjudication) ───────────────────────────────────────
 phase('Build');
-const built = await A(buildPrompt(), { schema: S_BUILD, phase: 'Build', label: 'build' });
+// Les ids POST-élagage voyagent jusqu'à build.py : le manifeste réellement écrit par Compose
+// est comparé au plan vivant (39e run : « 11/11 retenues » annoncé, 10 dans le document).
+const built = await A(buildPrompt(liveOutline.map(o => o.id)), { schema: S_BUILD, phase: 'Build', label: 'build' });
 
 return {
   slug, title: arch.title, themeDir,

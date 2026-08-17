@@ -187,3 +187,56 @@ def test_verdicts_unknown_anchor_fails(tmp_path):
     v = _valid_verdicts(); v["substances"][0]["rows"][0]["anchor"] = "ghost"
     with pytest.raises(SystemExit):
         build.build_theme(_mk_vtheme(tmp_path, v))
+
+# ── --expect-sections : le manifeste ÉCRIT est comparé aux sections attendues ──
+# Classe d'échec du 39e run (nootropiques-stimulants-prescrits) : Compose omet une
+# section, le workflow annonce « 11/11 retenues » (compte calculé sur l'élagage, un
+# proxy), le document n'en a que 10 et build.py assemble sans broncher. Le contrôle
+# doit vivre ici : seul build.py lit le fichier réellement écrit.
+
+_CLAIM_OK = [{"id": "claim:k", "statement": "s", "sources": ["src:1", "src:2"],
+              "audit": "confirmed"}]
+
+def _sec(sid):
+    return {"type": "section", "id": sid, "heading": sid.upper(),
+            "prose": "<p>x</p>", "claims": ["claim:k"]}
+
+def test_expect_sections_missing_one_fails_loud_before_write(tmp_path):
+    theme = _mk_theme(tmp_path, [_sec("a")], claims=_CLAIM_OK)
+    with pytest.raises(SystemExit) as e:
+        build.build_theme(theme, expect_sections=["a", "b"])
+    assert "b" in str(e.value)                                   # l'id manquant est nommé
+    assert list((pathlib.Path(theme) / "dist").glob("*.html")) == []   # aucune écriture partielle
+
+def test_expect_sections_unexpected_extra_fails_loud(tmp_path):
+    # une section inattendue est le symétrique de l'omission : même arrêt bruyant
+    theme = _mk_theme(tmp_path, [_sec("a"), _sec("b")], claims=_CLAIM_OK)
+    with pytest.raises(SystemExit) as e:
+        build.build_theme(theme, expect_sections=["a"])
+    assert "b" in str(e.value)
+
+def test_expect_sections_match_builds(tmp_path):
+    theme = _mk_theme(tmp_path, [_sec("a"), _sec("b")], claims=_CLAIM_OK)
+    build.build_theme(theme, expect_sections=["a", "b"])
+    assert (pathlib.Path(theme) / "dist" / "demo.html").exists()
+
+def test_expect_sections_ignores_non_section_elements(tmp_path):
+    # seuls les éléments type=="section" comptent (widget/biblio/verdicts hors champ)
+    theme = _mk_theme(tmp_path,
+        [_sec("a"), {"type": "biblio", "entries": [{"label": "L", "href": "https://x.test"}]}],
+        claims=_CLAIM_OK)
+    build.build_theme(theme, expect_sections=["a"])
+    assert (pathlib.Path(theme) / "dist" / "demo.html").exists()
+
+def test_expect_sections_cli_flag(tmp_path):
+    # le workflow invoque build.py par la LIGNE DE COMMANDE : le flag doit y exister,
+    # sinon un agent Build le retirerait « pour faire passer » et le contrôle mourrait
+    import subprocess, sys as _sys
+    theme = _mk_theme(tmp_path, [_sec("a")], claims=_CLAIM_OK)
+    r = subprocess.run([_sys.executable, build.__file__, theme, "--expect-sections", "a,b"],
+                       capture_output=True, text=True)
+    assert r.returncode != 0
+    assert "b" in (r.stderr + r.stdout)
+    r2 = subprocess.run([_sys.executable, build.__file__, theme, "--expect-sections", "a"],
+                        capture_output=True, text=True)
+    assert r2.returncode == 0, r2.stderr
