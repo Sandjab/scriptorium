@@ -839,7 +839,8 @@ décisions :
 | 6 | `acide-alpha-lipoique` | moyenne-haute | `complements-sante` |
 | 7 | `beta-alanine-tampons` | moyenne | `nutrition-sportive` |
 | 8 | `microdosage-psychedeliques` | moyenne | `performance-cognitive` |
-| 9 | `magnesium`, `hydratation-electrolytes` | basses | — |
+| 9 | `nootropiques-panorama` | moyenne | `performance-cognitive` (**capstone : à lancer après les nos 3, 4 et 8**) |
+| 10 | `magnesium`, `hydratation-electrolytes` | basses | — |
 
 **Arbitrage assumé** : les deux thèmes muscle passent devant `nootropiques-vegetaux`, qui était en
 tête depuis le 2026-08-15. Ils coûtent plus cher (deux runs au lieu d'un) et laissent
@@ -1259,6 +1260,93 @@ répliqués par une équipe tierce — juger le run à la **nature** de ses reje
   est énorme et le sujet très demandé. Exige la doctrine santé au pied de la lettre.
 - **neurostimulation-tdcs** (basse) — vrai gap, excellent matériau de crise de réplication, mais
   c'est un dispositif et non un produit de rayon : moins homogène avec le méta-domaine.
+
+### Panorama du rayon nootropique — `nootropiques-panorama` → `performance-cognitive`
+**Verdict : candidat de FORMAT, ajouté le 2026-08-19 sur demande explicite.** Le document-index du
+domaine : lister **TOUT** ce qui est allégué améliorateur des performances cognitives au sens
+large — y compris ce que le corpus traite déjà ou prévoit de traiter sous ce même angle, alors
+rappelé en quelques lignes (verdict + renvoi), jamais re-déroulé. Inventaire de départ : la page
+Wikipédia « Nootrope » (fr) — **valeur d'inventaire uniquement, zéro valeur de source** ; chaque
+substance est à instruire en source primaire. Couverture corpus vérifiée le 2026-08-19 par grep de
+localisation puis lecture du contexte des 3 seuls documents qui matchaient : hors les rappels
+listés dans le prompt, **aucune** des substances n'apparaît nulle part (racétams, donneurs de
+choline, Hydergine, lévétiracétam, pitolisant, mémantine, anticholinestérasiques, nicotine,
+tyrosine, vasopressine, fluorénol, tolcapone : 0 occurrence).
+
+⚠️ **Deux dérogations assumées, à ne pas laisser passer en silence :**
+1. La règle « une monographie par objectif ne se justifie que si aucune molécule seule ne porte
+   l'objectif ET que le corpus n'a aucune couverture » n'est **pas** satisfaite — ici le format
+   EST la valeur : une carte complète du rayon, graduée par niveau de preuve, dont la profondeur
+   par substance est inversement proportionnelle à la couverture ailleurs.
+2. Le précédent `complements-amincissants` avertit que multiplier les molécules multiplie les
+   attributions à vérifier (run le plus cher du corpus, classe d'erreur « fausse indépendance par
+   scission de source »). Tenir le budget par un quota strict : les substances sans donnée humaine
+   se traitent en UNE LIGNE du tableau de verdicts, jamais en section.
+
+⚠️ **À lancer en DERNIER des candidats `performance-cognitive`** (après `nootropiques-vegetaux`,
+`cafeine-cognition-vigilance`, `microdosage-psychedeliques`) : ce document rappelle les verdicts
+de ses voisins, donc chaque voisin manquant au lancement devient soit un renvoi cassé —
+l'anti-pattern le mieux documenté du corpus, deux prises sur deux — soit un mini-verdict que la
+monographie dédiée devra ensuite contredire ou dupliquer. S'il devait être lancé avant eux :
+écrire les entrées concernées comme verdicts autonomes, et **interdire toute formule « traité
+ailleurs » ou « couverture à venir »**.
+
+> Le rayon nootropique au complet : tout ce qui est vendu, prescrit ou détourné avec une promesse
+> cognitive, en un catalogue raisonné où chaque substance reçoit un verdict gradué par sa
+> meilleure preuve. Fil rouge double : (1) le rayon est défini par l'ALLÉGATION, jamais par la
+> preuve — le même mot « nootrope » couvre des médicaments à AMM, des molécules de marché gris et
+> des composés sans aucune donnée humaine ; (2) l'origine du mot lui-même — Giurgea (UCB) le forge
+> en 1972 POUR le piracétam, et les critères qu'il pose (améliorer sans stimuler ni sédater, être
+> quasi atoxique) ne sont remplis par à peu près rien de ce que le rayon vend depuis. Structure
+> par familles pharmacologiques, PAS par substance (patron `complements-amincissants` : sections
+> de famille + super-widget tableau de verdicts couvrant TOUTES les entrées) :
+> **racétams** — piracétam en dossier principal (AMM européenne, SMR faible, déconseillé par
+> Prescrire, warning letters FDA côté compléments US : même molécule, trois statuts ; Cochrane sur
+> le déclin cognitif ; l'essentiel de la littérature porte sur des populations atteintes — 
+> l'allégation d'augmentation chez le sujet sain est une extrapolation quasi jamais testée),
+> aniracétam, oxiracétam, pramiracétam, néfiracétam, coluracétam, rolziracétam, cébaracétam
+> (pour la plupart : une ligne), noopept (littérature russe mono-source — le nommer comme tel),
+> et le **lévétiracétam** comme cas inverse fascinant : antiépileptique à part entière (Keppra,
+> étiracétam = son racémique) suspecté d'effets cognitifs indésirables à dose pleine, testé à
+> BASSE dose dans le MCI amnésique (programme AGB101 / HOPE4MCI) — vérifier l'issue réelle de ces
+> essais en primaire.
+> **Éveillants et dopaminergiques** — modafinil, armodafinil, méthylphénidate, amphétamines :
+> RAPPEL de `nootropiques-stimulants-prescrits` (verdict en deux phrases, renvoi, ne rien
+> re-dérouler — son toolkit SMD/domaines/double comptage sert de méthode commune à tout le
+> document) ; adrafinil (le précurseur historique, retiré du marché français — instruire le
+> pourquoi) ; sulbutiamine (Arcalion : AMM française « asthénie fonctionnelle », service médical
+> rendu à vérifier, détournement étudiant) ; pitolisant (Wakix, mécanisme histaminergique H3) ;
+> fluorénol (données précliniques Cephalon uniquement — une ligne) ; L-Dopa et tolcapone (études
+> de mémoire chez le sain : petites, anciennes, à corroborer) ; nicotine — le dossier sérieux du
+> lot hors ordonnance : vraie littérature RCT (attention soutenue, amorçage chez le MCI — essai
+> de Newhouse), à séparer absolument de la question tabac/vapotage et de la dépendance.
+> **Cholinergiques et médicaments Alzheimer détournés** — donépézil, rivastigmine, galantamine
+> (= Reminyl), mémantine, tacrine (retirée, hépatotoxicité) : l'angle est le DÉTOURNEMENT chez le
+> sujet sain ou « inquiet de sa mémoire » — que montrent les essais chez le non-dément ? ;
+> huperzine A — alcaloïde purifié d'une mousse, tranché ICI et non dans `nootropiques-vegetaux`
+> (essais chinois, qualité méthodologique à documenter) ; DMAE et centrophénoxine (efficacité non
+> démontrée — l'écrire) ; **dihydroergotoxine (Hydergine)** en cas d'école réglementaire : parmi
+> les médicaments les plus vendus au monde dans les années 1980, méta-analyses décevantes,
+> déremboursements — instruire la trajectoire complète.
+> **Peptides et hormones** — semax, selank : `peptides-gris` tient déjà leur versant réglementaire
+> (vote 503A) — le rappeler, et instruire ICI leur dossier d'efficacité cognitive (littérature
+> russe, mono-source) ; vasopressine et analogues (études de mémoire des années 1980, jamais
+> confirmées) ; tyrosine (littérature militaire : stress, froid, privation — l'effet est de
+> PRÉSERVATION sous stresseur, pas d'augmentation — bien poser cette distinction).
+> **Divers et vitamines** — sunifiram, suritozole (aucune donnée humaine : une ligne chacun,
+> assumée comme carte du vide) ; vitamines B et homocystéine (grands essais négatifs — VITACOG et
+> suite) ; oméga-3 : selon l'état du backlog au lancement, rappel du thème dédié ou verdict
+> autonome. RAPPELS transverses obligatoires : créatine (section « Cerveau et cognition » de
+> `creatine` : effet conditionnel à l'état du cerveau), caféine/L-théanine et végétaux
+> (bacopa, ginkgo, rhodiola, ashwagandha, ginseng) et microdosage : renvois aux monographies
+> dédiées si publiées — sinon verdict autonome sans promesse de couverture. Délimitations
+> strictes : ne PAS re-dérouler le 39e run (trois molécules, mesure, usage détourné, régulateur) ;
+> ne pas retraiter l'adultération générique (`peptides-gris`, `complements-amincissants` la
+> portent) — la citer sur les poudres de racétams du marché gris si des analyses de contenu réel
+> existent. Public : lecteur exigeant non spécialiste. Doctrine de preuve santé
+> (`docs/evidence-sante.md`) à recopier intégralement dans le brief ; s'attendre à un profil de
+> rejets type `collagene` en plus marqué (mono-source russe, essais anciens jamais répliqués) —
+> juger le run à la NATURE de ses rejets. Domaine : performance-cognitive.
 
 ---
 
