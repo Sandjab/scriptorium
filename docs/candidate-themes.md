@@ -777,25 +777,77 @@ qui tiennent à ce que le corpus dit **de lui-même** :
    **non retenu ce tour-ci** : son profil (adultération PDE5, marché gris, contrôle du contenu réel
    des gélules) redirait la méthode de `complements-amincissants` et `peptides-gris`.
 
-**Ordre de lancement** — mis à jour le 2026-08-15 après la publication de
-`nootropiques-stimulants-prescrits` (FAIT le jour même, comme `masse-maigre-sous-glp1` ; voir
-leurs entrées dans `performance-cognitive` et `pharmacologie-metabolique`) :
+**Passe d'enrichissement du 2026-08-18** (corpus à 79 thèmes / 81 documents) : audit ciblé sur
+**« la prise de masse maigre chez l'homme de plus de 60 ans »** (exercice, alimentation,
+supplémentation, médicaments, marché gris), mené **par lecture intégrale de la prose** de
+8 monographies — les 5 du versant nutrition/compléments (`creatine`, `proteines-besoins-timing`,
+`vitamine-d`, `cafeine-ergogene`, `collagene`) et les 3 du versant pharmacologique
+(`incretines-glp1`, `masse-maigre-sous-glp1`, `peptides-gris`) — doublé de deux balayages web
+séparés, l'un sur exercice/protéines/suppléments, l'autre sur médicaments/marché gris. Cinq
+décisions :
+
+1. **Gap réel, et le corpus le désigne lui-même comme un dehors.** Le sujet n'existe qu'en
+   fragments périphériques, chacun explicitement présenté comme incise ou perspective :
+   `proteines-besoins-timing` définit la résistance anabolique en ouverture, donne le seuil de
+   leucine relevé chez l'âgé et PROT-AGE dans **un paragraphe de sa section sécurité**, puis écrit
+   que « le sujet vieillissant […] relève d'ailleurs d'une dose et d'un seuil qui lui sont
+   propres » — il nomme le centre pour l'exclure ; `creatine` relègue le vieillissement en
+   « front qui bouge » dans un unique paragraphe d'écosystème et renvoie vers une revue
+   **externe** (Candow 2025) ; `vitamine-d` traite chutes et fractures de l'âgé en profondeur et
+   ne dit **rien** de la masse ni de la force ; `cafeine-ergogene` n'en dit rien du tout (vérifié
+   par lecture ET comptage) ; `collagene` ne couvre que l'os de la **femme** ménopausée. Absents
+   du corpus entier : la sarcopénie comme entité clinique, l'entraînement en résistance comme
+   intervention, le HMB, la testostérone, la pharmacologie des SARMs.
+2. **Deux monographies, pas une — parce que les deux versants n'ont pas le même régime de
+   preuve.** Côté exercice/nutrition : littérature mature, méta-analyses multiples et
+   concordantes, effets modestes mais affirmables. Côté médicaments : le champ 2024-2026 est fait
+   presque entièrement de **communiqués de promoteur non revus par les pairs** (QUALITY, COURAGE,
+   EMBRAZE), et le seul essai publié en revue à comité de lecture — BELIEVE, *Nature Medicine*,
+   5 mars 2026 — **ne mesure aucun critère fonctionnel**. Fondre les deux produirait un document
+   qui hedge tout au même niveau.
+3. **Deux moitiés de la pharmacologie musculaire sont DÉJÀ PRISES, ce qui resserre le 2e thème.**
+   Les anticorps anti-myostatine/activine sont traités en profondeur par `masse-maigre-sous-glp1`
+   (bimagrumab/BELIEVE, apitegromab/EMBRAZE, trévogrumab/COURAGE) ; les sécrétagogues de GH par
+   `peptides-gris` (CJC-1295, MK-677, ipamoréline, tésamoréline comme étalon). Ne restent
+   réellement libres que **la testostérone, les SARMs, la GH exogène et l'échec réglementaire de
+   la pharmacologie sarcopénie**. Une 3e monographie « SARMs & marché gris de la musculation »
+   n'est **pas** ouverte ici : elle redirait `peptides-gris`, et ne se justifierait qu'a posteriori
+   si l'arbitrage du 2e run sacrifiait ces sections.
+4. **Domaine `muscle-vieillissement` à créer — avec une réserve taxonomique explicite** (section
+   dédiée en fin de fichier). Les deux thèmes créent le domaine **et son portail d'un seul coup**
+   (le portail exige 2 thèmes), ce qui évite le défaut du 39e run où `performance-cognitive` est
+   né à moitié.
+5. **2e renvoi cassé du corpus, trouvé par la même heuristique et réparé le jour même** :
+   `incretines-glp1` promettait « apports protéiques, entraînement en résistance sous déficit
+   énergétique […] traité ailleurs dans ce corpus », et son écosystème citait « le thème consacré
+   aux protéines et à la masse maigre en déficit calorique » — deux désignations que
+   `masse-maigre-sous-glp1` dément frontalement (« la monographie consacrée aux besoins
+   protéiques traite du sujet entraîné en surplus ou à l'équilibre énergétique, pas de la
+   préservation sous déficit marqué », et la question de l'entraînement y reste ouverte, LEAN-PREP
+   n'ayant qu'un protocole publié). Corrigé dans `manifest.json` puis rebuild — voir la note de
+   réparation en fin de section `pharmacologie-metabolique`.
+
+**Ordre de lancement** — mis à jour le 2026-08-18 :
 
 | # | thème | priorité | domaine |
 |---|---|---|---|
-| 1 | `nootropiques-vegetaux` | **haute** | `performance-cognitive` (**ouvre le portail**) |
-| 2 | `cafeine-cognition-vigilance` | moyenne-haute | `performance-cognitive` |
-| 3 | `omega-3` | moyenne-haute | `complements-sante` |
-| 4 | `acide-alpha-lipoique` | moyenne-haute | `complements-sante` |
-| 5 | `beta-alanine-tampons` | moyenne | `nutrition-sportive` |
-| 6 | `microdosage-psychedeliques` | moyenne | `performance-cognitive` |
-| 7 | `magnesium`, `hydratation-electrolytes` | basses | — |
+| 1 | `sarcopenie-exercice-nutrition` | **haute** | `muscle-vieillissement` (**crée le domaine**) |
+| 2 | `testosterone-homme-age` | **haute** | `muscle-vieillissement` (**ouvre le portail**) |
+| 3 | `nootropiques-vegetaux` | haute | `performance-cognitive` (**ouvre le portail**) |
+| 4 | `cafeine-cognition-vigilance` | moyenne-haute | `performance-cognitive` |
+| 5 | `omega-3` | moyenne-haute | `complements-sante` |
+| 6 | `acide-alpha-lipoique` | moyenne-haute | `complements-sante` |
+| 7 | `beta-alanine-tampons` | moyenne | `nutrition-sportive` |
+| 8 | `microdosage-psychedeliques` | moyenne | `performance-cognitive` |
+| 9 | `magnesium`, `hydratation-electrolytes` | basses | — |
 
-**Pourquoi `nootropiques-vegetaux` passe en tête** (il était n° 4) : `performance-cognitive`
-existe désormais mais **n'a qu'un thème et pas de portail**. Un domaine à un seul thème est un
-domaine à moitié né — compléter le domaine tout juste créé rend plus qu'ajouter un 3e complément
-à `complements-sante`, qui en a déjà deux et son portail. `cafeine-cognition-vigilance` remonte
-pour la même raison, et parce que son voisin `cafeine-ergogene` fournit une frontière déjà écrite.
+**Arbitrage assumé** : les deux thèmes muscle passent devant `nootropiques-vegetaux`, qui était en
+tête depuis le 2026-08-15. Ils coûtent plus cher (deux runs au lieu d'un) et laissent
+`performance-cognitive` à moitié né **deux tours de plus** — mais ils créent un domaine
+**complet, portail inclus**, sur un gap plus large, et leur fil rouge est le mieux mesuré que ce
+backlog ait proposé (voir la section du domaine). `nootropiques-vegetaux` garde sa priorité haute
+et reste le run le moins cher pour refermer le chantier `performance-cognitive` :
+**si le budget ne permet qu'un seul run, le lancer lui.**
 
 ## `nutrition-sportive`
 
@@ -1097,6 +1149,36 @@ une piste ne se corrobore pas, la retirer, ne pas la sauver ». La consigne a te
 corrigé une contamination venue du brief : l'essai s'appelle **EMBRAZE**, pas EMBRACE — le document
 signale de lui-même que la graphie qui circule dans les reprises est fausse.)
 
+**RÉPARATION du 2026-08-18 — 2e renvoi cassé du corpus, dans `incretines-glp1`.** Le 38e run avait
+réparé le premier (une section qui renvoyait vers un document inexistant) ; l'audit du 2026-08-18 a
+trouvé le second, dans le **même** document et par la **même** heuristique. Deux passages
+promettaient une couverture que le corpus ne fournit pas :
+
+- section « Ce qui est perdu » : « apports protéiques, entraînement en résistance sous déficit
+  énergétique — relève du versant nutritionnel, **traité ailleurs dans ce corpus** et non repris
+  ici » ;
+- section écosystème : « le thème consacré aux protéines et à **la masse maigre en déficit
+  calorique** » — désignation d'un thème qui n'existe sous ce nom nulle part.
+
+Les deux sont démentis par `masse-maigre-sous-glp1`, publié **après** : il écrit que
+`proteines-besoins-timing` « traite du sujet entraîné en surplus ou à l'équilibre énergétique, pas
+de la préservation sous déficit marqué », et conclut que la question de l'entraînement reste
+ouverte (LEAN-PREP n'a qu'un protocole publié, pas de résultat). Le renvoi n'était donc pas
+seulement périmé, il **sur-vendait** : il annonçait une réponse là où le corpus n'a qu'une question
+documentée.
+
+Réparé dans `manifest.json` seul, puis `build.py` + `build_site.py` (95 tests verts, la phrase
+fautive absente du `dist/`) : les deux passages nomment désormais le voisin réel **et sa
+conclusion négative**. `sections_draft.json` et `.leanmonograph/prose.json` **délibérément non
+touchés** — ce sont les artefacts du run d'origine, pas la source du build ; les réécrire
+falsifierait la trace du run sans rien changer au document publié.
+
+⚠️ **L'heuristique reste ouverte, et elle a maintenant deux prises sur deux.** Balayer le corpus
+sur « traité ailleurs », « relève de », « non repris ici », « traité par ailleurs » — puis vérifier
+**par lecture** que la cible existe *et* qu'elle dit ce que le renvoi promet. Le second point est
+neuf : ici la cible existait (`proteines-besoins-timing`), c'est son **contenu** qui ne
+correspondait pas.
+
 ---
 
 ## `performance-cognitive` — domaine À CRÉER (proposé le 2026-08-15)
@@ -1177,3 +1259,232 @@ répliqués par une équipe tierce — juger le run à la **nature** de ses reje
   est énorme et le sujet très demandé. Exige la doctrine santé au pied de la lettre.
 - **neurostimulation-tdcs** (basse) — vrai gap, excellent matériau de crise de réplication, mais
   c'est un dispositif et non un produit de rayon : moins homogène avec le méta-domaine.
+
+---
+
+## `muscle-vieillissement` — domaine À CRÉER (proposé le 2026-08-18)
+
+**Verdict : gap réel et large, à couvrir en DEUX thèmes qui créent le domaine et son portail.**
+Couverture nulle vérifiée par lecture intégrale de 8 monographies (cf. passe du 2026-08-18) : les
+documents existants dessinent les bords du sujet sans jamais en occuper le centre, et deux d'entre
+eux le désignent explicitement comme un dehors.
+
+**Le fil rouge — le mieux mesuré que ce backlog ait proposé, et il est commun aux deux thèmes :
+la dissociation entre la masse et la fonction.** Toutes les molécules déplacent de façon fiable
+le compartiment que le **SDOC (2020) a EXCLU de la définition de la sarcopénie**, précisément
+parce que la masse maigre en DXA ne prédisait pas les événements incidents, là où force de
+préhension et vitesse de marche les prédisent. L'entraînement en résistance fait exactement
+l'inverse : gain de masse négligeable, gain de force et de performance large. Et le
+contre-exemple est parfait, à l'intérieur d'une même molécule : la testostérone augmente la
+densité minérale osseuse trabéculaire du rachis (TTrials 2017) **et augmente les fractures
+cliniques** (TRAVERSE, sous-étude fractures, *NEJM* 2024, HR ≈ 1,43). C'est la thèse
+« le substitut ne prédit pas le résultat », déjà installée par `vitamine-d` (association vs effet)
+et par `masse-maigre-sous-glp1` (mesurer une masse n'est pas mesurer une fonction) — ici elle est
+démontrable **deux fois, dans les deux sens**.
+
+- **Paramètres proposés** : id `muscle-vieillissement`, label « Muscle & vieillissement », blurb
+  « Ce que l'exercice, l'assiette et les molécules font réellement à la masse et à la force après
+  60 ans — et pourquoi les deux ne bougent presque jamais ensemble. » Position à trancher par
+  `/arrange` : après `nutrition-sportive` (performance du sujet entraîné → muscle du sujet
+  vieillissant) ou en clôture du méta.
+- ⚠️ **Réserve taxonomique à trancher explicitement par `/arrange`, ne pas la laisser passer en
+  silence.** Les quatre domaines santé existants sont découpés par **type de produit** (nutrition
+  sportive, performance cognitive, compléments libres, pharmacologie métabolique) ; celui-ci le
+  serait par **population**, et contiendrait donc à la fois de la nutrition et de l'ordonnance.
+  C'est une rupture de principe. L'alternative — `sarcopenie-exercice-nutrition` dans
+  `nutrition-sportive`, `testosterone-homme-age` dans un domaine hormonal à créer — éclate un
+  sujet dont l'unité est justement le fil rouge ci-dessus. Recommandation : créer le domaine, et
+  écrire la rupture dans son blurb plutôt que la masquer.
+- **Ne pas créer le domaine à vide** : il naît avec `sarcopenie-exercice-nutrition` et son portail
+  n'existe qu'au 2e thème — **deux runs pour qu'il existe pleinement**, comme
+  `performance-cognitive`. Arêtes à poser dès le 1er thème : `proteines-besoins-timing` (seuil par
+  prise, résistance anabolique), `creatine` (section « front qui bouge » de l'écosystème),
+  `vitamine-d` (chutes et fractures), `masse-maigre-sous-glp1` (mesurer une masse n'est pas
+  mesurer une fonction).
+
+**Deux pièges communs aux deux briefs, à recopier dans chacun :**
+
+1. **La question porte sur l'HOMME de plus de 60 ans, et la littérature ne coopère pas.** Les
+   populations âgées déjà citées dans le corpus sont majoritairement féminines (Chapuy à 84 ans,
+   l'essai osseux du collagène chez des femmes ménopausées) ; côté nutrition, les essais mélangent
+   les sexes sans stratifier ; côté pharmacologie, ils sont exclusivement masculins mais fortement
+   comorbides (dans les TTrials : 62,9 % d'obèses, 71,6 % d'hypertendus). **Traiter l'écart entre
+   la population de la question et celle des essais comme une limite à écrire, jamais à lisser.**
+2. **Les pistes ci-dessous viennent d'une recherche préliminaire : elles sont À CORROBORER EN
+   SOURCE PRIMAIRE, jamais des faits.** Si une piste ne se corrobore pas, la retirer — ne pas la
+   sauver. (Consigne reconduite mot pour mot du 38e run, où elle a tenu et où le pipeline a
+   corrigé une contamination venue du brief.) Deux pistes sont explicitement **signalées comme
+   douteuses** et ne doivent pas être reprises telles quelles : le signal d'insuffisance cardiaque
+   de l'essai MK-677 après fracture de hanche (Adunsky 2011, ~6,5 % vs 1,7 %), concordant entre
+   sources secondaires mais **non vérifié en primaire** ; et une allégation circulant en 2026
+   selon laquelle les recommandations nutritionnelles américaines auraient adopté 1,2-1,6 g/kg/j,
+   **issue d'un site secondaire non fiable**.
+
+### Sarcopénie : exercice, protéines et suppléments après 60 ans — `sarcopenie-exercice-nutrition` → `muscle-vieillissement`
+
+(**FAIT le 2026-08-18** — 40e run /leanmonograph, 12e thème santé, **crée le domaine
+`muscle-vieillissement`**, classé entre `nutrition-sportive` et `performance-cognitive`.
+12/12 sections, 48 claims 24✓/18corr/6rej, 91 sources, 2 widgets (0 fond en dur), ~11 000 mots —
+le plus long document santé du corpus. Titre : « Muscle après 60 ans : la masse ne prédit pas la
+fonction ». **~8,1M tokens / 111 agents / ~3 h 45 en deux runs** — dans la fourchette annoncée
+(7-9,5M / 3h-4h30). Lint exit 0 (4 flags, tous adjugés faux positifs : collisions sur
+« Journal of Gerontology », entrées de bibliographie) ; contraste mesuré à 0 violation en clair
+ET en sombre ; pas de portail (1 seul thème — il naîtra avec `testosterone-homme-age`).
+
+**Le rendement de ce run est un enseignement de méthode, pas un document de plus.**
+
+1. **Le garde-fou d'élagage du 39e run a servi pour la première fois — et il a payé.** Le
+   pipeline s'est arrêté APRÈS le council et AVANT d'écrire la prose, parce qu'une section
+   allait tomber sous le quota à cause de rejets suspects. Aucune prose payée pour rien.
+2. ⚠️ **MAIS il ne signale que les faux rejets DÉCISIFS.** Le balayage manuel des 12
+   checkpoints sur le critère `refuted == 0 && corroborated >= 2` en a trouvé **5**, pas 2 : les
+   3 autres vivaient dans des sections qui survivaient — dont deux **pile au quota**, donc
+   amputées en silence. **Réflexe à systématiser après tout arrêt sur ce garde-fou : balayer
+   TOUS les checkpoints, pas seulement les sections que le message nomme.**
+3. ⚠️⚠️ **CLASSE D'ÉCHEC NOUVELLE — le ré-audit d'un faux rejet trouve souvent une ERREUR DE
+   FOND, pas seulement une source manquante.** Trois des cinq énoncés étaient INEXACTS :
+   (a) l'énoncé sur **OPTIMen** attribuait à l'essai un entraînement en résistance que le
+   protocole **INTERDISAIT** (« instructed to avoid vigorous resistance and endurance exercise »,
+   avec arrêt de la musculation exigé 12 semaines avant l'inclusion), et taisait le second
+   facteur du plan 2×2, la testostérone ; (b) **Lopez 2021** était donné pour « 28 essais
+   randomisés » — faux deux fois (1/24 et 3/23 études non randomisées, 6/28 en devis
+   intra-sujet) — et appariait une plage de tailles d'effet prise dans DEUX analyses avec une
+   plage de p issue de la seule analyse globale ; (c) **Morton 2018** plaçait le plateau de
+   1,62 g/kg/j et « 49 études / 1 863 participants » dans la même phrase, alors que le point de
+   rupture est estimé sur 42 bras et 723 participants. **Promouvoir un claim sur la seule foi
+   d'une 2e source trouvée aurait publié un fait faux avec deux références correctes en
+   dessous.** Le ré-audit doit TOUJOURS re-vérifier l'énoncé en source primaire, jamais se
+   contenter de chercher la source manquante.
+4. **3e incarnation du trou d'indépendance par URL**, sur un claim que le council avait pourtant
+   bien traité (il avait retourné l'énoncé) : sa liste comptait le MÊME article du *Journal of
+   Nutrition* sous deux URLs (ScienceDirect et le site de la revue) plus un site commercial de
+   calculateur de protéines, et son `audit_note` annonçait « 5 sources indépendantes » pour
+   3 travaux réels. Dédoublonné à la main.
+5. **Deux pièges d'indépendance désamorcés par les ré-audits**, à garder en tête pour les runs
+   santé : la meilleure source apparente pour OPTIMen (méta-analyse de Hudson & Campbell) est
+   signée par un **co-auteur de l'essai** ; et pour SPRINTT, la seule revue tierce qui cite la
+   métrologie fine **en intervertit l'intervalle de confiance** (elle accole l'estimation de
+   36 mois à l'intervalle de 24 mois) — la graphie fautive circule dans la littérature
+   secondaire, la prose ne l'a pas recopiée.
+6. **`write:audit-report.json` a de nouveau échoué sur la limite de 64 000 tokens de sortie**
+   (pattern connu) : régénéré en déterministe depuis les checkpoints et `knowledge.json`, avec
+   une `regeneration_note` qui déclare les 5 ré-adjudications manuelles.
+7. **Bon comportement confirmé** : la consigne « pistes à corroborer, jamais des faits » a encore
+   tenu. Mieux, le council a **RETOURNÉ** la piste que le brief signalait comme douteuse — les
+   recommandations américaines à 1,2-1,6 g/kg/j sont une cible pratique, l'apport journalier
+   recommandé restant à 0,8 g/kg/j — et le document en fait un point de fond.
+8. Les 5 claims ré-adjugés portent tous, en tête de leur `audit_note`, la mention « Confirmé
+   après RÉ-ADJUDICATION MANUELLE — ceci n'est pas un verdict de council », et la prose attribue
+   nommément tout ce qui est resté mono-source (« l'essai rapporte », « les auteurs rapportent »),
+   vérifié passage par passage sur `prose.json` avant le build.)
+
+**Verdict d'origine : gap réel (haute) — crée le domaine.** Régime de preuve mature : méta-analyses
+multiples et concordantes, effets modestes mais affirmables. C'est le thème qui porte la moitié
+« ce qui marche » du fil rouge.
+
+> Gagner ou garder du muscle après 60 ans : ce que l'exercice et l'assiette obtiennent réellement,
+> et sur quel critère. Couvrir d'abord le cadre et sa dispute — la sarcopénie et ses définitions
+> concurrentes (EWGSOP2 2019 qui place la **force** au centre et fait de la masse une
+> confirmation ; GLIS 2024, consensus Delphi mondial dont la définition **opérationnelle** n'est
+> toujours pas publiée ; SDOC 2020 qui **exclut** la masse musculaire parce qu'elle ne prédit pas
+> les événements incidents) —, puis la résistance anabolique liée à l'âge : établie (méta-analyse
+> d'études traceurs), d'ampleur **modeste**, et disputée dans son étiologie (part de l'âge vs part
+> de l'inactivité et des épisodes de décharge — l'argument « inevitable or preventable ? »).
+> Ensuite l'entraînement en résistance comme **seul levier de première ligne** : gains chiffrés de
+> masse (~+1 kg) contre gains de force très supérieurs (méta-analyses Peterson 2011, Borde 2015,
+> network meta-analysis *Age and Ageing* 2018), le **renversement récent en faveur du volume BAS**
+> (network méta-analyse de ~151 essais chez les ≥ 60 ans), charges lourdes vs légères poussées
+> près de l'échec, power training, entraînement sous restriction de flux sanguin (BFR) et sa
+> sécurité mal documentée, et surtout la dose réellement tenue — l'adhérence est le verrou, pas la
+> physiologie. Puis les protéines : le divorce persistant entre consensus d'experts (PROT-AGE
+> 2013, ESPEN 2014 : ≥ 1,0-1,2 g/kg/j) et essais contrôlés d'alimentation négatifs en conditions
+> non stressées, le seuil par repas relevé avec l'âge (~0,40 g/kg, ~3 g de leucine), la
+> distribution des prises (rationnel aigu fort, RCT au long cours non démonstratifs — un écart
+> promesse/preuve à nommer), sources animales vs végétales et l'écart entre traceurs aigus et
+> essais chroniques, et la lecture **conditionnelle** qui réconcilie la littérature : le
+> supplément protéique n'ajoute que si l'apport de base est insuffisant. Enfin le tri des
+> suppléments, verdict par verdict : créatine (le seul bénéfice reproductible, ~+1 kg au-delà de
+> l'entraînement, **nul sans entraînement**, avec la controverse 2025 du « wash-in » qui isole la
+> part hydrique), HMB (effet réel mais petit, surtout en situation catabolique ; les gains
+> historiques spectaculaires jamais répliqués), vitamine D (trois grands essais négatifs sur la
+> masse et la sarcopénie, bolus délétères), oméga-3 (effet force minuscule, effet masse non
+> démontré, l'essai fondateur jamais répliqué), leucine seule (nulle), collagène (inférieur à
+> toute protéine complète à dose égale). Terminer par les interventions multimodales — PROVIDE,
+> SPRINTT et sa leçon : le combiné protège la **fonction** plus que la masse. ⚠️ Délimitations
+> strictes : `proteines-besoins-timing` couvre le plateau de 1,6 g/kg/j, la fenêtre anabolique et
+> le score protéique chez le sujet entraîné en surplus ou à l'équilibre — **partir de là, ne pas
+> le re-dériver** ; `creatine` couvre le mécanisme, la charge et la dose (l'angle neuf est la
+> population âgée et le conditionnement à l'entraînement) ; `vitamine-d` couvre chutes, fractures
+> et la frontière carencé/institutionnalisé — **s'y appuyer, ne pas refaire le dossier**, l'angle
+> neuf est le muscle (masse et force), que ce voisin ne traite pas ; `collagene` a déjà rendu son
+> verdict et le patron de la littérature mono-source ; `masse-maigre-sous-glp1` couvre la
+> préservation sous déficit pharmacologiquement induit — **ici on parle de gagner, pas de moins
+> perdre**. Public : lecteur exigeant non spécialiste. Doctrine de preuve santé
+> (`docs/evidence-sante.md`) à recopier intégralement dans le brief. Domaine :
+> muscle-vieillissement (à créer).
+
+### Testostérone et anabolisants chez l'homme âgé — `testosterone-homme-age` → `muscle-vieillissement`
+**Verdict : gap réel (haute) — ouvre le portail du domaine.** Aucune couverture : la testostérone
+et la pharmacologie des SARMs sont absentes des 8 documents lus **et ne font l'objet d'aucun
+renvoi**. C'est le thème qui porte la moitié « ce qu'on promet » du fil rouge, et son régime de
+preuve est l'inverse du précédent : essais rares et anciens du côté publié, communiqués de
+promoteur du côté récent.
+
+> La testostérone et ce qu'on vend avec elle à l'homme vieillissant : ce que les essais mesurent,
+> et sur quel critère ils échouent. Le dossier principal est la TRT — les Testosterone Trials
+> (*NEJM* 2016 : 790 hommes de 65 ans et plus, et le détail qui décide de la lecture, **l'essai
+> dédié à la fonction physique manque son critère primaire** pendant que l'agrégat de tous les
+> participants devient significatif, pour une différence moyenne de quelques mètres au test de
+> marche de 6 minutes, **sous la différence minimale cliniquement importante**), TEAAM (3 ans,
+> ~+0,9 kg de masse maigre, force du haut du corps améliorée, **pas celle des jambes**), la
+> dose-réponse de Storer 2008 (masse, force et puissance dose-dépendantes ; vitesse de marche et
+> TUG **non liés à la dose**, avec l'explication des auteurs : le plateau de la courbe
+> force/fonction), et TRAVERSE (2023) pour la sécurité cardiovasculaire — **avec sa sous-étude
+> fractures de 2024, le contre-exemple central du document : la densité osseuse monte et les
+> fractures aussi**. Puis la combinaison qui déflate la molécule : LITROS et TEX montrent que le
+> gain fonctionnel vient **intégralement** du programme d'exercice, la testostérone achetant la
+> masse maigre et l'os ; T4DM pour le versant métabolique et sa contrepartie hématologique.
+> Ensuite la fabrique de la demande : la prévalence réelle de l'hypogonadisme tardif (EMAS, ~3 %
+> à 60-69 ans) contre le volume de prescriptions et sa croissance concentrée sur des tranches
+> d'âge **plus jeunes**, la télémédecine directe au consommateur et l'étude en « client mystère »
+> (*JAMA Internal Medicine* 2023), et le vocabulaire lui-même (« age-related », « late-onset »,
+> « functional ») que l'Endocrine Society critique nommément en 2026. Le versant réglementaire est
+> à traiter de première main et il bouge : retrait par la FDA du *boxed warning* cardiovasculaire
+> (février 2025) **avec maintien explicite de la Limitation of Use pour l'hypogonadisme lié à
+> l'âge**, panel d'experts de décembre 2025, extension d'indication envisagée sur **la libido** —
+> pas sur le muscle ; côté français, le SMR d'Androtardyl important **sauf** pour le déficit
+> androgénique lié à l'âge. Trois sections pour le reste de la pharmacologie : les SARMs (échec
+> réglementaire fondateur d'enobosarm dans les essais POWER, où la masse bouge et la puissance de
+> montée d'escalier non ; LGD-4033 à 21 jours chez des sujets **jeunes**, sans aucune mesure de
+> force ; RAD-140, le plus vendu du marché gris, avec **zéro donnée humaine de composition
+> corporelle** ; hépatotoxicité documentée par séries de cas, suppression de l'axe, baisse du
+> HDL ; statut : approuvé nulle part, détention interdite en France par l'arrêté du 18 juin 2024,
+> classe S1.2 de l'AMA), la GH exogène chez le sujet âgé sain (méta-analyse de 2007 : ~+2,1 kg de
+> masse maigre, ~−2,1 kg de masse grasse, **aucun effet sur la capacité fonctionnelle**, excès
+> d'œdèmes, canal carpien et arthralgies — et le régime pénal fédéral américain qui frappe la
+> prescription anti-âge indépendamment de toute efficacité), et **l'échec réglementaire de la
+> pharmacologie sarcopénie** comme clôture : aucun médicament approuvé, l'avis négatif du CHMP sur
+> l'anamoréline (« effet marginal sur la masse maigre et aucun effet prouvé sur la force de
+> préhension »), l'approbation japonaise du **même** dossier — divergence doctrinale et non
+> scientifique —, l'arrêt définitif de l'azélaprag pour hépatotoxicité (janvier 2025), le critère
+> primaire manqué de SARA-INT/BIO101 présenté comme « prometteur » par son promoteur. Finir sur le
+> marché gris et le contenu réel des flacons (l'analyse de référence *JAMA* 2017 : ~52 % des
+> produits contiennent le SARM annoncé, ~41 % à la bonne dose, ~9 % rien du tout, ~39 % un autre
+> médicament non approuvé), et l'alerte ANSM de juillet 2026 avec ses mesures de police sanitaire.
+> ⚠️ **Une lacune à écrire comme telle, pas à combler par extrapolation** : aucune donnée de
+> prévalence d'usage des SARMs ou des peptides chez les hommes de plus de 60 ans n'a été trouvée,
+> et les séries d'hépatotoxicité portent sur des hommes de 24 à 46 ans. ⚠️ **Délimitations
+> strictes, deux moitiés sont déjà prises** : `peptides-gris` couvre **les sécrétagogues de GH**
+> (CJC-1295, MK-677, ipamoréline, tésamoréline comme étalon d'AMM), la typologie de l'adultération
+> et le statut « research use only » — les citer, **ne pas les retraiter** ;
+> `masse-maigre-sous-glp1` couvre **les anticorps anti-myostatine/activine** (bimagrumab,
+> apitegromab, trévogrumab) et tout le pivot GLP-1 — la frontière est nette : chez lui, empêcher
+> une perte pendant un amaigrissement ; ici, **produire un gain chez la personne âgée** ;
+> `incretines-glp1` couvre le marché gris du compounding des médicaments approuvés ;
+> `complements-amincissants` a posé le patron du verdict de rayon. ⚠️ **Discipline de source
+> propre à ce thème** : les trois essais les plus pertinents pour la question (enobosarm chez les
+> plus de 60 ans, et les deux essais de préservation sous agoniste) **ne sont connus que par
+> communiqués de promoteur** — les nommer comme tels partout, ne jamais les compter comme une
+> source de plus que l'essai qu'ils annoncent, et ne pas les laisser porter une section. Public :
+> lecteur exigeant non spécialiste. Doctrine de preuve santé (`docs/evidence-sante.md`) à recopier
+> intégralement dans le brief. Domaine : muscle-vieillissement.
