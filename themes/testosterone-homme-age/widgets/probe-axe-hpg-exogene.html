@@ -1,0 +1,684 @@
+<div class="widget hpgx-root" id="hpgx-root">
+  <style>
+    .hpgx-root{--hpgx-ink:var(--ink,#15202E);--hpgx-soft:var(--ink-soft,#43536A);
+      --hpgx-faint:var(--ink-faint,#5C697B);--hpgx-card:var(--card,#FFFFFF);
+      --hpgx-paper:var(--paper,#F4F6FA);
+      --hpgx-line:var(--line,#D7DFE9);--hpgx-lsoft:var(--line-soft,#E7ECF3);
+      --hpgx-blue:var(--blue,#23537F);--hpgx-bright:var(--blue-bright,#2B73B1);
+      --hpgx-wash:var(--blue-wash,#E7EEF6);--hpgx-bord:var(--bordeaux,#7C2A38);
+      --hpgx-bord-br:var(--bordeaux-bright,#9B3443);
+      --hpgx-bord-wash:var(--bordeaux-wash,#F3E3E6);
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--hpgx-ink);
+      border:1px solid var(--hpgx-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--hpgx-card);max-width:880px;position:relative}
+    .hpgx-root,.hpgx-root *{box-sizing:border-box}
+
+    .hpgx-k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;
+      color:var(--hpgx-faint);font-weight:600;margin:0 0 2px}
+    .hpgx-title{font-weight:700;font-size:1.05rem;margin:0 0 4px;line-height:1.35}
+    .hpgx-sub{font-size:.86rem;color:var(--hpgx-soft);margin:0 0 14px;line-height:1.55}
+    .hpgx-sub b{color:var(--hpgx-ink)}
+
+    .hpgx-states{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 14px}
+    .hpgx-sbtn{flex:1 1 30%;border:1px solid var(--hpgx-line);border-radius:8px;
+      background:transparent;cursor:pointer;font:600 12.5px/1.3 inherit;
+      color:var(--hpgx-soft);padding:8px 9px;text-align:left}
+    .hpgx-sbtn small{display:block;font-weight:500;font-size:10.5px;margin-top:3px;
+      color:var(--hpgx-faint);line-height:1.35}
+    .hpgx-sbtn:hover{border-color:var(--hpgx-bright);color:var(--hpgx-ink)}
+    .hpgx-sbtn.hpgx-on{background:var(--hpgx-bright);color:#fff;border-color:var(--hpgx-bright)}
+    .hpgx-sbtn.hpgx-on small{color:rgba(255,255,255,.96)}
+    /* en thème sombre --blue-bright s’éclaircit : encre sombre sur ce fond */
+    html[data-theme="dark"] .hpgx-sbtn.hpgx-on{color:#0A1521}
+    html[data-theme="dark"] .hpgx-sbtn.hpgx-on small{color:rgba(10,21,33,.78)}
+
+    .hpgx-figure{border:1px solid var(--hpgx-line);border-radius:10px;padding:10px 8px 6px}
+    .hpgx-svg{display:block;width:100%;height:auto}
+    .hpgx-side{display:flex;flex-wrap:wrap;gap:14px;align-items:flex-start;margin:14px 0 0}
+    .hpgx-vwrap{flex:1 1 240px;min-width:220px}
+    .hpgx-rows{flex:2 1 400px;min-width:260px}
+
+    /* --- diagramme --- */
+    .hpgx-box{fill:var(--hpgx-paper);stroke:var(--hpgx-line);stroke-width:1.2;
+      transition:fill .25s ease,stroke .25s ease}
+    .hpgx-organ{fill:none;stroke:var(--hpgx-line);stroke-width:1.2;stroke-dasharray:3 4}
+    .hpgx-node{cursor:pointer}
+    .hpgx-node:hover .hpgx-box{stroke:var(--hpgx-bright)}
+    .hpgx-node:focus{outline:none}
+    .hpgx-node:focus-visible .hpgx-box{stroke:var(--hpgx-bright);stroke-width:2.4}
+    .hpgx-node.hpgx-sel .hpgx-box{stroke:var(--hpgx-bright);stroke-width:2.2}
+    .hpgx-t{fill:var(--hpgx-ink);font:600 12.5px/1 system-ui,-apple-system,sans-serif;
+      text-anchor:middle}
+    .hpgx-t3{fill:var(--hpgx-faint);font:400 9.5px/1 system-ui,-apple-system,sans-serif;
+      text-anchor:middle}
+    .hpgx-cap{fill:var(--hpgx-faint);font:600 9.5px/1 system-ui,-apple-system,sans-serif;
+      letter-spacing:.08em;text-anchor:middle}
+    .hpgx-lvl{font:600 10.5px/1 system-ui,-apple-system,sans-serif;text-anchor:middle;
+      fill:var(--hpgx-blue);transition:fill .25s ease}
+    .hpgx-alab{fill:var(--hpgx-blue);font:600 10px/1 system-ui,-apple-system,sans-serif}
+    .hpgx-flab{fill:var(--hpgx-bord);font:600 10px/1 system-ui,-apple-system,sans-serif;
+      cursor:pointer;transition:fill .25s ease}
+    /* le nœud « rétrocontrôle » n’a pas de .hpgx-box : son cadre de restitution est ici,
+       sans quoi son focus clavier serait invisible (outline:none plus haut) */
+    .hpgx-fbox{fill:transparent;stroke:transparent;stroke-width:1.2;
+      transition:fill .25s ease}
+    .hpgx-node:hover .hpgx-fbox{stroke:var(--hpgx-bord-br);fill:var(--hpgx-bord-wash)}
+    .hpgx-node:focus-visible .hpgx-fbox{stroke:var(--hpgx-bord-br);stroke-width:2.4;
+      fill:var(--hpgx-bord-wash)}
+    .hpgx-node.hpgx-sel .hpgx-fbox{stroke:var(--hpgx-bord-br);stroke-width:2.2;
+      fill:var(--hpgx-bord-wash)}
+    .hpgx-node:hover .hpgx-flab,
+    .hpgx-node:focus-visible .hpgx-flab,
+    .hpgx-node.hpgx-sel .hpgx-flab{fill:var(--hpgx-bord-br)}
+
+    .hpgx-flow{transition:opacity .3s ease}
+    .hpgx-rail{fill:none;stroke:var(--hpgx-line);stroke-width:1.1}
+    .hpgx-dash{fill:none;stroke:var(--hpgx-bright);stroke-width:3;stroke-linecap:round;
+      transition:stroke .3s ease,stroke-width .3s ease}
+    .hpgx-head{fill:var(--hpgx-bright);transition:fill .3s ease}
+    .hpgx-flow.hpgx-l-bas{opacity:.6}
+    .hpgx-flow.hpgx-l-bas .hpgx-dash{stroke-width:2.1}
+    .hpgx-flow.hpgx-l-nul{opacity:.34}
+    .hpgx-flow.hpgx-l-nul .hpgx-dash{stroke:var(--hpgx-bord-br);stroke-width:1.6}
+    .hpgx-flow.hpgx-l-nul .hpgx-head{fill:var(--hpgx-bord-br)}
+    .hpgx-flow.hpgx-off{opacity:0}
+    .hpgx-back .hpgx-dash,.hpgx-in .hpgx-dash{stroke:var(--hpgx-bord-br)}
+    .hpgx-back .hpgx-head,.hpgx-in .hpgx-head{fill:var(--hpgx-bord-br)}
+
+    .hpgx-node.hpgx-alert .hpgx-box{fill:var(--hpgx-bord-wash);stroke:var(--hpgx-bord-br);
+      stroke-width:1.8}
+    .hpgx-node.hpgx-alert .hpgx-lvl{fill:var(--hpgx-bord)}
+    .hpgx-node.hpgx-warm .hpgx-box{fill:var(--hpgx-wash);stroke:var(--hpgx-bright)}
+    .hpgx-node.hpgx-mute .hpgx-box{fill:none;stroke-dasharray:4 4}
+    .hpgx-node.hpgx-mute .hpgx-t{fill:var(--hpgx-faint)}
+    .hpgx-node.hpgx-sel .hpgx-box{stroke-width:2.8}
+    /* un nœud en alerte porte déjà un contour bordeaux : sans cette règle, son anneau de
+       focus serait indiscernable de son état au repos */
+    .hpgx-node.hpgx-alert:focus-visible .hpgx-box{stroke:var(--hpgx-bord);stroke-width:3.4}
+
+    /* --- panneau de niveaux --- */
+    .hpgx-verdict{border:1px solid var(--hpgx-line);border-left:3px solid var(--hpgx-bright);
+      border-radius:8px;padding:9px 11px;margin:0 0 10px;font-size:.82rem;
+      line-height:1.5;color:var(--hpgx-soft)}
+    .hpgx-verdict b{color:var(--hpgx-ink)}
+    .hpgx-verdict.hpgx-vred{border-left-color:var(--hpgx-bord-br)}
+    .hpgx-row{padding:6px 0;border-top:1px solid var(--hpgx-lsoft)}
+    .hpgx-row:first-child{border-top:0}
+    .hpgx-rhead{display:flex;gap:8px;align-items:baseline}
+    .hpgx-rlab{font-size:.755rem;font-weight:600;color:var(--hpgx-soft);flex:1 1 auto}
+    .hpgx-rval{font-size:.755rem;font-weight:700;color:var(--hpgx-blue);
+      text-align:right;flex:0 0 auto}
+    .hpgx-row.hpgx-rred .hpgx-rval{color:var(--hpgx-bord)}
+    .hpgx-bar{height:6px;border-radius:3px;background:var(--hpgx-lsoft);margin:4px 0 3px;
+      overflow:hidden}
+    .hpgx-fill{height:100%;border-radius:3px;background:var(--hpgx-bright);
+      transition:width .45s ease,background-color .3s ease}
+    .hpgx-row.hpgx-rred .hpgx-fill{background:var(--hpgx-bord-br)}
+    .hpgx-rnote{font-size:.7rem;color:var(--hpgx-faint);line-height:1.45;margin:0}
+
+    .hpgx-detail{border:1px solid var(--hpgx-line);border-radius:10px;padding:10px 13px;
+      margin:12px 0 0}
+    .hpgx-dh{font-size:.8rem;font-weight:700;margin:0 0 4px;color:var(--hpgx-ink)}
+    .hpgx-dp{font-size:.775rem;color:var(--hpgx-soft);line-height:1.55;margin:0 0 6px}
+    .hpgx-dstate{font-size:.775rem;line-height:1.5;margin:0;color:var(--hpgx-ink);
+      border-left:2px solid var(--hpgx-bright);padding-left:9px}
+    .hpgx-notes{margin:10px 0 0}
+    .hpgx-note{font-size:.72rem;color:var(--hpgx-faint);line-height:1.55;margin:0 0 6px;
+      padding-left:11px;border-left:2px solid var(--hpgx-lsoft)}
+    .hpgx-note b{color:var(--hpgx-soft)}
+    .hpgx-note.hpgx-nred{border-left-color:var(--hpgx-bord-br)}
+    .hpgx-hint{font-size:.71rem;color:var(--hpgx-faint);margin:8px 0 0;line-height:1.5}
+
+    @media (max-width:560px){
+      .hpgx-sbtn{flex:1 1 100%}
+      .hpgx-side{min-width:0}
+    }
+  </style>
+
+  <p class="hpgx-k">Mécanisme</p>
+  <p class="hpgx-title">L’axe hypothalamo-hypophyso-gonadique, et ce qu’en fait une testostérone
+    venue de l’extérieur</p>
+  <p class="hpgx-sub">Une boucle de rétrocontrôle négatif ne demande jamais d’où vient l’hormone
+    qui la freine. Choisissez un état, puis <b>cliquez un compartiment</b> du schéma pour lire ce
+    qu’il devient. Le point à retenir se joue entre deux compartiments que le langage courant
+    confond : la testostérone du <b>sang</b> et celle de l’<b>intérieur du testicule</b>.</p>
+
+  <div class="hpgx-states" role="group" aria-label="État de l’axe">
+    <button type="button" class="hpgx-sbtn hpgx-on" data-etat="endo">Production endogène seule
+      <small>Le testicule fabrique, la boucle se règle elle-même</small></button>
+    <button type="button" class="hpgx-sbtn" data-etat="exo">Testostérone exogène
+      <small>Gel ou injection : l’hormone entre par le sang</small></button>
+    <button type="button" class="hpgx-sbtn" data-etat="arret">Après l’arrêt de l’apport
+      <small>La boucle redémarre, et pas d’un coup</small></button>
+  </div>
+
+  <div class="hpgx-figure">
+      <svg class="hpgx-svg" viewBox="0 0 660 462" role="group"
+           aria-labelledby="hpgx-svgtitle hpgx-svgdesc">
+        <title id="hpgx-svgtitle">Schéma de l’axe hypothalamo-hypophyso-gonadique</title>
+        <desc id="hpgx-svgdesc">Hypothalamus, hypophyse et testicule reliés par des flèches de
+          commande descendantes ; une flèche de rétrocontrôle remonte depuis la testostérone
+          circulante ; une entrée d’apport exogène alimente le compartiment sanguin ; deux
+          dérivations en aval conduisent à la DHT et à l’estradiol.</desc>
+
+        <!-- apport exogène -->
+        <g class="hpgx-node" data-node="apport" tabindex="0" role="button"
+           aria-label="Apport exogène">
+          <rect class="hpgx-box" x="318" y="6" width="160" height="46" rx="8"></rect>
+          <text class="hpgx-t" x="398" y="26">Apport exogène</text>
+          <text class="hpgx-t3" x="398" y="41" id="hpgx-apport-sub">aucun apport dans cet état</text>
+        </g>
+        <g class="hpgx-flow hpgx-in" data-flow="apport">
+          <path class="hpgx-rail" d="M398,52 L398,150"></path>
+          <path class="hpgx-dash" d="M398,52 L398,150" stroke-dasharray="6 12"></path>
+          <polygon class="hpgx-head" points="398,150 392,139 404,139"></polygon>
+        </g>
+
+        <!-- hypothalamus -->
+        <g class="hpgx-node" data-node="hypothalamus" tabindex="0" role="button"
+           aria-label="Hypothalamus">
+          <rect class="hpgx-box" x="28" y="26" width="176" height="54" rx="8"></rect>
+          <text class="hpgx-t" x="116" y="48">Hypothalamus</text>
+          <text class="hpgx-lvl" x="116" y="66" id="hpgx-lvl-gnrh">pulsatilité : haute</text>
+        </g>
+        <g class="hpgx-flow" data-flow="gnrh">
+          <path class="hpgx-rail" d="M116,80 L116,146"></path>
+          <path class="hpgx-dash" d="M116,80 L116,146" stroke-dasharray="7 15"></path>
+          <polygon class="hpgx-head" points="116,146 110,135 122,135"></polygon>
+        </g>
+        <text class="hpgx-alab" x="128" y="118">GnRH pulsatile</text>
+
+        <!-- hypophyse -->
+        <g class="hpgx-node" data-node="hypophyse" tabindex="0" role="button"
+           aria-label="Hypophyse">
+          <rect class="hpgx-box" x="28" y="146" width="176" height="54" rx="8"></rect>
+          <text class="hpgx-t" x="116" y="168">Hypophyse</text>
+          <text class="hpgx-lvl" x="116" y="186" id="hpgx-lvl-lh">LH · FSH : hautes</text>
+        </g>
+        <g class="hpgx-flow" data-flow="lh">
+          <path class="hpgx-rail" d="M116,200 L116,296"></path>
+          <path class="hpgx-dash" d="M116,200 L116,296" stroke-dasharray="6 12"></path>
+          <polygon class="hpgx-head" points="116,296 110,285 122,285"></polygon>
+        </g>
+        <text class="hpgx-alab" x="128" y="252">LH · FSH</text>
+
+        <!-- testicule -->
+        <rect class="hpgx-organ" x="18" y="262" width="196" height="190" rx="12"></rect>
+        <text class="hpgx-cap" x="116" y="281">TESTICULE</text>
+
+        <g class="hpgx-node" data-node="leydig" tabindex="0" role="button"
+           aria-label="Cellules de Leydig">
+          <rect class="hpgx-box" x="32" y="296" width="168" height="44" rx="8"></rect>
+          <text class="hpgx-t" x="116" y="316">Cellules de Leydig</text>
+          <text class="hpgx-lvl" x="116" y="332" id="hpgx-lvl-leydig">production : haute</text>
+        </g>
+        <g class="hpgx-flow" data-flow="itt">
+          <path class="hpgx-rail" d="M116,340 L116,370"></path>
+          <path class="hpgx-dash" d="M116,340 L116,370" stroke-dasharray="5 9"></path>
+          <polygon class="hpgx-head" points="116,370 110,359 122,359"></polygon>
+        </g>
+
+        <g class="hpgx-node" data-node="itt" tabindex="0" role="button"
+           aria-label="Testostérone intratesticulaire">
+          <rect class="hpgx-box" x="32" y="370" width="168" height="66" rx="8"></rect>
+          <text class="hpgx-t" x="116" y="390">Testostérone</text>
+          <text class="hpgx-t" x="116" y="405">intratesticulaire (ITT)</text>
+          <text class="hpgx-lvl" x="116" y="423" id="hpgx-lvl-itt">ITT : haute</text>
+        </g>
+
+        <!-- sécrétion vers le sang -->
+        <g class="hpgx-flow" data-flow="secretion">
+          <path class="hpgx-rail" d="M200,318 C252,318 258,192 300,188"></path>
+          <path class="hpgx-dash" d="M200,318 C252,318 258,192 300,188"
+                stroke-dasharray="6 12"></path>
+          <polygon class="hpgx-head" points="300,188 288,182 288,194"></polygon>
+        </g>
+        <text class="hpgx-t3" x="254" y="352">vers le sang</text>
+
+        <!-- testostérone circulante -->
+        <g class="hpgx-node" data-node="circulante" tabindex="0" role="button"
+           aria-label="Testostérone circulante">
+          <rect class="hpgx-box" x="300" y="150" width="196" height="76" rx="8"></rect>
+          <text class="hpgx-t" x="398" y="176">Testostérone circulante</text>
+          <text class="hpgx-t3" x="398" y="192">ce que mesure un dosage sanguin</text>
+          <text class="hpgx-lvl" x="398" y="212" id="hpgx-lvl-circ">haute</text>
+        </g>
+
+        <!-- rétrocontrôle -->
+        <g class="hpgx-flow hpgx-back" data-flow="retro">
+          <path class="hpgx-rail" d="M300,212 C246,236 238,104 206,60"></path>
+          <path class="hpgx-dash" d="M300,212 C246,236 238,104 206,60"
+                stroke-dasharray="6 12"></path>
+          <polygon class="hpgx-head" points="206,60 218,55 216,67"></polygon>
+        </g>
+        <g class="hpgx-flow hpgx-back" data-flow="retro2">
+          <path class="hpgx-rail" d="M300,224 C266,238 252,200 206,180"></path>
+          <path class="hpgx-dash" d="M300,224 C266,238 252,200 206,180"
+                stroke-dasharray="6 12"></path>
+          <polygon class="hpgx-head" points="206,180 218,175 217,187"></polygon>
+        </g>
+        <g class="hpgx-node" data-node="retro" tabindex="0" role="button"
+           aria-label="Rétrocontrôle négatif">
+          <rect class="hpgx-fbox" x="297" y="231" width="118" height="21" rx="6"></rect>
+          <text class="hpgx-flab" x="302" y="246">rétrocontrôle négatif</text>
+        </g>
+
+        <!-- dérivations -->
+        <g class="hpgx-flow" data-flow="dht">
+          <path class="hpgx-rail" d="M496,176 L532,132"></path>
+          <path class="hpgx-dash" d="M496,176 L532,132" stroke-dasharray="5 10"></path>
+          <polygon class="hpgx-head" points="532,132 529.3,144 520.8,137"></polygon>
+        </g>
+        <g class="hpgx-flow" data-flow="e2">
+          <path class="hpgx-rail" d="M496,202 L532,250"></path>
+          <path class="hpgx-dash" d="M496,202 L532,250" stroke-dasharray="5 10"></path>
+          <polygon class="hpgx-head" points="532,250 521,244.5 529.8,237.9"></polygon>
+        </g>
+        <g class="hpgx-node" data-node="derivations" tabindex="0" role="button"
+           aria-label="Dérivation vers la DHT">
+          <rect class="hpgx-box" x="532" y="92" width="116" height="58" rx="8"></rect>
+          <text class="hpgx-t" x="590" y="116">DHT</text>
+          <text class="hpgx-t3" x="590" y="133">via la 5α-réductase</text>
+        </g>
+        <g class="hpgx-node" data-node="derivations" tabindex="0" role="button"
+           aria-label="Dérivation vers l’estradiol">
+          <rect class="hpgx-box" x="532" y="222" width="116" height="68" rx="8"></rect>
+          <text class="hpgx-t" x="590" y="244">Estradiol</text>
+          <text class="hpgx-t3" x="590" y="259">via l’aromatase</text>
+          <text class="hpgx-t3" x="590" y="274">≈ 0,2 % de la production</text>
+        </g>
+        <text class="hpgx-t3" x="590" y="308">récepteurs aux œstrogènes,</text>
+        <text class="hpgx-t3" x="590" y="321">une part de l’effet osseux</text>
+      </svg>
+  </div>
+
+  <div class="hpgx-side">
+    <div class="hpgx-vwrap"><div class="hpgx-verdict" id="hpgx-verdict"></div></div>
+    <div class="hpgx-rows" id="hpgx-rows"></div>
+  </div>
+
+  <div class="hpgx-detail">
+    <p class="hpgx-dh" id="hpgx-dh">Cliquez un compartiment du schéma</p>
+    <p class="hpgx-dp" id="hpgx-dp">Chaque encadré se lit séparément : ce qu’il est, et ce qu’il
+      devient dans l’état choisi.</p>
+    <p class="hpgx-dstate" id="hpgx-ds" hidden></p>
+  </div>
+
+  <div class="hpgx-notes" id="hpgx-notes"></div>
+  <p class="hpgx-hint">Les niveaux sont donnés en repères qualitatifs — haut, abaissé,
+    effondré. Le schéma ne porte aucune échelle chiffrée.</p>
+
+  <script>
+  (function(){
+    'use strict';
+    var root = document.getElementById('hpgx-root');
+    if (!root) { return; }
+    function el(id){ return document.getElementById(id); }
+
+    /* Texte enrichi : suite de morceaux, chaîne simple ou {b:"gras"} */
+    function vider(n){ while (n.firstChild) { n.removeChild(n.firstChild); } }
+    function poser(n, morceaux){
+      vider(n);
+      for (var i = 0; i < morceaux.length; i++) {
+        var m = morceaux[i];
+        if (typeof m === 'string') {
+          n.appendChild(document.createTextNode(m));
+        } else {
+          var g = document.createElement('b');
+          g.textContent = m.b;
+          n.appendChild(g);
+        }
+      }
+    }
+
+    /* ---------- Les trois états de l’axe ---------- */
+    var ETATS = {
+      endo: {
+        verdict: ['La boucle tourne sur elle-même. La commande descend, l’hormone remonte, et ',
+          'c’est ', {b:'la testostérone du sang'},
+          ' qui vient freiner sa propre commande.'],
+        rouge: false,
+        apport: false,
+        apportSub: 'aucun apport dans cet état',
+        niv: { gnrh:'haut', lh:'haut', leydig:'haut', itt:'haut', circ:'haut',
+               secretion:'haut', retro:'haut', deriv:'haut' },
+        notes: {
+          gnrh: 'Bouffées régulières, à leur rythme habituel.',
+          lh: 'La commande hypophysaire parvient au testicule.',
+          leydig: 'Seule source de testostérone dans cet état.',
+          itt: 'Entretenue par la production locale, sans commune mesure avec le sang.',
+          circ: 'Entièrement d’origine testiculaire.'
+        }
+      },
+      exo: {
+        verdict: ['Les deux compartiments se désolidarisent : ',
+          {b:'testostérone circulante haute, testostérone intratesticulaire effondrée'},
+          '. Un dosage sanguin rassurant ne dit rien de ce qui se passe à l’intérieur du ',
+          'testicule.'],
+        rouge: true,
+        apport: true,
+        apportSub: 'gel ou injection',
+        niv: { gnrh:'nul', lh:'nul', leydig:'nul', itt:'nul', circ:'haut',
+               secretion:'nul', retro:'haut', deriv:'haut' },
+        notes: {
+          gnrh: 'Le frein s’exerce contre l’hormone venue de l’extérieur.',
+          lh: 'La commande ne part plus : le testicule n’est plus sollicité.',
+          leydig: 'Privées de LH, elles cessent de produire.',
+          itt: 'Effondrée, pendant que le dosage sanguin est normal ou haut.',
+          circ: 'Haute, mais d’origine extérieure.'
+        }
+      },
+      arret: {
+        verdict: ['L’apport a cessé et le frein se relâche. La reprise de l’axe est ',
+          {b:'progressive'}, ', et sa durée est variable : la note sous le tableau en donne ',
+          'l’ordre de grandeur.'],
+        rouge: false,
+        apport: false,
+        apportSub: 'apport interrompu',
+        niv: { gnrh:'bas', lh:'bas', leydig:'bas', itt:'bas', circ:'bas',
+               secretion:'bas', retro:'bas', deriv:'bas' },
+        notes: {
+          gnrh: 'Les bouffées reprennent, encore ralenties.',
+          lh: 'La commande repart sans avoir retrouvé son niveau.',
+          leydig: 'Production qui redémarre.',
+          itt: 'Encore basse pendant la reprise.',
+          circ: 'L’apport a cessé, la production propre n’a pas repris son niveau.'
+        }
+      }
+    };
+
+    /* ---------- Lignes du panneau ---------- */
+    var LIGNES = [
+      { cle:'gnrh',   lab:'GnRH pulsatile',                    genre:'f'  },
+      { cle:'lh',     lab:'LH · FSH',                          genre:'fp' },
+      { cle:'leydig', lab:'Production des cellules de Leydig', genre:'f'  },
+      { cle:'itt',    lab:'Testostérone intratesticulaire',    genre:'f'  },
+      { cle:'circ',   lab:'Testostérone circulante',           genre:'f'  }
+    ];
+    var MOTS = {
+      f:  { haut:'haute',  bas:'abaissée',  nul:'effondrée'  },
+      fp: { haut:'hautes', bas:'abaissées', nul:'effondrées' }
+    };
+    var LARGEUR = { haut:100, bas:52, nul:10 };
+    var VITESSE = { haut:1, bas:0.34, nul:0.05 };
+
+    /* ---------- Fiches de compartiment ---------- */
+    var FICHES = {
+      hypothalamus: {
+        titre: 'Hypothalamus',
+        quoi: 'Il libère la GnRH (gonadotropin-releasing hormone, hormone de libération des ' +
+          'gonadotrophines) par bouffées, et c’est cette libération pulsatile qui règle la ' +
+          'sécrétion de LH et de FSH par l’hypophyse en dessous.',
+        etat: { endo:'Rythme pulsatile conservé.',
+                exo:'Le rétrocontrôle s’exerce contre la testostérone apportée de l’extérieur, ' +
+                    'et les bouffées s’effondrent.',
+                arret:'Les bouffées reprennent, encore ralenties.' }
+      },
+      hypophyse: {
+        titre: 'Hypophyse',
+        quoi: 'Sous la commande de la GnRH, elle sécrète la LH (hormone lutéinisante) et la ' +
+          'FSH (hormone folliculo-stimulante). La LH est la seule commande de la synthèse dans ' +
+          'les cellules de Leydig.',
+        etat: { endo:'LH et FSH à leur niveau habituel.',
+                exo:'LH et FSH s’effondrent : la commande ne part plus.',
+                arret:'LH et FSH remontent sans avoir retrouvé leur niveau.' }
+      },
+      leydig: {
+        titre: 'Cellules de Leydig',
+        quoi: 'Environ cinq cents millions de cellules logées dans le compartiment interstitiel ' +
+          'du testicule, où elles n’occupent que 5 % du volume. Elles fabriquent la ' +
+          'testostérone à partir du cholestérol, et l’étape la plus lente de la chaîne obéit à ' +
+          'la seule LH.',
+        etat: { endo:'Production propre entretenue.',
+                exo:'Privées de LH, elles cessent de produire.',
+                arret:'Production qui redémarre.' }
+      },
+      itt: {
+        titre: 'Testostérone intratesticulaire (ITT)',
+        quoi: 'La concentration de testostérone à l’intérieur même du testicule, sans commune ' +
+          'mesure avec celle du sang : c’est elle qui entretient la spermatogenèse, et un ' +
+          'dosage sanguin ne la voit pas. Tout l’intérêt du schéma tient à cette distinction.',
+        etat: { endo:'Entretenue par la production locale.',
+                exo:'Effondrée, alors même que la testostérone circulante est normale ou haute.',
+                arret:'Encore basse pendant la reprise de l’axe.' }
+      },
+      circulante: {
+        titre: 'Testostérone circulante',
+        quoi: 'La fraction transportée par le sang, celle que mesure un dosage. C’est elle qui ' +
+          'exerce le rétrocontrôle sur l’hypothalamus et l’hypophyse, et elle qui alimente les ' +
+          'deux dérivations en aval, quelle que soit son origine.',
+        etat: { endo:'Entièrement d’origine testiculaire.',
+                exo:'Haute, mais d’origine extérieure : le testicule n’y contribue plus.',
+                arret:'Abaissée, l’apport ayant cessé avant que la production propre ait ' +
+                      'retrouvé son niveau.' }
+      },
+      apport: {
+        titre: 'Apport exogène (gel ou injection)',
+        quoi: 'La voie orale se heurte au premier passage hépatique, si bien que les ' +
+          'traitements passent par la peau ou par l’injection. L’hormone arrive donc ' +
+          'directement dans le compartiment sanguin, en aval de toute la chaîne de commande.',
+        etat: { endo:'Aucun apport extérieur dans cet état.',
+                exo:'L’hormone entre par le sang, sans passer par le testicule.',
+                arret:'L’apport est interrompu.' }
+      },
+      retro: {
+        titre: 'Rétrocontrôle négatif',
+        quoi: 'La testostérone circulante freine l’hypothalamus et l’hypophyse. La boucle ne ' +
+          'distingue pas l’origine de l’hormone qui la freine : elle répond aussi bien à celle ' +
+          'que le testicule vient de fabriquer qu’à celle qu’on a étalée sur la peau. Toute la ' +
+          'suite du schéma tient dans cette indifférence.',
+        etat: { endo:'Le frein est exercé par la production propre.',
+                exo:'Le frein est exercé contre l’apport extérieur, et il éteint la commande.',
+                arret:'Le frein se relâche à mesure que la testostérone circulante baisse.' }
+      },
+      derivations: {
+        titre: 'Les deux dérivations',
+        quoi: 'En aval de la testostérone circulante, la 5α-réductase la convertit en DHT ' +
+          '(dihydrotestostérone), l’androgène le plus puissant, et l’aromatase la convertit en ' +
+          'estradiol, une fraction infime de la production, de l’ordre de 0,2 %. C’est par cet ' +
+          'estradiol et par les récepteurs aux œstrogènes que passe une part des effets osseux.',
+        etat: { endo:'Ce détour mérite d’être retenu : il rend l’attente d’un bénéfice osseux ' +
+                     'parfaitement fondée, et c’est là que le document trouvera plus loin sa ' +
+                     'contradiction la plus dure.',
+                exo:'Les deux enzymes agissent sur la testostérone circulante, quelle que soit ' +
+                    'son origine.',
+                arret:'Les deux enzymes agissent sur la testostérone circulante, quelle que ' +
+                      'soit son origine.' }
+      }
+    };
+
+    /* ---------- Notes propres à chaque état ---------- */
+    var NOTES = {
+      endo: [[{b:'Un circuit, pas une chaîne.'}, ' La testostérone circulante est à la fois le ',
+        'produit de l’axe et son frein. C’est ce qui rend la boucle stable, et c’est aussi ce ',
+        'qui la rend sensible à toute hormone apportée du dehors.']],
+      exo: [[{b:'Repère mécanistique, et non une valeur clinique.'},
+        ' La compromission de la spermatogenèse est couramment située à une chute de plus de ',
+        '80 % de l’ITT, sous environ 13 ng/mL — valeur issue d’expériences chez le ',
+        {b:'rongeur'}, ', non de mesures directes chez l’homme ; un second seuil d’environ ',
+        '20 ng/mL circule en parallèle. À lire comme un ordre de grandeur de mécanisme, jamais ',
+        'comme un seuil validé en clinique.']],
+      arret: [[{b:'Combien de temps ?'}, ' La récupération est variable : le plus souvent de ',
+        'quelques mois à environ deux ans selon l’âge et la durée d’exposition, ',
+        'potentiellement plusieurs années au-delà de trois ans d’usage continu.']]
+    };
+
+    /* ---------- État courant ---------- */
+    var etat = 'endo', selection = null;
+    var groupes = root.querySelectorAll('.hpgx-flow');
+    var noeuds = root.querySelectorAll('.hpgx-node');
+    var boutons = root.querySelectorAll('.hpgx-sbtn');
+
+    function niveauFlux(e, cle){
+      var n = ETATS[e].niv;
+      if (cle === 'apport') { return ETATS[e].apport ? 'haut' : 'nul'; }
+      if (cle === 'retro' || cle === 'retro2') { return n.retro; }
+      if (cle === 'dht' || cle === 'e2') { return n.deriv; }
+      return n[cle] || 'haut';
+    }
+
+    function ligne(L, E){
+      var nv = E.niv[L.cle], rouge = (nv === 'nul');
+      var row = document.createElement('div');
+      row.className = 'hpgx-row' + (rouge ? ' hpgx-rred' : '');
+      var head = document.createElement('div');
+      head.className = 'hpgx-rhead';
+      var lab = document.createElement('span');
+      lab.className = 'hpgx-rlab';
+      lab.textContent = L.lab;
+      var val = document.createElement('span');
+      val.className = 'hpgx-rval';
+      val.textContent = MOTS[L.genre][nv];
+      head.appendChild(lab);
+      head.appendChild(val);
+      var bar = document.createElement('div');
+      bar.className = 'hpgx-bar';
+      var fill = document.createElement('div');
+      fill.className = 'hpgx-fill';
+      fill.style.width = LARGEUR[nv] + '%';
+      bar.appendChild(fill);
+      var note = document.createElement('p');
+      note.className = 'hpgx-rnote';
+      note.textContent = E.notes[L.cle];
+      row.appendChild(head);
+      row.appendChild(bar);
+      row.appendChild(note);
+      return row;
+    }
+
+    function rendre(){
+      var E = ETATS[etat], i, g, cle, niv;
+
+      for (i = 0; i < boutons.length; i++) {
+        var actif = (boutons[i].getAttribute('data-etat') === etat);
+        boutons[i].className = 'hpgx-sbtn' + (actif ? ' hpgx-on' : '');
+        boutons[i].setAttribute('aria-pressed', actif ? 'true' : 'false');
+      }
+
+      for (i = 0; i < groupes.length; i++) {
+        g = groupes[i];
+        cle = g.getAttribute('data-flow');
+        niv = niveauFlux(etat, cle);
+        var cls = 'hpgx-flow';
+        if (cle === 'retro' || cle === 'retro2') { cls += ' hpgx-back'; }
+        if (cle === 'apport') { cls += ' hpgx-in'; }
+        if (cle === 'apport' && !E.apport) { cls += ' hpgx-off'; }
+        else if (niv === 'bas') { cls += ' hpgx-l-bas'; }
+        else if (niv === 'nul') { cls += ' hpgx-l-nul'; }
+        g.setAttribute('class', cls);
+      }
+
+      el('hpgx-lvl-gnrh').textContent = 'pulsatilité : ' + MOTS.f[E.niv.gnrh];
+      el('hpgx-lvl-lh').textContent = 'LH · FSH : ' + MOTS.fp[E.niv.lh];
+      el('hpgx-lvl-leydig').textContent = 'production : ' + MOTS.f[E.niv.leydig];
+      el('hpgx-lvl-itt').textContent = 'ITT : ' + MOTS.f[E.niv.itt];
+      el('hpgx-lvl-circ').textContent = MOTS.f[E.niv.circ] +
+        (etat === 'exo' ? ' — d’origine extérieure' : '');
+      el('hpgx-apport-sub').textContent = E.apportSub;
+
+      for (i = 0; i < noeuds.length; i++) {
+        var nom = noeuds[i].getAttribute('data-node');
+        var c = 'hpgx-node';
+        if (nom === 'itt' && E.niv.itt === 'nul') { c += ' hpgx-alert'; }
+        if (nom === 'circulante' && etat === 'exo') { c += ' hpgx-warm'; }
+        if (nom === 'apport') { c += E.apport ? ' hpgx-alert' : ' hpgx-mute'; }
+        if (nom === selection) { c += ' hpgx-sel'; }
+        noeuds[i].setAttribute('class', c);
+      }
+
+      var v = el('hpgx-verdict');
+      v.className = 'hpgx-verdict' + (E.rouge ? ' hpgx-vred' : '');
+      poser(v, E.verdict);
+
+      var conteneur = el('hpgx-rows');
+      vider(conteneur);
+      for (i = 0; i < LIGNES.length; i++) { conteneur.appendChild(ligne(LIGNES[i], E)); }
+
+      var zone = el('hpgx-notes');
+      vider(zone);
+      var nt = NOTES[etat];
+      for (i = 0; i < nt.length; i++) {
+        var p = document.createElement('p');
+        p.className = 'hpgx-note' + (etat === 'exo' ? ' hpgx-nred' : '');
+        poser(p, nt[i]);
+        zone.appendChild(p);
+      }
+
+      if (selection && FICHES[selection]) {
+        var F = FICHES[selection];
+        el('hpgx-dh').textContent = F.titre;
+        el('hpgx-dp').textContent = F.quoi;
+        el('hpgx-ds').hidden = false;
+        el('hpgx-ds').textContent = 'Dans cet état — ' + F.etat[etat];
+      } else {
+        el('hpgx-dh').textContent = 'Cliquez un compartiment du schéma';
+        el('hpgx-dp').textContent = 'Chaque encadré se lit séparément : ce qu’il est, et ce ' +
+          'qu’il devient dans l’état choisi.';
+        el('hpgx-ds').hidden = true;
+      }
+    }
+
+    /* ---------- Interactions ---------- */
+    for (var b = 0; b < boutons.length; b++) {
+      boutons[b].addEventListener('click', function(ev){
+        etat = ev.currentTarget.getAttribute('data-etat');
+        rendre();
+      });
+    }
+    function choisir(ev){
+      var nom = ev.currentTarget.getAttribute('data-node');
+      selection = (selection === nom) ? null : nom;
+      rendre();
+    }
+    for (var n = 0; n < noeuds.length; n++) {
+      noeuds[n].addEventListener('click', choisir);
+      noeuds[n].addEventListener('keydown', function(ev){
+        if (ev.key === 'Enter' || ev.key === ' ' || ev.key === 'Spacebar') {
+          ev.preventDefault();
+          choisir(ev);
+        }
+      });
+    }
+
+    /* ---------- Animation des flux ---------- */
+    var reduit = window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var dashes = [], offsets = [], visible = true, boucle = null, dernier = 0;
+    for (var d = 0; d < groupes.length; d++) {
+      dashes.push(groupes[d].querySelector('.hpgx-dash'));
+      offsets.push(0);
+    }
+    function tick(t){
+      var dt = dernier ? Math.min((t - dernier) / 1000, 0.1) : 0;
+      dernier = t;
+      for (var i = 0; i < groupes.length; i++) {
+        var v = VITESSE[niveauFlux(etat, groupes[i].getAttribute('data-flow'))] || 0;
+        offsets[i] -= v * dt * 46;
+        if (offsets[i] < -4000) { offsets[i] += 4000; }
+        dashes[i].style.strokeDashoffset = offsets[i].toFixed(1);
+      }
+      boucle = window.requestAnimationFrame(tick);
+    }
+    function demarrer(){
+      if (reduit || boucle !== null || !visible) { return; }
+      dernier = 0;
+      boucle = window.requestAnimationFrame(tick);
+    }
+    function arreter(){
+      if (boucle !== null) { window.cancelAnimationFrame(boucle); boucle = null; }
+    }
+    if (window.IntersectionObserver) {
+      new window.IntersectionObserver(function(entries){
+        visible = entries[0].isIntersecting;
+        if (visible) { demarrer(); } else { arreter(); }
+      }, { threshold: 0.02 }).observe(root);
+    }
+    document.addEventListener('visibilitychange', function(){
+      if (document.hidden) { arreter(); } else { demarrer(); }
+    });
+
+    rendre();
+    demarrer();
+  })();
+  </script>
+</div>
