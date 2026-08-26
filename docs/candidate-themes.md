@@ -58,6 +58,39 @@ calibration y est traitée sur classifieurs, la couverture conforme sur ensemble
 (3) `agentic-ai` traite déjà tool poisoning, CVE MCP et confused deputy, ce qui réduit fortement
 l'angle « sécurité des agents ».
 
+**Passe d'enrichissement du 2026-08-26** (corpus à 82 thèmes / 84 documents) : deux sujets soumis
+explicitement — « perte de graisse abdominale chez l'homme de plus de 50 ans » et « amélioration des
+performances sexuelles (Viagra, Cialis) ». Audit de couverture **par lecture** de la prose publiée
+des sept voisins santé concernés (`incretines-glp1`, `masse-maigre-sous-glp1`,
+`complements-amincissants`, `berberine`, `testosterone-homme-age`, `sarcopenie-exercice-nutrition`,
+`peptides-gris`) après localisation, doublé de huit balayages web. Deux candidats ajoutés
+(`graisse-viscerale-homme-age` ; `inhibiteurs-pde5`, qui exige un domaine à créer). Trois constats
+ont décidé des verdicts :
+
+1. **La graisse abdominale est partout un critère, nulle part un objet.** Tour de taille comme
+   médiateur du bénéfice cardiovasculaire dans SELECT (`incretines-glp1` : −7,7 cm, environ un tiers
+   du bénéfice MACE lui étant attribuable) ; comme critère secondaire de quatre méta-analyses
+   (`berberine` : −1,08 à −3,27 cm) ; comme critère que la L-carnitine ne déplace pas
+   (`complements-amincissants`) ; comme critère d'inclusion de T4DM — 1 007 hommes de 50 à 74 ans,
+   tour de taille ≥ 95 cm, **exactement la population demandée**, mais pour un critère de diabète
+   (`testosterone-homme-age`) ; comme critère principal de la seule AMM du champ, la tésamoréline
+   dans la lipodystrophie du VIH (`peptides-gris` : −18 % et −14 % au scanner L4-L5). Et une seule
+   mention de la nature viscérale de la perte, en `sarcopenie-exercice-nutrition`, aussitôt qualifiée
+   de « source unique, non corroborée ». **« Perte de graisse » : 0 occurrence dans les
+   84 documents** ; aucun document du corpus n'a l'exercice pour objet hors entraînement en
+   résistance chez l'âgé (0 occurrence de HIIT, de *spot reduction*, d'« androïde »).
+2. **`sildénafil`, `tadalafil`, `PDE5` : 0 occurrence dans les 84 documents.** « Érectile » n'existe
+   que dans `testosterone-homme-age`, comme critère diagnostique de l'EMAS et dans l'avis FDA du
+   20 avril 2026 — et ce document **nomme** le *Sexual Function Trial* des Testosterone Trials dans
+   l'architecture de l'essai sans jamais en dérouler les résultats, tout en concluant que « le seul
+   terrain sur lequel le régulateur accepte d'avancer est celui du désir ». La frontière est écrite
+   d'avance, et le manque désigné de l'intérieur — troisième prise de l'heuristique du renvoi, sous
+   sa forme faible : non pas un renvoi cassé, mais un objet nommé puis laissé de côté.
+3. **Le motif de rejet du 2026-08-15 ne tient plus.** `objectif : performances sexuelles` avait été
+   écarté parce que son profil « redirait `complements-amincissants` et `peptides-gris` » : vrai d'un
+   document centré sur le rayon gris, faux d'un document centré sur une classe de médicaments à AMM
+   avec vingt-cinq ans de RCT. L'adultération y devient une section, pas le fil rouge.
+
 - **Fabrication** : `/leanmonograph « <prompt riche> »` (défaut depuis le test GREEN du 2026-07-02 ;
   `/frugalmonograph` en repli) puis `/arrange <slug>`.
 - **Domaine** = celui de `tools/taxonomy.json` (source de vérité). Un thème = un seul domaine.
@@ -1315,7 +1348,15 @@ répliqués par une équipe tierce — juger le run à la **nature** de ses reje
   c'est un dispositif et non un produit de rayon : moins homogène avec le méta-domaine.
 
 ### Panorama du rayon nootropique — `nootropiques-panorama` → `performance-cognitive`
-**Verdict : candidat de FORMAT, ajouté le 2026-08-19 sur demande explicite.** Le document-index du
+**Verdict : candidat de FORMAT, ajouté le 2026-08-19 sur demande explicite.**
+**Annoté le 2026-08-26** (question posée : « Arcalion ou Noopept mériteraient-ils une monographie
+dédiée ? »). Réponse : **non, et ce bloc est leur place** — corpus revérifié, 0 occurrence de
+sulbutiamine, Arcalion, noopept, omberacetam et racétams dans les 82 thèmes (seul faux positif :
+*paracétamol* dans `structured-extraction-llm`). Aucune des deux ne porte 9-13 sections vérifiables :
+noopept parce que ses données humaines sont de petits essais russes d'un même laboratoire — les
+claims d'efficacité tomberaient par carence RÉELLE, pas par prudence ; sulbutiamine parce que son
+dossier exploitable tient en ~5-8 études. Les deux enrichissements ci-dessous (SMR et RCT
+sulbutiamine ; analyses de contenu réel) sortent de cette vérification. Le document-index du
 domaine : lister **TOUT** ce qui est allégué améliorateur des performances cognitives au sens
 large — y compris ce que le corpus traite déjà ou prévoit de traiter sous ce même angle, alors
 rappelé en quelques lignes (verdict + renvoi), jamais re-déroulé. Inventaire de départ : la page
@@ -1368,7 +1409,13 @@ ailleurs » ou « couverture à venir »**.
 > re-dérouler — son toolkit SMD/domaines/double comptage sert de méthode commune à tout le
 > document) ; adrafinil (le précurseur historique, retiré du marché français — instruire le
 > pourquoi) ; sulbutiamine (Arcalion : AMM française « asthénie fonctionnelle », service médical
-> rendu à vérifier, détournement étudiant) ; pitolisant (Wakix, mécanisme histaminergique H3) ;
+> rendu à vérifier — **aucun avis de la Commission de la transparence retrouvé au 2026-08-26** :
+> instruire en primaire (BDPM, HAS) l'hypothèse qu'il n'y en a pas, plutôt que de chercher un
+> niveau de SMR ; un RCT réel existe et vaut mieux qu'une ligne — Loo & Poirier, 600 mg/j,
+> 8 semaines, multicentrique, double aveugle contre placebo, inhibition psycho-comportementale de
+> l'épisode dépressif majeur **sous clomipramine** : population atteinte et add-on, à ne surtout
+> pas lire comme une preuve d'augmentation chez le sain ; détournement étudiant) ;
+> pitolisant (Wakix, mécanisme histaminergique H3) ;
 > fluorénol (données précliniques Cephalon uniquement — une ligne) ; L-Dopa et tolcapone (études
 > de mémoire chez le sain : petites, anciennes, à corroborer) ; nicotine — le dossier sérieux du
 > lot hors ordonnance : vraie littérature RCT (attention soutenue, amorçage chez le MCI — essai
@@ -1395,8 +1442,22 @@ ailleurs » ou « couverture à venir »**.
 > dédiées si publiées — sinon verdict autonome sans promesse de couverture. Délimitations
 > strictes : ne PAS re-dérouler le 39e run (trois molécules, mesure, usage détourné, régulateur) ;
 > ne pas retraiter l'adultération générique (`peptides-gris`, `complements-amincissants` la
-> portent) — la citer sur les poudres de racétams du marché gris si des analyses de contenu réel
-> existent. Public : lecteur exigeant non spécialiste. Doctrine de preuve santé
+> portent) — la citer sur les poudres de racétams du marché gris : **ces analyses de contenu réel
+> existent** (vérifié le 2026-08-26), et ce sont les deux meilleures entrées du dossier gris —
+> (1) Cohen et al., *Neurology Clinical Practice* 2020, « Five Unapproved Drugs Found in Cognitive
+> Enhancement Supplements » : 10 produits analysés, **omberacetam jusqu'à ~40 mg par prise
+> recommandée, soit ≈ 4× la dose pharmaceutique typique de 10 mg**, aniracétam ~502 mg, plus
+> phénibut, vinpocétine et picamilon détectés sans être déclarés — et des ingrédients déclarés
+> non détectés ; (2) Jędrejko et al., *Drug Testing and Analysis* 2023, revue des ingrédients non
+> autorisés des compléments « nootropiques » (histoire, pharmacologie, prévalence, réglementations
+> internationales, potentiel dopant). ⚠️ **Piège d'indépendance connu du corpus** : le papier
+> Cohen est repris par au moins six médias (AAN, Harvard Health, Healio, STAT, Medscape,
+> Neuroscience News) — la reprise de presse n'est pas une seconde source ; corroborer par un
+> travail distinct, pas par un article qui raconte celui-là. Pilier document-source du même
+> dossier : page FDA « Vinpocetine in Dietary Supplements » (ne répond pas à la définition
+> d'ingrédient alimentaire ; avertissement grossesse du 2019-06-03), warning letters FDA aux
+> vendeurs de piracétam, notice ANSM d'Arcalion. Public : lecteur exigeant non
+> spécialiste. Doctrine de preuve santé
 > (`docs/evidence-sante.md`) à recopier intégralement dans le brief ; s'attendre à un profil de
 > rejets type `collagene` en plus marqué (mono-source russe, essais anciens jamais répliqués) —
 > juger le run à la NATURE de ses rejets. Domaine : performance-cognitive.
@@ -1629,3 +1690,182 @@ promoteur du côté récent.
 > source de plus que l'essai qu'ils annoncent, et ne pas les laisser porter une section. Public :
 > lecteur exigeant non spécialiste. Doctrine de preuve santé (`docs/evidence-sante.md`) à recopier
 > intégralement dans le brief. Domaine : muscle-vieillissement.
+
+### Graisse viscérale de l'homme mûr — `graisse-viscerale-homme-age` → `muscle-vieillissement` (à confirmer)
+**Verdict : gap réel SOUS CONDITION DE RECENTRAGE, priorité moyenne, ajouté le 2026-08-26 sur
+demande explicite** (« perte de graisse abdominale chez le sujet mâle de plus de 50 ans »).
+
+⚠️ **La condition est bloquante, et elle est écrite plus haut dans ce fichier.** La règle du
+2026-08-15 dit qu'« un objectif ne mérite sa monographie que si aucune molécule seule ne le porte
+ET que le corpus n'a aucune couverture » : la seconde moitié n'est **pas** remplie — quatre
+documents couvrent le versant pharmacologique (`incretines-glp1`, `masse-maigre-sous-glp1`,
+`berberine`, `complements-amincissants`) et un cinquième la seule AMM du champ (`peptides-gris`).
+Formulé « perdre du ventre après 50 ans », ce candidat retombe sous le verdict déjà rendu
+`objectif : perte de poids / masse grasse — écarté, saturé`. Il ne passe qu'avec le centre déplacé
+là où le corpus est **entièrement vide** : l'exercice comme intervention, le tour de taille comme
+instrument de mesure, la physiologie de la distribution. Les molécules y entrent en rappels de deux
+phrases avec renvoi, **jamais en sections** — c'est la ligne à écrire dans `args.subject`.
+
+Matière neuve relevée le 2026-08-26 (résultats de recherche, **à instruire en primaire** : rien
+ci-dessous n'a valeur de fait vérifié) : méta-analyses en réseau exercice → tissu adipeux viscéral
+(84 RCT dans *Obesity Reviews* 2024 ; dose-réponse dans *Int J Obesity* 2021 ; *PLOS One* 2013), et
+surtout l'effet **sans perte de poids** (exercice vs régime hypocalorique : effets dissociés sur le
+poids et sur le viscéral) — c'est le fil rouge candidat, le compartiment bouge quand la balance ne
+bouge pas ; essais sur la bonne tranche d'âge (RESOLVE, 100 participants de 50 à 70 ans ; combiné
+−36 % contre −19 % et −21 % pour aérobie ou résistance seuls chez l'âgé obèse) ; le tour de taille
+comme « signe vital » (consensus IAS/ICCR 2020, *Nature Reviews Endocrinology* — **pilier
+document-source** : une position de groupe de travail, source unique par nature) ; la boucle
+hypogonadisme ↔ obésité viscérale par l'aromatase et le shunt testostérone → estradiol, seul
+mécanisme qui justifie le mot « homme » du titre ; le ciblage local, consensus négatif d'un
+demi-siècle contredit par un RCT 2023 sur **16 hommes** (*Physiological Reports*) — cas d'école
+taillé pour ce corpus, à traiter comme mono-source et non comme un renversement.
+
+⚠️ **Trois risques à écrire dans le brief.**
+1. **La restriction « > 50 ans » n'a pas sa littérature dédiée sur tout le périmètre** : les
+   méta-analyses portent sur des « adultes en surpoids », parfois seulement stratifiées par sexe
+   (la résistance réduirait le viscéral chez l'homme et pas chez la femme selon une des synthèses).
+   Exiger la déclaration explicite chaque fois que la population de l'essai n'est pas celle du
+   titre — sinon extrapolation silencieuse, et le lint ne la verra pas.
+2. **Le RCT de ciblage local est le piège du document** : petit effectif, conclusion contraire au
+   consensus, titre affirmatif (« spot reduction exists »). Le traiter comme `collagene` traite ses
+   mono-sources, jamais comme la réponse à la question.
+3. **Aucune « arête à poser » vers un thème d'un autre domaine** : `portal.py` refuse tout slug hors
+   du domaine dans `parcours`, `aretes` et `delimitations` (leçon du 42e run). Les renvois vers
+   `incretines-glp1`, `berberine` et `peptides-gris` n'ont qu'une forme légale, une phrase d'`intro`
+   sans slug — sauf si le domaine retenu est `pharmacologie-metabolique`.
+
+**Domaine : à trancher par `/arrange`, pas ici.** Trois options, aucune parfaite : (a)
+`muscle-vieillissement` — le voisinage est le meilleur (`sarcopenie-exercice-nutrition` et
+`testosterone-homme-age` sont les deux voisins directs, et T4DM y est déjà instruit sur la
+population exacte du titre), au prix d'un blurb à élargir de « la masse et la force » vers la
+composition corporelle ; (b) `pharmacologie-metabolique` — logement immédiat et arêtes légales vers
+les GLP-1, mais il tire le document vers les molécules, c'est-à-dire vers le doublon qu'on cherche
+à éviter ; (c) `nutrition-sportive` — son blurb nomme la composition corporelle, mais « sportive »
+cadre mal un homme de 55 ans qui veut perdre du ventre.
+
+> La graisse viscérale de l'homme après 50 ans : ce que l'exercice, la mesure et la physiologie de
+> la distribution obtiennent réellement, une fois les médicaments du poids laissés à leurs
+> monographies. Fil rouge : **le compartiment bouge quand la balance ne bouge pas** — l'exercice
+> sans déficit calorique réduit le tissu adipeux viscéral sans forcément réduire le poids, et
+> inversement un amaigrissement peut être compté comme un succès sans que le compartiment à risque
+> ait beaucoup changé ; d'où la thèse que le poids est le mauvais critère et que le tour de taille
+> est le bon. Structure : ce qu'est le viscéral et en quoi il diffère du sous-cutané (mesure de
+> référence au scanner, DXA, et ce que le pèse-personne ne voit pas) ; **le tour de taille comme
+> instrument** — protocole de mesure, seuils, et la position du groupe de travail IAS/ICCR qui
+> demande sa prise en routine clinique (source unique par nature : la déclarer comme telle) ;
+> pourquoi la graisse de l'homme se dépose là — distribution androïde, et la boucle
+> hypogonadisme/obésité viscérale par l'aromatase, avec sa direction de causalité discutée ;
+> **l'exercice, dose par dose** — aérobie, résistance, HIIT, combiné : ce que les méta-analyses en
+> réseau classent, la dose efficace (fréquence, durée, semaines), et l'effet à poids constant ;
+> l'âge et le sexe comme modificateurs, avec la discipline de déclaration ci-dessus ; **le ciblage
+> local**, un demi-siècle de consensus négatif et le petit essai qui prétend le renverser ; ce que
+> l'assiette ajoute (déficit énergétique, alcool, répartition) sans re-dérouler
+> `proteines-besoins-timing` ; sécurité, doses, interactions ; et une section de verdicts de rappel
+> où chaque molécule reçoit deux phrases et un renvoi. Délimitations strictes : ne PAS re-dérouler
+> les agonistes GLP-1 (`incretines-glp1` tient STEP/SURMOUNT/SELECT et la médiation par le tour de
+> taille ; `masse-maigre-sous-glp1` tient la contrepartie musculaire), ni le rayon amincissant
+> (`complements-amincissants`), ni la berbérine, ni la testostérone chez l'homme âgé
+> (`testosterone-homme-age` tient T4DM et l'axe androgénique), ni la tésamoréline
+> (`peptides-gris` tient la seule AMM sur le viscéral, dans la lipodystrophie du VIH) : chacun a sa
+> monographie, chacun n'a droit qu'à un verdict et un renvoi. Public : lecteur exigeant non
+> spécialiste. Doctrine de preuve santé (`docs/evidence-sante.md`) à recopier intégralement dans le
+> brief. Domaine : à confirmer (voir ci-dessus).
+
+---
+
+## `fonction-sexuelle` — domaine À CRÉER (proposé le 2026-08-26)
+
+**Verdict : gap réel, et le méta-domaine le réclame par son propre label.** « Santé, nutrition &
+performance humaine » couvre aujourd'hui la performance physique (`nutrition-sportive`), le muscle
+vieillissant, la cognition, les compléments de santé générale et la pharmacologie métabolique. La
+fonction sexuelle n'a aucun logement : ce n'est ni un complément en vente libre, ni un médicament du
+poids, ni du muscle, ni de la cognition. C'est le seul champ du méta-domaine où une classe de
+médicaments à AMM, massivement prescrite **et** massivement détournée, n'est nommée nulle part —
+0 occurrence de `sildénafil`, `tadalafil`, `PDE5` dans les 84 documents.
+
+- **Paramètres proposés** : id `fonction-sexuelle`, label « Fonction sexuelle », blurb « Ce que les
+  essais démontrent quand on prétend traiter — ou améliorer — la fonction sexuelle. » Classé après
+  `performance-cognitive` (performance physique → cognitive → sexuelle) et avant `complements-sante`.
+- ⚠️ **Ne pas le laisser à moitié né.** `/arrange` ne crée jamais un domaine vide, et le portail
+  exige un 2e thème : le chantier `performance-cognitive`, ouvert au 39e run, n'a été refermé qu'au
+  42e. Le 2e thème est donc à décider **avant** de lancer le premier. Candidat le plus propre :
+  **`ejaculation-precoce`** — à instruire, l'IELT (délai d'éjaculation intravaginal chronométré),
+  l'un des très rares critères d'efficacité **objectifs** de tout le méta-domaine ; la dapoxétine et
+  son statut réglementaire réel juridiction par juridiction ; les ISRS hors AMM ; les anesthésiques
+  topiques. Aucun chevauchement avec les voisins. À écarter comme 2e thème : tout document centré
+  sur le rayon gris (il redirait `complements-amincissants` et `peptides-gris` — c'est précisément le
+  motif de rejet du 2026-08-15) et tout document sur la libido androgénique
+  (`testosterone-homme-age` tient déjà l'avis FDA du 20 avril 2026 sur le désir sexuel bas).
+- ⚠️ **Aucune arête vers `testosterone-homme-age`** : il appartient à `muscle-vieillissement`, et
+  `portal.py` refuse tout slug hors du domaine dans `parcours`, `aretes` et `delimitations`. Le
+  renvoi n'a qu'une forme légale, une phrase de l'`intro` sans slug.
+- ⚠️ **Publication : thème santé = DOUBLE neutralisation** (cf. mémoire `pages-publication`), et
+  sujet intime : la doctrine de preuve santé s'applique au pied de la lettre, sans exception de ton.
+
+### Inhibiteurs de la PDE5 — `inhibiteurs-pde5` → `fonction-sexuelle`
+**Verdict : gap réel, priorité HAUTE, ajouté le 2026-08-26 sur demande explicite** (« amélioration
+des performances sexuelles : Viagra, Cialis et autres »). Nommé par classe pharmacologique, sur le
+patron `incretines-glp1`. C'est le meilleur profil de candidat santé disponible : littérature RCT
+massive et ancienne, critère validé et chiffré (IIEF), pilier réglementaire épais, et un écart
+promesse/preuve qui se mesure au lieu de se supposer.
+
+**Couverture vérifiée par lecture le 2026-08-26** : nulle. « Érectile » n'apparaît que dans
+`testosterone-homme-age`, deux fois et jamais comme objet — dans la définition EMAS de
+l'hypogonadisme tardif (trois symptômes sexuels dont la dysfonction érectile, plus une testostérone
+< 11 nmol/L : 2,1 % de 2 966 hommes de 40 à 79 ans) et dans l'avis FDA du 20 avril 2026 sur le
+désir sexuel bas. Ce même document **nomme** le *Sexual Function Trial* des Testosterone Trials
+dans l'architecture de l'essai sans en dérouler un seul résultat, et conclut que « le seul terrain
+sur lequel le régulateur accepte d'avancer est celui du désir » — sans instruire ce terrain. La
+frontière du nouveau thème est donc déjà écrite par le corpus lui-même.
+
+Matière relevée le 2026-08-26 (résultats de recherche, **à instruire en primaire**) : efficacité
+sur l'IIEF, +7 à 10 points au dosage maximal contre placebo, avec des comparatifs par molécule
+(sildénafil 9,65 ; tadalafil 8,52 ; vardénafil 7,50) et une méta-analyse en réseau 2026 dans le
+*Journal of Sexual Medicine* ; quotidien contre à la demande pour le tadalafil ; **l'usage chez
+l'homme sans dysfonction** — 9 % d'un échantillon d'étudiants en médecine à fonction érectile
+parfaite déclarent en avoir pris, dont 71 % avec de l'alcool, et des allégations d'usage sportif
+dont la preuve d'effet est à peu près nulle ; adultération, où le chiffre se retourne contre le
+corpus déjà publié — sur les 572 compléments adultérés signalés par la FDA entre 2007 et 2014,
+41,6 % relevaient de la performance sexuelle, **première catégorie**, quand
+`complements-amincissants` cite le même travail pour ses 40,9 % d'amincissants et mentionne les
+« produits sexuels » sans les instruire ; et 67 % de 102 produits achetés en boutique contenant au
+moins un inhibiteur de PDE5 non déclaré.
+
+⚠️ **Deux risques.** (1) Le document doit tenir la distinction soin / augmentation sans la moraliser
+ni la dissoudre : la même molécule restaure une fonction chez le patient et ne démontre à peu près
+rien chez l'homme sans trouble — c'est le fil rouge, pas un jugement. (2) La section adultération
+est **plafonnée à une section** : au-delà, le document redevient celui qu'on a écarté en 2026-08-15.
+
+> Les inhibiteurs de la PDE5 — sildénafil, tadalafil, vardénafil, avanafil — au tamis des essais :
+> ce qu'ils démontrent chez l'homme qui a un trouble, ce qu'ils ne démontrent pas chez celui qui
+> veut seulement faire mieux. Fil rouge, transposé du 39e run et de sa section « Restaurer ou
+> augmenter » : **la ligne de base décide du résultat**. Chez l'homme dont la fonction érectile est
+> altérée, l'effet est l'un des mieux établis de toute la pharmacologie du confort — chiffré, dosé,
+> répliqué, mesuré par un questionnaire validé. Chez l'homme sans trouble, la littérature qui
+> soutiendrait une « amélioration de la performance » est quasi inexistante, alors que l'usage,
+> lui, est documenté et mélangé à l'alcool et aux drogues récréatives. Structure : le mécanisme
+> (NO/GMPc, spécificité PDE5 et ce que les autres PDE expliquent des effets indésirables — PDE6 et
+> les troubles visuels, PDE11 et le tadalafil) ; **mesurer une fonction sexuelle** — l'IIEF et son
+> domaine érectile, les questions SEP, ce qu'un score de 7 à 10 points veut dire pour un patient, et
+> pourquoi les taux de « réponse » ne se comparent pas d'un essai à l'autre ; molécule par molécule
+> et dose par dose, avec les demi-vies et le quotidien contre l'à la demande ; **restaurer ou
+> augmenter** : ce qui a été mesuré chez l'homme sans dysfonction, et la prévalence déclarée de
+> l'usage récréatif contre la prévalence mesurée (reprendre la méthode du 39e run sur l'écart
+> déclaré/mesuré) ; l'écart entre performance ressentie et performance mesurée, s'il existe une
+> littérature qui le teste ici ; sécurité — nitrates et contre-indication absolue, hypotension,
+> priapisme, NAION et surdité brusque, interactions (alpha-bloquants, inhibiteurs du CYP3A4) ;
+> **le régulateur** : AMM, mentions obligatoires, passage en vente libre au Royaume-Uni et ce que
+> cette décision a exigé comme dossier ; et **une seule** section sur le rayon gris : compléments
+> « naturels » adultérés au sildénafil, contrefaçons, plateformes de télémédecine — sans re-dérouler
+> le patron d'adultération déjà écrit ailleurs. Délimitations strictes : ne PAS retraiter l'axe
+> androgénique ni l'hypogonadisme tardif (`testosterone-homme-age` tient l'EMAS, les Testosterone
+> Trials, T4DM, TRAVERSE et l'avis FDA du 20 avril 2026 sur le désir — le renvoi se fait par une
+> phrase d'intro sans slug, `portal.py` interdisant l'arête inter-domaines) ; ne PAS refaire le
+> verdict de rayon des compléments (`complements-amincissants`) ni le dossier du marché gris des
+> peptides (`peptides-gris`) ; ne PAS traiter la fonction sexuelle féminine ni les troubles du
+> désir, qui sont un autre sujet et un autre corpus. S'attendre à un profil de rejets FAIBLE pour
+> un thème santé — la littérature est ancienne, industrielle et répliquée — sauf sur deux points où
+> il faut au contraire s'attendre au pire : les chiffres d'usage récréatif (enquêtes déclaratives,
+> petits échantillons, populations non représentatives) et les allégations sportives. Public :
+> lecteur exigeant non spécialiste. Doctrine de preuve santé (`docs/evidence-sante.md`) à recopier
+> intégralement dans le brief. Domaine : fonction-sexuelle (à créer par ce thème).
