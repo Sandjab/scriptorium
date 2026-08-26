@@ -827,14 +827,14 @@ décisions :
    n'ayant qu'un protocole publié). Corrigé dans `manifest.json` puis rebuild — voir la note de
    réparation en fin de section `pharmacologie-metabolique`.
 
-**Ordre de lancement** — mis à jour le 2026-08-18 :
+**Ordre de lancement** — mis à jour le 2026-08-26 (les 3 premiers sont FAITS) :
 
 | # | thème | priorité | domaine |
 |---|---|---|---|
-| 1 | `sarcopenie-exercice-nutrition` | **haute** | `muscle-vieillissement` (**crée le domaine**) |
-| 2 | `testosterone-homme-age` | **haute** | `muscle-vieillissement` (**ouvre le portail**) |
-| 3 | `nootropiques-vegetaux` | haute | `performance-cognitive` (**ouvre le portail**) |
-| 4 | `cafeine-cognition-vigilance` | moyenne-haute | `performance-cognitive` |
+| ~~1~~ | ~~`sarcopenie-exercice-nutrition`~~ | FAIT 2026-08-18 | `muscle-vieillissement` (domaine créé) |
+| ~~2~~ | ~~`testosterone-homme-age`~~ | FAIT 2026-08-19 | `muscle-vieillissement` (portail ouvert) |
+| ~~3~~ | ~~`nootropiques-vegetaux`~~ | FAIT 2026-08-26 | `performance-cognitive` (**portail ouvert**) |
+| 4 | `cafeine-cognition-vigilance` | **haute** (tête de file) | `performance-cognitive` |
 | 5 | `omega-3` | moyenne-haute | `complements-sante` |
 | 6 | `acide-alpha-lipoique` | moyenne-haute | `complements-sante` |
 | 7 | `beta-alanine-tampons` | moyenne | `nutrition-sportive` |
@@ -1227,9 +1227,62 @@ vrai rendement de ce run, détaillé en mémoire :
 3. **`prose.json` est PRÉ-Audit-prose** : y auditer les rejets fait re-signaler du déjà corrigé
    (j'y ai ajouté une réserve redondante, retirée depuis). Auditer le manifeste ou le dist.
 
-⚠️ **Portail `performance-cognitive` non créé** (1 seul thème ; `build_site.py` refuse un portail
-orphelin). L'arête `creatine` → section « Cerveau et cognition » **reste à poser** : elle attend
-le 2e thème du domaine.)
+✅ **Portail `performance-cognitive` CRÉÉ le 2026-08-26** par le 2e thème du domaine,
+`nootropiques-vegetaux` — voir son entrée ci-dessous. ⚠️ L'arête `creatine` → section « Cerveau et
+cognition » **ne peut pas être posée comme arête** : `portal.py` refuse tout slug hors du domaine
+dans `parcours`, `aretes` et `delimitations` (lignes 89 et 111), et `creatine` appartient à
+`nutrition-sportive`. Un renvoi inter-domaines n'a qu'une forme légale : une phrase de l'`intro`,
+sans slug — c'est ce qui a été fait. **À retenir pour tout backlog** : ne plus écrire « arête à
+poser » vers un thème d'un autre domaine, le code l'interdit par construction.)
+
+(`nootropiques-vegetaux` : **FAIT le 2026-08-26**, retiré du backlog — 42e run /leanmonograph,
+14e thème santé, **2e thème de `performance-cognitive` : il crée le portail du domaine** et referme
+le chantier ouvert au 39e run. 11/11 sections retenues (plan à 11 entrées, **aucune troncature** —
+le plafond réel est `MAX_SECTIONS=16` depuis le 2026-08-10, le `SKILL.md` du lean annonce encore 9 :
+doc périmée, à corriger). 43 claims **21✓ / 21 corrigés / 1 rejeté** après backstop (le council avait
+rendu 19/21/3), 93 sources, 3 widgets, ~10 300 mots. Coût **8,0M tok / 101 agents / 3 h 21** — dans
+la fourchette annoncée (5-8M, 4-7 h) et **sous l'estimation basse en durée**. Contraste : 0 violation
+en clair, 0 réelle en sombre.
+
+**Le fil rouge a tenu sans être forcé** — et c'est le council qui l'a empêché de déraper : le lien
+« essais négatifs parce que non financés par Schwabe » a été **corrigé en facteur plausible parmi
+d'autres**, aux côtés de la taille d'échantillon, de la durée et de la population. Le garde-fou
+« le fil rouge n'est pas une thèse à défendre », écrit dans le brief, s'est révélé opérant.
+
+**Les 3 rejets valaient chacun un traitement différent — c'est le rendement de ce run** :
+1. `claim:1` (spécification Ph. Eur. d'EGb 761) — **faux rejet** : l'énoncé décrit une **NORME**,
+   `document-source` par nature. Ré-adjugé à la main. Les jurés n'ont pas coché `document_source`
+   probablement parce que le claim était **composite** (spécification + constat EMA sur les ≈ 30 %
+   du bilan massique) : un claim qui mélange un contenu de document et un énoncé analytique tombe
+   dans l'angle mort de l'exception. **Piste pour le skill** : détecter les claims composites avant
+   le council, ou demander au juré de qualifier `document_source` par MORCEAU.
+2. `claim:8` (enquête du procureur de New York) — **faux rejet par carence** (0 confirmation,
+   0 réfutation : le juré n'avait pas retrouvé un communiqué officiel pourtant en ligne).
+   Ré-adjugé à la main, document-source également.
+3. `claim:17` (méta-analyse BJPsych Open 2025) — **rejet JUSTE**, conservé : résultat empirique
+   mono-source, que l'exception ne couvre pas. Chiffres revérifiés exacts, réserve « source unique,
+   non corroborée » maintenue en prose. **La leçon n'est donc pas « les rejets sont faux » mais
+   qu'ils ne sont pas de la même espèce** — un rejet se juge sur la NATURE de ce qu'il rejette.
+
+**Classe d'erreur nouvelle : la réserve fausse par excès de prudence.** L'Audit-prose a vérifié les
+3 claims rejetés, les a trouvés EXACTS en primaire, et — ne pouvant pas ré-adjuger — a ajouté à
+chacun « (source unique, non corroborée) ». Sur `claim:17` c'est le traitement correct ; sur les
+deux autres, **la réserve était fausse** : elle présentait une norme de pharmacopée et un document
+officiel comme des affirmations fragiles. Corrigé en « spécification pharmacopéique / avis d'agence /
+communiqué officiel : source unique **par nature** ». **Réflexe** : quand l'Audit-prose hedge un
+claim rejeté, vérifier si la bonne réponse n'était pas la ré-adjudication document-source — hedger
+un fait réglementaire l'affaiblit à tort.
+
+**Ce qui a bien tourné, et qui avait échoué au 41e run** : l'Audit-prose a tourné **avec** son
+moteur de recherche (19 chiffres de prose vérifiés en primaire, `fixed=0`, aucun resté douteux),
+et le quota WebSearch n'a pas été épuisé. Vérifications indépendantes au backstop : GEM (523
+démences, 277 ginkgo / 246 placebo, HR 1,12 [0,94-1,33] et Alzheimer 1,16 [0,97-1,39]), GuidAge
+(2854 participants, HR 0,84), EFSA (4 637 allégations / 341 avis) — **tous exacts**.
+
+**Zéro renvoi cassé**, alors que le risque était maximal (trois voisins du domaine encore non
+publiés). L'interdiction explicite dans le `subject` — « verdict autonome ou rien, jamais "traité
+ailleurs" » — a tenu de bout en bout : les 2 occurrences de « dans ce corpus » désignent l'une le
+corpus d'ESSAIS, l'autre un document réellement publié.)
 
 ### Nootropiques végétaux — `nootropiques-vegetaux` → `performance-cognitive`
 **Verdict : gap réel (moyenne) — ouvre le portail du domaine.** Le verdict de rayon, format
