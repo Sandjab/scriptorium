@@ -23,7 +23,7 @@ ce skill ne réécrit que ce qui lui est propre. `build.py`, le template et la c
 | Modèle Plan / Author / Widgets / Compose / Build | Opus | **Opus (inchangé)** — jugement structurant |
 | Council par claim | 2 jurés (`established`) / **3** (`contestable`) | **2 jurés** dans tous les cas |
 | Verify : recherche web | recherche libre | **part d'abord des `candidate_sources`**, web en secours |
-| Plafonds | aucun | **MAX_SECTIONS=9**, **MAX_CLAIMS_PER_SECTION=4** (garde-fous) |
+| Plafonds | aucun | **MAX_SECTIONS=16**, **MAX_CLAIMS_PER_SECTION=4** (garde-fous) |
 
 **Inchangé et non négociable** : tout fait `confirmed` s'appuie sur **≥ 2 sources indépendantes**
 (seuil en code, `decideAudit`/`collectSources` identiques) ; `build.py` échoue bruyamment.

@@ -26,7 +26,12 @@ structurant en Opus). Pour la spec du document, des widgets et de la charte : `m
 
 **Inchangé et non négociable** : tout fait `confirmed` s'appuie sur **≥ 2 sources indépendantes**
 (seuil en code, `decideAudit`/`collectSources` **identiques** à monograph) ; `build.py` échoue
-bruyamment ; plafonds `MAX_SECTIONS=9` / `MAX_CLAIMS_PER_SECTION=4` conservés.
+bruyamment ; plafonds `MAX_SECTIONS=16` (surchargeable par `args.maxSections`) /
+`MAX_CLAIMS_PER_SECTION=4` conservés. ⚠️ Le plafond n'est qu'un **disjoncteur** : le prompt de
+l'architecte suggère « typiquement 4 à 9 » en dur, sans jamais voir `MAX_SECTIONS` — les deux
+nombres diffèrent volontairement (la suggestion porte la sobriété éditoriale, le plafond le
+garde-fou). Un plan plus long est tronqué **par la queue**, section écosystème exemptée :
+lire `arch.outline.length` dans `.leanmonograph/research.json` juste après le Plan.
 Nuance council : un claim `contestable` a **3 verdicts** (soutien, réfutation, source primaire)
 — `confirmed` à la majorité 2/3, comme le monograph complet (frugal exigeait 2/2).
 
