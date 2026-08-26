@@ -191,7 +191,25 @@ const S_LOAD_INDEX = { type:'object', additionalProperties:true, required:['sec_
 const S_LOAD_ONE = { type:'object', additionalProperties:true, required:['content'], properties:{ content:{type:'string'} } };
 
 // ── Helpers JS (transformations déterministes — pas de jugement) ─────────────
-const normUrl = u => (u||'').trim().replace(/^https?:\/\//i,'').replace(/[#?].*$/,'').replace(/\/+$/,'').toLowerCase();
+// L'identifiant d'un document vit PARFOIS DANS LA QUERY : DailyMed adresse chaque étiquetage
+// par `?setid=…`. Supprimer la query entière (ce que faisait ce code jusqu'au 43e run) écrasait
+// donc les notices du sildénafil, du tadalafil et du vardénafil — trois médicaments, trois
+// documents — en UNE seule source, et fabriquait des faux rejets sur la section sécurité.
+// On garde la query, en retirant les seuls paramètres de SUIVI : ceux-là disent par quel chemin
+// on est arrivé, jamais de quel document il s'agit. Le fragment (#section) désigne un endroit
+// DANS le document : il tombe. Les paires sont triées pour que l'ordre ne crée pas deux clés.
+// Casse : hôte et chemin sont normalisés, la query NON — un identifiant peut y être sensible.
+const TRACKING_PARAMS = /^(utm_[a-z_]+|fbclid|gclid|msclkid|igshid|mc_cid|mc_eid|_ga)$/i;
+const normUrl = u => {
+  const s = (u||'').trim().replace(/^https?:\/\//i,'').replace(/#.*$/,'');
+  const q = s.indexOf('?');
+  const base = (q < 0 ? s : s.slice(0, q)).replace(/\/+$/,'').toLowerCase();
+  if (q < 0) return base;
+  const kept = s.slice(q + 1).split('&')
+    .filter(p => p && !TRACKING_PARAMS.test(p.split('=')[0]))
+    .sort();
+  return kept.length ? base + '?' + kept.join('&') : base;
+};
 const SECTION_CLAIM_QUOTA = 2;      // claims survivants requis pour qu'une section NORMALE survive
 // DISJONCTEUR, pas garde-fou de coût : l'architecte ne voit JAMAIS cette valeur (son prompt dit
 // « typiquement 4 à 9 », en dur), donc la relever ne peut pas le pousser à proposer davantage —
@@ -624,13 +642,31 @@ if (RESUME) {
     loadedProse = safeParse(idx.prose, 'prose.json');
     const secIds = idx.sec_ids || [];
     if (secIds.length) {
-      const contents = await parallel(secIds.map(id => () =>
+      // Un checkpoint existe sur le disque mais n'est relisible QUE par un agent (le script n'a
+      // aucun accès filesystem). Si sa sortie ne se parse pas, la section repartait en Extract +
+      // council SANS RIEN DIRE — et ÉCRASAIT le checkpoint, donc toute ré-adjudication faite à la
+      // main. Constaté deux fois au 43e run (une section perdue par reprise, à chaque reprise).
+      // Deux garde-fous : on redemande une fois, puis on le DIT bruyamment. Le ré-audit reste le
+      // comportement de repli — il produit un résultat valide — mais il n'est plus silencieux.
+      const readOne = (id) =>
         A(`Rends le contenu EXACT (verbatim, sans reformater ni tronquer) du fichier ${ckptDir}/sec-${id}.json. N'écris rien.`,
-          { schema: S_LOAD_ONE, model: M_IO, phase: 'Sweep', label: `resume-sec:${id}` })));
-      secIds.forEach((id, i) => {
-        const o = contents[i] && safeParse(contents[i].content, `sec-${id}.json`);
-        if (o) savedSections[id] = o;
-      });
+          { schema: S_LOAD_ONE, model: M_IO, phase: 'Sweep', label: `resume-sec:${id}` });
+      const contents = await parallel(secIds.map(id => () => readOne(id)));
+      const perdues = [];
+      for (let i = 0; i < secIds.length; i++) {
+        const id = secIds[i];
+        let o = contents[i] && safeParse(contents[i].content, `sec-${id}.json`);
+        if (!o) {
+          log(`[resume] sec-${id}.json illisible au 1er essai → nouvelle tentative.`);
+          const retry = await readOne(id);
+          o = retry && safeParse(retry.content, `sec-${id}.json (retry)`);
+        }
+        if (o) savedSections[id] = o; else perdues.push(id);
+      }
+      if (perdues.length)
+        log(`⚠️ [resume] ${perdues.length} checkpoint(s) NON rechargé(s) après retry : ${perdues.join(', ')}. ` +
+            `Ces sections vont être RÉ-AUDITÉES et leur checkpoint RÉÉCRIT : toute correction manuelle ` +
+            `qu'elles portaient sera perdue. Sauvegarde : ${ckptDir} avant toute nouvelle reprise.`);
     }
     log(`[resume] chargé : research=${loadedResearch ? 'oui' : 'non'}, sections=${Object.keys(savedSections).length}, prose=${loadedProse ? 'oui' : 'non'}, widgets=${loadedWidgets ? 'oui' : 'non'}`);
   } catch (e) { log(`[resume] chargement échoué (${e.message}) → run frais`); }

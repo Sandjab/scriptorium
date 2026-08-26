@@ -141,7 +141,25 @@ const S_LOAD = { type:'object', additionalProperties:false, required:['research'
     properties:{ id:{type:'string'}, content:{type:'string'} } } } } };
 
 // ── Helpers JS (transformations déterministes — pas de jugement) ─────────────
-const normUrl = u => (u||'').trim().replace(/^https?:\/\//i,'').replace(/[#?].*$/,'').replace(/\/+$/,'').toLowerCase();
+// L'identifiant d'un document vit PARFOIS DANS LA QUERY : DailyMed adresse chaque étiquetage
+// par `?setid=…`. Supprimer la query entière (ce que faisait ce code jusqu'au 43e run) écrasait
+// donc les notices du sildénafil, du tadalafil et du vardénafil — trois médicaments, trois
+// documents — en UNE seule source, et fabriquait des faux rejets sur la section sécurité.
+// On garde la query, en retirant les seuls paramètres de SUIVI : ceux-là disent par quel chemin
+// on est arrivé, jamais de quel document il s'agit. Le fragment (#section) désigne un endroit
+// DANS le document : il tombe. Les paires sont triées pour que l'ordre ne crée pas deux clés.
+// Casse : hôte et chemin sont normalisés, la query NON — un identifiant peut y être sensible.
+const TRACKING_PARAMS = /^(utm_[a-z_]+|fbclid|gclid|msclkid|igshid|mc_cid|mc_eid|_ga)$/i;
+const normUrl = u => {
+  const s = (u||'').trim().replace(/^https?:\/\//i,'').replace(/#.*$/,'');
+  const q = s.indexOf('?');
+  const base = (q < 0 ? s : s.slice(0, q)).replace(/\/+$/,'').toLowerCase();
+  if (q < 0) return base;
+  const kept = s.slice(q + 1).split('&')
+    .filter(p => p && !TRACKING_PARAMS.test(p.split('=')[0]))
+    .sort();
+  return kept.length ? base + '?' + kept.join('&') : base;
+};
 const SECTION_CLAIM_QUOTA = 2;  // claims survivants (audit ≠ rejected) requis pour qu'une section NORMALE survive à l'élagage
 // FRUGALITÉ — plafonds durs (garde-fous coût) : bornent un Plan/Extract qui déraille AVANT
 // d'engager le council coûteux. Alignés sur ce que les prompts demandent déjà ('typiquement 4 à 9'

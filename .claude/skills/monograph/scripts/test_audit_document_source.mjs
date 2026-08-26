@@ -43,10 +43,26 @@ async function loadDecider(name) {
   // On ne prend QUE les fonctions pures dont dépend decideAudit : la ligne normUrl, puis le bloc
   // docKeys → decideAudit. Prendre l'intervalle complet embarquerait au passage des constantes
   // qui lisent les `args` du harness (MAX_SECTIONS dans leanmonograph) et le module ne chargerait pas.
-  const normLine = src.match(/^const normUrl = .*$/m);
+  // normUrl s'étend sur plusieurs lignes depuis le correctif du 43e run (query string
+  // conservée, paramètres de suivi retirés). On prend sa DÉCLARATION SEULE, accolades
+  // équilibrées : le segment jusqu'à docKeys embarquerait au passage des constantes qui lisent
+  // les `args` du harness (MAX_SECTIONS dans leanmonograph) et le module ne chargerait pas.
+  const trackAt = src.search(/^const TRACKING_PARAMS\b/m);
+  const nuAt = src.search(/^const normUrl\b/m);
+  const normAt = trackAt >= 0 ? trackAt : nuAt;
+  let normEnd = -1;
+  if (nuAt >= 0) {
+    const brace = src.indexOf('{', nuAt), eol = src.indexOf('\n', nuAt);
+    if (brace < 0 || brace > eol) normEnd = eol;              // forme mono-ligne (historique)
+    else { let d = 0;
+      for (let j = brace; j < src.length; j++) {
+        if (src[j] === '{') d++;
+        else if (src[j] === '}') { d--; if (d === 0) { normEnd = src.indexOf(';', j) + 1; break; } }
+      } }
+  }
   const start = src.indexOf('const docKeys');
   const fnAt = src.indexOf('function decideAudit', start);
-  if (!normLine || start < 0 || fnAt < 0) throw new Error(`${name} : bloc d'audit introuvable`);
+  if (normAt < 0 || normEnd < 0 || start < 0 || fnAt < 0) throw new Error(`${name} : bloc d'audit introuvable`);
   let i = src.indexOf('{', fnAt), depth = 0, end = -1;
   for (; i < src.length; i++) {
     if (src[i] === '{') depth++;
@@ -54,7 +70,7 @@ async function loadDecider(name) {
   }
   if (end < 0) throw new Error(`${name} : fin de decideAudit introuvable`);
   const modPath = join(tmpdir(), `audit_under_test_${name}_${process.pid}.mjs`);
-  writeFileSync(modPath, `${normLine[0]}\n${src.slice(start, end)}\nexport { decideAudit };\n`, 'utf8');
+  writeFileSync(modPath, `${src.slice(normAt, normEnd)}\n${src.slice(start, end)}\nexport { decideAudit };\n`, 'utf8');
   try { return (await import(pathToFileURL(modPath).href)).decideAudit; }
   finally { try { unlinkSync(modPath); } catch { /* déjà parti */ } }
 }
