@@ -1453,124 +1453,52 @@ dépassement des 64k tokens de sortie — **5e occurrence**.)
   c'est un dispositif et non un produit de rayon : moins homogène avec le méta-domaine.
 
 ### Panorama du rayon nootropique — `nootropiques-panorama` → `performance-cognitive`
-**Verdict : candidat de FORMAT, ajouté le 2026-08-19 sur demande explicite.**
-**Annoté le 2026-08-26** (question posée : « Arcalion ou Noopept mériteraient-ils une monographie
-dédiée ? »). Réponse : **non, et ce bloc est leur place** — corpus revérifié, 0 occurrence de
-sulbutiamine, Arcalion, noopept, omberacetam et racétams dans les 82 thèmes (seul faux positif :
-*paracétamol* dans `structured-extraction-llm`). Aucune des deux ne porte 9-13 sections vérifiables :
-noopept parce que ses données humaines sont de petits essais russes d'un même laboratoire — les
-claims d'efficacité tomberaient par carence RÉELLE, pas par prudence ; sulbutiamine parce que son
-dossier exploitable tient en ~5-8 études. Les deux enrichissements ci-dessous (SMR et RCT
-sulbutiamine ; analyses de contenu réel) sortent de cette vérification. Le document-index du
-domaine : lister **TOUT** ce qui est allégué améliorateur des performances cognitives au sens
-large — y compris ce que le corpus traite déjà ou prévoit de traiter sous ce même angle, alors
-rappelé en quelques lignes (verdict + renvoi), jamais re-déroulé. Inventaire de départ : la page
-Wikipédia « Nootrope » (fr) — **valeur d'inventaire uniquement, zéro valeur de source** ; chaque
-substance est à instruire en source primaire. Couverture corpus vérifiée le 2026-08-19 par grep de
-localisation puis lecture du contexte des 3 seuls documents qui matchaient : hors les rappels
-listés dans le prompt, **aucune** des substances n'apparaît nulle part (racétams, donneurs de
-choline, Hydergine, lévétiracétam, pitolisant, mémantine, anticholinestérasiques, nicotine,
-tyrosine, vasopressine, fluorénol, tolcapone : 0 occurrence).
+(**FAIT le 2026-08-28**, retiré du backlog — 46e run /leanmonograph, 18e thème santé, 5e et dernier
+de `performance-cognitive`. 16/16 sections retenues (plan brut à 16, plafond à 16 : aucune
+troncature), 61 claims **31 ✓ / 28 corrigés / 2 rejetés**, 147 sources, 3 widgets, tableau de
+verdicts à **25 substances**, ~396 ko de HTML. Coût **~10,8 M tok / 139 agents / 2 lancements /
+~3 h 45**, dans la fourchette annoncée. Build exit 0 du premier coup, lint exit 0, contraste
+0 violation en clair ET en sombre.
 
-⚠️ **Deux dérogations assumées, à ne pas laisser passer en silence :**
-1. La règle « une monographie par objectif ne se justifie que si aucune molécule seule ne porte
-   l'objectif ET que le corpus n'a aucune couverture » n'est **pas** satisfaite — ici le format
-   EST la valeur : une carte complète du rayon, graduée par niveau de preuve, dont la profondeur
-   par substance est inversement proportionnelle à la couverture ailleurs.
-2. Le précédent `complements-amincissants` avertit que multiplier les molécules multiplie les
-   attributions à vérifier (run le plus cher du corpus, classe d'erreur « fausse indépendance par
-   scission de source »). Tenir le budget par un quota strict : les substances sans donnée humaine
-   se traitent en UNE LIGNE du tableau de verdicts, jamais en section.
+**4e déclenchement du garde-fou d'élagage, et le plus instructif : 5 rejets au seul seuil de
+sources, dont AUCUN ne se réparait de la même façon.** La consigne du garde-fou (« cherche la
+2e source ») n'était juste que pour 2 d'entre eux :
+- **réparables** (la 2e source existait) : Lôo & Poirier — la revue de Starling-Soares,
+  Carrera-Bastos & Bettendorff (*J Nutr Metab* 2020) décrit l'essai mot pour mot ; et Cohen 2021 —
+  corroboré par Vanhee et al. (*J Xenobiot* 2025, surveillance de 12 laboratoires officiels
+  européens et australien, 159 échantillons) et Jędrejko et al. 2023 ;
+- **à regrainer** (le grain fin ne pouvait PAS être corroboré) : les deux claims lévétiracétam ;
+- **rejet JUSTE** : le noopept, mono-source par nature — vérifié sur 154 notices Europe PMC,
+  aucune publication indépendante de l'Institut Zakusov. La réserve « source unique, non
+  corroborée » est son traitement correct.
 
-✅ **PRÉREQUIS LEVÉS LE 2026-08-27** : les trois voisins attendus — `nootropiques-vegetaux`,
-`cafeine-cognition-vigilance`, `microdosage-psychedeliques` — sont désormais TOUS publiés, ainsi que
-`nootropiques-stimulants-prescrits`. Le domaine est complet : ce capstone peut être lancé, et ses
-renvois auront tous une cible réelle. La consigne d'origine, conservée pour sa raison :
+**Le regrain a fait sortir le meilleur fait du document, qu'aucun juré n'avait vu** : l'essai
+HOPE4MCI (Mohs et al., *Alz & Dementia TRCI* 2024;10(1):e12446) **a manqué son critère principal**
+— CDR-SB −0,10 (IC 95 % −0,85 à 0,58) — et le « déclin ralenti de 40 % » vient d'un sous-groupe
+APOE ε4 dont l'IC inclut aussi zéro (−0,45 ; IC 95 % −1,43 à 0,53). Le claim d'origine présentait
+Lancaster et al. 2025 comme un « essai croisé INDÉPENDANT » reproduisant ce résultat : or c'est un
+ABSTRACT de congrès, et **Arnold Bakker en est co-auteur comme il est auteur de HOPE4MCI** —
+fausse indépendance évitée de justesse, 3e occurrence du réflexe « lire les auteurs ».
 
-⚠️ **À lancer en DERNIER des candidats `performance-cognitive`** (après `nootropiques-vegetaux`,
-`cafeine-cognition-vigilance`, `microdosage-psychedeliques`) : ce document rappelle les verdicts
-de ses voisins, donc chaque voisin manquant au lancement devient soit un renvoi cassé —
-l'anti-pattern le mieux documenté du corpus, deux prises sur deux — soit un mini-verdict que la
-monographie dédiée devra ensuite contredire ou dupliquer. S'il devait être lancé avant eux :
-écrire les entrées concernées comme verdicts autonomes, et **interdire toute formule « traité
-ailleurs » ou « couverture à venir »**.
+**Le brief transmettait DEUX erreurs, toutes deux corrigées par le run** (2e fois après le 43e) :
+« asthénie fonctionnelle » (absent des deux documents officiels d'Arcalion) et la date de Cohen
+(2021, pas 2020 — la date 2020 est celle de la couverture presse). Les deux sont corrigées
+ci-dessus dans ce fichier.
 
-> Le rayon nootropique au complet : tout ce qui est vendu, prescrit ou détourné avec une promesse
-> cognitive, en un catalogue raisonné où chaque substance reçoit un verdict gradué par sa
-> meilleure preuve. Fil rouge double : (1) le rayon est défini par l'ALLÉGATION, jamais par la
-> preuve — le même mot « nootrope » couvre des médicaments à AMM, des molécules de marché gris et
-> des composés sans aucune donnée humaine ; (2) l'origine du mot lui-même — Giurgea (UCB) le forge
-> en 1972 POUR le piracétam, et les critères qu'il pose (améliorer sans stimuler ni sédater, être
-> quasi atoxique) ne sont remplis par à peu près rien de ce que le rayon vend depuis. Structure
-> par familles pharmacologiques, PAS par substance (patron `complements-amincissants` : sections
-> de famille + super-widget tableau de verdicts couvrant TOUTES les entrées) :
-> **racétams** — piracétam en dossier principal (AMM européenne, SMR faible, déconseillé par
-> Prescrire, warning letters FDA côté compléments US : même molécule, trois statuts ; Cochrane sur
-> le déclin cognitif ; l'essentiel de la littérature porte sur des populations atteintes — 
-> l'allégation d'augmentation chez le sujet sain est une extrapolation quasi jamais testée),
-> aniracétam, oxiracétam, pramiracétam, néfiracétam, coluracétam, rolziracétam, cébaracétam
-> (pour la plupart : une ligne), noopept (littérature russe mono-source — le nommer comme tel),
-> et le **lévétiracétam** comme cas inverse fascinant : antiépileptique à part entière (Keppra,
-> étiracétam = son racémique) suspecté d'effets cognitifs indésirables à dose pleine, testé à
-> BASSE dose dans le MCI amnésique (programme AGB101 / HOPE4MCI) — vérifier l'issue réelle de ces
-> essais en primaire.
-> **Éveillants et dopaminergiques** — modafinil, armodafinil, méthylphénidate, amphétamines :
-> RAPPEL de `nootropiques-stimulants-prescrits` (verdict en deux phrases, renvoi, ne rien
-> re-dérouler — son toolkit SMD/domaines/double comptage sert de méthode commune à tout le
-> document) ; adrafinil (le précurseur historique, retiré du marché français — instruire le
-> pourquoi) ; sulbutiamine (Arcalion : AMM française « asthénie fonctionnelle », service médical
-> rendu à vérifier — **aucun avis de la Commission de la transparence retrouvé au 2026-08-26** :
-> instruire en primaire (BDPM, HAS) l'hypothèse qu'il n'y en a pas, plutôt que de chercher un
-> niveau de SMR ; un RCT réel existe et vaut mieux qu'une ligne — Loo & Poirier, 600 mg/j,
-> 8 semaines, multicentrique, double aveugle contre placebo, inhibition psycho-comportementale de
-> l'épisode dépressif majeur **sous clomipramine** : population atteinte et add-on, à ne surtout
-> pas lire comme une preuve d'augmentation chez le sain ; détournement étudiant) ;
-> pitolisant (Wakix, mécanisme histaminergique H3) ;
-> fluorénol (données précliniques Cephalon uniquement — une ligne) ; L-Dopa et tolcapone (études
-> de mémoire chez le sain : petites, anciennes, à corroborer) ; nicotine — le dossier sérieux du
-> lot hors ordonnance : vraie littérature RCT (attention soutenue, amorçage chez le MCI — essai
-> de Newhouse), à séparer absolument de la question tabac/vapotage et de la dépendance.
-> **Cholinergiques et médicaments Alzheimer détournés** — donépézil, rivastigmine, galantamine
-> (= Reminyl), mémantine, tacrine (retirée, hépatotoxicité) : l'angle est le DÉTOURNEMENT chez le
-> sujet sain ou « inquiet de sa mémoire » — que montrent les essais chez le non-dément ? ;
-> huperzine A — alcaloïde purifié d'une mousse, tranché ICI et non dans `nootropiques-vegetaux`
-> (essais chinois, qualité méthodologique à documenter) ; DMAE et centrophénoxine (efficacité non
-> démontrée — l'écrire) ; **dihydroergotoxine (Hydergine)** en cas d'école réglementaire : parmi
-> les médicaments les plus vendus au monde dans les années 1980, méta-analyses décevantes,
-> déremboursements — instruire la trajectoire complète.
-> **Peptides et hormones** — semax, selank : `peptides-gris` tient déjà leur versant réglementaire
-> (vote 503A) — le rappeler, et instruire ICI leur dossier d'efficacité cognitive (littérature
-> russe, mono-source) ; vasopressine et analogues (études de mémoire des années 1980, jamais
-> confirmées) ; tyrosine (littérature militaire : stress, froid, privation — l'effet est de
-> PRÉSERVATION sous stresseur, pas d'augmentation — bien poser cette distinction).
-> **Divers et vitamines** — sunifiram, suritozole (aucune donnée humaine : une ligne chacun,
-> assumée comme carte du vide) ; vitamines B et homocystéine (grands essais négatifs — VITACOG et
-> suite) ; oméga-3 : selon l'état du backlog au lancement, rappel du thème dédié ou verdict
-> autonome. RAPPELS transverses obligatoires : créatine (section « Cerveau et cognition » de
-> `creatine` : effet conditionnel à l'état du cerveau), caféine/L-théanine et végétaux
-> (bacopa, ginkgo, rhodiola, ashwagandha, ginseng) et microdosage : renvois aux monographies
-> dédiées si publiées — sinon verdict autonome sans promesse de couverture. Délimitations
-> strictes : ne PAS re-dérouler le 39e run (trois molécules, mesure, usage détourné, régulateur) ;
-> ne pas retraiter l'adultération générique (`peptides-gris`, `complements-amincissants` la
-> portent) — la citer sur les poudres de racétams du marché gris : **ces analyses de contenu réel
-> existent** (vérifié le 2026-08-26), et ce sont les deux meilleures entrées du dossier gris —
-> (1) Cohen et al., *Neurology Clinical Practice* 2020, « Five Unapproved Drugs Found in Cognitive
-> Enhancement Supplements » : 10 produits analysés, **omberacetam jusqu'à ~40 mg par prise
-> recommandée, soit ≈ 4× la dose pharmaceutique typique de 10 mg**, aniracétam ~502 mg, plus
-> phénibut, vinpocétine et picamilon détectés sans être déclarés — et des ingrédients déclarés
-> non détectés ; (2) Jędrejko et al., *Drug Testing and Analysis* 2023, revue des ingrédients non
-> autorisés des compléments « nootropiques » (histoire, pharmacologie, prévalence, réglementations
-> internationales, potentiel dopant). ⚠️ **Piège d'indépendance connu du corpus** : le papier
-> Cohen est repris par au moins six médias (AAN, Harvard Health, Healio, STAT, Medscape,
-> Neuroscience News) — la reprise de presse n'est pas une seconde source ; corroborer par un
-> travail distinct, pas par un article qui raconte celui-là. Pilier document-source du même
-> dossier : page FDA « Vinpocetine in Dietary Supplements » (ne répond pas à la définition
-> d'ingrédient alimentaire ; avertissement grossesse du 2019-06-03), warning letters FDA aux
-> vendeurs de piracétam, notice ANSM d'Arcalion. Public : lecteur exigeant non
-> spécialiste. Doctrine de preuve santé
-> (`docs/evidence-sante.md`) à recopier intégralement dans le brief ; s'attendre à un profil de
-> rejets type `collagene` en plus marqué (mono-source russe, essais anciens jamais répliqués) —
-> juger le run à la NATURE de ses rejets. Domaine : performance-cognitive.
+⚠️ **6 défauts trouvés au backstop APRÈS un build vert et un lint vert, tous dans l'APPAREIL de
+preuve, aucun dans les énoncés** — dont **l'exception `document-source` invoquée sur un MIROIR PR
+Newswire du communiqué FDA**, et **deux entrées `nootroo.com`, un VENDEUR de nootropiques, citées
+en bibliographie sur l'histoire du terme**. Plus : Wikipédia en 2e source de deux claims (le brief
+lui donnait pourtant « zéro valeur de source »), un PDF de revue hébergé sur un blog personnel, et
+le **doublon Jędrejko sous `doi.org` et `/doi/abs/`** — nouvelle variante de « même travail compté
+deux fois » après `/doi/pdf/` au 45e run et la query string au 43e. Tracés dans `audit-report.md`
+sous le jeton `[BACKSTOP-46]`.
+→ **Le contrôle d'acceptation du build ne regarde QUE les `confirmed`, et ne juge JAMAIS le RANG
+des sources : il valide « 2 sources » sans voir que l'une est un vendeur.** C'est l'angle mort le
+plus rentable du corpus.
+
+✅ **Premier run sans perte au `resume`** : les 16 jetons de traçabilité posés avant la relance ont
+tous survécu, contre une section perdue par reprise aux 43e et 45e runs.)
 
 ---
 
