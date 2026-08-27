@@ -860,20 +860,22 @@ décisions :
    n'ayant qu'un protocole publié). Corrigé dans `manifest.json` puis rebuild — voir la note de
    réparation en fin de section `pharmacologie-metabolique`.
 
-**Ordre de lancement** — mis à jour le 2026-08-26 (les 3 premiers sont FAITS) :
+**Ordre de lancement** — mis à jour le 2026-08-27 (les 4 premiers sont FAITS) :
 
 | # | thème | priorité | domaine |
 |---|---|---|---|
 | ~~1~~ | ~~`sarcopenie-exercice-nutrition`~~ | FAIT 2026-08-18 | `muscle-vieillissement` (domaine créé) |
 | ~~2~~ | ~~`testosterone-homme-age`~~ | FAIT 2026-08-19 | `muscle-vieillissement` (portail ouvert) |
 | ~~3~~ | ~~`nootropiques-vegetaux`~~ | FAIT 2026-08-26 | `performance-cognitive` (**portail ouvert**) |
-| 4 | `cafeine-cognition-vigilance` | **haute** (tête de file) | `performance-cognitive` |
-| 5 | `omega-3` | moyenne-haute | `complements-sante` |
-| 6 | `acide-alpha-lipoique` | moyenne-haute | `complements-sante` |
-| 7 | `beta-alanine-tampons` | moyenne | `nutrition-sportive` |
-| 8 | `microdosage-psychedeliques` | moyenne | `performance-cognitive` |
-| 9 | `nootropiques-panorama` | moyenne | `performance-cognitive` (**capstone : à lancer après les nos 3, 4 et 8**) |
-| 10 | `magnesium`, `hydratation-electrolytes` | basses | — |
+| ~~4~~ | ~~`inhibiteurs-pde5`~~ | FAIT 2026-08-27 | `fonction-sexuelle` (**domaine créé, portail EN ATTENTE**) |
+| 5 | `ejaculation-precoce` | **haute (tête de file)** | `fonction-sexuelle` — **referme le chantier ouvert au 43e run** |
+| 6 | `cafeine-cognition-vigilance` | haute | `performance-cognitive` |
+| 7 | `omega-3` | moyenne-haute | `complements-sante` |
+| 8 | `acide-alpha-lipoique` | moyenne-haute | `complements-sante` |
+| 9 | `beta-alanine-tampons` | moyenne | `nutrition-sportive` |
+| 10 | `microdosage-psychedeliques` | moyenne | `performance-cognitive` |
+| 11 | `nootropiques-panorama` | moyenne | `performance-cognitive` (**capstone : à lancer après les nos 3, 6 et 10**) |
+| 12 | `magnesium`, `hydratation-electrolytes` | basses | — |
 
 **Arbitrage assumé** : les deux thèmes muscle passent devant `nootropiques-vegetaux`, qui était en
 tête depuis le 2026-08-15. Ils coûtent plus cher (deux runs au lieu d'un) et laissent
@@ -882,6 +884,12 @@ tête depuis le 2026-08-15. Ils coûtent plus cher (deux runs au lieu d'un) et l
 backlog ait proposé (voir la section du domaine). `nootropiques-vegetaux` garde sa priorité haute
 et reste le run le moins cher pour refermer le chantier `performance-cognitive` :
 **si le budget ne permet qu'un seul run, le lancer lui.**
+
+⚠️ **Priorité révisée le 2026-08-27** : `ejaculation-precoce` passe en tête. Le 43e run a créé
+`fonction-sexuelle` avec UN seul thème, donc **sans portail** — et l'histoire de
+`performance-cognitive`, ouvert au 39e run et refermé seulement au 42e, dit ce que coûte un
+chantier laissé ouvert. Le 2e thème d'un domaine neuf passe désormais avant la tête de file d'un
+domaine déjà complet.
 
 ## `nutrition-sportive`
 
@@ -1773,99 +1781,70 @@ cadre mal un homme de 55 ans qui veut perdre du ventre.
 
 ---
 
-## `fonction-sexuelle` — domaine À CRÉER (proposé le 2026-08-26)
+## `fonction-sexuelle` — domaine CRÉÉ le 2026-08-27 (⚠️ portail EN ATTENTE)
 
-**Verdict : gap réel, et le méta-domaine le réclame par son propre label.** « Santé, nutrition &
-performance humaine » couvre aujourd'hui la performance physique (`nutrition-sportive`), le muscle
-vieillissant, la cognition, les compléments de santé générale et la pharmacologie métabolique. La
-fonction sexuelle n'a aucun logement : ce n'est ni un complément en vente libre, ni un médicament du
-poids, ni du muscle, ni de la cognition. C'est le seul champ du méta-domaine où une classe de
-médicaments à AMM, massivement prescrite **et** massivement détournée, n'est nommée nulle part —
-0 occurrence de `sildénafil`, `tadalafil`, `PDE5` dans les 84 documents.
+**Ouvert par `inhibiteurs-pde5` au 43e run.** Paramètres retenus, tels que proposés : id
+`fonction-sexuelle`, label « Fonction sexuelle », blurb « Ce que les essais démontrent quand on
+prétend traiter — ou améliorer — la fonction sexuelle. », classé après `performance-cognitive` et
+avant `complements-sante`. 12e domaine du corpus.
 
-- **Paramètres proposés** : id `fonction-sexuelle`, label « Fonction sexuelle », blurb « Ce que les
-  essais démontrent quand on prétend traiter — ou améliorer — la fonction sexuelle. » Classé après
-  `performance-cognitive` (performance physique → cognitive → sexuelle) et avant `complements-sante`.
-- ⚠️ **Ne pas le laisser à moitié né.** `/arrange` ne crée jamais un domaine vide, et le portail
-  exige un 2e thème : le chantier `performance-cognitive`, ouvert au 39e run, n'a été refermé qu'au
-  42e. Le 2e thème est donc à décider **avant** de lancer le premier. Candidat le plus propre :
-  **`ejaculation-precoce`** — à instruire, l'IELT (délai d'éjaculation intravaginal chronométré),
-  l'un des très rares critères d'efficacité **objectifs** de tout le méta-domaine ; la dapoxétine et
-  son statut réglementaire réel juridiction par juridiction ; les ISRS hors AMM ; les anesthésiques
-  topiques. Aucun chevauchement avec les voisins. À écarter comme 2e thème : tout document centré
-  sur le rayon gris (il redirait `complements-amincissants` et `peptides-gris` — c'est précisément le
-  motif de rejet du 2026-08-15) et tout document sur la libido androgénique
-  (`testosterone-homme-age` tient déjà l'avis FDA du 20 avril 2026 sur le désir sexuel bas).
-- ⚠️ **Aucune arête vers `testosterone-homme-age`** : il appartient à `muscle-vieillissement`, et
-  `portal.py` refuse tout slug hors du domaine dans `parcours`, `aretes` et `delimitations`. Le
-  renvoi n'a qu'une forme légale, une phrase de l'`intro` sans slug.
-- ⚠️ **Publication : thème santé = DOUBLE neutralisation** (cf. mémoire `pages-publication`), et
-  sujet intime : la doctrine de preuve santé s'applique au pied de la lettre, sans exception de ton.
+⚠️ **CHANTIER OUVERT — le domaine n'a PAS de portail** : `/arrange` en exige deux thèmes. Précédent
+assumé (`ai-organizations` vit sans portail depuis sa création), mais celui-ci a un successeur
+désigné et ne doit pas traîner : `performance-cognitive`, ouvert au 39e run, n'a été refermé qu'au
+42e — trois runs de chantier.
 
-### Inhibiteurs de la PDE5 — `inhibiteurs-pde5` → `fonction-sexuelle`
-**Verdict : gap réel, priorité HAUTE, ajouté le 2026-08-26 sur demande explicite** (« amélioration
-des performances sexuelles : Viagra, Cialis et autres »). Nommé par classe pharmacologique, sur le
-patron `incretines-glp1`. C'est le meilleur profil de candidat santé disponible : littérature RCT
-massive et ancienne, critère validé et chiffré (IIEF), pilier réglementaire épais, et un écart
-promesse/preuve qui se mesure au lieu de se supposer.
+### 2e thème à lancer : `ejaculation-precoce` → `fonction-sexuelle`
+**Priorité HAUTE, tête de file du méta santé depuis le 2026-08-27.** Reste à instruire : l'IELT
+(délai d'éjaculation intravaginal chronométré), l'un des très rares critères d'efficacité
+**objectifs** de tout le méta-domaine ; la dapoxétine et son statut réglementaire réel juridiction
+par juridiction ; les ISRS hors AMM ; les anesthésiques topiques. Aucun chevauchement avec les
+voisins. À écarter comme 2e thème : tout document centré sur le rayon gris (il redirait
+`complements-amincissants` et `peptides-gris`) et tout document sur la libido androgénique
+(`testosterone-homme-age` tient l'avis FDA du 20 avril 2026 sur le désir sexuel bas).
 
-**Couverture vérifiée par lecture le 2026-08-26** : nulle. « Érectile » n'apparaît que dans
-`testosterone-homme-age`, deux fois et jamais comme objet — dans la définition EMAS de
-l'hypogonadisme tardif (trois symptômes sexuels dont la dysfonction érectile, plus une testostérone
-< 11 nmol/L : 2,1 % de 2 966 hommes de 40 à 79 ans) et dans l'avis FDA du 20 avril 2026 sur le
-désir sexuel bas. Ce même document **nomme** le *Sexual Function Trial* des Testosterone Trials
-dans l'architecture de l'essai sans en dérouler un seul résultat, et conclut que « le seul terrain
-sur lequel le régulateur accepte d'avancer est celui du désir » — sans instruire ce terrain. La
-frontière du nouveau thème est donc déjà écrite par le corpus lui-même.
+⚠️ **Aucune arête vers `testosterone-homme-age`** : il appartient à `muscle-vieillissement`, et
+`portal.py` refuse tout slug hors du domaine dans `parcours`, `aretes` et `delimitations`. Le renvoi
+n'a qu'une forme légale, une phrase d'`intro` sans slug. `inhibiteurs-pde5` l'a fait ainsi
+(« l'axe androgénique […] fait l'objet d'un dossier distinct »), à reprendre tel quel.
 
-Matière relevée le 2026-08-26 (résultats de recherche, **à instruire en primaire**) : efficacité
-sur l'IIEF, +7 à 10 points au dosage maximal contre placebo, avec des comparatifs par molécule
-(sildénafil 9,65 ; tadalafil 8,52 ; vardénafil 7,50) et une méta-analyse en réseau 2026 dans le
-*Journal of Sexual Medicine* ; quotidien contre à la demande pour le tadalafil ; **l'usage chez
-l'homme sans dysfonction** — 9 % d'un échantillon d'étudiants en médecine à fonction érectile
-parfaite déclarent en avoir pris, dont 71 % avec de l'alcool, et des allégations d'usage sportif
-dont la preuve d'effet est à peu près nulle ; adultération, où le chiffre se retourne contre le
-corpus déjà publié — sur les 572 compléments adultérés signalés par la FDA entre 2007 et 2014,
-41,6 % relevaient de la performance sexuelle, **première catégorie**, quand
-`complements-amincissants` cite le même travail pour ses 40,9 % d'amincissants et mentionne les
-« produits sexuels » sans les instruire ; et 67 % de 102 produits achetés en boutique contenant au
-moins un inhibiteur de PDE5 non déclaré.
+(`inhibiteurs-pde5` : **FAIT le 2026-08-27**, retiré du backlog — 43e run /leanmonograph, 15e thème
+santé, **crée le domaine `fonction-sexuelle`**. 10/10 sections retenues (plan à 10, aucune
+troncature), 40 claims **21✓ / 18 corrigés / 1 rejeté après backstop** (le council avait rendu
+19/13/8), 70 sources, 5 widgets, tableau de verdicts à 23 lignes sur 6 substances, ~8 800 mots.
+Coût **~9,2M tok / 3 lancements / ~7 h** — dans la fourchette annoncée (8-12M), dont ~1M perdus sur
+une reprise arrêtée par le garde-fou d'élagage. Contraste 0 violation en clair et en sombre après
+correction d'un widget. Live vérifié par sha256 (double neutralisation).
 
-⚠️ **Deux risques.** (1) Le document doit tenir la distinction soin / augmentation sans la moraliser
-ni la dissoudre : la même molécule restaure une fonction chez le patient et ne démontre à peu près
-rien chez l'homme sans trouble — c'est le fil rouge, pas un jugement. (2) La section adultération
-est **plafonnée à une section** : au-delà, le document redevient celui qu'on a écarté en 2026-08-15.
+**Le run le plus instructif du corpus sur la FIABILITÉ DU CODE, pas sur la preuve.** Le council a
+rendu **8 rejets dont 7 FAUX**, et aucun ne venait d'un défaut de jugement des jurés :
 
-> Les inhibiteurs de la PDE5 — sildénafil, tadalafil, vardénafil, avanafil — au tamis des essais :
-> ce qu'ils démontrent chez l'homme qui a un trouble, ce qu'ils ne démontrent pas chez celui qui
-> veut seulement faire mieux. Fil rouge, transposé du 39e run et de sa section « Restaurer ou
-> augmenter » : **la ligne de base décide du résultat**. Chez l'homme dont la fonction érectile est
-> altérée, l'effet est l'un des mieux établis de toute la pharmacologie du confort — chiffré, dosé,
-> répliqué, mesuré par un questionnaire validé. Chez l'homme sans trouble, la littérature qui
-> soutiendrait une « amélioration de la performance » est quasi inexistante, alors que l'usage,
-> lui, est documenté et mélangé à l'alcool et aux drogues récréatives. Structure : le mécanisme
-> (NO/GMPc, spécificité PDE5 et ce que les autres PDE expliquent des effets indésirables — PDE6 et
-> les troubles visuels, PDE11 et le tadalafil) ; **mesurer une fonction sexuelle** — l'IIEF et son
-> domaine érectile, les questions SEP, ce qu'un score de 7 à 10 points veut dire pour un patient, et
-> pourquoi les taux de « réponse » ne se comparent pas d'un essai à l'autre ; molécule par molécule
-> et dose par dose, avec les demi-vies et le quotidien contre l'à la demande ; **restaurer ou
-> augmenter** : ce qui a été mesuré chez l'homme sans dysfonction, et la prévalence déclarée de
-> l'usage récréatif contre la prévalence mesurée (reprendre la méthode du 39e run sur l'écart
-> déclaré/mesuré) ; l'écart entre performance ressentie et performance mesurée, s'il existe une
-> littérature qui le teste ici ; sécurité — nitrates et contre-indication absolue, hypotension,
-> priapisme, NAION et surdité brusque, interactions (alpha-bloquants, inhibiteurs du CYP3A4) ;
-> **le régulateur** : AMM, mentions obligatoires, passage en vente libre au Royaume-Uni et ce que
-> cette décision a exigé comme dossier ; et **une seule** section sur le rayon gris : compléments
-> « naturels » adultérés au sildénafil, contrefaçons, plateformes de télémédecine — sans re-dérouler
-> le patron d'adultération déjà écrit ailleurs. Délimitations strictes : ne PAS retraiter l'axe
-> androgénique ni l'hypogonadisme tardif (`testosterone-homme-age` tient l'EMAS, les Testosterone
-> Trials, T4DM, TRAVERSE et l'avis FDA du 20 avril 2026 sur le désir — le renvoi se fait par une
-> phrase d'intro sans slug, `portal.py` interdisant l'arête inter-domaines) ; ne PAS refaire le
-> verdict de rayon des compléments (`complements-amincissants`) ni le dossier du marché gris des
-> peptides (`peptides-gris`) ; ne PAS traiter la fonction sexuelle féminine ni les troubles du
-> désir, qui sont un autre sujet et un autre corpus. S'attendre à un profil de rejets FAIBLE pour
-> un thème santé — la littérature est ancienne, industrielle et répliquée — sauf sur deux points où
-> il faut au contraire s'attendre au pire : les chiffres d'usage récréatif (enquêtes déclaratives,
-> petits échantillons, populations non représentatives) et les allégations sportives. Public :
-> lecteur exigeant non spécialiste. Doctrine de preuve santé (`docs/evidence-sante.md`) à recopier
-> intégralement dans le brief. Domaine : fonction-sexuelle (à créer par ce thème).
+1. **`normUrl` écrasait trois notices FDA en une seule source** — il supprimait la query string, or
+   DailyMed adresse chaque étiquetage par `?setid=`. Sildénafil, tadalafil et vardénafil — trois
+   médicaments — ne valaient qu'UNE source. Le seuil ≥2 devenait inatteignable sur les énoncés qui
+   COMPARENT des étiquetages, c'est-à-dire exactement la section « Sécurité, doses, interactions »,
+   obligatoire en santé. Le même défaut a **re-cassé la réparation manuelle à l'assemblage**.
+   → Corrigé dans les **3** workflows + test de frontière `test_source_identity_query_string.mjs`.
+2. **Le loader de reprise perdait une section par resume, en silence** — 2 reprises, 2 sections
+   ré-auditées et leurs corrections manuelles écrasées. → Atténué (retry + log bruyant).
+
+**Quatre erreurs de fond trouvées en re-vérifiant, aucune vue par les jurés** : l'IIEF est publié
+dans *Urology* 1997;49:822-830 (et non *Int J Impot Res*) ; sa publication d'origine annonce
+**10 langues**, pas 32 ; le domaine érectile se note **sur 30** et non « de 6 à 30 » (Q15 n'offre
+pas de zéro) ; et le repère « 572 produits / 41,6 % » **que ce backlog transmettait** est de Justa
+Neves & Caldas 2015 — daté. L'analyse complète (Tucker et al., *JAMA Netw Open* 2018) donne
+**776 produits dont 45,5 % de sexuels, PREMIÈRE catégorie devant l'amincissement (40,9 %)**.
+**Le pipeline a donc corrigé une erreur de son propre brief**, via un claim `contestable` — c'est
+la meilleure justification observée pour la consigne « inclure au moins un claim contestable ».
+
+**Fausse indépendance évitée de justesse** : Tucker et al. 2018 et l'enquête de Sacramento 2023 sont
+l'œuvre de la **même équipe** (Food and Drug Branch, California Department of Public Health). Sans
+la vérification, le document présentait deux confirmations indépendantes là où il n'y a qu'une
+équipe. Ni le council ni le premier passage manuel ne l'avaient vu : c'est sorti en ouvrant la liste
+d'auteurs. **Réflexe à garder : sur deux sources qui se corroborent trop bien, lire les auteurs.**
+
+Le seul rejet subsistant est un VRAI rejet : le sildénafil seul n'améliore pas significativement
+l'IIEF-5 dans la dysfonction psychogène (p = 0,06) — la prose le réfute au lieu de l'affirmer.
+
+**Angle résiduel** : `complements-amincissants` cite déjà Tucker pour ses 40,9 % d'amincissants sans
+instruire le versant sexuel. Les deux moitiés du même tableau vivent désormais dans deux documents
+qui ne se renvoient pas l'un à l'autre — une arête à considérer si les deux domaines se rejoignent.)
