@@ -869,7 +869,7 @@ décisions :
 | ~~3~~ | ~~`nootropiques-vegetaux`~~ | FAIT 2026-08-26 | `performance-cognitive` (**portail ouvert**) |
 | ~~4~~ | ~~`inhibiteurs-pde5`~~ | FAIT 2026-08-27 | `fonction-sexuelle` (**domaine créé, portail EN ATTENTE**) |
 | 5 | `ejaculation-precoce` | **haute (tête de file)** | `fonction-sexuelle` — **referme le chantier ouvert au 43e run** |
-| 6 | `cafeine-cognition-vigilance` | haute | `performance-cognitive` |
+| ~~6~~ | ~~`cafeine-cognition-vigilance`~~ | FAIT 2026-08-27 | `performance-cognitive` (3e thème du domaine) |
 | 7 | `omega-3` | moyenne-haute | `complements-sante` |
 | 8 | `acide-alpha-lipoique` | moyenne-haute | `complements-sante` |
 | 9 | `beta-alanine-tampons` | moyenne | `nutrition-sportive` |
@@ -1347,12 +1347,60 @@ répliqués par une équipe tierce — juger le run à la **nature** de ses reje
 > lecture d'une méta-analyse (I², analyse de sensibilité) ; `collagene` donne le patron de la
 > littérature mono-source. Domaine : performance-cognitive.
 
-- **cafeine-cognition-vigilance** (moyenne) — le rehausseur cognitif le plus consommé au monde,
-  et `cafeine-ergogene` ne le traite PAS (0 occurrence de « cognition »/« cognitif » dans ses
-  12 sections). Vigilance, dette de sommeil, sevrage et effet de restauration (le buveur régulier
-  retrouve-t-il seulement sa ligne de base ?), caféine + L-théanine, siestes caféinées.
-  ⚠️ **Ne lancer qu'avec la frontière écrite d'avance dans le brief** : pharmacocinétique, CYP1A2,
-  habituation et sécurité sont déjà rédigés chez le voisin ergogène.
+(`cafeine-cognition-vigilance` : **FAIT le 2026-08-27**, retiré du backlog — 44e run
+/leanmonograph, 16e thème santé, 3e de `performance-cognitive`. 15/15 sections (plan à 15,
+plafond 16, aucune troncature), 60 claims **31✓ / 21 corrigés / 8 rejetés**, 104 sources,
+2 widgets + 2 exercices, tableau de verdicts à **21 lignes**, ~14 000 mots. Contraste 0 violation
+en clair ET en sombre. Coût **10,26M tok / 133 agents / 2 lancements / ~3 h 45** — dans la
+fourchette annoncée (8-11M). ✅ **La consigne de frontière a tenu** : le voisin ergogène n'est
+jamais redéroulé, et son acquis métrologique (seuil « gros consommateur » de 190 à 600 mg/j, aucune
+méthode validée) est réutilisé comme OUTIL de lecture, ce que le brief autorisait explicitement.
+
+**2e déclenchement du garde-fou d'élagage du corpus, et le plus instructif.** Il a arrêté le run
+avant la prose : trois claims tenus par TOUS leurs jurés allaient faire tomber « Ligne de base
+effondrée », la moitié du fil rouge où l'effet est réel. Diagnostic réel — **pas celui qu'annonce
+le message d'erreur** : les deux jurés avaient confirmé mot pour mot, chiffre par chiffre, en
+citant **la même** source. Les claims étaient rédigés comme des paraphrases de papier
+(« une méta-analyse trouve X »), donc **mono-sources par construction**. Reformulés pour porter le
+FAIT et non le contenu d'un papier, chacun tient sur deux travaux sans aucun lien — Wang et al.
+2026 (Harbin Institute of Information Technology) et Irwin et al. 2020 (Griffith University).
+→ **Réflexe nouveau** : sur un rejet « seuil de sources » à 0 réfutation, regarder d'abord si
+l'énoncé PARLE D'UN PAPIER au lieu de dire un fait — la réparation est éditoriale, pas
+bibliographique, et ne contourne pas le seuil.
+
+**Classe d'échec NOUVELLE — le claim qui se rejette lui-même.** Un claim dont le CONTENU est une
+mise en garde d'indépendance (« ces deux essais partagent deux auteurs, donc une seule lignée de
+preuve ») est condamné par sa propre honnêteté : les jurés, cohérents avec l'énoncé, refusent de
+compter comme indépendantes deux sources que le claim déclare liées — d'où `corroborated: 2,
+refuted: 0, sources: 0` et rejet au seuil. Ré-adjugé en `corrected` après contrôle en primaire
+(Alsene 2003 / Childs 2008, Neuropsychopharmacology, université de Chicago, Deckert et de Wit
+communs) : le seuil ≥ 2 protège contre l'affirmation d'un fait empirique non corroboré, or cet
+énoncé n'affirme pas l'effet, il affirme l'ÉTAT DE LA LITTÉRATURE. → [[claim-mise-en-garde-se-rejette]]
+
+**Quatre erreurs de fond trouvées en re-vérifiant, aucune vue par les jurés** :
+1. une **NOTE de section** attribuait l'essai de 48 h à « Kamimori/Hansen » — **Kamimori n'en est
+   pas auteur** (Hansen, Van Dongen et al., Washington State University / DoD BHSAI). L'auteur de
+   prose écrit PAR LES NOTES : ré-adjuger un claim n'aurait rien réparé ;
+2. **Irwin et al. 2020 publie « response time g=0,86 ; 95 % CI: 0,53-0,83 »** — la valeur ponctuelle
+   est HORS de son propre intervalle (coquille de l'article). Chiffre écarté, et le document le dit ;
+3. « Irwin et al. **2019** » en bibliographie contre 2020 en prose — corrigé après build, rebuild ;
+4. l'Audit-prose a trouvé un « 2025 » pour 2024 (essai Gardiner/Halson) **invisible au lint** parce
+   que 2025 existait déjà ailleurs dans `knowledge.json` — nouvelle occurrence de l'angle mort par
+   collision numérique.
+
+**Le rejet maintenu l'a été à raison** : l'essai de terrain de 55 h (McLellan & Kamimori) n'a pour
+corroboration apparente que PMID 16018347, **de la même équipe (4 co-auteurs communs)**. La prose
+l'écrit : « le résultat s'écrit, il ne se compte pas. » Le piège n°3 du brief — « sur deux sources
+qui se corroborent trop bien, lire les auteurs » — s'est matérialisé DEUX fois en sens inverses :
+pour rejeter à raison, et pour lever une fausse dépendance inventée par une note.
+
+**Ce qui a bien tourné** : l'Audit-prose a tourné AVEC son moteur (24 chiffres vérifiés, `fixed=1`),
+les critics ont écarté une figure introduisant un chiffre non sourcé et fait corriger un débordement
+mobile, **zéro renvoi cassé** malgré deux voisins non publiés, et le `resume` n'a écrasé aucune des
+ré-adjudications manuelles (jetons de traçabilité retrouvés intacts dans `knowledge.json`).
+
+**Angle résiduel** : 4 statements sur 60 sont restés en anglais dans `knowledge.json` — sans effet
+sur la prose, française de bout en bout, mais irrégulier au regard du reste du corpus.)
 - **microdosage-psychedeliques** (moyenne) — littérature RCT désormais réelle et majoritairement
   négative une fois l'insu tenu (essais auto-aveuglés à grande échelle) : l'écart promesse/preuve
   est énorme et le sujet très demandé. Exige la doctrine santé au pied de la lettre.
