@@ -174,8 +174,15 @@ const docKeys = s => {
   const arx = (u.match(/arxiv\.org\/(?:abs|html|pdf)\/(\d{4}\.\d{4,5})/) ||
                t.match(/arxiv:\s*(\d{4}\.\d{4,5})/) || [])[1];
   if (arx) keys.push('arxiv:' + arx);
-  const doi = (u.match(/doi\.org\/(10\.[^\s/]+\/[^\s]+)/) || [])[1];
-  if (doi) keys.push('doi:' + doi);
+  // Le DOI identifie le document où qu'il apparaisse dans l'URL, pas seulement derrière
+  // doi.org : les éditeurs le posent dans LEUR propre chemin, précédé d'un segment de rendu
+  // qui varie pour un même article (« /doi/pdf/10.1177/… » et « /doi/10.1177/… » chez SAGE,
+  // « /doi/full/ », « /doi/epub/ » ailleurs). Sans cette clé, les deux formes ne partagent
+  // aucune clé et le MÊME article compte pour DEUX sources indépendantes — bug du 45e run
+  // (microdosage-psychedeliques, claim:41). L'extension finale est retirée : « …204.pdf » et
+  // « …204 » sont le même DOI.
+  const doi = (u.match(/(10\.\d{4,9}\/[^\s?&#]+)/) || [])[1];
+  if (doi) keys.push('doi:' + doi.replace(/\.(pdf|epub|full|html?|xml)$/, ''));
   // titre dépouillé de son suffixe d'édition : « … — NeurIPS 2023 PDF », « … (blog HF) »
   const base = t.split(/\s+[—–-]\s+|\s*\(/)[0].replace(/[^a-z0-9]+/g, '');
   if (base.length >= 12) keys.push('title:' + base);
