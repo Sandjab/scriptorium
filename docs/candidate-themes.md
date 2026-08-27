@@ -1223,7 +1223,11 @@ correspondait pas.
 
 ---
 
-## `performance-cognitive` — domaine À CRÉER (proposé le 2026-08-15)
+## `performance-cognitive` — domaine CRÉÉ le 2026-08-15, portail ouvert le 2026-08-26
+
+*(Ce qui suit est la PROPOSITION du 2026-08-15, conservée pour son raisonnement. Le domaine existe
+depuis le 39e run ; son portail, ouvert par `nootropiques-vegetaux` au 42e, a mis trois runs à
+venir. Les candidats non barrés plus bas restent d'actualité.)*
 
 **Verdict : le plus gros trou du méta-domaine santé.** Trois arguments convergents : (1) le label
 du méta-domaine promet déjà « Santé, nutrition & **performance humaine** », or la performance y est
@@ -1472,7 +1476,11 @@ ailleurs » ou « couverture à venir »**.
 
 ---
 
-## `muscle-vieillissement` — domaine À CRÉER (proposé le 2026-08-18)
+## `muscle-vieillissement` — domaine CRÉÉ le 2026-08-18, portail ouvert le 2026-08-19
+
+*(Ce qui suit est la PROPOSITION du 2026-08-18, conservée pour son raisonnement. Le plan « deux
+thèmes qui créent le domaine ET son portail » a été tenu en deux runs consécutifs — le seul cas du
+corpus où un domaine naît complet. `graisse-viscerale-homme-age` reste à confirmer.)*
 
 **Verdict : gap réel et large, à couvrir en DEUX thèmes qui créent le domaine et son portail.**
 Couverture nulle vérifiée par lecture intégrale de 8 monographies (cf. passe du 2026-08-18) : les
