@@ -873,8 +873,8 @@ décisions :
 | 7 | `omega-3` | moyenne-haute | `complements-sante` |
 | 8 | `acide-alpha-lipoique` | moyenne-haute | `complements-sante` |
 | 9 | `beta-alanine-tampons` | moyenne | `nutrition-sportive` |
-| 10 | `microdosage-psychedeliques` | moyenne | `performance-cognitive` |
-| 11 | `nootropiques-panorama` | moyenne | `performance-cognitive` (**capstone : à lancer après les nos 3, 6 et 10**) |
+| ~~10~~ | ~~`microdosage-psychedeliques`~~ | FAIT 2026-08-27 | `performance-cognitive` (4e thème du domaine) |
+| 11 | `nootropiques-panorama` | **moyenne — DÉBLOQUÉ le 2026-08-27** | `performance-cognitive` (**capstone : ses trois prérequis — nos 3, 6 et 10 — sont désormais TOUS publiés**) |
 | 12 | `magnesium`, `hydratation-electrolytes` | basses | — |
 
 **Arbitrage assumé** : les deux thèmes muscle passent devant `nootropiques-vegetaux`, qui était en
@@ -1401,9 +1401,54 @@ ré-adjudications manuelles (jetons de traçabilité retrouvés intacts dans `kn
 
 **Angle résiduel** : 4 statements sur 60 sont restés en anglais dans `knowledge.json` — sans effet
 sur la prose, française de bout en bout, mais irrégulier au regard du reste du corpus.)
-- **microdosage-psychedeliques** (moyenne) — littérature RCT désormais réelle et majoritairement
-  négative une fois l'insu tenu (essais auto-aveuglés à grande échelle) : l'écart promesse/preuve
-  est énorme et le sujet très demandé. Exige la doctrine santé au pied de la lettre.
+(`microdosage-psychedeliques` : **FAIT le 2026-08-27**, retiré du backlog — 45e run /leanmonograph,
+17e thème santé, **4e thème de `performance-cognitive`**. 15/15 sections retenues (plan à 15, aucune
+troncature), 58 claims **20 ✓ / 19 corrigés / 19 rejetés** (39 retenus), 70 sources, 3 widgets,
+~14 000 mots, contraste 0 violation en clair ET en sombre. Coût **10,14 M tok / 136 agents /
+2 lancements / ~4 h 35** — au-dessus de la fourchette annoncée (7-10 M), le ré-audit et la reprise
+l'expliquent entièrement.
+
+**3e déclenchement du garde-fou d'élagage — et la première fois que sa réparation prescrite est la
+MAUVAISE.** Il signalait 5 rejets décisifs menaçant 3 sections, dont « Sécurité, doses,
+interactions », obligatoire en santé. Sa consigne — « ré-audit ciblé pour chercher la 2e source
+indépendante » — était ici inapplicable : ces énoncés portent le grain statistique fin d'un essai
+unique (`t(26)=2,56, p=,017` ; `111,5 vs 105,35 mmHg`), que **seule la primaire peut porter**. Les
+revues tierces confirment ces résultats, mais qualitativement — aucune ne reprend ce niveau de
+détail. La 2e source n'existait pas et n'existera pas : les rejets étaient JUSTES.
+**La bonne réparation n'était pas de sauver les claims mais de déplacer l'énoncé au grain que
+plusieurs travaux portent réellement** — 3 claims de SYNTHÈSE écrits et vérifiés à la main, chacun
+corroboré par des équipes distinctes vérifiées auteur par auteur, et le document y a gagné : la
+thèse de la rupture d'insu ne repose plus sur un essai mais sur le recensement d'un champ entier.
+Les chiffres rejetés restent en prose, attribués et assortis de leur réserve — traitement correct.
+
+⚠️ **À retenir pour tout sujet à littérature JEUNE** (19 rejets sur 58 ici) : le seuil « ≥ 2 sources »
+et la règle santé « dose et taille d'effet obligatoires dans le statement » sont en tension frontale.
+Plus l'énoncé est précis, moins il est corroborable. Prévoir dès le brief que les claims porteurs
+seront des SYNTHÈSES, et les chiffres d'essai, de la prose réservée.
+
+**Six défauts trouvés au backstop, APRÈS `build.success: true`, aucun vu par les jurés ni par le
+lint** — dont le plus grave rencontré à ce jour sur le corpus :
+1. **`claim:28`, retenu et portant un résultat CENTRAL du fil rouge, reposait sur trois sources de
+   RANG NUL** : presse de vulgarisation, organisation de promotion du microdosage, et **un vendeur de
+   retraites psychédéliques**. Contenu exact, **appareil de preuve faux** — invisible à la lecture,
+   indéfendable si un lecteur ouvre les liens. → [[corrected-claims-escape-source-check]] : le
+   contrôle `all_confirmed_have_2plus_sources` ne regarde QUE les `confirmed` ; les 19 `corrected`,
+   retenus comme les autres, n'ont **aucun** contrôle de sources en code.
+2. `claim:11` : une annonce d'événement comme 2e source → requalifié `document-source`.
+3. **Yanakieva daté 2018 en prose, 2019 en bibliographie** (Psychopharmacology vol. 236, 2019).
+4. **« Cette même revue de 2024 »** deux phrases après l'avoir datée 2026 — collision numérique.
+5. **`src:43`/`src:44` = le même article** sous `/doi/pdf/` et `/doi/` : nouvelle variante du bug
+   `normUrl` du 43e run, la normalisation ignore le segment `/pdf/`. **Correctif de code non
+   appliqué à ce jour — à faire.**
+6. **Trois réserves FAUSSES par excès de prudence** (erreur du 42e run) : une revue systématique et
+   un protocole d'essai publié présentés comme « non corroborés » → « source unique par nature ».
+
+**Deux fausses indépendances évitées** en lisant les listes d'auteurs (réflexe du 43e run) :
+Szigeti et al. 2023 (*Scientific Reports*), candidat évident comme 2e source, est de la MÊME équipe
+d'Imperial College que l'essai eLife 2021 ; et Family et al. 2020 / Yanakieva et al. 2019 analysent
+la MÊME cohorte de 48 volontaires âgés. `audit-report.json` régénéré en déterministe après
+dépassement des 64k tokens de sortie — **5e occurrence**.)
+
 - **neurostimulation-tdcs** (basse) — vrai gap, excellent matériau de crise de réplication, mais
   c'est un dispositif et non un produit de rayon : moins homogène avec le méta-domaine.
 
@@ -1436,6 +1481,11 @@ tyrosine, vasopressine, fluorénol, tolcapone : 0 occurrence).
    attributions à vérifier (run le plus cher du corpus, classe d'erreur « fausse indépendance par
    scission de source »). Tenir le budget par un quota strict : les substances sans donnée humaine
    se traitent en UNE LIGNE du tableau de verdicts, jamais en section.
+
+✅ **PRÉREQUIS LEVÉS LE 2026-08-27** : les trois voisins attendus — `nootropiques-vegetaux`,
+`cafeine-cognition-vigilance`, `microdosage-psychedeliques` — sont désormais TOUS publiés, ainsi que
+`nootropiques-stimulants-prescrits`. Le domaine est complet : ce capstone peut être lancé, et ses
+renvois auront tous une cible réelle. La consigne d'origine, conservée pour sa raison :
 
 ⚠️ **À lancer en DERNIER des candidats `performance-cognitive`** (après `nootropiques-vegetaux`,
 `cafeine-cognition-vigilance`, `microdosage-psychedeliques`) : ce document rappelle les verdicts
