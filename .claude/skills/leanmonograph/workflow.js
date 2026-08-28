@@ -592,9 +592,27 @@ const buildPrompt = (expectIds) => [
     `   Si l'échec est « sections du manifeste ≠ sections attendues » : réinsère la/les section(s) manquante(s) dans manifest.json à leur place dans l'ordre du plan, en recopiant {"type":"section","id","heading","level":3,"prose","claims"} depuis ${themeDir}/sections_draft.json (écrit par CE run), puis relance. Ne retire JAMAIS le flag --expect-sections pour faire passer le build.`,
   ] : []),
   `2) Exécute : python3 "${lintScript}" "${themeDir}"`,
+  `   Traite aussi "low_rank_sources" : le lint y liste les claims RETENUS dont l'appareil de preuve`,
+  `   repose sur des sources sans valeur probante (encyclopédie collaborative, marchand, blog, dépôt social,`,
+  `   reprise de presse). Pour chaque entrée "blocking": true — un claim CONFIRMÉ sans deux sources de rang`,
+  `   réel et sans exception document-source déclarée — CORRIGE l'appareil : trouve deux vraies sources et`,
+  `   remplace-les dans knowledge.json, ou invoque l'exception document-source sur le document OFFICIEL en la`,
+  `   déclarant dans l'audit_note. Ne déclasse JAMAIS le claim en "corrected" pour faire passer le lint, et`,
+  `   ne retire jamais le contrôle. Les entrées "blocking": false sont à LIRE : un claim méthodologique ou`,
+  `   un claim d'absence peut légitimement citer ces sources — vérifier que l'énoncé ne REPOSE pas sur elles.`,
   `   (exit 0 = propre, exit 2 = flags à adjuger, jamais bloquant en soi). Pour CHAQUE entrée de "rejected_flags" avec hedged=false : lis le contexte ; si le passage AFFIRME le contenu d'un claim rejeté comme un fait, corrige ${themeDir}/manifest.json (retrait, ou réserve explicite « source unique, non corroborée par une source indépendante ») puis relance build.py ET lint.py (une seule passe de réparation) ; si le passage CRITIQUE/RÉFUTE ce contenu, ou n'est qu'une entrée bibliographique, laisse-le (adjugé OK).`,
   `3) Lis ${themeDir}/knowledge.json et vérifie l'acceptation :`,
   `   - chaque claim "audit":"confirmed" a AU MOINS 2 entrées dans "sources" → all_confirmed_have_2plus_sources ;`,
+  `   - et ces entrées VALENT comme preuve : compter le RANG, pas seulement le NOMBRE. Ne comptent PAS`,
+  `     une encyclopédie collaborative (Wikipédia, Wiktionary), un site marchand ou de marque, un blog, un`,
+  `     dépôt social (ResearchGate, Academia), un forum, une reprise de presse ni un fil de communiqués`,
+  `     (PR Newswire, Business Wire) — deux sources de rang nul ne confirment rien, même indépendantes.`,
+  `     Un communiqué publié PAR l'autorité qui l'émet (fda.gov, ftc.gov, ANSM, HAS) est en revanche le`,
+  `     document officiel, donc recevable. Tout claim confirmé qui n'a pas 2 sources recevables est un`,
+  `     DÉFAUT à signaler dans errors[] (avec son id) : le re-sourcer, ou — si l'énoncé décrit le contenu`,
+  `     d'un document de référence — invoquer l'exception document-source sur le document OFFICIEL et non`,
+  `     sur un miroir de presse, en la DÉCLARANT dans son audit_note. Ne jamais déclasser un claim en`,
+  `     "corrected" pour faire passer ce contrôle.`,
   `   - quelles catégories d'audit sont présentes parmi confirmed/corrected/rejected → audit_categories_present ;`,
   `   - confirmed_claims = nombre de claims confirmés.`,
   `Rends : success (build OK et acceptation OK), files (fichiers de dist/), build_output (sortie de build.py), lint_flags (nb de flags non hedgés au 1er lint), lint_fixed (nb corrigés), lint_note (adjudications, 1 ligne), acceptance{…}, errors[] (vide si tout va bien).`,
@@ -853,9 +871,20 @@ const sources = [];
 function ensureSrc(s) {
   const k = normUrl(s.url);
   if (!k) return null;
+  // Identité de DOCUMENT, pas d'URL. `collectSources` tranche déjà le seuil ≥2 par `docKeys` ;
+  // ici, indexer par la seule URL faisait entrer le MÊME travail deux fois dans la liste des
+  // sources, donc deux fois en bibliographie — Jędrejko et al. 2023 sous `doi.org/…` et sous
+  // `…wiley.com/doi/abs/…` au 46e run. Le seuil n'était pas en danger, mais le lecteur qui
+  // compte les sources d'un document de référence en lisait deux là où il n'y en a qu'une.
+  // Fusion volontairement ÉTROITE — identifiant fort (doi:, arxiv:) UNIQUEMENT, jamais le
+  // titre : à cet endroit, sur-fusionner ne ferait pas rejeter un claim, cela ferait
+  // DISPARAÎTRE une source réelle de la bibliographie, en silence.
+  const strong = docKeys(s).filter(x => x.startsWith('doi:') || x.startsWith('arxiv:'));
+  for (const x of strong) if (srcId.has(x)) { const id = srcId.get(x); srcId.set(k, id); return id; }
   if (!srcId.has(k)) {
     const id = 'src:' + (sources.length + 1);
     srcId.set(k, id);
+    strong.forEach(x => srcId.set(x, id));
     sources.push({ id, title: s.title || s.url, url: s.url, kind: s.kind || 'reference' });
   }
   return srcId.get(k);

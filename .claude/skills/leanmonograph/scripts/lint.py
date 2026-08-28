@@ -24,10 +24,20 @@ Vérifications :
      prose française (« universal solver » vs « agent universel ») : le mécanisme
      rejected_flags est aveugle pour eux — l'agent doit adjuger MANUELLEMENT la
      présence du contenu dans la prose (cas world-models claim:12, 4e trou).
+  4. low_rank_sources : claims RETENUS dont l'appareil de preuve repose sur des
+     sources de rang nul (presse, encyclopédie collaborative, dépôt social, blog,
+     vendeur). Le contrôle d'acceptation du build COMPTE les sources sans jamais
+     juger ce qu'elles valent : il valide « 2 sources » sans voir que l'une est un
+     marchand de compléments. C'est ce trou qui a laissé passer, au 45e run, un
+     claim retenu porté par trois sites de rang nul dont un vendeur de retraites,
+     et au 46e run deux entrées `nootroo.com` (un vendeur de nootropiques) citées
+     en bibliographie sur l'histoire d'un terme, plus l'exception `document-source`
+     invoquée sur un miroir PR Newswire au lieu du document officiel.
 
-Sortie : JSON sur stdout. Exit 2 s'il existe ≥1 rejected_flag non hedgé OU ≥1
-foreign_statement (les deux exigent une adjudication), 0 sinon, 1 sur erreur
-d'usage/fichier.
+Sortie : JSON sur stdout. Exit 2 s'il existe ≥1 rejected_flag non hedgé, ≥1
+foreign_statement, OU ≥1 claim CONFIRMÉ sans deux sources de rang réel et sans
+exception document-source déclarée (tous exigent une adjudication), 0 sinon,
+1 sur erreur d'usage/fichier.
 """
 import json
 import pathlib
@@ -37,6 +47,69 @@ import sys
 HEDGE_RE = re.compile(
     r"(source unique|auto-rapport|non corrobor|non reproduit|non v[ée]rifi"
     r"|sans source ind[ée]pendante|chiffre[s]? non corrobor)", re.I)
+
+# ── Rang des sources (check 4) ────────────────────────────────────────────────────────────
+# Le CODE ne classe QUE ce qui est indiscutablement sans valeur probante par nature : il ne
+# tente pas de juger la qualité d'une revue ou d'un éditeur, qui reste au modèle. Une entrée
+# signalée ici n'est pas nécessairement fautive — un claim méthodologique peut légitimement
+# citer la presse qu'il décrit, un claim d'absence peut s'appuyer sur une recherche déclarée.
+# D'où la règle : on SIGNALE tout, on ne BLOQUE que le cas dur (un `confirmed` sans deux
+# sources de rang réel, hors exception document-source déclarée).
+#
+# Volontairement ABSENT de cette liste : examine.com, que la doctrine santé classe en rang
+# MOYEN (agrégateur sérieux mais secondaire) et non nul — cf. docs/evidence-sante.md.
+LOW_RANK_HOSTS = (
+    # encyclopédies collaboratives et bases tertiaires
+    "wikipedia.org", "wiktionary.org", "wikiwand.com", "wikidata.org", "drugs.com",
+    # presse générale, presse spécialisée grand public, agrégateurs d'actualité
+    "healio.com", "statnews.com", "medscape.com", "neurosciencenews.com", "sciencedaily.com",
+    "nutraingredients.com", "webmd.com", "healthline.com", "doctissimo.fr", "futura-sciences.com",
+    "health.harvard.edu", "sciencealert.com", "theconversation.com",
+    # fils de communiqués : republient un texte officiel sans être le document officiel
+    "prnewswire.com", "businesswire.com", "eurekalert.org", "globenewswire.com",
+    # dépôts sociaux et hébergeurs : une copie d'article n'est pas sa source citable
+    "researchgate.net", "academia.edu", "scribd.com", "slideshare.net",
+    # blogs et plateformes d'écriture personnelle
+    "medium.com", "substack.com", "wordpress.com", "blogspot.", "gwern.net",
+    # forums
+    "reddit.com", "quora.com", "stackexchange.com",
+)
+# Marchands : reconnus sur le NOM DE DOMAINE seul (jamais le chemin — « /shop/ » sur un site
+# d'agence n'en fait pas un vendeur). C'est la classe qui a produit les deux défauts les plus
+# graves du corpus : un appareil de preuve exact dans son contenu, faux dans ses sources.
+VENDOR_HINTS = ("nootro", "supplement", "vitamin", "sarms", "peptide", "biohack",
+                "bodybuilding", "myprotein", "iherb", "vitacost", ".shop", ".store")
+# Communiqué reconnu au chemin — MAIS un communiqué d'AGENCE publié sur le site de l'agence
+# EST le document officiel (avis FDA, action conjointe FTC, point presse de l'ANSM) : il est
+# recevable, et c'est même la forme sous laquelle beaucoup de décisions réglementaires
+# existent. La distinction n'est donc pas « communiqué ou non » mais QUI le publie : sur le
+# site de l'autorité, c'est la source ; ailleurs, c'est une reprise.
+PRESS_PATH_RE = re.compile(r"/(pressroom|press-room|press-release|news-release|newsroom|"
+                           r"press-announcements|communique)", re.I)
+OFFICIAL_HOST_RE = re.compile(
+    r"(\.gov$|\.gov\.[a-z]{2}$|\.gouv\.fr$|\.europa\.eu$|\.int$|\.canada\.ca$|\.admin\.ch$"
+    r"|sante\.fr$|\.who\.int$|\.nih\.gov$|cochrane\.org$)", re.I)
+# L'exception document-source doit être DÉCLARÉE dans l'audit_note (cf. decideAudit et les
+# trois workflows) : sans déclaration, un confirmed mono-source reste un défaut.
+DOC_SOURCE_RE = re.compile(r"(document.source|source unique par nature|par nature)", re.I)
+
+
+def source_rank(url):
+    """Retourne None si la source est recevable comme preuve, sinon la raison du rang nul."""
+    u = (url or "").strip().lower()
+    if not u:
+        return "sans url"
+    host = re.sub(r"^https?://", "", u).split("/")[0]
+    official = bool(OFFICIAL_HOST_RE.search(host))
+    for h in LOW_RANK_HOSTS:
+        if h in host:
+            return f"rang nul : {h}"
+    for v in VENDOR_HINTS:
+        if v in host:
+            return f"marchand probable : {host}"
+    if PRESS_PATH_RE.search(u) and not official:
+        return "communiqué de presse (hors site de l'autorité qui l'émet)"
+    return None
 
 # Clés JSON dont la valeur n'est pas du texte visible (identifiants, liens, ancrages).
 NON_TEXT_KEYS = {"url", "href", "id", "ref", "slug", "kind", "type", "angle_key",
@@ -252,6 +325,40 @@ def main():
             novel.append({"value": m.group(0), "file": fname, "path": path,
                           "context": text[max(0, i - 100):i + 120].strip()})
 
+    # 4. Rang des sources des claims RETENUS. Le seuil ≥2 est tenu en amont par le code du
+    # workflow ; ce qu'aucun contrôle ne regardait, c'est ce que VALENT ces sources.
+    by_id = {s.get("id"): s for s in kb.get("sources", [])}
+    low_rank = []
+    for c in kept:
+        flagged, strong = [], 0
+        for sid in c.get("sources", []):
+            src = by_id.get(sid, {})
+            reason = source_rank(src.get("url"))
+            if reason:
+                flagged.append({"id": sid, "url": src.get("url", ""), "reason": reason})
+            else:
+                strong += 1
+        if not flagged or strong >= 2:
+            continue
+        declared = bool(DOC_SOURCE_RE.search(c.get("audit_note", "") or ""))
+        low_rank.append({
+            "claim": c.get("id"),
+            "audit": c.get("audit"),
+            "sources_of_real_rank": strong,
+            "document_source_declared": declared,
+            # Ne bloque que la garantie DURE du projet : un fait `confirmed` s'appuie sur
+            # ≥2 sources indépendantes — et une source de rang nul n'en est pas une.
+            "blocking": c.get("audit") == "confirmed" and not declared,
+            "flagged_sources": flagged,
+            "statement": (c.get("statement", "") or "")[:180],
+            "adjudication": "un claim CORRIGÉ, un claim d'absence ou un claim méthodologique "
+                            "peut légitimement citer ces sources — vérifier que l'énoncé ne "
+                            "REPOSE pas sur elles ; un claim CONFIRMÉ doit être re-sourcé, ou "
+                            "déclarer l'exception document-source sur le document OFFICIEL "
+                            "(jamais sur un miroir de presse)",
+        })
+    blocking = [f for f in low_rank if f["blocking"]]
+
     unhedged = [f for f in rejected_flags if not f["hedged"]]
     print(json.dumps({
         "mode": "pre" if pre else "post",
@@ -259,8 +366,10 @@ def main():
         "unhedged_count": len(unhedged),
         "foreign_statements": foreign,
         "novel_numbers": novel,
+        "low_rank_sources": low_rank,
+        "low_rank_blocking": len(blocking),
     }, ensure_ascii=False, indent=1))
-    return 2 if (unhedged or foreign) else 0
+    return 2 if (unhedged or foreign or blocking) else 0
 
 
 if __name__ == "__main__":

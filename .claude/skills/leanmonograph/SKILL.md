@@ -104,6 +104,16 @@ Frontière code/jugement : le **code détecte**, le **modèle adjuge**.
   mots-outils, exit 2 comme les flags non hedgés) — leurs pivots textuels ne peuvent pas
   matcher une prose française (« universal solver » vs « agent universel »), le mécanisme
   `rejected_flags` est aveugle pour eux : l'agent adjuge en vérifiant MANUELLEMENT la prose.
+- `low_rank_sources` : claims **retenus** dont l'appareil de preuve repose sur des sources sans
+  valeur probante (encyclopédie collaborative, marchand, blog, dépôt social, forum, reprise de
+  presse ou fil de communiqués). Comble le trou du contrôle d'acceptation, qui **compte** les
+  sources d'un `confirmed` sans jamais juger ce qu'elles valent — il validait « 2 sources » sans
+  voir que l'une était un vendeur (45e et 46e runs). On signale largement, on ne **bloque**
+  (exit 2) que le cas dur : un claim `confirmed` sans deux sources de rang réel et sans exception
+  `document-source` **déclarée** dans son `audit_note`. Un communiqué publié par l'autorité qui
+  l'émet (`fda.gov`, `ftc.gov`, ANSM, HAS) **est** le document officiel, donc recevable ; la même
+  chose republiée ailleurs est une reprise. Bornes vérifiées par
+  `.claude/skills/monograph/scripts/test_lint_source_rank.py`.
 
 Testé sur le fixture réel `entity-linking-disambiguation` (5 rejets, hedges) : GREEN sur le
 thème corrigé, RED (exit 2) quand on retire un hedge.
