@@ -860,21 +860,21 @@ décisions :
    n'ayant qu'un protocole publié). Corrigé dans `manifest.json` puis rebuild — voir la note de
    réparation en fin de section `pharmacologie-metabolique`.
 
-**Ordre de lancement** — mis à jour le 2026-08-27 (les 4 premiers sont FAITS) :
+**Ordre de lancement** — mis à jour le 2026-08-29 (nos 1 à 6, 10 et 11 sont FAITS ; restent 7, 8, 9 et 12) :
 
 | # | thème | priorité | domaine |
 |---|---|---|---|
 | ~~1~~ | ~~`sarcopenie-exercice-nutrition`~~ | FAIT 2026-08-18 | `muscle-vieillissement` (domaine créé) |
 | ~~2~~ | ~~`testosterone-homme-age`~~ | FAIT 2026-08-19 | `muscle-vieillissement` (portail ouvert) |
 | ~~3~~ | ~~`nootropiques-vegetaux`~~ | FAIT 2026-08-26 | `performance-cognitive` (**portail ouvert**) |
-| ~~4~~ | ~~`inhibiteurs-pde5`~~ | FAIT 2026-08-27 | `fonction-sexuelle` (**domaine créé, portail EN ATTENTE**) |
-| 5 | `ejaculation-precoce` | **haute (tête de file)** | `fonction-sexuelle` — **referme le chantier ouvert au 43e run** |
+| ~~4~~ | ~~`inhibiteurs-pde5`~~ | FAIT 2026-08-27 | `fonction-sexuelle` (**domaine créé** ; portail ouvert au no 5) |
+| ~~5~~ | ~~`ejaculation-precoce`~~ | FAIT 2026-08-29 | `fonction-sexuelle` (**portail ouvert** — chantier du 43e run refermé) |
 | ~~6~~ | ~~`cafeine-cognition-vigilance`~~ | FAIT 2026-08-27 | `performance-cognitive` (3e thème du domaine) |
 | 7 | `omega-3` | moyenne-haute | `complements-sante` |
 | 8 | `acide-alpha-lipoique` | moyenne-haute | `complements-sante` |
 | 9 | `beta-alanine-tampons` | moyenne | `nutrition-sportive` |
 | ~~10~~ | ~~`microdosage-psychedeliques`~~ | FAIT 2026-08-27 | `performance-cognitive` (4e thème du domaine) |
-| 11 | `nootropiques-panorama` | **moyenne — DÉBLOQUÉ le 2026-08-27** | `performance-cognitive` (**capstone : ses trois prérequis — nos 3, 6 et 10 — sont désormais TOUS publiés**) |
+| ~~11~~ | ~~`nootropiques-panorama`~~ | FAIT 2026-08-28 | `performance-cognitive` (**capstone : REFERME le domaine à 5 thèmes**) |
 | 12 | `magnesium`, `hydratation-electrolytes` | basses | — |
 
 **Arbitrage assumé** : les deux thèmes muscle passent devant `nootropiques-vegetaux`, qui était en
@@ -885,11 +885,14 @@ backlog ait proposé (voir la section du domaine). `nootropiques-vegetaux` garde
 et reste le run le moins cher pour refermer le chantier `performance-cognitive` :
 **si le budget ne permet qu'un seul run, le lancer lui.**
 
-⚠️ **Priorité révisée le 2026-08-27** : `ejaculation-precoce` passe en tête. Le 43e run a créé
-`fonction-sexuelle` avec UN seul thème, donc **sans portail** — et l'histoire de
-`performance-cognitive`, ouvert au 39e run et refermé seulement au 42e, dit ce que coûte un
-chantier laissé ouvert. Le 2e thème d'un domaine neuf passe désormais avant la tête de file d'un
-domaine déjà complet.
+⚠️ **Priorité révisée le 2026-08-27, appliquée puis close le 2026-08-29.** `ejaculation-precoce`
+était passé en tête parce que le 43e run avait créé `fonction-sexuelle` avec UN seul thème, donc
+sans portail — et que l'histoire de `performance-cognitive`, ouvert au 39e run et refermé seulement
+au 42e, dit ce que coûte un chantier laissé ouvert. Le 47e run l'a fabriqué et a ouvert le portail :
+**la règle reste valable — le 2e thème d'un domaine neuf passe avant la tête de file d'un domaine
+déjà complet — mais elle n'a plus de candidat à qui s'appliquer.** Les 12 domaines ont leur portail
+à l'exception d'`ai-organizations` (1 seul thème, `ia-productivite-esn`), pour lequel ce backlog ne
+propose aucun candidat : l'y appliquer suppose d'abord d'en instruire un.
 
 ## `nutrition-sportive`
 
