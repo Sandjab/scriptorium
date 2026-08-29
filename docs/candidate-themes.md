@@ -1815,19 +1815,70 @@ cadre mal un homme de 55 ans qui veut perdre du ventre.
 
 ---
 
-## `fonction-sexuelle` — domaine CRÉÉ le 2026-08-27 (⚠️ portail EN ATTENTE)
+## `fonction-sexuelle` — domaine CRÉÉ le 2026-08-27, ✅ portail OUVERT le 2026-08-29
 
 **Ouvert par `inhibiteurs-pde5` au 43e run.** Paramètres retenus, tels que proposés : id
 `fonction-sexuelle`, label « Fonction sexuelle », blurb « Ce que les essais démontrent quand on
 prétend traiter — ou améliorer — la fonction sexuelle. », classé après `performance-cognitive` et
 avant `complements-sante`. 12e domaine du corpus.
 
-⚠️ **CHANTIER OUVERT — le domaine n'a PAS de portail** : `/arrange` en exige deux thèmes. Précédent
-assumé (`ai-organizations` vit sans portail depuis sa création), mais celui-ci a un successeur
-désigné et ne doit pas traîner : `performance-cognitive`, ouvert au 39e run, n'a été refermé qu'au
-42e — trois runs de chantier.
+✅ **CHANTIER REFERMÉ EN UN SEUL RUN** (le 47e, deux jours après l'ouverture) : `ejaculation-precoce`
+a porté le domaine à deux thèmes et `/arrange` a écrit `tools/portals/fonction-sexuelle.json` —
+11e portail du corpus. À comparer à `performance-cognitive`, ouvert au 39e run et refermé seulement
+au 42e. **`ai-organizations` (1 thème) est désormais le seul domaine sans portail.**
 
-### 2e thème à lancer : `ejaculation-precoce` → `fonction-sexuelle`
+### Éjaculation précoce — `ejaculation-precoce` → `fonction-sexuelle`
+
+(**FAIT le 2026-08-29**, retiré du backlog — 47e run /leanmonograph, 19e thème santé, **REFERME le
+domaine `fonction-sexuelle`** et lui ouvre son portail. 14/14 sections retenues (plan à 14, aucune
+troncature, `--expect-sections` satisfait du premier coup), 54 claims **24✓ / 21 corrigés / 9
+rejetés**, 86 sources, 3 widgets + 2 figures, ~10 800 mots. Coût **8,74M tok / 112 agents / 3 h 58**
+— un seul lancement, aucune reprise, dans la fourchette annoncée (8-12M).
+
+**Le run le plus PROPRE du corpus côté pipeline, et c'est le backstop qui a payé.** Aucun rejet par
+carence (`search_exhausted` faux sur les 9 — quota WebSearch à 1000 jamais approché), aucune section
+sous quota d'élagage, `low_rank_sources` et `foreign_statements` vides, contraste 0 violation en
+clair ET en sombre dès le premier build (327 éléments de widgets mesurés).
+
+**Les 9 rejets, tous justes, et deux familles nettes** — à opposer au 43e run (7 faux rejets sur 8) :
+1. **Quatre rejets d'énoncé FAUX**, réparés par la prose : `claim:6` décrivait les 118 hommes de
+   l'étude coréenne comme « en demande de traitement » quand ils étaient **sains** ; `claim:21`
+   parlait de « quatre guidelines » notées AGREE quand l'article n'en note que **trois** (le DSM-5 et
+   la CIM-11 ne sont pas des guidelines) ; deux claims tramadol mal formulés à chiffres exacts.
+   **L'auteur a écrit la version corrigée depuis les notes** — vérifié dans le HTML final.
+2. **Cinq rejets au seuil, contenu vérifié mot pour mot**, tous **récupérés en prose avec la réserve
+   « source unique, non corroborée »** : lois lognormale/Gumbel de l'IELT, moyenne géométrique et
+   *fold increase*, métriques du PEDT, méta-analyse Zhang 2019, divergence des trois guidelines sur
+   l'acide hyaluronique. **Le seuil ≥2 n'a donc rien coûté au document** : il a déplacé ces faits du
+   `knowledge.json` vers une prose qui les porte avec leur statut. C'est le traitement prescrit, et
+   la première fois qu'on le constate appliqué sur toute une série.
+
+**LE DÉFAUT DE FOND, invisible au council comme au lint** (section sécurité, obligatoire en santé) :
+la prose présentait l'analyse cardiovasculaire de la dapoxétine comme *« une analyse de
+pharmacovigilance **indépendante** »*. Elle ne l'est pas — **trois de ses quatre auteurs sont
+employés et actionnaires de Johnson & Johnson**, le quatrième est son consultant, et J&J a financé
+les essais analysés. Pire, la prose citait le « 24,5 % d'événements cardiovasculaires sous 60 mg
+quotidiens » **sans la conclusion des auteurs** (« no associated significant cardiovascular adverse
+events, except for vasovagal-mediated syncope ») : le lecteur comprenait un risque cardiaque
+quintuplé. Corrigé à la main puis rebuild. **Tous les chiffres étaient EXACTS** — seule la lecture
+des AFFILIATIONS révélait l'erreur. Réflexe à généraliser : sur un chiffre de sécurité spectaculaire,
+lire les affiliations ET la phrase de conclusion des auteurs, pas seulement le tableau de résultats.
+La section `dapoxetine`, elle, déclarait correctement son lien industriel — le défaut était isolé.
+
+**Deux défauts d'infrastructure** : (1) `write:audit-report.json` a de nouveau échoué (>64k tokens de
+sortie, **4e occurrence**) — régénéré en déterministe, 54/54 claims appariés ; (2) **classe NOUVELLE
+— le checkpoint `research.json` écrit PUIS perdu** : `ckptWrite` fait recopier un JSON de 75 Ko
+*verbatim* à un agent LLM (`workflow.js:639`), qui a échoué en silence (`ckptWrite` avale l'erreur
+par conception). Sans réparation, un `resume` aurait rejoué Sweep+Plan et **régénéré des ids
+différents** de ceux des sections déjà auditées — incohérence que `workflow.js:1043` signale
+lui-même. Reconstruit depuis `journal.jsonl` en réutilisant les vraies fonctions `normUrl` /
+`dedupSources` du workflow. → [[checkpoint-research-perdu-a-l-ecriture]]
+
+**Angle résiduel** : le lint sort en exit 2 sur 7 faux positifs irréductibles, tous `claim:13` sur
+les pivots « Diagnostic » / « Tool » — mots communs du nom *Premature Ejaculation Diagnostic Tool* et
+de l'expansion *Diagnostic and Statistical Manual*. Vérifiés un par un : aucun ne réaffirme les
+statistiques rejetées. Un pivot qui est un mot ordinaire du nom propre qu'il sert à repérer est
+structurellement inexploitable.)
 **Priorité HAUTE, tête de file du méta santé depuis le 2026-08-27.** Reste à instruire : l'IELT
 (délai d'éjaculation intravaginal chronométré), l'un des très rares critères d'efficacité
 **objectifs** de tout le méta-domaine ; la dapoxétine et son statut réglementaire réel juridiction
