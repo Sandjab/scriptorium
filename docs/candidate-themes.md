@@ -860,7 +860,7 @@ décisions :
    n'ayant qu'un protocole publié). Corrigé dans `manifest.json` puis rebuild — voir la note de
    réparation en fin de section `pharmacologie-metabolique`.
 
-**Ordre de lancement** — mis à jour le 2026-08-29 (nos 1 à 6, 10 et 11 sont FAITS ; restent 7, 8, 9 et 12) :
+**Ordre de lancement** — mis à jour le 2026-08-30 (nos 1 à 7, 10 et 11 sont FAITS ; restent 8, 9 et 12) :
 
 | # | thème | priorité | domaine |
 |---|---|---|---|
@@ -870,7 +870,7 @@ décisions :
 | ~~4~~ | ~~`inhibiteurs-pde5`~~ | FAIT 2026-08-27 | `fonction-sexuelle` (**domaine créé** ; portail ouvert au no 5) |
 | ~~5~~ | ~~`ejaculation-precoce`~~ | FAIT 2026-08-29 | `fonction-sexuelle` (**portail ouvert** — chantier du 43e run refermé) |
 | ~~6~~ | ~~`cafeine-cognition-vigilance`~~ | FAIT 2026-08-27 | `performance-cognitive` (3e thème du domaine) |
-| 7 | `omega-3` | moyenne-haute | `complements-sante` |
+| ~~7~~ | ~~`omega-3`~~ | FAIT 2026-08-30 | `complements-sante` (3e thème, **2e du parcours**) |
 | 8 | `acide-alpha-lipoique` | moyenne-haute | `complements-sante` |
 | 9 | `beta-alanine-tampons` | moyenne | `nutrition-sportive` |
 | ~~10~~ | ~~`microdosage-psychedeliques`~~ | FAIT 2026-08-27 | `performance-cognitive` (4e thème du domaine) |
@@ -1014,8 +1014,50 @@ seules retouches sont visuelles : 2 défauts sombres dans les widgets du thème,
 **3e incarnation du double rôle `--blue-deep`** (consommé comme encre par un widget, 1,01:1
 sur le bandeau synthèse). ⚠️ `.xptr-kind` de la charte partagée reste à 2,16 en sombre —
 défaut ouvert depuis le 34e run, corpus entier.)
-- **omega-3** (moyenne) — EPA/DHA : triglycérides (démontré) vs événements cardio
-  (REDUCE-IT vs STRENGTH), cognition, doses, oxydation des huiles.
+(`omega-3` : **FAIT le 2026-08-30**, retiré du backlog — 48e run /leanmonograph, 20e thème santé,
+3e de `complements-sante` où il s'insère **en 2e du parcours**, entre `vitamine-d` et `collagene`.
+13/13 sections retenues (plan à 13, aucune troncature), 51 claims **24✓ / 25 corrigés / 2 rejetés**,
+109 sources, 4 widgets, ~11 160 mots. Coût **9,39M tok / 118 agents / 3 h 55** — un seul lancement,
+aucune reprise, dans la fourchette annoncée (7-10M).
+
+**Le run le plus propre du corpus côté verdicts : 3,9 % de rejets, et les DEUX sont justes.**
+Aucun rejet par carence (quota WebSearch à 1000, jamais approché). Les deux rejets tiennent au seuil
+de sources avec **contenu vérifié exact par les deux jurés**, et dans les deux cas ce sont les jurés
+eux-mêmes qui ont vu le piège : PMC, MDPI et ResearchGate reconnus comme **trois miroirs d'une même
+publication** ; et l'exception `document-source` écartée au bon motif sur la revue Cochrane — « un
+résultat empirique de méta-analyse n'en relève pas », exactement la borne écrite dans le CLAUDE.md.
+
+**Le second rejet portait le cœur du fil rouge**, et sa récupération en prose est le point à retenir :
+la réserve écrite dit « source unique sur ces chiffres, qu'aucune seconde synthèse de même ampleur ne
+vient corroborer », puis rend la certitude GRADE juste après (« certitude élevée […] l'on peut s'y
+fier »). ⚠️ **La formule générique « source unique, non corroborée » aurait été FAUSSE au fond ici** :
+appliquée telle quelle à une revue systématique de 45 essais, elle suggère un résultat fragile là où
+la preuve est du plus haut rang. Le hedge doit porter sur la corroboration BIBLIOGRAPHIQUE, jamais
+sur la solidité — à surveiller sur tout rejet au seuil frappant une source de rang fort.
+
+**Deux consignes du brief ressortent appliquées dans la prose**, ce qui plaide pour les y remettre :
+l'argument du silence (« ASCEND n'a pas publié d'analyse du risque de saignement propre à son bras
+oméga-3 ; un paramètre non analysé ne devient pas un paramètre rassurant ») et la lecture des
+affiliations, devenue systématique — sponsors des deux essais à haute dose, texte de défense du
+comparateur co-signé par le sponsor, association professionnelle du secteur signalée sur DEUX travaux
+distincts, auteur actionnaire du vendeur du test d'index. « Le désaccord n'est pas seulement
+statistique : il est financé. »
+
+**Deux défauts d'appareil de preuve, non bloquants, laissés tels quels** : (1) un claim compte une
+publication PMC et **le communiqué de presse de cette même publication** pour deux sources —
+mono-source déguisée, 5e occurrence de [[sources-independence-by-document]], qui passe parce que le
+contrôle bloquant ne juge que les `confirmed` et jamais les `corrected` ; (2) un claim s'appuie sur
+ASCEND via deux write-ups tiers **sans sa publication primaire**. Piste de code : étendre le blocage
+`low_rank_sources` aux `corrected`, et traiter un communiqué comme non indépendant du document qu'il
+annonce.
+
+**Visuel** : 2 violations de contraste en thème CLAIR seulement, dans un widget du thème —
+`--blue-bright` employé comme encre à 4,42:1, le motif récurrent de la charte. Passé à `--blue`
+(7,09 clair / 6,11 sombre) : 0 violation sur 1121 éléments dans les deux thèmes.
+
+⚠️ **Trois PNG écrits À LA RACINE du repo par des agents du run** (`fig-omega3-forest.png`,
+`omega3-fig-1.png`, et un troisième sans rapport avec le thème). Le CLAUDE.md prescrit
+`.playwright-mcp/`. Non commités.)
 - **magnesium** (basse) — carence réelle vs marketing, formes (citrate, bisglycinate,
   oxyde), sommeil/crampes/anxiété : tri par niveau de preuve.
 
