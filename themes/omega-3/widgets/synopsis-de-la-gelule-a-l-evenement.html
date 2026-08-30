@@ -1,0 +1,609 @@
+<div class="widget sge-root">
+  <style>
+    .sge-root{--sge-ink:var(--ink,#15202E);--sge-soft:var(--ink-soft,#43536A);
+      --sge-faint:var(--ink-faint,#7A889B);--sge-card:var(--card,#fff);
+      --sge-paper:var(--paper,#F4F6FA);
+      --sge-line:var(--line,#D7DFE9);--sge-lines:var(--line-soft,#E7ECF3);
+      --sge-blue:var(--blue,#23537F);--sge-bright:var(--blue-bright,#2C77B6);
+      --sge-wash:var(--blue-wash,#E7EEF6);
+      --sge-bord:var(--bordeaux,#7C2A38);--sge-bordw:var(--bordeaux-wash,#F3E3E6);
+      /* Or, vert et bordeaux clair : jetons propres au widget. Assombris par rapport
+         aux teintes usuelles, sinon l'encre n'atteint pas 4,5:1 sur leur fond lave. */
+      --sge-gold:#8F6110;--sge-goldw:#FBF3E3;--sge-goldl:#EAD9B4;
+      --sge-green:#2A7052;--sge-greenw:#EAF4EE;--sge-greenl:#BFDCC9;
+      --sge-bordl:#E2C3C9;
+      /* --blue et --blue-bright de la charte plafonnent sous 4,5:1 sur --blue-wash :
+         encre dediee pour tout texte pose sur ce fond. */
+      --sge-onwash:#1C4468;
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--sge-ink);
+      border:1px solid var(--sge-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--sge-card);max-width:980px}
+    .sge-root *{box-sizing:border-box}
+    /* Ces quatre familles de jetons ne viennent pas de la charte : sans redefinition
+       en theme sombre, une encre claire retomberait sur un fond clair. */
+    html[data-theme="dark"] .sge-root{
+      --sge-gold:#E0B463;--sge-goldw:#2B2214;--sge-goldl:#5C4B2B;
+      --sge-green:#7FC9A2;--sge-greenw:#132419;--sge-greenl:#2E4C3B;
+      --sge-bordl:#553038;--sge-onwash:#BBD5EC}
+
+    .sge-k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;
+      color:var(--sge-faint);font-weight:600;margin:0 0 2px}
+    .sge-title{font-weight:700;font-size:1.05rem;margin:0 0 4px;line-height:1.3}
+    .sge-sub{font-size:.84rem;color:var(--sge-soft);margin:0 0 11px;line-height:1.5}
+    .sge-sub b{color:var(--sge-ink)}
+
+    .sge-hon{border:1px solid var(--sge-goldl);background:var(--sge-goldw);border-radius:9px;
+      padding:8px 11px 9px;margin:0 0 12px;font-size:.73rem;line-height:1.55;color:var(--sge-soft)}
+    .sge-hon b{color:var(--sge-gold)}
+
+    /* --- bascule d'instance --- */
+    .sge-pick{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 6px}
+    .sge-pick button{flex:1 1 250px;border:1px solid var(--sge-line);border-radius:7px;
+      background:var(--sge-card);padding:7px 10px;font:600 .77rem/1.25 inherit;
+      color:var(--sge-soft);cursor:pointer;transition:.15s;text-align:left}
+    .sge-pick button span{display:block;font-weight:600;font-size:.68rem;color:var(--sge-faint);
+      margin-top:2px}
+    .sge-pick button:hover{background:var(--sge-paper);color:var(--sge-ink)}
+    .sge-pick button.sge-on{border-color:var(--sge-bright);background:var(--sge-wash);
+      color:var(--sge-onwash);box-shadow:0 0 0 1px var(--sge-bright)}
+    .sge-pick button.sge-on span{color:var(--sge-onwash)}
+    .sge-picknote{font-size:.75rem;color:var(--sge-soft);margin:0 0 10px;line-height:1.5;
+      border-left:2px solid var(--sge-lines);padding-left:9px}
+    .sge-picknote b{color:var(--sge-ink)}
+
+    /* --- leviers --- */
+    .sge-lev{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 11px;border:1px solid var(--sge-lines);
+      border-radius:9px;padding:8px 10px;background:var(--sge-paper)}
+    .sge-lg{flex:1 1 300px;min-width:250px}
+    .sge-lgk{font-size:.6rem;letter-spacing:.05em;text-transform:uppercase;color:var(--sge-faint);
+      font-weight:700;margin-bottom:4px}
+    .sge-lgb{display:flex;gap:4px;flex-wrap:wrap}
+    .sge-lgb button{border:1px solid var(--sge-line);border-radius:6px;background:var(--sge-card);
+      padding:4px 8px;font:600 .71rem/1.2 inherit;color:var(--sge-soft);cursor:pointer;transition:.15s}
+    .sge-lgb button:hover{background:var(--sge-wash);color:var(--sge-onwash)}
+    .sge-lgb button.sge-on{border-color:var(--sge-bright);background:var(--sge-wash);
+      color:var(--sge-onwash);box-shadow:0 0 0 1px var(--sge-bright)}
+    .sge-lgb button[disabled]{opacity:.4;cursor:default}
+    .sge-lgb button[disabled]:hover{background:var(--sge-card);color:var(--sge-soft)}
+    .sge-lgn{font-size:.66rem;color:var(--sge-faint);margin-top:4px;line-height:1.45}
+    .sge-lgn b{color:var(--sge-gold)}
+    /* Portee d'un levier : jusqu'ou son effet descend dans le tuyau. */
+    .sge-scope{display:inline-block;margin-top:4px;font-size:.6rem;font-weight:700;
+      letter-spacing:.03em;border-radius:5px;padding:2px 6px;border:1px solid var(--sge-goldl);
+      background:var(--sge-goldw);color:var(--sge-gold)}
+
+    /* --- progression --- */
+    .sge-prog{display:flex;align-items:center;gap:10px;margin:0 0 8px}
+    .sge-bar{flex:1 1 auto;height:7px;border-radius:5px;background:var(--sge-lines);overflow:hidden}
+    .sge-fill{height:100%;width:20%;background:var(--sge-bright);transition:width .22s ease}
+    .sge-plab{flex:0 0 auto;font:700 .77rem/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+      color:var(--sge-blue);min-width:19em;text-align:right}
+
+    .sge-rail{display:flex;gap:3px;margin:0 0 9px;flex-wrap:wrap;align-items:stretch}
+    .sge-ph{flex:1 1 118px;min-width:108px;border:1px solid var(--sge-line);border-radius:8px;
+      padding:6px 8px;background:var(--sge-card);text-align:left;cursor:pointer;transition:.15s;
+      font:inherit;color:inherit;display:block}
+    .sge-ph .sge-pn{font-size:.55rem;letter-spacing:.05em;text-transform:uppercase;
+      color:var(--sge-faint);font-weight:700;display:block}
+    .sge-ph .sge-pl{font-size:.71rem;font-weight:700;color:var(--sge-soft);margin-top:2px;display:block}
+    .sge-ph:hover{background:var(--sge-paper)}
+    .sge-ph.sge-on{border-color:var(--sge-bright);background:var(--sge-wash);
+      box-shadow:0 0 0 1px var(--sge-bright)}
+    .sge-ph.sge-on .sge-pl,.sge-ph.sge-on .sge-pn{color:var(--sge-onwash)}
+    .sge-ph.sge-done .sge-pn{color:var(--sge-bright)}
+    .sge-ph.sge-re{border-style:dashed}
+    .sge-ph.sge-re.sge-on{border-color:var(--sge-gold);background:var(--sge-goldw);
+      box-shadow:0 0 0 1px var(--sge-gold)}
+    .sge-ph.sge-re.sge-on .sge-pl,.sge-ph.sge-re.sge-on .sge-pn{color:var(--sge-gold)}
+    .sge-ph.sge-last{border-style:dashed}
+    .sge-ph.sge-last.sge-on{border-color:var(--sge-bord);background:var(--sge-bordw);
+      box-shadow:0 0 0 1px var(--sge-bord)}
+    .sge-ph.sge-last.sge-on .sge-pl,.sge-ph.sge-last.sge-on .sge-pn{color:var(--sge-bord)}
+    .sge-arw{flex:0 0 auto;align-self:center;color:var(--sge-faint);font-size:.85rem;
+      font-weight:700;line-height:1}
+    .sge-arw.sge-flow{color:var(--sge-bright)}
+    .sge-arw.sge-reent{color:var(--sge-gold)}
+    .sge-arw.sge-broken{color:var(--sge-bord)}
+
+    .sge-btns{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px;align-items:center}
+    .sge-btns button{border:1px solid var(--sge-line);border-radius:7px;background:var(--sge-card);
+      padding:6px 11px;font:600 .78rem/1.2 inherit;color:var(--sge-soft);cursor:pointer;transition:.15s}
+    .sge-btns button:hover{background:var(--sge-paper);color:var(--sge-ink)}
+    .sge-btns button.sge-pri{border-color:var(--sge-bright);color:var(--sge-onwash);
+      background:var(--sge-wash)}
+    .sge-btns button[disabled]{opacity:.42;cursor:default}
+    .sge-badge{margin-left:auto;font-size:.67rem;font-weight:700;border-radius:5px;
+      padding:4px 8px;border:1px solid var(--sge-lines);background:var(--sge-paper);
+      color:var(--sge-faint)}
+    .sge-badge.sge-brun{border-color:var(--sge-greenl);background:var(--sge-greenw);color:var(--sge-green)}
+    .sge-badge.sge-bre{border-color:var(--sge-goldl);background:var(--sge-goldw);color:var(--sge-gold)}
+    .sge-badge.sge-bcut{border-color:var(--sge-bordl);background:var(--sge-bordw);color:var(--sge-bord)}
+
+    /* --- le tuyau --- */
+    .sge-pan{border:1px solid var(--sge-line);border-radius:10px;padding:10px 12px 11px;
+      background:var(--sge-card);transition:opacity .2s ease,box-shadow .2s ease,border-color .2s ease}
+    .sge-pan.sge-dim{opacity:.5}
+    .sge-pan.sge-cur{border-color:var(--sge-bright);box-shadow:0 0 0 1px var(--sge-bright)}
+    .sge-pan.sge-reent{border-color:var(--sge-goldl)}
+    .sge-pan.sge-reent.sge-cur{border-color:var(--sge-gold);box-shadow:0 0 0 1px var(--sge-gold)}
+    .sge-pan.sge-evt{border-color:var(--sge-bordl);background:var(--sge-bordw)}
+    .sge-pan.sge-evt.sge-cur{border-color:var(--sge-bord);box-shadow:0 0 0 1px var(--sge-bord)}
+    .sge-ptop{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap;margin-bottom:5px}
+    .sge-pnum{font:700 .62rem/1 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--sge-card);
+      background:var(--sge-bright);border-radius:4px;padding:4px 6px}
+    .sge-pan.sge-reent .sge-pnum{background:var(--sge-gold)}
+    .sge-pan.sge-evt .sge-pnum{background:var(--sge-bord)}
+    .sge-pan.sge-dim .sge-pnum{background:var(--sge-faint)}
+    .sge-pnom{font-weight:700;font-size:.83rem;color:var(--sge-ink)}
+    .sge-pref{font-size:.65rem;color:var(--sge-faint);font-style:italic;margin-left:auto}
+
+    .sge-io{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 6px}
+    .sge-cell{flex:1 1 190px;min-width:160px;border:1px solid var(--sge-lines);border-radius:7px;
+      background:var(--sge-paper);padding:5px 8px 6px}
+    .sge-cell.sge-cout{border-color:var(--sge-greenl);background:var(--sge-greenw)}
+    .sge-cell.sge-clost{border-color:var(--sge-bordl);background:var(--sge-bordw)}
+    .sge-cell.sge-cre{border-color:var(--sge-goldl);background:var(--sge-goldw);border-style:dashed}
+    .sge-ck{font-size:.55rem;letter-spacing:.05em;text-transform:uppercase;color:var(--sge-faint);
+      font-weight:700}
+    .sge-cell.sge-cout .sge-ck{color:var(--sge-green)}
+    .sge-cell.sge-clost .sge-ck{color:var(--sge-bord)}
+    .sge-cell.sge-cre .sge-ck{color:var(--sge-gold)}
+    .sge-cv{font-size:.74rem;line-height:1.45;color:var(--sge-ink);margin-top:2px}
+    .sge-cv b{font-weight:700}
+    .sge-calc{font:700 .72rem/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--sge-blue);
+      display:block;margin-top:3px}
+    .sge-note{font-size:.7rem;line-height:1.5;color:var(--sge-soft);border-left:2px solid var(--sge-lines);
+      padding-left:8px;margin-top:6px}
+    .sge-note b{color:var(--sge-ink)}
+    .sge-hyp{border-left-color:var(--sge-goldl);color:var(--sge-soft)}
+    .sge-hyp b{color:var(--sge-gold)}
+
+    /* echelle dose / triglycerides */
+    .sge-sc{margin-top:7px;border:1px solid var(--sge-lines);border-radius:7px;padding:7px 9px 9px;
+      background:var(--sge-paper)}
+    .sge-sck{font-size:.55rem;letter-spacing:.05em;text-transform:uppercase;color:var(--sge-faint);
+      font-weight:700;margin-bottom:6px}
+    .sge-track{position:relative;height:7px;border-radius:4px;background:var(--sge-lines);margin:14px 0 4px}
+    .sge-anch{position:absolute;top:-4px;width:2px;height:15px;background:var(--sge-faint);border-radius:1px}
+    .sge-anl{position:absolute;top:-15px;font:700 .6rem/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+      color:var(--sge-soft);white-space:nowrap;transform:translateX(-50%)}
+    .sge-mark{position:absolute;top:-7px;width:11px;height:21px;border-radius:3px;
+      background:var(--sge-gold);transform:translateX(-50%);transition:left .25s ease}
+    .sge-ghost{position:absolute;top:-5px;width:7px;height:17px;border-radius:3px;
+      border:1px dashed var(--sge-faint);background:none;transform:translateX(-50%);
+      transition:left .25s ease}
+    .sge-ml{position:absolute;top:14px;font:700 .6rem/1.2 inherit;color:var(--sge-gold);
+      white-space:nowrap;transform:translateX(-50%);transition:left .25s ease}
+    .sge-gl{position:absolute;top:28px;font:600 .58rem/1.2 inherit;color:var(--sge-soft);
+      white-space:nowrap;transform:translateX(-50%);transition:left .25s ease}
+
+    /* les deux discontinuites : la re-entree (3 vers 4), puis la rupture (4 vers 5) */
+    .sge-link{display:flex;align-items:center;gap:9px;padding:3px 0 3px 22px;min-height:26px}
+    .sge-pipe{width:3px;border-radius:2px;background:var(--sge-lines);align-self:stretch;min-height:22px}
+    .sge-pipe.sge-fl{background:var(--sge-bright)}
+    .sge-linkl{font-size:.68rem;color:var(--sge-faint);line-height:1.4}
+    .sge-cut{display:flex;align-items:stretch;gap:9px;padding:0 0 0 22px;margin:2px 0}
+    .sge-cutb{flex:0 0 3px;display:flex;flex-direction:column;gap:4px;align-items:center}
+    .sge-stub{width:3px;height:11px;border-radius:2px;background:var(--sge-bordl)}
+    .sge-stub.sge-stt{background:var(--sge-bright)}
+    .sge-gap{width:13px;height:13px;border:1px solid var(--sge-bord);border-radius:50%;
+      color:var(--sge-bord);font:700 .6rem/11px sans-serif;text-align:center}
+    .sge-cutl{border:1px dashed var(--sge-bord);border-radius:8px;background:var(--sge-bordw);
+      padding:6px 10px 7px;font-size:.71rem;line-height:1.5;color:var(--sge-soft);flex:1 1 auto}
+    .sge-cutl b{color:var(--sge-bord)}
+    /* meme grammaire, teinte d'or : discontinuite franchie, mais franchie par une
+       valeur qui ne vient pas de l'etape precedente. */
+    .sge-rstub{width:3px;height:11px;border-radius:2px;background:var(--sge-goldl)}
+    .sge-rgap{width:13px;height:13px;border:1px solid var(--sge-gold);border-radius:50%;
+      color:var(--sge-gold);font:700 .58rem/11px sans-serif;text-align:center}
+    .sge-rl{border:1px dashed var(--sge-gold);border-radius:8px;background:var(--sge-goldw);
+      padding:6px 10px 7px;font-size:.71rem;line-height:1.5;color:var(--sge-soft);flex:1 1 auto}
+    .sge-rl b{color:var(--sge-gold)}
+
+    .sge-det{margin-top:11px;border-top:1px solid var(--sge-lines);padding-top:8px}
+    .sge-det summary{cursor:pointer;font-size:.72rem;font-weight:700;color:var(--sge-soft)}
+    .sge-det p{font-size:.71rem;line-height:1.55;color:var(--sge-soft);margin:7px 0 0}
+    .sge-det b{color:var(--sge-ink)}
+    @media (max-width:560px){.sge-plab{min-width:0;text-align:left}
+      .sge-prog{flex-wrap:wrap}}
+  </style>
+
+  <p class="sge-k">Vue d'ensemble</p>
+  <p class="sge-title">De la gélule à l'événement : les cinq étapes, sur deux instances</p>
+  <p class="sge-sub">Une seule question tient tout le dossier : <b>ce qui entre dans la bouche
+    arrive-t-il jusqu'à l'infarctus évité ?</b> Le tuyau ci-dessous fait courir deux objets réels
+    dans les mêmes cinq étapes — le flacon du rayon et l'ordonnance. Chaque étape indique ce qui
+    <b>sort</b> et ce qui se <b>perd</b>. Le tuyau ne coule en plein que de 1 à 3 : il connaît
+    ensuite <b>deux discontinuités de nature différente</b> — une <b>ré-entrée</b> avant l'étape 4,
+    une <b>rupture</b> avant l'étape 5 — et c'est le résultat principal.</p>
+
+  <div class="sge-hon"><b>Ce que ce schéma ne fait pas.</b> Les étapes 1 et 2 sont de
+    l'arithmétique : elles se calculent exactement. L'étape 3 ne se calcule pas — aucun facteur
+    publié ne convertit des milligrammes absorbés en points d'indice membranaire. <b>L'étape 4 ne
+    reprend ni la sortie de l'étape 3, ni la dose absorbée de l'étape 2 : elle ré-entre la dose
+    administrée</b>, c'est-à-dire la teneur réelle calculée à l'étape 1 — parce que les essais
+    lipidiques dosent à l'entrée et rapportent leur effet à la dose prescrite. La perte
+    d'absorption ne se propage donc pas au-delà de l'étape 3. L'étape 5, elle, ne se déduit de
+    rien : ses chiffres viennent d'essais qui ont compté des infarctus, pas du calcul qui précède.
+    Tous les nombres affichés sont ceux établis dans les sections de ce document.</div>
+
+  <div class="sge-pick">
+    <button type="button" data-inst="rayon">Instance A — le rayon
+      <span>1 gélule par jour, complément alimentaire</span></button>
+    <button type="button" data-inst="ord">Instance B — l'ordonnance
+      <span>4 g par jour d'EPA purifié, médicament avec AMM</span></button>
+  </div>
+  <p class="sge-picknote" id="sge-inote"></p>
+
+  <div class="sge-lev">
+    <div class="sge-lg">
+      <div class="sge-lgk">Levier de l'étape 1 — écart d'étiquette</div>
+      <div class="sge-lgb" id="sge-lev-eti"></div>
+      <div class="sge-lgn" id="sge-note-eti"></div>
+      <div class="sge-scope" id="sge-scope-eti"></div>
+    </div>
+    <div class="sge-lg">
+      <div class="sge-lgk">Levier de l'étape 2 — forme chimique, prise au cours d'un repas gras</div>
+      <div class="sge-lgb" id="sge-lev-for"></div>
+      <div class="sge-lgn" id="sge-note-for"></div>
+      <div class="sge-scope" id="sge-scope-for"></div>
+    </div>
+  </div>
+
+  <div class="sge-prog">
+    <div class="sge-bar"><div class="sge-fill" id="sge-fill"></div></div>
+    <div class="sge-plab" id="sge-plab"></div>
+  </div>
+
+  <div class="sge-rail" id="sge-rail"></div>
+
+  <div class="sge-btns">
+    <button type="button" id="sge-prev">◀ Étape précédente</button>
+    <button type="button" id="sge-next" class="sge-pri">Étape suivante ▶</button>
+    <button type="button" id="sge-run">Lecture continue</button>
+    <button type="button" id="sge-reset">Revenir à l'étiquette</button>
+    <span class="sge-badge" id="sge-badge"></span>
+  </div>
+
+  <div id="sge-flow"></div>
+
+  <details class="sge-det">
+    <summary>Ce que chaque nombre affiché engage, et ce qu'il n'engage pas</summary>
+    <p><b>Étapes 1 et 2.</b> L'écart d'étiquette de 66 % à 184 % est mesuré sur 47 compléments
+      dosés en laboratoire ; il borne une dispersion réelle, il ne prédit pas un flacon en
+      particulier. Les taux d'absorption d'environ 60 % pour l'ester éthylique et 90 % pour le
+      triglycéride valent <b>avec un repas gras</b> : à jeun, le clivage de l'ester est franchement
+      inefficace, et aucun chiffre publié ne le quantifie ici.</p>
+    <p><b>Étape 3.</b> Le nouvel équilibre membranaire s'établit en quatre semaines environ, et le
+      globule rouge garde la mémoire d'un trimestre — cent vingt jours de durée de vie. Les seuils
+      d'indice de 4 % et 8 % que l'on croise partout viennent d'une moyenne d'études
+      d'observation : aucun essai n'a randomisé des participants vers un indice cible avant de
+      compter les événements.</p>
+    <p><b>Étape 4, et sa ré-entrée.</b> Les deux points de l'essai croisé — 0,85 g/j sans effet
+      lipidique mesurable, 3,4 g/j pour 27 % de baisse — sont des <b>doses administrées</b> :
+      aucun essai lipidique n'a rapporté son effet à une quantité absorbée, et aucun facteur publié
+      ne transpose l'une sur l'autre. Cette étape ré-entre donc la teneur réelle de l'étape 1, et
+      <b>la perte d'absorption de l'étape 2 ne s'y propage pas</b> — changer la forme chimique
+      déplace la sortie de l'étape 2 sans rien déplacer ici. Entre les deux points, le widget
+      affiche une lecture linéaire <b>explicitement nommée comme une hypothèse</b> : la relation
+      dose-effet est décrite comme quasi linéaire par une méta-analyse de 90 essais, ce qui
+      n'autorise pas à transformer une interpolation en mesure.</p>
+    <p><b>Étape 5.</b> La part du résultat de REDUCE-IT attribuable au comparateur en huile minérale
+      n'est pas mesurée : elle est bornée par un intervalle d'hypothèses, entre « rien » — position
+      de l'agence américaine après son analyse du pire cas — et environ 3,0 % d'augmentation
+      relative du risque dans le groupe témoin, chiffre avancé par un éditorial dont les auteurs
+      ne sont investigateurs d'aucun des deux essais. Le document ne tranche pas cette
+      controverse, et ce widget non plus.</p>
+  </details>
+
+  <script>
+  (function(){
+    var root = document.currentScript.closest('.widget');
+    var nb = function(n){ return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " "); };
+    var dec = function(x, d){ return x.toFixed(d).replace('.', ','); };
+
+    var INST = {
+      rayon: {
+        titre: "Instance A — le rayon",
+        note: "<b>Une gélule d'huile de poisson par jour</b>, celle-là même que VITAL et ASCEND ont testée : 460 mg d'EPA et 380 mg de DHA, soit <b>840 mg d'EPA+DHA annoncés</b>. Mélange non standardisé, statut de complément alimentaire, aucune démonstration d'événement évité exigée pour la mise sur le marché.",
+        annonce: 840
+      },
+      ord: {
+        titre: "Instance B — l'ordonnance",
+        note: "<b>Quatre gélules de 998 mg d'icosapent éthyl par jour</b>, soit environ 4 g/j d'EPA purifié sous forme d'ester éthylique, chez un patient déjà sous statine, à maladie cardiovasculaire établie et triglycérides résiduels élevés. Médicament sous autorisation de mise sur le marché (AMM), obtenue sur la réduction d'un critère cardiovasculaire dur.",
+        annonce: 3992
+      }
+    };
+
+    var ETIS = [
+      {v:0.66, lab:"66 % de l'étiquette", txt:"borne basse de la dispersion mesurée"},
+      {v:1.00, lab:"100 %", txt:"la gélule conforme"},
+      {v:1.84, lab:"184 %", txt:"borne haute de la dispersion mesurée"}
+    ];
+    var FORS = [
+      {v:0.60, lab:"Ester éthylique — 60 %", txt:"forme majoritaire du rayon et du médicament"},
+      {v:0.90, lab:"Triglycéride — 90 %", txt:"forme la mieux absorbée des deux"}
+    ];
+
+    var STEPS = [
+      {k:"Étiquette",   n:"Teneur réelle",    ref:"§ Esters éthyliques, triglycérides, krill, algues"},
+      {k:"Forme + repas", n:"Dose absorbée",  ref:"§ Esters éthyliques, triglycérides, krill, algues"},
+      {k:"Membrane",    n:"Statut mesuré",    ref:"§ Mesurer l'exposition, pas la dose avalée"},
+      {k:"Critère",     n:"Triglycérides",    ref:"§ Les triglycérides : l'effet qui tient"},
+      {k:"Événement",   n:"Infarctus, AVC, décès", ref:"§ VITAL, ASCEND, Cochrane · § REDUCE-IT contre STRENGTH"}
+    ];
+
+    var st = { inst:"rayon", eti:1, forme:0, step:1, timer:null };
+
+    function calc(){
+      var ord = st.inst === "ord";
+      var annonce = INST[st.inst].annonce;
+      var f = ord ? 1 : ETIS[st.eti].v;
+      var reel = Math.round(annonce * f);
+      var a = ord ? 0.60 : FORS[st.forme].v;
+      var abs = Math.round(reel * a);
+      var gj = reel / 1000;   // dose ADMINISTREE en g/j : la valeur que l'etape 4 re-entre
+      var gja = abs / 1000;   // dose absorbee en g/j : repere visuel, jamais utilisee en aval
+      return {ord:ord, annonce:annonce, f:f, reel:reel, a:a, abs:abs, gj:gj, gja:gja};
+    }
+
+    function cell(kind, k, v){
+      return '<div class="sge-cell '+kind+'"><div class="sge-ck">'+k+'</div>'+
+             '<div class="sge-cv">'+v+'</div></div>';
+    }
+
+    function echelle(c){
+      var max = 4.0;
+      var pos = function(x){ return Math.min(100, Math.max(0, x/max*100)); };
+      var h = '<div class="sge-sc"><div class="sge-sck">Dose quotidienne ADMINISTRÉE d\'EPA+DHA — l\'axe de l\'essai croisé, et ses deux seuls points chiffrés</div>';
+      h += '<div class="sge-track">';
+      h += '<div class="sge-anch" style="left:'+pos(0.85)+'%"></div>';
+      h += '<div class="sge-anl" style="left:'+pos(0.85)+'%">0,85 g/j → 0 %</div>';
+      h += '<div class="sge-anch" style="left:'+pos(3.4)+'%"></div>';
+      h += '<div class="sge-anl" style="left:'+pos(3.4)+'%">3,4 g/j → −27 %</div>';
+      h += '<div class="sge-ghost" style="left:'+pos(c.gja)+'%"></div>';
+      h += '<div class="sge-mark" style="left:'+pos(c.gj)+'%"></div>';
+      h += '<div class="sge-ml" style="left:'+pos(c.gj)+'%">'+dec(c.gj,3)+' g/j administrés</div>';
+      h += '<div class="sge-gl" style="left:'+pos(c.gja)+'%">'+dec(c.gja,3)+' g/j absorbés — hors axe</div>';
+      h += '</div><div style="height:30px"></div></div>';
+      return h;
+    }
+
+    function panneau(i, c){
+      var S = STEPS[i], h = "", e, s, p, ext = "", ecls = "", elab = "Entrée";
+
+      if(i === 0){
+        if(c.ord){
+          e = "Quatre gélules de <b>998 mg</b> d'icosapent éthyl.";
+          s = "<b>"+nb(c.reel)+" mg</b> d'EPA purifié par jour, soit les 4 g/j de l'essai reconstitués à la posologie près."+
+              '<span class="sge-calc">4 × 998 mg = '+nb(c.reel)+' mg</span>';
+          p = "Rien sur la teneur : l'AMM l'impose. Ce qui change, c'est la nature de l'objet — un médicament, pas le flacon du rayon. L'écart d'étiquette mesuré de 66 % à 184 % porte sur des compléments, il n'a pas été mesuré ici.";
+        } else {
+          e = "Une gélule affichant <b>840 mg</b> d'EPA+DHA — 460 mg d'EPA, 380 mg de DHA.";
+          s = "<b>"+nb(c.reel)+" mg</b> réellement présents, dans l'hypothèse d'écart retenue."+
+              '<span class="sge-calc">840 mg × '+dec(c.f*100,0)+' % = '+nb(c.reel)+' mg</span>';
+          p = "La garantie du contenu. Sur 47 compléments dosés en laboratoire, la teneur réelle en EPA s'échelonne de <b>66 % à 184 %</b> de la valeur d'étiquette ; dix sur quarante-sept seulement atteignent ou dépassent l'EPA annoncé. Rien sur le flacon ne dit non plus dans quel état d'oxydation se trouve l'huile.";
+        }
+        ext = '<div class="sge-note sge-hyp">Cette sortie est lue <b>deux fois</b>, et c\'est la seule du tuyau dans ce cas : elle entre à l\'étape 2, où l\'absorption la rabote — puis elle revient intacte à l\'étape 4, qui se lit sur la <b>dose administrée</b>. Suivre le trait d\'or entre les étapes 3 et 4.</div>';
+      }
+
+      else if(i === 1){
+        var nomf = c.ord ? "ester éthylique" : FORS[st.forme].lab.split(" —")[0].toLowerCase();
+        var artf = /^[aeiouyàâéèêîïôûü]/.test(nomf) ? "d'" : "de ";
+        e = "<b>"+nb(c.reel)+" mg</b> réellement dans la gélule, sous forme "+artf+"<b>"+nomf+"</b>.";
+        s = "<b>"+nb(c.abs)+" mg</b> absorbés, avec un repas gras."+
+            '<span class="sge-calc">'+nb(c.reel)+' mg × '+dec(c.a*100,0)+' % = '+nb(c.abs)+' mg</span>';
+        p = c.a === 0.60
+          ? "Quarante pour cent de la dose, et l'autonomie vis-à-vis du repas. L'ester éthylique impose au tube digestif une étape de clivage supplémentaire, dix à cinquante fois plus lente, et franchement inefficace sans graisse alimentaire. Aucun chiffre publié ne quantifie l'absorption à jeun de cette forme."
+          : "Dix pour cent de la dose. Le triglycéride reste tributaire du repas, comme toutes les formes estérifiées, mais il n'a pas l'étape de clivage supplémentaire de l'ester éthylique.";
+        ext = '<div class="sge-note">Le même dosage imprimé sur deux boîtes recouvre, à l\'arrivée dans le sang, un rapport voisin du simple au double : un essai croisé chiffre la biodisponibilité relative à environ <b>124 %</b> pour un triglycéride ré-estérifié contre <b>73 %</b> pour un ester éthylique, l\'huile de poisson native servant de référence à 100 %.</div>' +
+          '<div class="sge-note sge-hyp"><b>Portée de cette sortie : l\'étape 3, et rien au-delà.</b> Les <b>'+nb(c.abs)+' mg</b> absorbés alimentent l\'étape 3, qui n\'en fait pas un nombre — et ils n\'atteignent jamais les étapes 4 et 5, lesquelles se lisent sur la dose administrée. Basculer le levier de forme change donc cette case sans rien changer à l\'arrivée. Le schéma le dit ici, pour que ce silence en aval se lise comme un résultat et non comme une panne.</div>';
+      }
+
+      else if(i === 2){
+        e = "<b>"+nb(c.abs)+" mg</b> absorbés chaque jour.";
+        s = "Un <b>statut</b>, et non un nombre déduit de ce qui précède. L'exposition se lit sur l'<b>indice oméga-3</b> — le pourcentage d'EPA et de DHA rapporté aux acides gras de la membrane des globules rouges. Nouvel équilibre membranaire en <b>quatre semaines</b> environ ; mémoire de <b>cent vingt jours</b>, la durée de vie du globule rouge.";
+        p = "La traçabilité du calcul — et, ici, le fil lui-même : ce statut n'entre nulle part. Aucun facteur publié ne convertit des milligrammes absorbés en points d'indice, et aucun essai lipidique ne rapporte son effet à un indice membranaire. C'est le premier endroit où la chaîne cesse d'être arithmétique, et le dernier où la dose absorbée est encore lue.";
+        ext = c.ord
+          ? '<div class="sge-note">Dans REDUCE-IT, l\'indice érythrocytaire n\'a pas été mesuré. Les participants classés par tiers selon leur EPA sérique de départ ont tiré des bénéfices comparables, sans le moindre gradient (p = 0,91 sur le critère principal) ; en revanche le niveau d\'EPA <b>atteint sous traitement</b> était fortement corrélé à l\'ampleur du bénéfice. Le statut de départ n\'explique pas tout ce qu\'on lui fait porter.</div>'
+          : '<div class="sge-note">Les seuils que le lecteur croisera partout — au plus 4 % pour un risque élevé, au moins 8 % en cible dite cardioprotectrice — ont été obtenus en moyennant les niveaux les plus favorables observés dans quelques études d\'observation. <b>Aucun essai n\'a randomisé des participants vers un indice cible avant de compter les événements.</b></div>';
+      }
+
+      else if(i === 3){
+        ecls = "sge-cre";
+        elab = "Entrée — ré-entrée, pas un chaînage";
+        e = "<b>Rien de l'étape 3</b> : un statut ne se convertit pas en dose. Cette étape <b>ré-entre la dose administrée</b> — <b>"+dec(c.gj,3)+" g/j</b>, soit les "+nb(c.reel)+" mg de teneur réelle calculés à l'étape 1, et non les "+nb(c.abs)+" mg absorbés produits par l'étape 2."+
+            '<span class="sge-calc">'+nb(c.reel)+' mg administrés ÷ 1 000 = '+dec(c.gj,3)+' g/j</span>';
+        if(c.gj <= 0.85){
+          s = "<b>Aucun effet lipidique mesurable.</b> Le point bas de l'essai croisé, 0,85 g/j, n'a rien produit sur le bilan lipidique chez des adultes en hypertriglycéridémie modérée. Cette instance est en dessous.";
+        } else if(c.gj < 3.4){
+          var lin = (c.gj - 0.85) / (3.4 - 0.85) * 27;
+          s = "Entre les deux seuls points chiffrés. Une lecture linéaire donnerait environ <b>−"+dec(lin,1)+" %</b> de triglycérides — <b>hypothèse, jamais mesurée à cette dose</b>. La fourchette honnête va de 0 % à −27 %."+
+              '<span class="sge-calc">(' + dec(c.gj,3) + ' − 0,85) ÷ 2,55 × 27 % ≈ ' + dec(lin,1) + ' % de baisse</span>';
+        } else {
+          s = "<b>Au-delà du point haut chiffré.</b> L'essai croisé s'arrête à 3,4 g/j, où les triglycérides reculent de <b>27 %</b> contre placebo. Cette instance est au-dessus, sur une portion de courbe que cet essai n'a pas mesurée.";
+        }
+        p = "<b>La perte d'absorption de l'étape 2 : "+nb(c.reel - c.abs)+" mg qui ne changent rien ici.</b> L'essai croisé dose à l'entrée et rapporte son effet à la dose prescrite ; en ré-entrant la dose administrée, cette étape laisse tomber le rendement d'absorption de "+dec(c.a*100,0)+" %. Se perd aussi le LDL-cholestérol, qui ne suit pas la même courbe : là où la relation dose-effet est quasi linéaire sur les triglycérides — méta-analyse de 90 essais et 72 598 participants —, elle est non linéaire, en J, sur le LDL. À dose identique de 2,7 g/j, le DHA seul l'élève de <b>5,4 %</b> et l'EPA seul de <b>2,5 %</b>.";
+        ext = echelle(c) +
+          '<div class="sge-note sge-hyp"><b>Pourquoi la dose administrée, et non la dose absorbée.</b> Les deux points chiffrés sont des doses prescrites : aucun essai lipidique n\'a rapporté son effet à une quantité absorbée, et il n\'existe aucun facteur publié pour transposer l\'une sur l\'autre. Porter ici les '+nb(c.abs)+' mg absorbés reviendrait à les lire sur un axe qui n\'a jamais été gradué pour eux — le repère en pointillé ci-dessus les situe, sans les faire compter. Conséquence assumée : <b>le levier de forme chimique de l\'étape 2 n\'a aucun effet en aval de l\'étape 3</b>. Ce n\'est pas un défaut du schéma, c\'est ce que la littérature permet d\'écrire.</div>' +
+          '<div class="sge-note">Le même essai croisé montre que « EPA+DHA » est un raccourci : à 2,7 g/j, le DHA abaisse les triglycérides de <b>21,3 %</b> et l\'EPA de <b>11,3 %</b>. La molécule qui fait le plus pour le critère est aussi celle qui fait le plus monter le paramètre dont la causalité cardiovasculaire est, elle, établie.</div>';
+      }
+
+      else {
+        e = "<b>Rien.</b> Aucune des quatre étapes précédentes ne produit ce qui suit — pas même une valeur à ré-entrer.";
+        if(c.ord){
+          s = "<b>REDUCE-IT</b> — 8 179 patients sous statine, 4 g/j d'icosapent éthyl : le critère composite passe de <b>22,0 % à 17,2 %</b>, hazard ratio <b>0,75</b> (IC95 % 0,68–0,83), suivi médian de 4,9 ans, soit 21 personnes traitées pour un événement évité. <b>STRENGTH</b> — 13 078 patients, 4 g/j d'un mélange EPA+DHA : <b>12,0 % contre 12,2 %</b>, hazard ratio <b>0,99</b> (IC95 % 0,90–1,09), essai arrêté pour futilité.";
+          p = "La déduction elle-même. Et l'unité du comparateur : dans le bras placebo de REDUCE-IT, une huile minérale, le LDL a monté de <b>10,2 %</b> à un an, l'apoB de <b>7,8 %</b> et la protéine C-réactive ultrasensible de <b>32 %</b>. Un groupe témoin qui se dégrade creuse mécaniquement l'écart.";
+          ext = '<div class="sge-note sge-hyp"><b>Part du résultat attribuable au comparateur : une fourchette d\'hypothèses, pas une mesure.</b> Borne basse, « rien » : l\'agence américaine a mené son analyse du pire cas, conclu que l\'écart ne pouvait pas expliquer le résultat, et son comité consultatif a voté seize voix contre zéro en faveur de l\'indication. Borne haute, environ <b>3,0 % d\'augmentation relative du risque</b> dans le groupe témoin, chiffrée par un éditorial dont les auteurs ne sont investigateurs d\'aucun des deux essais — sans commune mesure avec l\'ampleur du hazard ratio observé. Un membre du comité a reconnu que l\'huile minérale avait « probablement affecté l\'ampleur » de l\'effet. On peut donc soutenir à la fois qu\'elle a gonflé le résultat et qu\'elle ne l\'a pas fabriqué.</div>' +
+            '<div class="sge-note"><b>Contrepoids mesuré à 4 g/j, propre à cette instance.</b> Fibrillation auriculaire — ce trouble du rythme cardiaque : hospitalisations pour fibrillation ou flutter chez <b>3,1 %</b> du bras traité contre 2,1 % du bras témoin dans REDUCE-IT ; <b>2,2 % contre 1,3 %</b> dans STRENGTH, hazard ratio 1,69 (IC95 % 1,29–2,21). Saignements de tout type sous 4 g/j : <b>12 % contre 10 %</b> ; saignements sérieux, 2,7 % contre 2,1 %, portés pour l\'essentiel par le saignement digestif. Le bénéfice allégué et le dommage mesuré tiennent à la même dose.</div>';
+        } else {
+          s = "<b>VITAL</b> — 25 871 participants en prévention primaire, 1 g/j : critère composite principal négatif, hazard ratio <b>0,92</b> (IC95 % 0,80–1,06). <b>ASCEND</b> — 15 480 diabétiques, même capsule : <b>8,9 % contre 9,2 %</b>, p à 0,55. La revue Cochrane 2020, sur 45 essais et 143 693 participants, donne un risque relatif de <b>0,97</b> (IC95 % 0,93–1,01) sur la mortalité toutes causes, à certitude élevée.";
+          p = "La déduction elle-même : la baisse du critère intermédiaire ne s'est pas convertie en événements évités. Se perd aussi, au passage, la promesse commerciale — l'allégation autorisée dit « contribue au maintien d'une fonction cardiaque normale », jamais réduction du risque.";
+          ext = '<div class="sge-note">Deux réserves, dans les deux sens. L\'infarctus pris isolément recule de <b>28 %</b> dans VITAL (HR 0,72, IC95 % 0,59–0,90) : un composite négatif dont une composante bouge n\'est pas un essai positif, mais l\'effacer serait aussi malhonnête que de le brandir. Et le bénéfice se concentre chez les faibles consommateurs de poisson (HR 0,81, IC95 % 0,67–0,98) quand il disparaît chez les gros consommateurs (HR 1,08) — analyse de sous-groupe, p d\'interaction à 0,045.</div>';
+          if(c.reel >= 1500){
+            ext += '<div class="sge-note sge-hyp">À <b>'+nb(c.reel)+' mg/j</b> administrés, cette instance franchit le seuil de 1 500 mg/j au-delà duquel une méta-analyse détecte un excès de fibrillation auriculaire (odds ratio 1,48, IC95 % 1,21–1,81, excès absolu de 0,8 point). Comme les essais lipidiques, cette méta-analyse compte des doses <b>prescrites</b> : ce seuil se lit donc lui aussi sur la dose administrée, pas sur les '+nb(c.abs)+' mg absorbés. <b>Ce signal ne s\'allume que chez les patients à haut risque cardiovasculaire</b> ; dans les trois autres strates, aucun excès significatif. L\'acheteur qui ouvre un flacon surdosé de 84 % ne le sait pas.</div>';
+          }
+        }
+      }
+
+      h += '<div class="sge-ptop"><span class="sge-pnum">'+(i+1)+'</span>'+
+           '<span class="sge-pnom">'+S.k+' → '+S.n+'</span>'+
+           '<span class="sge-pref">'+S.ref+'</span></div>';
+      h += '<div class="sge-io">'+cell(ecls, elab, e)+cell("sge-cout", "Ce qui sort", s)+'</div>';
+      h += '<div class="sge-io">'+cell("sge-clost", "Ce qui se perd", p)+'</div>';
+      h += ext;
+      return h;
+    }
+
+    function render(){
+      var c = calc(), i;
+
+      // bascule
+      var pk = root.querySelectorAll(".sge-pick button");
+      for(i=0;i<pk.length;i++){
+        pk[i].classList.toggle("sge-on", pk[i].getAttribute("data-inst") === st.inst);
+      }
+      root.querySelector("#sge-inote").innerHTML = INST[st.inst].note;
+
+      // leviers
+      var he = "", hf = "";
+      for(i=0;i<ETIS.length;i++){
+        he += '<button type="button" data-eti="'+i+'"'+(c.ord?" disabled":"")+
+              (!c.ord && i===st.eti ? ' class="sge-on"' : '')+'>'+ETIS[i].lab+'</button>';
+      }
+      for(i=0;i<FORS.length;i++){
+        var onf = c.ord ? (FORS[i].v === 0.60) : (i === st.forme);
+        hf += '<button type="button" data-for="'+i+'"'+(c.ord?" disabled":"")+
+              (onf ? ' class="sge-on"' : '')+'>'+FORS[i].lab+'</button>';
+      }
+      root.querySelector("#sge-lev-eti").innerHTML = he;
+      root.querySelector("#sge-lev-for").innerHTML = hf;
+      root.querySelector("#sge-note-eti").innerHTML = (c.ord
+        ? "Verrouillé : le médicament relève d'une AMM, sa teneur est imposée. La dispersion de 66 % à 184 % a été mesurée sur des compléments."
+        : ETIS[st.eti].txt + ", sur 47 compléments dosés en laboratoire.") +
+        " Ce levier agit jusqu'au bout : la teneur réelle est aussi la valeur que l'étape 4 ré-entre.";
+      root.querySelector("#sge-note-for").innerHTML = (c.ord
+        ? "Verrouillé : l'icosapent éthyl est un ester éthylique d'EPA."
+        : FORS[st.forme].txt + ". Les deux taux valent avec un repas gras.") +
+        " <b>Ce levier n'a délibérément aucun effet en aval de l'étape 3</b> : l'étape 4 ré-entre la dose administrée, parce que les essais lipidiques dosent à l'entrée. Voir l'étape 4, encart « Pourquoi la dose administrée ». Un levier sans effet aval est ici un résultat, pas un bug.";
+      root.querySelector("#sge-scope-eti").textContent =
+        "Portée : étapes 1 → 5 — relue par la ré-entrée de l'étape 4";
+      root.querySelector("#sge-scope-for").textContent =
+        "Portée : étapes 2 → 3 seulement — nulle sur 4 et 5";
+
+      // progression
+      root.querySelector("#sge-fill").style.width = (st.step / 5 * 100) + "%";
+      root.querySelector("#sge-plab").textContent =
+        "Étape " + st.step + " / 5 — " + STEPS[st.step-1].k;
+
+      // rail
+      var hr = "";
+      for(i=0;i<5;i++){
+        var cls = "sge-ph" + (i === st.step-1 ? " sge-on" : "") +
+                  (i < st.step-1 ? " sge-done" : "") +
+                  (i === 3 ? " sge-re" : "") + (i === 4 ? " sge-last" : "");
+        hr += '<button type="button" class="'+cls+'" data-step="'+(i+1)+'">'+
+              '<span class="sge-pn">Étape '+(i+1)+'</span>'+
+              '<span class="sge-pl">'+STEPS[i].k+'</span></button>';
+        if(i < 4){
+          if(i === 3){
+            hr += '<span class="sge-arw sge-broken" aria-hidden="true">⊘</span>';
+          } else if(i === 2){
+            hr += '<span class="sge-arw sge-reent" aria-hidden="true">⇢</span>';
+          } else {
+            hr += '<span class="sge-arw'+(i < st.step-1 ? " sge-flow" : "")+'" aria-hidden="true">→</span>';
+          }
+        }
+      }
+      root.querySelector("#sge-rail").innerHTML = hr;
+
+      // tuyau
+      var hp = "";
+      for(i=0;i<5;i++){
+        var pc = "sge-pan" + (i === st.step-1 ? " sge-cur" : "") +
+                 (i > st.step-1 ? " sge-dim" : "") +
+                 (i === 3 ? " sge-reent" : "") + (i === 4 ? " sge-evt" : "");
+        hp += '<div class="'+pc+'">'+panneau(i, c)+'</div>';
+        if(i < 2){
+          // 1 vers 2, 2 vers 3 : chainage reel — la sortie devient l'entree.
+          var fl = (i < st.step-1) ? " sge-fl" : "";
+          hp += '<div class="sge-link"><div class="sge-pipe'+fl+'"></div>'+
+                '<div class="sge-linkl">la sortie de l\'étape '+(i+1)+' est l\'entrée de l\'étape '+(i+2)+'</div></div>';
+        } else if(i === 2){
+          // 3 vers 4 : premiere discontinuite — l'etape 4 re-entre une valeur de l'etape 1.
+          hp += '<div class="sge-cut"><div class="sge-cutb">'+
+                '<div class="sge-rstub"></div>'+
+                '<div class="sge-rgap">↺</div>'+
+                '<div class="sge-rstub"></div></div>'+
+                '<div class="sge-rl"><b>Première discontinuité : ré-entrée, et non chaînage.</b> La sortie de l\'étape 3 est un <b>statut</b> : elle n\'entre pas à l\'étape 4 — et la dose absorbée de l\'étape 2 non plus. L\'étape 4 <b>relit la dose administrée de l\'étape 1</b>, '+dec(c.gj,3)+' g/j, parce que l\'essai croisé dose à l\'entrée. Le tuyau repart, mais avec une eau puisée en amont : la perte d\'absorption ne franchit pas ce point.</div></div>';
+        } else if(i === 3){
+          // 4 vers 5 : seconde discontinuite, d'une autre nature — rien a re-entrer.
+          hp += '<div class="sge-cut"><div class="sge-cutb">'+
+                '<div class="sge-stub sge-stt"></div>'+
+                '<div class="sge-gap">✕</div>'+
+                '<div class="sge-stub"></div></div>'+
+                '<div class="sge-cutl"><b>Seconde discontinuité, d\'une autre nature : le tuyau s\'arrête.</b> Les étapes 1 à 3 s\'enchaînaient vraiment ; l\'étape 4, elle, ré-entrait au moins une valeur venue du tuyau. Ici, il n\'y a rien à ré-entrer. La baisse des triglycérides ne se convertit pas en infarctus évité par calcul — il a fallu des essais pour aller compter, et ils ne disent pas tous la même chose.</div></div>';
+        }
+      }
+      root.querySelector("#sge-flow").innerHTML = hp;
+
+      // boutons
+      root.querySelector("#sge-prev").disabled = (st.step === 1);
+      root.querySelector("#sge-next").disabled = (st.step === 5);
+      root.querySelector("#sge-run").textContent = st.timer ? "Interrompre" : "Lecture continue";
+      var bg = root.querySelector("#sge-badge");
+      if(st.step === 5){
+        bg.className = "sge-badge sge-bcut";
+        bg.textContent = "Chaîne rompue entre 4 et 5";
+      } else if(st.step === 4){
+        bg.className = "sge-badge sge-bre";
+        bg.textContent = "Ré-entrée entre 3 et 4 : dose administrée";
+      } else if(st.timer){
+        bg.className = "sge-badge sge-brun";
+        bg.textContent = "Lecture continue en cours";
+      } else {
+        bg.className = "sge-badge";
+        bg.textContent = "Pas-à-pas";
+      }
+    }
+
+    function stop(){
+      if(st.timer){ clearInterval(st.timer); st.timer = null; }
+    }
+
+    root.addEventListener("click", function(ev){
+      var t = ev.target.closest("button");
+      if(!t || t.disabled) return;
+
+      if(t.hasAttribute("data-inst")){
+        stop(); st.inst = t.getAttribute("data-inst"); st.step = 1; render(); return;
+      }
+      if(t.hasAttribute("data-eti")){
+        stop(); st.eti = parseInt(t.getAttribute("data-eti"), 10); render(); return;
+      }
+      if(t.hasAttribute("data-for")){
+        stop(); st.forme = parseInt(t.getAttribute("data-for"), 10); render(); return;
+      }
+      if(t.hasAttribute("data-step")){
+        stop(); st.step = parseInt(t.getAttribute("data-step"), 10); render(); return;
+      }
+      if(t.id === "sge-prev"){ stop(); if(st.step > 1) st.step--; render(); return; }
+      if(t.id === "sge-next"){ stop(); if(st.step < 5) st.step++; render(); return; }
+      if(t.id === "sge-reset"){ stop(); st.step = 1; render(); return; }
+      if(t.id === "sge-run"){
+        if(st.timer){ stop(); render(); return; }
+        if(st.step === 5) st.step = 1;
+        st.timer = setInterval(function(){
+          if(st.step < 5) st.step++;
+          if(st.step >= 5) stop();
+          render();
+        }, 1300);
+        render();
+        return;
+      }
+    });
+
+    render();
+  })();
+  </script>
+</div>
