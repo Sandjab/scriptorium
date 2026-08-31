@@ -530,6 +530,36 @@ features de SAE et l'intervention causale, et ne cite MEMIT que dans un blurb bi
 > (candidat) couvre la confidentialité différentielle et la mémorisation — se délimiter
 > mutuellement : ici on retire après coup ce qui a été appris. Domaine : deep-learning-foundations.
 
+### Provenance des médias synthétiques — `media-provenance-c2pa` → domaine à trancher
+**Verdict : gap réel (ajout 2026-08-31, sorti du 49e run).** Trouvé par la variante faible de
+l'heuristique de gap — un objet NOMMÉ puis écarté : `llm-watermarking-detection` consacre une
+section au « contrepoint image », y décrit C2PA et les Content Credentials, et s'arrête là parce
+que son brief bornait le texte. Couverture du reste du corpus vérifiée **par lecture** (pas au
+grep) : `diffusion-models`, `multimodal-vlm`, `world-models` et `generative-adversarial-networks`
+comptent **0 phrase de prose** sur la provenance, l'authenticité ou le filigrane — les quatre
+monographies qui enseignent à FABRIQUER des images ne disent rien de savoir d'où elles viennent.
+Le seul « deepfake » du corpus hors le nouveau thème est un **libellé de lien bibliographique**
+dans `generative-adversarial-networks`. Le règlement européen, lui, traite image, audio et vidéo
+au même article que le texte.
+
+> La provenance des médias synthétiques : prouver d'où vient une image, un son, une vidéo.
+> Couvrir la voie des métadonnées signées (C2PA et les Content Credentials : manifeste
+> d'assertions signées cryptographiquement, chaîne de confiance, liaison au contenu par hachage)
+> et sa fragilité pratique (dépouillement au ré-upload, recadrage, captures d'écran — ce qu'une
+> signature détachée ne survit pas), la voie du filigrane robuste (watermarking d'image dans
+> l'espace latent ou fréquentiel, SynthID Image, compromis imperceptibilité/robustesse aux
+> transformations géométriques et à la recompression), la détection passive de deepfakes et sa
+> course à l'armement (artefacts de génération, généralisation hors distribution, effondrement
+> des détecteurs sur des générateurs inédits), et le versant réglementaire côté image/vidéo.
+> Public : ingénieur ML / sécurité. ⚠️ Délimitations : `llm-watermarking-detection` couvre le
+> TEXTE en propre et pose déjà C2PA comme contrepoint — PARTIR de cette section, ne pas la
+> refaire, et reprendre d'elle la distinction marquage-à-la-source / détection-après-coup, qui
+> structure aussi ce sujet ; `diffusion-models` et `generative-adversarial-networks` couvrent la
+> génération d'images ; `world-models` la simulation. L'angle propre : ce qui accompagne le
+> média, pas ce qui le produit. Domaine à trancher par /arrange — `llm-agents-generation` par
+> continuité avec le thème texte, ou `deep-learning-foundations` par continuité avec les modèles
+> génératifs d'image.
+
 ---
 
 ## Priorité basse / marginale
