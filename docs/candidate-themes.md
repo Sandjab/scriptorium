@@ -412,32 +412,76 @@ simulation (Cosmos, GAIA-2) ; RT-2, OpenVLA, π0, la tokenisation d'actions = 0 
 > vidéo pour la physical AI ; le candidat multimodal-vlm couvre l'architecture VLM de
 > compréhension — se centrer sur la génération d'actions. Domaine : llm-agents-generation.
 
-### Watermarking & détection de texte généré — `llm-watermarking-detection` → `llm-agents-generation`
-**Verdict : gap réel (ajout 2026-07-17).** Watermark, Kirchenbauer, DetectGPT, SynthID =
-0 occurrence dans le corpus.
+(`llm-watermarking-detection` : FAIT le 2026-08-31, retiré du backlog — 49e run /leanmonograph,
+GREEN après un ré-audit manuel de l'appareil de preuve, classé dans llm-agents-generation **en
+CLÔTURE du portail** (20e du parcours, après llm-inference-serving : le bloc decoding-sampling →
+diffusion-language-models → llm-inference-serving est un triangle tenu par trois arêtes, l'ouvrir
+au milieu l'aurait cassé ; le lien mécanique au sampling passe par une arête, sans adjacence).
+11/11 sections, 44 claims 32✓/10corr/2rej, 61 sources, 5 widgets ; 8,48M tok / 119 agents /
+~2 h 55 en deux lancements.
 
-> Tatouage (watermarking) et détection du texte généré par LLM : établir la provenance. Couvrir le
-> watermarking par biais de logits (Kirchenbauer et al. : listes verte/rouge, test statistique z,
-> compromis détectabilité/distorsion), les schémas cryptographiques indistinguables (Aaronson,
-> Christ-Gunn-Zamir), SynthID-Text et le déploiement à l'échelle, la robustesse (paraphrase,
-> traduction, attaques de suppression et de spoofing), la détection post-hoc sans tatouage
-> (perplexité, DetectGPT/Fast-DetectGPT, classifieurs entraînés) et ses taux d'erreur — notamment
-> sur les locuteurs non natifs —, et les limites fondamentales (résultats d'impossibilité).
-> Public : ingénieur ML / sécurité. Délimitations : decoding-sampling couvre l'échantillonnage et
-> les logits (le citer : le watermarking est une modification du sampling) ; le candidat
-> llm-safety-jailbreaks couvre attaques/défenses du modèle — se centrer sur provenance et
-> détection. Domaine : llm-agents-generation.
+Gap re-vérifié par LECTURE avant lancement, et la lecture a payé une 6e fois : le backlog ne
+signalait pas que **trois résultats d'impossibilité distincts vivent déjà dans le corpus**, que
+rien ne distingue au grep — BEB et le Defense Trilemma dans `llm-safety-jailbreaks` (l'alignement
+et les défenses enveloppantes), Karbasi et al. dans `hallucination-detection-uncertainty`
+(la détection d'hallucination), et celui qui appartient à ce thème (la borne de détectabilité).
+Les fondre aurait été la redite la plus coûteuse possible. Délimitation portée par `args.subject`,
+tenue par le document.
 
-(`document-ai` : FAIT le 2026-07-27, retiré du backlog — 20e run /leanmonograph GREEN après
-backstop [1 correction : réserve single-source sur GriTS], classé dans
-information-retrieval-representation à la charnière entre le bloc recherche et le bloc
-structuration (parcours du portail : juste après retrieval-augmented-generation). Section
-metriques-anls-teds-grits écartée par l'audit (4 rejets, dont 1 réfuté-jury : ANLS n'est PAS une
-similarité continue, elle a un seuil dur τ = 0,5) — la prose et le widget ANLS portent bien la
-réfutation, mais le rejet GriTS, single-source équivalent aux 4 rejets hedgés de knowledge.json,
-était affirmé nu : **confirmation que les rejets d'une section écartée échappent au lint** (leçon
-du 18e run, re-vérifiée ici). Premier run réel de `/arrange` étendu : proposition d'insertion bien
-calibrée.)
+**5e déclenchement du garde-fou d'élagage — et la réparation qu'il prescrit était fausse aux trois
+quarts.** Sur 9 rejets `refuted:0 / corroborated:2` (les deux jurés tiennent l'énoncé, rejet au
+SEUL seuil de sources), « cherche la 2e source » n'était la bonne réponse que pour 2 d'entre eux.
+Les trois issues de [[elagage-reparation-prescrite-est-une-hypothese]] se sont réparties ainsi :
+- **réparer (2)** : la spike entropy et le régime basse entropie sont corroborés par Lu et al.
+  (ACL 2024, arXiv:2403.13485), équipe CUHK/Tsinghua sans lien avec l'UMD — même formule, même
+  lecture des extrêmes, vérifié verbatim ;
+- **regrainer (7)** : 6 résultats empiriques réellement mono-source (DIPPER 70,3 → 4,6 %, les
+  800 tokens après paraphrase, le 61,22 % TOEFL et son mécanisme, la borne d'AUROC) + 1 vrai rejet
+  de fond dont les 3 jurés fournissaient la correction (γ=0,25 n'est PAS le point Pareto-optimal :
+  le papier écrit « a small green list, γ=.1 is pareto-optimal ») ;
+- **accepter (2)** : le 1,6 % du Tableau 2 et la défense par retrieval restent rejetés, aucune
+  corroboration n'existe et l'exception document-source ne couvre pas un résultat empirique.
+
+**Leçon neuve, et c'est la plus utile du run : le regrain produit de MEILLEURS claims que les
+originaux.** Remonter l'énoncé au niveau du phénomène et faire descendre le chiffre en `example`
+attribué ne dégrade pas le fait — il le rend plus vrai et plus intéressant. Trois prises :
+(1) « la paraphrase dégrade la détection sans l'effacer » est porté par DEUX travaux indépendants
+(Krishna/UMass mesure la chute, Kirchenbauer/UMD le seuil de tokens qui la rattrape) là où chacun
+seul était mono-source ; (2) le biais des détecteurs contre les non-natifs, regrainé, réunit les
+deux versants du même mécanisme — Liang et al. montrent qu'un texte de non-natif retouché revient
+du côté « humain », Wang et al. (JAAD International 2025, corpus tout autre) qu'un texte humain
+poli bascule du côté « machine » ; (3) la borne d'AUROC, qui n'était qu'une dérivation
+arithmétique en anglais, porte désormais le DÉBAT — Chakraborty et al. (ICML 2024) reprennent
+l'inégalité à leur équation (13) pour la juger « too conservative ». **Une réfutation publiée est
+la forme la plus forte d'indépendance** : elle ne reprend pas le résultat sur parole, elle le
+ré-analyse. Corollaire de méthode : sur un rejet au seuil, chercher qui CONTESTE le résultat vaut
+mieux que chercher qui le répète.
+
+⚠️ **3e occurrence de [[acceptance-ignore-le-rang-des-sources]], et la plus large : 14 claims
+`confirmed` reposaient sur UNE seule source de rang réel**, la corroboration affichée étant un
+wiki de cours, un blog, un résumé auto-généré ou une reprise de presse du travail même que
+l'énoncé décrit. `build.success` est sorti FAUX à cause d'eux — le contrôle a fonctionné. À
+saluer : l'agent Build a REFUSÉ de déclarer l'exception document-source à leur place, au motif
+juste (« la doctrine exige que TOUS les jurés aient qualifié l'énoncé de document_source,
+condition invérifiable a posteriori ; l'écrire quand même fabriquerait une conformité »).
+Réparés à la main : le survey de Liu et al. (ACM Computing Surveys) corrobore 5 claims KGW d'un
+coup en redonnant verbatim la formule du z-score ; la publication primaire dans *Nature* manquait
+à l'appareil du claim SynthID principal ; exception document-source déclarée pour le règlement
+européen et l'annonce d'OpenAI. **Défauts résiduels assumés, écrits dans les `audit_note`** :
+claim:4 et claim:26 gardent une seule source de rang réel (aucune corroboration trouvée dans un
+passage vérifiable — les abstracts n'y suffisent pas, et rattacher une source non lue aurait été
+pire) ; les 3 claims du règlement citent artificialintelligenceact.eu, reproduction fidèle mais
+NON officielle (EUR-Lex tronque à la récupération, je n'ai pas rattaché d'URL non vérifiée) ;
+claim:28 et claim:32 sont un quasi-doublon anglais/français sur le classifieur d'OpenAI.
+
+**Défaut de widget trouvé par la revue visuelle, invisible au lint** : la charte pose
+`th{background:var(--blue-deep);color:#E7F0F8}` ; le widget `synopsis-tatouage-attaque-verdict`
+écrasait la COULEUR des `th` (`--stav-faint`) **sans écraser leur FOND**, d'où une encre gris-bleu
+sur bleu profond à **2,48:1**. Corrigé en retirant la déclaration `color` du widget — la charte
+gouverne, conformément à « charte = source unique ». Après correction : **0 violation en clair
+comme en sombre**. Piège de MESURE re-confirmé au passage ([[charte-blue-deep-double-role]]) : un
+`bgOf` qui ne remonte pas le premier arrêt des dégradés fabrique 4 faux positifs sur le bandeau de
+titre (encre claire sur dégradé sombre, lue comme encre claire sur fond de page clair).)
 
 ### Génération de code par LLM — `llm-code-generation` → `llm-agents-generation`
 **Verdict : gap réel mais ⚠️ frontière à caler (ajout 2026-08-06).** Le corpus n'a AUCUN thème
