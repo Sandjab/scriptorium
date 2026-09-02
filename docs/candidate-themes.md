@@ -229,6 +229,24 @@ chiffrée FABRIQUÉE autour d'un chiffre unique et écrite en toutes lettres, le
 métrique inversé dans un claim retenu, la thèse d'un papier de référence retournée deux fois,
 et un conseil organisationnel faux — « mentorat par les seniors » là où la preuve porte sur la
 compétence du collègue, pas sur son rang.)
+
+(`ia-emploi-marche-du-travail` : FAIT le 2026-09-02, retiré du backlog — 51e run /leanmonograph.
+3e thème d'`ai-organizations`. 10 sections, 39 claims (18 confirmés / 15 corrigés / 6 rejetés),
+55 sources, 4 widgets. **Le brief du backlog était partiellement faux et a été corrigé avant
+lancement** : il demandait de couvrir les projections macro (Acemoglu vs Goldman), or
+`ia-productivite-esn` les tient déjà en profondeur, figure comprise — périmètre resserré en amont,
+sur la construction des indices et les effets réalisés. 6e arrêt au garde-fou d'élagage, réparé en
+RÉ-GRAINANT au phénomène (Atalay et al. 2020, corpus disjoint et critiques de l'instrument d'ALM),
+pas en cherchant un miroir du chiffre. **Découverte transversale** : Autor-Levy-Murnane existe en
+deux versions aux chiffres DIFFÉRENTS — « thirty to forty percent » et « more than half » au NBER
+w8337 (2001), « 60 percent » et « almost half » au QJE 118(4) (2003), dénominateur compris. Les
+claims les citaient fusionnées sous « w8337 / QJE 2003 », ce qui rendait le désaccord entre jurés
+insoluble : chaque juré lisait un document différent et les deux avaient raison. 4e occurrence du
+trou d'acceptation, sur 4 claims `confirmed` corroborés par des **reprises de presse du papier
+décrit** (TIME, Fortune, Yahoo — cette dernière syndication mot pour mot de Fortune, donc la même
+source comptée deux fois) ; ré-adjugés par 2 jurés indépendants → 1 réparé au seuil avec trois
+travaux distincts, 2 en exception `document-source` déclarée, 1 déclassé en `corrected`. L'agent
+Build a de nouveau eu raison de REFUSER de déclarer l'exception à la place des jurés.)
 ---
 
 ## Priorité moyenne
@@ -653,29 +671,6 @@ C'est l'heuristique du renvoi cassé, la plus fiable du corpus. ⚠️ La théor
 > text-embeddings traite l'ALSH pour le MIPS — NE PAS re-dériver le cadre LSH générique ; se centrer
 > sur MinHash/Jaccard, la min-wise independence et la déduplication comme killer app. Domaine :
 > probabilistic-structures-hashing.
-
-### Emploi et marché du travail sous IA — `ia-emploi-marche-du-travail` → `ai-organizations`
-**Verdict : partiel, gap large (ajout 2026-09-01).** `ia-productivite-esn` ne tient que deux
-résultats, un paragraphe chacun : « Brynjolfsson, Chandar & Chen (2025) documentent un recul de
-~16 % de l'emploi chez les 22-25 ans dans les métiers fortement exposés à l'IA » et Humlum &
-Vestergaard (« effet agrégé nul sur les salaires et les heures travaillées ») ; l'exposition n'y sert
-que d'hypothèse de projection macro (Acemoglu, « 20 % des tâches »). Les indices d'exposition
-eux-mêmes (Eloundou « GPTs are GPTs », Felten, Webb), l'Anthropic Economic Index, la distinction
-exposition/effets réalisés et substitution/complémentarité : absents. Littérature surtout
-observationnelle — d'où la priorité moyenne derrière le candidat compétences.
-
-> Les effets de l'IA générative sur l'emploi : ce que mesurent les indices d'exposition, et ce que
-> montrent les données réalisées. Couvrir la construction des indices d'exposition par tâche
-> (Eloundou et al., Felten et al., Webb) et leurs hypothèses, l'écart entre exposition et effet
-> (usage réel mesuré par l'Anthropic Economic Index et les enquêtes d'usage), les premiers effets
-> réalisés sur l'emploi des débutants (« canaries in the coal mine », Brynjolfsson/Chandar/Chen 2025)
-> contre les effets agrégés nuls (Humlum & Vestergaard), substitution vs complémentarité par
-> occupation, salaires et polarisation, et les projections macro (Acemoglu vs Goldman) lues avec
-> leurs hypothèses. Public : dirigeant, économiste, ingénieur. Délimitations : `ia-productivite-esn`
-> couvre la productivité, les canaries et la J-curve en un paragraphe chacun (les citer, partir de
-> là) ; `ia-competences-deskilling-apprentissage` (PUBLIÉ) couvre la compétence individuelle — ici
-> le marché, pas l'apprenant. Piège : les indices d'exposition sont des prédictions, jamais des
-> mesures ; ne pas les présenter comme des effets. Domaine : ai-organizations.
 
 ### Généralisation en surparamétrisation — `generalisation-double-descent-grokking` → `deep-learning-foundations`
 **Verdict : gap réel — le plus net du domaine (ajout 2026-09-01).** Le corpus a les briques
