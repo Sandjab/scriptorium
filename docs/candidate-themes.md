@@ -91,6 +91,70 @@ ont décidé des verdicts :
    document centré sur le rayon gris, faux d'un document centré sur une classe de médicaments à AMM
    avec vingt-cinq ans de RCT. L'adultération y devient une section, pas le fil rouge.
 
+**Passe d'enrichissement du 2026-09-01** (corpus à 89 thèmes / 91 documents) : revue des 2
+méta-domaines et de leurs 12 domaines, à la demande. Point de départ : **quatre domaines n'avaient
+plus aucun candidat** (`ai-organizations`, `pharmacologie-metabolique`, `fonction-sexuelle`, et
+`performance-cognitive` hors une entrée basse), et `ai-organizations` reste le seul domaine sans
+portail. 47 idées soumises à 12 agents-lecteurs (un par domaine), chacun tenu à la règle du projet —
+grep pour LOCALISER, verdict pris sur la prose LUE, citations verbatim à l'appui —, plus un 13e
+agent chargé du balayage corpus de l'heuristique du renvoi (« traité ailleurs », « relève de »,
+« dossier distinct »… : 159 occurrences brutes, ≈ 55 renvois de sujet, chaque cible ouverte et lue).
+Bilan : **33 gaps réels, 7 partiels, 7 écartés** ; 36 candidats ajoutés ci-dessous, 1 remonté de
+priorité. Cinq constats ont décidé des verdicts :
+
+1. **Le balayage des renvois a pris cinq fois, dont trois cibles qui existent mais ne disent pas ce
+   qui est promis.** (A1) `diffusion-language-models` renvoie la génération parallèle masquée à « la
+   monographie consacrée au décodage » — `decoding-sampling` n'a aucune occurrence de « non
+   autorégressif » ni de « Mask-Predict » ; (A2) `pretraining-data-curation` renvoie « de combien un
+   score publié s'en trouve faussé » à `llm-evaluation`, qui est une monographie LLM-as-a-judge où
+   la contamination tient en trois phrases ; (A3) le même document écrit que « la mécanique des
+   signatures, MinHash et LSH, relève d'un autre document » — **aucun document du corpus ne
+   contient MinHash** : `minhash-dedup`, classé « marginal » ici, est remonté en priorité moyenne ;
+   (A4) `nootropiques-stimulants-prescrits` renvoie le contenu réel des gélules hors circuit à
+   « d'autres monographies de ce corpus » qui ne traitent aucun stimulant contrefait ; (A5)
+   l'écosystème de `masse-maigre-sous-glp1` décrit faussement `proteines-besoins-timing` (« ne
+   couvre pas le déficit marqué » — il a une section entière dessus ; c'est le déficit
+   *pharmacologiquement induit* qui manque, et la section `proteines-et-entrainement` du même
+   document le dit correctement). ⚠️ **Réparations locales à faire, hors backlog** : A5 (une phrase
+   dans `manifest.json`), et la phrase périmée de `nootropiques-panorama` sur les oméga-3 (« aucun
+   autre document de ce corpus ne les traite », faux depuis le 48e run). Non faites ce jour.
+2. **Le corpus désigne lui-même ses gaps, plus souvent par l'objet nommé que par le renvoi.**
+   `incretines-glp1` nomme le piège « traiter la perte de poids comme le seul résultat de la
+   classe » puis n'en traite qu'un contre-exemple (SELECT) ; `testosterone-homme-age` nomme trois
+   fois le désir sexuel sans jamais rapporter le Sexual Function Trial ; `hyperloglog` et
+   `count-min-sketch` écrivent chacun que leurs garanties supposent « une hypothèse rarement
+   explicitée » sur la fonction de hachage, qu'aucun thème ne pose ; `creatine` et
+   `cafeine-ergogene` citent la liste du Groupe A de l'AIS, dont le jus de betterave est le seul
+   membre sans candidat ; `structured-extraction-llm` annonce la « conversion langage naturel vers
+   requêtes structurées » et ne la développe jamais ; `convolutional-networks` nomme Szegedy et la
+   FGSM en deux phrases de clôture et passe.
+3. **Le méta santé est masculin par construction.** Sur 20 thèmes, aucun n'a la femme pour sujet ;
+   elle n'apparaît qu'en population d'essai (Chapuy, l'essai osseux du collagène, « 46 femmes en
+   déficit de 750 kcal/j ») ou en exclusion de sécurité (grossesse, contraceptifs). Ménopause, THM,
+   WHI : jamais traités ; désir féminin : jamais nommé. Deux candidats en découlent
+   (`desir-sexuel-hypoactif`, `disponibilite-energetique-reds`) et une tête de file de domaine neuf
+   (`menopause-hormonotherapie`).
+4. **Sept « écartés » le sont sur lecture, pas sur intuition** (liste en fin de la section
+   « Écartés ») : le décodage contraint (chaque point du brief est dans `structured-extraction-llm`,
+   XGrammar et le « 75,99 % → 49,25 % » compris), la nicotine (substance 10 des 25 du panorama,
+   section dédiée), les expériences de terrain hors code (`ia-productivite-esn` expose
+   Brynjolfsson/Li/Raymond, Noy & Zhang et Dell'Acqua avec leurs chiffres), les suppléments
+   anti-sarcopénie (HMB, leucine, oméga-3 dans `reste-du-rayon`), le pipeline GLP-1 (section
+   `pipeline-retatrutide` de 18 000 caractères).
+5. **Deux erreurs de ce backlog corrigées par la lecture** : `count-min-sketch` ne traite PAS les
+   heavy hitters déterministes (Misra-Gries et SpaceSaving ne sont qu'une phrase de
+   `streaming-quantiles-sampling`), contrairement à ce que supposait l'idée soumise ; et
+   « `llm-evaluation` traite déjà la contamination des benchmarks côté évaluation » (passe du
+   2026-08-01) était trop généreux — trois phrases de limites, aucune mesure.
+
+**Têtes de file de cette passe** — IA : `ia-competences-deskilling-apprentissage` (FAIT le
+2026-09-02 ; il a ouvert `ai-organizations`, et **plus aucun domaine n'est sans portail** — la règle
+du 2026-08-27 n'a donc plus d'objet pour l'instant) ; santé : `glp1-hors-poids`,
+`desir-sexuel-hypoactif`, `osteoporose-pharmacologie` (table d'ordre de lancement révisée dans la
+section santé). ⚠️ Les pistes chiffrées des prompts ajoutés ci-dessous viennent de la mémoire du
+rédacteur et des rapports de lecture, **sans balayage web** : à corroborer en source primaire au
+Sweep, jamais des faits ; si une piste ne se corrobore pas, la retirer.
+
 - **Fabrication** : `/leanmonograph « <prompt riche> »` (défaut depuis le test GREEN du 2026-07-02 ;
   `/frugalmonograph` en repli) puis `/arrange <slug>`.
 - **Domaine** = celui de `tools/taxonomy.json` (source de vérité). Un thème = un seul domaine.
@@ -155,6 +219,16 @@ chiffre −50 % d'ECE, réellement single-source, conservé), re-adjudication tr
 d'audit-report. **Réflexe : sur tout rejet « seuil non atteint » d'un claim established, comparer
 les listes de sources des deux jurés avant de croire le rejet.**)
 
+(`ia-competences-deskilling-apprentissage` : FAIT le 2026-09-02, retiré du backlog — 50e run
+/leanmonograph. **Ouvre le portail `ai-organizations`**, le dernier domaine qui n'en avait pas.
+11 sections, 43 claims (12 confirmés / 24 corrigés / 7 rejetés), 72 sources, 2 widgets.
+Arrêt au garde-fou d'élagage puis réparation : le contrôle d'acceptation a sorti FAUX sur
+**10 claims `confirmed` ne reposant que sur une source recevable** — reprises de presse,
+miroirs et blogs comptés comme corroboration. Ont été rattrapés en réparation : une fourchette
+chiffrée FABRIQUÉE autour d'un chiffre unique et écrite en toutes lettres, le signe d'une
+métrique inversé dans un claim retenu, la thèse d'un papier de référence retournée deux fois,
+et un conseil organisationnel faux — « mentorat par les seniors » là où la preuve porte sur la
+compétence du collègue, pas sur son rang.)
 ---
 
 ## Priorité moyenne
@@ -560,12 +634,13 @@ au même article que le texte.
 > continuité avec le thème texte, ou `deep-learning-foundations` par continuité avec les modèles
 > génératifs d'image.
 
----
-
-## Priorité basse / marginale
-
 ### MinHash & déduplication — `minhash-dedup` → `probabilistic-structures-hashing`
-**Verdict : partiel.** ⚠️ La théorie LSH a déjà une section dédiée dans
+**Verdict : partiel — REMONTÉ de « basse » à « moyenne » le 2026-09-01.** Le corpus le réclame :
+`pretraining-data-curation` (section `deduplication-effets`) écrit « La mécanique des signatures,
+MinHash et LSH (Locality-Sensitive Hashing), relève d'un autre document ; on la tient ici pour
+acquise » — et **aucun des 89 thèmes ne contient « MinHash »** (`approximate-nearest-neighbor`
+tient le LSH côté vecteurs ; `consistent-hashing` nomme un « min-hash rapide » pour l'écarter).
+C'est l'heuristique du renvoi cassé, la plus fiable du corpus. ⚠️ La théorie LSH a déjà une section dédiée dans
 `approximate-nearest-neighbor` (et ALSH/MIPS dans `text-embeddings`) → recibler sur MinHash/dedup.
 
 > MinHash et déduplication par similarité d'ensembles : estimer la similarité de Jaccard et trouver
@@ -578,6 +653,375 @@ au même article que le texte.
 > text-embeddings traite l'ALSH pour le MIPS — NE PAS re-dériver le cadre LSH générique ; se centrer
 > sur MinHash/Jaccard, la min-wise independence et la déduplication comme killer app. Domaine :
 > probabilistic-structures-hashing.
+
+### Emploi et marché du travail sous IA — `ia-emploi-marche-du-travail` → `ai-organizations`
+**Verdict : partiel, gap large (ajout 2026-09-01).** `ia-productivite-esn` ne tient que deux
+résultats, un paragraphe chacun : « Brynjolfsson, Chandar & Chen (2025) documentent un recul de
+~16 % de l'emploi chez les 22-25 ans dans les métiers fortement exposés à l'IA » et Humlum &
+Vestergaard (« effet agrégé nul sur les salaires et les heures travaillées ») ; l'exposition n'y sert
+que d'hypothèse de projection macro (Acemoglu, « 20 % des tâches »). Les indices d'exposition
+eux-mêmes (Eloundou « GPTs are GPTs », Felten, Webb), l'Anthropic Economic Index, la distinction
+exposition/effets réalisés et substitution/complémentarité : absents. Littérature surtout
+observationnelle — d'où la priorité moyenne derrière le candidat compétences.
+
+> Les effets de l'IA générative sur l'emploi : ce que mesurent les indices d'exposition, et ce que
+> montrent les données réalisées. Couvrir la construction des indices d'exposition par tâche
+> (Eloundou et al., Felten et al., Webb) et leurs hypothèses, l'écart entre exposition et effet
+> (usage réel mesuré par l'Anthropic Economic Index et les enquêtes d'usage), les premiers effets
+> réalisés sur l'emploi des débutants (« canaries in the coal mine », Brynjolfsson/Chandar/Chen 2025)
+> contre les effets agrégés nuls (Humlum & Vestergaard), substitution vs complémentarité par
+> occupation, salaires et polarisation, et les projections macro (Acemoglu vs Goldman) lues avec
+> leurs hypothèses. Public : dirigeant, économiste, ingénieur. Délimitations : `ia-productivite-esn`
+> couvre la productivité, les canaries et la J-curve en un paragraphe chacun (les citer, partir de
+> là) ; `ia-competences-deskilling-apprentissage` (PUBLIÉ) couvre la compétence individuelle — ici
+> le marché, pas l'apprenant. Piège : les indices d'exposition sont des prédictions, jamais des
+> mesures ; ne pas les présenter comme des effets. Domaine : ai-organizations.
+
+### Généralisation en surparamétrisation — `generalisation-double-descent-grokking` → `deep-learning-foundations`
+**Verdict : gap réel — le plus net du domaine (ajout 2026-09-01).** Le corpus a les briques
+éparses sans le fil : la double descente en une incise de `scaling-laws` (« où la perte remonte puis
+redescend avec l'échelle », comme forme que BNSL sait représenter), les minima plats en une phrase de
+`quantization` au service du QAT, SAM entre parenthèses dans `normalization-layers`, et le seul
+traitement de fond de l'énigme d'interpolation dans `ensemble-learning` — pour le boosting (« l'erreur
+de test d'AdaBoost continue de baisser après que l'erreur d'entraînement a atteint zéro […] La théorie
+VC prédit l'inverse », résolu par les marges de Schapire). Grokking, ticket de loterie, Belkin,
+Nakkiran, benign overfitting, « labels aléatoires » : 0 occurrence.
+
+> Pourquoi les réseaux surparamétrés généralisent : les phénomènes et ce qu'on en comprend. Couvrir
+> l'énigme fondatrice (Zhang et al. 2017 : mémoriser des labels aléatoires sans perdre la capacité de
+> généraliser), la double descente (Belkin et al. 2019, Nakkiran et al. : double descente en taille de
+> modèle, en époques, en données — et le rôle du bruit de label), le grokking (Power et al. 2022 :
+> généralisation longtemps après l'ajustement, et ses explications par la norme des poids et les
+> circuits), l'hypothèse du ticket de loterie (Frankle & Carbin) comme phénomène de généralisation,
+> les minima plats et SAM, le biais implicite de SGD et la régularisation implicite, le benign
+> overfitting en régression linéaire, et ce que ces résultats disent — et ne disent pas — de la
+> pratique (early stopping, taille de modèle, régularisation). Public : ingénieur ML. Délimitations :
+> `scaling-laws` garde les lois de puissance et l'émergence ; `ensemble-learning` garde
+> biais-variance classique et les marges du boosting (les citer comme précédent) ;
+> `mechanistic-interpretability` garde les circuits (le citer pour le grokking) ; `lora` tient déjà
+> le NTK en propriété théorique. Le ticket de loterie est ICI comme phénomène ; le candidat
+> `pruning-sparsity` le tient comme méthode. Domaine : deep-learning-foundations.
+
+### Détection et segmentation d'objets — `object-detection-segmentation` → `deep-learning-foundations`
+**Verdict : gap réel (ajout 2026-09-01).** Les détecteurs apparaissent six fois en boîte noire, jamais
+ouverts : Faster R-CNN comme extracteur de régions dans `document-ai` (« caractéristiques de région
+extraites par Faster R-CNN »), RT-DETR sous Docling, « Table Transformer, deux réseaux fondés sur
+DETR », RetinaNet et « têtes de détection R-CNN » dans `normalization-layers` (un bug de BN qui fait
+tomber « de 39,1 AP à 2,1 AP »), YOLO pour le BN folding, U-Net comme backbone de diffusion, et une
+seule trace de SAM (« ViTDet, dérivé de SAM »), jamais expliquée. COCO et ADE20K ne sont que des
+bancs dans `convolutional-networks`. Appariement hongrois, NMS, mAP comme construction : absents.
+
+> Détection et segmentation d'objets : localiser, pas seulement classer. Couvrir la lignée à deux
+> étages (R-CNN → Fast → Faster : proposition de régions, RPN, ancres, RoIPool/RoIAlign), les
+> détecteurs à un étage (YOLO et ses versions, SSD, RetinaNet et la focal loss), la suppression des
+> non-maxima et ses pièges, DETR (requêtes d'objets, appariement hongrois, convergence lente) et ses
+> descendants, la segmentation sémantique (FCN, U-Net), d'instance (Mask R-CNN) et panoptique, les
+> modèles promptables (Segment Anything, SAM 2), les métriques (AP/mAP à seuils d'IoU, mIoU, PQ) et
+> ce qu'elles masquent, les jeux (COCO, ADE20K) et leurs biais. Public : ingénieur ML/vision.
+> Délimitations : `convolutional-networks` garde le backbone et ConvNeXt/ViT ; `document-ai` garde
+> l'analyse de mise en page (le citer : c'est un client) ; `multimodal-vlm` garde le grounding par
+> VLM ; `contrastive-self-supervised` garde DINO. Domaine : deep-learning-foundations.
+
+### Exemples adverses et robustesse — `adversarial-examples-robustness` → `deep-learning-foundations`
+**Verdict : gap réel — objet nommé puis lâché (ajout 2026-09-01).** `convolutional-networks` referme
+`pieges-idees-recues` sur deux phrases : « Szegedy et ses coauteurs montrent dès 2013 qu'une
+perturbation imperceptible […] fait basculer la classification » ; « Goodfellow, Shlens et Szegedy
+[…] en tirent la FGSM […] et proposent l'entraînement adverse comme défense » — et c'est tout.
+`llm-safety-jailbreaks` appelle le sujet sans qu'il existe (« les optimiseurs discrets y sont plus
+faibles que dans le domaine continu de l'image ») ; `quantization` traite la robustesse locale L∞
+mais pour des QNN vérifiées par ILP. PGD, randomized smoothing, ImageNet-C, Ilyas : 0 occurrence.
+
+> Les exemples adverses et la robustesse des réseaux : une perturbation que l'œil ne voit pas et qui
+> change la sortie. Couvrir le phénomène (Szegedy, l'explication linéaire de Goodfellow), les attaques
+> en boîte blanche (FGSM, PGD de Madry, C&W) et en boîte noire (transférabilité, requêtes), les
+> attaques physiques (patchs, lunettes, panneaux), l'entraînement adverse et son coût en exactitude
+> propre (robust overfitting, compromis exactitude/robustesse), les défenses certifiées (randomized
+> smoothing de Cohen et al., bornes par relaxation) contre la course aux défenses cassées (obfuscated
+> gradients, Athalye et al.), la robustesse aux corruptions naturelles (ImageNet-C) comme problème
+> distinct, et le débat « features non robustes » (Ilyas et al.). Public : ingénieur ML/sécurité.
+> Délimitations strictes : `llm-safety-jailbreaks` garde le texte discret (GCG, transfert côté texte)
+> — le citer pour marquer la frontière continu/discret ; `quantization` garde la vérification
+> formelle des QNN ; `mechanistic-interpretability` garde les SAE manipulables. Domaine :
+> deep-learning-foundations.
+
+### Apprentissage continu et oubli catastrophique — `continual-learning-catastrophic-forgetting` → `deep-learning-foundations`
+**Verdict : gap réel (ajout 2026-09-01).** Le symptôme est mesuré, la discipline absente : `lora`
+(section `limites-et-idees-recues`) rapporte le « domain forgetting — un modèle fine-tuné sur Alpaca
+perd ses capacités arithmétiques » et les intruder dimensions corrélées « avec l'oubli du
+pré-entraînement : ρ = 0,971 » ; `mixture-of-experts` note que geler les couches non-MoE « réduit le
+risque d'oubli catastrophique » ; `agentic-memory` cite SWE-Bench-CL avec « forgetting, forward
+transfer et backward transfer » sans les définir. EWC, replay, incrémental par classe, Kirkpatrick :
+0 occurrence. « Continual Harness » dans `self-improving-harness` est un homonyme.
+
+> Apprendre sans oublier : l'apprentissage continu et l'oubli catastrophique. Couvrir le phénomène
+> (McCloskey & Cohen, le dilemme stabilité-plasticité), les scénarios (incrémental par tâche, par
+> domaine, par classe — et pourquoi le dernier est le plus dur), les familles de méthodes
+> (régularisation : EWC, SI ; rejeu : experience replay, generative replay ; isolation de paramètres ;
+> distillation anti-oubli : LwF), les métriques (exactitude moyenne, backward/forward transfer) et
+> les pièges d'évaluation (task-ID connu ou non), puis le cas des LLM : l'oubli au fine-tuning,
+> l'alignment tax comme oubli, le pré-entraînement continu et les stratégies de rejeu de données.
+> Public : ingénieur ML. Délimitations : `lora` garde la mécanique des adaptateurs (citer ses
+> mesures d'oubli comme point de départ) ; `knowledge-distillation` garde la distillation comme
+> technique (LwF l'emploie, le dire) ; `rlhf-dpo` garde l'over-optimization ; le candidat
+> `model-editing-unlearning` traite l'oubli VOULU — se délimiter mutuellement. Domaine :
+> deep-learning-foundations.
+
+### Mathématiques formelles par LLM — `llm-formal-math-theorem-proving` → `llm-agents-generation`
+**Verdict : gap réel (ajout 2026-09-01).** Le seul « Lean » du corpus est incident (le Defense
+Trilemma « est vérifié mécaniquement en Lean 4 avec Mathlib », dans `llm-safety-jailbreaks`).
+AlphaProof, AlphaGeometry, miniF2F, PutnamBench, DeepSeek-Prover, autoformalisation : 0 occurrence.
+Les voisins tiennent la vérification informelle et posent la motivation sans la suite :
+`reasoning-test-time-compute` traite les vérificateurs APPRIS (« un verifier de 6 milliards de
+paramètres atteint environ 92 % sur GSM8K ») et écrit que « les méthodes verifier-free […] sont
+asymptotiquement sous-optimales par rapport aux méthodes verifier-based » ; `agentic-rl-environments`
+s'en tient à la « boîte de réponse en mathématiques ». Ce thème = le vérificateur formel, oracle parfait.
+
+> Les LLM et la démonstration formelle : quand le vérificateur est un assistant de preuve. Couvrir
+> l'assistant de preuve comme oracle (Lean/Mathlib, Isabelle, Coq : ce qu'une preuve vérifiée garantit
+> et ce qu'elle ne garantit pas — l'énoncé formalisé peut être faux), l'autoformalisation (du langage
+> naturel à l'énoncé formel, et ses erreurs silencieuses), la recherche de preuve guidée par le
+> vérificateur (recherche arborescente, best-first, expert iteration), les systèmes (AlphaProof et le
+> résultat IMO 2024, AlphaGeometry, DeepSeek-Prover, Kimina, Goedel-Prover), le RL à récompense
+> binaire prouvée, les benchmarks (miniF2F, PutnamBench, ProofNet) et leurs fuites, la distinction
+> entre résoudre un problème d'olympiade et produire des mathématiques nouvelles, et les usages
+> (vérification de code, bibliothèques formelles). Public : ingénieur ML. Délimitations strictes :
+> `reasoning-test-time-compute` garde les vérificateurs appris et le best-of-N (partir de sa thèse
+> verifier-based) ; `agentic-rl-environments` garde le RLVR par boîte de réponse ; `llm-evaluation`
+> garde les juges. L'angle propre : l'oracle exact et ce qu'il change à l'entraînement. Domaine :
+> llm-agents-generation (portail clos à 20 : /arrange tranchera l'insertion, comme au 49e run).
+
+### Agents d'interface graphique — `computer-use-gui-agents` → `llm-agents-generation`
+**Verdict : partiel, gap net sur la mécanique (ajout 2026-09-01).** Les SCORES et la CONSTRUCTION des
+benchmarks sont couverts : `agentic-ai` donne la trajectoire OSWorld (« le meilleur agent atteint
+12,24 % contre 72,36 % pour les humains […] Agent S3 […] atteint 72,6 % »), WebArena, CUA
+« 38,1 % sur OSWorld » ; `agent-evaluation-observability` détaille les vérifications de WebArena et les
+« 134 fonctions d'évaluation » d'OSWorld. Mais les deux désignent la cause d'échec sans la traiter :
+« les échecs tiennent d'abord au grounding GUI (l'ancrage des intentions dans les bons éléments
+d'interface) », « Un agent peut produire un plan parfaitement correct et échouer à cliquer au bon
+endroit ». `multimodal-vlm` s'arrête au seuil (« l'agent incarné relève du thème agentic-ai : on
+s'arrête »). Set-of-Mark, Mind2Web, arbre d'accessibilité, ScreenSpot, OmniParser : 0 occurrence.
+
+> Les agents qui pilotent une interface graphique : percevoir un écran, choisir une action, vérifier.
+> Couvrir l'ancrage visuel (grounding) comme problème central — coordonnées vs marques (Set-of-Mark),
+> capture d'écran vs arbre d'accessibilité vs DOM, parseurs d'écran (OmniParser) et modèles de
+> grounding (UGround, SeeClick) avec leurs benchmarks (ScreenSpot) —, la conception de l'espace
+> d'actions (clic/texte/raccourcis vs code exécuté : CoAct), la boucle perception-action et la
+> vérification d'état, les benchmarks web et bureau (Mind2Web, WebArena, OSWorld, WebVoyager) lus
+> par leur méthode plutôt que par leurs scores, le RL sur GUI, et les modes d'échec (boucles, actions
+> irréversibles, injection par le contenu de la page). Public : ingénieur ML. ⚠️ Délimitations
+> strictes : `agentic-ai` garde les scores et la chronologie (les citer, ne pas les redériver) ;
+> `agent-evaluation-observability` garde la construction des environnements exécutables ;
+> `multimodal-vlm` garde l'architecture VLM ; `agent-harness-engineering` garde la boucle
+> générique ; le candidat `vision-language-action` tient la robotique (voisin, pas doublon) ; le
+> candidat `agent-tool-security` tient la défense architecturale. L'angle propre : le grounding et
+> l'espace d'actions. Domaine : llm-agents-generation.
+
+### Contamination des benchmarks — `benchmark-contamination` → `llm-agents-generation`
+**Verdict : gap réel — renvoi cassé A2 (ajout 2026-09-01).** `pretraining-data-curation` écrit :
+« Savoir de combien un score publié s'en trouve faussé relève de la mesure, et le document consacré à
+l'évaluation des LLM traite ce versant. » Lecture de `llm-evaluation` : une monographie LLM-as-a-judge
+(8 sections : modes de jugement, biais de verbosité, auto-préférence, accord juge-humain) où la
+contamination tient en trois phrases de « Limites, pièges » concluant que « sa quantification précise
+reste inaccessible ». Ce backlog affirmait le 2026-08-01 que ce versant était couvert : il ne l'est
+pas. `pretraining-data-curation` tient la décontamination CÔTÉ CORPUS (n-grammes, seuils) ;
+`agent-evaluation-observability` tient la contamination des benchmarks d'AGENTS (SWE-bench).
+
+> La contamination des benchmarks : quand le modèle a vu le test. Couvrir les voies de contamination
+> (pré-entraînement, fine-tuning sur données synthétiques, rejeu par les utilisateurs), les méthodes
+> de détection (chevauchement n-gramme et ses angles morts, détection par vraisemblance ou
+> mémorisation — Sainz et al., Golchin & Surdeanu, « Time Travel in LLMs »), la MESURE de
+> l'inflation des scores (paires benchmark / version rafraîchie : GSM8K vs GSM1k, MMLU vs variantes
+> récentes ; ce que les écarts disent), les réponses de conception (benchmarks dynamiques et datés,
+> LiveBench, jeux privés et le problème de confiance, canaries), la saturation et le cycle de vie
+> d'un benchmark, et les leaderboards comme incitation. Public : ingénieur ML. ⚠️ Délimitations
+> strictes : `pretraining-data-curation` garde la décontamination côté corpus (partir de sa section,
+> ne pas la refaire) ; `llm-evaluation` garde le juge ; `agent-evaluation-observability` garde
+> SWE-bench et l'écart de harness ; `scaling-laws` garde l'émergence. L'angle propre : mesurer de
+> combien, et concevoir contre. Domaine : llm-agents-generation (portail clos : /arrange tranchera).
+
+### Évaluation de la recherche d'information — `evaluation-ir-jugements-pertinence` → `information-retrieval-representation`
+**Verdict : partiel, gap large — le socle que six thèmes invoquent sans le poser (ajout
+2026-09-01).** Couvert : les formules de DCG/NDCG/MAP/MRR et leur platitude dans `learning-to-rank`
+(« leur gradient par rapport aux scores est nul presque partout »), et le biais de pooling comme
+artefact des jeux LETOR seulement (« traite comme non pertinents les documents jamais jugés par le
+pooling de TREC »). Le corpus cite des dizaines de nDCG@10 sur BEIR/MS MARCO/TREC-DL sans jamais
+dire d'où viennent les qrels ; `hybrid-search-reranking` suppose que « quelques dizaines de jugements
+de pertinence suffisent », `bm25-inverted-index` renvoie « sur des corpus sans annotations de
+pertinence » à des proxys. Cranfield, qrels, bpref, Voorhees, tests de significativité, le débat
+LLM-juge de pertinence (Thomas et al./Bing, Faggioli et al., Clarke & Soboroff, UMBRELA) :
+0 occurrence — `llm-evaluation` ne traite le juge que pour la génération.
+
+> Évaluer un système de recherche : d'où viennent les jugements, et ce que les métriques supposent.
+> Couvrir le paradigme de Cranfield et les collections de test (TREC, MS MARCO et ses jugements
+> clairsemés, BEIR), la construction des qrels par pooling et l'incomplétude (bpref, condensed lists,
+> et ce que « non jugé » veut dire), l'accord inter-juges (Voorhees) et la stabilité des classements
+> de systèmes, les métriques (précision/rappel, MAP, nDCG, MRR, ERR) lues par leurs hypothèses sur
+> l'utilisateur, les tests de significativité et la taille des jeux de requêtes, l'évaluation en
+> ligne (interleaving, clics et leurs biais) en contrepoint, et le débat 2024-2026 sur les LLM comme
+> juges de pertinence (Thomas et al., Faggioli et al., UMBRELA/TREC RAG, l'objection de Clarke &
+> Soboroff : circularité et biais). Public : ingénieur ML/recherche. ⚠️ Délimitations strictes :
+> `learning-to-rank` garde les formules et le biais LETOR (les citer, ne pas les re-dériver) ;
+> `llm-evaluation` garde les biais génériques des juges ; `hybrid-search-reranking` garde BEIR
+> comme résultat. L'angle propre : la méthodologie de mesure. Domaine :
+> information-retrieval-representation.
+
+### Du langage naturel à la requête structurée — `text-to-sql-semantic-parsing` → `information-retrieval-representation`
+**Verdict : gap réel — objet nommé puis laissé (ajout 2026-09-01).** `structured-extraction-llm`
+annonce « Trois cas d'usage […] chatbots équipés d'outils externes, conversion langage naturel vers
+requêtes structurées, et extraction de données structurées depuis du texte libre. Ce troisième cas
+révèle d'emblée la nature du contrat… » — le deuxième n'est jamais développé.
+`knowledge-graph-construction` traite les LANGAGES (SPARQL 1.1, GQL ISO/IEC 39075:2024) sans jamais
+la génération depuis le langage naturel. Text-to-SQL, Spider, BIRD, schema linking : 0 occurrence.
+
+> Du langage naturel à la requête exécutable : text-to-SQL et parsing sémantique. Couvrir la tâche et
+> ses benchmarks (Spider et l'évaluation par correspondance exacte vs exécution, BIRD et les bases
+> réalistes, Spider 2.0 et les flux d'entreprise), le schema linking comme cœur du problème (colonnes
+> ambiguës, valeurs, jointures implicites), les approches (encodeur-décodeur contraint par la
+> grammaire, LLM avec schéma dans le contexte, décomposition, exécution comme oracle et
+> auto-correction), les erreurs typiques (requête plausible et fausse, agrégations, NULL), la
+> sécurité (injection, droits), l'évaluation (exécution vs sémantique, plusieurs requêtes
+> correctes), et l'extension aux graphes (text-to-SPARQL/Cypher). Public : ingénieur ML/data.
+> Délimitations : `structured-extraction-llm` garde le schéma JSON en sortie (ici un PROGRAMME
+> exécutable) ; `knowledge-graph-construction` garde les langages de graphe ; `agentic-ai` garde
+> l'agent qui appelle une base (cas d'usage à citer, pas l'objet). Domaine :
+> information-retrieval-representation.
+
+### Plongements de graphes de connaissances — `knowledge-graph-embeddings-link-prediction` → `information-retrieval-representation`
+**Verdict : gap réel (ajout 2026-09-01).** Seule trace : `graph-neural-networks` nomme « la prédiction
+de liens (link prediction) » comme catégorie OGB (« ogbl-collab, ogbl-citation2 […] Hits@K, MRR ») sans
+un mot sur les graphes multi-relationnels. `knowledge-graph-construction` pose l'incomplétude (« un
+graphe nécessairement incomplet […] traiter à tort tout fait non encore consigné comme faux ») sans
+jamais la traiter comme problème d'inférence. TransE, RotatE, ComplEx, DistMult : 0 occurrence.
+
+> Plonger un graphe de connaissances pour le compléter : les modèles de prédiction de liens et ce
+> qu'ils garantissent. Couvrir la tâche (triplets manquants, monde ouvert), les modèles
+> translationnels (TransE et ses limites sur les relations 1-N, TransH/R), bilinéaires (DistMult,
+> ComplEx et la symétrie), rotationnels (RotatE), et la comparaison avec les GNN relationnels
+> (R-GCN, CompGCN), l'entraînement par échantillonnage négatif, le protocole d'évaluation (MRR,
+> Hits@k, filtré vs brut) et ses controverses vérifiables (fuite par relations inverses dans FB15k,
+> Toutanova & Chen ; « old dog new tricks » de Ruffinelli et al. ; Sun et al. 2020 sur les
+> protocoles), l'usage en aval (complétion, recommandation, question-réponse) et les limites
+> (entités inédites, échelle). Public : ingénieur ML. Délimitations : `knowledge-graph-construction`
+> garde la construction (ici on COMPLÈTE) ; `graph-neural-networks` garde le message passing (citer
+> R-GCN) ; `entity-linking-disambiguation` garde le liage. Domaine :
+> information-retrieval-representation, entre knowledge-graph-construction et le reste de la chaîne.
+
+### Fonctions de hachage et hachage universel — `fonctions-de-hachage-universelles` → `probabilistic-structures-hashing`
+**Verdict : gap réel — désigné deux fois par le corpus (ajout 2026-09-01).** Les six thèmes du domaine
+consomment l'hypothèse sans la traiter, et deux le disent : `hyperloglog` (« Sous toutes ces garanties
+se cache une hypothèse rarement explicitée dans les guides d'utilisation : les bornes d'erreur de HLL
+supposent un hash function qui distribue ses sorties de façon uniforme […] un idéal que peu de
+fonctions pratiques satisfont rigoureusement ») et `count-min-sketch` (« les garanties supposent des
+hash functions tirées uniformément au hasard et gardées secrètes — une hypothèse souvent ignorée en
+déploiement »). Seule trace de k-indépendance : « une famille pairwise independent » en une phrase.
+Fonctions concrètes seulement nommées (MurmurHash2, MD5 tronqué, « PRF à clef »). Carter-Wegman,
+tabulation, xxHash, SipHash, HashDoS : 0 occurrence. Le fournisseur des six clients.
+
+> Les fonctions de hachage elles-mêmes : ce que « suffisamment aléatoire » veut dire, et ce que ça
+> coûte. Couvrir le hachage universel (Carter & Wegman), la k-indépendance et ce que chaque structure
+> exige réellement (2-indépendance pour Count-Min, davantage pour les estimateurs de cardinalité, le
+> hachage par tabulation de Pătraşcu & Thorup comme compromis), les familles pratiques et leurs
+> garanties absentes (MurmurHash, xxHash, CityHash, wyhash : vitesse, qualité empirique, SMHasher),
+> le hachage à clef et l'adversaire (HashDoS de 2011, SipHash, pourquoi les langages ont changé
+> leur hachage par défaut), la différence avec le hachage cryptographique (résistance aux
+> collisions vs uniformité), et les pièges (hachage de flottants, de chaînes, dépendance à
+> l'endianness, graines). Public : ingénieur ML/systèmes. Délimitations : les six thèmes du domaine
+> sont les CLIENTS (citer leurs hypothèses, ne pas redériver leurs structures) ;
+> `approximate-nearest-neighbor` garde le LSH ; `minimal-perfect-hashing` garde la construction
+> MPHF. Domaine : probabilistic-structures-hashing — en ouverture du parcours, c'est le socle.
+
+### Structures de données succinctes — `structures-succinctes` → `probabilistic-structures-hashing`
+**Verdict : gap réel (ajout 2026-09-01).** Trois objets nommés puis laissés : `bm25-inverted-index`
+traite Elias-Fano en un paragraphe comme code de postings (« au plus ⌈log2(U/n)⌉ + 2 bits par
+élément […] accès aléatoire en temps constant ») sans la mécanique rank/select qui le fonde ;
+`minimal-perfect-hashing` nomme « CacheLineEF » et « les index fondés sur la BWT (Burrows-Wheeler
+Transform) » comme repoussoir de SSHash, jamais expliqués ; `pretraining-data-curation` nomme « suffix
+array (table des suffixes) » sans le décrire. Rank/select, wavelet tree, FM-index, arbres succincts :
+0 occurrence. Thème long (≈ 12 sections) : vérifier le quota WebSearch avant.
+
+> Les structures de données succinctes : tenir dans l'espace de l'information elle-même, sans
+> renoncer aux requêtes. Couvrir la borne (espace proche de la borne d'entropie, plus o(n)), les
+> bitvecteurs avec rank/select en temps constant (Jacobson, structures à deux niveaux, variantes
+> pratiques), Elias-Fano comme structure et non comme code, les wavelet trees (rank/select sur
+> alphabet, applications aux index), la transformée de Burrows-Wheeler et le FM-index (recherche de
+> motif en temps proportionnel au motif, backward search), tables et arbres de suffixes compressés,
+> arbres succincts (LOUDS, parenthèses équilibrées), les bibliothèques (SDSL) et les usages (index
+> de recherche, génomique : alignement de lectures), et les compromis réels (constantes, cache).
+> Public : ingénieur systèmes/ML. Délimitations : `bm25-inverted-index` garde Elias-Fano comme
+> code de postings et PForDelta (le citer, ne pas refaire la compression d'index) ;
+> `minimal-perfect-hashing` garde les MPHF ; le candidat `bitmaps-compresses-roaring` tient les
+> bitmaps. Domaine : probabilistic-structures-hashing.
+
+### Analyse de survie — `analyse-de-survie` → `classical-ml-time-series`
+**Verdict : gap réel — le plus net du domaine (ajout 2026-09-01).** Tous les hits du grep sont des
+faux amis vérifiés en lecture : « Cox » est Box-Cox dans `time-series-forecasting`, « churn » est le
+code churn d'`ia-productivite-esn`, « hazard » désigne les hazard ratios cités sans méthode par les
+thèmes santé (SELECT, REDUCE-IT, TRAVERSE…). `calibration-classifieurs` traite le Brier statique
+binaire, pas le Brier dynamique ; `ensemble-learning` nomme « l'analyse de l'abandon dans les cours
+en ligne massifs » comme usage de XGBoost et passe. Valeur double : référence ML (churn, panne, délai
+de conversion) ET clé de lecture des HR pour les 20 thèmes santé qui les citent.
+
+> L'analyse de survie : prédire quand, avec des observations qu'on n'a pas vues finir. Couvrir la
+> censure (à droite, par intervalle, informative ou non) et pourquoi la régression ordinaire se
+> trompe, l'estimateur de Kaplan-Meier et le test du log-rank, le modèle de Cox (risques
+> proportionnels, vraisemblance partielle, ce que signifie un hazard ratio et ce qu'il ne dit pas :
+> absolu vs relatif, non-proportionnalité), les risques concurrents (Fine-Gray, incidence cumulée),
+> les métriques (C-index, Brier dynamique, calibration dans le temps), les versions ML (random
+> survival forests, gradient boosting de survie, DeepSurv, modèles à temps discret) et leurs
+> pièges (fuite temporelle, biais du temps immortel), et les applications hors médecine (churn,
+> maintenance prédictive, délai de conversion). Public : ingénieur ML/data. Délimitations :
+> `calibration-classifieurs` garde le Brier statique et la couverture conforme (les citer) ;
+> `ensemble-learning` garde le boosting ; `time-series-forecasting` ne touche jamais aux données
+> censurées — frontière nette ; le candidat `causal-inference` garde l'identification d'effets.
+> Domaine : classical-ml-time-series.
+
+### Explicabilité post-hoc — `explicabilite-shap-lime` → `classical-ml-time-series`
+**Verdict : partiel, gap large (ajout 2026-09-01).** Couvert (à citer, ne pas refaire) : le biais MDI
+et la comparaison permutation / drop-column sur variables corrélées dans `ensemble-learning`
+(section `importance-variables`, Strobl 2007/2008), les Variable Selection Networks du TFT dans
+`time-series-forecasting`. `mechanistic-interpretability` pose lui-même la frontière : Olah forge le
+terme « pour distinguer cette démarche […] des méthodes alors dominantes de l'IA interprétable : les
+saliency maps ». SHAP, Shapley, TreeSHAP, LIME, PDP, ICE, Rashomon : 0 occurrence.
+
+> Expliquer un modèle tabulaire après coup : ce qu'une explication garantit, et ce qu'elle ne
+> garantit pas. Couvrir les valeurs de Shapley (axiomes, coût exponentiel) et SHAP (KernelSHAP,
+> TreeSHAP, interventionnel vs observationnel et le débat sur les variables corrélées), LIME et son
+> instabilité, l'importance par permutation et ses pièges (déjà posés pour les forêts — partir de
+> là), PDP/ICE et l'extrapolation hors support, les explications contrefactuelles, l'ensemble de
+> Rashomon (plusieurs modèles également bons, explications différentes), les attaques sur les
+> explications et la fidélité, et l'usage réglementaire (droit à l'explication) contre ce que la
+> méthode permet. Public : ingénieur ML/data. Délimitations strictes : `ensemble-learning` garde
+> l'importance des variables des forêts (citer, une phrase) ; `mechanistic-interpretability` garde
+> les réseaux et les circuits (l'opposition post-hoc/mécanistique est le point de départ) ;
+> `tabular-foundation-models` garde TabPFN. Domaine : classical-ml-time-series.
+
+### Expérimentation en ligne et tests A/B — `ab-testing-experimentation-en-ligne` → `classical-ml-time-series`
+**Verdict : gap réel — objet nommé puis lâché (ajout 2026-09-01).** `time-series-forecasting` cite en
+fin de phrase « (détection d'anomalies, expérimentation bayésienne, A/B testing séquentiel) » et n'y
+revient pas ; `hyperloglog` traite un coin précis (tests A/A sur comptes distincts estimés, « 43,86 %
+[…] unsuitable for use in A/B testing ») ; `learning-to-rank` nomme l'interleaving et rapporte des
+gains d'A/B sans méthodologie ; CausalImpact dans `time-series-forecasting` est le complément exact
+(« quand un essai contrôlé randomisé est impossible »). Peeking, tests séquentiels, CUPED, MDE, delta
+method : 0 occurrence. ⚠️ Deux frontières à écrire dans le brief contre les candidats
+`causal-inference` et `multi-armed-bandits`.
+
+> Les statistiques de l'expérimentation en ligne : décider à partir d'un test A/B sans se tromper
+> sur ce qu'il prouve. Couvrir le plan (randomisation par unité, puissance et effet minimal
+> détectable, durée), le problème du « peeking » et ses remèdes (tests séquentiels, mSPRT, p-values
+> toujours valides de Johari et al., approches bayésiennes), la réduction de variance (CUPED,
+> stratification), les métriques de ratio et la delta method, les interférences et effets de
+> réseau (violation de SUTVA, randomisation par grappes, marchés à deux faces), les tests A/A et la
+> validation de la plateforme, les pièges (multiplicité, effet de nouveauté, biais de survie,
+> métriques de garde) et les plateformes d'expérimentation. Public : ingénieur ML/data.
+> ⚠️ Délimitations strictes : ce thème traite l'expérience RANDOMISÉE À ALLOCATION FIXE —
+> l'allocation adaptative relève de `multi-armed-bandits` (candidat) ; l'identification d'effets
+> sans randomisation (propension, DiD, IV, DML, effets hétérogènes) relève de `causal-inference`
+> (candidat) ; `time-series-forecasting` garde CausalImpact (le citer en contrepoint) ;
+> `hyperloglog` garde son cas de comptage. Domaine : classical-ml-time-series.
+
+---
+
+## Priorité basse / marginale
 
 ### Cuckoo filter — `cuckoo-filter` → `probabilistic-structures-hashing`
 **Verdict : partiel (marginal).** ⚠️ `bloom-filters` traite **déjà** le Cuckoo filter (Fan et al.
@@ -781,6 +1225,199 @@ occurrence.
 > agent-harness-engineering couvre le design d'outils côté fiabilité. L'angle propre : contenir les
 > conséquences plutôt qu'empêcher la tromperie. Domaine : llm-agents-generation.
 
+### Élagage et parcimonie — `pruning-sparsity` → `deep-learning-foundations`
+**Verdict : gap réel avec un chevauchement à borner (ajout 2026-09-01).** `knowledge-distillation`
+couvre le pruning structuré RÉPARÉ par distillation (Llama 3.2 « réduit par un pruning structuré en une
+passe », Minitron « width-pruned », « depth-pruned »), sous l'angle réparation ; `sparse-attention-long-context`
+cite Deep Compression en une phrase pour l'EXCLURE de son périmètre ; `quantization` frôle la lignée
+OBS/OBD via GPTQ. 2:4, SparseGPT, Wanda, magnitude pruning, sparsité d'activation : 0 occurrence.
+
+> L'élagage des réseaux : retirer des poids sans perdre le modèle. Couvrir le magnitude pruning et
+> le cycle train-prune-retrain, structuré vs non structuré et pourquoi le matériel décide (2:4 des
+> Tensor Cores), la lignée OBD/OBS et ses héritiers one-shot pour les LLM (SparseGPT, Wanda), le
+> ticket de loterie comme MÉTHODE (le candidat `generalisation-double-descent-grokking` le tient
+> comme phénomène — trancher avant de lancer), la sparsité d'activation, et l'évaluation honnête
+> (accélération réelle vs paramètres retirés). Délimitations : `knowledge-distillation` garde la
+> réparation post-pruning (Minitron : citer, ne pas refaire) ; `mixture-of-experts` garde la
+> parcimonie d'experts ; `sparse-attention-long-context` garde le motif d'attention ; `quantization`
+> garde la précision. Domaine : deep-learning-foundations.
+
+### Deep learning bayésien et incertitude — `bayesian-deep-learning-uncertainty` → `deep-learning-foundations`
+**Verdict : partiel — le plus exposé au chevauchement (ajout 2026-09-01).** La dichotomie est posée
+en un paragraphe de `hallucination-detection-uncertainty` (« l'incertitude épistémique — ce que le
+modèle ignore, par opposition à l'incertitude aléatoire […] un ensemble de modèles entraînés
+indépendamment ; l'option est jugée "prohibitivement coûteuse" pour les LLM ») ; `calibration-classifieurs`
+tient le post-hoc et le conformal ; `tabular-foundation-models` tient l'inférence bayésienne AMORTIE.
+MC dropout, deep ensembles (Lakshminarayanan), Laplace, SWAG, BNN variationnel, détection OOD :
+0 occurrence (« Laplace » = transformée dans `state-space-models`).
+
+> Quantifier l'incertitude d'un réseau : les méthodes bayésiennes et leurs approximations. Couvrir
+> la décomposition épistémique/aléatoire, les BNN par inférence variationnelle (Bayes by Backprop),
+> MC dropout (Gal & Ghahramani) et sa critique, les deep ensembles et le débat « ensembles ≈
+> Bayes ? », Laplace/SWAG/SWA, la détection hors distribution (softmax, ODIN, Mahalanobis) et ses
+> benchmarks, l'évaluation (log-vraisemblance, calibration sous décalage) et le coût. Délimitations
+> strictes (quatre frontières) : `hallucination-detection-uncertainty` garde l'UQ des LLM en boîte
+> noire ; `calibration-classifieurs` garde le post-hoc et le conformal ; `variational-autoencoders`
+> garde l'ELBO génératif ; `tabular-foundation-models` garde l'inférence amortie ; `ensemble-learning`
+> garde bagging/boosting (les deep ensembles y renvoient). Domaine : deep-learning-foundations.
+
+### Génération non autorégressive de texte — `non-autoregressive-generation` → `deep-learning-foundations` (ou regrain)
+**Verdict : gap réel — renvoi cassé A1 (ajout 2026-09-01).** `diffusion-language-models` écrit : « la
+génération parallèle masquée existe aussi de ce côté-là, et la monographie consacrée au décodage la
+traite — le pont existe dans les deux sens, nous n'y revenons pas. » `decoding-sampling` lu en entier :
+du greedy au décodage spéculatif (Medusa, EAGLE, lookahead) ; le seul « masque » est le masque causal
+arborescent de Medusa ; « non autorégressif », « Mask-Predict », « CMLM » : 0 occurrence. Valeur de
+référence 2026 modeste (le versant diffusion discrète est déjà tenu) : **alternative recevable, un
+regrain d'une section de `decoding-sampling`** qui répare le renvoi à moindre coût.
+
+> La génération non autorégressive de texte : produire plusieurs tokens à la fois. Couvrir le
+> problème de multimodalité (Gu et al. 2018 : sorties incohérentes quand les positions décident
+> indépendamment), Mask-Predict/CMLM et le raffinement itératif, le décodage par blocs et les
+> compromis latence/qualité mesurés (traduction automatique), la distillation séquentielle comme
+> béquille, et les ponts vers la diffusion discrète et le décodage spéculatif. Délimitations
+> strictes : `diffusion-language-models` garde la diffusion masquée (le citer comme descendance) ;
+> `decoding-sampling` garde le spéculatif (accélérer un modèle autorégressif ≠ changer la
+> factorisation). Domaine : deep-learning-foundations, ou section ajoutée à decoding-sampling.
+
+### LLM multilingues et langues peu dotées — `llm-multilingue-basses-ressources` → domaine à trancher
+**Verdict : gap réel sur le cœur, périphérie déjà occupée (ajout 2026-09-01).** Fragments à citer :
+« surcoût d'API pour les langues non anglaises (plus de tokens par mot) » en une proposition de
+`text-embeddings`, jamais quantifiée ; le jailbreak par langues peu dotées traité à fond dans
+`llm-safety-jailbreaks` (« 79 % sur AdvBench […] culmine en zoulou ») ; l'identification de langue
+comme plus grosse coupe du pipeline dans `pretraining-data-curation` ; « La dégradation s'accentue
+sur les entrées non-anglaises » dans `quantization`. `llm-evaluation` ne contient RIEN de multilingue.
+Curse of multilinguality, XLM-R, FLORES, prime de tokenisation mesurée : 0 occurrence.
+
+> Les modèles de langage hors anglais : ce que coûte une langue, et ce qu'on lui transfère. Couvrir
+> la prime de tokenisation mesurée par langue (Petrov et al. : jusqu'à plusieurs fois plus de tokens
+> par phrase, conséquences en coût, contexte et qualité), le transfert inter-langues et la « curse of
+> multilinguality » (Conneau et al., XLM-R), le mélange de langues en pré-entraînement et
+> l'échantillonnage par température, l'évaluation multilingue (benchmarks traduits et leurs biais
+> culturels, Global MMLU, MGSM), les langues à faibles ressources (FLORES-200, NLLB, données
+> synthétiques par traduction), et les modèles régionaux. Délimitations : quatre renvois sortants —
+> `llm-safety-jailbreaks` (jailbreak multilingue), `pretraining-data-curation` (filtre de langue),
+> `quantization` (dégradation), `text-embeddings` (BPE) ; le candidat
+> `recherche-multilingue-cross-lingual` tient le versant recherche. Domaine à trancher par /arrange :
+> deep-learning-foundations (le sujet est plus « modèle » qu'« agent ») ou llm-agents-generation.
+
+### Recherche inter-langues — `recherche-multilingue-cross-lingual` → `information-retrieval-representation`
+**Verdict : gap réel, un seul paragraphe adjacent (ajout 2026-09-01).** `hybrid-search-reranking`
+donne BGE-M3 « 70,0 de nDCG@10 sur 18 langues du benchmark MIRACL » — MIRACL y est un chiffre, pas
+un objet ; `text-embeddings` n'a aucune section multilingue (fastText « 157 langues », SentencePiece
+en passant). mDPR, mContriever, LaBSE, traduction de requête : 0 occurrence. Littérature plus mince
+et plus mono-source que les autres candidats IR.
+
+> Retrouver dans une langue ce qui est écrit dans une autre. Couvrir les stratégies (traduire la
+> requête, traduire les documents, espace d'embeddings aligné), l'alignement inter-langues
+> (LaBSE, mContriever, mE5, BGE-M3) et sa fuite vers l'anglais, les benchmarks (MIRACL, Mr. TyDi,
+> CLEF) et ce qu'ils mesurent, le cas des langues peu dotées et la tokenisation, et le reranking
+> multilingue. Délimitations : `text-embeddings` garde l'alignement mono-langue ;
+> `hybrid-search-reranking` garde BGE-M3 comme résultat ; le candidat
+> `llm-multilingue-basses-ressources` tient le versant génération. Domaine :
+> information-retrieval-representation.
+
+### Expansion et réécriture de requête — `query-expansion-rewriting` → `information-retrieval-representation`
+**Verdict : partiel — la moitié classique entièrement absente, la moitié LLM déjà dans RAG (ajout
+2026-09-01).** `retrieval-augmented-generation` tient HyDE (« poussant le nDCG@10 de 44,5 à 61,3 »,
+repris sans réserve), RAG-Fusion, RQ-RAG et la réécriture conversationnelle ; `hybrid-search-reranking`
+tient l'expansion implicite de SPLADE ; `bm25-inverted-index` pose le vocabulary mismatch. Rocchio,
+RM3, pseudo-relevance feedback (une seule mention historique), doc2query, query2doc, PRF dense, et le
+résultat « l'expansion nuit aux retrievers forts » : 0 occurrence. **Ne lancer qu'avec un brief qui
+interdit de redire HyDE/RAG-Fusion** et centre sur le PRF classique et « quand l'expansion nuit ».
+
+> L'expansion de requête, de Rocchio au LLM : combler l'écart de vocabulaire, et savoir quand ça
+> nuit. Couvrir le relevance feedback et le pseudo-relevance feedback (Rocchio, RM3), l'expansion
+> côté document (doc2query, docT5query) contre côté requête (query2doc), le PRF sur représentations
+> denses (ANCE-PRF, ColBERT-PRF), et le résultat contre-intuitif que l'expansion par LLM dégrade les
+> retrievers forts (Weller et al. 2024) — avec ses conditions. Délimitations strictes :
+> `retrieval-augmented-generation` garde HyDE, RAG-Fusion, RQ-RAG et les variantes agentiques (les
+> citer en une phrase, NE PAS les redérouler) ; `hybrid-search-reranking` garde SPLADE ;
+> `bm25-inverted-index` garde le vocabulary mismatch. Domaine : information-retrieval-representation.
+
+### Bitmaps compressés — `bitmaps-compresses-roaring` → `probabilistic-structures-hashing`
+**Verdict : gap réel, valeur d'ingénierie (ajout 2026-09-01).** Roaring, bitmap, bitset, WAH, EWAH :
+0 occurrence. `bm25-inverted-index` (section `recherche-efficace`) couvre la compression de postings
+(d-gap, PForDelta, décodage SIMD, WAND) — jamais la représentation par bitmap ; traces annexes :
+l'algèbre OU/ET des filtres de Bloom, le run-length encoding de Redis dans `hyperloglog`.
+
+> Les bitmaps compressés : représenter un ensemble d'entiers par ses bits, et le comprimer sans
+> perdre les opérations. Couvrir les bitmaps alignés par mots (WAH, EWAH) et leurs limites, Roaring
+> (conteneurs array/bitmap/run, choix par densité, opérations ensemblistes vectorisées), la
+> comparaison mesurée avec les listes de postings compressées (quand le bitmap gagne, quand il
+> perd), et les usages (Lucene/Elasticsearch, ClickHouse, Druid, index de colonnes). Délimitations :
+> `bm25-inverted-index` garde d-gap/PForDelta/WAND (partir de sa section, contraster) ;
+> `bloom-filters` garde l'appartenance approchée ; le candidat `structures-succinctes` tient
+> rank/select. Domaine : probabilistic-structures-hashing. Run lean.
+
+### Heavy hitters déterministes — `heavy-hitters-deterministes` → `probabilistic-structures-hashing`
+**Verdict : gap réel, contrairement à l'attendu, mais étroit (ajout 2026-09-01).** Ce backlog
+supposait le sujet couvert par `count-min-sketch` : lu, il traite les heavy hitters par CMS dyadique
+(Théorème 6) puis écrit que l'énumération « requiert soit une liste de candidats fournie à l'avance,
+soit une structure auxiliaire distincte ; l'énumération native n'est pas prise en charge » — sans la
+nommer. Misra-Gries et SpaceSaving n'apparaissent qu'en une phrase de `streaming-quantiles-sampling`
+(« isomorphes l'un à l'autre, sont déterministes, pleinement mergeables ») ; Lossy Counting :
+0 occurrence. Run court, ou à coupler dans un thème « frequent items ».
+
+> Trouver les éléments fréquents d'un flux sans hasard : Misra-Gries, SpaceSaving, Lossy Counting.
+> Couvrir le problème (φ-heavy hitters, garantie déterministe d'erreur ε), Misra-Gries et sa preuve,
+> SpaceSaving et son isomorphisme, Lossy Counting, la fusionnabilité (Agarwal et al.), la
+> comparaison honnête avec CMS + tas (mémoire, faux positifs, garanties), et les implémentations
+> (Frequent Items de DataSketches). Délimitations : `count-min-sketch` garde le sketch et le CMS
+> dyadique (partir de sa section « limites ») ; `streaming-quantiles-sampling` garde les quantiles.
+> Domaine : probabilistic-structures-hashing.
+
+### Sketching linéaire et feature hashing — `sketching-lineaire-feature-hashing` → `probabilistic-structures-hashing`
+**Verdict : partiel — ne lancer qu'en le recentrant (ajout 2026-09-01).** AMS/F2 (deux paragraphes,
+« prix Gödel en 2005 ») et Count Sketch (un paragraphe, « borne l'erreur en norme L2 ») sont déjà le
+cœur de deux sections de `count-min-sketch` ; le lemme JL et l'optimalité de Larsen-Nelson sont dans
+`text-embeddings` ; E2LSH par projection gaussienne dans `approximate-nearest-neighbor`. Absents :
+hashing trick / feature hashing (0 hit), JL parcimonieux, sketching pour la régression, moments Fk.
+
+> Les projections aléatoires et le sketching linéaire : réduire la dimension sans regarder les
+> données. Couvrir le lemme de Johnson-Lindenstrauss (énoncé, preuve par concentration, JL
+> parcimonieux et rapide), le feature hashing (Weinberger et al. : le hashing trick, collisions et
+> biais, usage en apprentissage en ligne), les sketches pour l'algèbre linéaire (régression par
+> sketch, CountSketch comme projection, subspace embeddings), et les moments de fréquence au-delà
+> de F2. ⚠️ Délimitations strictes : `count-min-sketch` tient AMS et Count Sketch (les citer, NE PAS
+> les redériver) ; `text-embeddings` tient JL et son optimalité (partir de là) ;
+> `approximate-nearest-neighbor` tient E2LSH ; `clustering-dimensionality-reduction` tient PCA.
+> Domaine : probabilistic-structures-hashing.
+
+### Tables de hachage dynamiques — `hash-tables-dynamiques` → `probabilistic-structures-hashing`
+**Verdict : gap réel — objet écarté B2 (ajout 2026-09-01).** `minimal-perfect-hashing` referme
+`limites-et-pieges` sur « Les cas d'usage naturels sont donc les ensembles gelés […] Les ensembles
+dynamiques relèvent d'autres structures » — sans cible. Le candidat `cuckoo-filter` est une structure
+d'appartenance, pas une table. Chaînage, adressage ouvert, cuckoo hashing, hachage extensible, Robin
+Hood : 0 occurrence. Donnerait au domaine son 7e thème, par le contraire de la MPHF.
+
+> Les tables de hachage dynamiques : le contraire de l'ensemble gelé. Couvrir chaînage vs adressage
+> ouvert (sondage linéaire et l'effet des caches, Robin Hood), le cuckoo hashing (deux fonctions,
+> relocalisation, seuil de charge et ses preuves), le hachage extensible et linéaire (croissance
+> sans réhachage global), les tables des langages et bibliothèques (Swiss tables, F14) et leurs
+> choix, et les attaques (HashDoS, renvoi au candidat hachage universel). Délimitations :
+> `minimal-perfect-hashing` garde l'ensemble gelé (partir de sa clôture) ; le candidat
+> `cuckoo-filter` garde l'appartenance approchée avec empreintes ; `consistent-hashing` garde la
+> répartition entre nœuds. Domaine : probabilistic-structures-hashing.
+
+### Optimisation des hyperparamètres et AutoML — `optimisation-hyperparametres-automl` → `classical-ml-time-series`
+**Verdict : partiel — nommé partout, expliqué nulle part ; recouvrement à arbitrer (ajout
+2026-09-01).** µP en un paragraphe de `scaling-laws` (MiniCPM « transférés sans nouveau réglage »),
+un grid search exemplaire sur k1/b dans `bm25-inverted-index`, AutoML nommé quatre fois comme
+comparateur dans `tabular-foundation-models` (« AutoGluon Extreme (ensemble de 4 heures) ») sans être
+défini, hyperparamètres critiques listés par `ensemble-learning` sans méthode de réglage. Bergstra &
+Bengio, TPE, Hyperband/ASHA, NAS : 0 occurrence. ⚠️ Le candidat `gaussian-processes` réclame
+« l'application phare : l'optimisation bayésienne » — trancher qui la porte AVANT de lancer.
+
+> Régler les hyperparamètres : ce que chaque méthode achète, et à quel prix. Couvrir grid vs random
+> search (Bergstra & Bengio : pourquoi l'aléatoire gagne), l'optimisation bayésienne (TPE, SMAC, GP
+> avec EI/UCB — en renvoi ou en propre selon l'arbitrage), les méthodes à budget (successive
+> halving, Hyperband, ASHA, arrêt précoce), le transfert d'hyperparamètres (µP — citer scaling-laws),
+> la recherche d'architecture (NAS et sa crise de reproductibilité), AutoML (AutoGluon, ce qu'un
+> « ensemble de 4 heures » signifie) et l'évaluation honnête (validation imbriquée, fuite par
+> réglage sur le test). Délimitations : `scaling-laws` garde µP ; `tabular-foundation-models` garde
+> TabPFN et cite AutoGluon ; `ensemble-learning` garde le boosting ; `gaussian-processes` (candidat)
+> — à arbitrer. Domaine : classical-ml-time-series.
+
 ---
 
 ## Écartés — déjà couverts en profondeur (vérifié dans le texte)
@@ -822,6 +1459,58 @@ occurrence.
   `recursive-language-models` (section « Récursion, agents et raisonnement long-horizon »),
   `agentic-memory` et `world-models` (planification en imagination). Le buzz nomme un phénomène
   que le corpus traite déjà par ses mécanismes.
+
+
+Écartés lors de la passe du 2026-09-01, chacun sur lecture de la prose (agents-lecteurs, un par
+domaine) :
+
+- **Décodage contraint / sorties structurées** → `structured-extraction-llm` couvre chaque point :
+  mécanique et coût (« les logits des tokens invalides sont mis à −∞ », XGrammar « moins de 40 µs par
+  token »), effet sur le raisonnement (« 75,99 % en texte libre à 49,25 % sous JSON-mode »),
+  JSONSchemaBench à six moteurs, function calling strict ; `decoding-sampling` y délègue
+  explicitement. Reste trop mince pour un run : l'alignement grammaire/tokens BPE — une section.
+- **Expériences de terrain hors code (support client, rédaction, consultants)** →
+  `ia-productivite-esn`, section `distribution-des-gains` (Brynjolfsson/Li/Raymond « +15 % […] le
+  quintile inférieur +36 % », Dell'Acqua « 19 points de pourcentage moins susceptibles », Noy &
+  Zhang « −40 % de temps, +18 % de qualité »). Un thème doublonnerait une section et demie.
+- **Adoption de l'IA en entreprise et ROI** → même document, `paradoxe-adoption-valeur` et
+  `projections-futures` (McKinsey « 88 % […] 6 % », NBER « plus de 80 % sans impact », J-curve).
+  Ne manquent que MIT NANDA et Census BTOS : une section, pas un thème.
+- **Nicotine comme nootropique** → `nootropiques-panorama`, substance 10 des 25, section dédiée
+  (Heishman 2010 « g 0,39 », Majdi 2021, Newhouse 2012, financement tabac) : « la nicotine porte le
+  meilleur dossier cognitif » hors ordonnance. Rien à ajouter.
+- **Sommeil et performance cognitive** → partiel à la frontière du doublon : `cafeine-cognition-vigilance`
+  tient privation, travail posté, sieste caféinée et effet en retour sur QUATRE sections. Reste vide :
+  hypnotiques, extension de sommeil, dose-réponse de Van Dongen 2003 — et la mélatonine, qui a son
+  candidat en `complements-sante`.
+- **Exercice physique et cognition** → gap réel (Erickson, Ciria 2023 : 0 occurrence) mais MAL LOGÉ :
+  l'exercice est déjà revendiqué par `sarcopenie-exercice-nutrition` et par le candidat
+  `graisse-viscerale-homme-age` ; un troisième document sur l'exercice se range mal dans un méta
+  découpé par produit. À reprendre si un domaine « exercice » émerge.
+- **BCAA / EAA / leucine** → `proteines-besoins-timing` (seuil de leucine « autour de 2,5 g […] et
+  3 g chez l'âgé », « leucine trigger » partiellement confirmé, essai Lynch à leucine égalisée) et
+  `sarcopenie-exercice-nutrition` (Guo : « aucun effet du supplément seul »). Reste : les BCAA
+  vendus seuls — une section de `proteines-besoins-timing`, pas un thème.
+- **Suppléments anti-sarcopénie (HMB, créatine de l'âgé, vitamine D + protéines, oméga-3)** →
+  `sarcopenie-exercice-nutrition`, sections `reste-du-rayon` (Li 2025 « +0,28 kg », umbrella review,
+  DO-HEALTH, VITAL) et `creatine-60-plus`. Au plus un widget.
+- **Aphrodisiaques du rayon sexuel (maca, tribulus, yohimbine…)** → les plantes sont absentes, mais
+  la moitié forte (l'adultération) est écrite TROIS fois (`inhibiteurs-pde5` : Tucker 2018
+  « 776 produits […] 45,5 % » ; `complements-amincissants` ; `nootropiques-panorama` : « instruite
+  ailleurs dans ce corpus et n'a pas à être redéroulée »), et le thème PDE5 énonce la thèse : « Une
+  plante ne produit pas l'effet ; la molécule, si ». Un run redirait la moitié forte et rejetterait la
+  moitié neuve par carence.
+- **Pipeline GLP-1 de nouvelle génération** → `incretines-glp1`, section `pipeline-retatrutide`
+  (18 000 caractères : rétatrutide et TRIUMPH-1/3/4, orforglipron « approuvé par la FDA le 1er avril
+  2026 sous le nom de Foundayo », CagriSema/REDEFINE 1, la règle du communiqué de promoteur). Ne
+  manquent que sémaglutide oral 25/50 mg, amycrétine, MariTide, survodutide : un REGRAIN de section,
+  pas un run. ⚠️ Objet nommé trois fois et jamais traité : le rétatrutide de contrebande (Santé Canada
+  dans `peptides-gris`, alerte ANSM de juillet 2026 dans `testosterone-homme-age`) — à verser dans ce
+  regrain ou dans le candidat `medicaments-contrefaits-en-ligne`.
+- **Recherche sur documents-images (ColPali)** → différé : `document-ai` a un paragraphe que la prose
+  qualifie elle-même de « source unique, non corroborée par une évaluation indépendante » ; sujet
+  jeune (2024-2026), risque élevé de rejets par carence. À reprendre comme section d'un thème plus
+  large ou quand ViDoRe v2 aura ses répliques.
 
 ---
 
@@ -968,6 +1657,27 @@ déjà complet — mais elle n'a plus de candidat à qui s'appliquer.** Les 12 d
 à l'exception d'`ai-organizations` (1 seul thème, `ia-productivite-esn`), pour lequel ce backlog ne
 propose aucun candidat : l'y appliquer suppose d'abord d'en instruire un.
 
+**Ordre de lancement — RÉVISÉ le 2026-09-01** (candidats de la passe du jour ; les nos 8, 9 et 12
+ci-dessus restent valables et sont reclassés dans cette table) :
+
+| # | thème | priorité | domaine | pourquoi en tête |
+|---|---|---|---|---|
+| 1 | `glp1-hors-poids` | haute | `pharmacologie-metabolique` | le pivot nomme le piège lui-même ; 5 phases 3 publiées (FLOW, STEP-HFpEF, SURMOUNT-OSA, ESSENCE) + 1 échec (EVOKE) : seuil ≥ 2 atteignable |
+| 2 | `desir-sexuel-hypoactif` | haute | `fonction-sexuelle` | 3 objets nommés désignent le désir ; corrige l'asymétrie homme/femme ; saga FDA d'école |
+| 3 | `osteoporose-pharmacologie` | haute | `muscle-vieillissement` (blurb à élargir à l'os) | la thèse du domaine (le substitut ne prédit pas) écrite 3 fois, jamais éprouvée sur les molécules faites POUR l'os |
+| 4 | `nitrates-betterave` | moyenne-haute | `nutrition-sportive` | seul membre du Groupe A de l'AIS sans candidat, nommé 2 fois par le corpus |
+| 5 | `melatonine` | moyenne-haute | `complements-sante` | mot absent du corpus ; ouvre la cible « sommeil » qu'aucun domaine ne porte |
+| 6 | `acide-alpha-lipoique` | moyenne-haute | `complements-sante` | inchangé (no 8 ci-dessus) |
+| 7 | `fer-supplementation` | moyenne | `complements-sante` | miroir exact de `vitamine-d` (seuils contestés) avec un bénéfice réel et un vrai risque |
+| 8 | `entrainement-cognitif-commercial` | moyenne | `performance-cognitive` (rouvrir UNE fois) | gap total ; l'amende FTC Lumosity fait pendant au veto sur l'allégation caféine |
+| 9 | `medicaments-du-poids-retires` | moyenne | `pharmacologie-metabolique` | 85 % neuf ; le Mediator, angle français absent du corpus |
+| 10 | `dysfonction-erectile-hors-pde5` | moyenne | `fonction-sexuelle` | zéro recouvrement ; « quand le comprimé ne suffit pas » |
+| 11 | `multivitamines`, `probiotiques` | moyenne | `complements-sante` | grands RCT nommables / littérature par souche (run coûteux) |
+| 12 | `disponibilite-energetique-reds` | moyenne | `nutrition-sportive` | corrige le biais masculin ; preuve surtout de consensus |
+| 13 | `beta-alanine-tampons`, `medicaments-contrefaits-en-ligne`, `metformine-rapamycine-longevite` | moyenne | voir entrées | — |
+| 14 | `menopause-hormonotherapie` | moyenne | **domaine à créer** | tête de file d'un domaine « santé de la femme » |
+| 15 | `chutes-fragilite-prevention`, `nad-nmn-precurseurs`, `curcumine`, `glucides-pendant-l-effort`, `magnesium`, `hydratation-electrolytes` | basses | voir entrées | — |
+
 ## `nutrition-sportive`
 
 (`creatine` : FAIT le 2026-08-08, retiré du backlog — 29e run /leanmonograph, **premier
@@ -1036,6 +1746,71 @@ Trois enseignements, dont deux de fond :
   intracellulaire/extracellulaire, efforts 1-4 min, paresthésies, méta-analyses.
 - **hydratation-electrolytes** (basse) — déshydratation et performance (seuils réels vs
   folklore des 2 %), sodium, hyponatrémie d'effort, boissons de l'effort.
+
+
+### Nitrate alimentaire et jus de betterave — `nitrates-betterave` → `nutrition-sportive`
+**Verdict : gap réel — objet nommé deux fois puis laissé (ajout 2026-09-01).** Le nitrate n'apparaît
+que dans deux listes : `creatine` (« range la créatine dans le Groupe A de son cadre de classification
+ABCD […] aux côtés de la caféine, de la bêta-alanine, du bicarbonate, du jus de betterave et du
+glycérol ») et `cafeine-ergogene` (« liste courte, et notable surtout par ce qu'elle exclut »), plus la
+créatine-nitrate écartée comme forme commerciale. « Oxyde nitrique » n'existe que comme voie du
+sildénafil. Coût en O2, dose, délai, répondeurs, effet réduit chez l'élite : rien. Avec
+`beta-alanine-tampons`, il referme la liste du Groupe A. La grille du portail (dose, délai, plafond,
+quelle variable produit le gain) s'y applique terme à terme.
+
+> Le nitrate alimentaire (jus de betterave) au tamis des essais : ce qu'il change à l'effort, chez
+> qui, à quelle dose. Couvrir la voie nitrate → nitrite → NO (bactéries buccales, et pourquoi le bain
+> de bouche antiseptique annule l'effet — piste à corroborer), le résultat fondateur (baisse du coût
+> en O2 à intensité fixe, Jones et coll.) et ce qu'il devient sur la performance (contre-la-montre,
+> temps jusqu'à épuisement — et l'écart entre les deux critères), la dose et le délai (≈ 6-12 mmol,
+> 2-3 h avant ; aigu vs chronique), le plafond et les non-répondeurs (effet réduit ou nul chez
+> l'athlète d'endurance élite — VO2max élevé —, et ce que ça dit du mécanisme), les efforts
+> intermittents et la force, les positions institutionnelles (consensus du CIO 2018 sur les
+> compléments, Groupe A de l'AIS : document-source par nature), la sécurité (nitrates et
+> nitrosamines : ce que la littérature alimentaire dit réellement, sans importer la peur des
+> charcuteries), et le contenu réel des produits (teneur en nitrate des jus, variabilité). Public :
+> lecteur exigeant non spécialiste. Délimitations : `cafeine-ergogene` pose le patron « dose unique,
+> horaire, métabolisme du sujet » et `creatine` le patron « remplissage d'une réserve » — situer le
+> nitrate entre les deux ; `beta-alanine-tampons` (candidat) tient les tampons. Doctrine de preuve
+> santé (`docs/evidence-sante.md`) à recopier intégralement dans le brief. Domaine :
+> nutrition-sportive.
+
+### Disponibilité énergétique et RED-S — `disponibilite-energetique-reds` → `nutrition-sportive`
+**Verdict : gap réel — et le premier thème santé centré sur la femme (ajout 2026-09-01).** RED-S,
+triade, aménorrhée, seuil de disponibilité énergétique : 0 occurrence (le seul « triade » du corpus
+est « la triade d'études humaines sur le BPC-157 »). Le voisin le plus proche, `proteines-besoins-timing`
+(section `proteines-deficit-energetique`), installe un déficit de 40 % (« Quarante hommes en surpoids
+[…] quatre semaines de déficit énergétique marqué ») et enseigne à maigrir en compétition (« 2,3 à
+3,1 g/kg de masse maigre par jour ») sans jamais nommer ce qu'une faible disponibilité coûte à l'os,
+aux hormones, à la performance. Les populations des 3 thèmes du domaine sont masculines à ≈ 90 %
+(caféine : « 612 participants — dont 89 % d'hommes »). Preuve surtout observationnelle et de
+consensus : attendre des rejets au seuil, et un seuil (30 kcal/kg de masse maigre) que le consensus
+2023 relativise lui-même — à vérifier au Sweep.
+
+> Le déficit énergétique relatif dans le sport (RED-S) : quand l'entraînement coûte plus que
+> l'assiette ne rend. Couvrir la disponibilité énergétique comme grandeur (apport moins dépense
+> d'exercice, par kg de masse maigre ; comment on la mesure, mal), la triade de l'athlète féminine
+> (Loucks) et son extension en RED-S (consensus du CIO 2014, 2018, 2023 — document-source par
+> nature ; ce que la version 2023 retire au seuil de 30 kcal/kg), les effets par système
+> (aménorrhée hypothalamique et son diagnostic d'exclusion, os et fractures de fatigue, fer,
+> immunité, performance — et où la preuve est expérimentale vs observationnelle), l'homme
+> (testostérone, os : ce qui est démontré, moins qu'on ne dit), le dépistage (LEAF-Q, IOC REDs
+> CAT2 et sa validation), le traitement (remonter l'apport, pas la pilule : ce que les essais
+> d'œstrogènes montrent sur l'os), et la frontière avec les troubles du comportement alimentaire.
+> Public : lecteur exigeant non spécialiste. Délimitations : `proteines-besoins-timing` tient le
+> déficit contrôlé du sujet entraîné (partir de sa section, sans la refaire) ; `vitamine-d` et
+> `collagene` tiennent l'os hors contexte énergétique ; `testosterone-homme-age` tient l'axe
+> androgénique de l'âgé. ⚠️ Discipline : déclarer explicitement quand la population d'un essai n'est
+> pas celle du titre ; ne pas transformer un consensus d'experts en résultat d'essai. Doctrine de
+> preuve santé à recopier intégralement dans le brief. Domaine : nutrition-sportive.
+
+- **glucides-pendant-l-effort** (basse, recentré le 2026-09-01) — gap réel mais trop large tel que
+  soumis (« périodisation, train-low, cétogène ») : réduire à l'ingestion pendant l'effort (g/h,
+  glucose + fructose, rinçage de bouche) et au « train low », en plaçant les études Supernova de
+  Burke (LCHF chez les marcheurs élites) comme contre-exemple. Le glycogène n'apparaît que comme
+  mécanisme abandonné de la caféine (`cafeine-ergogene` : « l'utilisation du glycogène a chuté de
+  28 % chez six sujets et n'a pas bougé chez les six autres »). Chapitre de manuel plus que produit :
+  la grille du portail ne s'applique qu'à l'ingestion en g/h.
 
 ## `complements-sante`
 
@@ -1163,6 +1938,113 @@ variable que le corpus n'a jamais traitée — **la voie d'administration décid
 > minceur du rayon et posé la graduation FDA/GLP-1 — ne pas la refaire ; `vitamine-d` fournit le
 > patron « verdict par indication » ; `berberine` le patron « mécanisme cellulaire ≠ effet humain ».
 > Domaine : complements-sante.
+
+
+### Mélatonine — `melatonine` → `complements-sante`
+**Verdict : gap réel — mot absent du corpus, ouvre la cible « sommeil » (ajout 2026-09-01).**
+« Mélatonine », « décalage horaire », « circadien » : 0 occurrence dans les 89 thèmes. La latence
+d'endormissement n'est mesurée qu'une fois, comme dommage de la caféine (« s'allonge de 8,35
+minutes », `cafeine-cognition-vigilance`). Le sommeil n'existe dans le corpus que comme stresseur
+(privation) ou comme effet indésirable ; aucun document ne traite d'un produit vendu POUR dormir.
+
+> La mélatonine au tamis des essais : une hormone vendue comme somnifère. Couvrir ce qu'elle est
+> (chronobiotique, pas hypnotique — et pourquoi la distinction commande tout), l'effet mesuré sur
+> l'insomnie (méta-analyses : latence d'endormissement raccourcie de quelques minutes — ≈ 7 min —,
+> temps total de sommeil peu changé ; à corroborer), le décalage horaire (Cochrane : là où l'effet
+> est le mieux établi), la dose et l'heure (0,5 mg vs 5 mg : plus n'est pas mieux ; l'heure de
+> prise décide du sens de l'effet), les formes à libération prolongée (Circadin 2 mg, prescription
+> après 55 ans en Europe), enfants et TDAH (usage massif, preuve étroite), la divergence
+> réglementaire (complément en vente libre aux États-Unis, médicament ou plafond de dose en Europe
+> — en France, avis ANSES 2018 et seuil réglementaire à vérifier), le contenu réel des produits
+> (Erland & Saxena 2017 : de −83 % à +478 % de l'étiquette, sérotonine détectée), la sécurité
+> (somnolence, interactions, grossesse, surdosages pédiatriques rapportés aux centres antipoison)
+> et ce que le marketing « naturel » cache. Public : lecteur exigeant non spécialiste.
+> Délimitations : `cafeine-cognition-vigilance` tient la privation de sommeil et la sieste
+> (renvoi, ne pas redérouler) ; `complements-amincissants` a posé le patron « contenu réel des
+> gélules » (le citer). Doctrine de preuve santé à recopier intégralement dans le brief. Domaine :
+> complements-sante.
+
+### Fer et supplémentation — `fer-supplementation` → `complements-sante`
+**Verdict : gap réel — miroir de `vitamine-d` (ajout 2026-09-01).** « Ferritine », « hepcidine »,
+« anémie », « carence martiale » : 0 occurrence ; « fer » n'apparaît qu'au sens du fer à repasser. Le
+corpus n'a aucun thème sur un minéral, et un seul sur une supplémentation conditionnée à un dosage
+sanguin contesté — `vitamine-d`, qui démonte exactement ce dispositif (« L'ampleur de l'épidémie est
+un artefact de convention, pas une donnée de la nature »). Le fer est le cas inverse : seuils
+contestés AUSSI, mais bénéfice fonctionnel réel chez le carencé et vrai risque de surdosage.
+
+> Le fer en supplément : qui en a besoin, à quelle dose, et pourquoi tous les jours est une erreur.
+> Couvrir le diagnostic (ferritine et ses seuils contestés — 15, 30, 45 µg/L —, l'inflammation qui
+> la fausse, la saturation de la transferrine), la carence sans anémie et la fatigue (essais
+> randomisés : ce qui bouge, chez qui — femmes menstruées, sportives), l'hepcidine et la prise un
+> jour sur deux (Stoffel et coll., Lancet Haematology : absorption meilleure à dose alternée — à
+> corroborer en primaire), les formes orales et leur tolérance, le fer intraveineux (indications,
+> hypophosphatémie), l'athlète d'endurance (hémolyse, hepcidine post-effort, RED-S en renvoi), le
+> risque (surcharge, hémochromatose, enfants et intoxications), et le contenu réel des produits.
+> Public : lecteur exigeant non spécialiste. Délimitations : `vitamine-d` fournit le patron « la
+> fabrique du besoin par le seuil » — le citer et CONTRASTER (ici le seuil décide d'un bénéfice
+> réel) ; le candidat `disponibilite-energetique-reds` tient le versant sportif. Doctrine de preuve
+> santé à recopier intégralement dans le brief. Domaine : complements-sante.
+
+### Multivitamines et antioxydants — `multivitamines` → `complements-sante`
+**Verdict : gap réel (ajout 2026-09-01).** Le mot n'apparaît que dans `masse-maigre-sous-glp1`, à
+propos de la clause NICE (« Une multivitamine ne se paie qu'en argent »). COSMOS, PHS II, SELECT
+vitamine E, ATBC/CARET : 0 occurrence (le « COSMOS » du corpus est un modèle NVIDIA, le « SELECT » un
+essai de sémaglutide) ; l'USPSTF est cité par `vitamine-d` pour les fractures, jamais pour sa
+recommandation 2022 sur les multivitamines. Le biais de l'utilisateur en bonne santé rejoint
+directement le « paradoxe observationnel » de `vitamine-d` (« Associé à tout, cause de presque
+rien ») — même méthode, objet neuf, et le seul cas du rayon où un RCT montre un SURRISQUE de cancer.
+
+> Les multivitamines et les antioxydants au tamis des grands essais : le complément le plus vendu, la
+> preuve la plus mince. Couvrir le biais de l'utilisateur en bonne santé (pourquoi les cohortes
+> disent oui et les essais non), les grands RCT (Physicians' Health Study II : cancer −8 %,
+> cardiovasculaire nul ; COSMOS et COSMOS-Mind : le signal cognitif et sa fragilité ; SELECT :
+> vitamine E et cancer de la prostate en excès ; ATBC et CARET : bêta-carotène et cancer du poumon
+> chez le fumeur, essais arrêtés), la recommandation USPSTF 2022 (« preuve insuffisante », et contre
+> le bêta-carotène et la vitamine E — document-source par nature), les populations où une
+> supplémentation ciblée est démontrée (grossesse et folates, carence avérée) à distinguer du
+> « au cas où », les formulations et doses réelles, et le marché. Public : lecteur exigeant non
+> spécialiste. Délimitations : `vitamine-d` et `omega-3` tiennent leurs molécules (VITAL, COSMOS ne
+> sont cités ici que pour le bras multivitamine) — renvoyer, ne pas redérouler ; `vitamine-d` fournit
+> le patron association vs effet. Doctrine de preuve santé à recopier intégralement dans le brief.
+> Domaine : complements-sante.
+
+### Probiotiques — `probiotiques` → `complements-sante`
+**Verdict : gap réel (ajout 2026-09-01).** Le mot n'apparaît qu'une fois, dans une liste de
+« potentialisateurs » réfutés en bloc par `masse-maigre-sous-glp1` (« probiotiques et fibres
+prébiotiques joueraient par le microbiote. Il serait fastidieux, et inutile, de réfuter ces mécanismes
+un par un »). Le microbiote n'est traité que comme voie métabolique de la berbérine. Spécificité de
+souche, AGA 2020, Cochrane, contenu réel des gélules : rien. Premier « vivant » du domaine, preuve
+organisée par souche et non par molécule : run coûteux (beaucoup de claims mono-source par souche).
+
+> Les probiotiques au tamis des essais : une preuve par souche, un marketing par catégorie. Couvrir
+> ce qu'est une souche et pourquoi un résultat ne se transporte pas (spécificité, dose en UFC,
+> viabilité), la colonisation transitoire (ce que montrent les biopsies), les indications où la
+> preuve existe (diarrhée associée aux antibiotiques — Cochrane —, diarrhée infectieuse de
+> l'enfant, prévention de l'entérocolite du prématuré, C. difficile, certaines souches dans le
+> SII) et celles où elle manque (immunité, humeur, poids), la guideline AGA 2020 (« aucune
+> recommandation » hors trois situations — document-source par nature) et sa réception, la
+> sécurité (bactériémies chez l'immunodéprimé, le cas Lactobacillus), le contenu réel des produits
+> (souches absentes ou non déclarées) et le cadre réglementaire (allégations refusées par l'EFSA,
+> le mot « probiotique » lui-même interdit sur l'étiquette en Europe — à vérifier). Public : lecteur
+> exigeant non spécialiste. Délimitations : `berberine` tient le microbiote comme voie
+> métabolique ; `complements-amincissants` a posé le patron « contenu réel » ; `nootropiques-vegetaux`
+> le patron « allégations EFSA comme instrument de lecture ». ⚠️ Prévoir que les claims porteurs
+> seront des SYNTHÈSES par indication, les résultats par souche restant en prose attribuée.
+> Doctrine de preuve santé à recopier intégralement dans le brief. Domaine : complements-sante.
+
+- **nad-nmn-precurseurs** (basse, ajout 2026-09-01) — NMN, NR, Sinclair : 0 occurrence ; « NAD+ »
+  n'existe qu'en ligne d'inventaire d'une alerte ANSM (`testosterone-homme-age`). Le blurb du domaine
+  promet « longévité » sans qu'aucun thème ne porte une allégation anti-âge. Contraste de méthode
+  fort avec `omega-3` (« un lipide qui bouge dans le bon sens n'est toujours pas un événement
+  évité » : ici le NAD sanguin monte sans critère fonctionnel), objet neuf (saga FDA 2022-2025 sur
+  le statut de complément du NMN — à vérifier ; marketing d'un chercheur), mais littérature humaine
+  mince : run court, beaucoup de « source unique » en prose.
+- **curcumine** (basse, ajout 2026-09-01) — curcumine, curcuma, pipérine, PAINS : 0 occurrence. Le
+  motif « biodisponibilité quasi nulle, effet pourtant revendiqué » est déjà écrit pour `berberine`
+  (« ce n'est pas la dose qui limite l'exposition, c'est l'absorption ») ; ce qui reste de neuf est
+  fort mais étroit — le statut de PAINS (Nelson et al. 2017, *J Med Chem*), les formulations
+  « biodisponibles », les cas d'hépatotoxicité (Italie, 2019 — à vérifier) et l'adultération au
+  plomb. Dernier de sa liste.
 
 ## `pharmacologie-metabolique`
 
@@ -1339,6 +2221,97 @@ sur « traité ailleurs », « relève de », « non repris ici », « traité p
 **par lecture** que la cible existe *et* qu'elle dit ce que le renvoi promet. Le second point est
 neuf : ici la cible existait (`proteines-besoins-timing`), c'est son **contenu** qui ne
 correspondait pas.
+
+
+### Les GLP-1 hors du poids — `glp1-hors-poids` → `pharmacologie-metabolique`
+**Verdict : gap réel — HAUTE, désigné par le pivot lui-même (ajout 2026-09-01).** `incretines-glp1`
+(14 sections lues) écrit dans `obesite-step-surmount` : « Un dernier déplacement guette, plus
+insidieux que le précédent : celui qui consiste à traiter la perte de poids comme le seul résultat de
+la classe. » Puis il n'en traite qu'un contre-exemple, SELECT en section entière (HR 0,80, médiation
+« un tiers seulement du bénéfice attribuable au tour de taille »), l'HbA1c, et deux mentions de
+TRIUMPH. MASH, NASH, FLOW, HFpEF, apnée, EVOKE, SOPK : 0 occurrence dans les 5 thèmes ;
+« Alzheimer » n'existe qu'en performance-cognitive, « alcool » qu'à propos de la caféine et des PDE5.
+Littérature la plus mûre des candidats du domaine (phases 3 au NEJM), donc compatible avec le seuil
+≥ 2 sans forcer. La grille de lecture est déjà écrite dans `signaux-controverses` : « "Aucun signal
+observé" ne vaut que si le paramètre concerné a été mesuré. »
+
+> Ce que les agonistes du GLP-1 font hors de la balance : indication autorisée contre effet de
+> classe. Couvrir, organe par organe et essai par essai : le foie (MASH — ESSENCE, sémaglutide,
+> résolution histologique, AMM 2025 aux États-Unis ; à corroborer), le rein (FLOW : critère composite
+> rénal, arrêt anticipé pour efficacité), l'insuffisance cardiaque à fraction préservée
+> (STEP-HFpEF : symptômes et poids, pas mortalité — ce que le critère mesure), l'apnée du sommeil
+> (SURMOUNT-OSA, tirzépatide, IAH et AMM), le cerveau (EVOKE/EVOKE+ : échec annoncé fin 2025 dans
+> l'Alzheimer — l'essai négatif comme résultat central), les addictions (alcool : petits essais et
+> cohortes, pas d'AMM), le SOPK (promesse sans essai de taille), l'arthrose (TRIUMPH-4 déjà
+> nommé), et ce qui sépare une AMM d'un effet de classe (qui a payé l'essai, quelle molécule, quelle
+> dose, quel critère). Sécurité par indication (pancréas, vésicule, gastroparésie, ce que chaque
+> essai a mesuré). Fil rouge : le déplacement du poids vers l'organe, et ce que chaque essai n'a
+> PAS regardé. Public : lecteur exigeant non spécialiste. ⚠️ Délimitations strictes :
+> `incretines-glp1` tient STEP/SURMOUNT/SELECT, l'HbA1c, le pipeline et le compounding — PARTIR de
+> sa section « obesite-step-surmount » et de SELECT, ne rien redérouler ; `masse-maigre-sous-glp1`
+> tient la composition corporelle ; `berberine` et `complements-amincissants` tiennent les
+> substituts. Règle du promoteur (déjà écrite dans l'écosystème d'incretines) : un communiqué compte
+> comme la même source que l'essai qu'il annonce. Doctrine de preuve santé à recopier
+> intégralement dans le brief. Domaine : pharmacologie-metabolique.
+
+### Les médicaments du poids retirés du marché — `medicaments-du-poids-retires` → `pharmacologie-metabolique`
+**Verdict : gap réel à 85 % (ajout 2026-09-01).** `complements-amincissants` porte tout ce qui existe :
+la sibutramine en détail (« l'essai SCOUT […] elle augmente de 16 % les événements cardiovasculaires
+majeurs […] le produit a quitté les marchés américain et européen en 2010 », et l'adultérant qu'elle
+est devenue), l'éphédra en section entière, et le cadre « rail A : sortie a posteriori sur signal de
+sécurité » — illustré par un seul cas médicament. Rimonabant, fenfluramine, lorcasérine, orlistat n'y
+sont que des noms dans la liste des adultérants ; `microdosage-psychedeliques` tient la mécanique
+5-HT2B des valvulopathies comme comparateur. Benfluorex/Mediator : 0 occurrence — l'angle français
+absent du corpus.
+
+> L'histoire des médicaments de l'obésité retirés du marché, et ce qu'elle apprend sur la lecture
+> d'un essai : fenfluramine et fen-phen (Connolly 1997, valvulopathies, retrait), rimonabant (RIO :
+> efficacité réelle, suicidalité, retrait européen 2008, jamais approuvé aux États-Unis), sibutramine
+> (SCOUT : en renvoi, déjà écrit), lorcasérine (CAMELLIA-TIMI 61 : sécurité cardiovasculaire
+> démontrée PUIS retrait 2020 sur un déséquilibre de cancers — le cas d'école du critère non
+> prévu), benfluorex/Mediator (l'affaire française : valvulopathies, décennie de signaux, procès),
+> les survivants (orlistat, phentermine : ce qu'ils ont de différent) et la leçon transversale — ce
+> qu'un essai de 1 à 2 ans ne peut pas voir, la pharmacovigilance comme second essai, et comment
+> lire aujourd'hui SELECT et ses successeurs à la lumière de ces précédents. Public : lecteur
+> exigeant non spécialiste. Délimitations : `complements-amincissants` tient la sibutramine et
+> l'éphédra (renvoyer, deux phrases) et le cadre réglementaire ; `incretines-glp1` tient la classe
+> actuelle (ne pas la juger ici, seulement lui appliquer la grille) ; `microdosage-psychedeliques`
+> tient la mécanique 5-HT2B (citer). Doctrine de preuve santé à recopier intégralement dans le
+> brief. Domaine : pharmacologie-metabolique.
+
+### Médicaments contrefaits et pharmacies en ligne illégales — `medicaments-contrefaits-en-ligne` → `pharmacologie-metabolique`
+**Verdict : gap réel — renvoi cassé A4, objet le plus récurrent du balayage (ajout 2026-09-01).**
+`nootropiques-stimulants-prescrits` renvoie « Ce que contiennent réellement les gélules acquises hors
+circuit, et par quels canaux elles circulent » à « d'autres monographies de ce corpus » — aucune ne
+traite un stimulant contrefait. Cinq documents tiennent chacun leur bout du même objet sans le nommer
+comme sujet : `incretines-glp1` (compounding, 7 mentions de contrefaçon), `inhibiteurs-pde5`
+(sildénafil contrefait), `testosterone-homme-age` (« Ce qu'il y a vraiment dans le flacon »),
+`peptides-gris` (lots « research use only »), et le rétatrutide de contrebande nommé trois fois.
+Domaine à confirmer par /arrange : le sujet est transversal, `pharmacologie-metabolique` est le
+logement le plus naturel (statut de la molécule, canal de vente : c'est déjà sa frontière interne).
+
+> Les médicaments d'ordonnance hors circuit : ce que contiennent réellement les produits achetés en
+> ligne, et par où ils passent. Couvrir la typologie (contrefaçon, préparation magistrale non
+> autorisée, produit « research use only », détournement de chaîne légale), les analyses de
+> contenu par classe (stimulants d'ordonnance et faux Adderall contenant de la méthamphétamine ;
+> GLP-1 : saisies et analyses de stylos contrefaits, insuline à la place du sémaglutide ; PDE5 ;
+> testostérone et anabolisants ; peptides), les canaux (pharmacies en ligne illégales, réseaux
+> sociaux, télémédecine complaisante — l'étude en client mystère déjà citée pour la
+> testostérone), les instruments de mesure (saisies douanières, programmes d'analyse des agences,
+> études d'achat test) et leurs biais, le cadre (EMA, FDA, ANSM, LegitScript, la directive
+> médicaments falsifiés) et la question du risque réel (cas cliniques documentés vs alarme). Public :
+> lecteur exigeant non spécialiste. ⚠️ Délimitations strictes : chaque thème cité tient son
+> bout — `incretines-glp1` le compounding des GLP-1, `inhibiteurs-pde5` l'adultération sexuelle
+> (Tucker 2018), `complements-amincissants` l'adultération des compléments, `peptides-gris` le
+> « research use only », `testosterone-homme-age` le flacon de SARM — PARTIR de leurs sections,
+> réunir sans redire ; l'angle propre est le canal et la mesure de ce qui y circule. Doctrine de
+> preuve santé à recopier intégralement dans le brief. Domaine : pharmacologie-metabolique (à
+> confirmer).
+
+(Écarté le 2026-09-01 : `glp1-pipeline-nouvelle-generation` — déjà couvert par la section
+`pipeline-retatrutide` d'`incretines-glp1`, voir « Écartés ». Le candidat
+`metformine-rapamycine-longevite`, instruit ici, est logé dans `muscle-vieillissement` : le seul
+précédent de fond du corpus est la GH anti-âge de `testosterone-homme-age`.)
 
 ---
 
@@ -1618,6 +2591,36 @@ plus rentable du corpus.
 
 ✅ **Premier run sans perte au `resume`** : les 16 jetons de traçabilité posés avant la relance ont
 tous survécu, contre une section perdue par reprise aux 43e et 45e runs.)
+
+
+### Entraînement cognitif commercial — `entrainement-cognitif-commercial` → `performance-cognitive`
+**Verdict : gap réel — le seul qui vaille de rouvrir le domaine, UNE fois (ajout 2026-09-01).**
+Lumosity, Cogmed, n-back, Jaeggi, Simons, transfert proche/lointain : 0 occurrence dans les 89
+thèmes (« ACTIVE » n'apparaît que pour la forme active de la vitamine D). « Entraînement cognitif »
+n'existe que comme cofacteur d'un essai de plante (`nootropiques-vegetaux` : « bacopa combiné à trois
+heures hebdomadaires d'entraînement cognitif »). Les 25 substances du panorama sont toutes des
+substances ; aucune intervention non pharmacologique n'entre dans sa grille. Pourtant le domaine
+emploie déjà la notion sans la nommer (« une taille d'effet ne se transporte pas d'une fenêtre à
+l'autre » ; « rattraper un déficit fabriqué en laboratoire n'est pas améliorer un cerveau intact »), et
+l'amende FTC de 2016 contre Lumosity fait pendant au veto parlementaire de 2016 sur l'allégation
+caféine : un régulateur qui sanctionne la promesse, pas le produit. Autres idées écartées pour le
+domaine (exercice, sommeil, nicotine) : voir « Écartés ».
+
+> L'entraînement cognitif vendu au grand public : ce que les essais mesurent quand on s'entraîne
+> à un jeu. Couvrir la question du transfert (proche : la tâche entraînée s'améliore, toujours ;
+> lointain : l'intelligence fluide, la mémoire au quotidien — rarement, et c'est tout le sujet), le
+> n-back et Jaeggi 2008 puis ses réplications manquées, Cogmed et la mémoire de travail, Lumosity
+> (l'amende FTC de 2016 et ce que la FTC reprochait exactement — document-source par nature), le
+> consensus de Stanford/Max Planck de 2014 contre la lettre des industriels, la revue de Simons et
+> coll. 2016 (*Psychological Science in the Public Interest*), l'essai ACTIVE et son suivi à dix ans
+> (vitesse de traitement et démence : ce que le résultat dit et ne dit pas), les jeux vidéo
+> d'action, le placebo et les attentes (Foroughi 2016 : le recrutement décide de l'effet), la
+> personne âgée et la prévention du déclin, et le cadre réglementaire (logiciels « thérapeutiques »
+> approuvés, EndeavorRx). Public : lecteur exigeant non spécialiste. Délimitations : les 5 thèmes du
+> domaine tiennent les substances — partir de leur thèse commune (l'effet est conditionnel à la
+> tâche et à la ligne de base) et la tester sur un objet non pharmacologique ; `creatine` tient le
+> versant cognitif de la créatine. Doctrine de preuve santé à recopier intégralement dans le brief.
+> Domaine : performance-cognitive (6e thème ; le portail se rouvre pour lui).
 
 ---
 
@@ -1932,6 +2935,81 @@ cadre mal un homme de 55 ans qui veut perdre du ventre.
 > spécialiste. Doctrine de preuve santé (`docs/evidence-sante.md`) à recopier intégralement dans le
 > brief. Domaine : à confirmer (voir ci-dessus).
 
+
+### Pharmacologie de l'ostéoporose — `osteoporose-pharmacologie` → `muscle-vieillissement`
+**Verdict : gap réel — HAUTE, la thèse du domaine écrite trois fois et jamais éprouvée sur les
+molécules faites pour l'os (ajout 2026-09-01).** Bisphosphonate, alendronate, zolédronate, dénosumab,
+tériparatide, romosozumab, fracture atypique : 0 occurrence. Ce qui existe est une thèse sur la DMO
+comme substitut, développée sur une hormone, un nutriment et un peptide : `testosterone-homme-age`
+(« la testostérone augmente la densité, donc elle solidifie l'os, donc elle évite des fractures. Le
+premier maillon est mesuré, et solide. Le dernier est mesuré, et contredit »), `vitamine-d` (« la
+variation de densité minérale osseuse […] est jugée sans portée clinique » ; l'ostéoporose diagnostiquée
+n'y figure qu'en exclusion USPSTF ; le calcium n'y est que le co-facteur de Chapuy, sans un mot sur son
+signal cardiovasculaire), `collagene` (DMO et T-score sur un seul essai, « la même mesure, lue sur deux
+échelles »). Ni `sarcopenie-exercice-nutrition` ni `testosterone-homme-age` ne désignent l'ostéoporose
+comme un dehors : l'os y est refermé comme preuve interne. Le blurb du domaine (« la masse et la
+force ») est à élargir à l'os — « masse, force, densité, fracture : ce que le substitut ne prédit
+pas ».
+
+> Les médicaments de l'os au tamis des essais : ce que la densité gagne, ce que la fracture évite.
+> Couvrir la DMO comme substitut et ce qu'elle prédit réellement (méta-régressions DMO/fracture :
+> une fraction de l'effet), les bisphosphonates (FIT : alendronate, fractures vertébrales vs de
+> hanche selon la population ; HORIZON : zolédronate annuel, mortalité après fracture de hanche),
+> le dénosumab (FREEDOM, et l'effet rebond à l'arrêt : fractures vertébrales multiples — le
+> médicament qu'on ne peut pas arrêter), les anabolisants (tériparatide, romosozumab et ARCH : la
+> DMO qui monte le plus et le signal cardiovasculaire), les « drug holidays » et les fractures
+> atypiques du fémur (le risque rare qui a vidé les prescriptions — combien de fractures évitées
+> par fracture atypique), le calcium et la vitamine D comme adjuvants (et le signal cardiovasculaire
+> du calcium, Bolland — controverse à écrire comme telle), l'homme (moins d'essais, mêmes
+> molécules), le dépistage (T-score, FRAX, seuils d'intervention) et la question de qui traiter,
+> l'observance (moitié des patients arrêtent à un an) et le marché. Fil rouge : le substitut ne
+> prédit pas le résultat — ici démontrable dans les deux sens, et molécule par molécule. Public :
+> lecteur exigeant non spécialiste. ⚠️ Délimitations strictes : `vitamine-d` tient la vitamine D
+> seule et les chutes (renvoyer) ; `collagene` tient l'essai osseux du collagène ;
+> `testosterone-homme-age` tient TRAVERSE-fractures (le citer comme précédent du fil rouge) ;
+> `sarcopenie-exercice-nutrition` tient l'exercice ; les candidats `chutes-fragilite-prevention` et
+> `menopause-hormonotherapie` tiennent respectivement la chute et le THM (l'os sous œstrogènes n'a
+> ici droit qu'à un renvoi). Doctrine de preuve santé à recopier intégralement dans le brief.
+> Domaine : muscle-vieillissement, blurb à élargir par /arrange.
+
+### Metformine, rapamycine et le marché de la longévité — `metformine-rapamycine-longevite` → `muscle-vieillissement` (à confirmer)
+**Verdict : gap réel, domaine à trancher (ajout 2026-09-01 ; instruit côté pharmacologie).** La
+metformine n'existe que comme comparateur dans `berberine` (« la berbérine serait aussi efficace que
+la metformine. Elle a une source, et pratiquement une seule ») et comme traitement de fond de
+SURPASS-2 ; la rapamycine n'est qu'un outil de laboratoire dans `proteines-besoins-timing` (« abolit
+complètement la stimulation de la MPS par la leucine », chez le porcelet). TAME, Bannister, MILES,
+Konopka, ITP, PEARL, Dog Aging Project : 0 occurrence. Le repositionnement anti-âge est un quatrième
+motif pour `pharmacologie-metabolique` ; le seul précédent de fond est la GH anti-âge de
+`testosterone-homme-age` (« la GH ne peut pas être recommandée comme thérapie anti-âge »), d'où le
+logement ici. ⚠️ Base humaine randomisée mince (MILES, Konopka à quelques dizaines de sujets ; TAME
+jamais lancé faute de financement — à vérifier) : attendre des rejets mono-source comme au 45e run,
+et prévoir des claims de SYNTHÈSE.
+
+> Deux médicaments repositionnés contre le vieillissement : ce que la souris promet, ce que l'homme
+> montre. Couvrir la metformine (Bannister 2014 : « les diabétiques sous metformine vivent plus
+> longtemps que les non-diabétiques » — et le biais de temps immortel qui fabrique le résultat ;
+> MILES ; l'atténuation des gains de l'exercice chez l'âgé — Konopka 2019 ; TAME, l'essai conçu pour
+> faire reconnaître le vieillissement comme indication, et pourquoi il n'a pas eu lieu), la
+> rapamycine (mTOR, les données ITP chez la souris et leur robustesse, PEARL 2025 — critère
+> principal, effets indésirables —, le Dog Aging Project/TRIAD, l'usage off-label hebdomadaire et
+> ses cliniques), le marché de la longévité (protocoles, tests d'« âge biologique », horloges
+> épigénétiques comme substituts non validés), et la grille commune : quel critère, chez qui, et ce
+> qu'un substitut de vieillissement ne prédit pas. Public : lecteur exigeant non spécialiste.
+> Délimitations : `berberine` tient la comparaison berbérine/metformine (renvoyer) ;
+> `testosterone-homme-age` tient la GH anti-âge (le citer comme précédent) ; `incretines-glp1` tient
+> les GLP-1 ; les candidats `nad-nmn-precurseurs` (compléments) et `glp1-hors-poids` tiennent leurs
+> objets. Doctrine de preuve santé à recopier intégralement dans le brief. Domaine :
+> muscle-vieillissement (à confirmer par /arrange ; pharmacologie-metabolique en repli).
+
+- **chutes-fragilite-prevention** (basse-moyenne, ajout 2026-09-01) — gap réel mais plus faible : la
+  chute n'est traitée que comme CRITÈRE de trois interventions (`vitamine-d` : « réduisent le risque de
+  chute de 19 % » puis « la vitamine D seule ne prévient pas les chutes » ; `sarcopenie-exercice-nutrition` :
+  SPRINTT, « des chutes plus fréquentes dans le bras multimodal » ; `testosterone-homme-age` : « plus de
+  80 % des fractures […] consécutives à des chutes »), jamais comme objet. Phénotype de Fried, index de
+  fragilité, Otago, tai-chi, STRIDE, protecteurs de hanche, déprescription : 0 occurrence. Réserve :
+  pas un produit de rayon, et chevauchement avec l'ostéoporose sur les fractures — à programmer en
+  4e thème du domaine, après `osteoporose-pharmacologie`, pour tenir la dissociation chutes/fractures.
+
 ---
 
 ## `fonction-sexuelle` — domaine CRÉÉ le 2026-08-27, ✅ portail OUVERT le 2026-08-29
@@ -2052,3 +3130,97 @@ l'IIEF-5 dans la dysfonction psychogène (p = 0,06) — la prose le réfute au l
 **Angle résiduel** : `complements-amincissants` cite déjà Tucker pour ses 40,9 % d'amincissants sans
 instruire le versant sexuel. Les deux moitiés du même tableau vivent désormais dans deux documents
 qui ne se renvoient pas l'un à l'autre — une arête à considérer si les deux domaines se rejoignent.)
+
+
+### Désir sexuel hypoactif — `desir-sexuel-hypoactif` → `fonction-sexuelle`
+**Verdict : gap réel — HAUTE, désigné trois fois par le corpus (ajout 2026-09-01).** Flibansérine,
+Addyi, brémélanotide, Vyleesi, HSDD, « désir hypoactif », testostérone chez la femme : 0 occurrence
+dans les 89 thèmes. Les seules mentions du désir sont des objets nommés puis laissés :
+`inhibiteurs-pde5` décrit les domaines de l'IIEF (« le désir sexuel deux » items) sans jamais les
+lire ; `testosterone-homme-age` nomme « trois essais principaux — fonction sexuelle, fonction
+physique, vitalité » sans rapporter le Sexual Function Trial, puis conclut de l'avis FDA du 20 avril
+2026 que « le seul terrain sur lequel le régulateur accepte d'avancer est celui du désir » — en
+signalant que « la référence chiffrée qui circule sur l'essai d'appui n'a pas pu être retrouvée en
+source primaire ». Le désir FÉMININ n'est ni traité, ni nommé, ni renvoyé. C'est aussi le candidat qui
+corrige l'asymétrie du méta (aucun des 20 thèmes santé n'a la femme pour sujet). Deux variantes :
+désir féminin en cœur avec une section pont sur le désir masculin laissé ouvert par le thème
+testostérone (recommandée) ; ou désir féminin seul, sans contact avec `muscle-vieillissement`.
+
+> Le désir sexuel bas et sa pharmacologie : ce que les essais mesurent quand on prétend traiter
+> l'envie. Couvrir la construction du diagnostic (HSDD du DSM-IV au « trouble de l'intérêt/excitation »
+> du DSM-5, prévalence selon l'instrument et la détresse), la flibansérine (deux refus FDA puis
+> l'approbation de 2015 : l'effet mesuré — environ un demi-événement sexuel satisfaisant de plus par
+> mois —, l'interaction avec l'alcool et la contrainte REMS, la campagne « Even the Score » et ce
+> qu'elle apprend du lobbying par l'égalité — document-source sur les avis FDA), le brémélanotide
+> (2019 : injection à la demande, nausées, taille d'effet), la testostérone chez la femme (le Global
+> Consensus Position Statement de 2019 : indication étroite, dose physiologique, ménopause —
+> document-source par nature ; les préparations hors AMM), le placebo et l'effet du seul fait de
+> mesurer, les instruments (FSFI et ses seuils), puis la section pont — le désir masculin : le
+> Sexual Function Trial des Testosterone Trials rapporté enfin (taille d'effet, chez qui), et l'avis
+> FDA du 20 avril 2026 sur le désir sexuel bas de l'homme hypogonadique, à instruire en source
+> primaire là où le thème testostérone n'a pas pu. Public : lecteur exigeant non spécialiste.
+> ⚠️ Délimitations strictes : `inhibiteurs-pde5` tient l'érection (renvoi pour l'IIEF et son domaine
+> désir) ; `ejaculation-precoce` tient l'IELT ; `testosterone-homme-age` tient l'axe androgénique de
+> l'homme âgé, le muscle et l'os — la section pont ne reprend QUE le critère sexuel, en le citant ;
+> aucune arête inter-domaines possible (`portal.py` refuse un slug hors domaine : renvoi dans
+> l'`intro` seulement). Doctrine de preuve santé à recopier intégralement dans le brief. Domaine :
+> fonction-sexuelle (3e thème).
+
+### Dysfonction érectile au-delà des PDE5 — `dysfonction-erectile-hors-pde5` → `fonction-sexuelle`
+**Verdict : gap réel à zéro recouvrement (ajout 2026-09-01).** Ondes de choc, Li-ESWT, PRP, cellules
+souches, alprostadil, prothèse, dispositif à vide, traction : 0 occurrence (les « traction » du corpus
+sont des « gagné en traction » de thèmes IA ; le seul « PRP » est le Probability Ranking Principle).
+`inhibiteurs-pde5` ne quitte jamais ses quatre molécules ; sa section `populations-non-transportables`
+ne nomme qu'une alternative, dans un essai isolé (« thérapie cognitivo-comportementale sexuelle
+seule »), et ce qui se passe quand le comprimé échoue n'est pas posé. Le patron « régénératif sans
+essai humain » est déjà celui de `peptides-gris` (BPC-157 : « presque entièrement animale et
+mécanistique ») — précédent de méthode, objets neufs. Suite naturelle du thème PDE5.
+
+> Quand le comprimé ne suffit pas : les traitements de la dysfonction érectile hors inhibiteurs de
+> la PDE5, et le marché qui les entoure. Couvrir la 2e ligne établie (alprostadil intracaverneux et
+> intra-urétral : efficacité, douleur, abandon ; dispositifs à vide), la 3e ligne (prothèses
+> péniennes : satisfaction, infections, révision — le traitement le mieux évalué et le moins
+> vendu), puis le rayon « régénératif » : ondes de choc de faible intensité (Li-ESWT : méta-analyses
+> d'essais hétérogènes, effet sur l'IIEF vs seuil de différence minimale déjà posé par le thème
+> PDE5, position des sociétés savantes — EAU/AUA « expérimental » ou recommandation faible :
+> document-source), PRP (« P-shot » : essais de 2021-2023, taille d'effet, ce que vendent les
+> cliniques), cellules souches (essais de phase 1, aucun critère d'efficacité robuste), traction et
+> extension (Peyronie en renvoi), et la population qui décide de tout : après prostatectomie, diabète
+> ancien, échec réel des PDE5 vs mauvais usage. Sécurité et prix. Public : lecteur exigeant non
+> spécialiste. ⚠️ Délimitations strictes : `inhibiteurs-pde5` tient les quatre molécules, l'IIEF et sa
+> MCID (PARTIR de sa règle IIEF/MCID, ne pas la redériver) et l'adultération ; `peptides-gris` tient le
+> patron « littérature animale vendue comme humaine » (le citer) ; `testosterone-homme-age` tient
+> l'hypogonadisme. Doctrine de preuve santé à recopier intégralement dans le brief. Domaine :
+> fonction-sexuelle.
+
+### Traitement hormonal de la ménopause — `menopause-hormonotherapie` → domaine à CRÉER
+**Verdict : gap réel, hors domaine — tête de file d'un domaine « santé de la femme » (ajout
+2026-09-01).** WHI, THM, ospémifène, prastérone, œstrogènes vaginaux, syndrome génito-urinaire :
+0 occurrence. « Ménopause » ne sert que de qualificatif de population (`collagene` : « 131 femmes
+ménopausées » ; `vitamine-d` : USPSTF « chez les femmes ménopausées » ; `creatine` : « +0,37 kg »), et
+« œstrogène » n'est que mécanistique (`omega-3`, `testosterone-homme-age` : l'aromatase). Le versant
+fonction sexuelle du THM (atrophie, dyspareunie, DHEA vaginale) ne ferait qu'une ou deux sections
+d'un thème dont le cœur est cardiovasculaire, osseux et cognitif : ce n'est pas un 3e thème de
+`fonction-sexuelle`, c'est le premier d'un domaine que le méta n'a pas — et le constat de la passe
+(aucun des 20 thèmes santé n'a la femme pour sujet) plaide pour le créer. ⚠️ Comme pour tout domaine
+neuf : il naît avec son premier thème et n'a de portail qu'au 2e — prévoir le 2e candidat
+(`disponibilite-energetique-reds` est en nutrition-sportive ; un candidat « contraception hormonale
+et ses risques » ou « endométriose » serait à instruire) avant de lancer, pour ne pas rejouer
+`performance-cognitive`.
+
+> Le traitement hormonal de la ménopause : vingt ans de peur, et ce que les essais disaient
+> vraiment. Couvrir la WHI (2002 : l'arrêt du bras œstro-progestatif, les risques relatifs devenus
+> titres, les risques absolus qu'ils cachaient ; le bras œstrogènes seuls et son résultat inverse
+> sur le sein), la relecture par l'âge et la fenêtre temporelle (moins de 60 ans / moins de 10 ans
+> après la ménopause : ce qui est démontré et ce qui est extrapolé), les bénéfices établis (bouffées
+> de chaleur : le seul critère où l'effet est massif ; os et fractures — en renvoi vers
+> l'ostéoporose ; syndrome génito-urinaire et œstrogènes locaux, ospémifène, prastérone), les
+> risques (sein, thrombose selon la voie — orale vs transdermique —, AVC), le retrait par la FDA de
+> l'encadré noir en 2025 (à corroborer en primaire : ce que l'agence a retiré et ce qu'elle a
+> gardé), le marché de la « ménopause » (compléments, hormones « bio-identiques » compoundées, tests
+> hormonaux inutiles), et les non-hormonaux (fézolinétant, ISRS). Public : lecteur exigeant non
+> spécialiste. Délimitations : `collagene` et `vitamine-d` tiennent leurs molécules chez la femme
+> ménopausée (renvoyer) ; `testosterone-homme-age` tient l'axe masculin — symétrie à écrire dans
+> l'intro, pas en arête ; le candidat `osteoporose-pharmacologie` tient les médicaments de l'os.
+> Doctrine de preuve santé à recopier intégralement dans le brief. Domaine : à créer par /arrange
+> (« santé de la femme », id et blurb à proposer au premier run).
