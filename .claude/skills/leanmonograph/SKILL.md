@@ -114,6 +114,17 @@ Frontière code/jugement : le **code détecte**, le **modèle adjuge**.
   l'émet (`fda.gov`, `ftc.gov`, ANSM, HAS) **est** le document officiel, donc recevable ; la même
   chose republiée ailleurs est une reprise. Bornes vérifiées par
   `.claude/skills/monograph/scripts/test_lint_source_rank.py`.
+- `prose_style` : longueur des phrases de la prose rédigée, **par section** (médiane, moyenne,
+  part de phrases > 45 mots, la plus longue), et la liste des sections au-dessus des seuils
+  (médiane > 22 mots, ou > 8 % de phrases > 45). **Signale, ne bloque jamais** : la lisibilité
+  n'est pas une question de vérité, et un document exact mais lourd doit sortir. Existe parce
+  qu'une mesure sur les 90 documents publiés a trouvé une phrase moyenne à 30 mots, un tiers
+  au-dessus de 35 et une sur six au-dessus de 45 — la charte disait « alterne longues et
+  courtes », ce qui n'a jamais mordu faute de chiffre. Le remède ne coûte aucun fait : une
+  phrase-liste redevient une liste, une incise qui porte un fait autonome redevient une phrase
+  (⚠️ une réserve déplacée doit rester à moins de 350 c. de son chiffre, sinon `rejected_flags`
+  la perd de vue). Bornes vérifiées par
+  `.claude/skills/monograph/scripts/test_lint_prose_style.py`.
 
 Testé sur le fixture réel `entity-linking-disambiguation` (5 rejets, hedges) : GREEN sur le
 thème corrigé, RED (exit 2) quand on retire un hedge.

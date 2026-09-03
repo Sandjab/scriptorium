@@ -42,6 +42,7 @@ exception document-source déclarée (tous exigent une adjudication), 0 sinon,
 import json
 import pathlib
 import re
+import statistics
 import sys
 
 HEDGE_RE = re.compile(
@@ -200,6 +201,74 @@ def load(theme, name):
     if not p.exists():
         return None
     return json.loads(p.read_text(encoding="utf-8"))
+
+
+# ── Style de prose (check 5) ──────────────────────────────────────────────────────────────
+# La lisibilité n'est pas une question de vérité : ce check SIGNALE, il ne BLOQUE jamais, et
+# il n'entre pas dans le code de sortie. Il existe parce qu'une mesure sur les 90 documents
+# publiés a montré une phrase moyenne à 30 mots, un tiers des phrases au-dessus de 35 et une
+# sur six au-dessus de 45 — un régime auquel un document se relit mal, sans qu'aucun fait y
+# soit en cause. La cause est identifiée : une phrase qui tente de porter à la fois le
+# résultat, son attribution, sa population et sa réserve. Le remède l'est aussi, et il ne
+# coûte aucun fait : une phrase-liste redevient une liste, une incise qui porte un fait
+# autonome redevient une phrase.
+STYLE_MEDIAN_MAX = 22       # mots ; cible de lisibilité 18-22
+STYLE_LONG_MAX = 8.0        # % de phrases de plus de 45 mots
+SENT_SPLIT_RE = re.compile(r"(?<=[.!?])\s+(?=[A-ZÀÉÈÊÎÔÙ«])")
+FIGURE_RE = re.compile(r"<figure.*?</figure>|<table.*?</table>", re.S)
+
+
+def sentence_lengths(prose_html):
+    """Longueurs de phrase de la prose rédigée — figures et tableaux exclus (leurs
+    légendes et libellés SVG ne sont pas de la prose suivie)."""
+    txt = norm_text(strip_tags(FIGURE_RE.sub(" ", prose_html)))
+    txt = re.sub(r"\s+", " ", txt)
+    return [len(x.split()) for x in SENT_SPLIT_RE.split(txt) if len(x.strip()) > 2]
+
+
+def prose_units(theme, pre):
+    """(id, prose) des sections rédigées, quel que soit le format du stade : le manifeste
+    porte ses sections dans `elements`, le brouillon du --pre est une liste plate."""
+    if pre:
+        data = load(theme, "sections_draft.json") or []
+        items = data.get("sections", []) if isinstance(data, dict) else data
+    else:
+        data = load(theme, "manifest.json") or {}
+        items = data.get("elements", []) if isinstance(data, dict) else []
+    for el in items or []:
+        if isinstance(el, dict) and el.get("prose"):
+            yield (el.get("id") or el.get("heading") or "?"), el["prose"]
+
+
+def prose_style(theme, pre):
+    over, lens_all = [], []
+    for sid, prose in prose_units(theme, pre):
+        lens = sentence_lengths(prose)
+        if not lens:
+            continue
+        lens_all += lens
+        median = statistics.median(lens)
+        long_pct = 100.0 * sum(1 for x in lens if x > 45) / len(lens)
+        if median > STYLE_MEDIAN_MAX or long_pct > STYLE_LONG_MAX:
+            over.append({"section": sid, "sentences": len(lens),
+                         "median_words": round(median, 1),
+                         "pct_over_45": round(long_pct, 1),
+                         "longest": max(lens)})
+    return {
+        "sentences": len(lens_all),
+        "median_words": round(statistics.median(lens_all), 1) if lens_all else 0,
+        "mean_words": round(statistics.mean(lens_all), 1) if lens_all else 0,
+        "pct_over_45": (round(100.0 * sum(1 for x in lens_all if x > 45) / len(lens_all), 1)
+                        if lens_all else 0),
+        "thresholds": {"median_words": STYLE_MEDIAN_MAX, "pct_over_45": STYLE_LONG_MAX},
+        "sections_over": over,
+        "blocking": False,
+        "remedy": "découper, sans rien retirer : une phrase-liste redevient une liste ; une "
+                  "incise (—, ;, :) qui porte un fait autonome redevient une phrase. Les "
+                  "chiffres, les attributions et les réserves restent tous — une réserve "
+                  "déplacée doit rester à moins de 350 caractères de son chiffre, sinon le "
+                  "check 1 la perd de vue.",
+    }
 
 
 def main():
@@ -368,6 +437,7 @@ def main():
         "novel_numbers": novel,
         "low_rank_sources": low_rank,
         "low_rank_blocking": len(blocking),
+        "prose_style": prose_style(theme, pre),
     }, ensure_ascii=False, indent=1))
     return 2 if (unhedged or foreign or blocking) else 0
 
