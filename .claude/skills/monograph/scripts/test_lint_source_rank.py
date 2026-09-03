@@ -170,3 +170,34 @@ def test_claim_rejete_nest_pas_examine(tmp_path):
     code, out = _run(t)
     assert out["low_rank_sources"] == []
     assert code == 0
+
+
+def test_une_source_donnee_en_objet_ne_fait_pas_planter_le_lint(tmp_path):
+    """27e run : 11 claims ont été écrits À LA MAIN après le council, et portent leur source
+    en OBJET ({title, url}) au lieu d'un id — 23 entrées dans le corpus. `by_id.get(dict)`
+    levait « unhashable type: dict » : le lint sortait en 1, indiscernable d'une erreur
+    d'usage, et le contrôle de rang restait AVEUGLE sur tout le thème. Un contrôle qui
+    plante ne contrôle rien."""
+    claim = {"id": "claim:1", "audit": "confirmed", "statement": "x",
+             "sources": [{"title": "boutique", "url": "https://nootroo.com/research/x"},
+                         {"title": "wiki", "url": "https://en.wikipedia.org/wiki/Nootropic"}]}
+    code, out = _run(_theme(tmp_path, [claim], []))
+    assert out.get("error") is None, out
+    assert len(out["low_rank_sources"]) == 1, out["low_rank_sources"]
+    entry = out["low_rank_sources"][0]
+    assert entry["blocking"] is True
+    assert {f["url"] for f in entry["flagged_sources"]} == {
+        "https://nootroo.com/research/x", "https://en.wikipedia.org/wiki/Nootropic"}
+    assert code == 2
+
+
+def test_les_deux_formes_de_source_coexistent_dans_un_meme_claim(tmp_path):
+    """Le mélange existe en vrai : un claim repris à la main garde ses ids d'origine
+    et se voit ajouter une source en objet."""
+    claim = {"id": "claim:1", "audit": "confirmed", "statement": "x",
+             "sources": ["src:3", {"title": "vendeur", "url": "https://nootroo.com/y"}]}
+    code, out = _run(_theme(tmp_path, [claim], [REVUE]))
+    assert out.get("error") is None, out
+    flagged = out["low_rank_sources"][0]["flagged_sources"]
+    assert [f["url"] for f in flagged] == ["https://nootroo.com/y"]
+    assert out["low_rank_sources"][0]["sources_of_real_rank"] == 1

@@ -400,8 +400,14 @@ def main():
     low_rank = []
     for c in kept:
         flagged, strong = [], 0
-        for sid in c.get("sources", []):
-            src = by_id.get(sid, {})
+        for entry in c.get("sources", []):
+            # Un claim ajouté À LA MAIN après un run peut porter sa source EN OBJET
+            # ({title, url}) au lieu d'un id : le 27e run en a laissé 23, sur les
+            # 11 claims écrits hors council. Sans ce cas, `by_id.get(dict)` lève
+            # « unhashable type: dict », le lint sort en 1 — et le contrôle de rang
+            # devient AVEUGLE sur tout le thème, silencieusement.
+            src = entry if isinstance(entry, dict) else by_id.get(entry, {})
+            sid = entry if isinstance(entry, str) else src.get("id", src.get("url", "?"))
             reason = source_rank(src.get("url"))
             if reason:
                 flagged.append({"id": sid, "url": src.get("url", ""), "reason": reason})
