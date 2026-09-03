@@ -160,6 +160,10 @@ Sweep, jamais des faits ; si une piste ne se corrobore pas, la retirer.
 - **Domaine** = celui de `tools/taxonomy.json` (source de vérité). Un thème = un seul domaine.
 - **Verdicts** : `gap réel` (rien de substantiel) · `partiel` (effleuré/adjacent ailleurs, angle
   neuf à cibler) · `écarté` (déjà couvert en profondeur).
+- **Entrées faites** : une entrée fabriquée est retirée et remplacée par une parenthèse
+  `(slug : **FAIT le …**, retiré du backlog — …)` ; quand son rapport de run est long, elle garde
+  son titre, préfixé de `✅ FAIT — `. Le compte exact des candidats ouverts est donc
+  `grep '^### ' docs/candidate-themes.md | grep -vc 'FAIT'`.
 
 ---
 
@@ -2416,24 +2420,6 @@ publiés). L'interdiction explicite dans le `subject` — « verdict autonome ou
 ailleurs" » — a tenu de bout en bout : les 2 occurrences de « dans ce corpus » désignent l'une le
 corpus d'ESSAIS, l'autre un document réellement publié.)
 
-### Nootropiques végétaux — `nootropiques-vegetaux` → `performance-cognitive`
-**Verdict : gap réel (moyenne) — ouvre le portail du domaine.** Le verdict de rayon, format
-`complements-amincissants` mais bien moins cher (moins de molécules). Ginkgo est le cas d'école :
-deux grands essais négatifs (GEM, GuidAge) contre un marché qui n'a pas bougé. ⚠️ Profil de rejets
-attendu **identique à `collagene`** : essais uniques, souvent financés par l'ingrédientier, jamais
-répliqués par une équipe tierce — juger le run à la **nature** de ses rejets, jamais à leur nombre.
-
-> Les nootropiques d'origine végétale au tamis des essais : bacopa monnieri, ginkgo biloba,
-> rhodiola rosea, ashwagandha (et panax ginseng). Molécule par molécule : ce qui a été mesuré, sur
-> quelle population, avec quel comparateur et quelle taille d'effet. Couvrir le contre-exemple du
-> ginkgo (grands essais de prévention négatifs vs allégations de rayon), la standardisation des
-> extraits — un extrait n'est pas la plante, et deux extraits ne sont pas le même produit —, les
-> allégations refusées par l'EFSA comme instrument de lecture, l'adultération et le contenu réel
-> des gélules, et la question de l'indépendance des essais (financement par l'ingrédientier).
-> Délimitations : `complements-amincissants` donne le patron du verdict de rayon et les outils de
-> lecture d'une méta-analyse (I², analyse de sensibilité) ; `collagene` donne le patron de la
-> littérature mono-source. Domaine : performance-cognitive.
-
 (`cafeine-cognition-vigilance` : **FAIT le 2026-08-27**, retiré du backlog — 44e run
 /leanmonograph, 16e thème santé, 3e de `performance-cognitive`. 15/15 sections (plan à 15,
 plafond 16, aucune troncature), 60 claims **31✓ / 21 corrigés / 8 rejetés**, 104 sources,
@@ -2539,7 +2525,7 @@ dépassement des 64k tokens de sortie — **5e occurrence**.)
 - **neurostimulation-tdcs** (basse) — vrai gap, excellent matériau de crise de réplication, mais
   c'est un dispositif et non un produit de rayon : moins homogène avec le méta-domaine.
 
-### Panorama du rayon nootropique — `nootropiques-panorama` → `performance-cognitive`
+### ✅ FAIT — Panorama du rayon nootropique — `nootropiques-panorama` → `performance-cognitive`
 (**FAIT le 2026-08-28**, retiré du backlog — 46e run /leanmonograph, 18e thème santé, 5e et dernier
 de `performance-cognitive`. 16/16 sections retenues (plan brut à 16, plafond à 16 : aucune
 troncature), 61 claims **31 ✓ / 28 corrigés / 2 rejetés**, 147 sources, 3 widgets, tableau de
@@ -2681,7 +2667,7 @@ démontrable **deux fois, dans les deux sens**.
    selon laquelle les recommandations nutritionnelles américaines auraient adopté 1,2-1,6 g/kg/j,
    **issue d'un site secondaire non fiable**.
 
-### Sarcopénie : exercice, protéines et suppléments après 60 ans — `sarcopenie-exercice-nutrition` → `muscle-vieillissement`
+### ✅ FAIT — Sarcopénie : exercice, protéines et suppléments après 60 ans — `sarcopenie-exercice-nutrition` → `muscle-vieillissement`
 
 (**FAIT le 2026-08-18** — 40e run /leanmonograph, 12e thème santé, **crée le domaine
 `muscle-vieillissement`**, classé entre `nutrition-sportive` et `performance-cognitive`.
@@ -2784,71 +2770,14 @@ multiples et concordantes, effets modestes mais affirmables. C'est le thème qui
 > (`docs/evidence-sante.md`) à recopier intégralement dans le brief. Domaine :
 > muscle-vieillissement (à créer).
 
-### Testostérone et anabolisants chez l'homme âgé — `testosterone-homme-age` → `muscle-vieillissement`
-**Verdict : gap réel (haute) — ouvre le portail du domaine.** Aucune couverture : la testostérone
-et la pharmacologie des SARMs sont absentes des 8 documents lus **et ne font l'objet d'aucun
-renvoi**. C'est le thème qui porte la moitié « ce qu'on promet » du fil rouge, et son régime de
-preuve est l'inverse du précédent : essais rares et anciens du côté publié, communiqués de
-promoteur du côté récent.
-
-> La testostérone et ce qu'on vend avec elle à l'homme vieillissant : ce que les essais mesurent,
-> et sur quel critère ils échouent. Le dossier principal est la TRT — les Testosterone Trials
-> (*NEJM* 2016 : 790 hommes de 65 ans et plus, et le détail qui décide de la lecture, **l'essai
-> dédié à la fonction physique manque son critère primaire** pendant que l'agrégat de tous les
-> participants devient significatif, pour une différence moyenne de quelques mètres au test de
-> marche de 6 minutes, **sous la différence minimale cliniquement importante**), TEAAM (3 ans,
-> ~+0,9 kg de masse maigre, force du haut du corps améliorée, **pas celle des jambes**), la
-> dose-réponse de Storer 2008 (masse, force et puissance dose-dépendantes ; vitesse de marche et
-> TUG **non liés à la dose**, avec l'explication des auteurs : le plateau de la courbe
-> force/fonction), et TRAVERSE (2023) pour la sécurité cardiovasculaire — **avec sa sous-étude
-> fractures de 2024, le contre-exemple central du document : la densité osseuse monte et les
-> fractures aussi**. Puis la combinaison qui déflate la molécule : LITROS et TEX montrent que le
-> gain fonctionnel vient **intégralement** du programme d'exercice, la testostérone achetant la
-> masse maigre et l'os ; T4DM pour le versant métabolique et sa contrepartie hématologique.
-> Ensuite la fabrique de la demande : la prévalence réelle de l'hypogonadisme tardif (EMAS, ~3 %
-> à 60-69 ans) contre le volume de prescriptions et sa croissance concentrée sur des tranches
-> d'âge **plus jeunes**, la télémédecine directe au consommateur et l'étude en « client mystère »
-> (*JAMA Internal Medicine* 2023), et le vocabulaire lui-même (« age-related », « late-onset »,
-> « functional ») que l'Endocrine Society critique nommément en 2026. Le versant réglementaire est
-> à traiter de première main et il bouge : retrait par la FDA du *boxed warning* cardiovasculaire
-> (février 2025) **avec maintien explicite de la Limitation of Use pour l'hypogonadisme lié à
-> l'âge**, panel d'experts de décembre 2025, extension d'indication envisagée sur **la libido** —
-> pas sur le muscle ; côté français, le SMR d'Androtardyl important **sauf** pour le déficit
-> androgénique lié à l'âge. Trois sections pour le reste de la pharmacologie : les SARMs (échec
-> réglementaire fondateur d'enobosarm dans les essais POWER, où la masse bouge et la puissance de
-> montée d'escalier non ; LGD-4033 à 21 jours chez des sujets **jeunes**, sans aucune mesure de
-> force ; RAD-140, le plus vendu du marché gris, avec **zéro donnée humaine de composition
-> corporelle** ; hépatotoxicité documentée par séries de cas, suppression de l'axe, baisse du
-> HDL ; statut : approuvé nulle part, détention interdite en France par l'arrêté du 18 juin 2024,
-> classe S1.2 de l'AMA), la GH exogène chez le sujet âgé sain (méta-analyse de 2007 : ~+2,1 kg de
-> masse maigre, ~−2,1 kg de masse grasse, **aucun effet sur la capacité fonctionnelle**, excès
-> d'œdèmes, canal carpien et arthralgies — et le régime pénal fédéral américain qui frappe la
-> prescription anti-âge indépendamment de toute efficacité), et **l'échec réglementaire de la
-> pharmacologie sarcopénie** comme clôture : aucun médicament approuvé, l'avis négatif du CHMP sur
-> l'anamoréline (« effet marginal sur la masse maigre et aucun effet prouvé sur la force de
-> préhension »), l'approbation japonaise du **même** dossier — divergence doctrinale et non
-> scientifique —, l'arrêt définitif de l'azélaprag pour hépatotoxicité (janvier 2025), le critère
-> primaire manqué de SARA-INT/BIO101 présenté comme « prometteur » par son promoteur. Finir sur le
-> marché gris et le contenu réel des flacons (l'analyse de référence *JAMA* 2017 : ~52 % des
-> produits contiennent le SARM annoncé, ~41 % à la bonne dose, ~9 % rien du tout, ~39 % un autre
-> médicament non approuvé), et l'alerte ANSM de juillet 2026 avec ses mesures de police sanitaire.
-> ⚠️ **Une lacune à écrire comme telle, pas à combler par extrapolation** : aucune donnée de
-> prévalence d'usage des SARMs ou des peptides chez les hommes de plus de 60 ans n'a été trouvée,
-> et les séries d'hépatotoxicité portent sur des hommes de 24 à 46 ans. ⚠️ **Délimitations
-> strictes, deux moitiés sont déjà prises** : `peptides-gris` couvre **les sécrétagogues de GH**
-> (CJC-1295, MK-677, ipamoréline, tésamoréline comme étalon d'AMM), la typologie de l'adultération
-> et le statut « research use only » — les citer, **ne pas les retraiter** ;
-> `masse-maigre-sous-glp1` couvre **les anticorps anti-myostatine/activine** (bimagrumab,
-> apitegromab, trévogrumab) et tout le pivot GLP-1 — la frontière est nette : chez lui, empêcher
-> une perte pendant un amaigrissement ; ici, **produire un gain chez la personne âgée** ;
-> `incretines-glp1` couvre le marché gris du compounding des médicaments approuvés ;
-> `complements-amincissants` a posé le patron du verdict de rayon. ⚠️ **Discipline de source
-> propre à ce thème** : les trois essais les plus pertinents pour la question (enobosarm chez les
-> plus de 60 ans, et les deux essais de préservation sous agoniste) **ne sont connus que par
-> communiqués de promoteur** — les nommer comme tels partout, ne jamais les compter comme une
-> source de plus que l'essai qu'ils annoncent, et ne pas les laisser porter une section. Public :
-> lecteur exigeant non spécialiste. Doctrine de preuve santé (`docs/evidence-sante.md`) à recopier
-> intégralement dans le brief. Domaine : muscle-vieillissement.
+(`testosterone-homme-age` : **FAIT le 2026-08-19**, retiré du backlog — 41e run /leanmonograph,
+13e thème santé, **2e thème de `muscle-vieillissement` : il ouvre le portail du domaine**.
+13/13 sections retenues, 51 claims **29 ✓ / 20 corrigés / 2 rejetés**, 105 sources, 2 widgets.
+⚠️ Le council a rendu ses verdicts avec le **quota WebSearch épuisé** (1000/1000, constaté par les
+ré-auditeurs) : des rejets fabriqués par carence et non par jugement. **19 claims ré-adjugés à la
+main** après vérification en source primaire, et `audit-report.json` régénéré en déterministe après
+dépassement des 64k tokens de sortie. — Entrée supprimée le 2026-09-03 : elle avait survécu au
+retrait du backlog comme brief encore ouvert, tout comme celle de `nootropiques-vegetaux`.)
 
 ### Graisse viscérale de l'homme mûr — `graisse-viscerale-homme-age` → `muscle-vieillissement` (à confirmer)
 **Verdict : gap réel SOUS CONDITION DE RECENTRAGE, priorité moyenne, ajouté le 2026-08-26 sur
@@ -3019,7 +2948,7 @@ a porté le domaine à deux thèmes et `/arrange` a écrit `tools/portals/foncti
 11e portail du corpus. À comparer à `performance-cognitive`, ouvert au 39e run et refermé seulement
 au 42e. **`ai-organizations` (1 thème) est désormais le seul domaine sans portail.**
 
-### Éjaculation précoce — `ejaculation-precoce` → `fonction-sexuelle`
+### ✅ FAIT — Éjaculation précoce — `ejaculation-precoce` → `fonction-sexuelle`
 
 (**FAIT le 2026-08-29**, retiré du backlog — 47e run /leanmonograph, 19e thème santé, **REFERME le
 domaine `fonction-sexuelle`** et lui ouvre son portail. 14/14 sections retenues (plan à 14, aucune
