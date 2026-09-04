@@ -1,6 +1,6 @@
 # Passe de style — rendre la prose lisible sans toucher aux faits
 
-Chantier ouvert le 2026-09-03. **45 documents traités sur 90.** File d'attente et procédure
+Chantier ouvert le 2026-09-03. **49 documents traités sur 90.** File d'attente et procédure
 ci-dessous ; l'outillage est `.claude/skills/monograph/scripts/restyle.py`, le contrôle en
 continu est le check `prose_style` de `.claude/skills/leanmonograph/scripts/lint.py`.
 
@@ -67,6 +67,12 @@ octet qui n'est rien. La comparaison JSON ne s'y laisse pas prendre.
    de régression dans la même journée. D'où `snapshot`, qui ne se construit plus à la main.
    Les widgets ne sont scannés que pour `rejected_flags` : leur absence ne peut fausser que
    ce champ.
+1bis. **La comparaison des lints n'est pas un rituel : elle a attrapé une VRAIE régression.**
+   Sur ejaculation-precoce, déplacer « source unique, non corroborée » en phrase autonome a
+   porté la réserve de 315 à 387 caractères de son pivot, et fait basculer `claim:35` de
+   `hedged: true` à `false`. Un document de santé y perdait sa réserve sans qu'aucun mot ne
+   disparaisse. Réparé avant remise (distance finale 29 c.). C'est le seul contrôle qui l'a vu,
+   sur quarante-neuf documents.
 2. **`snapshot` reconstruit depuis HEAD.** Linter un « snapshot après » rend un rapport
    identique à l'avant et fait croire que rien n'a bougé. Le lint APRÈS se lance sur le
    thème lui-même.
@@ -223,16 +229,22 @@ pas une phrase, et relèvent de ce chantier :
   énumère quatre (GPTQ, AWQ, SpQR, AQLM).
 - `lora` — l'overhead DoRA est dit « réduit à +17 % de temps et +41 % de mémoire » avec
   DoraCaching, alors que la mémoire MONTE de +4 % à +41 %.
+- `cafeine-cognition-vigilance` — le même résultat de Philip est rapporté en « trois sujets sur
+  quatre » dans `travail-poste-et-conduite` et en « les trois quarts des ESSAIS » dans
+  `la-sieste-cafeinee`. Deux unités d'analyse incompatibles pour une seule étude. Deux autres
+  soupçons du même agent ont été écartés à l'examen : le 3,7× est introduit par « rapporté en
+  taux », donc une autre grandeur, et le F(1,95) voisin d'un 1,95 de taille d'effet est une
+  notation de degrés de liberté — une collision numérique, pas une reprise.
 
 ## État
 
 | | avant la passe | à ce jour |
 |---|---|---|
-| moyenne du corpus | 30,7 mots/phrase | **23,6** |
-| documents hors seuil | 89 / 90 | **46 / 90** |
+| moyenne du corpus | 30,7 mots/phrase | **23,2** |
+| documents hors seuil | 89 / 90 | **42 / 90** |
 | plus longue phrase du corpus | 175 mots | — |
 
-Les 45 documents traités : omega-3, scaling-laws (deux passes),
+Les 49 documents traités : omega-3, scaling-laws (deux passes),
 coreference-resolution, entity-linking-disambiguation,
 named-entity-recognition-sequence-labeling, prompt-optimization,
 reasoning-test-time-compute, state-space-models, rlhf-dpo, minimal-perfect-hashing,
@@ -247,12 +259,13 @@ time-series-forecasting, bloom-filters, ensemble-learning,
 structured-extraction-llm, mixture-of-experts, decoding-sampling,
 calibration-classifieurs, clustering-dimensionality-reduction,
 knowledge-distillation, peptides-gris, sarcopenie-exercice-nutrition,
-transformer-attention.
+transformer-attention, relation-extraction, ejaculation-precoce,
+cafeine-cognition-vigilance, llm-inference-serving.
 
 Tous sont à zéro section signalée. Tête de file suivante :
-`relation-extraction`, `ejaculation-precoce`, `cafeine-cognition-vigilance`,
-`llm-inference-serving`, `vitamine-d`, `microdosage-psychedeliques`,
-`hallucination-detection-uncertainty`, `backpropagation`.
+`vitamine-d`, `microdosage-psychedeliques`,
+`hallucination-detection-uncertainty`, `backpropagation`, `hyperloglog`,
+`consistent-hashing`, `learning-to-rank`, `nootropiques-stimulants-prescrits`.
 
 Pour reconstruire la file à jour :
 
