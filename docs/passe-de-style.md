@@ -1,6 +1,6 @@
 # Passe de style — rendre la prose lisible sans toucher aux faits
 
-Chantier ouvert le 2026-09-03. **37 documents traités sur 90.** File d'attente et procédure
+Chantier ouvert le 2026-09-03. **41 documents traités sur 90.** File d'attente et procédure
 ci-dessous ; l'outillage est `.claude/skills/monograph/scripts/restyle.py`, le contrôle en
 continu est le check `prose_style` de `.claude/skills/leanmonograph/scripts/lint.py`.
 
@@ -44,11 +44,21 @@ Le `check` porte six invariants. **Bloquants** : le multiensemble des nombres, c
 nombres écrits en toutes lettres, et `id`/`type`/`claims`. **Signalés, à adjuger** : un nom
 propre en baisse, un sigle apparu, une insécable collante perdue.
 
-Un septième contrôle vaut d'être ajouté à la main, il est gratuit : **le diff du manifeste ne
-doit toucher que des lignes `"prose"`**. Le `check` ne compare `id`/`type`/`claims` que par
-élément, pas les champs voisins. Un seul faux positif connu — `restyle.py apply` écrit un saut
-de ligne final, que 23 manifestes du corpus n'ont pas : le diff montre alors un `}` d'un octet,
-et c'est bénin.
+Un septième contrôle vaut d'être ajouté à la main, il est gratuit : **le manifeste privé de son
+champ `prose` doit être identique à celui du témoin**. Le `check` ne compare `id`/`type`/`claims`
+que par élément, pas les champs voisins.
+
+```
+def strip(o):
+    if isinstance(o, dict): return {k: strip(v) for k, v in o.items() if k != 'prose'}
+    if isinstance(o, list): return [strip(v) for v in o]
+    return o
+strip(avant) == strip(apres)
+```
+
+Le comparer **en JSON**, pas en comptant les lignes de `git diff` : `restyle.py apply` écrit un
+saut de ligne final que 23 manifestes du corpus n'ont pas, et le diff montre alors un `}` d'un
+octet qui n'est rien. La comparaison JSON ne s'y laisse pas prendre.
 
 ## Les douze pièges déjà payés
 
@@ -204,11 +214,11 @@ pas une phrase, et relèvent de ce chantier :
 
 | | avant la passe | à ce jour |
 |---|---|---|
-| moyenne du corpus | 30,7 mots/phrase | **24,6** |
-| documents hors seuil | 89 / 90 | **54 / 90** |
+| moyenne du corpus | 30,7 mots/phrase | **24,1** |
+| documents hors seuil | 89 / 90 | **50 / 90** |
 | plus longue phrase du corpus | 175 mots | — |
 
-Les 37 documents traités : omega-3, scaling-laws (deux passes),
+Les 41 documents traités : omega-3, scaling-laws (deux passes),
 coreference-resolution, entity-linking-disambiguation,
 named-entity-recognition-sequence-labeling, prompt-optimization,
 reasoning-test-time-compute, state-space-models, rlhf-dpo, minimal-perfect-hashing,
@@ -220,12 +230,13 @@ recursive-language-models, diffusion-models, approximate-nearest-neighbor,
 hybrid-search-reranking, ia-emploi-marche-du-travail, count-min-sketch,
 generative-adversarial-networks, mechanistic-interpretability,
 time-series-forecasting, bloom-filters, ensemble-learning,
-structured-extraction-llm.
+structured-extraction-llm, mixture-of-experts, decoding-sampling,
+calibration-classifieurs, clustering-dimensionality-reduction.
 
 Tous sont à zéro section signalée. Tête de file suivante :
-`mixture-of-experts`, `decoding-sampling`, `calibration-classifieurs`,
-`clustering-dimensionality-reduction`, `knowledge-distillation`,
-`peptides-gris`, `sarcopenie-exercice-nutrition`, `transformer-attention`.
+`knowledge-distillation`, `peptides-gris`, `sarcopenie-exercice-nutrition`,
+`transformer-attention`, `relation-extraction`, `ejaculation-precoce`,
+`cafeine-cognition-vigilance`, `llm-inference-serving`.
 
 Pour reconstruire la file à jour :
 
