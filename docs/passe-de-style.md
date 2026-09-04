@@ -1,6 +1,6 @@
 # Passe de style — rendre la prose lisible sans toucher aux faits
 
-Chantier ouvert le 2026-09-03. **33 documents traités sur 90.** File d'attente et procédure
+Chantier ouvert le 2026-09-03. **37 documents traités sur 90.** File d'attente et procédure
 ci-dessous ; l'outillage est `.claude/skills/monograph/scripts/restyle.py`, le contrôle en
 continu est le check `prose_style` de `.claude/skills/leanmonograph/scripts/lint.py`.
 
@@ -50,7 +50,7 @@ doit toucher que des lignes `"prose"`**. Le `check` ne compare `id`/`type`/`clai
 de ligne final, que 23 manifestes du corpus n'ont pas : le diff montre alors un `}` d'un octet,
 et c'est bénin.
 
-## Les onze pièges déjà payés
+## Les douze pièges déjà payés
 
 1. **Témoin incomplet.** Le lint en mode post lit manifest + knowledge + tldr + glossary +
    `widgets/`. Il manquait `tldr.json` une fois, `widgets/` une autre : deux fausses alertes
@@ -91,6 +91,11 @@ et c'est bénin.
 11. **`grep -c` rend le VIDE, pas zéro, sur un `dist/` qu'il juge binaire.** Le compte de
    `<h3>` de text-embeddings n'a rien affiché — ni 14, ni 0 — et ce vide se lit comme
    « rien à signaler ». Compter avec `grep -ac`. Variante de « la chose, ou un proxy ? ».
+12. **Ne jamais RÉIMPLÉMENTER un contrôle : l'importer.** Une copie manuelle de la regex
+   `STICKY_RE` a compté 145 insécables au lieu de 19 sur structured-extraction-llm, et
+   annonçait une perte inexistante. `importlib` charge `restyle.py` en trois lignes, et
+   `sticky_nbsp` / `proper_nouns` répondent juste. Même famille que le piège 11 : l'outil de
+   vérification est ce qui ment en premier.
 
 ## Ce qui marche, et qu'il faut redemander
 
@@ -199,11 +204,11 @@ pas une phrase, et relèvent de ce chantier :
 
 | | avant la passe | à ce jour |
 |---|---|---|
-| moyenne du corpus | 30,7 mots/phrase | **25,2** |
-| documents hors seuil | 89 / 90 | **58 / 90** |
+| moyenne du corpus | 30,7 mots/phrase | **24,6** |
+| documents hors seuil | 89 / 90 | **54 / 90** |
 | plus longue phrase du corpus | 175 mots | — |
 
-Les 33 documents traités : omega-3, scaling-laws (deux passes),
+Les 37 documents traités : omega-3, scaling-laws (deux passes),
 coreference-resolution, entity-linking-disambiguation,
 named-entity-recognition-sequence-labeling, prompt-optimization,
 reasoning-test-time-compute, state-space-models, rlhf-dpo, minimal-perfect-hashing,
@@ -213,12 +218,14 @@ ia-productivite-esn, retrieval-augmented-generation, quantization,
 agent-harness-engineering, lora, self-improving-harness, text-embeddings,
 recursive-language-models, diffusion-models, approximate-nearest-neighbor,
 hybrid-search-reranking, ia-emploi-marche-du-travail, count-min-sketch,
-generative-adversarial-networks, mechanistic-interpretability.
+generative-adversarial-networks, mechanistic-interpretability,
+time-series-forecasting, bloom-filters, ensemble-learning,
+structured-extraction-llm.
 
 Tous sont à zéro section signalée. Tête de file suivante :
-`time-series-forecasting`, `bloom-filters`, `ensemble-learning`,
-`structured-extraction-llm`, `mixture-of-experts`, `decoding-sampling`,
-`calibration-classifieurs`, `clustering-dimensionality-reduction`.
+`mixture-of-experts`, `decoding-sampling`, `calibration-classifieurs`,
+`clustering-dimensionality-reduction`, `knowledge-distillation`,
+`peptides-gris`, `sarcopenie-exercice-nutrition`, `transformer-attention`.
 
 Pour reconstruire la file à jour :
 
