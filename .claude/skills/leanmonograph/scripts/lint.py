@@ -218,12 +218,25 @@ SENT_SPLIT_RE = re.compile(r"(?<=[.!?])\s+(?=[A-ZÀÉÈÊÎÔÙ«])")
 FIGURE_RE = re.compile(r"<figure.*?</figure>|<table.*?</table>", re.S)
 
 
+PARA_RE = re.compile(r"<p>(.*?)</p>", re.S)
+
+
 def sentence_lengths(prose_html):
-    """Longueurs de phrase de la prose rédigée — figures et tableaux exclus (leurs
-    légendes et libellés SVG ne sont pas de la prose suivie)."""
-    txt = norm_text(strip_tags(FIGURE_RE.sub(" ", prose_html)))
-    txt = re.sub(r"\s+", " ", txt)
-    return [len(x.split()) for x in SENT_SPLIT_RE.split(txt) if len(x.strip()) > 2]
+    """Longueurs de phrase de la prose rédigée, PARAGRAPHE PAR PARAGRAPHE — figures et
+    tableaux exclus (leurs légendes et libellés SVG ne sont pas de la prose suivie).
+
+    Le découpage se fait par paragraphe parce qu'une fin de paragraphe EST une fin de
+    phrase : mesurer l'élément d'un seul tenant recolle un paragraphe finissant par « : »,
+    un bloc de formule sans ponctuation finale et la suite en une « phrase » qui n'existe
+    pas — assez pour maintenir une section au-dessus du seuil sans qu'aucune de ses phrases
+    ne le dépasse (constaté sur rlhf-dpo)."""
+    body = FIGURE_RE.sub(" ", prose_html)
+    blocs = PARA_RE.findall(body) or [body]
+    out = []
+    for bloc in blocs:
+        txt = re.sub(r"\s+", " ", norm_text(strip_tags(bloc)))
+        out += [len(x.split()) for x in SENT_SPLIT_RE.split(txt) if len(x.strip()) > 2]
+    return out
 
 
 def prose_units(theme, pre):

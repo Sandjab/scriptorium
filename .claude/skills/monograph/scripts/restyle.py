@@ -102,8 +102,21 @@ def wordnums(prose):
 
 
 def sentence_lengths(prose):
-    txt = re.sub(r"\s+", " ", strip_tags(FIG_RE.sub(" ", prose)))
-    return [len(s.split()) for s in SENT_RE.split(txt) if len(s.strip()) > 2]
+    """Longueurs de phrase, PARAGRAPHE PAR PARAGRAPHE.
+
+    Mesurer la prose d'un élément d'un seul tenant fabrique des phrases qui n'existent pas :
+    un paragraphe finissant par « : », un bloc de formule sans ponctuation finale et le
+    paragraphe suivant se recollent en une « phrase » de 70 mots. Une fin de paragraphe est
+    une fin de phrase — signalé par un agent de la passe sur rlhf-dpo, où l'artefact
+    suffisait à maintenir une section au-dessus du seuil alors qu'aucune de ses phrases ne
+    dépassait 45 mots."""
+    body = FIG_RE.sub(" ", prose)
+    blocs = PAR_RE.findall(body) or [body]
+    out = []
+    for bloc in blocs:
+        txt = re.sub(r"\s+", " ", strip_tags(bloc))
+        out += [len(s.split()) for s in SENT_RE.split(txt) if len(s.strip()) > 2]
+    return out
 
 
 PROPER_RE = re.compile(r"[A-ZÀ-ÖØ-Þ][\w'’\-]*|[A-Z]{2,}")

@@ -216,3 +216,12 @@ def test_un_nom_deplace_dune_section_a_lautre_nest_pas_signale(tmp_path):
     _run("apply", tmp_path, p)
     code, out = _run("check", tmp_path, before)
     assert "APPARUS" not in out, out
+
+
+def test_les_phrases_se_comptent_paragraphe_par_paragraphe(tmp_path):
+    """Même défaut que dans le lint : sans frontière de paragraphe, une intro finissant par
+    « : », une formule et la suite ne font qu'une phrase — et la mesure ment."""
+    prose = ("<p>Trois variantes se distinguent :</p>"
+             "<p>L(θ) = −log σ(β log π(y|x))</p>"
+             "<p>Chacune modifie un terme de cette perte.</p>")
+    assert restyle.sentence_lengths(prose) == [5, 6, 7]

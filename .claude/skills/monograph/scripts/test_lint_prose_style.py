@@ -119,3 +119,18 @@ def test_le_mode_pre_lit_le_brouillon_de_sections(tmp_path):
     code, out = _run(tmp_path, "--pre")
     assert code == 0
     assert [s["section"] for s in out["prose_style"]["sections_over"]] == ["brouillon"]
+
+
+def test_une_fin_de_paragraphe_est_une_fin_de_phrase(tmp_path):
+    """Un paragraphe qui se termine par « : », un bloc de formule sans ponctuation finale
+    et le paragraphe suivant se recollaient en une « phrase » de 70 mots qui n'existe pas.
+    L'artefact suffisait à maintenir une section de rlhf-dpo au-dessus du seuil alors
+    qu'aucune de ses phrases ne dépassait 45 mots."""
+    prose = ("<p>Trois variantes se distinguent :</p>"
+             "<p>L(θ) = −log σ(β log π(y|x))</p>"
+             "<p>Chacune modifie un terme de cette perte, et le choix du terme décide de "
+             "la robustesse observée sur les jeux de préférences bruités.</p>")
+    _, out = _run(_theme(tmp_path, prose))
+    lens = out["prose_style"]
+    assert lens["sentences"] == 3, out["prose_style"]
+    assert lens["pct_over_45"] == 0.0
