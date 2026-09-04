@@ -93,8 +93,21 @@ def strip_tags(s):
     return html.unescape(TAG_RE.sub(" ", s))
 
 
+SPLIT_NUM_RE = re.compile(r"[.,]\s+")
+
+
 def numbers(prose):
-    return collections.Counter(NUM_RE.findall(strip_tags(prose).replace(" ", " ")))
+    """Multiensemble des nombres. Une virgule (ou un point) SUIVIE D'UNE ESPACE sépare deux
+    nombres, elle n'est pas décimale : sans cette coupe, « pass@1, 83 % » est lu comme le
+    seul nombre « 1, 83 », et découper la phrase en deux en fabrique deux (1 et 83) — un
+    faux écart bloquant, rencontré sur reasoning-test-time-compute. Les espaces de milliers
+    (« 143 693 ») ne sont pas concernées : elles ne suivent ni virgule ni point."""
+    out = collections.Counter()
+    for brut in NUM_RE.findall(strip_tags(prose).replace(" ", " ")):
+        for part in SPLIT_NUM_RE.split(brut):
+            if part.strip():
+                out[part.strip()] += 1
+    return out
 
 
 def wordnums(prose):

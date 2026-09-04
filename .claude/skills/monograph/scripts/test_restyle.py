@@ -225,3 +225,23 @@ def test_les_phrases_se_comptent_paragraphe_par_paragraphe(tmp_path):
              "<p>L(θ) = −log σ(β log π(y|x))</p>"
              "<p>Chacune modifie un terme de cette perte.</p>")
     assert restyle.sentence_lengths(prose) == [5, 6, 7]
+
+
+def test_une_virgule_suivie_dune_espace_separe_deux_nombres(tmp_path):
+    """« pass@1, 83 % » était lu comme le seul nombre « 1, 83 » : couper la phrase en deux
+    en fabriquait deux, et le contrôle criait à l'écart sur une réécriture pourtant exacte.
+    Rencontré sur reasoning-test-time-compute."""
+    prose = "<p>o1 atteint 74 % en pass@1, 83 % par consensus sur 143 693 essais.</p>"
+    theme, before = _theme(tmp_path, prose)
+    p = _patch(theme, {"0.0": "o1 atteint 74 % en pass@1. Le modèle atteint 83 % par "
+                              "consensus sur 143 693 essais."})
+    _run("apply", theme, p)
+    code, out = _run("check", theme, before)
+    assert code == 0, out
+
+
+def test_un_separateur_de_milliers_reste_dans_son_nombre(tmp_path):
+    """L'espace de milliers ne suit ni virgule ni point : « 143 693 » doit rester UN nombre,
+    sans quoi la coupe précédente casserait tous les grands effectifs du corpus."""
+    assert list(restyle.numbers("<p>143 693 participants</p>")) == ["143 693"]
+    assert list(restyle.numbers("<p>un gain de 0,076 point</p>")) == ["0,076"]
