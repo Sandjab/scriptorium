@@ -1,6 +1,6 @@
 # Passe de style — rendre la prose lisible sans toucher aux faits
 
-Chantier ouvert le 2026-09-03. **29 documents traités sur 90.** File d'attente et procédure
+Chantier ouvert le 2026-09-03. **33 documents traités sur 90.** File d'attente et procédure
 ci-dessous ; l'outillage est `.claude/skills/monograph/scripts/restyle.py`, le contrôle en
 continu est le check `prose_style` de `.claude/skills/leanmonograph/scripts/lint.py`.
 
@@ -43,6 +43,12 @@ l'Audit-prose a sa consigne de découpage.
 Le `check` porte six invariants. **Bloquants** : le multiensemble des nombres, celui des
 nombres écrits en toutes lettres, et `id`/`type`/`claims`. **Signalés, à adjuger** : un nom
 propre en baisse, un sigle apparu, une insécable collante perdue.
+
+Un septième contrôle vaut d'être ajouté à la main, il est gratuit : **le diff du manifeste ne
+doit toucher que des lignes `"prose"`**. Le `check` ne compare `id`/`type`/`claims` que par
+élément, pas les champs voisins. Un seul faux positif connu — `restyle.py apply` écrit un saut
+de ligne final, que 23 manifestes du corpus n'ont pas : le diff montre alors un `}` d'un octet,
+et c'est bénin.
 
 ## Les onze pièges déjà payés
 
@@ -193,11 +199,11 @@ pas une phrase, et relèvent de ce chantier :
 
 | | avant la passe | à ce jour |
 |---|---|---|
-| moyenne du corpus | 30,7 mots/phrase | **25,7** |
-| documents hors seuil | 89 / 90 | **62 / 90** |
+| moyenne du corpus | 30,7 mots/phrase | **25,2** |
+| documents hors seuil | 89 / 90 | **58 / 90** |
 | plus longue phrase du corpus | 175 mots | — |
 
-Les 29 documents traités : omega-3, scaling-laws (deux passes),
+Les 33 documents traités : omega-3, scaling-laws (deux passes),
 coreference-resolution, entity-linking-disambiguation,
 named-entity-recognition-sequence-labeling, prompt-optimization,
 reasoning-test-time-compute, state-space-models, rlhf-dpo, minimal-perfect-hashing,
@@ -206,13 +212,13 @@ bm25-inverted-index, normalization-layers, tabular-foundation-models,
 ia-productivite-esn, retrieval-augmented-generation, quantization,
 agent-harness-engineering, lora, self-improving-harness, text-embeddings,
 recursive-language-models, diffusion-models, approximate-nearest-neighbor,
-hybrid-search-reranking.
+hybrid-search-reranking, ia-emploi-marche-du-travail, count-min-sketch,
+generative-adversarial-networks, mechanistic-interpretability.
 
 Tous sont à zéro section signalée. Tête de file suivante :
-`ia-emploi-marche-du-travail`, `count-min-sketch`,
-`generative-adversarial-networks`, `mechanistic-interpretability`,
 `time-series-forecasting`, `bloom-filters`, `ensemble-learning`,
-`structured-extraction-llm`.
+`structured-extraction-llm`, `mixture-of-experts`, `decoding-sampling`,
+`calibration-classifieurs`, `clustering-dimensionality-reduction`.
 
 Pour reconstruire la file à jour :
 
