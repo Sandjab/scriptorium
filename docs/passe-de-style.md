@@ -128,7 +128,7 @@ caractère par caractère.
 
 ### Style
 
-- **Cible 18-22 mots/phrase en médiane**, < 8 % au-dessus de 45. **Plancher : ne descends pas sous 16** — une prose hachée n'est pas lisible. Si tu passes dessous, refusionne les phrases d'annonce trop courtes avec ce qu'elles introduisent.
+- **Cible 18-22 mots/phrase en médiane**, < 8 % au-dessus de 45. **Plancher : ne descends pas sous 16** — une prose hachée n'est pas lisible. Si tu passes dessous, refusionne les phrases d'annonce trop courtes avec ce qu'elles introduisent. Apprécie la médiane sur le `check`, pas sur le lint : le lint mesure aussi le tldr et le glossaire, que tu ne touches pas, et sa médiane reste un point plus basse.
 - Le levier est la RÉPARTITION, jamais la coupe : une phrase porte UN fait ; population, intervalle et réserve suivent en phrases propres. Au plus UNE rupture (—, ;, :) par phrase.
 - Trois éléments ou plus : phrases séparées, jamais une phrase à points-virgules. Alterne les longueurs.
 - **Quand une incise attributive devient une phrase, RE-NOMME le sujet** au lieu de le pronominaliser (« Jamba offre… », pas « Il offre… »). **Exception** : les noms qui portent un chiffre — CoAct-1, Mem0, GPT-4 — ajoutent un nombre au multiensemble et font échouer le contrôle ; garde le pronom si le nom figure dans la phrase voisine.
