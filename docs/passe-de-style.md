@@ -92,6 +92,62 @@ partagés se sont écrasés entre agents dès la première vague. Le manifeste t
 n'était pas en danger : il portait un nom de thème. Vérifier chaque retour soi-même contre
 un témoin reconstruit, jamais sur le rapport de l'agent.
 
+## Le prompt d'agent, littéral
+
+À recopier tel quel, en remplaçant `<slug>` et les trois mesures de départ (données par la
+commande de reconstruction de la file, en fin de document). Un agent par document.
+
+---
+
+Réécris la prose de `themes/<slug>` (cwd /Users/jean-paulgavini/Documents/Dev/scriptorium)
+pour la rendre LISIBLE, **à faits strictement constants**. Tu ne vérifies rien, ne cherches
+rien sur le web, n'ajoutes rien : la matière est déjà auditée. Document à <X> mots/phrase,
+<Y> % de phrases > 45 mots, <Z> sections hors seuil.
+
+### Procédure (dossier à toi seul : /tmp/restyle/<slug>/)
+
+1. `python3 .claude/skills/monograph/scripts/restyle.py snapshot themes/<slug> /tmp/restyle/<slug>/avant`
+2. `python3 .claude/skills/leanmonograph/scripts/lint.py /tmp/restyle/<slug>/avant > /tmp/restyle/<slug>/lint.AVANT.json` — code de sortie lu SANS tube (`$?` après un pipe ment).
+3. `restyle.py dump themes/<slug> <ids de sections>` — section par section, le dump complet est volumineux.
+4. Par lot : patch `{"<élém>.<par>": "<contenu du <p>, sans les balises <p>>"}` → `restyle.py apply themes/<slug> <patch.json>` → `restyle.py check themes/<slug> /tmp/restyle/<slug>/avant/manifest.json`.
+   - Écart **nombres / nombres en toutes lettres / claims** : BLOQUANT. Corrige ta réécriture, jamais le contrôle.
+   - Ligne **À ADJUGER** (nom propre en baisse, sigle apparu, insécable collante perdue) : tranche et rapporte. Une répétition devenue inutile passe ; une attribution remplacée par un pronom se répare ; une insécable de ponctuation double disparaît légitimement avec son « : », une insécable entre un nombre et son unité non.
+5. Lint APRÈS **sur le thème lui-même** (`themes/<slug>`, jamais sur une copie : `snapshot` reconstruit depuis HEAD et rendrait un rapport identique à l'avant, qui ferait croire que rien n'a bougé). Compare champ par champ au lint AVANT : `rejected_flags`, `unhedged_count`, `foreign_statements`, `novel_numbers`, `low_rank_sources`, `low_rank_blocking`. **Identiques exigés**, hors `prose_style` et hors le champ `context` de chaque entrée, qui change mécaniquement avec la phrase. ⚠️ `unhedged_count` ne doit ni monter NI BAISSER : une baisse signifierait que tu as ajouté une réserve.
+6. `python3 .claude/skills/monograph/scripts/build.py themes/<slug>` (exit 0).
+
+### Méthode
+
+Travaille par **substitutions vérifiées** sur le texte d'origine (`count(old) == 1`, sinon
+arrêt) plutôt qu'en retapant les paragraphes : les formules, les `<sup>`/`<sub>` et les
+`&nbsp;` ne transitent alors jamais par une saisie manuelle. C'est plus sûr que la recopie
+caractère par caractère.
+
+### Style
+
+- **Cible 18-22 mots/phrase en médiane**, < 8 % au-dessus de 45. **Plancher : ne descends pas sous 16** — une prose hachée n'est pas lisible. Si tu passes dessous, refusionne les phrases d'annonce trop courtes avec ce qu'elles introduisent.
+- Le levier est la RÉPARTITION, jamais la coupe : une phrase porte UN fait ; population, intervalle et réserve suivent en phrases propres. Au plus UNE rupture (—, ;, :) par phrase.
+- Trois éléments ou plus : phrases séparées, jamais une phrase à points-virgules. Alterne les longueurs.
+- **Quand une incise attributive devient une phrase, RE-NOMME le sujet** au lieu de le pronominaliser (« Jamba offre… », pas « Il offre… »). **Exception** : les noms qui portent un chiffre — CoAct-1, Mem0, GPT-4 — ajoutent un nombre au multiensemble et font échouer le contrôle ; garde le pronom si le nom figure dans la phrase voisine.
+- Marqueurs d'énumération `(1)`, `(2)` : ce sont des NOMBRES, insupprimables, et ouvrir une phrase sur une parenthèse prive le découpeur de sa majuscule. Écris « Étape (1) : … ».
+- N'ajoute aucun quantifieur absent de l'original (« ces trois familles ») : c'est un nombre en toutes lettres de plus, donc un écart bloquant.
+- Le découpeur n'ouvre une phrase que sur une majuscule ou un guillemet : une phrase commençant par un token minuscule ou un chiffre (« o3 confirme… », « 92,82 % … ») se fond dans la précédente et fausse la mesure. Reformule, et signale-le.
+- Une réserve reste à **moins de 350 caractères** de son chiffre.
+- Bannis le méta-discours (« il faut ici nommer », « tient en une phrase ») et l'auto-référence au corpus (« ce document ») hors section écosystème — mais garde intact le renvoi vers un thème voisin, qui est un fait.
+- **Interdits** : retirer/modifier chiffre, date, attribution, nom de système, réserve ; convertir un nombre en lettres ou l'inverse ; ajouter un fait même déductible, ni aucune déduction que la source ne porte pas ; toucher autre chose que `manifest.json` et son `dist/`.
+- Si une section résiste, laisse-la au-dessus du seuil et dis PRÉCISÉMENT pourquoi. Le seuil est un signal, pas un quota — mais « c'est technique » n'est pas une raison : quatre documents à formules sont descendus dans la cible sans rien perdre.
+
+### Ne fais pas
+
+Ne commite pas, ne pousse pas, pas de `build_site.py`, aucun autre thème.
+
+### Rends (français, court)
+
+Mesures avant/après du `check`, comparaison des deux lints champ par champ, paragraphes
+réécrits, cas À ADJUGER et tes décisions, sections laissées hors seuil avec la raison,
+hésitations.
+
+---
+
 ## Dette de vérité — un chantier distinct
 
 **67 documents sur 90 sortent en exit 2** sur le lint actuel. Ce ne sont pas 67 documents
