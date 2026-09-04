@@ -123,3 +123,66 @@ def test_une_reference_de_claim_modifiee_fait_echouer_le_check(tmp_path):
                                          encoding="utf-8")
     code, out = _run("check", theme, before)
     assert code == 2 and "claims" in out
+
+
+# ── Contrôle des noms propres (ajouté après le premier lot de la rétro-passe) ─────────────
+def test_une_attribution_perdue_fait_echouer_le_check(tmp_path):
+    """`check` comptait les chiffres et restait aveugle à une attribution : un agent l'a
+    signalé après avoir réécrit un document entier. Perdre « Finkel et Manning » en gardant
+    tous les nombres produirait un texte exact et non attribuable."""
+    prose = "<p>Le gain de 16,5 points est établi par Finkel et Manning.</p>"
+    theme, before = _theme(tmp_path, prose)
+    p = _patch(theme, {"0.0": "Le gain de 16,5 points est établi par les auteurs."})
+    _run("apply", theme, p)
+    code, out = _run("check", theme, before)
+    assert "À ADJUGER" in out and "Finkel" in out and "Manning" in out
+    # signalé, jamais bloquant : le code ne sait pas distinguer une répétition devenue
+    # inutile d'une attribution remplacée par un pronom — c'est au rédacteur d'adjuger.
+    assert code == 0
+
+
+def test_un_nom_repete_apres_decoupage_ne_fait_pas_echouer_le_check(tmp_path):
+    """Couper une phrase oblige souvent à remplacer un pronom par le nom : l'attribution
+    devient plus explicite, jamais moins. Seules les PERTES sont fautives."""
+    prose = "<p>Le système CAW-coref atteint 88,2 points, ce qui le place en tête.</p>"
+    theme, before = _theme(tmp_path, prose)
+    p = _patch(theme, {"0.0": "Le système CAW-coref atteint 88,2 points. "
+                              "Ce score place CAW-coref en tête."})
+    _run("apply", theme, p)
+    code, out = _run("check", theme, before)
+    assert code == 0, out
+
+
+def test_une_majuscule_de_debut_de_phrase_nest_pas_une_attribution(tmp_path):
+    """Un mot ordinaire promu en tête de phrase par le découpage (« Réciproquement »,
+    « Chacun ») ne doit pas être compté comme un nom propre — sinon le contrôle crie à
+    chaque coupe."""
+    prose = "<p>Le modèle progresse, réciproquement la base recule de 3 points.</p>"
+    theme, before = _theme(tmp_path, prose)
+    p = _patch(theme, {"0.0": "Le modèle progresse. Réciproquement, la base recule de "
+                              "3 points."})
+    _run("apply", theme, p)
+    assert _run("check", theme, before)[0] == 0
+
+
+def test_snapshot_emporte_tout_ce_que_le_lint_lit(tmp_path):
+    """Deux fausses alertes dans la même journée : un témoin sans tldr.json, puis un témoin
+    sans widgets/. Le lint en mode post les lit tous les deux — un témoin incomplet mesure
+    autre chose que le document."""
+    import subprocess
+    theme = tmp_path / "themes" / "t"
+    (theme / "widgets").mkdir(parents=True)
+    for name in ("manifest.json", "knowledge.json", "tldr.json", "glossary.json"):
+        (theme / name).write_text('{"elements": []}', encoding="utf-8")
+    (theme / "widgets" / "w.html").write_text("<div>widget</div>", encoding="utf-8")
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "add", "-A"], cwd=tmp_path, check=True)
+    subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t",
+                    "commit", "-qm", "x"], cwd=tmp_path, check=True)
+    dest = tmp_path / "temoin"
+    subprocess.run([sys.executable, str(RESTYLE), "snapshot", "themes/t", str(dest)],
+                   cwd=tmp_path, check=True, capture_output=True)
+    noms = {p.name for p in dest.iterdir()}
+    assert {"manifest.json", "knowledge.json", "tldr.json", "glossary.json",
+            "widgets"} <= noms, noms
+    assert (dest / "widgets" / "w.html").exists()

@@ -2,6 +2,7 @@
 """restyle.py — outillage de la passe de style, à faits constants.
 
 Usage :
+  restyle.py snapshot <themeDir> <dest>            témoin COMPLET de la version committée
   restyle.py dump  <themeDir> [id-de-section ...]   paragraphes réécrivables, avec leur clé
   restyle.py apply <themeDir> <patch.json>          {"<elem>.<par>": "<nouveau contenu>"}
   restyle.py check <themeDir> <manifest-avant.json> compare les invariants et les mesures
@@ -20,10 +21,23 @@ POURQUOI CET OUTIL EXISTE
     3. `id`, `type` et `claims` de chaque élément sont inchangés — la prose est une vue des
        faits, jamais leur source.
 
-  Ce que l'outil ne vérifie PAS, et qui reste au jugement : qu'aucune attribution n'ait été
-  perdue, et qu'une réserve déplacée reste à moins de 350 caractères du chiffre qu'elle
-  qualifie (au-delà, `HEDGE_RE` de lint.py ne la voit plus). D'où la règle : après chaque
-  document, relancer lint.py et comparer son rapport à celui d'avant — il doit être identique.
+    4. les NOMS PROPRES et sigles ne disparaissent pas — un contrôle ajouté après que la
+       passe a montré que `check` comptait bien les chiffres mais restait aveugle à une
+       attribution perdue. Ne sont comparés que les tokens capitalisés hors début de phrase
+       (un « Réciproquement » ouvrant une phrase neuve n'est pas une attribution), et seules
+       les PERTES sont fautives : un nom répété là où un pronom a été coupé rend
+       l'attribution plus explicite, jamais moins.
+
+  Ce que l'outil ne vérifie PAS, et qui reste au jugement : qu'une réserve déplacée reste à
+  moins de 350 caractères du chiffre qu'elle qualifie (au-delà, `HEDGE_RE` de lint.py ne la
+  voit plus). D'où la règle : après chaque document, relancer lint.py et comparer son rapport
+  à celui d'avant — il doit être identique.
+
+  ⚠️ Le témoin se construit avec `snapshot`, jamais à la main. Le lint en mode post lit
+  manifest + tldr + glossary + LES WIDGETS ; un témoin auquel il manque `tldr.json` ou
+  `widgets/` mesure autre chose que le document et fabrique une régression imaginaire. Les
+  deux cas se sont produits dans la même journée, sur scaling-laws puis sur
+  entity-linking-disambiguation, et ont chacun coûté une fausse alerte.
 
   Les figures et les tableaux sont préservés verbatim : `apply` ne remplace que le contenu
   des <p> hors <figure>/<table>, jamais leurs légendes ni leurs libellés SVG.
@@ -92,6 +106,71 @@ def sentence_lengths(prose):
     return [len(s.split()) for s in SENT_RE.split(txt) if len(s.strip()) > 2]
 
 
+PROPER_RE = re.compile(r"[A-ZÀ-ÖØ-Þ][\w'’\-]*|[A-Z]{2,}")
+ELISION_RE = re.compile(r"^[A-ZÀ-ÖØ-Þ]['’]")
+
+
+def _canon_proper(tok):
+    """« L'EPA » et « EPA » sont le même nom : découper une phrase déplace sans cesse
+    l'article élidé, et sans cette normalisation le contrôle criait à la perte sur les
+    quatre premiers documents de la passe (EPA 10 → 7, alors que L'EPA passait 0 → 3)."""
+    return ELISION_RE.sub("", tok)
+
+
+def _plain_text(prose):
+    return re.sub(r"\s+", " ", strip_tags(FIG_RE.sub(" ", prose)))
+
+
+def proper_lexicon(prose):
+    """Le VOCABULAIRE des noms propres, établi sur la version d'AVANT.
+
+    Un token capitalisé n'est un nom propre que si le texte le montre ailleurs qu'en tête
+    de phrase — « Réciproquement » n'y apparaît jamais, « Wikidata » si. Déterminer ce
+    vocabulaire une fois, puis compter ses occurrences PARTOUT dans les deux versions, évite
+    le faux positif qui a fait échouer la première version de ce contrôle : le découpage
+    promeut sans cesse un nom propre en tête de phrase (« … et l'EPA monte » → « L'EPA
+    monte. »), et un filtre positionnel appliqué aux deux textes le comptait comme perdu.
+    Les sigles et les noms à majuscule interne (mGENRE, CAW-coref) entrent d'office."""
+    txt = _plain_text(prose)
+    lex = set()
+    for m in PROPER_RE.finditer(txt):
+        tok = _canon_proper(m.group(0))
+        if re.search(r"[A-Z]{2,}", tok) or re.search(r"\w[A-Z]", tok):
+            lex.add(tok)
+            continue
+        before = txt[:m.start()].rstrip()
+        if before and before[-1] not in ".!?:»" and not before.endswith("—"):
+            lex.add(tok)
+    return lex
+
+
+def proper_nouns(prose, lexicon):
+    """Occurrences des noms du lexique, sans aucun filtre de position."""
+    toks = (_canon_proper(t) for t in PROPER_RE.findall(_plain_text(prose)))
+    return collections.Counter(t for t in toks if t in lexicon)
+
+
+def cmd_snapshot(theme, dest):
+    """Témoin de la version COMMITTÉE, avec tout ce que le lint lit en mode post."""
+    import shutil
+    import subprocess
+    theme = pathlib.Path(theme)
+    dest = pathlib.Path(dest)
+    dest.mkdir(parents=True, exist_ok=True)
+    head = subprocess.run(["git", "show", f"HEAD:{theme}/manifest.json"],
+                          capture_output=True, text=True)
+    if head.returncode != 0:
+        raise SystemExit(f"[restyle] git show a échoué : {head.stderr.strip()}")
+    (dest / "manifest.json").write_text(head.stdout, encoding="utf-8")
+    for name in ("knowledge.json", "tldr.json", "glossary.json"):
+        if (theme / name).exists():
+            shutil.copy(theme / name, dest / name)
+    if (theme / "widgets").is_dir():
+        shutil.copytree(theme / "widgets", dest / "widgets", dirs_exist_ok=True)
+    print(f"[restyle] témoin écrit dans {dest} "
+          f"({', '.join(sorted(p.name for p in dest.iterdir()))})")
+
+
 def cmd_dump(theme, wanted):
     for i, el in enumerate(load(theme)["elements"]):
         if not el.get("prose") or (wanted and el.get("id") not in wanted):
@@ -149,6 +228,19 @@ def cmd_check(theme, before_path):
                 for k in sorted(set(nb) | set(na)):
                     if nb[k] != na[k]:
                         print(f"    « {k} » : {nb[k]} → {na[k]}")
+        lex = proper_lexicon(b["prose"])
+        pb, pa = proper_nouns(b["prose"], lex), proper_nouns(a["prose"], lex)
+        perdus = {k: (pb[k], pa[k]) for k in pb if pa[k] < pb[k]}
+        if perdus:
+            # SIGNALÉ, jamais bloquant : une occurrence de moins peut être une répétition
+            # devenue inutile (« Sur le DHA, … le statut en DHA ») comme une attribution
+            # remplacée par un pronom, ce que la passe s'interdit. Le code ne sait pas
+            # trancher ; bloquer pousserait à réinjecter des noms pour faire taire l'outil.
+            print(f"[restyle] À ADJUGER — élément {i} ({a.get('id')}) : noms propres en "
+                  f"baisse (répétition supprimée = OK ; attribution remplacée par un "
+                  f"pronom = à réparer)")
+            for k, (x, y) in sorted(perdus.items()):
+                print(f"    « {k} » : {x} → {y}")
         for k in ("id", "type", "claims"):
             if b.get(k) != a.get(k):
                 ok = False
@@ -167,6 +259,9 @@ def main():
         print(__doc__, file=sys.stderr)
         return 1
     cmd, theme = sys.argv[1], sys.argv[2]
+    if cmd == "snapshot":
+        cmd_snapshot(theme, sys.argv[3])
+        return 0
     if cmd == "dump":
         cmd_dump(theme, set(sys.argv[3:]))
         return 0
