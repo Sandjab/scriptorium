@@ -1,6 +1,6 @@
 # Passe de style — rendre la prose lisible sans toucher aux faits
 
-Chantier ouvert le 2026-09-03. **25 documents traités sur 90.** File d'attente et procédure
+Chantier ouvert le 2026-09-03. **29 documents traités sur 90.** File d'attente et procédure
 ci-dessous ; l'outillage est `.claude/skills/monograph/scripts/restyle.py`, le contrôle en
 continu est le check `prose_style` de `.claude/skills/leanmonograph/scripts/lint.py`.
 
@@ -177,27 +177,42 @@ le contrôle de rang des sources n'existait pas et n'a jamais tourné — `count
 
 La passe de style n'y touche pas, et ne doit pas y toucher.
 
+**Contradictions internes relevées par la passe, non corrigées** — elles changent un fait,
+pas une phrase, et relèvent de ce chantier :
+
+- `approximate-nearest-neighbor` — la plus nette. `pq-quantification-produit` borne l'erreur
+  d'ADC par MSE(q) et celle de SDC par 2·MSE(q) ; `garanties-theoriques` énonce l'INVERSE.
+  Une troisième phrase (« FAISS utilise ADC par défaut : ne pas quantifier la requête réduit
+  de moitié le plancher d'erreur ») tranche en faveur de la première : la seconde est fausse.
+- `quantization` — `limites-et-idees-recues` annonce « trois stratégies distinctes » puis en
+  énumère quatre (GPTQ, AWQ, SpQR, AQLM).
+- `lora` — l'overhead DoRA est dit « réduit à +17 % de temps et +41 % de mémoire » avec
+  DoraCaching, alors que la mémoire MONTE de +4 % à +41 %.
+
 ## État
 
 | | avant la passe | à ce jour |
 |---|---|---|
-| moyenne du corpus | 30,7 mots/phrase | **26,3** |
-| documents hors seuil | 89 / 90 | **66 / 90** |
+| moyenne du corpus | 30,7 mots/phrase | **25,7** |
+| documents hors seuil | 89 / 90 | **62 / 90** |
 | plus longue phrase du corpus | 175 mots | — |
 
-Les 25 documents traités : omega-3, scaling-laws (deux passes),
+Les 29 documents traités : omega-3, scaling-laws (deux passes),
 coreference-resolution, entity-linking-disambiguation,
 named-entity-recognition-sequence-labeling, prompt-optimization,
 reasoning-test-time-compute, state-space-models, rlhf-dpo, minimal-perfect-hashing,
 agentic-ai, agentic-memory, llm-evaluation, knowledge-graph-construction,
 bm25-inverted-index, normalization-layers, tabular-foundation-models,
 ia-productivite-esn, retrieval-augmented-generation, quantization,
-agent-harness-engineering, lora, self-improving-harness, text-embeddings.
+agent-harness-engineering, lora, self-improving-harness, text-embeddings,
+recursive-language-models, diffusion-models, approximate-nearest-neighbor,
+hybrid-search-reranking.
 
 Tous sont à zéro section signalée. Tête de file suivante :
-`recursive-language-models`, `diffusion-models`, `approximate-nearest-neighbor`,
-`hybrid-search-reranking`, `ia-emploi-marche-du-travail`, `count-min-sketch`,
-`generative-adversarial-networks`, `mechanistic-interpretability`.
+`ia-emploi-marche-du-travail`, `count-min-sketch`,
+`generative-adversarial-networks`, `mechanistic-interpretability`,
+`time-series-forecasting`, `bloom-filters`, `ensemble-learning`,
+`structured-extraction-llm`.
 
 Pour reconstruire la file à jour :
 
