@@ -1,6 +1,6 @@
 # Passe de style — rendre la prose lisible sans toucher aux faits
 
-Chantier ouvert le 2026-09-03. **13 documents traités sur 90.** File d'attente et procédure
+Chantier ouvert le 2026-09-03. **17 documents traités sur 90.** File d'attente et procédure
 ci-dessous ; l'outillage est `.claude/skills/monograph/scripts/restyle.py`, le contrôle en
 continu est le check `prose_style` de `.claude/skills/leanmonograph/scripts/lint.py`.
 
@@ -44,7 +44,7 @@ Le `check` porte six invariants. **Bloquants** : le multiensemble des nombres, c
 nombres écrits en toutes lettres, et `id`/`type`/`claims`. **Signalés, à adjuger** : un nom
 propre en baisse, un sigle apparu, une insécable collante perdue.
 
-## Les huit pièges déjà payés
+## Les neuf pièges déjà payés
 
 1. **Témoin incomplet.** Le lint en mode post lit manifest + knowledge + tldr + glossary +
    `widgets/`. Il manquait `tldr.json` une fois, `widgets/` une autre : deux fausses alertes
@@ -70,6 +70,10 @@ propre en baisse, un sigle apparu, une insécable collante perdue.
    mesure sans gêner personne. Reformuler, et le signaler.
 8. **Une réserve reste à moins de 350 caractères de son chiffre**, sinon `HEDGE_RE` du lint
    ne la voit plus.
+9. **La médiane du `check` et celle du lint ne mesurent pas la même chose.** Le lint mesure
+   aussi le tldr et le glossaire, que la passe ne touche pas : sa médiane peut rester un
+   point sous celle du `check`. Le plancher de 16 s'apprécie sur le `check`, qui ne voit que
+   la prose réécrite. Vu sur bm25-inverted-index, à 18 au `check` et 17,0 au lint.
 
 ## Ce qui marche, et qu'il faut redemander
 
@@ -166,20 +170,21 @@ La passe de style n'y touche pas, et ne doit pas y toucher.
 
 | | avant la passe | à ce jour |
 |---|---|---|
-| moyenne du corpus | 30,7 mots/phrase | **28,2** |
-| documents hors seuil | 89 / 90 | **78 / 90** |
+| moyenne du corpus | 30,7 mots/phrase | **27,5** |
+| documents hors seuil | 89 / 90 | **74 / 90** |
 | plus longue phrase du corpus | 175 mots | — |
 
-Les 13 documents traités : omega-3, scaling-laws (deux passes),
+Les 17 documents traités : omega-3, scaling-laws (deux passes),
 coreference-resolution, entity-linking-disambiguation,
 named-entity-recognition-sequence-labeling, prompt-optimization,
 reasoning-test-time-compute, state-space-models, rlhf-dpo, minimal-perfect-hashing,
-agentic-ai, agentic-memory.
+agentic-ai, agentic-memory, llm-evaluation, knowledge-graph-construction,
+bm25-inverted-index, normalization-layers.
 
-Tous sont à zéro section signalée. Tête de file suivante : `llm-evaluation`,
-`knowledge-graph-construction`, `bm25-inverted-index`, `normalization-layers`,
+Tous sont à zéro section signalée. Tête de file suivante :
 `tabular-foundation-models`, `ia-productivite-esn`, `retrieval-augmented-generation`,
-`quantization`.
+`quantization`, `agent-harness-engineering`, `lora`, `self-improving-harness`,
+`text-embeddings`.
 
 Pour reconstruire la file à jour :
 
