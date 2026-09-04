@@ -173,6 +173,22 @@ def proper_lexicon(prose):
 STRONG_RE = re.compile(r"[A-Z]{2,}|\w[A-Z]")
 
 
+NBSP_COLLANT_RE = re.compile(
+    r"\d\s*(?:&nbsp;|\u00a0|\u202f)\s*[^\s<]{1,4}(?![\w-])"     # 97 % · 15,3 × · 800 m
+    r"|«\s*(?:&nbsp;|\u00a0|\u202f)|(?:&nbsp;|\u00a0|\u202f)\s*»")  # « … »
+
+
+def sticky_nbsp(prose):
+    """Insécables qui COLLENT un nombre à son unité, ou un guillemet à son texte.
+
+    Celles qui accompagnent un « : » ou un « ; » disparaissent légitimement quand le
+    découpage remplace la ponctuation double par un point ; celles-ci, non — les perdre
+    laisse « 97 » orphelin de son « % » en fin de ligne. Un agent a dû faire ce tri à la
+    main sur agentic-ai (26 insécables → 20, toutes de ponctuation double) avant de pouvoir
+    conclure ; le code le fait désormais."""
+    return len(NBSP_COLLANT_RE.findall(prose))
+
+
 def strong_names(prose):
     """Tokens qui SONT des noms propres par leur seule forme : sigles (NER, MUC) et noms à
     majuscule interne (mGENRE, CAW-coref, GPT-4). Un tel token apparu de nulle part n'est
@@ -290,6 +306,12 @@ def cmd_check(theme, before_path):
                                 if e.get("prose")), set())
     apres_forts = set().union(*(strong_names(e["prose"]) for e in after["elements"]
                                 if e.get("prose")), set())
+    nb_av = sum(sticky_nbsp(e["prose"]) for e in before["elements"] if e.get("prose"))
+    nb_ap = sum(sticky_nbsp(e["prose"]) for e in after["elements"] if e.get("prose"))
+    if nb_ap < nb_av:
+        print(f"[restyle] À ADJUGER — {nb_av - nb_ap} espace(s) insécable(s) COLLANTE(S) "
+              f"perdue(s) ({nb_av} → {nb_ap}) : celles d'une ponctuation double disparaissent "
+              f"légitimement avec elle, celles qui tiennent un nombre à son unité, non.")
     inventes = sorted(apres_forts - avant_forts)
     if inventes:
         print("[restyle] À ADJUGER — sigles ou noms propres APPARUS (un nom qui n'était "

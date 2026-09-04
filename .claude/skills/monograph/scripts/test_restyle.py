@@ -245,3 +245,26 @@ def test_un_separateur_de_milliers_reste_dans_son_nombre(tmp_path):
     sans quoi la coupe précédente casserait tous les grands effectifs du corpus."""
     assert list(restyle.numbers("<p>143 693 participants</p>")) == ["143 693"]
     assert list(restyle.numbers("<p>un gain de 0,076 point</p>")) == ["0,076"]
+
+
+def test_une_insecable_entre_nombre_et_unite_perdue_est_signalee(tmp_path):
+    """Perdre l'insécable de « 97 &nbsp; % » laisse le nombre orphelin de son unité en fin
+    de ligne. Un agent a dû faire ce tri à la main sur agentic-ai avant de pouvoir conclure."""
+    prose = "<p>Le taux atteint 97&nbsp;% des cas mesurés dans cette campagne.</p>"
+    theme, before = _theme(tmp_path, prose)
+    p = _patch(theme, {"0.0": "Le taux atteint 97 % des cas. Ils ont été mesurés dans "
+                              "cette campagne."})
+    _run("apply", theme, p)
+    code, out = _run("check", theme, before)
+    assert "insécable" in out and code == 0     # signalé, pas bloquant
+
+
+def test_une_insecable_de_ponctuation_double_peut_disparaitre(tmp_path):
+    """Quand le découpage remplace un « : » par un point, l'insécable qui le précédait n'a
+    plus lieu d'être : la signaler crierait à chaque coupe."""
+    prose = "<p>Le constat est net&nbsp;: la mesure tient sur 12 essais.</p>"
+    theme, before = _theme(tmp_path, prose)
+    p = _patch(theme, {"0.0": "Le constat est net. La mesure tient sur 12 essais."})
+    _run("apply", theme, p)
+    code, out = _run("check", theme, before)
+    assert "insécable" not in out and code == 0
