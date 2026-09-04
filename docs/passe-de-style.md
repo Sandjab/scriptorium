@@ -1,6 +1,6 @@
 # Passe de style — rendre la prose lisible sans toucher aux faits
 
-Chantier ouvert le 2026-09-03. **41 documents traités sur 90.** File d'attente et procédure
+Chantier ouvert le 2026-09-03. **45 documents traités sur 90.** File d'attente et procédure
 ci-dessous ; l'outillage est `.claude/skills/monograph/scripts/restyle.py`, le contrôle en
 continu est le check `prose_style` de `.claude/skills/leanmonograph/scripts/lint.py`.
 
@@ -60,7 +60,7 @@ Le comparer **en JSON**, pas en comptant les lignes de `git diff` : `restyle.py 
 saut de ligne final que 23 manifestes du corpus n'ont pas, et le diff montre alors un `}` d'un
 octet qui n'est rien. La comparaison JSON ne s'y laisse pas prendre.
 
-## Les douze pièges déjà payés
+## Les quinze pièges déjà payés
 
 1. **Témoin incomplet.** Le lint en mode post lit manifest + knowledge + tldr + glossary +
    `widgets/`. Il manquait `tldr.json` une fois, `widgets/` une autre : deux fausses alertes
@@ -101,7 +101,21 @@ octet qui n'est rien. La comparaison JSON ne s'y laisse pas prendre.
 11. **`grep -c` rend le VIDE, pas zéro, sur un `dist/` qu'il juge binaire.** Le compte de
    `<h3>` de text-embeddings n'a rien affiché — ni 14, ni 0 — et ce vide se lit comme
    « rien à signaler ». Compter avec `grep -ac`. Variante de « la chose, ou un proxy ? ».
-12. **Ne jamais RÉIMPLÉMENTER un contrôle : l'importer.** Une copie manuelle de la regex
+12. **Un sigle porteur de chiffre COLLÉ à un nombre ne forme qu'un jeton.** Le tokeniseur lit
+   « FP8 2,6 » comme UN nombre : retirer le sigle en écrivant « une erreur numérique 2,6× plus
+   faible » déplace le multiensemble et bloque. Symétrique du piège 4 — un tel nom ne se répète
+   pas librement, il ne se retire pas librement non plus.
+13. **Vérifier un thème SANTÉ par inventaire de vocabulaire, jamais par le lint.** Sur
+   peptides-gris, `unhedged_count` valait 0 pour UN seul flag : il ne prouvait rien de cinq
+   réserves déplacées. Compter terme à terme, **sans sensibilité à la casse**, les « aucun essai »,
+   « source unique », « non corroborée », les populations (chez le rat, sujets âgés) et les
+   statuts réglementaires. Une population perdue ne fait bouger aucun compteur.
+14. **Une recherche littérale accuse à tort quatre fois sur quatre.** Casse changée par un passage
+   en tête de phrase (« aucun essai » → « Aucun essai »), incise devenue relative (« — score SPPB
+   de 3 à 7 — » → « dont le score SPPB va de 3 à 7 »), terme cédant la place à sa glose française
+   (« hazard ratio » → « ce rapport des risques instantanés »). Chercher la valeur et le contexte,
+   pas la chaîne ; et lire le passage avant de conclure à une perte.
+15. **Ne jamais RÉIMPLÉMENTER un contrôle : l'importer.** Une copie manuelle de la regex
    `STICKY_RE` a compté 145 insécables au lieu de 19 sur structured-extraction-llm, et
    annonçait une perte inexistante. `importlib` charge `restyle.py` en trois lignes, et
    `sticky_nbsp` / `proper_nouns` répondent juste. Même famille que le piège 11 : l'outil de
@@ -214,11 +228,11 @@ pas une phrase, et relèvent de ce chantier :
 
 | | avant la passe | à ce jour |
 |---|---|---|
-| moyenne du corpus | 30,7 mots/phrase | **24,1** |
-| documents hors seuil | 89 / 90 | **50 / 90** |
+| moyenne du corpus | 30,7 mots/phrase | **23,6** |
+| documents hors seuil | 89 / 90 | **46 / 90** |
 | plus longue phrase du corpus | 175 mots | — |
 
-Les 41 documents traités : omega-3, scaling-laws (deux passes),
+Les 45 documents traités : omega-3, scaling-laws (deux passes),
 coreference-resolution, entity-linking-disambiguation,
 named-entity-recognition-sequence-labeling, prompt-optimization,
 reasoning-test-time-compute, state-space-models, rlhf-dpo, minimal-perfect-hashing,
@@ -231,12 +245,14 @@ hybrid-search-reranking, ia-emploi-marche-du-travail, count-min-sketch,
 generative-adversarial-networks, mechanistic-interpretability,
 time-series-forecasting, bloom-filters, ensemble-learning,
 structured-extraction-llm, mixture-of-experts, decoding-sampling,
-calibration-classifieurs, clustering-dimensionality-reduction.
+calibration-classifieurs, clustering-dimensionality-reduction,
+knowledge-distillation, peptides-gris, sarcopenie-exercice-nutrition,
+transformer-attention.
 
 Tous sont à zéro section signalée. Tête de file suivante :
-`knowledge-distillation`, `peptides-gris`, `sarcopenie-exercice-nutrition`,
-`transformer-attention`, `relation-extraction`, `ejaculation-precoce`,
-`cafeine-cognition-vigilance`, `llm-inference-serving`.
+`relation-extraction`, `ejaculation-precoce`, `cafeine-cognition-vigilance`,
+`llm-inference-serving`, `vitamine-d`, `microdosage-psychedeliques`,
+`hallucination-detection-uncertainty`, `backpropagation`.
 
 Pour reconstruire la file à jour :
 
