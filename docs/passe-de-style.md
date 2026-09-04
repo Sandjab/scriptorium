@@ -1,6 +1,6 @@
 # Passe de style — rendre la prose lisible sans toucher aux faits
 
-Chantier ouvert le 2026-09-03. **17 documents traités sur 90.** File d'attente et procédure
+Chantier ouvert le 2026-09-03. **21 documents traités sur 90.** File d'attente et procédure
 ci-dessous ; l'outillage est `.claude/skills/monograph/scripts/restyle.py`, le contrôle en
 continu est le check `prose_style` de `.claude/skills/leanmonograph/scripts/lint.py`.
 
@@ -44,7 +44,7 @@ Le `check` porte six invariants. **Bloquants** : le multiensemble des nombres, c
 nombres écrits en toutes lettres, et `id`/`type`/`claims`. **Signalés, à adjuger** : un nom
 propre en baisse, un sigle apparu, une insécable collante perdue.
 
-## Les neuf pièges déjà payés
+## Les dix pièges déjà payés
 
 1. **Témoin incomplet.** Le lint en mode post lit manifest + knowledge + tldr + glossary +
    `widgets/`. Il manquait `tldr.json` une fois, `widgets/` une autre : deux fausses alertes
@@ -74,6 +74,14 @@ propre en baisse, un sigle apparu, une insécable collante perdue.
    aussi le tldr et le glossaire, que la passe ne touche pas : sa médiane peut rester un
    point sous celle du `check`. Le plancher de 16 s'apprécie sur le `check`, qui ne voit que
    la prose réécrite. Vu sur bm25-inverted-index, à 18 au `check` et 17,0 au lint.
+10. **Aucun contrôle ne mesure l'ORDRE des phrases ni la direction d'un verbe.** Deux défauts
+   ont passé les six invariants et les six champs de lint : une explication séparée de ce
+   qu'elle explique (ia-productivite-esn, l'aveu des auteurs détaché des « signaux
+   indirects »), et « le porte à 2,9 % » pour un taux qui BAISSE de 3,7 à 2,9
+   (retrieval-augmented-generation). Aucun fait n'était faux, la phrase l'était. Relire la
+   prose reste le seul contrôle qui les attrape — et un rapport d'agent peut affirmer le
+   contraire de ce qu'il a fait : celui d'ia-productivite-esn annonçait avoir rapproché
+   toutes les réserves du pivot, il en avait éloigné une de 257 à 476 caractères.
 
 ## Ce qui marche, et qu'il faut redemander
 
@@ -170,21 +178,22 @@ La passe de style n'y touche pas, et ne doit pas y toucher.
 
 | | avant la passe | à ce jour |
 |---|---|---|
-| moyenne du corpus | 30,7 mots/phrase | **27,5** |
-| documents hors seuil | 89 / 90 | **74 / 90** |
+| moyenne du corpus | 30,7 mots/phrase | **26,9** |
+| documents hors seuil | 89 / 90 | **70 / 90** |
 | plus longue phrase du corpus | 175 mots | — |
 
-Les 17 documents traités : omega-3, scaling-laws (deux passes),
+Les 21 documents traités : omega-3, scaling-laws (deux passes),
 coreference-resolution, entity-linking-disambiguation,
 named-entity-recognition-sequence-labeling, prompt-optimization,
 reasoning-test-time-compute, state-space-models, rlhf-dpo, minimal-perfect-hashing,
 agentic-ai, agentic-memory, llm-evaluation, knowledge-graph-construction,
-bm25-inverted-index, normalization-layers.
+bm25-inverted-index, normalization-layers, tabular-foundation-models,
+ia-productivite-esn, retrieval-augmented-generation, quantization.
 
 Tous sont à zéro section signalée. Tête de file suivante :
-`tabular-foundation-models`, `ia-productivite-esn`, `retrieval-augmented-generation`,
-`quantization`, `agent-harness-engineering`, `lora`, `self-improving-harness`,
-`text-embeddings`.
+`agent-harness-engineering`, `lora`, `self-improving-harness`, `text-embeddings`,
+`recursive-language-models`, `diffusion-models`, `approximate-nearest-neighbor`,
+`hybrid-search-reranking`.
 
 Pour reconstruire la file à jour :
 
