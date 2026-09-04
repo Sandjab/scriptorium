@@ -144,6 +144,17 @@ def proper_lexicon(prose):
     return lex
 
 
+STRONG_RE = re.compile(r"[A-Z]{2,}|\w[A-Z]")
+
+
+def strong_names(prose):
+    """Tokens qui SONT des noms propres par leur seule forme : sigles (NER, MUC) et noms à
+    majuscule interne (mGENRE, CAW-coref, GPT-4). Un tel token apparu de nulle part n'est
+    pas un artefact de découpage — c'est un fait inventé."""
+    return {t for t in (_canon_proper(x) for x in PROPER_RE.findall(_plain_text(prose)))
+            if STRONG_RE.search(t)}
+
+
 def proper_nouns(prose, lexicon):
     """Occurrences des noms du lexique, sans aucun filtre de position."""
     toks = (_canon_proper(t) for t in PROPER_RE.findall(_plain_text(prose)))
@@ -245,6 +256,20 @@ def cmd_check(theme, before_path):
             if b.get(k) != a.get(k):
                 ok = False
                 print(f"[restyle] ÉCART — élément {i} : {k} modifié")
+    # Sens inverse, proposé par un agent de la passe : un nom propre PERDU peut être une
+    # répétition devenue inutile, mais un nom propre APPARU ne peut pas être un artefact de
+    # découpage. Comparé sur le document ENTIER, car une réécriture déplace légitimement une
+    # mention d'une section à l'autre.
+    avant_forts = set().union(*(strong_names(e["prose"]) for e in before["elements"]
+                                if e.get("prose")), set())
+    apres_forts = set().union(*(strong_names(e["prose"]) for e in after["elements"]
+                                if e.get("prose")), set())
+    inventes = sorted(apres_forts - avant_forts)
+    if inventes:
+        print("[restyle] À ADJUGER — sigles ou noms propres APPARUS (un nom qui n'était "
+              "pas là est un fait ajouté, sauf graphie changée) :")
+        for t in inventes:
+            print(f"    « {t} »")
     print("✅ nombres et références identiques" if ok else "❌ écart détecté")
     for label, doc in (("avant", before), ("après", after)):
         m = measure(doc)

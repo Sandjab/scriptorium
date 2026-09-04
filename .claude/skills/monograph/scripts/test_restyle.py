@@ -186,3 +186,33 @@ def test_snapshot_emporte_tout_ce_que_le_lint_lit(tmp_path):
     assert {"manifest.json", "knowledge.json", "tldr.json", "glossary.json",
             "widgets"} <= noms, noms
     assert (dest / "widgets" / "w.html").exists()
+
+
+def test_un_sigle_apparu_est_signale(tmp_path):
+    """Sens inverse du contrôle d'attributions, proposé par un agent de la passe : un nom
+    PERDU peut être une répétition devenue inutile, mais un sigle APPARU ne peut pas être un
+    artefact de découpage — c'est un fait ajouté."""
+    prose = "<p>Le modèle atteint 88,2 points sur le jeu de test.</p>"
+    theme, before = _theme(tmp_path, prose)
+    p = _patch(theme, {"0.0": "Le modèle atteint 88,2 points sur OntoNotes."})
+    _run("apply", theme, p)
+    code, out = _run("check", theme, before)
+    assert "APPARUS" in out and "OntoNotes" in out
+    assert code == 0        # signalé, pas bloquant
+
+
+def test_un_nom_deplace_dune_section_a_lautre_nest_pas_signale(tmp_path):
+    """Comparaison sur le document ENTIER : une réécriture déplace légitimement une mention
+    d'une section à l'autre, et la signaler à chaque fois rendrait le contrôle inaudible."""
+    (tmp_path / "manifest.json").write_text(json.dumps(
+        {"meta": {}, "elements": [
+            {"type": "section", "id": "a", "prose": "<p>BLINK atteint 88,2 points.</p>"},
+            {"type": "section", "id": "b", "prose": "<p>Le score reste stable à 3 %.</p>"}]},
+        ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    before = tmp_path / "avant.json"
+    before.write_text((tmp_path / "manifest.json").read_text(encoding="utf-8"),
+                      encoding="utf-8")
+    p = _patch(tmp_path, {"1.0": "Le score de BLINK reste stable à 3 %."})
+    _run("apply", tmp_path, p)
+    code, out = _run("check", tmp_path, before)
+    assert "APPARUS" not in out, out
