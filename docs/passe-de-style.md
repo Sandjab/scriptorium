@@ -1,6 +1,6 @@
 # Passe de style — rendre la prose lisible sans toucher aux faits
 
-Chantier ouvert le 2026-09-03. **52 documents traités sur 90.** File d'attente et procédure
+Chantier ouvert le 2026-09-03. **56 documents traités sur 90.** File d'attente et procédure
 ci-dessous ; l'outillage est `.claude/skills/monograph/scripts/restyle.py`, le contrôle en
 continu est le check `prose_style` de `.claude/skills/leanmonograph/scripts/lint.py`.
 
@@ -60,7 +60,7 @@ Le comparer **en JSON**, pas en comptant les lignes de `git diff` : `restyle.py 
 saut de ligne final que 23 manifestes du corpus n'ont pas, et le diff montre alors un `}` d'un
 octet qui n'est rien. La comparaison JSON ne s'y laisse pas prendre.
 
-## Les seize pièges déjà payés
+## Les dix-sept pièges déjà payés
 
 1. **Témoin incomplet.** Le lint en mode post lit manifest + knowledge + tldr + glossary +
    `widgets/`. Il manquait `tldr.json` une fois, `widgets/` une autre : deux fausses alertes
@@ -91,7 +91,12 @@ octet qui n'est rien. La comparaison JSON ne s'y laisse pas prendre.
    commençant par « o3 confirme » ou « 92,82 % » se fond dans la précédente et fausse la
    mesure sans gêner personne. Reformuler, et le signaler.
 8. **Une réserve reste à moins de 350 caractères de son chiffre**, sinon `HEDGE_RE` du lint
-   ne la voit plus.
+   ne la voit plus. **Limite de la mesure, vue sur nootropiques-stimulants-prescrits** : la
+   distance se compte jusqu'au CHIFFRE le plus proche, or une réserve peut qualifier un
+   résultat purement qualitatif (« les bas performeurs s'améliorent significativement ») et
+   se trouver à 420 caractères du premier chiffre tout en étant collée à ce qu'elle qualifie.
+   Elle est alors correcte en prose et invisible au lint, indépendamment de toute passe.
+   Mesurer avant de corriger : ici elle était déjà à 414 c. dans le témoin.
 9. **La médiane du `check` et celle du lint ne mesurent pas la même chose.** Le lint mesure
    aussi le tldr et le glossaire, que la passe ne touche pas : sa médiane peut rester un
    point sous celle du `check`. Le plancher de 16 s'apprécie sur le `check`, qui ne voit que
@@ -135,6 +140,15 @@ octet qui n'est rien. La comparaison JSON ne s'y laisse pas prendre.
    vocabulaire ne peut pas le voir : c'est un mot AJOUTÉ, pas perdu.** Seule la lecture l'attrape.
    Contrôle gratuit à ajouter : compter les occurrences de `HEDGE_RE` dans la prose avant et
    après, et comparer les DEUX ensembles — pas seulement leur nombre.
+17. **Déplier un « respectivement » peut inverser un appariement, sans bouger un seul nombre.**
+   Sur hyperloglog : « pour m = 2 048, σ ≈ 2,3 % ; pour m = 16 384, σ ≈ 0,8 %, pour
+   **respectivement** environ 1,25 Ko et 10 Ko ». Attribuer 10 Ko aux 2 048 registres écrit un
+   fait FAUX en laissant le multiensemble des nombres **rigoureusement identique** — donc
+   `check` vert, lint vert, diff de vocabulaire vide. Même exposition pour toute série appariée :
+   les constantes α_m par valeur de m, une incertitude absolue par cardinalité, trois doses et
+   leurs trois effets. Quand une phrase apparie deux listes, **relire l'appariement terme à
+   terme contre le témoin** est le seul contrôle qui existe. Sous-cas du piège 10, mais celui-là
+   se repère à une construction nommée : `respectivement`, `l'un… l'autre`, `dans l'ordre`.
 
 ## Ce qui marche, et qu'il faut redemander
 
@@ -143,8 +157,12 @@ octet qui n'est rien. La comparaison JSON ne s'y laisse pas prendre.
   jamais par une saisie manuelle. Méthode apparue chez un agent, reprise par les suivants.
 - **Re-nommer le sujet** quand une incise attributive devient une phrase (« Jamba offre… »,
   pas « Il offre… ») — sauf cas 4 ci-dessus. C'est ce qui fait disparaître les cas à adjuger.
-- **Plancher de 16 mots de médiane.** Sous ce seuil la prose devient télégraphique ; trois
-  agents ont dû refusionner des coupes trop sèches pour y remonter.
+- **Plancher de 16 mots de médiane, mais consigne de viser 20.** Sous 16 la prose devient
+  télégraphique ; trois agents ont dû refusionner des coupes trop sèches pour y remonter.
+  Rendre à 18 est conforme et pourtant plus sec que le corpus — vu sur
+  hallucination-detection-uncertainty, sorti à 18 avec trois sections à 17. Demander
+  explicitement le MILIEU de la bande a suffi : les quatre documents de la douzième vague
+  sont sortis entre 19 et 20,2, tous après une passe de refusion assumée.
 - **Laisser une section au-dessus du seuil plutôt que sacrifier un fait**, en disant
   pourquoi. Mais « c'est technique » n'est pas une raison : quatre documents à formules
   (state-space-models, rlhf-dpo, minimal-perfect-hashing, scaling-laws en seconde passe)
@@ -249,11 +267,11 @@ pas une phrase, et relèvent de ce chantier :
 
 | | avant la passe | à ce jour |
 |---|---|---|
-| moyenne du corpus | 30,7 mots/phrase | **22,7** |
-| documents hors seuil | 89 / 90 | **38 / 90** |
+| moyenne du corpus | 30,7 mots/phrase | **22,3** |
+| documents hors seuil | 89 / 90 | **34 / 90** |
 | plus longue phrase du corpus | 175 mots | — |
 
-Les 52 documents traités : omega-3, scaling-laws (deux passes),
+Les 56 documents traités : omega-3, scaling-laws (deux passes),
 coreference-resolution, entity-linking-disambiguation,
 named-entity-recognition-sequence-labeling, prompt-optimization,
 reasoning-test-time-compute, state-space-models, rlhf-dpo, minimal-perfect-hashing,
@@ -271,12 +289,14 @@ knowledge-distillation, peptides-gris, sarcopenie-exercice-nutrition,
 transformer-attention, relation-extraction, ejaculation-precoce,
 cafeine-cognition-vigilance, llm-inference-serving, vitamine-d,
 microdosage-psychedeliques, hallucination-detection-uncertainty,
-backpropagation.
+backpropagation, hyperloglog, consistent-hashing, learning-to-rank,
+nootropiques-stimulants-prescrits.
 
 Tous sont à zéro section signalée. Tête de file suivante :
-`hyperloglog`, `consistent-hashing`, `learning-to-rank`,
-`nootropiques-stimulants-prescrits`, `multi-agent-orchestration`,
-`multimodal-vlm`, `creatine`, `distributed-training-parallelism`.
+`multi-agent-orchestration`, `multimodal-vlm`, `creatine`,
+`distributed-training-parallelism`, `incretines-glp1`,
+`agentic-rl-environments`, `diffusion-language-models`,
+`streaming-quantiles-sampling`.
 
 Pour reconstruire la file à jour :
 
