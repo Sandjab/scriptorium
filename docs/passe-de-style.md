@@ -1,6 +1,6 @@
 # Passe de style — rendre la prose lisible sans toucher aux faits
 
-Chantier ouvert le 2026-09-03. **49 documents traités sur 90.** File d'attente et procédure
+Chantier ouvert le 2026-09-03. **52 documents traités sur 90.** File d'attente et procédure
 ci-dessous ; l'outillage est `.claude/skills/monograph/scripts/restyle.py`, le contrôle en
 continu est le check `prose_style` de `.claude/skills/leanmonograph/scripts/lint.py`.
 
@@ -60,7 +60,7 @@ Le comparer **en JSON**, pas en comptant les lignes de `git diff` : `restyle.py 
 saut de ligne final que 23 manifestes du corpus n'ont pas, et le diff montre alors un `}` d'un
 octet qui n'est rien. La comparaison JSON ne s'y laisse pas prendre.
 
-## Les quinze pièges déjà payés
+## Les seize pièges déjà payés
 
 1. **Témoin incomplet.** Le lint en mode post lit manifest + knowledge + tldr + glossary +
    `widgets/`. Il manquait `tldr.json` une fois, `widgets/` une autre : deux fausses alertes
@@ -126,6 +126,15 @@ octet qui n'est rien. La comparaison JSON ne s'y laisse pas prendre.
    annonçait une perte inexistante. `importlib` charge `restyle.py` en trois lignes, et
    `sticky_nbsp` / `proper_nouns` répondent juste. Même famille que le piège 11 : l'outil de
    vérification est ce qui ment en premier.
+16. **Une réécriture peut AJOUTER une fausse réserve — le miroir exact du piège 1bis.** Sur
+   backpropagation, retirer le méta-discours « tient en un mot » a produit « L'efficacité de la
+   backpropagation **a une source unique** : la réutilisation ». La chaîne est le premier motif
+   de `HEDGE_RE` : une réserve bibliographique fantôme, plantée sur une section qui porte quatre
+   claims. Sans effet ce jour-là — les rejets vivaient ailleurs, aucun compteur n'a bougé — mais
+   il suffisait qu'un rejet y tombe pour qu'il se déclare hedgé tout seul. **Le diff de
+   vocabulaire ne peut pas le voir : c'est un mot AJOUTÉ, pas perdu.** Seule la lecture l'attrape.
+   Contrôle gratuit à ajouter : compter les occurrences de `HEDGE_RE` dans la prose avant et
+   après, et comparer les DEUX ensembles — pas seulement leur nombre.
 
 ## Ce qui marche, et qu'il faut redemander
 
@@ -240,11 +249,11 @@ pas une phrase, et relèvent de ce chantier :
 
 | | avant la passe | à ce jour |
 |---|---|---|
-| moyenne du corpus | 30,7 mots/phrase | **23,2** |
-| documents hors seuil | 89 / 90 | **42 / 90** |
+| moyenne du corpus | 30,7 mots/phrase | **22,7** |
+| documents hors seuil | 89 / 90 | **38 / 90** |
 | plus longue phrase du corpus | 175 mots | — |
 
-Les 49 documents traités : omega-3, scaling-laws (deux passes),
+Les 52 documents traités : omega-3, scaling-laws (deux passes),
 coreference-resolution, entity-linking-disambiguation,
 named-entity-recognition-sequence-labeling, prompt-optimization,
 reasoning-test-time-compute, state-space-models, rlhf-dpo, minimal-perfect-hashing,
@@ -260,12 +269,14 @@ structured-extraction-llm, mixture-of-experts, decoding-sampling,
 calibration-classifieurs, clustering-dimensionality-reduction,
 knowledge-distillation, peptides-gris, sarcopenie-exercice-nutrition,
 transformer-attention, relation-extraction, ejaculation-precoce,
-cafeine-cognition-vigilance, llm-inference-serving.
+cafeine-cognition-vigilance, llm-inference-serving, vitamine-d,
+microdosage-psychedeliques, hallucination-detection-uncertainty,
+backpropagation.
 
 Tous sont à zéro section signalée. Tête de file suivante :
-`vitamine-d`, `microdosage-psychedeliques`,
-`hallucination-detection-uncertainty`, `backpropagation`, `hyperloglog`,
-`consistent-hashing`, `learning-to-rank`, `nootropiques-stimulants-prescrits`.
+`hyperloglog`, `consistent-hashing`, `learning-to-rank`,
+`nootropiques-stimulants-prescrits`, `multi-agent-orchestration`,
+`multimodal-vlm`, `creatine`, `distributed-training-parallelism`.
 
 Pour reconstruire la file à jour :
 
