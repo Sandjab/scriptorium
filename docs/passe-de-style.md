@@ -1,6 +1,6 @@
 # Passe de style — rendre la prose lisible sans toucher aux faits
 
-Chantier ouvert le 2026-09-03. **80 documents traités sur 90.** File d'attente et procédure
+Chantier ouvert le 2026-09-03. **84 documents traités sur 90.** File d'attente et procédure
 ci-dessous ; l'outillage est `.claude/skills/monograph/scripts/restyle.py`, le contrôle en
 continu est le check `prose_style` de `.claude/skills/leanmonograph/scripts/lint.py`.
 
@@ -195,7 +195,11 @@ octet qui n'est rien. La comparaison JSON ne s'y laisse pas prendre.
    un ordinal, relire le rang. ✅ **Confirmé à la vague suivante, par l'agent qui l'avait dans son
    prompt** : sur gpu-kernels-compilers, aplatir « — par l'intermédiaire de PyTorch/XLA — » en
    virgule faisait de la glose un QUATRIÈME consommateur d'OpenXLA à côté de JAX, TensorFlow et
-   PyTorch. Le piège se cherche, et une fois cherché il se trouve.
+   PyTorch. Le piège se cherche, et une fois cherché il se trouve. **Troisième vague
+   consécutive où il rapporte** : sur document-ai, trois rangs menacés, dont une coupe qui
+   faisait passer un constat pour la deuxième des « deux réserves » ; sur
+   sparse-attention-long-context, une phrase de coût insérée entre les deux traits annoncés de
+   MiniCPM-SALA, qui en faisait trois.
 
 ## Ce qui marche, et qu'il faut redemander
 
@@ -267,6 +271,25 @@ octet qui n'est rien. La comparaison JSON ne s'y laisse pas prendre.
   vérifier par `json.dumps(obj, ensure_ascii=False, indent=1) + "\n" == contenu de HEAD` avant
   d'écrire, ou passer par `restyle.py apply`. Le symptôme se lit en une commande :
   `git diff --numstat` annonce le fichier entier là où la correction ne touche qu'une ligne.
+
+- **Numéroter une liste en ligne AJOUTE des marqueurs et RÉDUIT l'exposition.** Le compte
+  mécanique n'est même pas monotone dans le risque. Sur reinforcement-learning-fundamentals, la
+  reprise « La première et la deuxième cèdent vite » EXISTAIT DÉJÀ, au-dessus d'une énumération
+  non numérotée (« trois hypothèses : connaître…, disposer…, et que la propriété… »). Déplier la
+  liste en ordinaux donne à cette reprise des antécédents explicites : sept marqueurs de plus au
+  compteur, un renvoi de moins à résoudre de tête. Lire, toujours, avant de conclure d'un compte.
+- **Nommer les deux côtés d'un appariement peut être BLOQUANT — nommer un seul côté suffit.**
+  Sur document-ai, écrire « LayoutLMv2 » et « Pix2Struct » pour lever une anaphore a fait entrer
+  deux « 2 » dans le multiensemble et bloqué le `check`. La sortie n'est pas de renoncer : c'est
+  de nommer le terme qui ne porte pas de chiffre et de laisser l'autre en anaphore courte —
+  « Donut embarque 143 millions de paramètres. L'autre en compte 200 millions », ou
+  « 40,0 contre 47,4 pour UDOP ». Une anaphore suffit à lever une anaphore, dès lors que l'autre
+  extrémité est nommée.
+- **Variante du piège 12 par la VIRGULE.** Aplatir « M2 — 230 milliards de paramètres » en
+  « M2, 230 milliards » ne change aucun fait et passe le `check`, dont le tokeniseur sépare les
+  deux jetons. Mais tout compteur maison écrit à la va-vite lit « M2, 230 » comme UN nombre, et
+  annonce alors un écart qui n'existe pas. Le nom porteur de chiffre est dangereux collé à un
+  nombre par un espace (piège 12) comme par une virgule.
 
 - **Laisser une section au-dessus du seuil plutôt que sacrifier un fait**, en disant
   pourquoi. Mais « c'est technique » n'est pas une raison : quatre documents à formules
@@ -372,8 +395,8 @@ pas une phrase, et relèvent de ce chantier :
 
 | | avant la passe | à ce jour |
 |---|---|---|
-| moyenne du corpus | 30,7 mots/phrase | **20,1** |
-| documents hors seuil | 89 / 90 | **10 / 90** |
+| moyenne du corpus | 30,7 mots/phrase | **19,8** |
+| documents hors seuil | 89 / 90 | **6 / 90** |
 | plus longue phrase du corpus | 175 mots | — |
 
 Les 72 documents traités : omega-3, scaling-laws (deux passes),
@@ -403,13 +426,13 @@ event-extraction-temporal, llm-safety-jailbreaks, context-engineering,
 nootropiques-vegetaux, nootropiques-panorama, contrastive-self-supervised,
 cafeine-ergogene, world-models, collagene,
 ia-competences-deskilling-apprentissage, agent-evaluation-observability,
-llm-watermarking-detection, gpu-kernels-compilers, complements-amincissants.
+llm-watermarking-detection, gpu-kernels-compilers, complements-amincissants,
+berberine, document-ai, sparse-attention-long-context,
+reinforcement-learning-fundamentals.
 
-Tous sont à zéro section signalée. **Il reste dix documents**, et la file tient désormais en
-deux vagues et demie : `document-ai`, `sparse-attention-long-context`,
-`reinforcement-learning-fundamentals`, `berberine`, `pretraining-data-curation`,
-`masse-maigre-sous-glp1`, `proteines-besoins-timing`, `graph-neural-networks`,
-`convolutional-networks`, `variational-autoencoders`.
+Tous sont à zéro section signalée. **Il reste six documents**, soit une vague et demie :
+`pretraining-data-curation`, `masse-maigre-sous-glp1`, `proteines-besoins-timing`,
+`graph-neural-networks`, `convolutional-networks`, `variational-autoencoders`.
 
 Pour reconstruire la file à jour :
 
