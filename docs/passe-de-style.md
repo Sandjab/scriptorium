@@ -1,6 +1,6 @@
 # Passe de style — rendre la prose lisible sans toucher aux faits
 
-Chantier ouvert le 2026-09-03. **64 documents traités sur 90.** File d'attente et procédure
+Chantier ouvert le 2026-09-03. **68 documents traités sur 90.** File d'attente et procédure
 ci-dessous ; l'outillage est `.claude/skills/monograph/scripts/restyle.py`, le contrôle en
 continu est le check `prose_style` de `.claude/skills/leanmonograph/scripts/lint.py`.
 
@@ -60,7 +60,7 @@ Le comparer **en JSON**, pas en comptant les lignes de `git diff` : `restyle.py 
 saut de ligne final que 23 manifestes du corpus n'ont pas, et le diff montre alors un `}` d'un
 octet qui n'est rien. La comparaison JSON ne s'y laisse pas prendre.
 
-## Les dix-huit pièges déjà payés
+## Les dix-neuf pièges déjà payés
 
 1. **Témoin incomplet.** Le lint en mode post lit manifest + knowledge + tldr + glossary +
    `widgets/`. Il manquait `tldr.json` une fois, `widgets/` une autre : deux fausses alertes
@@ -163,6 +163,16 @@ octet qui n'est rien. La comparaison JSON ne s'y laisse pas prendre.
    soustraire les doublons DÉJÀ présents dans le témoin — les labels de schéma en portent
    légitimement (`r_sub r_sub`). Seuls les doublons *introduits* comptent. Vérifié ensuite sur
    les trois autres documents de la quatorzième vague : aucun.
+19. **Une MAJUSCULE en tête de phrase peut FABRIQUER un flag de vérité.** Sur
+   llm-safety-jailbreaks, découper à « **Contre** Claude-2, ils ne réussissent que… » a fait
+   passer `unhedged_count` de 6 à 7 et apparaître un `rejected_flag` neuf : le mot figure dans
+   les `examples` du claim rejeté, il fait six caractères, et le lint l'a retenu comme pivot à
+   lui seul. Réparé en gardant « contre » en minuscule et en milieu de phrase. C'est le
+   symétrique du piège 7 : là, un token minuscule en tête de phrase FAUSSE LA MESURE de
+   longueur ; ici, un mot ordinaire capitalisé FABRIQUE une alerte de vérité. Le contrôle
+   existe déjà — c'est la comparaison des six champs de lint —, à condition de la lancer après
+   CHAQUE lot et pas seulement à la fin. Une refusion, elle, ne peut que désamorcer ce piège :
+   elle supprime des majuscules initiales, elle n'en crée pas.
 
 ## Ce qui marche, et qu'il faut redemander
 
@@ -177,6 +187,12 @@ octet qui n'est rien. La comparaison JSON ne s'y laisse pas prendre.
   hallucination-detection-uncertainty, sorti à 18 avec trois sections à 17. Demander
   explicitement le MILIEU de la bande a suffi : les quatre documents de la douzième vague
   sont sortis entre 19 et 20,2, tous après une passe de refusion assumée.
+- **Comparer la SUITE ORDONNÉE des nombres, pas seulement leur multiensemble.** Trouvé par un
+  agent au quinzième run, et plus fin que le contrôle du `check` : une permutation laisse le
+  multiensemble intact. Sur testosterone-homme-age, la comparaison ordonnée élément par élément
+  a isolé exactement deux réordonnancements sur 34 nombres — tous deux voulus, tous deux relus.
+  ⚠️ Détacher la ponctuation finale avant de comparer, sinon « 2008. » et « 2008 » divergent
+  pour rien.
 - **Quand une phrase appariante se découpe, NOMMER les termes plutôt que garder l'anaphore.**
   Sur distributed-training-parallelism, « les premières profitent d'un tensor parallelism élevé,
   les secondes réclament un expert parallelism » est devenu « Les couches d'attention profitent…
@@ -287,11 +303,11 @@ pas une phrase, et relèvent de ce chantier :
 
 | | avant la passe | à ce jour |
 |---|---|---|
-| moyenne du corpus | 30,7 mots/phrase | **21,6** |
-| documents hors seuil | 89 / 90 | **26 / 90** |
+| moyenne du corpus | 30,7 mots/phrase | **21,2** |
+| documents hors seuil | 89 / 90 | **22 / 90** |
 | plus longue phrase du corpus | 175 mots | — |
 
-Les 64 documents traités : omega-3, scaling-laws (deux passes),
+Les 68 documents traités : omega-3, scaling-laws (deux passes),
 coreference-resolution, entity-linking-disambiguation,
 named-entity-recognition-sequence-labeling, prompt-optimization,
 reasoning-test-time-compute, state-space-models, rlhf-dpo, minimal-perfect-hashing,
@@ -313,12 +329,14 @@ backpropagation, hyperloglog, consistent-hashing, learning-to-rank,
 nootropiques-stimulants-prescrits, multi-agent-orchestration,
 multimodal-vlm, creatine, distributed-training-parallelism,
 incretines-glp1, agentic-rl-environments, diffusion-language-models,
-streaming-quantiles-sampling.
+streaming-quantiles-sampling, testosterone-homme-age, inhibiteurs-pde5,
+event-extraction-temporal, llm-safety-jailbreaks.
 
 Tous sont à zéro section signalée. Tête de file suivante :
-`testosterone-homme-age`, `inhibiteurs-pde5`, `event-extraction-temporal`,
-`llm-safety-jailbreaks`, `context-engineering`, `nootropiques-vegetaux`,
-`nootropiques-panorama`, `contrastive-self-supervised`.
+`context-engineering`, `nootropiques-vegetaux`, `nootropiques-panorama`,
+`contrastive-self-supervised`, `collagene`,
+`ia-competences-deskilling-apprentissage`, `cafeine-ergogene`,
+`world-models`.
 
 Pour reconstruire la file à jour :
 
