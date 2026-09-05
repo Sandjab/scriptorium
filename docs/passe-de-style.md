@@ -1,7 +1,8 @@
 # Passe de style — rendre la prose lisible sans toucher aux faits
 
-Chantier ouvert le 2026-09-03. **84 documents traités sur 90.** File d'attente et procédure
-ci-dessous ; l'outillage est `.claude/skills/monograph/scripts/restyle.py`, le contrôle en
+Chantier ouvert le 2026-09-03, **CLOS le 2026-09-05 : 90 documents sur 90, aucun document hors
+seuil.** La procédure et les vingt-deux pièges ci-dessous restent la référence pour toute
+réécriture future ; l'outillage est `.claude/skills/monograph/scripts/restyle.py`, le contrôle en
 continu est le check `prose_style` de `.claude/skills/leanmonograph/scripts/lint.py`.
 
 ## Pourquoi
@@ -291,6 +292,34 @@ octet qui n'est rien. La comparaison JSON ne s'y laisse pas prendre.
   annonce alors un écart qui n'existe pas. Le nom porteur de chiffre est dangereux collé à un
   nombre par un espace (piège 12) comme par une virgule.
 
+- **Ne pas résoudre une anaphore que rien n'autorise à trancher.** Sur
+  pretraining-data-curation, « 1 000 milliards de tokens uniques pour l'un et 200 milliards pour
+  l'autre » (FineWeb-Edu, DCLM) : `knowledge.json` ne porte pas ces deux chiffres, donc rien ne
+  départage l'ordre. L'agent a gardé noms et anaphore **dans une seule phrase**, ramenée à
+  44 mots, au lieu de deviner. Le piège 17 se paie quand on devine un appariement, jamais quand
+  on le laisse tel qu'il est écrit. Le pendant positif, dans le même document : « le second
+  retire 3,04 % des documents quand le premier retire 7,18 % des tokens » se résout SEUL, parce
+  que les UNITÉS le disent — NearDup compare des documents, ExactSubstr des sous-chaînes de
+  tokens.
+- **Écarter un réordonnancement à la conception plutôt que le justifier après coup.** Sur
+  masse-maigre-sous-glp1, deux découpes naturelles auraient permuté la suite des nombres ; elles
+  ont été abandonnées avant d'être écrites, et la phrase reformulée autrement. C'est moins cher
+  qu'une permutation à relire, et cela laisse le contrôle b vierge.
+- **Un pronom peut INVERSER un fait sans qu'aucun contrôle ne bouge.** Sur
+  proteines-besoins-timing : « Le DIAAS remplace le PDCAAS…, score antérieur fondé sur la
+  digestibilité fécale. **Il** surestime… » — le « Il » se lit comme le DIAAS, alors que c'est le
+  PDCAAS qui surestime. Même famille que le piège 10, avec une forme repérable : un pronom en
+  tête de phrase, après une phrase qui a nommé DEUX entités. Les chercher tous à la relecture.
+- **Une section DANS la cible ne se touche pas.** Sur graph-neural-networks, la seule section
+  laissée intacte est `gin-weisfeiler-lehman` — elle n'était pas hors seuil, et c'est elle qui
+  porte l'opposition somme / moyenne / max, l'appariement le plus inversable du document. Ne
+  réécrire que ce que le lint signale protège mécaniquement le reste.
+- **Le témoin lui-même peut porter un défaut de mesure.** Sur pretraining-data-curation,
+  « phi-1 (« Textbooks Are All You Need »… » ouvrait une phrase sur un token minuscule : le
+  découpeur la recollait à la précédente et affichait une phrase de 76 mots, maximum du document,
+  qui n'existait pas. La renommer (« Le travail phi-1 ») rend la mesure honnête. Le piège 7 ne
+  guette pas seulement ce qu'on écrit : il est déjà dans ce qu'on mesure.
+
 - **Laisser une section au-dessus du seuil plutôt que sacrifier un fait**, en disant
   pourquoi. Mais « c'est technique » n'est pas une raison : quatre documents à formules
   (state-space-models, rlhf-dpo, minimal-perfect-hashing, scaling-laws en seconde passe)
@@ -393,48 +422,21 @@ pas une phrase, et relèvent de ce chantier :
 
 ## État
 
-| | avant la passe | à ce jour |
+| | avant la passe | à la clôture |
 |---|---|---|
-| moyenne du corpus | 30,7 mots/phrase | **19,8** |
-| documents hors seuil | 89 / 90 | **6 / 90** |
+| moyenne du corpus | 30,7 mots/phrase | **19,4** |
+| documents hors seuil | 89 / 90 | **0 / 90** |
 | plus longue phrase du corpus | 175 mots | — |
 
-Les 72 documents traités : omega-3, scaling-laws (deux passes),
-coreference-resolution, entity-linking-disambiguation,
-named-entity-recognition-sequence-labeling, prompt-optimization,
-reasoning-test-time-compute, state-space-models, rlhf-dpo, minimal-perfect-hashing,
-agentic-ai, agentic-memory, llm-evaluation, knowledge-graph-construction,
-bm25-inverted-index, normalization-layers, tabular-foundation-models,
-ia-productivite-esn, retrieval-augmented-generation, quantization,
-agent-harness-engineering, lora, self-improving-harness, text-embeddings,
-recursive-language-models, diffusion-models, approximate-nearest-neighbor,
-hybrid-search-reranking, ia-emploi-marche-du-travail, count-min-sketch,
-generative-adversarial-networks, mechanistic-interpretability,
-time-series-forecasting, bloom-filters, ensemble-learning,
-structured-extraction-llm, mixture-of-experts, decoding-sampling,
-calibration-classifieurs, clustering-dimensionality-reduction,
-knowledge-distillation, peptides-gris, sarcopenie-exercice-nutrition,
-transformer-attention, relation-extraction, ejaculation-precoce,
-cafeine-cognition-vigilance, llm-inference-serving, vitamine-d,
-microdosage-psychedeliques, hallucination-detection-uncertainty,
-backpropagation, hyperloglog, consistent-hashing, learning-to-rank,
-nootropiques-stimulants-prescrits, multi-agent-orchestration,
-multimodal-vlm, creatine, distributed-training-parallelism,
-incretines-glp1, agentic-rl-environments, diffusion-language-models,
-streaming-quantiles-sampling, testosterone-homme-age, inhibiteurs-pde5,
-event-extraction-temporal, llm-safety-jailbreaks, context-engineering,
-nootropiques-vegetaux, nootropiques-panorama, contrastive-self-supervised,
-cafeine-ergogene, world-models, collagene,
-ia-competences-deskilling-apprentissage, agent-evaluation-observability,
-llm-watermarking-detection, gpu-kernels-compilers, complements-amincissants,
-berberine, document-ai, sparse-attention-long-context,
-reinforcement-learning-fundamentals.
+Vingt vagues, quatre à six documents chacune, un agent par document et une vérification
+indépendante de chaque retour contre un témoin reconstruit depuis `git show HEAD:`. Aucun
+document n'a perdu un fait ; les six invariants du `check` et les six champs de lint sont
+identiques sur les 90.
 
-Tous sont à zéro section signalée. **Il reste six documents**, soit une vague et demie :
-`pretraining-data-curation`, `masse-maigre-sous-glp1`, `proteines-besoins-timing`,
-`graph-neural-networks`, `convolutional-networks`, `variational-autoencoders`.
+**Les 90 documents sont traités.** La file est vide.
 
-Pour reconstruire la file à jour :
+Pour vérifier que la file reste vide — un run futur peut réintroduire un document hors seuil,
+le lint le signale sans bloquer :
 
 ```
 python3 - <<'PY'
