@@ -1,6 +1,6 @@
 # Passe de style — rendre la prose lisible sans toucher aux faits
 
-Chantier ouvert le 2026-09-03. **60 documents traités sur 90.** File d'attente et procédure
+Chantier ouvert le 2026-09-03. **64 documents traités sur 90.** File d'attente et procédure
 ci-dessous ; l'outillage est `.claude/skills/monograph/scripts/restyle.py`, le contrôle en
 continu est le check `prose_style` de `.claude/skills/leanmonograph/scripts/lint.py`.
 
@@ -60,7 +60,7 @@ Le comparer **en JSON**, pas en comptant les lignes de `git diff` : `restyle.py 
 saut de ligne final que 23 manifestes du corpus n'ont pas, et le diff montre alors un `}` d'un
 octet qui n'est rien. La comparaison JSON ne s'y laisse pas prendre.
 
-## Les dix-sept pièges déjà payés
+## Les dix-huit pièges déjà payés
 
 1. **Témoin incomplet.** Le lint en mode post lit manifest + knowledge + tldr + glossary +
    `widgets/`. Il manquait `tldr.json` une fois, `widgets/` une autre : deux fausses alertes
@@ -154,6 +154,15 @@ octet qui n'est rien. La comparaison JSON ne s'y laisse pas prendre.
    *introduit* une construction appariante là où l'original n'en avait pas — un appariement
    neuf est une cible neuve pour la passe suivante. Vérifié sur les quatre documents de la
    treizième vague : 6/6, 1/1, 1/1, 1/1, aucun marqueur ajouté.
+18. **Une réécriture peut introduire une FAUTE DE SAISIE, qu'aucun contrôle du dispositif ne
+   voit.** Sur agentic-rl-environments, « avec l'ambition affichée que chacun puisse » est
+   devenu « avec cette ambition affichée : **que que** chacun puisse ». Un mot doublé passe le
+   `check` (aucun nombre ne bouge), passe le lint, et passe le diff de vocabulaire — « que »
+   est trop fréquent pour qu'une occurrence de plus se remarque dans le bruit. Il serait parti
+   en ligne. **Contrôle gratuit** : balayer `\b(\w+)\s+\1\b` sur la prose réécrite et
+   soustraire les doublons DÉJÀ présents dans le témoin — les labels de schéma en portent
+   légitimement (`r_sub r_sub`). Seuls les doublons *introduits* comptent. Vérifié ensuite sur
+   les trois autres documents de la quatorzième vague : aucun.
 
 ## Ce qui marche, et qu'il faut redemander
 
@@ -278,11 +287,11 @@ pas une phrase, et relèvent de ce chantier :
 
 | | avant la passe | à ce jour |
 |---|---|---|
-| moyenne du corpus | 30,7 mots/phrase | **21,9** |
-| documents hors seuil | 89 / 90 | **30 / 90** |
+| moyenne du corpus | 30,7 mots/phrase | **21,6** |
+| documents hors seuil | 89 / 90 | **26 / 90** |
 | plus longue phrase du corpus | 175 mots | — |
 
-Les 60 documents traités : omega-3, scaling-laws (deux passes),
+Les 64 documents traités : omega-3, scaling-laws (deux passes),
 coreference-resolution, entity-linking-disambiguation,
 named-entity-recognition-sequence-labeling, prompt-optimization,
 reasoning-test-time-compute, state-space-models, rlhf-dpo, minimal-perfect-hashing,
@@ -302,12 +311,14 @@ cafeine-cognition-vigilance, llm-inference-serving, vitamine-d,
 microdosage-psychedeliques, hallucination-detection-uncertainty,
 backpropagation, hyperloglog, consistent-hashing, learning-to-rank,
 nootropiques-stimulants-prescrits, multi-agent-orchestration,
-multimodal-vlm, creatine, distributed-training-parallelism.
+multimodal-vlm, creatine, distributed-training-parallelism,
+incretines-glp1, agentic-rl-environments, diffusion-language-models,
+streaming-quantiles-sampling.
 
 Tous sont à zéro section signalée. Tête de file suivante :
-`incretines-glp1`, `agentic-rl-environments`, `diffusion-language-models`,
-`streaming-quantiles-sampling`, `testosterone-homme-age`,
-`inhibiteurs-pde5`, `event-extraction-temporal`, `llm-safety-jailbreaks`.
+`testosterone-homme-age`, `inhibiteurs-pde5`, `event-extraction-temporal`,
+`llm-safety-jailbreaks`, `context-engineering`, `nootropiques-vegetaux`,
+`nootropiques-panorama`, `contrastive-self-supervised`.
 
 Pour reconstruire la file à jour :
 
