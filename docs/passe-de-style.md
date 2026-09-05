@@ -1,6 +1,6 @@
 # Passe de style — rendre la prose lisible sans toucher aux faits
 
-Chantier ouvert le 2026-09-03. **68 documents traités sur 90.** File d'attente et procédure
+Chantier ouvert le 2026-09-03. **72 documents traités sur 90.** File d'attente et procédure
 ci-dessous ; l'outillage est `.claude/skills/monograph/scripts/restyle.py`, le contrôle en
 continu est le check `prose_style` de `.claude/skills/leanmonograph/scripts/lint.py`.
 
@@ -154,6 +154,13 @@ octet qui n'est rien. La comparaison JSON ne s'y laisse pas prendre.
    *introduit* une construction appariante là où l'original n'en avait pas — un appariement
    neuf est une cible neuve pour la passe suivante. Vérifié sur les quatre documents de la
    treizième vague : 6/6, 1/1, 1/1, 1/1, aucun marqueur ajouté.
+   ⚠️ **Le cas limite est le CHIASME**, où l'anaphore inverse l'ordre d'énonciation. Sur
+   nootropiques-panorama : « Le sunifiram et le piracétam partagent l'étiquette « nootrope »… :
+   **le second** est un médicament sous AMM…, **le premier** n'a jamais rencontré un être humain. »
+   Résolu à l'envers, cela ferait du sunifiram — une molécule sans le moindre essai humain — un
+   médicament autorisé, avec un multiensemble de nombres inchangé. Ne jamais résoudre une
+   anaphore sur l'ordre apparent : **remonter à la phrase qui nomme les termes** et vérifier le
+   rattachement un par un. L'agent l'a fait, et il avait raison.
 18. **Une réécriture peut introduire une FAUTE DE SAISIE, qu'aucun contrôle du dispositif ne
    voit.** Sur agentic-rl-environments, « avec l'ambition affichée que chacun puisse » est
    devenu « avec cette ambition affichée : **que que** chacun puisse ». Un mot doublé passe le
@@ -199,6 +206,13 @@ octet qui n'est rien. La comparaison JSON ne s'y laisse pas prendre.
   Les couches d'experts réclament… ». Le fait est le même, mais le risque d'inversion disparaît
   pour de bon : plus aucune passe future ne peut se tromper de référent. C'est la seule
   réparation du piège 17 qui soit définitive plutôt que ponctuelle.
+- **`pct_over_45` n'a pas à valoir 0 : le seuil est 8 %.** Quatorze documents de rang sont
+  sortis à 0 %, ce qui a fini par passer pour la norme. Les deux thèmes santé de la seizième
+  vague rendent 3,5 % et 2,4 %, et c'est correct : les phrases restantes, de 46 à 56 mots, sont
+  des descriptions de protocole d'essai — population, dose, durée, comparateur, financement —
+  qu'on ne fragmente pas sans perdre la cohérence. Un agent qui avait d'abord surcoupé à médiane
+  15 / max 32 est remonté de lui-même. Exiger 0 % reproduirait le défaut sanctionné à la
+  quinzième vague.
 - **Laisser une section au-dessus du seuil plutôt que sacrifier un fait**, en disant
   pourquoi. Mais « c'est technique » n'est pas une raison : quatre documents à formules
   (state-space-models, rlhf-dpo, minimal-perfect-hashing, scaling-laws en seconde passe)
@@ -303,11 +317,11 @@ pas une phrase, et relèvent de ce chantier :
 
 | | avant la passe | à ce jour |
 |---|---|---|
-| moyenne du corpus | 30,7 mots/phrase | **21,2** |
-| documents hors seuil | 89 / 90 | **22 / 90** |
+| moyenne du corpus | 30,7 mots/phrase | **20,8** |
+| documents hors seuil | 89 / 90 | **18 / 90** |
 | plus longue phrase du corpus | 175 mots | — |
 
-Les 68 documents traités : omega-3, scaling-laws (deux passes),
+Les 72 documents traités : omega-3, scaling-laws (deux passes),
 coreference-resolution, entity-linking-disambiguation,
 named-entity-recognition-sequence-labeling, prompt-optimization,
 reasoning-test-time-compute, state-space-models, rlhf-dpo, minimal-perfect-hashing,
@@ -330,13 +344,13 @@ nootropiques-stimulants-prescrits, multi-agent-orchestration,
 multimodal-vlm, creatine, distributed-training-parallelism,
 incretines-glp1, agentic-rl-environments, diffusion-language-models,
 streaming-quantiles-sampling, testosterone-homme-age, inhibiteurs-pde5,
-event-extraction-temporal, llm-safety-jailbreaks.
+event-extraction-temporal, llm-safety-jailbreaks, context-engineering,
+nootropiques-vegetaux, nootropiques-panorama, contrastive-self-supervised.
 
 Tous sont à zéro section signalée. Tête de file suivante :
-`context-engineering`, `nootropiques-vegetaux`, `nootropiques-panorama`,
-`contrastive-self-supervised`, `collagene`,
-`ia-competences-deskilling-apprentissage`, `cafeine-ergogene`,
-`world-models`.
+`collagene`, `ia-competences-deskilling-apprentissage`, `cafeine-ergogene`,
+`world-models`, `gpu-kernels-compilers`, `complements-amincissants`,
+`agent-evaluation-observability`, `llm-watermarking-detection`.
 
 Pour reconstruire la file à jour :
 
