@@ -1,6 +1,6 @@
 # Passe de style — rendre la prose lisible sans toucher aux faits
 
-Chantier ouvert le 2026-09-03. **56 documents traités sur 90.** File d'attente et procédure
+Chantier ouvert le 2026-09-03. **60 documents traités sur 90.** File d'attente et procédure
 ci-dessous ; l'outillage est `.claude/skills/monograph/scripts/restyle.py`, le contrôle en
 continu est le check `prose_style` de `.claude/skills/leanmonograph/scripts/lint.py`.
 
@@ -149,6 +149,11 @@ octet qui n'est rien. La comparaison JSON ne s'y laisse pas prendre.
    leurs trois effets. Quand une phrase apparie deux listes, **relire l'appariement terme à
    terme contre le témoin** est le seul contrôle qui existe. Sous-cas du piège 10, mais celui-là
    se repère à une construction nommée : `respectivement`, `l'un… l'autre`, `dans l'ordre`.
+   **Complément mécanisable, gratuit** : compter le multiensemble de ces marqueurs avant et
+   après. Il ne dit rien de l'ordre des termes, mais il attrape le cas où une réécriture
+   *introduit* une construction appariante là où l'original n'en avait pas — un appariement
+   neuf est une cible neuve pour la passe suivante. Vérifié sur les quatre documents de la
+   treizième vague : 6/6, 1/1, 1/1, 1/1, aucun marqueur ajouté.
 
 ## Ce qui marche, et qu'il faut redemander
 
@@ -163,6 +168,12 @@ octet qui n'est rien. La comparaison JSON ne s'y laisse pas prendre.
   hallucination-detection-uncertainty, sorti à 18 avec trois sections à 17. Demander
   explicitement le MILIEU de la bande a suffi : les quatre documents de la douzième vague
   sont sortis entre 19 et 20,2, tous après une passe de refusion assumée.
+- **Quand une phrase appariante se découpe, NOMMER les termes plutôt que garder l'anaphore.**
+  Sur distributed-training-parallelism, « les premières profitent d'un tensor parallelism élevé,
+  les secondes réclament un expert parallelism » est devenu « Les couches d'attention profitent…
+  Les couches d'experts réclament… ». Le fait est le même, mais le risque d'inversion disparaît
+  pour de bon : plus aucune passe future ne peut se tromper de référent. C'est la seule
+  réparation du piège 17 qui soit définitive plutôt que ponctuelle.
 - **Laisser une section au-dessus du seuil plutôt que sacrifier un fait**, en disant
   pourquoi. Mais « c'est technique » n'est pas une raison : quatre documents à formules
   (state-space-models, rlhf-dpo, minimal-perfect-hashing, scaling-laws en seconde passe)
@@ -267,11 +278,11 @@ pas une phrase, et relèvent de ce chantier :
 
 | | avant la passe | à ce jour |
 |---|---|---|
-| moyenne du corpus | 30,7 mots/phrase | **22,3** |
-| documents hors seuil | 89 / 90 | **34 / 90** |
+| moyenne du corpus | 30,7 mots/phrase | **21,9** |
+| documents hors seuil | 89 / 90 | **30 / 90** |
 | plus longue phrase du corpus | 175 mots | — |
 
-Les 56 documents traités : omega-3, scaling-laws (deux passes),
+Les 60 documents traités : omega-3, scaling-laws (deux passes),
 coreference-resolution, entity-linking-disambiguation,
 named-entity-recognition-sequence-labeling, prompt-optimization,
 reasoning-test-time-compute, state-space-models, rlhf-dpo, minimal-perfect-hashing,
@@ -290,13 +301,13 @@ transformer-attention, relation-extraction, ejaculation-precoce,
 cafeine-cognition-vigilance, llm-inference-serving, vitamine-d,
 microdosage-psychedeliques, hallucination-detection-uncertainty,
 backpropagation, hyperloglog, consistent-hashing, learning-to-rank,
-nootropiques-stimulants-prescrits.
+nootropiques-stimulants-prescrits, multi-agent-orchestration,
+multimodal-vlm, creatine, distributed-training-parallelism.
 
 Tous sont à zéro section signalée. Tête de file suivante :
-`multi-agent-orchestration`, `multimodal-vlm`, `creatine`,
-`distributed-training-parallelism`, `incretines-glp1`,
-`agentic-rl-environments`, `diffusion-language-models`,
-`streaming-quantiles-sampling`.
+`incretines-glp1`, `agentic-rl-environments`, `diffusion-language-models`,
+`streaming-quantiles-sampling`, `testosterone-homme-age`,
+`inhibiteurs-pde5`, `event-extraction-temporal`, `llm-safety-jailbreaks`.
 
 Pour reconstruire la file à jour :
 
