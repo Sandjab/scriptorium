@@ -1,6 +1,6 @@
 # Passe de style — rendre la prose lisible sans toucher aux faits
 
-Chantier ouvert le 2026-09-03. **72 documents traités sur 90.** File d'attente et procédure
+Chantier ouvert le 2026-09-03. **76 documents traités sur 90.** File d'attente et procédure
 ci-dessous ; l'outillage est `.claude/skills/monograph/scripts/restyle.py`, le contrôle en
 continu est le check `prose_style` de `.claude/skills/leanmonograph/scripts/lint.py`.
 
@@ -178,8 +178,21 @@ octet qui n'est rien. La comparaison JSON ne s'y laisse pas prendre.
    symétrique du piège 7 : là, un token minuscule en tête de phrase FAUSSE LA MESURE de
    longueur ; ici, un mot ordinaire capitalisé FABRIQUE une alerte de vérité. Le contrôle
    existe déjà — c'est la comparaison des six champs de lint —, à condition de la lancer après
-   CHAQUE lot et pas seulement à la fin. Une refusion, elle, ne peut que désamorcer ce piège :
+   CHAQUE lot et pas seulement à la fin. ✅ **Reproduit et pris en direct à la dix-septième
+   vague** : sur ia-competences-deskilling-apprentissage, découper sur « **Puisque** » a fait
+   monter `unhedged_count` de 8 à 9 avec un `rejected_flag` neuf sur ce mot devenu pivot ;
+   restauré au tiret d'origine dans le lot suivant. La consigne par lot fonctionne. Une refusion, elle, ne peut que désamorcer ce piège :
    elle supprime des majuscules initiales, elle n'en crée pas.
+
+20. **Aplatir une parenthèse ou une paire de tirets cadratins change le RANG d'un élément dans
+   une énumération.** Deux prises dans le même document, world-models, invisibles à tous les
+   invariants. Sortir la glose du tokenizer de sa parenthèse a placé « Sa singularité tient dans
+   ce **troisième** bloc » juste derrière une phrase portant sur le premier. Aplatir les tirets
+   autour de « MPPI — un autre solveur de commande prédictive — » en faisait un **quatrième**
+   solveur d'une liste qui en compte trois. Aucun nombre ne bouge, aucun mot ne disparaît : c'est
+   le RANG qui devient faux. Sous-cas nommé du piège 10, et il se cherche : partout où la
+   réécriture retire une parenthèse ou des tirets à l'intérieur d'une énumération ou juste avant
+   un ordinal, relire le rang.
 
 ## Ce qui marche, et qu'il faut redemander
 
@@ -213,6 +226,25 @@ octet qui n'est rien. La comparaison JSON ne s'y laisse pas prendre.
   qu'on ne fragmente pas sans perdre la cohérence. Un agent qui avait d'abord surcoupé à médiane
   15 / max 32 est remonté de lui-même. Exiger 0 % reproduirait le défaut sanctionné à la
   quinzième vague.
+- **Un appariement qui porte un RAPPORT s'adjuge par l'arithmétique, pas par l'ordre
+  apparent.** Le cas le plus exposé de la dix-septième vague est en guardrails-conception, où
+  l'ordre des termes s'inverse entre deux phrases voisines : « Le gain de pratique du premier
+  vaut 2,6 fois celui du second ». Les nombres tranchent seuls — 0,361 / 0,137 = 2,6 et
+  0,004 / 0,054 ≈ 1/13 rattachent le « premier » au bras contraint sans qu'on ait à parier sur
+  l'ordre d'énonciation. Quand le texte donne le ratio, il donne aussi la clé de son propre
+  appariement : la vérifier coûte une division.
+- **Compter les marqueurs d'appariement OCCURRENCE PAR OCCURRENCE, jamais en net.** Un
+  multiensemble comparé par clé masque une disparition compensée par un ajout ailleurs :
+  « le premier » à 4 avant et 4 après peut cacher un marqueur résolu ici et un marqueur
+  fabriqué là. Sur collagene, seule la liste des 25 occurrences de `premier`/`second` avec leur
+  contexte, avant et après, a prouvé que les trois disparitions étaient bien les trois anaphores
+  résolues et qu'aucune n'était réintroduite.
+- **Un document peut GAGNER des mots, et c'est bon signe.** La règle « entre 0 et 1 % de mots
+  perdus » vaut pour la répartition seule. Nommer les termes d'une anaphore appariante en coûte :
+  collagene gagne 7 mots, ia-competences-deskilling-apprentissage en gagne 41. C'est le prix de
+  la seule réparation définitive du piège 17 — ne pas le lire comme une anomalie, et ne surtout
+  pas le corriger en re-pronominalisant.
+
 - **Laisser une section au-dessus du seuil plutôt que sacrifier un fait**, en disant
   pourquoi. Mais « c'est technique » n'est pas une raison : quatre documents à formules
   (state-space-models, rlhf-dpo, minimal-perfect-hashing, scaling-laws en seconde passe)
@@ -317,8 +349,8 @@ pas une phrase, et relèvent de ce chantier :
 
 | | avant la passe | à ce jour |
 |---|---|---|
-| moyenne du corpus | 30,7 mots/phrase | **20,8** |
-| documents hors seuil | 89 / 90 | **18 / 90** |
+| moyenne du corpus | 30,7 mots/phrase | **20,5** |
+| documents hors seuil | 89 / 90 | **14 / 90** |
 | plus longue phrase du corpus | 175 mots | — |
 
 Les 72 documents traités : omega-3, scaling-laws (deux passes),
@@ -345,12 +377,14 @@ multimodal-vlm, creatine, distributed-training-parallelism,
 incretines-glp1, agentic-rl-environments, diffusion-language-models,
 streaming-quantiles-sampling, testosterone-homme-age, inhibiteurs-pde5,
 event-extraction-temporal, llm-safety-jailbreaks, context-engineering,
-nootropiques-vegetaux, nootropiques-panorama, contrastive-self-supervised.
+nootropiques-vegetaux, nootropiques-panorama, contrastive-self-supervised,
+cafeine-ergogene, world-models, collagene,
+ia-competences-deskilling-apprentissage.
 
 Tous sont à zéro section signalée. Tête de file suivante :
-`collagene`, `ia-competences-deskilling-apprentissage`, `cafeine-ergogene`,
-`world-models`, `gpu-kernels-compilers`, `complements-amincissants`,
-`agent-evaluation-observability`, `llm-watermarking-detection`.
+`gpu-kernels-compilers`, `complements-amincissants`, `agent-evaluation-observability`,
+`llm-watermarking-detection`, `document-ai`, `sparse-attention-long-context`,
+`reinforcement-learning-fundamentals`, `berberine`.
 
 Pour reconstruire la file à jour :
 
