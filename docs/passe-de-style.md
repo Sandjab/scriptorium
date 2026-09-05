@@ -1,6 +1,6 @@
 # Passe de style — rendre la prose lisible sans toucher aux faits
 
-Chantier ouvert le 2026-09-03. **76 documents traités sur 90.** File d'attente et procédure
+Chantier ouvert le 2026-09-03. **80 documents traités sur 90.** File d'attente et procédure
 ci-dessous ; l'outillage est `.claude/skills/monograph/scripts/restyle.py`, le contrôle en
 continu est le check `prose_style` de `.claude/skills/leanmonograph/scripts/lint.py`.
 
@@ -192,7 +192,10 @@ octet qui n'est rien. La comparaison JSON ne s'y laisse pas prendre.
    solveur d'une liste qui en compte trois. Aucun nombre ne bouge, aucun mot ne disparaît : c'est
    le RANG qui devient faux. Sous-cas nommé du piège 10, et il se cherche : partout où la
    réécriture retire une parenthèse ou des tirets à l'intérieur d'une énumération ou juste avant
-   un ordinal, relire le rang.
+   un ordinal, relire le rang. ✅ **Confirmé à la vague suivante, par l'agent qui l'avait dans son
+   prompt** : sur gpu-kernels-compilers, aplatir « — par l'intermédiaire de PyTorch/XLA — » en
+   virgule faisait de la glose un QUATRIÈME consommateur d'OpenXLA à côté de JAX, TensorFlow et
+   PyTorch. Le piège se cherche, et une fois cherché il se trouve.
 
 ## Ce qui marche, et qu'il faut redemander
 
@@ -238,12 +241,32 @@ octet qui n'est rien. La comparaison JSON ne s'y laisse pas prendre.
   « le premier » à 4 avant et 4 après peut cacher un marqueur résolu ici et un marqueur
   fabriqué là. Sur collagene, seule la liste des 25 occurrences de `premier`/`second` avec leur
   contexte, avant et après, a prouvé que les trois disparitions étaient bien les trois anaphores
-  résolues et qu'aucune n'était réintroduite.
+  résolues et qu'aucune n'était réintroduite. ✅ **Il a payé dès la vague suivante** : sur
+  agent-evaluation-observability, l'agent s'est vu introduire « À l'autre bout » et l'a retiré
+  avant remise, alors que ses marqueurs passaient de onze à sept — un compte net aurait tenu le
+  total et n'aurait rien montré.
 - **Un document peut GAGNER des mots, et c'est bon signe.** La règle « entre 0 et 1 % de mots
   perdus » vaut pour la répartition seule. Nommer les termes d'une anaphore appariante en coûte :
   collagene gagne 7 mots, ia-competences-deskilling-apprentissage en gagne 41. C'est le prix de
   la seule réparation définitive du piège 17 — ne pas le lire comme une anomalie, et ne surtout
   pas le corriger en re-pronominalisant.
+
+- **Un ordinal immédiatement suivi de son contenu n'est PAS un appariement à risque.** La règle
+  « n'introduis aucun marqueur » vise l'anaphore qu'il faut résoudre à distance, pas l'ordinal
+  d'une énumération qui porte son terme dans la même phrase (« La première exemption est l'œuvre
+  artistique… La seconde est le texte relu »). Rien n'y est à résoudre, donc rien ne peut s'y
+  inverser. Le compte mécanique des marqueurs signale une introduction **pour la faire LIRE**,
+  il ne la condamne pas. En revanche le marqueur devient inutile — donc à retirer — quand les
+  reprises lointaines viennent d'être nommées : sur llm-watermarking-detection, la découpe avait
+  posé « Le premier réunit 91 copies… Le second réunit 88 copies… » alors que les deux reprises
+  étaient déjà devenues « Sur les copies TOEFL » et « Sur les copies américaines ». Remplacé par
+  « Le corpus TOEFL… Le corpus américain… ».
+- **Ne jamais écrire un manifeste à la main sans reproduire sa sérialisation.** Une correction
+  d'une phrase, écrite par `json.dump(..., indent=2)`, a reformaté les 586 lignes de
+  llm-watermarking-detection. Le dépôt sérialise en **`indent=1` avec saut de ligne final** — le
+  vérifier par `json.dumps(obj, ensure_ascii=False, indent=1) + "\n" == contenu de HEAD` avant
+  d'écrire, ou passer par `restyle.py apply`. Le symptôme se lit en une commande :
+  `git diff --numstat` annonce le fichier entier là où la correction ne touche qu'une ligne.
 
 - **Laisser une section au-dessus du seuil plutôt que sacrifier un fait**, en disant
   pourquoi. Mais « c'est technique » n'est pas une raison : quatre documents à formules
@@ -349,8 +372,8 @@ pas une phrase, et relèvent de ce chantier :
 
 | | avant la passe | à ce jour |
 |---|---|---|
-| moyenne du corpus | 30,7 mots/phrase | **20,5** |
-| documents hors seuil | 89 / 90 | **14 / 90** |
+| moyenne du corpus | 30,7 mots/phrase | **20,1** |
+| documents hors seuil | 89 / 90 | **10 / 90** |
 | plus longue phrase du corpus | 175 mots | — |
 
 Les 72 documents traités : omega-3, scaling-laws (deux passes),
@@ -379,12 +402,14 @@ streaming-quantiles-sampling, testosterone-homme-age, inhibiteurs-pde5,
 event-extraction-temporal, llm-safety-jailbreaks, context-engineering,
 nootropiques-vegetaux, nootropiques-panorama, contrastive-self-supervised,
 cafeine-ergogene, world-models, collagene,
-ia-competences-deskilling-apprentissage.
+ia-competences-deskilling-apprentissage, agent-evaluation-observability,
+llm-watermarking-detection, gpu-kernels-compilers, complements-amincissants.
 
-Tous sont à zéro section signalée. Tête de file suivante :
-`gpu-kernels-compilers`, `complements-amincissants`, `agent-evaluation-observability`,
-`llm-watermarking-detection`, `document-ai`, `sparse-attention-long-context`,
-`reinforcement-learning-fundamentals`, `berberine`.
+Tous sont à zéro section signalée. **Il reste dix documents**, et la file tient désormais en
+deux vagues et demie : `document-ai`, `sparse-attention-long-context`,
+`reinforcement-learning-fundamentals`, `berberine`, `pretraining-data-curation`,
+`masse-maigre-sous-glp1`, `proteines-besoins-timing`, `graph-neural-networks`,
+`convolutional-networks`, `variational-autoencoders`.
 
 Pour reconstruire la file à jour :
 
