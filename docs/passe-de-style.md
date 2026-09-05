@@ -1,9 +1,10 @@
 # Passe de style — rendre la prose lisible sans toucher aux faits
 
-Chantier ouvert le 2026-09-03, **CLOS le 2026-09-05 : 90 documents sur 90, aucun document hors
-seuil.** La procédure et les vingt-deux pièges ci-dessous restent la référence pour toute
-réécriture future ; l'outillage est `.claude/skills/monograph/scripts/restyle.py`, le contrôle en
-continu est le check `prose_style` de `.claude/skills/leanmonograph/scripts/lint.py`.
+Chantier ouvert le 2026-09-03, **CLOS le 2026-09-05 : les 90 documents d'alors traités, aucun
+document hors seuil — et le corpus s'y tient depuis, à 91 documents mesurés.** La procédure et
+les vingt-deux pièges ci-dessous restent la référence pour toute réécriture future ; l'outillage
+est `.claude/skills/monograph/scripts/restyle.py`, le contrôle en continu est le check
+`prose_style` de `.claude/skills/leanmonograph/scripts/lint.py`.
 
 ## Pourquoi
 
@@ -25,6 +26,10 @@ Inutile de repasser derrière les runs futurs : `lint.py` mesure `prose_style` p
 (médiane, moyenne, part de phrases > 45 mots, la plus longue) et liste les sections
 au-dessus des seuils (médiane > 22, ou > 8 % de phrases > 45). Il **signale sans bloquer** —
 la lisibilité n'est pas une question de vérité, un document exact mais lourd doit sortir.
+✅ **Démontré le 2026-09-05, le jour même de la clôture** : le 52e run (`melatonine`, thème
+santé de 11 sections) est sorti à **18,1 mots par phrase de moyenne, médiane 18,0, 0,3 % de
+phrases > 45, aucune section hors seuil** — sans qu'aucune passe de style ne soit repassée
+derrière lui. C'est le premier run postérieur au chantier, et il n'a rien coûté.
 La clause RYTHME de la charte de voix (`leanmonograph/workflow.js`) est chiffrée, et
 l'Audit-prose a sa consigne de découpage.
 
@@ -422,18 +427,18 @@ pas une phrase, et relèvent de ce chantier :
 
 ## État
 
-| | avant la passe | à la clôture |
-|---|---|---|
-| moyenne du corpus | 30,7 mots/phrase | **19,4** |
-| documents hors seuil | 89 / 90 | **0 / 90** |
-| plus longue phrase du corpus | 175 mots | — |
+| | avant la passe | à la clôture | après le 52e run |
+|---|---|---|---|
+| moyenne du corpus | 30,7 mots/phrase | **19,4** | **19,4** |
+| documents hors seuil | 89 / 90 | **0 / 90** | **0 / 91** |
+| plus longue phrase du corpus | 175 mots | — | — |
 
 Vingt vagues, quatre à six documents chacune, un agent par document et une vérification
 indépendante de chaque retour contre un témoin reconstruit depuis `git show HEAD:`. Aucun
 document n'a perdu un fait ; les six invariants du `check` et les six champs de lint sont
 identiques sur les 90.
 
-**Les 90 documents sont traités.** La file est vide.
+**Les 90 documents d'alors sont traités, et le 91e est né conforme.** La file est vide.
 
 Pour vérifier que la file reste vide — un run futur peut réintroduire un document hors seuil,
 le lint le signale sans bloquer :
