@@ -115,9 +115,15 @@ priorité. Cinq constats ont décidé des verdicts :
    l'écosystème de `masse-maigre-sous-glp1` décrit faussement `proteines-besoins-timing` (« ne
    couvre pas le déficit marqué » — il a une section entière dessus ; c'est le déficit
    *pharmacologiquement induit* qui manque, et la section `proteines-et-entrainement` du même
-   document le dit correctement). ⚠️ **Réparations locales à faire, hors backlog** : A5 (une phrase
-   dans `manifest.json`), et la phrase périmée de `nootropiques-panorama` sur les oméga-3 (« aucun
-   autre document de ce corpus ne les traite », faux depuis le 48e run). Non faites ce jour.
+   document le dit correctement). ✅ **Réparations locales FAITES le 2026-09-03** (commit
+   « deux documents cessent de décrire faussement leurs voisins ») : A5, plus large que prescrit
+   — la phrase fautive figurait DEUX fois, dans l'écosystème désigné par ce backlog et dans la
+   section `proteines-et-entrainement-en-resistance` que le rapport de lecture tenait pour
+   correcte ; laisser en place le jumeau d'une phrase fausse n'aurait rien réparé. Et la phrase
+   périmée de `nootropiques-panorama` sur les oméga-3 (« aucun autre document de ce corpus ne les
+   traite », faux depuis le 48e run), qui renvoie désormais le dossier général à `omega-3` — lequel
+   lui renvoie la cognition en retour. **A4 reste ouvert** : il est porté par le candidat
+   `medicaments-contrefaits-en-ligne`, pas par une réparation locale.
 2. **Le corpus désigne lui-même ses gaps, plus souvent par l'objet nommé que par le renvoi.**
    `incretines-glp1` nomme le piège « traiter la perte de poids comme le seul résultat de la
    classe » puis n'en traite qu'un contre-exemple (SELECT) ; `testosterone-homme-age` nomme trois
@@ -1665,7 +1671,7 @@ ci-dessus restent valables et sont reclassés dans cette table) :
 | 2 | `desir-sexuel-hypoactif` | haute | `fonction-sexuelle` | 3 objets nommés désignent le désir ; corrige l'asymétrie homme/femme ; saga FDA d'école |
 | 3 | `osteoporose-pharmacologie` | haute | `muscle-vieillissement` (blurb à élargir à l'os) | la thèse du domaine (le substitut ne prédit pas) écrite 3 fois, jamais éprouvée sur les molécules faites POUR l'os |
 | 4 | `nitrates-betterave` | moyenne-haute | `nutrition-sportive` | seul membre du Groupe A de l'AIS sans candidat, nommé 2 fois par le corpus |
-| 5 | `melatonine` | moyenne-haute | `complements-sante` | mot absent du corpus ; ouvre la cible « sommeil » qu'aucun domaine ne porte |
+| ~~5~~ | ~~`melatonine`~~ | FAIT 2026-09-05 (52e run, hors séquence) | `complements-sante` (4e thème) | — |
 | 6 | `acide-alpha-lipoique` | moyenne-haute | `complements-sante` | inchangé (no 8 ci-dessus) |
 | 7 | `fer-supplementation` | moyenne | `complements-sante` | miroir exact de `vitamine-d` (seuils contestés) avec un bénéfice réel et un vrai risque |
 | 8 | `entrainement-cognitif-commercial` | moyenne | `performance-cognitive` (rouvrir UNE fois) | gap total ; l'amende FTC Lumosity fait pendant au veto sur l'allégation caféine |

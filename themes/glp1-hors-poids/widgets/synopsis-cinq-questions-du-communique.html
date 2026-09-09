@@ -1,0 +1,892 @@
+<div class="widget scq-root" id="scq-root">
+  <style>
+    .scq-root{--sq-ink:var(--ink,#15202E);--sq-soft:var(--ink-soft,#43536A);
+      --sq-faint:var(--ink-faint,#5C697B);--sq-card:var(--card,#fff);
+      --sq-paper:var(--paper,#F4F6FA);
+      --sq-line:var(--line,#D7DFE9);--sq-lines:var(--line-soft,#E7ECF3);
+      --sq-blue:var(--blue,#23537F);--sq-deep:var(--blue-deep,#142E49);
+      --sq-bright:var(--blue-bright,#2C77B6);--sq-wash:var(--blue-wash,#E7EEF6);
+      --sq-bord:var(--bordeaux,#7C2A38);--sq-bordb:var(--bordeaux-bright,#9B3443);
+      --sq-bordw:var(--bordeaux-wash,#F3E3E6);--sq-bordl:#E2C3C9;
+      --sq-gold:#8A5E12;--sq-goldw:#FBF3E3;--sq-goldl:#EAD9B4;
+      --sq-green:#2C7455;--sq-greenw:#EAF4EE;--sq-greenl:#BEDCCB;
+      --sq-surf:#FBFCFE;--sq-mute:#A8B4C4;--sq-on:#FFFFFF;
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--sq-ink);
+      border:1px solid var(--sq-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--sq-card);max-width:900px}
+    .scq-root *{box-sizing:border-box}
+
+    /* Le vert, l'or, les liserés, les surfaces quasi blanches et l'encre posée sur le bleu vif
+       ne viennent pas de la charte : sans redéfinition explicite en thème sombre, une encre
+       claire retomberait sur un fond clair codé en dur, et le verdict lui-même deviendrait
+       illisible. --sq-deep est doublement employé par la charte — encre en clair, fond en
+       sombre — et ne sert ici que d'encre : il est donc repris à la main. */
+    html[data-theme="dark"] .scq-root{
+      --sq-deep:#CFE0F2;
+      --sq-bordl:#553038;
+      --sq-gold:#E0B463;--sq-goldw:#2B2214;--sq-goldl:#5C4B2B;
+      --sq-green:#6FBF95;--sq-greenw:#16281F;--sq-greenl:#2E5C44;
+      --sq-surf:#101A25;--sq-mute:#6B7A8C;--sq-on:#0A1521}
+
+    .scq-k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;
+      color:var(--sq-faint);font-weight:600;margin:0 0 2px}
+    .scq-title{font-weight:700;font-size:1.05rem;margin:0 0 4px}
+    .scq-sub{font-size:.84rem;color:var(--sq-soft);margin:0 0 12px;line-height:1.5}
+    .scq-sub b{color:var(--sq-ink)}
+
+    /* --- sélecteur d'instance --- */
+    .scq-sel{border:1px solid var(--sq-lines);border-radius:9px;background:var(--sq-paper);
+      padding:9px 11px 10px;margin:0 0 11px}
+    .scq-slab{font-size:.6rem;letter-spacing:.07em;text-transform:uppercase;
+      color:var(--sq-faint);font-weight:700;margin:0 0 6px}
+    .scq-chips{display:flex;gap:5px;flex-wrap:wrap}
+    .scq-chip{border:1px solid var(--sq-line);border-radius:7px;background:var(--sq-card);
+      padding:5px 9px;font:700 .74rem/1.15 inherit;color:var(--sq-soft);cursor:pointer;
+      transition:.15s;text-align:left}
+    .scq-chip:hover{background:var(--sq-wash)}
+    .scq-chip[aria-pressed="true"]{border-color:var(--sq-bright);background:var(--sq-wash);
+      color:var(--sq-blue);box-shadow:0 0 0 1px var(--sq-bright)}
+    .scq-chip .scq-cs{display:block;font-weight:500;font-size:.66rem;color:var(--sq-faint);
+      margin-top:2px}
+    .scq-chip[aria-pressed="true"] .scq-cs{color:var(--sq-bright)}
+
+    /* --- carte du communiqué --- */
+    .scq-inst{border:1px solid var(--sq-line);border-radius:9px;background:var(--sq-surf);
+      padding:9px 11px 10px;margin:0 0 11px}
+    .scq-ititle{font-weight:700;font-size:.9rem;color:var(--sq-deep);margin:0 0 4px}
+    .scq-iquote{margin:0;font-size:.76rem;line-height:1.5;color:var(--sq-soft);
+      border-left:3px solid var(--sq-line);padding-left:9px;font-style:italic}
+
+    /* --- entonnoir, qui sert d'indicateur de progression --- */
+    .scq-funnel{width:100%;height:auto;display:block;border:1px solid var(--sq-lines);
+      border-radius:8px;background:var(--sq-surf);margin:0 0 10px}
+
+    .scq-prog{display:flex;align-items:center;gap:10px;margin:0 0 9px}
+    .scq-bar{flex:1 1 auto;height:7px;border-radius:5px;background:var(--sq-lines);overflow:hidden}
+    .scq-fill{height:100%;width:0;background:var(--sq-bright);transition:width .18s ease}
+    .scq-plab{flex:0 0 auto;font:700 .78rem/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+      color:var(--sq-blue);min-width:17em;text-align:right}
+    .scq-plab.scq-zero{color:var(--sq-bord)}
+
+    /* --- compteurs chaînés : un par axe, les cinq --- */
+    .scq-track{display:flex;gap:5px;flex-wrap:wrap;margin:0 0 10px}
+    .scq-tc{flex:1 1 148px;min-width:132px;border:1px solid var(--sq-line);border-radius:7px;
+      padding:5px 8px 6px;background:var(--sq-card)}
+    .scq-tc.scq-cok{border-color:var(--sq-greenl);background:var(--sq-greenw)}
+    .scq-tc.scq-cwarn{border-color:var(--sq-goldl);background:var(--sq-goldw)}
+    .scq-tc.scq-cstop{border-color:var(--sq-bordl);background:var(--sq-bordw)}
+    .scq-tk{font-size:.555rem;letter-spacing:.05em;text-transform:uppercase;
+      color:var(--sq-faint);font-weight:700;line-height:1.3}
+    .scq-tv{font:700 .8rem/1.25 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--sq-blue);
+      margin-top:3px}
+    .scq-tc.scq-cok .scq-tv{color:var(--sq-green)}
+    .scq-tc.scq-cwarn .scq-tv{color:var(--sq-gold)}
+    .scq-tc.scq-cstop .scq-tv{color:var(--sq-bord)}
+    .scq-th{font-size:.62rem;color:var(--sq-faint);line-height:1.35;margin-top:2px}
+
+    /* --- rail des étapes --- */
+    .scq-rail{display:flex;gap:5px;margin:0 0 10px;flex-wrap:wrap}
+    .scq-ph{flex:1 1 108px;min-width:104px;border:1px solid var(--sq-line);border-radius:8px;
+      padding:6px 8px;background:var(--sq-card);text-align:left;cursor:pointer;transition:.15s;
+      font:inherit;color:inherit;display:block}
+    .scq-ph .scq-pn{font-size:.55rem;letter-spacing:.05em;text-transform:uppercase;
+      color:var(--sq-faint);font-weight:700;display:block}
+    .scq-ph .scq-pl{font-size:.72rem;font-weight:700;color:var(--sq-soft);margin-top:2px;display:block}
+    .scq-ph:hover{background:var(--sq-paper)}
+    .scq-ph.scq-on{border-color:var(--sq-bright);background:var(--sq-wash);
+      box-shadow:0 0 0 1px var(--sq-bright)}
+    .scq-ph.scq-on .scq-pl{color:var(--sq-blue)}
+    .scq-ph.scq-on .scq-pn{color:var(--sq-bright)}
+    .scq-ph.scq-done .scq-pn{color:var(--sq-bright)}
+
+    /* --- pile des étapes franchies : chaque entrée ramène à sa question --- */
+    .scq-stack{margin:0 0 10px}
+    .scq-done{display:block;width:100%;text-align:left;font:inherit;color:inherit;
+      cursor:pointer;transition:.15s;
+      border:1px solid var(--sq-lines);border-left:3px solid var(--sq-bright);
+      border-radius:8px;background:var(--sq-paper);padding:8px 11px 9px;margin:0 0 6px}
+    .scq-done:hover{background:var(--sq-wash);border-color:var(--sq-bright)}
+    .scq-done.scq-dstop{border-left-color:var(--sq-bord);background:var(--sq-bordw);
+      border-color:var(--sq-bordl)}
+    .scq-done.scq-dstop:hover{border-color:var(--sq-bordb)}
+    .scq-dh{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin:0 0 4px}
+    .scq-dn{font:800 .58rem/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.07em;
+      color:var(--sq-bright)}
+    .scq-dq{font-weight:700;font-size:.76rem;color:var(--sq-deep)}
+    .scq-dc{margin-left:auto;font:700 .68rem/1 ui-monospace,SFMono-Regular,Menlo,monospace;
+      color:var(--sq-soft);white-space:nowrap}
+    .scq-dc b{color:var(--sq-bord)}
+    .scq-da{display:block;margin:0 0 4px;font-size:.76rem;line-height:1.45;color:var(--sq-ink)}
+    .scq-dnote{display:block;margin:0;font-size:.71rem;line-height:1.45;color:var(--sq-soft)}
+    .scq-dnote b{color:var(--sq-ink)}
+    .scq-tags{display:flex;gap:4px;flex-wrap:wrap;margin:5px 0 0}
+    .scq-tag{font:600 .64rem/1.2 inherit;border-radius:5px;padding:2px 6px;
+      border:1px solid var(--sq-greenl);background:var(--sq-greenw);color:var(--sq-green)}
+    .scq-tag.scq-out{border-color:var(--sq-bordl);background:var(--sq-bordw);color:var(--sq-bord);
+      text-decoration:line-through}
+    .scq-dback{display:block;margin:6px 0 0;font:700 .64rem/1.2 inherit;color:var(--sq-bright)}
+    .scq-done.scq-dstop .scq-dback{color:var(--sq-bordb)}
+
+    /* --- étape courante --- */
+    .scq-band{border:1px solid var(--sq-bright);box-shadow:0 0 0 1px var(--sq-bright);
+      border-radius:10px;padding:10px 12px 11px;margin:0 0 10px;background:var(--sq-surf)}
+    .scq-bh{display:flex;align-items:baseline;gap:8px;margin:0 0 7px;flex-wrap:wrap}
+    .scq-bn{font:800 .62rem/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em;
+      color:var(--sq-on);background:var(--sq-bright);border-radius:4px;padding:4px 6px;
+      white-space:nowrap}
+    .scq-bt{font-weight:700;font-size:.88rem;color:var(--sq-blue)}
+    .scq-bx{font-size:.68rem;color:var(--sq-faint);margin-left:auto;text-align:right;
+      border:1px solid var(--sq-lines);border-radius:5px;padding:2px 7px;background:var(--sq-paper)}
+    .scq-why{margin:0 0 8px;font-size:.75rem;line-height:1.5;color:var(--sq-soft)}
+    .scq-why b{color:var(--sq-ink)}
+    .scq-opts{display:flex;flex-direction:column;gap:4px;margin:0 0 7px}
+    .scq-opt{border:1px solid var(--sq-line);border-radius:7px;background:var(--sq-card);
+      padding:6px 9px;font:inherit;color:var(--sq-soft);cursor:pointer;text-align:left;
+      transition:.15s;font-size:.76rem;line-height:1.4;width:100%}
+    .scq-opt:hover{background:var(--sq-paper)}
+    .scq-opt[aria-pressed="true"]{border-color:var(--sq-bright);background:var(--sq-wash);
+      color:var(--sq-deep);box-shadow:0 0 0 1px var(--sq-bright);font-weight:600}
+    .scq-opt .scq-oc{float:right;font:700 .66rem/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;
+      color:var(--sq-faint);margin-left:9px}
+    .scq-opt[aria-pressed="true"] .scq-oc{color:var(--sq-bright)}
+    .scq-opt.scq-onul .scq-oc{color:var(--sq-bord)}
+    .scq-fixed{border:1px solid var(--sq-lines);border-radius:7px;background:var(--sq-paper);
+      padding:7px 10px;font-size:.78rem;line-height:1.45;color:var(--sq-ink);margin:0 0 7px}
+    .scq-note2{margin:0;font-size:.72rem;line-height:1.5;color:var(--sq-soft)}
+    .scq-note2 b{color:var(--sq-ink)}
+
+    /* --- verdict en deux moitiés --- */
+    .scq-final{border:1px solid var(--sq-line);border-radius:10px;padding:10px 12px 11px;
+      margin:0 0 10px;background:var(--sq-paper)}
+    .scq-final.scq-idle{opacity:.5}
+    .scq-glab{font-size:.6rem;letter-spacing:.07em;text-transform:uppercase;
+      color:var(--sq-faint);font-weight:700;margin:0 0 7px}
+    .scq-halves{display:flex;gap:9px;flex-wrap:wrap}
+    .scq-half{flex:1 1 300px;min-width:0;border:1px solid var(--sq-greenl);
+      background:var(--sq-greenw);border-radius:8px;padding:8px 10px 9px}
+    .scq-half.scq-hno{border-color:var(--sq-bordl);background:var(--sq-bordw)}
+    .scq-hh{font-size:.63rem;letter-spacing:.05em;text-transform:uppercase;font-weight:700;
+      color:var(--sq-green);margin:0 0 5px}
+    .scq-half.scq-hno .scq-hh{color:var(--sq-bord)}
+    .scq-hl{margin:0;padding:0 0 0 15px;font-size:.75rem;line-height:1.5;color:var(--sq-ink)}
+    .scq-hl li{margin:0 0 4px}
+    .scq-hl li b{color:var(--sq-deep)}
+    .scq-lesson{margin:9px 0 0;font-size:.75rem;line-height:1.5;color:var(--sq-soft);
+      border-top:1px solid var(--sq-line);padding-top:8px}
+    .scq-lesson b{color:var(--sq-ink)}
+
+    /* --- pilotage --- */
+    .scq-btns{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 9px}
+    .scq-btns button{border:1px solid var(--sq-line);border-radius:7px;background:var(--sq-card);
+      padding:6px 11px;font:600 .78rem/1.2 inherit;color:var(--sq-soft);cursor:pointer;
+      transition:.15s}
+    .scq-btns button:hover{background:var(--sq-paper);color:var(--sq-ink)}
+    .scq-btns button.scq-pri{border-color:var(--sq-bright);color:var(--sq-blue);
+      background:var(--sq-wash)}
+    .scq-btns button[disabled]{opacity:.42;cursor:default}
+
+    .scq-note{margin:0;font-size:.7rem;line-height:1.5;color:var(--sq-faint)}
+    .scq-note b{color:var(--sq-soft)}
+
+    /* --- texte et tracés SVG : encres dérivées de la charte, jamais figées --- */
+    .scq-root text{font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+    .scq-t{font-size:10px;fill:var(--sq-faint)}
+    .scq-tb{font-size:10.5px;font-weight:700;fill:var(--sq-blue)}
+    .scq-tm{font-size:11px;font-weight:700;fill:var(--sq-deep);
+      font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+    .scq-tmu{font-size:9.5px;font-weight:700;fill:var(--sq-mute);
+      font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+    .scq-ts{font-size:10px;font-weight:700;fill:var(--sq-bord)}
+    .scq-tg{font-size:10px;font-weight:700;fill:var(--sq-green)}
+  </style>
+
+  <p class="scq-k">Vue d'ensemble · super-widget</p>
+  <p class="scq-title">Lire un communiqué de bout en bout : de l'annonce au verdict, en cinq
+    questions enchaînées</p>
+  <p class="scq-sub">Le pipeline part d'un espace de <b>324 lectures candidates</b>, obtenu en
+    croisant cinq axes : la molécule (4 possibilités), la dose et la durée (3), le type d'effet
+    que le comparateur permet d'isoler (3), le niveau de critère (3) et le niveau de preuve (3).
+    Chaque question répondue supprime les lectures qu'elle rend intenables, et le compte ne peut
+    que descendre. <b>Une question laissée sans réponse par le communiqué ne laisse pas le champ
+    ouvert, elle le vide</b> : aucune lecture ne se rattache à une molécule, une dose ou un critère
+    qu'on ignore. L'instance jouet est manipulable question par question, et le sélecteur rejoue le
+    même moteur sur quatre essais réels qui ne tombent pas sur le même verdict. Avancez pas à pas,
+    ou laissez dérouler d'un trait jusqu'au verdict. Les étapes franchies restent affichées et
+    <b>chacune est cliquable</b> : elle ramène à sa question, où la réponse peut être changée, après
+    quoi tout ce qui suit est recalculé — c'est ainsi qu'on itère jusqu'à ce que le verdict cesse de
+    bouger. Tout est calculé exactement, sans aucun tirage aléatoire.</p>
+
+  <div class="scq-sel">
+    <p class="scq-slab">Instance traversant le pipeline</p>
+    <div class="scq-chips" id="scq-sel"></div>
+  </div>
+
+  <div class="scq-inst">
+    <p class="scq-ititle" id="scq-ititle">—</p>
+    <p class="scq-iquote" id="scq-iquote">—</p>
+  </div>
+
+  <svg class="scq-funnel" id="scq-funnel" viewBox="0 0 900 184" role="img"
+       aria-label="Entonnoir des lectures encore autorisées, étape 0 sur 5. Comptes successifs : 324 avant la première question."></svg>
+
+  <div class="scq-prog">
+    <div class="scq-bar"><div class="scq-fill" id="scq-fill"></div></div>
+    <div class="scq-plab" id="scq-plab">étape 0 / 5 · 324 lectures</div>
+  </div>
+
+  <div class="scq-track" id="scq-track">
+    <div class="scq-tc" id="scq-t1"><div class="scq-tk">molécule fixée</div>
+      <div class="scq-tv" id="scq-t1v">—</div><div class="scq-th" id="scq-t1h">question 1</div></div>
+    <div class="scq-tc" id="scq-t2"><div class="scq-tk">dose reliée à une AMM</div>
+      <div class="scq-tv" id="scq-t2v">—</div><div class="scq-th" id="scq-t2h">question 2</div></div>
+    <div class="scq-tc" id="scq-t3"><div class="scq-tk">type d'effet isolable</div>
+      <div class="scq-tv" id="scq-t3v">—</div><div class="scq-th" id="scq-t3h">question 3</div></div>
+    <div class="scq-tc" id="scq-t4"><div class="scq-tk">critère le plus haut atteint</div>
+      <div class="scq-tv" id="scq-t4v">—</div><div class="scq-th" id="scq-t4h">question 4</div></div>
+    <div class="scq-tc" id="scq-t5"><div class="scq-tk">niveau de preuve atteint</div>
+      <div class="scq-tv" id="scq-t5v">—</div><div class="scq-th" id="scq-t5h">question 5</div></div>
+  </div>
+
+  <div class="scq-rail" id="scq-rail">
+    <button type="button" class="scq-ph" data-s="1"><span class="scq-pn">Question 1</span>
+      <span class="scq-pl">Quelle molécule</span></button>
+    <button type="button" class="scq-ph" data-s="2"><span class="scq-pn">Question 2</span>
+      <span class="scq-pl">Quelle dose, quelle durée</span></button>
+    <button type="button" class="scq-ph" data-s="3"><span class="scq-pn">Question 3</span>
+      <span class="scq-pl">Quel comparateur</span></button>
+    <button type="button" class="scq-ph" data-s="4"><span class="scq-pn">Question 4</span>
+      <span class="scq-pl">Quel critère, quel rang</span></button>
+    <button type="button" class="scq-ph" data-s="5"><span class="scq-pn">Question 5</span>
+      <span class="scq-pl">Qui paie, qui rapporte</span></button>
+  </div>
+
+  <div class="scq-stack" id="scq-stack"></div>
+
+  <div class="scq-band" id="scq-band">
+    <div class="scq-bh"><span class="scq-bn" id="scq-bn">Étape 1 / 5</span>
+      <span class="scq-bt" id="scq-bt">—</span>
+      <span class="scq-bx" id="scq-bx">—</span></div>
+    <p class="scq-why" id="scq-why">—</p>
+    <div id="scq-body"></div>
+    <p class="scq-note2" id="scq-note2">—</p>
+  </div>
+
+  <div class="scq-final scq-idle" id="scq-final">
+    <p class="scq-glab" id="scq-glab">Verdict · atteignable après la cinquième question</p>
+    <div class="scq-halves">
+      <div class="scq-half">
+        <p class="scq-hh">Ce que ce résultat autorise à conclure</p>
+        <ul class="scq-hl" id="scq-yes"><li>—</li></ul>
+      </div>
+      <div class="scq-half scq-hno">
+        <p class="scq-hh">Ce qu'il n'a pas cherché à mesurer</p>
+        <ul class="scq-hl" id="scq-no"><li>—</li></ul>
+      </div>
+    </div>
+    <p class="scq-lesson" id="scq-lesson">—</p>
+  </div>
+
+  <div class="scq-btns">
+    <button type="button" id="scq-prev">◀ Question précédente</button>
+    <button type="button" id="scq-next" class="scq-pri">Question suivante ▶</button>
+    <button type="button" id="scq-play">Dérouler d'un trait jusqu'au verdict</button>
+    <button type="button" id="scq-fill5">Ouvrir le protocole : les cinq réponses, et le verdict</button>
+    <button type="button" id="scq-reset">Réinitialiser</button>
+  </div>
+
+  <p class="scq-note"><b>Modèle jouet, entièrement déterministe.</b> Le compte de 324 lectures est
+    une construction du widget et non une grandeur publiée : il rend visible le rétrécissement, il
+    ne mesure pas une force de preuve. Un compte plus élevé signifie qu'un essai autorise des
+    énoncés de plus de natures, jamais qu'il les autorise plus fortement ; c'est le compteur du
+    critère le plus haut atteint qui porte cette information. Les quatre instances réelles
+    reprennent les chiffres publiés dans les sections correspondantes du document.
+    <b>Le communiqué de l'instance jouet est fictif</b> et ne renvoie à aucun essai existant. Les
+    chiffres de sécurité du topline TRIUMPH-4 ne sont pas repris ici : faute de publication en
+    revue à comité de lecture, ils restent portés par la seule source du promoteur. Aucune dose ni
+    aucun schéma d'administration ne figure ici à titre de conseil ; ces médicaments relèvent de la
+    prescription et du suivi médical.</p>
+
+  <script>
+  (function(){
+    var R=document.getElementById("scq-root"); if(!R) return;
+    function $(id){ return document.getElementById(id); }
+    function clear(n){ while(n&&n.firstChild) n.removeChild(n.firstChild); }
+    function eh(tag,cls,tx){
+      var e=document.createElement(tag);
+      if(cls) e.className=cls;
+      if(tx!==undefined&&tx!==null) e.textContent=tx;
+      return e;
+    }
+    /* Balisage littéral d'auteur vers des nœuds DOM, sans innerHTML et sans entrée extérieure :
+       seuls <b> et <i> sont reconnus, tout le reste devient du texte. */
+    function md(node,s){
+      clear(node);
+      var parts=String(s).split(/(<\/?[bi]>)/), stack=[node], i, p, e;
+      for(i=0;i<parts.length;i++){
+        p=parts[i];
+        if(p==="") continue;
+        if(p==="<b>"||p==="<i>"){
+          e=document.createElement(p.charAt(1));
+          stack[stack.length-1].appendChild(e); stack.push(e);
+        } else if(p==="</b>"||p==="</i>"){
+          if(stack.length>1) stack.pop();
+        } else {
+          stack[stack.length-1].appendChild(document.createTextNode(p));
+        }
+      }
+      return node;
+    }
+    var NS="http://www.w3.org/2000/svg";
+    function sg(tag,at){
+      var e=document.createElementNS(NS,tag);
+      for(var k in at) if(Object.prototype.hasOwnProperty.call(at,k)) e.setAttribute(k,at[k]);
+      return e;
+    }
+    function st(x,y,s,cls,anchor){
+      var t=sg("text",{x:x,y:y,"text-anchor":anchor||"middle","class":cls||"scq-t"});
+      t.textContent=s; return t;
+    }
+
+    /* ─── les cinq axes : 4 × 3 × 3 × 3 × 3 = 324 lectures candidates ─── */
+    var AX=[
+      {key:"A",lab:"molécule",opts:[
+        {id:"sema",  s:"sémaglutide",     l:"chez le sémaglutide, agoniste sélectif du récepteur GLP-1"},
+        {id:"tirze", s:"tirzépatide",     l:"chez le tirzépatide, agoniste dual GIP/GLP-1"},
+        {id:"reta",  s:"rétatrutide",     l:"chez le rétatrutide, triagoniste GLP-1/GIP/glucagon"},
+        {id:"classe",s:"toute la classe", l:"chez les agonistes du GLP-1 pris comme classe"}]},
+      {key:"B",lab:"dose et durée",opts:[
+        {id:"amm",   s:"dose d'une AMM",  l:"à la dose d'une AMM existante et sur la durée testée"},
+        {id:"autre", s:"autre dose",      l:"à une dose qui ne correspond à aucune AMM"},
+        {id:"toutes",s:"toute dose",      l:"à toute dose et sur toute durée"}]},
+      {key:"C",lab:"type d'effet",opts:[
+        {id:"total", s:"effet total",     l:"un effet total de la molécule, perte de poids comprise"},
+        {id:"propre",s:"effet propre",    l:"un effet propre à la molécule, à perte de poids égale"},
+        {id:"addi",  s:"effet ajouté",    l:"un effet ajouté au soin actif reçu par les deux bras"}]},
+      {key:"D",lab:"niveau de critère",opts:[
+        {id:"subst", s:"substitution",    l:"sur un critère de substitution, mesure intermédiaire censée annoncer le devenir du patient"},
+        {id:"sympt", s:"symptôme",        l:"sur un symptôme ressenti et rapporté par le patient"},
+        {id:"dur",   s:"événement dur",   l:"sur un événement dur, comme un décès, une hospitalisation ou une insuffisance d'organe terminale"}]},
+      {key:"E",lab:"niveau de preuve",opts:[
+        {id:"topline",s:"topline",        l:"au niveau d'un résultat annoncé par le promoteur avant publication"},
+        {id:"publie", s:"article publié", l:"au niveau d'un article passé par un comité de lecture"},
+        {id:"tiers",  s:"lecture tierce", l:"au niveau d'une lecture faite hors du promoteur, par une agence ou d'autres auteurs"}]}
+    ];
+    var TOT=1,ai; for(ai=0;ai<AX.length;ai++) TOT*=AX[ai].opts.length;
+
+    var QTITLE=["Quelle molécule ?","Quelle dose et quelle durée ?",
+      "Quelle population et quel comparateur ?","Quel critère, et de quel rang ?",
+      "Qui a payé et qui rapporte ?"];
+    var QWHY=[
+      "Trois pharmacologies distinctes circulent sous une étiquette commune. Le sémaglutide n'active que le récepteur du GLP-1, le tirzépatide est un agoniste dual GIP/GLP-1 et le rétatrutide un triagoniste qui ajoute le récepteur du glucagon. <b>Un résultat obtenu sur l'une ne vaut jamais pour les deux autres</b>, et la ligne « toute la classe » est éliminée d'office, parce qu'aucun essai unique ne l'établit.",
+      "Une AMM porte sur une molécule <i>et</i> sur une dose. Le sémaglutide 1,0 mg par semaine et le sémaglutide 2,4 mg par semaine sont deux dossiers différents, vendus sous deux noms commerciaux différents. <b>La question à poser est donc : la dose testée est-elle celle d'une autorisation existante, et pendant combien de temps a-t-elle été donnée ?</b>",
+      "Le comparateur décide de ce qu'on peut isoler. Contre placebo, on mesure l'effet total de la molécule, perte de poids comprise, sans pouvoir dire ce qui revient à l'une ou à l'autre. Seul un bras à perte de poids appariée, obtenue par une autre voie, isolerait l'effet propre. <b>Aucun des quatre essais réels du sélecteur ne comporte un tel bras.</b>",
+      "Trois niveaux de critère, du plus indirect au plus dur : la substitution mesure un intermédiaire, le symptôme mesure ce que le patient ressent, l'événement dur mesure ce qui lui arrive. Le rang compte autant que le niveau, car <b>un critère primaire, un secondaire confirmatoire et un résultat exploratoire n'autorisent pas la même phrase</b>.",
+      "Un communiqué du promoteur et l'essai qu'il annonce sont <b>une seule et même source</b>, jamais deux. Un article passé par un comité de lecture ajoute un niveau ; une lecture faite hors du promoteur, par une agence de santé ou par d'autres auteurs, en ajoute un troisième. Un résultat resté au stade du topline ne franchit aucun de ces deux seuils."
+    ];
+
+    /* ─── instance jouet : chaque question est manipulable ─── */
+    var TOY={
+      id:"toy", tag:"Instance jouet", sub:"communiqué fictif",
+      title:"« Les agonistes du GLP-1 protègent un nouvel organe »",
+      quote:"Communiqué fictif, diffusé un mardi matin. « Un essai randomisé contre placebo montre que les agonistes du GLP-1 protègent un nouvel organe. Le critère principal est atteint. Les résultats seront présentés lors d'un prochain congrès. » Aucune molécule nommée, aucune dose, aucun chiffre.",
+      interactive:true,
+      steps:[
+        {opts:[
+          {t:"Le communiqué écrit « un agoniste du GLP-1 », sans nommer la molécule",keep:[],
+           n:"Rien à rattacher. <b>Le compte tombe à zéro, et aucune question suivante ne peut le relever</b> : une lecture sans molécule n'est pas une lecture large, c'est une lecture vide."},
+          {t:"Le protocole nomme le sémaglutide, agoniste sélectif du récepteur GLP-1",keep:["sema"],
+           n:"La conclusion ne vaudra que pour le sémaglutide. Ni le tirzépatide, dual GIP/GLP-1, ni le rétatrutide, triagoniste, n'en héritent."},
+          {t:"Le protocole nomme le tirzépatide, agoniste dual GIP/GLP-1",keep:["tirze"],
+           n:"Le tirzépatide est délibérément déséquilibré vers le récepteur du GIP. Un résultat obtenu avec lui ne se transporte pas vers un agoniste sélectif du GLP-1."},
+          {t:"Le protocole nomme le rétatrutide, triagoniste GLP-1/GIP/glucagon",keep:["reta"],
+           n:"Le rétatrutide ajoute le récepteur du glucagon. Le titre du communiqué, qui parle des « agonistes du GLP-1 », désignerait alors une molécule qui n'est pas seulement cela."}]},
+        {opts:[
+          {t:"Le communiqué ne donne ni dose ni durée",keep:[],
+           n:"Sans dose, aucune AMM ne peut être invoquée et aucune comparaison avec un essai antérieur n'est possible. <b>Le compte tombe à zéro.</b>"},
+          {t:"1,0 mg par semaine pendant 26 semaines, la dose d'une AMM existante",keep:["amm"],
+           n:"C'est la dose du dossier diabète, pas celle du dossier obésité. Le résultat ne se transporterait pas de l'une à l'autre."},
+          {t:"2,4 mg par semaine pendant 68 semaines, la dose d'une AMM existante",keep:["amm"],
+           n:"La dose du dossier obésité. Une durée longue autorise à parler d'un effet entretenu, pas seulement d'un effet immédiat."},
+          {t:"Une dose de phase 2, sans AMM à aucune dose",keep:["autre"],
+           n:"Rien de ce qui sera conclu ne pourra s'appuyer sur une autorisation existante, puisque la molécule est encore en développement."}]},
+        {opts:[
+          {t:"Le communiqué ne précise pas le comparateur",keep:[],
+           n:"Sans comparateur, il n'y a pas d'effet, seulement une évolution. <b>Le compte tombe à zéro.</b>"},
+          {t:"Placebo, sans bras à perte de poids appariée",keep:["total"],
+           n:"On mesure l'effet total de la molécule. La part qui revient à la perte de poids et celle qui reviendrait à une action directe sur l'organe restent confondues."},
+          {t:"Soin actif reçu par les deux bras, molécule ajoutée par-dessus",keep:["total","addi"],
+           n:"Le résultat s'énonce comme un effet ajouté au traitement de référence, ce qui est plus exigeant et plus utile qu'un effet mesuré seul."},
+          {t:"Bras témoin à perte de poids appariée, obtenue par une autre voie",keep:["propre"],
+           n:"C'est le seul montage qui isolerait l'effet propre de la molécule. Il n'existe dans aucun des quatre essais réels du sélecteur."}]},
+        {opts:[
+          {t:"Un critère exploratoire, non pré-spécifié",keep:[],
+           n:"Un critère choisi après coup n'autorise aucune conclusion, seulement une hypothèse à tester ailleurs. <b>Le compte tombe à zéro.</b>"},
+          {t:"Un critère de substitution, en primaire",keep:["subst"],
+           n:"Une mesure intermédiaire, censée annoncer le devenir du patient sans le mesurer. Le verbe « protège » du titre reste alors un pari sur la suite."},
+          {t:"Un score de symptômes rapporté par le patient, en primaire",keep:["sympt"],
+           n:"Ce que le patient ressent est un résultat en soi, mais il ne dit rien du pronostic tant que les événements durs ne sont pas comptés."},
+          {t:"Un événement dur en primaire, une substitution en secondaire confirmatoire",keep:["dur","subst"],
+           n:"Le montage le plus exigeant. Deux natures d'énoncé deviennent tenables à la fois, sur l'événement et sur la mesure intermédiaire qui l'accompagne."}]},
+        {opts:[
+          {t:"Communiqué du promoteur seul, rien de publié",keep:["topline"],
+           n:"Le communiqué et l'essai sont <b>une seule source</b>. La reprise dans la presse générale n'en ajoute pas une seconde."},
+          {t:"Publié en revue à comité de lecture, promoteur financeur",keep:["topline","publie"],
+           n:"Le financement par le promoteur n'invalide rien, mais il se déclare. Il est la règle dans ce champ, pas l'exception."},
+          {t:"Publié, puis relu hors du promoteur par une agence ou d'autres auteurs",keep:["topline","publie","tiers"],
+           n:"Un troisième niveau est franchi : quelqu'un qui n'a pas conduit l'essai a repris ses données et en a tiré ses propres conclusions."}]}
+      ]
+    };
+
+    /* La leçon de l'instance jouet est CALCULÉE sur le compte final, jamais écrite d'avance :
+       c'est le seul texte du widget qui pourrait contredire l'état affiché, si on le figeait. */
+    function toyLesson(c){
+      if(c===0) return "Le communiqué tel qu'il est écrit n'autorise <b>aucune</b> lecture : au moins une de ses cinq réponses est absente, et une réponse absente ne laisse pas le champ ouvert, elle le vide. Renseignez les cinq avec « Ouvrir le protocole » et le compte passe à <b>une</b>. Entre les deux, rien n'a changé dans les données ; seul le lecteur a cessé de compléter les blancs à la place de l'essai.";
+      if(c===1) return "Les cinq réponses sont renseignées, et ce montage n'autorise plus qu'<b>une</b> lecture : une molécule, une dose, un type d'effet, un niveau de critère, un niveau de preuve. C'est le régime normal d'un essai correctement décrit. Ce n'est pas un appauvrissement : c'est la seule phrase qu'il porte réellement, et elle n'est devenue visible qu'en cessant de deviner les blancs.";
+      return "Les cinq réponses sont renseignées, et ce montage autorise <b>"+c+" lectures</b> : au moins un axe garde plusieurs survivants, parce que la réponse choisie en couvre plusieurs à la fois — un événement dur doublé d'une substitution confirmatoire, un soin actif qui autorise l'effet ajouté comme l'effet total, ou un résultat repris à trois niveaux de preuve. <b>Un compte plus élevé dit que l'essai porte des énoncés de plus de natures, jamais qu'il les porte plus fortement.</b>";
+    }
+
+    /* ─── quatre instances réelles, mêmes cinq questions ─── */
+    var REAL=[
+      {id:"essence",tag:"ESSENCE",sub:"foie · MASH",
+       title:"ESSENCE — sémaglutide dans la stéatohépatite métabolique",
+       quote:"Essai de phase 3 chez 1 197 patients atteints de MASH prouvée par biopsie avec fibrose F2-F3, suivi d'une AMM accélérée de la FDA le 15 août 2025. La MASH, ou stéatohépatite métabolique, est une inflammation du foie associée à une accumulation de graisse ; la fibrose F2-F3 en désigne un stade intermédiaire à avancé.",
+       steps:[
+        {a:"Sémaglutide, agoniste sélectif du récepteur GLP-1.",keep:["sema"],
+         n:"Une seule molécule au dossier. Le tirzépatide et le rétatrutide, testés ailleurs dans le champ, n'ont aucune AMM hépatique."},
+        {a:"2,4 mg par semaine en sous-cutané, pendant 72 semaines.",keep:["amm"],
+         n:"La dose du dossier obésité, pas celle du dossier diabète. Les 72 semaines sont la <b>partie 1</b> d'un essai prévu pour 240 semaines au total."},
+        {a:"1 197 patients, randomisation 2:1 contre placebo, sans bras à perte de poids appariée.",keep:["total"],
+         n:"Effet total de la molécule. L'essai ne sépare pas ce qui revient à la perte de poids de ce qui reviendrait à une action hépatique directe."},
+        {a:"Deux critères co-primaires, tous deux histologiques : résolution de la stéatohépatite sans aggravation de la fibrose, 62,9 % contre 34,3 % ; amélioration de la fibrose sans aggravation de la stéatohépatite, 36,8 % contre 22,4 %.",keep:["subst"],
+         n:"Deux critères de substitution : ce que la biopsie montre, pas ce qui arrive au patient. <b>Le niveau de l'événement dur n'est pas atteint</b>, et celui du symptôme n'est pas mesuré."},
+        {a:"Promoteur Novo Nordisk, résultats publiés en revue à comité de lecture, puis lus par la FDA qui accorde le 15 août 2025 une AMM accélérée (NDA 215256/S-024).",keep:["topline","publie","tiers"],
+         n:"L'avis de l'agence est une lecture faite hors du promoteur, sur les données du dossier. Les trois niveaux de preuve sont franchis."}],
+       yes:["Chez le <b>sémaglutide 2,4 mg par semaine</b>, sur 72 semaines, chez des patients atteints de MASH avec fibrose F2-F3.",
+            "Un <b>effet total</b> de la molécule, perte de poids comprise, contre placebo.",
+            "Sur des <b>critères de substitution histologiques</b>, atteints tous les deux : 62,9 % contre 34,3 %, et 36,8 % contre 22,4 %.",
+            "Au niveau de preuve le plus haut des cinq instances, puisque le résultat est publié <b>et</b> repris par une agence.",
+            "Sur la tolérance mesurée : pas de hausse des arrêts pour effet indésirable, 2,6 % contre 3,3 % sous placebo, au prix d'effets digestifs plus fréquents, nausées 36,3 % contre 13,2 %."],
+       no:["La <b>progression vers la cirrhose</b>, le carcinome hépatocellulaire, la décompensation hépatique et la mortalité liée au foie. Aucun de ces événements n'est le critère de la partie 1.",
+           "Ce que devient l'effet <b>au-delà de 72 semaines</b>. La partie 2, sur la cohorte complète, n'est attendue qu'en 2029, et la FDA peut retirer l'approbation si elle est négative.",
+           "Ce qui reviendrait à la molécule <b>hors perte de poids</b>, faute de bras apparié.",
+           "Les <b>autres molécules</b> et les <b>autres doses</b>, puisque l'AMM nomme Wegovy 2,4 mg et rien d'autre."],
+       lesson:"<b>Le cas de l'AMM accordée sur une promesse.</b> Une approbation accélérée dit qu'une agence a jugé le critère de substitution assez convaincant pour ne pas faire attendre les patients, pas que le devenir clinique est démontré. La phrase « le sémaglutide protège le foie » ajoute au dossier ce que la partie 2 est précisément chargée d'aller chercher."},
+
+      {id:"flow",tag:"FLOW",sub:"rein · événements durs",
+       title:"FLOW — sémaglutide dans la maladie rénale chronique du diabétique",
+       quote:"Essai de phase 3 chez 3 533 diabétiques de type 2 atteints de maladie rénale chronique, interrompu par anticipation le 10 octobre 2023 sur recommandation du comité de surveillance indépendant, faute d'utilité à poursuivre.",
+       steps:[
+        {a:"Sémaglutide, agoniste sélectif du récepteur GLP-1.",keep:["sema"],
+         n:"Même molécule qu'ESSENCE, autre dossier. La molécule commune ne transporte rien : c'est le dossier qui autorise."},
+        {a:"1,0 mg par semaine, la dose du dossier diabète, et non les 2,4 mg du dossier obésité.",keep:["amm"],
+         n:"Point décisif. L'AMM rénale du 28 janvier 2025 est accordée à l'<b>Ozempic 1,0 mg</b>, pas au Wegovy. Une même molécule, deux présentations commerciales, une seule autorisée ici."},
+        {a:"3 533 diabétiques de type 2 avec maladie rénale chronique, contre placebo, sans bras à perte de poids appariée.",keep:["total"],
+         n:"Effet total. L'objection de l'artefact de fonte musculaire a été examinée : la pente de débit de filtration fondée sur la cystatine C, marqueur indépendant de la masse musculaire, va dans le même sens que celle fondée sur la créatinine, et une analyse pré-spécifiée de l'essai SMART ne trouve aucune corrélation entre variation de masse maigre et variation du débit. Cela va <b>contre</b> l'hypothèse d'artefact, sans pour autant isoler l'effet propre."},
+        {a:"Critère composite rénal primaire : 19 % contre 23 %, HR 0,76 [IC95 % 0,66–0,88], p = 0,0003, soit 331 événements contre 410. Composante strictement rénale seule HR 0,79 [0,66–0,94], MACE 0,82 [0,68–0,98], mortalité toutes causes 0,80 [0,67–0,95]. Pente de débit de filtration ralentie de 1,16 mL/min/1,73 m² par an, p < 0,001.",keep:["dur","subst"],
+         n:"<b>Le seul des quatre essais réels à atteindre le niveau de l'événement dur en primaire</b>, et à le voir se répliquer composante par composante. La pente de filtration ajoute par-dessus un énoncé de substitution."},
+        {a:"Promoteur Novo Nordisk, publié en revue à comité de lecture, puis lu par la FDA qui accorde l'AMM rénale le 28 janvier 2025.",keep:["topline","publie","tiers"],
+         n:"Les trois niveaux sont franchis. Le financement par le promoteur se déclare et ne retire rien à ce qui précède."}],
+       yes:["Chez le <b>sémaglutide 1,0 mg par semaine</b>, chez des diabétiques de type 2 atteints de maladie rénale chronique.",
+            "Un <b>effet total</b> contre placebo, sur des <b>événements durs</b> : insuffisance rénale terminale, chute majeure du débit de filtration, décès rénal ou cardiovasculaire.",
+            "Une réduction du risque de 24 % en relatif, soit 19 % contre 23 % en absolu.",
+            "Et, par-dessus, un énoncé de substitution : la pente de débit de filtration ralentie de 1,16 mL/min/1,73 m² par an.",
+            "Publié, puis repris par la FDA dans une AMM nominative."],
+       no:["Ce que fait la dose <b>2,4 mg</b> sur le rein, puisqu'elle n'a pas été testée ici et que l'AMM ne la couvre pas.",
+           "Ce que fait le sémaglutide chez les patients <b>non diabétiques</b> atteints de maladie rénale chronique.",
+           "La part exacte qui revient à la <b>perte de poids</b>. Les analyses convergentes rendent l'artefact peu probable, elles ne fournissent pas le bras apparié qui trancherait.",
+           "Ce que feraient le <b>tirzépatide</b> ou le <b>rétatrutide</b> sur le même critère."],
+       lesson:"<b>Le cas le plus solide, et le plus étroitement borné.</b> FLOW est le seul des quatre à autoriser une phrase sur ce qui arrive aux patients plutôt que sur une mesure intermédiaire. Il l'autorise pour une molécule, une dose et une population, sous un nom commercial précis. « Les agonistes du GLP-1 protègent le rein » élargit les trois d'un coup."},
+
+      {id:"stephfpef",tag:"STEP-HFpEF",sub:"cœur · symptômes",
+       title:"STEP-HFpEF — sémaglutide dans l'insuffisance cardiaque à fraction préservée",
+       quote:"Essai de phase 3 chez des patients obèses en insuffisance cardiaque à fraction d'éjection préservée. Fraction préservée signifie que le cœur se contracte normalement mais se remplit mal ; les symptômes en sont l'essoufflement et la fatigue à l'effort.",
+       steps:[
+        {a:"Sémaglutide, agoniste sélectif du récepteur GLP-1.",keep:["sema"],
+         n:"Troisième dossier de la même molécule dans ce widget, et troisième verdict différent."},
+        {a:"2,4 mg par semaine, pendant 52 semaines.",keep:["amm"],
+         n:"La dose du dossier obésité, comme dans ESSENCE. Aucune AMM cardiaque n'en découle pour autant."},
+        {a:"Contre placebo, sans bras à perte de poids appariée.",keep:["total"],
+         n:"Effet total. La question posée à cet essai, savoir si le bénéfice tient au médicament ou aux kilos perdus, est <b>par construction</b> hors de sa portée."},
+        {a:"Deux critères primaires co-égaux : la variation du score de symptômes KCCQ-CSS et la variation du poids en pourcentage. Le test de marche de six minutes et la CRP suivent en confirmatoires. Ni la mortalité ni les hospitalisations pour insuffisance cardiaque ne sont critère primaire ni objectif dimensionné.",keep:["sympt","subst"],
+         n:"Deux niveaux atteints, le symptôme et la substitution. <b>Celui de l'événement dur ne l'est pas.</b> Le composite hiérarchique qui inclut décès et événements d'insuffisance cardiaque, observé dans STEP-HFpEF-DM avec un win ratio de 1,58 (p < 0,001), est un secondaire confirmatoire, distinct des deux primaires."},
+        {a:"Promoteur Novo Nordisk, publié en revue à comité de lecture. Aucune AMM ni lecture d'agence dans cette indication.",keep:["topline","publie"],
+         n:"Deux niveaux de preuve sur trois. Rien n'a été relu hors du promoteur dans le cadre d'une autorisation."}],
+       yes:["Chez le <b>sémaglutide 2,4 mg par semaine</b>, sur 52 semaines, chez des patients obèses en insuffisance cardiaque à fraction préservée.",
+            "Un <b>effet total</b> contre placebo, sur ce que le patient <b>ressent</b>, mesuré par le score KCCQ-CSS, critère primaire.",
+            "Et sur des mesures intermédiaires : le poids, second critère primaire, le test de marche de six minutes et la CRP.",
+            "Un allègement du traitement associé : dose de diurétique de l'anse en baisse de 17 % contre une hausse de 2,4 % sous placebo, dans l'analyse groupée avec STEP-HFpEF-DM (n = 1 145).",
+            "Au niveau de preuve d'un article publié, sans reprise par une agence."],
+       no:["La <b>mortalité</b> et les <b>hospitalisations pour insuffisance cardiaque</b>. Elles ne sont ni critère primaire ni objectif dimensionné, et l'essai n'avait donc pas la puissance de les trancher.",
+           "Le <b>pronostic</b> en général. Un patient qui souffle mieux n'est pas, par ce seul fait, un patient qui vivra plus longtemps.",
+           "Ce que devient l'effet <b>au-delà de 52 semaines</b>.",
+           "La part qui revient à la <b>perte de poids</b>, puisque le poids est lui-même l'un des deux critères primaires."],
+       lesson:"<b>Le cas où le critère dit exactement ce qu'il mesure.</b> Rien n'est caché : l'essai annonce que ses deux critères primaires sont un score de symptômes et une perte de poids. La lecture excessive n'est pas dans l'essai, elle est dans la phrase « le sémaglutide traite l'insuffisance cardiaque », qui remplace un symptôme mesuré par un pronostic jamais compté."},
+
+      {id:"triumph4",tag:"TRIUMPH-4",sub:"arthrose · topline",
+       title:"TRIUMPH-4 — rétatrutide dans la gonarthrose",
+       quote:"Essai de phase 3 chez 445 patients en surpoids ou obésité avec arthrose du genou, sans diabète. Résultats annoncés en décembre 2025 par un communiqué du promoteur, non encore publiés en revue à comité de lecture.",
+       steps:[
+        {a:"Rétatrutide, triagoniste GLP-1/GIP/glucagon.",keep:["reta"],
+         n:"<b>Ce n'est pas un agoniste du GLP-1 seul.</b> Le rétatrutide ajoute le récepteur du GIP et celui du glucagon. Un titre qui parlerait des « agonistes du GLP-1 » désignerait ici une molécule d'une autre famille fonctionnelle."},
+        {a:"9 et 12 mg par semaine, pendant 68 semaines. Aucune AMM pour cette molécule, à aucune dose.",keep:["autre"],
+         n:"Le rétatrutide est encore en développement. Aucune autorisation ne peut être invoquée à l'appui, ni pour l'arthrose ni pour quoi que ce soit d'autre."},
+        {a:"445 patients, contre placebo, sans bras à perte de poids appariée.",keep:["total"],
+         n:"Effet total. Chez une molécule qui fait perdre 28,7 % du poids, la question de savoir ce qui soulage le genou, la molécule ou les kilos en moins, est particulièrement vive et reste entière."},
+        {a:"Perte de poids de 28,7 % sous 12 mg contre 2,1 % sous placebo, estimande d'efficacité. Score de douleur WOMAC réduit de 4,4 points sous 12 mg et de 4,5 points sous 9 mg, contre 2,4 points sous placebo.",keep:["subst","sympt"],
+         n:"Deux niveaux atteints, le poids en substitution et la douleur en symptôme. L'estimande d'efficacité décrit l'effet chez ceux qui suivent le traitement, à distinguer de l'effet observé quel que soit le suivi."},
+        {a:"Financement Eli Lilly. Topline de décembre 2025, non publié en revue à comité de lecture.",keep:["topline"],
+         n:"<b>Un seul niveau de preuve.</b> Par la règle du promoteur, le communiqué et l'essai comptent pour une source unique, et aucune reprise de presse n'en fabrique une seconde. Les chiffres de sécurité annoncés dans ce topline ne sont pas repris ici, pour la même raison."}],
+       yes:["Chez le <b>rétatrutide 9 ou 12 mg par semaine</b>, sur 68 semaines, chez des patients en surpoids ou obésité avec arthrose du genou et sans diabète.",
+            "Un <b>effet total</b> contre placebo, sur la <b>douleur ressentie</b> mesurée par le WOMAC, et sur le <b>poids</b>.",
+            "Au seul niveau du <b>topline du promoteur</b>, qui est ici à la fois le plancher et le plafond de preuve."],
+       no:["L'<b>état de l'articulation</b>. Rien n'indique que le cartilage ou la structure du genou changent, et une douleur qui baisse n'est pas une arthrose qui recule.",
+           "Ce que <b>d'autres lecteurs</b> feraient de ces chiffres, puisque aucun comité de lecture ne les a encore examinés et aucune agence ne les a repris.",
+           "La <b>sécurité</b>, portée à ce stade par la seule source du promoteur et qui ne peut donc être tenue pour établie.",
+           "Tout ce qui concerne les <b>agonistes sélectifs du GLP-1</b>, puisque ce n'est pas la molécule testée."],
+       lesson:"<b>Le cas où deux verrous se ferment en même temps.</b> La molécule n'est pas celle du titre générique, et le résultat n'a pas franchi le premier seuil de publication. Le compte final n'est pas bas parce que l'essai serait mauvais, mais parce qu'il est <b>trop tôt</b> : c'est le verdict le plus fragile des quatre, et le seul qui puisse changer de nature sans qu'aucune donnée nouvelle soit produite."}
+    ];
+
+    /* ─── état ─── */
+    var INSTS=[TOY].concat(REAL);
+    var cur=0, step=0, timer=null;
+    var toySel=[0,0,0,0,0];
+
+    function inst(){ return INSTS[cur]; }
+    function keptAt(i){
+      var I=inst();
+      return I.interactive ? I.steps[i].opts[toySel[i]].keep : I.steps[i].keep;
+    }
+    function answerAt(i){
+      var I=inst();
+      return I.interactive ? I.steps[i].opts[toySel[i]].t : I.steps[i].a;
+    }
+    function noteAt(i){
+      var I=inst();
+      return I.interactive ? I.steps[i].opts[toySel[i]].n : I.steps[i].n;
+    }
+    /* compte exact : axes répondus donnent leurs survivants, axes non répondus toutes leurs options */
+    function countAfter(k){
+      var p=1,i;
+      for(i=0;i<AX.length;i++) p*= (i<k) ? keptAt(i).length : AX[i].opts.length;
+      return p;
+    }
+    function optOf(axis,id){
+      var o=AX[axis].opts,i;
+      for(i=0;i<o.length;i++) if(o[i].id===id) return o[i];
+      return null;
+    }
+    function joinOu(arr){
+      if(!arr.length) return "";
+      if(arr.length===1) return arr[0];
+      return arr.slice(0,-1).join(", ")+" ou "+arr[arr.length-1];
+    }
+    /* Une instance réelle porte une leçon écrite ; l'instance jouet la fait calculer. */
+    function lessonOf(c){
+      var I=inst();
+      return I.interactive ? toyLesson(c) : I.lesson;
+    }
+    function stopPlay(){ if(timer){ clearInterval(timer); timer=null; } }
+
+    /* ─── entonnoir : largeur proportionnelle au logarithme des lectures restantes ─── */
+    function drawFunnel(){
+      var S=$("scq-funnel"); clear(S);
+      var x0=58,x1=846,mid=88,maxH=96,i;
+      var LN=Math.log(TOT+1);
+      var counts=[TOT]; for(i=1;i<=5;i++) counts.push(countAfter(i));
+      function xs(j){ return x0+j*(x1-x0)/5; }
+      function hh(c){ return maxH*Math.log(c+1)/LN; }
+      S.appendChild(sg("line",{x1:x0-10,y1:mid,x2:x1+10,y2:mid,
+        stroke:"var(--sq-lines)","stroke-width":1}));
+      if(step>0){
+        var pts=[],back=[],h;
+        for(i=0;i<=step;i++){ h=hh(counts[i]);
+          pts.push(xs(i)+","+(mid-h/2)); back.unshift(xs(i)+","+(mid+h/2)); }
+        S.appendChild(sg("polygon",{points:pts.concat(back).join(" "),
+          fill:"var(--sq-bright)","fill-opacity":".16",stroke:"var(--sq-bright)",
+          "stroke-width":1.6,"stroke-linejoin":"round"}));
+      } else {
+        var h0=hh(counts[0]);
+        S.appendChild(sg("line",{x1:xs(0),y1:mid-h0/2,x2:xs(0),y2:mid+h0/2,
+          stroke:"var(--sq-bright)","stroke-width":2.6}));
+      }
+      if(step<5){
+        var hc=hh(counts[step]);
+        S.appendChild(sg("rect",{x:xs(step),y:mid-hc/2,width:xs(5)-xs(step),
+          height:Math.max(hc,1),fill:"var(--sq-faint)","fill-opacity":".06",
+          stroke:"var(--sq-mute)","stroke-width":1,"stroke-dasharray":"4 4"}));
+        S.appendChild(st((xs(step)+xs(5))/2,mid-hc/2-9,"questions non encore posées","scq-t"));
+      }
+      for(i=0;i<=5;i++){
+        var on=(i<=step), c=counts[i], hi=hh(c);
+        S.appendChild(sg("line",{x1:xs(i),y1:mid-hi/2-6,x2:xs(i),y2:mid+hi/2+6,
+          stroke:on?"var(--sq-blue)":"var(--sq-mute)","stroke-width":on?1.8:1}));
+        if(on&&c===0) S.appendChild(sg("circle",{cx:xs(i),cy:mid,r:5,fill:"var(--sq-bord)"}));
+        S.appendChild(st(xs(i),mid+maxH/2+24,on?String(c):"·",
+          on?(c===0?"scq-ts":"scq-tm"):"scq-tmu"));
+        S.appendChild(st(xs(i),mid+maxH/2+38,i===0?"avant la 1re question":("après Q"+i),"scq-t"));
+        if(i>0&&on){
+          var lost=counts[i-1]-counts[i];
+          S.appendChild(st((xs(i-1)+xs(i))/2,mid+maxH/2+8,
+            lost>0?("− "+lost):"± 0", lost>0?"scq-ts":"scq-tg"));
+        }
+      }
+      S.appendChild(st(12,17,"lectures encore autorisées","scq-tb","start"));
+      S.appendChild(st(12,29,"sur "+TOT+" candidates, à chaque station","scq-t","start"));
+
+      /* Le dessin change à chaque étape : l'étiquette lue à voix haute doit changer avec lui,
+         sinon le lecteur d'écran reçoit indéfiniment l'état initial et jamais les comptes. */
+      var seg=[],lab;
+      for(i=0;i<=step;i++)
+        seg.push(i===0 ? (counts[0]+" avant la première question")
+                       : (counts[i]+" après la question "+i));
+      lab="Entonnoir des lectures encore autorisées, étape "+step+" sur 5. "+
+          "Comptes successifs : "+seg.join(", ")+".";
+      if(step===5) lab+=" Les cinq questions ont reçu une réponse : le verdict porte sur "+
+        counts[5]+" lecture"+(counts[5]>1?"s":"")+" sur "+TOT+".";
+      else if(step===4) lab+=" La question 5 n'est pas encore posée ; la part du compte qu'elle"+
+        " retranchera reste à venir.";
+      else lab+=" Les questions "+(step+1)+" à 5 ne sont pas encore posées ; la part du compte"+
+        " qu'elles retrancheront reste à venir.";
+      S.setAttribute("aria-label",lab);
+    }
+
+    /* ─── pile des étapes franchies : chaque entrée est un retour vers sa question ─── */
+    function drawStack(){
+      var S=$("scq-stack"); clear(S);
+      var i;
+      for(i=0;i<step;i++){
+        (function(ii){
+          var kept=keptAt(ii), before=countAfter(ii), after=countAfter(ii+1), j, o;
+          var d=eh("button","scq-done"+(kept.length===0?" scq-dstop":""));
+          d.type="button";
+          d.setAttribute("aria-label","Revenir à la question "+(ii+1)+" : "+QTITLE[ii]);
+          var h=eh("span","scq-dh");
+          h.appendChild(eh("span","scq-dn","Q"+(ii+1)+" · "+AX[ii].lab.toUpperCase()));
+          h.appendChild(eh("span","scq-dq",QTITLE[ii]));
+          var c=eh("span","scq-dc");
+          c.appendChild(document.createTextNode(before+" → "));
+          c.appendChild(eh("b",null,String(after)));
+          c.appendChild(document.createTextNode(" lectures"));
+          h.appendChild(c); d.appendChild(h);
+          d.appendChild(eh("span","scq-da",answerAt(ii)));
+          d.appendChild(md(eh("span","scq-dnote"),noteAt(ii)));
+          var tg=eh("span","scq-tags");
+          for(j=0;j<AX[ii].opts.length;j++){
+            o=AX[ii].opts[j];
+            tg.appendChild(eh("span","scq-tag"+(kept.indexOf(o.id)>=0?"":" scq-out"),o.s));
+          }
+          d.appendChild(tg);
+          d.appendChild(eh("span","scq-dback",
+            inst().interactive ? "↩ revenir à cette question pour en changer la réponse"
+                               : "↩ revenir à cette question"));
+          d.addEventListener("click",function(){ stopPlay(); step=ii; render(); });
+          S.appendChild(d);
+        })(i);
+      }
+    }
+
+    /* ─── compteurs chaînés : un par axe, l'axe C compris ─── */
+    function setTC(n,cls,v,h){
+      $("scq-t"+n).className="scq-tc"+(cls?" "+cls:"");
+      $("scq-t"+n+"v").textContent=v;
+      $("scq-t"+n+"h").textContent=h;
+    }
+    function drawTrack(){
+      if(step>=1){
+        var k=keptAt(0);
+        if(!k.length) setTC(1,"scq-cstop","non nommée","aucune lecture rattachable");
+        else setTC(1,"scq-cok",optOf(0,k[0]).s,"la conclusion ne vaudra que pour elle");
+      } else setTC(1,"","—","question 1");
+      if(step>=2){
+        var k2=keptAt(1);
+        if(!k2.length) setTC(2,"scq-cstop","non donnée","ni dose ni durée");
+        else if(k2.indexOf("amm")>=0) setTC(2,"scq-cok","oui","dose d'une autorisation existante");
+        else setTC(2,"scq-cwarn","non","aucune AMM à cette dose");
+      } else setTC(2,"","—","question 2");
+      /* L'axe C porte la distinction effet total / effet propre martelée dans les leçons :
+         il lui faut son compteur, au même titre que les quatre autres. */
+      if(step>=3){
+        var k3=keptAt(2);
+        if(!k3.length) setTC(3,"scq-cstop","non précisé","aucun comparateur nommé");
+        else if(k3.indexOf("propre")>=0) setTC(3,"scq-cok","effet propre","bras à perte de poids appariée");
+        else if(k3.indexOf("addi")>=0) setTC(3,"scq-cok","effet ajouté","par-dessus un soin actif");
+        else setTC(3,"scq-cwarn","effet total","perte de poids non séparée");
+      } else setTC(3,"","—","question 3");
+      if(step>=4){
+        var k4=keptAt(3);
+        if(!k4.length) setTC(4,"scq-cstop","aucun","critère non pré-spécifié");
+        else if(k4.indexOf("dur")>=0) setTC(4,"scq-cok","événement dur","le plus haut des trois niveaux");
+        else if(k4.indexOf("sympt")>=0) setTC(4,"scq-cwarn","symptôme","le pronostic reste hors champ");
+        else setTC(4,"scq-cwarn","substitution","mesure intermédiaire seule");
+      } else setTC(4,"","—","question 4");
+      if(step>=5){
+        var k5=keptAt(4);
+        if(k5.indexOf("tiers")>=0) setTC(5,"scq-cok","lecture tierce","relu hors du promoteur");
+        else if(k5.indexOf("publie")>=0) setTC(5,"scq-cwarn","article publié","aucune reprise indépendante");
+        else setTC(5,"scq-cstop","topline seul","promoteur, source unique");
+      } else setTC(5,"","—","question 5");
+    }
+
+    /* ─── étape courante ─── */
+    function drawBand(){
+      var I=inst(), B=$("scq-body"); clear(B);
+      if(step>=5){
+        var cf=countAfter(5);
+        $("scq-bn").textContent="Pipeline terminé";
+        $("scq-bt").textContent="Les cinq questions ont reçu une réponse";
+        $("scq-bx").textContent=cf+" lecture"+(cf>1?"s":"")+" sur "+TOT;
+        md($("scq-why"), I.interactive
+          ? "Le verdict ci-dessous est assemblé <b>mot à mot</b> à partir des survivants de chaque axe : rien n'y est écrit à la main. <b>Cliquez une entrée de la pile ci-dessus</b> pour revenir à sa question, changez-y la réponse, et tout ce qui suit — compte, entonnoir, compteurs, verdict, leçon — est recalculé."
+          : "Le verdict ci-dessous reprend ce que cet essai a réellement mesuré, et ce qu'il n'a pas cherché à mesurer. <b>Cliquez une entrée de la pile ci-dessus</b> pour revoir la question correspondante.");
+        md($("scq-note2"), I.interactive
+          ? "Vous pouvez aussi revenir en arrière question par question : le compte remonte jusqu'à l'étape corrigée, puis redescend."
+          : "Choisissez une autre instance pour rejouer les mêmes cinq questions sur un autre essai.");
+        return;
+      }
+      $("scq-bn").textContent="Étape "+(step+1)+" / 5";
+      $("scq-bt").textContent=QTITLE[step];
+      $("scq-bx").textContent="axe "+AX[step].key+" · "+AX[step].lab;
+      md($("scq-why"),QWHY[step]);
+      if(I.interactive){
+        var box=eh("div","scq-opts"), j;
+        for(j=0;j<I.steps[step].opts.length;j++){
+          (function(jj){
+            var o=I.steps[step].opts[jj];
+            var b=eh("button","scq-opt"+(o.keep.length===0?" scq-onul":""));
+            b.type="button";
+            b.setAttribute("aria-pressed",toySel[step]===jj?"true":"false");
+            b.appendChild(eh("span","scq-oc",
+              o.keep.length===0?"→ 0":("garde "+o.keep.length+"/"+AX[step].opts.length)));
+            b.appendChild(document.createTextNode(o.t));
+            b.addEventListener("click",function(){ toySel[step]=jj; render(); });
+            box.appendChild(b);
+          })(j);
+        }
+        B.appendChild(box);
+        md($("scq-note2"),"Choisissez la réponse, puis passez à la question suivante. "+
+          "L'option qui laisse la question sans réponse ramène le compte à <b>zéro</b>, définitivement.");
+      } else {
+        B.appendChild(eh("div","scq-fixed",I.steps[step].a));
+        md($("scq-note2"),I.steps[step].n);
+      }
+    }
+
+    /* ─── verdict en deux moitiés ─── */
+    function buildYes(){
+      var out=[],i,k,labs,j;
+      for(i=0;i<AX.length;i++){
+        k=keptAt(i);
+        if(!k.length) return null;
+        labs=[]; for(j=0;j<k.length;j++) labs.push(optOf(i,k[j]).l);
+        out.push(joinOu(labs));
+      }
+      return out;
+    }
+    function drawFinal(){
+      var I=inst(), F=$("scq-final"), Y=$("scq-yes"), N=$("scq-no");
+      clear(Y); clear(N);
+      if(step<5){
+        F.className="scq-final scq-idle";
+        $("scq-glab").textContent="Verdict · atteignable après la cinquième question";
+        Y.appendChild(eh("li",null,"—")); N.appendChild(eh("li",null,"—"));
+        md($("scq-lesson"),"Le verdict s'écrit quand les cinq questions ont reçu une réponse.");
+        return;
+      }
+      F.className="scq-final";
+      var c=countAfter(5);
+      $("scq-glab").textContent="Verdict · "+c+" lecture"+(c>1?"s":"")+" autorisée"+
+        (c>1?"s":"")+" sur "+TOT+" candidates";
+      var parts=buildYes(),a,b,i2,j2,k2,o2;
+      if(!parts){
+        Y.appendChild(md(eh("li"),"<b>Rien.</b> Une question au moins est restée sans réponse, et une lecture qui ne se rattache ni à une molécule, ni à une dose, ni à un critère n'est pas une lecture prudente : c'est une phrase sans référent."));
+        N.appendChild(md(eh("li"),"Tout, puisque le communiqué ne dit pas ce qui a été mesuré. Les blancs qu'il laisse sont comblés par le lecteur, jamais par l'essai."));
+        md($("scq-lesson"),lessonOf(c));
+        return;
+      }
+      if(I.interactive){
+        Y.appendChild(md(eh("li"),"Un effet, <b>"+parts[0]+"</b>, <b>"+parts[1]+"</b>, mesuré comme <b>"+
+          parts[2]+"</b>, <b>"+parts[3]+"</b>, <b>"+parts[4]+"</b>."));
+        for(i2=0;i2<AX.length;i2++){
+          k2=keptAt(i2);
+          for(j2=0;j2<AX[i2].opts.length;j2++){
+            o2=AX[i2].opts[j2];
+            if(k2.indexOf(o2.id)>=0) continue;
+            N.appendChild(md(eh("li"),"Pas "+o2.l+" <i>("+AX[i2].lab+")</i>."));
+          }
+        }
+      } else {
+        for(a=0;a<I.yes.length;a++) Y.appendChild(md(eh("li"),I.yes[a]));
+        for(b=0;b<I.no.length;b++)  N.appendChild(md(eh("li"),I.no[b]));
+      }
+      md($("scq-lesson"),lessonOf(c));
+    }
+
+    /* ─── rendu global ─── */
+    function render(){
+      var I=inst(), c=countAfter(step), i;
+      $("scq-ititle").textContent=I.title;
+      $("scq-iquote").textContent=I.quote;
+      var chips=$("scq-sel").children;
+      for(i=0;i<chips.length;i++) chips[i].setAttribute("aria-pressed",i===cur?"true":"false");
+      var rail=$("scq-rail").children;
+      for(i=0;i<rail.length;i++)
+        rail[i].className="scq-ph"+(i===step?" scq-on":(i<step?" scq-done":""));
+      $("scq-fill").style.width=(step/5*100)+"%";
+      var pl=$("scq-plab");
+      pl.textContent="étape "+step+" / 5 · "+c+" lecture"+(c>1?"s":"")+" sur "+TOT;
+      pl.className="scq-plab"+(c===0?" scq-zero":"");
+      drawFunnel(); drawTrack(); drawStack(); drawBand(); drawFinal();
+      $("scq-prev").disabled=(step===0);
+      $("scq-next").disabled=(step===5);
+      $("scq-play").textContent=timer?"Interrompre le déroulé":"Dérouler d'un trait jusqu'au verdict";
+      $("scq-fill5").style.display=I.interactive?"":"none";
+    }
+
+    /* ─── sélecteur d'instance ─── */
+    (function(){
+      var S=$("scq-sel"),i;
+      for(i=0;i<INSTS.length;i++){
+        (function(ii){
+          var I=INSTS[ii];
+          var b=eh("button","scq-chip"); b.type="button";
+          b.setAttribute("aria-pressed",ii===0?"true":"false");
+          b.appendChild(document.createTextNode(I.tag));
+          b.appendChild(eh("span","scq-cs",I.sub));
+          b.addEventListener("click",function(){ stopPlay(); cur=ii; step=0; render(); });
+          S.appendChild(b);
+        })(i);
+      }
+    })();
+
+    /* ─── pilotage : pas à pas et lecture continue ─── */
+    (function(){
+      var rail=$("scq-rail").children,i;
+      for(i=0;i<rail.length;i++)
+        (function(ii){ rail[ii].addEventListener("click",
+          function(){ stopPlay(); step=ii; render(); }); })(i);
+    })();
+    $("scq-prev").addEventListener("click",function(){ stopPlay(); if(step>0) step--; render(); });
+    $("scq-next").addEventListener("click",function(){ stopPlay(); if(step<5) step++; render(); });
+    $("scq-reset").addEventListener("click",function(){
+      stopPlay(); step=0; toySel=[0,0,0,0,0]; render();
+    });
+    /* Renseigner les cinq réponses ET aller jusqu'au verdict : le bouton doit montrer la leçon
+       qu'il annonce, et non la laisser à cinq clics de distance. */
+    $("scq-fill5").addEventListener("click",function(){
+      stopPlay(); toySel=[1,1,1,1,0]; step=5; render();
+    });
+    $("scq-play").addEventListener("click",function(){
+      if(timer){ stopPlay(); render(); return; }
+      if(step>=5) step=0;
+      render();
+      timer=setInterval(function(){
+        if(step<5){ step++; render(); }
+        if(step>=5){ stopPlay(); render(); }
+      },1500);
+      $("scq-play").textContent="Interrompre le déroulé";
+    });
+
+    render();
+  })();
+  </script>
+</div>
