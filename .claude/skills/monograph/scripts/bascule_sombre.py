@@ -209,7 +209,12 @@ def declarations(corps):
     for m in morceaux:
         if ":" in m:
             k, v = m.split(":", 1)
-            out[k.strip().lower()] = v.strip()
+            k = k.strip()
+            # Les custom properties sont SENSIBLES À LA CASSE : `--crm-A` et `--crm-a` sont deux
+            # jetons distincts. Les normaliser en minuscules comme les propriétés ordinaires
+            # rendait invisible toute palette écrite en capitales — elle n'était jamais résolue,
+            # donc jamais basculée.
+            out[k if k.startswith("--") else k.lower()] = v.strip()
     return out
 
 
@@ -277,6 +282,35 @@ def jetons_locaux(css):
     return base, sombre
 
 
+def ou_sont_definis(css):
+    """{jeton local: sélecteur de la règle qui le définit} — pour pouvoir le SURCHARGER là."""
+    out = {}
+    for selecteur, corps, _ in regles(sans_commentaires(css)):
+        if "data-theme" in selecteur:
+            continue
+        for nom in declarations(corps):
+            if nom.startswith("--"):
+                out.setdefault(nom, selecteur)
+    return out
+
+
+def usages_jetons(lues):
+    """{jeton local: propriétés qui le consomment} — `color`, `background`, les deux.
+
+    Un jeton n'a pas de rôle en soi : `--crm-B:#9B3443` est une encre si on écrit
+    `color:var(--crm-B)`, une surface si on écrit `background:var(--crm-B)`. Basculer sans
+    distinguer reviendrait à éclaircir un fond ou à assombrir une encre.
+    """
+    out = {}
+    for _, decl, _ in lues:
+        for prop, valeur in decl.items():
+            for nom in re.findall(r"var\(\s*(--[A-Za-z0-9-]+)", valeur or ""):
+                out.setdefault(nom, set()).add(
+                    "fond" if prop.startswith("background") else
+                    "encre" if prop == "color" else "autre")
+    return out
+
+
 def paire(valeur, jetons, locaux=None, locaux_sombres=None, profondeur=0):
     """(valeur diurne, valeur nocturne) d'une déclaration de couleur, `var()` suivis.
 
@@ -337,6 +371,36 @@ def bascule_regle(decl, jetons, cible, locaux=None, locaux_sombres=None):
     return out
 
 
+def surfaces_nocturnes(lues, fonds_neufs, jetons, locaux=None, locaux_sombres=None):
+    """Tout ce que ce widget sait peindre comme fond en thème sombre.
+
+    Les surfaces neuves ne suffisent pas : un widget qui tire TOUS ses fonds des jetons n'en
+    produit aucune, et sa carte n'en est pas moins sombre. Sans ces fonds-là, l'encre d'un tel
+    widget n'était jamais examinée — 15 occurrences du corpus, une encre bordeaux diurne restée
+    sur `var(--card)` devenu #16212E.
+
+    ⚠️ Seules les surfaces SOMBRES entrent ici, et la restriction n'est pas cosmétique. Un
+    widget peint aussi des fonds clairs en sombre — `var(--blue)` vaut #6FA8D8 —, et une encre
+    claire « échoue » contre eux. Les compter faisait assombrir l'encre courante de chaque
+    règle sans fond : `coreference-resolution` passait de 12 à 153 occurrences, et
+    `named-entity-recognition-sequence-labeling` de 13 à 332. Cette passe ne traite qu'un cas,
+    l'encre diurne restée sur une surface devenue sombre ; les fonds clairs relèvent de la
+    règle qui les déclare, où le couple est connu.
+    """
+    out = list(fonds_neufs)
+    for _, decl, _ in lues:
+        p = paire(decl.get("background-color") or decl.get("background"),
+                  jetons, locaux, locaux_sombres)
+        if p:
+            out.append(fond_sombre(p[1]) if luminance(p[1]) > 0.5 else p[1])
+    # « Sombre » se juge par l'usage, pas par un seuil de luminance : #6FA8D8 est un bleu
+    # CLAIR à l'œil et sa luminance relative ne vaut que 0,36. Une surface entre ici si
+    # l'encre claire de la charte y tient — c'est exactement la question posée.
+    sombres = [f for f in out if contraste(ENCRE_CLAIRE, f) >= 4.5]
+    peint_du_clair = len(sombres) < len(out)
+    return sombres, peint_du_clair
+
+
 def bloc_genere(css, jetons, cible):
     """Le bloc de règles nocturnes à ajouter à une feuille, et le compte des cas traités.
 
@@ -356,23 +420,65 @@ def bloc_genere(css, jetons, cible):
     decisions = [(s, bascule_regle(d, jetons, cible, locaux, locaux_sombres), ctx)
                  for s, d, ctx in lues]
     fonds_neufs = [v["background"] for _, v, _ in decisions if "background" in v]
+    elargies, peint_du_clair = surfaces_nocturnes(lues, fonds_neufs, jetons, locaux, locaux_sombres)
+    # La passe d'ENCRE garde le périmètre éprouvé — les surfaces que NOUS assombrissons. L'élargir
+    # aux fonds tirés des jetons la fait tourner dans des widgets qu'elle n'avait jamais touchés,
+    # et y casse ce qui allait. La passe PALETTE, elle, n'a de sens qu'avec ce périmètre élargi,
+    # et ne se déclenche que si le widget ne peint AUCUNE surface claire.
+    surfaces = fonds_neufs
+    surfaces_palette = [] if peint_du_clair else elargies
 
-    if fonds_neufs:
-        for i, (selecteur, decl, contexte) in enumerate(lues):
-            if decisions[i][1] or decl.get("background") or decl.get("background-color"):
-                continue
-            encre = paire(decl.get("color"), jetons, locaux, locaux_sombres)
-            if not encre:
-                continue
-            # La référence est la surface neuve la PIRE POUR CETTE ENCRE-LÀ, pas la plus claire
-            # des surfaces : une encre sombre souffre sur le fond le plus sombre, une encre
-            # claire sur le plus clair. Prendre un extrême fixe sous-déclenche la moitié des cas
-            # — 67 occurrences restaient ainsi après le premier passage corpus.
-            reference = min(fonds_neufs, key=lambda f: contraste(encre[1], f))
-            if contraste(encre[1], reference) < cible:
-                decisions[i] = (selecteur,
-                                {"color": ajuste(encre_claire(encre[1]), reference, cible)},
-                                contexte)
+    # --- les palettes que le widget se donne ---------------------------------
+    # Un widget pose parfois une palette CATÉGORIELLE en jetons littéraux, sans jeton de charte
+    # derrière — `--crm-A:#2C77B6;--crm-B:#9B3443;--crm-C:#3F8E66…` pour distinguer des entités —
+    # et c'est le JS qui pose les classes qui la consomment. Aucune règle de couleur n'est alors
+    # atteignable : c'est le JETON qu'il faut basculer, une fois pour toutes ses utilisations.
+    # 12 occurrences de `coreference-resolution` tenaient à cela.
+    ou = ou_sont_definis(css)
+    usages = usages_jetons(lues)
+    palettes = {}
+    for nom, valeur in locaux.items():
+        if nom in locaux_sombres or nom not in ou or not _litteral(valeur):
+            continue
+        roles = usages.get(nom, set())
+        litteral = _litteral(valeur)
+        # Un jeton qu'AUCUNE règle CSS ne consomme est appliqué par le JS (`style.color=COL[r]`) :
+        # le surcharger en sombre reste la seule prise qu'on ait dessus, et elle suffit, le JS
+        # posant `var(--crm-A)` et non une valeur figée.
+        #
+        # Mais il faut qu'aucun rôle de FOND ne soit connu. Laisser l'encre l'emporter sur un
+        # jeton à double rôle éclaircissait des surfaces :
+        # `named-entity-recognition-sequence-labeling` passait de 13 à 26 occurrences, dont 17
+        # fonds devenus clairs en sombre. Un jeton qui sert aux deux ne se bascule pas d'une
+        # seule valeur — c'est au widget de séparer ses cas.
+        if "fond" not in roles and surfaces_palette:
+            pire = min(surfaces_palette, key=lambda f: contraste(litteral, f))
+            if contraste(litteral, pire) < cible:
+                palettes.setdefault(ou[nom], {})[nom] = ajuste(encre_claire(litteral), pire, cible)
+        elif roles == {"fond"} and luminance(litteral) > 0.5:
+            palettes.setdefault(ou[nom], {})[nom] = fond_sombre(litteral)
+    for selecteur, surcharges in palettes.items():
+        decisions.append((selecteur, surcharges, ()))
+
+    for i, (selecteur, decl, contexte) in enumerate(lues):
+        if decisions[i][1] or decl.get("background") or decl.get("background-color"):
+            continue
+        encre = paire(decl.get("color"), jetons, locaux, locaux_sombres)
+        if not encre or not surfaces:
+            continue
+        # On ne devine pas SUR QUOI l'encre s'écrit : on regarde TOUT ce que le widget sait
+        # peindre en sombre, et on la juge sur la PIRE de ces surfaces.
+        #
+        # N'agir que si elle échoue contre TOUTES serait plus rigoureux, et c'est empiriquement
+        # pire : la version stricte laisse tranquilles des encres que celle-ci répare, et
+        # `named-entity-recognition-sequence-labeling` passe de 13 à 26 occurrences. Une encre
+        # unique posée sur plusieurs surfaces est presque toujours écrite pour la surface
+        # dominante ; l'exception se mesure, la règle se garde.
+        pire = min(surfaces, key=lambda f: contraste(encre[1], f))
+        if contraste(encre[1], pire) < cible:
+            decisions[i] = (selecteur,
+                            {"color": ajuste(encre_claire(encre[1]), pire, cible)},
+                            contexte)
 
     # --- rendre à la cascade ce que la bascule lui prend -----------------------
     # `html[data-theme="dark"] .hns-btn` est PLUS SPÉCIFIQUE que `.hns-btn.hns-ghost` : une

@@ -302,3 +302,92 @@ def test_une_variante_sans_fond_propre_est_restituee_verbatim():
     css = ".btn{background:var(--blue);color:#fff}.btn.ghost{color:#11283F}"
     bloc, _ = B.bloc_genere(css, JETONS, 4.5)
     assert 'html[data-theme="dark"] .btn.ghost{color:#11283F;}' in bloc
+
+
+def test_la_passe_d_encre_ne_sort_pas_du_perimetre_des_surfaces_qu_on_assombrit():
+    """Elle ne juge QUE sur les surfaces que la bascule a créées elle-même.
+
+    L'élargir aux fonds tirés des jetons la fait tourner dans des widgets qu'elle n'avait jamais
+    touchés, où elle éclaircit des encres qui atterrissent ensuite sur une surface claire : le
+    corpus y perd plus qu'il n'y gagne. Un widget qui tire tous ses fonds des jetons relève de la
+    passe PALETTE (`test_une_palette_categorielle_bascule_par_ses_jetons`), pas de celle-ci.
+    """
+    _, n = B.bloc_genere(".card{background:var(--card)} .card b{color:#9B3443}", JETONS, 4.5)
+    assert n == 0
+
+
+def test_une_encre_est_jugee_sur_la_pire_des_surfaces_sombres_du_widget():
+    """Dans un widget dont toutes les surfaces sont sombres, l'encre se juge sur la pire d'elles.
+
+    N'agir que si elle échoue contre TOUTES serait plus rigoureux et c'est empiriquement pire :
+    `named-entity-recognition-sequence-labeling` passe alors de 13 à 26 occurrences. (Si le
+    widget peint aussi du clair, rien ne se déclenche — voir
+    `test_aucune_passe_a_l_aveugle_dans_un_widget_qui_peint_aussi_du_clair`.)
+    """
+    css = ".carte{background:#FBFCFE} .liseré{background:#F1F3F6} .x{color:#0A1521}"
+    bloc, n = B.bloc_genere(css, JETONS, 4.5)
+    encre = bloc.split('html[data-theme="dark"] .x{color:')[1].split(";")[0]
+    for fond in (B.fond_sombre("#FBFCFE"), B.fond_sombre("#F1F3F6")):
+        assert B.contraste(encre, fond) >= 4.5
+
+
+def test_une_palette_categorielle_bascule_par_ses_jetons():
+    """Un widget qui distingue des entités par couleur pose sa palette en jetons littéraux et
+    laisse le JS poser les classes. Aucune règle de couleur n'est alors atteignable : c'est le
+    JETON qu'on bascule, une fois pour toutes ses utilisations. 12 occurrences de
+    `coreference-resolution` tenaient à cela."""
+    css = (".crm{--crm-A:#2C77B6;--crm-B:#9B3443}"
+           " .crm-card{background:var(--card)} .crm-a{color:var(--crm-A)}"
+           " .crm-b{color:var(--crm-B)}")
+    bloc, _ = B.bloc_genere(css, JETONS, 4.5)
+    assert 'html[data-theme="dark"] .crm{' in bloc
+    surcharge = bloc.split('html[data-theme="dark"] .crm{')[1].split("}")[0]
+    for nom in ("--crm-A", "--crm-B"):
+        valeur = [d for d in surcharge.split(";") if d.startswith(nom + ":")][0].split(":")[1]
+        assert B.contraste(valeur, "#16212e") >= 4.5, f"{nom} = {valeur}"
+
+
+def test_un_jeton_de_palette_servant_de_fond_est_assombri_pas_eclairci():
+    """Le rôle ne se lit pas dans le jeton mais dans son usage : éclaircir un fond, c'est
+    l'inverse de ce qu'il faut."""
+    css = ".w{--w-wash:#EAF4EE} .w-box{background:var(--w-wash)}"
+    bloc, _ = B.bloc_genere(css, JETONS, 4.5)
+    valeur = bloc.split("--w-wash:")[1].split(";")[0]
+    assert B.luminance(valeur) < B.luminance("#EAF4EE")
+
+
+def test_un_jeton_a_double_role_n_est_pas_bascule():
+    """Une seule valeur ne peut pas servir d'encre ET de fond en sombre. Laisser l'encre
+    l'emporter éclaircissait des surfaces : `named-entity-recognition-sequence-labeling`
+    passait de 13 à 26 occurrences, dont 17 fonds devenus clairs."""
+    css = ".w{--w-x:#9B3443} .card{background:var(--card)} .a{color:var(--w-x)} .b{background:var(--w-x)}"
+    bloc, _ = B.bloc_genere(css, JETONS, 4.5)
+    assert "--w-x:" not in bloc
+
+
+def test_un_jeton_que_le_css_n_utilise_jamais_est_quand_meme_bascule():
+    """Il est appliqué par le JS (`style.color=COL[r]`), qui pose `var(--crm-A)` et non une
+    valeur figée : surcharger le jeton est la seule prise qu'on ait, et elle suffit."""
+    css = ".w{--w-A:#9B3443} .card{background:var(--card)}"
+    bloc, _ = B.bloc_genere(css, JETONS, 4.5)
+    assert "--w-A:" in bloc
+
+
+def test_un_jeton_en_capitales_reste_distinct_de_son_homonyme_minuscule():
+    """Les custom properties CSS sont sensibles à la casse. Les normaliser en minuscules comme
+    les propriétés ordinaires rendait invisible toute palette écrite en capitales — jamais
+    résolue, donc jamais basculée."""
+    d = B.declarations("--crm-A:#2C77B6;--crm-a:#000000;COLOR:#fff")
+    assert d["--crm-A"] == "#2C77B6" and d["--crm-a"] == "#000000"
+    assert d["color"] == "#fff", "une propriété ordinaire, elle, se normalise"
+
+
+def test_aucune_passe_a_l_aveugle_dans_un_widget_qui_peint_aussi_du_clair():
+    """Une encre éclaircie sans savoir où elle atterrit tombe sur la surface claire du widget.
+    Trois documents PROPRES — `ejaculation-precoce`, `masse-maigre-sous-glp1`, `peptides-gris` —
+    y ont gagné 9 occurrences. Casser un document propre coûte plus que ne rapporte une
+    réparation à l'aveugle."""
+    css = (".card{background:var(--card)} .btn{background:var(--blue);color:#fff}"
+           " .lab{color:#11283F}")
+    bloc, _ = B.bloc_genere(css, JETONS, 4.5)
+    assert ".lab" not in bloc
