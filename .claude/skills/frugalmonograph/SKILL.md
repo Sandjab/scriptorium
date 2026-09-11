@@ -116,6 +116,10 @@ seule la rubrique stricte borne leur nombre. Voir `monograph/SKILL.md` pour le d
   sources est jugée par les jurés. **Le profil frugal ne touche pas ce seuil.**
 - `build.py` échoue sur référence manquante, type inconnu, balise déséquilibrée, `file:///`
   résiduel ou jeton non substitué.
+- Le **contraste en thème sombre est mesuré, pas relu** : `lint_contraste_sombre.py`
+  ouvre le document bâti, force `data-theme="dark"` et relève tout texte sous 3:1 (exit 2).
+  Un widget qui mélange un jeton de la charte pour l'encre et une valeur littérale pour le
+  fond est syntaxiquement correct et illisible en sombre — seule la mesure le voit.
 
 ## Itérer
 

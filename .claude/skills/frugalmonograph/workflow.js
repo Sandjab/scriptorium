@@ -12,7 +12,7 @@ export const meta = {
     { title: 'Widgets', detail: 'sélection des concepts (planner) puis fan-out codeurs + critic' },
     { title: 'Compose', detail: 'écrit le manifeste unique (best-of)' },
     { title: 'Style',   detail: 'relecture : calques résiduels, lourdeurs, accents du texte visible', model: 'sonnet' },
-    { title: 'Build',   detail: 'python3 build.py → 1 HTML + auto-vérifs' },
+    { title: 'Build',   detail: 'python3 build.py + lint de contraste sombre → 1 HTML + auto-vérifs' },
   ],
 };
 
@@ -31,6 +31,7 @@ if (!subject || !slug || !themeDir)
   throw new Error('args manquants : attendu {subject, slug, themeDir}. Reçu : ' + JSON.stringify(args));
 const repoRoot = themeDir.replace(/\/themes\/[^/]+\/?$/, '');
 const buildScript = repoRoot + '/.claude/skills/monograph/scripts/build.py';
+const contrasteScript = repoRoot + '/.claude/skills/monograph/scripts/lint_contraste_sombre.py';
 // Reprise disque (Fix 2) : survit à /clear et au changement de session, contrairement au cache
 // moteur (resumeFromRunId, same-session, historiquement peu fiable). args.resume=true → on RELIT
 // les checkpoints incrémentaux de themeDir/.monograph/ et on saute le travail déjà fait (Sweep+Plan,
@@ -497,6 +498,14 @@ const buildPrompt = (expectIds) => [
   ...(expectIds && expectIds.length ? [
     `   Si l'échec est « sections du manifeste ≠ sections attendues » : réinsère la/les section(s) manquante(s) dans manifest.json à leur place dans l'ordre du plan, en recopiant {"type":"section","id","heading","level":3,"prose","claims"} depuis ${themeDir}/sections_draft.json (écrit par CE run), puis relance. Ne retire JAMAIS le flag --expect-sections pour faire passer le build.`,
   ] : []),
+  `1bis) Exécute : python3 "${contrasteScript}" "${themeDir}"`,
+  `   Mesure le contraste RÉEL de chaque texte du document bâti, en thème sombre (exit 0 = propre, exit 2 = occurrences sous 3:1).`,
+  `   Un widget peut être syntaxiquement correct et illisible en sombre : dès qu'il mélange un jeton de la charte pour l'encre et une valeur littérale pour le fond, le couple casse à la bascule. Aucune relecture ne l'attrape, seule cette mesure le voit.`,
+  `   Pour chaque occurrence, "fondDe" désigne l'élément qui peint le fond, donc le widget à corriger dans ${themeDir}/widgets/ ; "famille" dit laquelle des trois réparations s'applique :`,
+  `   - fond_clair_en_dur : fond littéral sans règle sombre → donner au couple fond+encre sa règle html[data-theme="dark"], ou tirer les DEUX des jetons ;`,
+  `   - miroir : encre littérale claire sur un jeton qui s'ÉCLAIRCIT en sombre (--blue, --bordeaux) → passer par un jeton --<prefix>-onbright (#fff en clair, encre sombre en sombre) ;`,
+  `   - encre_en_dur : le fond est le bon jeton sombre, c'est l'encre littérale qu'il faut basculer.`,
+  `   Relance build.py PUIS ce lint jusqu'à exit 0. Ne baisse JAMAIS --seuil et ne retire jamais le contrôle pour faire passer.`,
   `2) Lis ${themeDir}/knowledge.json et vérifie l'acceptation Phase 2 :`,
   `   - chaque claim "audit":"confirmed" a AU MOINS 2 entrées dans "sources" → all_confirmed_have_2plus_sources ;`,
   `   - et ces entrées VALENT comme preuve : compter le RANG, pas seulement le NOMBRE. Ne comptent PAS`,

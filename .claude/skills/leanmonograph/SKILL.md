@@ -137,6 +137,10 @@ thème corrigé, RED (exit 2) quand on retire un hedge.
   d'introduire un fait précis de mémoire ; le lint + l'Audit-prose ferment la boucle.
 - `build.py` échoue bruyamment (référence manquante, balise déséquilibrée, `file:///`, jeton
   non substitué).
+- Le **contraste en thème sombre est mesuré, pas relu** : `lint_contraste_sombre.py`
+  ouvre le document bâti, force `data-theme="dark"` et relève tout texte sous 3:1 (exit 2).
+  Un widget qui mélange un jeton de la charte pour l'encre et une valeur littérale pour le
+  fond est syntaxiquement correct et illisible en sombre — seule la mesure le voit.
 
 ## Itérer
 
