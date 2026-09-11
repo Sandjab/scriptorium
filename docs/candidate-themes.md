@@ -155,8 +155,8 @@ priorité. Cinq constats ont décidé des verdicts :
 
 **Têtes de file de cette passe** — IA : `ia-competences-deskilling-apprentissage` (FAIT le
 2026-09-02 ; il a ouvert `ai-organizations`, et **plus aucun domaine n'est sans portail** — la règle
-du 2026-08-27 n'a donc plus d'objet pour l'instant) ; santé : `glp1-hors-poids`,
-`desir-sexuel-hypoactif`, `osteoporose-pharmacologie` (table d'ordre de lancement révisée dans la
+du 2026-08-27 n'a donc plus d'objet pour l'instant) ; santé : `glp1-hors-poids` (FAIT le
+2026-09-09), `desir-sexuel-hypoactif`, `osteoporose-pharmacologie` (table d'ordre de lancement révisée dans la
 section santé). ⚠️ Les pistes chiffrées des prompts ajoutés ci-dessous viennent de la mémoire du
 rédacteur et des rapports de lecture, **sans balayage web** : à corroborer en source primaire au
 Sweep, jamais des faits ; si une piste ne se corrobore pas, la retirer.
@@ -1639,7 +1639,7 @@ décisions :
 | ~~5~~ | ~~`ejaculation-precoce`~~ | FAIT 2026-08-29 | `fonction-sexuelle` (**portail ouvert** — chantier du 43e run refermé) |
 | ~~6~~ | ~~`cafeine-cognition-vigilance`~~ | FAIT 2026-08-27 | `performance-cognitive` (3e thème du domaine) |
 | ~~7~~ | ~~`omega-3`~~ | FAIT 2026-08-30 | `complements-sante` (3e thème, **2e du parcours**) |
-| 8 | `acide-alpha-lipoique` | moyenne-haute | `complements-sante` |
+| ~~8~~ | ~~`acide-alpha-lipoique`~~ | FAIT 2026-09-11 | `complements-sante` |
 | 9 | `beta-alanine-tampons` | moyenne | `nutrition-sportive` |
 | ~~10~~ | ~~`microdosage-psychedeliques`~~ | FAIT 2026-08-27 | `performance-cognitive` (4e thème du domaine) |
 | ~~11~~ | ~~`nootropiques-panorama`~~ | FAIT 2026-08-28 | `performance-cognitive` (**capstone : REFERME le domaine à 5 thèmes**) |
@@ -1667,12 +1667,12 @@ ci-dessus restent valables et sont reclassés dans cette table) :
 
 | # | thème | priorité | domaine | pourquoi en tête |
 |---|---|---|---|---|
-| 1 | `glp1-hors-poids` | haute | `pharmacologie-metabolique` | le pivot nomme le piège lui-même ; 5 phases 3 publiées (FLOW, STEP-HFpEF, SURMOUNT-OSA, ESSENCE) + 1 échec (EVOKE) : seuil ≥ 2 atteignable |
+| ~~1~~ | ~~`glp1-hors-poids`~~ | FAIT 2026-09-09 (53e run) | `pharmacologie-metabolique` (2e thème, après `incretines-glp1`) | — |
 | 2 | `desir-sexuel-hypoactif` | haute | `fonction-sexuelle` | 3 objets nommés désignent le désir ; corrige l'asymétrie homme/femme ; saga FDA d'école |
 | 3 | `osteoporose-pharmacologie` | haute | `muscle-vieillissement` (blurb à élargir à l'os) | la thèse du domaine (le substitut ne prédit pas) écrite 3 fois, jamais éprouvée sur les molécules faites POUR l'os |
 | 4 | `nitrates-betterave` | moyenne-haute | `nutrition-sportive` | seul membre du Groupe A de l'AIS sans candidat, nommé 2 fois par le corpus |
 | ~~5~~ | ~~`melatonine`~~ | FAIT 2026-09-05 (52e run, hors séquence) | `complements-sante` (4e thème) | — |
-| 6 | `acide-alpha-lipoique` | moyenne-haute | `complements-sante` | inchangé (no 8 ci-dessus) |
+| ~~6~~ | ~~`acide-alpha-lipoique`~~ | FAIT 2026-09-11 (54e run) | `complements-sante` (5e thème) | — |
 | 7 | `fer-supplementation` | moyenne | `complements-sante` | miroir exact de `vitamine-d` (seuils contestés) avec un bénéfice réel et un vrai risque |
 | 8 | `entrainement-cognitif-commercial` | moyenne | `performance-cognitive` (rouvrir UNE fois) | gap total ; l'amende FTC Lumosity fait pendant au veto sur l'allégation caféine |
 | 9 | `medicaments-du-poids-retires` | moyenne | `pharmacologie-metabolique` | 85 % neuf ; le Mediator, angle français absent du corpus |
@@ -1915,59 +1915,75 @@ annonce.
 - **magnesium** (basse) — carence réelle vs marketing, formes (citrate, bisglycinate,
   oxyde), sommeil/crampes/anxiété : tri par niveau de preuve.
 
-### Acide alpha-lipoïque — `acide-alpha-lipoique` → `complements-sante`
-**Verdict : gap réel (moyenne-haute), mais PAS où on l'attend.** Zéro occurrence dans les
-76 documents. Le piège est de le ranger en amincissant : les méta-analyses donnent −1,27 kg
-(Kucukgoncu 2017, *Obesity Reviews*) et −0,69 kg / −0,38 kg/m² (Namazi 2018, *Clin Nutr*), soit
-exactement l'ordre de grandeur du CLA (−0,35), de la L-carnitine (−1,21) et du picolinate de
-chrome (−0,50 à −1,1) **déjà jugés molécule par molécule** dans `complements-amincissants` — un
-4e verdict en fraction de kilo n'apprendrait rien, la graduation et le verdict de catégorie sont
-posés. L'angle qui vaut le run est ailleurs : c'est le rare complément dont la meilleure preuve
-porte sur une **indication clinique étroite** (neuropathie diabétique périphérique), avec une
-variable que le corpus n'a jamais traitée — **la voie d'administration décide de l'effet**
-(IV vs orale vs séquentielle). Il s'assied à cheval sur la gradation du méta-domaine
-(nutrition → complément libre → ordonnance) puisqu'il est délivré sur prescription en Allemagne.
+(`acide-alpha-lipoique` : **FAIT le 2026-09-11**, retiré du backlog — 54e run /leanmonograph,
+5e thème de `complements-sante`. 12 sections, 48 claims **31 ✓ / 11 corrigés / 6 rejetés**,
+44 sources, 5 figures + 1 sonde interactive ; **~14,2 M tok / 192 agents / 3 lancements**, très
+au-dessus de la fourchette annoncée. Le pari du backlog était juste : l'angle ne devait PAS être
+la minceur, et la voie d'administration porte tout le document. Titre : « L'acide alpha-lipoïque :
+perfusé, avalé, deux dossiers de preuve ».
 
-> L'acide alpha-lipoïque (ALA, acide thioctique) : ce que la preuve établit indication par
-> indication. Couvrir la neuropathie diabétique périphérique comme dossier principal — lignée
-> ALADIN / SYDNEY / NATHAN 1, méta-analyses et network meta-analysis bayésienne comparant voies
-> orale, intraveineuse et séquentielle, doses 600–1 800 mg/j, scores TSS/NIS et ce qu'un score
-> symptomatique mesure réellement ; la dissociation entre effet aigu IV et effet oral au long
-> cours ; la sensibilité à l'insuline et les marqueurs métaboliques ; le poids uniquement pour
-> **situer** l'ordre de grandeur contre le seuil réglementaire des 5 %, pas pour refaire le
-> verdict du rayon. Sécurité : vérifier le signal de **syndrome insulinique auto-immun**
-> (hypoglycémies, allèle HLA-DRB1*04:06, séries japonaises et coréennes) — annoncé comme piste,
-> à corroborer ou à écarter au sweep, ne pas l'affirmer sur une source unique. Traiter aussi le
-> racémique vs R-énantiomère et le statut réglementaire dissocié (complément ici, médicament sur
-> prescription en Allemagne). Délimitations : `complements-amincissants` a rendu le verdict
-> minceur du rayon et posé la graduation FDA/GLP-1 — ne pas la refaire ; `vitamine-d` fournit le
-> patron « verdict par indication » ; `berberine` le patron « mécanisme cellulaire ≠ effet humain ».
-> Domaine : complements-sante.
+⚠️ **Deux erreurs de prémisse du brief corrigées par le pipeline.** (1) En Allemagne, le thioctique
+n'est PAS sur ordonnance : sa fiche officielle le classe « Apothekenpflichtig », vente réservée à
+la pharmacie sans ordonnance. La dissociation réglementaire porte sur l'existence d'une AMM et
+d'une indication reconnue, jamais sur l'ordonnance — le council l'a établi sur lecture du PDF.
+(2) Le backlog annonçait la voie IV/orale/séquentielle comme départageable par une network
+meta-analysis ; elle ne l'est pas (voir ci-dessous).
 
+**7e arrêt au garde-fou d'élagage, DEUX fois sur la même section** — et la réparation a trouvé
+beaucoup mieux qu'une réparation :
+- **La preuve du champ appartient à un seul industriel.** Sur les 9 essais du réseau, 6 sont de la
+  lignée ALADIN / ORPIL / SYDNEY / SYDNEY 2 / NATHAN 1, conduite ou cosignée par le même
+  investigateur et financée par ASTA Medica → MEDA Pharma → Viatris. **La totalité des essais qui
+  alimentent les scores NIS et NIS-LL en font partie** ; les 3 essais indépendants (Mexique, Corée
+  du Sud, Pakistan) ne rapportent que le TSS et sont **tous les trois** parmi les 4 écartés pour
+  haut risque de biais. Le réseau « nettoyé » ne contient plus que des essais du fabricant. Les
+  3 essais de la revue Cochrane 2024 sont eux aussi de cette lignée.
+- **Un rang n'est pas une taille d'effet** : le SUCRA de 97,4 % de la voie orale sur le NIS-LL
+  coiffe un effet (−0,78, IC 95 % [−1,31 à −0,26]) dont l'intervalle entier reste sous le seuil de
+  pertinence clinique de 2 points retenu par Cochrane.
+- **CLASSE NOUVELLE — la scission de bras À L'INTÉRIEUR d'une méta-analyse.** Le seul essai
+  comparant des modalités dans un même protocole (Lee, Min & Han, *J Korean Diabetes Assoc* 2006)
+  est un essai à **DEUX bras** — séquentiel (n = 21) contre oral (n = 24), 45 analysables sur 50
+  randomisés — **sans aucun bras de perfusion isolée**. La network meta-analysis en fait un essai
+  à trois bras de 66 patients en coupant l'unique bras séquentiel en deux nœuds selon le moment de
+  mesure, ce qui fabrique une comparaison directe jamais menée (les caractéristiques démographiques
+  de son nœud « IV » sont identiques à celles du groupe séquentiel de la publication primaire).
+  Symétrique interne de [[false-independence-by-source-splitting]]. Trouvé en lisant le PDF
+  primaire après que l'agent de build a REFUSÉ de valider un `confirmed` mono-source — 4e fois
+  qu'il a raison de refuser.
+- **Faux positif instructif** : une suspicion de statistique transposée (I² de 85,5 % soupçonné
+  d'être un SUCRA lu de travers, les deux valeurs coïncidant à la décimale) a été VÉRIFIÉE à la
+  source et INFIRMÉE — les deux grandeurs sont publiées telles quelles, la coïncidence est
+  fortuite, la prose était juste. Vérifier avant de corriger vaut dans les deux sens.
+- **Appareil nettoyé** : 7 paires de sources qui étaient le même travail sous deux adresses
+  (PubMed contre éditeur, PMC contre éditeur), dont 2 introduites par les réparations elles-mêmes.
+  50 → 44 sources, bijection knowledge/bibliographie vérifiée dans les deux sens.
+- ⚠️ **La sonde interactive affirmait le réseau faux** : ses trois arêtes de comparaison directe
+  viennent toutes de l'essai coréen. Mention ajoutée sous la légende, contraste mesuré 5,2 en
+  sombre et 5,6 en clair.
+- ⚠️ **BUG DE REPRISE CORRIGÉ DANS `workflow.js`** : le chargeur demandait `research.json` verbatim
+  à l'agent d'index. À 74 ko le champ revenait tronqué, `safeParse` rendait null, et la reprise
+  repartait en **Sweep+Plan frais avec de nouveaux ids de section**, orphelinant tous les
+  checkpoints réparés. Panne silencieuse, 4,5 M tok perdus. Lu désormais **clé par clé**, comme les
+  sections. Voir [[leanmonograph-resume-research-trop-gros]].
+- Lint final : exit 2 sur 4 signalements, tous adjugés OK deux fois (un passage qui RÉFUTE, deux
+  libellés de bibliographie, une collision numérique I²/SUCRA vérifiée à la source).
+  `low_rank_sources` sans bloquant, `prose_style` sous les seuils (médiane 19 mots).
+- ⚠️ Reste à faire : `/arrange acide-alpha-lipoique` (le thème n'est pas encore dans
+  `tools/taxonomy.json` ni au portail `complements-sante`).)
 
-### Mélatonine — `melatonine` → `complements-sante`
-**Verdict : gap réel — mot absent du corpus, ouvre la cible « sommeil » (ajout 2026-09-01).**
-« Mélatonine », « décalage horaire », « circadien » : 0 occurrence dans les 89 thèmes. La latence
-d'endormissement n'est mesurée qu'une fois, comme dommage de la caféine (« s'allonge de 8,35
-minutes », `cafeine-cognition-vigilance`). Le sommeil n'existe dans le corpus que comme stresseur
-(privation) ou comme effet indésirable ; aucun document ne traite d'un produit vendu POUR dormir.
-
-> La mélatonine au tamis des essais : une hormone vendue comme somnifère. Couvrir ce qu'elle est
-> (chronobiotique, pas hypnotique — et pourquoi la distinction commande tout), l'effet mesuré sur
-> l'insomnie (méta-analyses : latence d'endormissement raccourcie de quelques minutes — ≈ 7 min —,
-> temps total de sommeil peu changé ; à corroborer), le décalage horaire (Cochrane : là où l'effet
-> est le mieux établi), la dose et l'heure (0,5 mg vs 5 mg : plus n'est pas mieux ; l'heure de
-> prise décide du sens de l'effet), les formes à libération prolongée (Circadin 2 mg, prescription
-> après 55 ans en Europe), enfants et TDAH (usage massif, preuve étroite), la divergence
-> réglementaire (complément en vente libre aux États-Unis, médicament ou plafond de dose en Europe
-> — en France, avis ANSES 2018 et seuil réglementaire à vérifier), le contenu réel des produits
-> (Erland & Saxena 2017 : de −83 % à +478 % de l'étiquette, sérotonine détectée), la sécurité
-> (somnolence, interactions, grossesse, surdosages pédiatriques rapportés aux centres antipoison)
-> et ce que le marketing « naturel » cache. Public : lecteur exigeant non spécialiste.
-> Délimitations : `cafeine-cognition-vigilance` tient la privation de sommeil et la sieste
-> (renvoi, ne pas redérouler) ; `complements-amincissants` a posé le patron « contenu réel des
-> gélules » (le citer). Doctrine de preuve santé à recopier intégralement dans le brief. Domaine :
-> complements-sante.
+(`melatonine` : **FAIT le 2026-09-05**, retiré du backlog — 52e run /leanmonograph, hors
+séquence, 4e thème de `complements-sante`, ouvre la cible « sommeil ». 11/12 sections retenues,
+42 claims **23 ✓ / 14 corrigés / 5 rejetés** après ré-adjudication (25/11/6 au build), 66 sources,
+4 figures + 1 sonde ; 7,65 M tok / 95 agents / 3 h 43, un seul lancement. **La section
+réglementaire est tombée en silence** : l'Extract a rendu `claims: []` et le garde-fou d'élagage
+ne teste que les claims rejetés — ses 11 notes sourcées (EPAR, DSHEA, arrêté de 2015 annulé par
+le Conseil d'État) n'ont jamais été soumises au council. 5e occurrence du trou d'acceptation :
+`low_rank_sources` sorti VIDE alors que trois reprises de presse et des miroirs servaient
+d'appareil à des `confirmed` ; 5 jurés de ré-adjudication lancés après le run. Deux jurés
+avaient vérifié leur chiffre verbatim dans un ÉDITORIAL commentant l'article, à un chiffre
+d'écart dans l'identifiant PMC. Le claim mono-source sur le contenu réel des produits (Erland &
+Saxena 2017) a été regrainé au phénomène et tenu sur trois travaux indépendants.)
 
 ### Fer et supplémentation — `fer-supplementation` → `complements-sante`
 **Verdict : gap réel — miroir de `vitamine-d` (ajout 2026-09-01).** « Ferritine », « hepcidine »,
@@ -2228,36 +2244,21 @@ neuf : ici la cible existait (`proteines-besoins-timing`), c'est son **contenu**
 correspondait pas.
 
 
-### Les GLP-1 hors du poids — `glp1-hors-poids` → `pharmacologie-metabolique`
-**Verdict : gap réel — HAUTE, désigné par le pivot lui-même (ajout 2026-09-01).** `incretines-glp1`
-(14 sections lues) écrit dans `obesite-step-surmount` : « Un dernier déplacement guette, plus
-insidieux que le précédent : celui qui consiste à traiter la perte de poids comme le seul résultat de
-la classe. » Puis il n'en traite qu'un contre-exemple, SELECT en section entière (HR 0,80, médiation
-« un tiers seulement du bénéfice attribuable au tour de taille »), l'HbA1c, et deux mentions de
-TRIUMPH. MASH, NASH, FLOW, HFpEF, apnée, EVOKE, SOPK : 0 occurrence dans les 5 thèmes ;
-« Alzheimer » n'existe qu'en performance-cognitive, « alcool » qu'à propos de la caféine et des PDE5.
-Littérature la plus mûre des candidats du domaine (phases 3 au NEJM), donc compatible avec le seuil
-≥ 2 sans forcer. La grille de lecture est déjà écrite dans `signaux-controverses` : « "Aucun signal
-observé" ne vaut que si le paramètre concerné a été mesuré. »
-
-> Ce que les agonistes du GLP-1 font hors de la balance : indication autorisée contre effet de
-> classe. Couvrir, organe par organe et essai par essai : le foie (MASH — ESSENCE, sémaglutide,
-> résolution histologique, AMM 2025 aux États-Unis ; à corroborer), le rein (FLOW : critère composite
-> rénal, arrêt anticipé pour efficacité), l'insuffisance cardiaque à fraction préservée
-> (STEP-HFpEF : symptômes et poids, pas mortalité — ce que le critère mesure), l'apnée du sommeil
-> (SURMOUNT-OSA, tirzépatide, IAH et AMM), le cerveau (EVOKE/EVOKE+ : échec annoncé fin 2025 dans
-> l'Alzheimer — l'essai négatif comme résultat central), les addictions (alcool : petits essais et
-> cohortes, pas d'AMM), le SOPK (promesse sans essai de taille), l'arthrose (TRIUMPH-4 déjà
-> nommé), et ce qui sépare une AMM d'un effet de classe (qui a payé l'essai, quelle molécule, quelle
-> dose, quel critère). Sécurité par indication (pancréas, vésicule, gastroparésie, ce que chaque
-> essai a mesuré). Fil rouge : le déplacement du poids vers l'organe, et ce que chaque essai n'a
-> PAS regardé. Public : lecteur exigeant non spécialiste. ⚠️ Délimitations strictes :
-> `incretines-glp1` tient STEP/SURMOUNT/SELECT, l'HbA1c, le pipeline et le compounding — PARTIR de
-> sa section « obesite-step-surmount » et de SELECT, ne rien redérouler ; `masse-maigre-sous-glp1`
-> tient la composition corporelle ; `berberine` et `complements-amincissants` tiennent les
-> substituts. Règle du promoteur (déjà écrite dans l'écosystème d'incretines) : un communiqué compte
-> comme la même source que l'essai qu'il annonce. Doctrine de preuve santé à recopier
-> intégralement dans le brief. Domaine : pharmacologie-metabolique.
+(`glp1-hors-poids` : **FAIT le 2026-09-09**, retiré du backlog — 53e run /leanmonograph,
+classé dans `pharmacologie-metabolique` **juste après `incretines-glp1`**. 11 sections, 44 claims
+**28 ✓ / 13 corrigés / 3 rejetés** après ré-adjudication, 93 sources en bijection avec la
+bibliographie ; 8,45 M tok / 104 agents / 3 h 49. **4 claims re-adjugés après le run par six
+jurés indépendants** (deux par claim), parce que le contrôle d'acceptation compte les sources sans
+juger ce qu'elles valent : trois affirmaient une indépendance fausse (quatre comptes rendus d'un
+seul travail EVOKE ; un papier et le service de réactions d'experts qui le commente ; quatre
+reprises de presse et le communiqué de l'université qui a conduit l'essai), et un portait une
+erreur de fond — un critère secondaire préenregistré qui a ÉCHOUÉ (verres par jour) donné pour
+positif, confondu avec une mesure exploratoire significative. Le chiffre de CRP « ~30 % », qui ne
+vivait que dans une couverture de congrès, est retiré du texte et de la figure. L'absence d'AMM
+dans l'alcool est établie positivement sur deux travaux réglementaires distincts ; les paramètres
+de CRAVE sont passés en exception `document-source` déclarée. L'AMM MASH (supplément NDA
+215256/S-024, 15 août 2025) vérifiée contre l'alerte d'un juré partie d'un instantané openFDA
+périmé.)
 
 ### Les médicaments du poids retirés du marché — `medicaments-du-poids-retires` → `pharmacologie-metabolique`
 **Verdict : gap réel à 85 % (ajout 2026-09-01).** `complements-amincissants` porte tout ce qui existe :

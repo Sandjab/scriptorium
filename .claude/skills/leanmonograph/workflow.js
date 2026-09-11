@@ -183,9 +183,8 @@ const S_CKPT = { type:'object', additionalProperties:false, required:['written']
 // section — évite le plafond de sortie 32k du loader monolithique sur les gros thèmes.
 // I/O interne (recopie verbatim de gros fichiers) : additionalProperties TOLÉRÉ — un champ
 // parasite émis en fin de génération ne doit pas invalider 79 Ko de contenu correct.
-const S_LOAD_INDEX = { type:'object', additionalProperties:true, required:['sec_ids','research','widgets','prose'], properties:{
+const S_LOAD_INDEX = { type:'object', additionalProperties:true, required:['sec_ids','widgets','prose'], properties:{
   sec_ids:{ type:'array', items:{type:'string'} },   // ids extraits des noms sec-<id>.json
-  research:{type:'string'},                           // contenu verbatim de research.json ("" si absent)
   widgets:{type:'string'},                            // contenu verbatim de widgets.json ("" si absent)
   prose:{type:'string'} } };                          // contenu verbatim de prose.json ("" si absent)
 const S_LOAD_ONE = { type:'object', additionalProperties:true, required:['content'], properties:{ content:{type:'string'} } };
@@ -658,12 +657,32 @@ if (RESUME) {
     const idx = await A([
       `Lis l'état de reprise dans ${ckptDir}/ (ce dossier peut ne pas exister — alors tout est vide).`,
       `- sec_ids : liste (via ls/Bash) les fichiers ${ckptDir}/sec-*.json et rends la partie <id> de chaque nom (sec-<id>.json). Tableau vide si aucun.`,
-      `- research : si ${ckptDir}/research.json existe, rends son contenu EXACT (verbatim) ; sinon "".`,
       `- widgets : si ${ckptDir}/widgets.json existe, rends son contenu EXACT ; sinon "".`,
       `- prose : si ${ckptDir}/prose.json existe, rends son contenu EXACT ; sinon "".`,
       `N'écris, ne crée, ne modifie RIEN. Verbatim : ne reformate pas, ne tronque pas.`,
     ].join('\n'), { schema: S_LOAD_INDEX, model: M_IO, phase: 'Sweep', label: 'resume-index' });
-    loadedResearch = safeParse(idx.research, 'research.json');
+    // research.json est lu CLÉ PAR CLÉ, jamais d'un bloc. Sur un thème dense il pèse 74 ko
+    // (112 findings) : demandé dans l'index, le champ revenait vide ou tronqué, `safeParse`
+    // rendait null, et le run repartait en Sweep+Plan FRAIS — avec de NOUVEAUX ids de section,
+    // ce qui orphelinait tous les checkpoints, y compris les ré-adjudications faites à la main.
+    // Panne silencieuse : le seul symptôme était la ligne « research=non ». Coût constaté au
+    // 54e run : 4,5 M tokens et un council entier rejoués. Même remède que pour les sections.
+    const readResearchKey = (key) =>
+      A(`Rends le contenu EXACT (verbatim, sans reformater ni tronquer) de la VALEUR de la clé « ${key} » du fichier ${ckptDir}/research.json — le JSON de cette seule clé, rien d'autre. Si le fichier ou la clé n'existe pas, rends "". N'écris, ne crée, ne modifie RIEN.`,
+        { schema: S_LOAD_ONE, model: M_IO, phase: 'Sweep', label: `resume-research:${key}` });
+    const [rArch, rSources, rFindings] = await parallel(
+      ['arch', 'allSources', 'allFindings'].map(k => () => readResearchKey(k)));
+    const pArch = rArch && safeParse(rArch.content, 'research.json:arch');
+    const pSources = rSources && safeParse(rSources.content, 'research.json:allSources');
+    const pFindings = rFindings && safeParse(rFindings.content, 'research.json:allFindings');
+    // `arch` seul est indispensable : sans lui il n'y a pas de plan à reprendre. Les findings
+    // ne servent qu'aux sections SANS checkpoint ; on reprend même s'ils manquent, mais on le
+    // DIT — une extraction sur findings vides fabrique une section à `claims: []` qui tombe
+    // ensuite en silence.
+    if (pArch) {
+      loadedResearch = { arch: pArch, allSources: pSources || [], allFindings: pFindings || [] };
+      if (!pFindings) log(`⚠️ [resume] allFindings NON rechargé : toute section sans checkpoint serait extraite À VIDE. Vérifier que chaque section du plan a son sec-<id>.json.`);
+    }
     loadedWidgets = safeParse(idx.widgets, 'widgets.json');
     loadedProse = safeParse(idx.prose, 'prose.json');
     const secIds = idx.sec_ids || [];
