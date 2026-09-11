@@ -1819,6 +1819,21 @@ consensus : attendre des rejets au seuil, et un seuil (30 kcal/kg de masse maigr
 
 ## `complements-sante`
 
+> **État au 2026-09-11 : 5 thèmes** — `vitamine-d`, `omega-3`, `collagene`,
+> `acide-alpha-lipoique`, `melatonine` (ordre du parcours du portail). **Deux patrons sont
+> désormais OCCUPÉS dans ce domaine : ne pas les redérouler dans un brief suivant, y renvoyer.**
+> (1) *La preuve qui appartient à qui vend le produit* — posée par `collagene` (les essais ne
+> sortent pas de la filière) et poussée à son extrême par `acide-alpha-lipoique` (les essais
+> indépendants existent, et c'est le filtre de qualité qui les élimine tous). Un troisième
+> document sur ce thème n'apprendrait rien : le citer, et n'y revenir que si un cas change la
+> MÉCANIQUE, pas l'intensité.
+> (2) *La voie d'administration comme variable de décision* — `acide-alpha-lipoique` la tient
+> entièrement (perfusé contre avalé, deux dossiers de preuve pour une même molécule). Un candidat
+> qui voudrait la reprendre doit apporter autre chose qu'un second exemple.
+> ⚠️ Reste inoccupé et disponible dans ce domaine : le **seuil biologique contesté** (`vitamine-d`
+> le pose, `fer-supplementation` en est le miroir annoncé), et la **littérature par souche ou par
+> formulation** (`probiotiques`).
+
 (`collagene` : FAIT le 2026-08-12, retiré du backlog — 34e run /leanmonograph, 6e thème
 santé : GREEN, 10/10 sections, 37 claims 21✓/9corr/7rej, 72 sources, 3 widgets + figures ;
 6,55M tok / 95 agents / 3 h 24 en un seul run. **Crée le domaine `complements-sante`**, classé
