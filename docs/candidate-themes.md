@@ -1673,6 +1673,7 @@ ci-dessus restent valables et sont reclassés dans cette table) :
 | 4 | `nitrates-betterave` | moyenne-haute | `nutrition-sportive` | seul membre du Groupe A de l'AIS sans candidat, nommé 2 fois par le corpus |
 | ~~5~~ | ~~`melatonine`~~ | FAIT 2026-09-05 (52e run, hors séquence) | `complements-sante` (4e thème) | — |
 | ~~6~~ | ~~`acide-alpha-lipoique`~~ | FAIT 2026-09-11 (54e run) | `complements-sante` (5e thème) | — |
+| ~~6 bis~~ | ~~`allegations-sante-regimes-compares`~~ | FAIT 2026-09-12 (55e run, hors séquence, né de l'inventaire « tour de taille » du 2026-09-11) | `complements-sante` (6e thème, clôture du parcours) | — |
 | 7 | `fer-supplementation` | moyenne | `complements-sante` | miroir exact de `vitamine-d` (seuils contestés) avec un bénéfice réel et un vrai risque |
 | 8 | `entrainement-cognitif-commercial` | moyenne | `performance-cognitive` (rouvrir UNE fois) | gap total ; l'amende FTC Lumosity fait pendant au veto sur l'allégation caféine |
 | 9 | `medicaments-du-poids-retires` | moyenne | `pharmacologie-metabolique` | 85 % neuf ; le Mediator, angle français absent du corpus |
@@ -1819,9 +1820,10 @@ consensus : attendre des rejets au seuil, et un seuil (30 kcal/kg de masse maigr
 
 ## `complements-sante`
 
-> **État au 2026-09-11 : 5 thèmes** — `vitamine-d`, `omega-3`, `collagene`,
-> `acide-alpha-lipoique`, `melatonine` (ordre du parcours du portail). **Deux patrons sont
-> désormais OCCUPÉS dans ce domaine : ne pas les redérouler dans un brief suivant, y renvoyer.**
+> **État au 2026-09-12 : 6 thèmes** — `vitamine-d`, `omega-3`, `collagene`,
+> `acide-alpha-lipoique`, `melatonine`, `allegations-sante-regimes-compares` (ordre du parcours du
+> portail). **Trois patrons sont désormais OCCUPÉS dans ce domaine : ne pas les redérouler dans un
+> brief suivant, y renvoyer.**
 > (1) *La preuve qui appartient à qui vend le produit* — posée par `collagene` (les essais ne
 > sortent pas de la filière) et poussée à son extrême par `acide-alpha-lipoique` (les essais
 > indépendants existent, et c'est le filtre de qualité qui les élimine tous). Un troisième
@@ -1830,6 +1832,11 @@ consensus : attendre des rejets au seuil, et un seuil (30 kcal/kg de masse maigr
 > (2) *La voie d'administration comme variable de décision* — `acide-alpha-lipoique` la tient
 > entièrement (perfusé contre avalé, deux dossiers de preuve pour une même molécule). Un candidat
 > qui voudrait la reprendre doit apporter autre chose qu'un second exemple.
+> (3) *Le régime d'allégations comme instrument de lecture* — `allegations-sante-regimes-compares`
+> tient la comparaison UE (1924/2006, « on hold »), Japon (FOSHU contre FFC, crise Kobayashi et
+> réforme), Corée (MFDS, réévaluation) et États-Unis (FTC, standard de substantiation, sanctions),
+> sur le cas d'école de la graisse abdominale. Tout brief qui touche une allégation, un avis EFSA
+> ou une sanction FTC y RENVOIE (deux phrases) au lieu de refaire le régime.
 > ⚠️ Reste inoccupé et disponible dans ce domaine : le **seuil biologique contesté** (`vitamine-d`
 > le pose, `fer-supplementation` en est le miroir annoncé), et la **littérature par souche ou par
 > formulation** (`probiotiques`).
@@ -2000,6 +2007,29 @@ avaient vérifié leur chiffre verbatim dans un ÉDITORIAL commentant l'article,
 d'écart dans l'identifiant PMC. Le claim mono-source sur le contenu réel des produits (Erland &
 Saxena 2017) a été regrainé au phénomène et tenu sur trois travaux indépendants.)
 
+(`allegations-sante-regimes-compares` : **FAIT le 2026-09-12**, hors backlog — 55e run
+/leanmonograph, 6e thème de `complements-sante`, né de l'inventaire « médicaments et compléments
+à claim de tour de taille » du 2026-09-11 (4 agents ; conclusion : le tour de taille est partout
+un critère, nulle part une indication hors la tésamoréline, et le régime d'allégations est la
+seule vraie trouvaille). Audit de couverture PAR LECTURE avant lancement (4 monographies en
+entier, 2 en ciblé) : gap partiel — FOSHU/FFC, MFDS, la FTC comme régime et les sanctions pour
+publicité trompeuse absents du corpus ; DSHEA et la mécanique EFSA déjà écrits, posés en renvois.
+11 sections, 44 claims **25 ✓ / 17 corrigés / 2 rejetés sains** (deux comptages : un effectif
+coréen sans date, une statistique FFC mono-source hedgée), 115 sources, 1 widget (une allégation
+jouet traverse cinq pipelines jusqu'à convergence), tableau de verdicts ingrédient × allégation ;
+**8,41 M tok / 101 agents / 3 h 05, un seul lancement** (un premier lancement tué à cinq minutes :
+un agent de Sweep avait rendu un JSON invalide, que `parallel()` avale — relancer frais a coûté
+six agents). Le council a corrigé le brief : l'EFSA n'a pas rejeté « deux fois » la réduction de
+masse grasse du CLA, l'avis de 2010 ne l'évaluait pas. Titre : « Allégations de santé : quatre
+régimes pour une même preuve ». **Backstop décisif sur la section sécurité** (PDF MHLW et deck
+CAA lus en texte intégral) : l'annonce Kobayashi du 22 mars 2024 ne comportait aucun décès (cinq
+annoncés du 26 au 29 mars), les « 94 000 consultations » étaient des appels au centre client, et
+le bilan « 408 décès signalés » est un décompte de l'entreprise compilé par le ministère dans son
+dernier tableau du 17 mars 2025, pas « la presse citant le ministère » ; une clause « échantillon
+d'emballage » au 1er avril 2025 n'existait dans aucune source et a été retirée. Ces chiffres
+venaient du champ `examples` des claims, canal de prose que le council ne juge pas. Vérifié en
+ligne byte-identique le 2026-09-12.)
+
 ### Fer et supplémentation — `fer-supplementation` → `complements-sante`
 **Verdict : gap réel — miroir de `vitamine-d` (ajout 2026-09-01).** « Ferritine », « hepcidine »,
 « anémie », « carence martiale » : 0 occurrence ; « fer » n'apparaît qu'au sens du fer à repasser. Le
@@ -2064,7 +2094,11 @@ organisée par souche et non par molécule : run coûteux (beaucoup de claims mo
 > le mot « probiotique » lui-même interdit sur l'étiquette en Europe — à vérifier). Public : lecteur
 > exigeant non spécialiste. Délimitations : `berberine` tient le microbiote comme voie
 > métabolique ; `complements-amincissants` a posé le patron « contenu réel » ; `nootropiques-vegetaux`
-> le patron « allégations EFSA comme instrument de lecture ». ⚠️ Prévoir que les claims porteurs
+> le patron « allégations EFSA comme instrument de lecture » ; **`allegations-sante-regimes-compares`
+> (55e run) tient DÉJÀ le cas L. gasseri SBT2055 (notifié FFC puis autorisé FOSHU, même mécanisme,
+> autre garant) et le cadre réglementaire des allégations (EFSA, FOSHU/FFC, MFDS, FTC)** : ne pas
+> les redérouler, renvoyer ; le mot « probiotique » interdit sur l'étiquette en Europe reste à
+> vérifier ici, il n'y est pas traité. ⚠️ Prévoir que les claims porteurs
 > seront des SYNTHÈSES par indication, les résultats par souche restant en prose attribuée.
 > Doctrine de preuve santé à recopier intégralement dans le brief. Domaine : complements-sante.
 
@@ -2622,7 +2656,10 @@ domaine (exercice, sommeil, nicotine) : voir « Écartés ».
 > approuvés, EndeavorRx). Public : lecteur exigeant non spécialiste. Délimitations : les 5 thèmes du
 > domaine tiennent les substances — partir de leur thèse commune (l'effet est conditionnel à la
 > tâche et à la ligne de base) et la tester sur un objet non pharmacologique ; `creatine` tient le
-> versant cognitif de la créatine. Doctrine de preuve santé à recopier intégralement dans le brief.
+> versant cognitif de la créatine ; **`allegations-sante-regimes-compares` (55e run) tient le régime
+> FTC lui-même** — standard de substantiation, intervention après coup, sanctions monétaires :
+> l'amende Lumosity s'y lit comme un cas de plus du régime déjà écrit, pas comme l'occasion de le
+> refaire (renvoi, deux phrases). Doctrine de preuve santé à recopier intégralement dans le brief.
 > Domaine : performance-cognitive (6e thème ; le portail se rouvre pour lui).
 
 ---
@@ -2829,6 +2866,24 @@ hypogonadisme ↔ obésité viscérale par l'aromatase et le shunt testostérone
 mécanisme qui justifie le mot « homme » du titre ; le ciblage local, consensus négatif d'un
 demi-siècle contredit par un RCT 2023 sur **16 hommes** (*Physiological Reports*) — cas d'école
 taillé pour ce corpus, à traiter comme mono-source et non comme un renversement.
+
+**Apport de l'inventaire « tour de taille » du 2026-09-11** (4 agents, ~90 recherches ; labels FDA
+et EPAR lus en texte intégral ; rapport dans le scratchpad de la session, chiffres à re-sourcer en
+primaire au run) — trois faits qui renforcent le pilier « instrument » sans déplacer le centre :
+1. **Une seule indication au monde porte la graisse abdominale**, la tésamoréline (Egrifta, FDA
+   2010, lipodystrophie du VIH ; demande EU retirée en 2012), et son critère principal est la
+   graisse viscérale au scanner, le tour de taille n'y étant qu'annexe (−1 à −2 cm vs placebo).
+2. **Aucun anti-obésité à AMM n'a le tour de taille dans son indication ; tous le rapportent en
+   critère secondaire d'étiquetage**, proportionnellement au poids perdu (tirzépatide jusqu'à
+   −14,5 cm à 72 semaines, sémaglutide 2,4 mg −9,4 cm, liraglutide −4,2, naltrexone/bupropion −3,8,
+   orlistat ≈ −2,4 ; rimonabant −3,3 à −4,7 avec le tour de taille en critère « supportive », non
+   co-principal ; sibutramine « dose-related » sans chiffre). La pioglitazone va dans le sens inverse
+   (viscéral en baisse, tour de taille en hausse).
+3. **Les effets des compléments (0,5 à 1,5 cm en méta-analyse : fibres −0,63, CLA −0,62, thé vert
+   + caféine −1,93, ALA −1,10) tombent sous l'erreur de mesure d'un mètre-ruban** ; les têtes de
+   tableau (Garcinia −4,16, berbérine −3,27, cannelle −2,40) sont fragiles ou contredites. Le
+   régime d'allégations qui accorde ou refuse ces phrases est écrit dans
+   `allegations-sante-regimes-compares` : renvoyer, ne pas refaire.
 
 ⚠️ **Trois risques à écrire dans le brief.**
 1. **La restriction « > 50 ans » n'a pas sa littérature dédiée sur tout le périmètre** : les
