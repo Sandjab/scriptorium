@@ -1670,7 +1670,7 @@ ci-dessus restent valables et sont reclassés dans cette table) :
 | ~~1~~ | ~~`glp1-hors-poids`~~ | FAIT 2026-09-09 (53e run) | `pharmacologie-metabolique` (2e thème, après `incretines-glp1`) | — |
 | 2 | `desir-sexuel-hypoactif` | haute | `fonction-sexuelle` | 3 objets nommés désignent le désir ; corrige l'asymétrie homme/femme ; saga FDA d'école |
 | 3 | `osteoporose-pharmacologie` | haute | `muscle-vieillissement` (blurb à élargir à l'os) | la thèse du domaine (le substitut ne prédit pas) écrite 3 fois, jamais éprouvée sur les molécules faites POUR l'os |
-| 4 | `nitrates-betterave` | moyenne-haute | `nutrition-sportive` | seul membre du Groupe A de l'AIS sans candidat, nommé 2 fois par le corpus |
+| ~~4~~ | ~~`nitrates-betterave`~~ | FAIT 2026-09-12 (56e run, hors séquence) | `nutrition-sportive` (4e thème, clôture du parcours) | — |
 | ~~5~~ | ~~`melatonine`~~ | FAIT 2026-09-05 (52e run, hors séquence) | `complements-sante` (4e thème) | — |
 | ~~6~~ | ~~`acide-alpha-lipoique`~~ | FAIT 2026-09-11 (54e run) | `complements-sante` (5e thème) | — |
 | ~~6 bis~~ | ~~`allegations-sante-regimes-compares`~~ | FAIT 2026-09-12 (55e run, hors séquence, né de l'inventaire « tour de taille » du 2026-09-11) | `complements-sante` (6e thème, clôture du parcours) | — |
