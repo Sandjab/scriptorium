@@ -771,29 +771,15 @@ transfer et backward transfer » sans les définir. EWC, replay, incrémental pa
 > `model-editing-unlearning` traite l'oubli VOULU — se délimiter mutuellement. Domaine :
 > deep-learning-foundations.
 
-### Mathématiques formelles par LLM — `llm-formal-math-theorem-proving` → `llm-agents-generation`
-**Verdict : gap réel (ajout 2026-09-01).** Le seul « Lean » du corpus est incident (le Defense
-Trilemma « est vérifié mécaniquement en Lean 4 avec Mathlib », dans `llm-safety-jailbreaks`).
-AlphaProof, AlphaGeometry, miniF2F, PutnamBench, DeepSeek-Prover, autoformalisation : 0 occurrence.
-Les voisins tiennent la vérification informelle et posent la motivation sans la suite :
-`reasoning-test-time-compute` traite les vérificateurs APPRIS (« un verifier de 6 milliards de
-paramètres atteint environ 92 % sur GSM8K ») et écrit que « les méthodes verifier-free […] sont
-asymptotiquement sous-optimales par rapport aux méthodes verifier-based » ; `agentic-rl-environments`
-s'en tient à la « boîte de réponse en mathématiques ». Ce thème = le vérificateur formel, oracle parfait.
-
-> Les LLM et la démonstration formelle : quand le vérificateur est un assistant de preuve. Couvrir
-> l'assistant de preuve comme oracle (Lean/Mathlib, Isabelle, Coq : ce qu'une preuve vérifiée garantit
-> et ce qu'elle ne garantit pas — l'énoncé formalisé peut être faux), l'autoformalisation (du langage
-> naturel à l'énoncé formel, et ses erreurs silencieuses), la recherche de preuve guidée par le
-> vérificateur (recherche arborescente, best-first, expert iteration), les systèmes (AlphaProof et le
-> résultat IMO 2024, AlphaGeometry, DeepSeek-Prover, Kimina, Goedel-Prover), le RL à récompense
-> binaire prouvée, les benchmarks (miniF2F, PutnamBench, ProofNet) et leurs fuites, la distinction
-> entre résoudre un problème d'olympiade et produire des mathématiques nouvelles, et les usages
-> (vérification de code, bibliothèques formelles). Public : ingénieur ML. Délimitations strictes :
-> `reasoning-test-time-compute` garde les vérificateurs appris et le best-of-N (partir de sa thèse
-> verifier-based) ; `agentic-rl-environments` garde le RLVR par boîte de réponse ; `llm-evaluation`
-> garde les juges. L'angle propre : l'oracle exact et ce qu'il change à l'entraînement. Domaine :
-> llm-agents-generation (portail clos à 20 : /arrange tranchera l'insertion, comme au 49e run).
+(`llm-formal-math-theorem-proving` : FAIT le 2026-09-18, retiré du backlog — 57e run
+/leanmonograph, un seul lancement, GREEN après backstop, classé dans llm-agents-generation **12e du
+parcours, après agentic-rl-environments** (3 arêtes : agentic-rl-environments,
+reasoning-test-time-compute, llm-evaluation ; 2 délimitations). 11/11 sections, 43 claims
+20✓/16corr/7rej, 80 sources, 4 widgets + 3 figures ; 8,64 M tok / 99 agents / 2 h 48.
+Le « portail clos à 20 » n'était qu'un état de fait, pas une règle : l'insertion en 12e n'a cassé
+aucune arête, watermarking reste la chute en 21e. Backstop web : 10 faux sur 206 faits, tous des
+ATTRIBUTIONS — la prose faisait dire au papier « Faults in Our Formal Benchmarking » trois choses
+absentes de son texte ; aucun chiffre prose-only n'était faux.)
 
 ### Agents d'interface graphique — `computer-use-gui-agents` → `llm-agents-generation`
 **Verdict : partiel, gap net sur la mécanique (ajout 2026-09-01).** Les SCORES et la CONSTRUCTION des
