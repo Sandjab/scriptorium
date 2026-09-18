@@ -1,0 +1,37 @@
+[
+ {
+  "term": "knowledge graph embedding",
+  "definition": "Knowledge graph embedding (plongement de graphe de connaissances, KGE) : représentation de chaque entité et de chaque relation d'un graphe par un vecteur (ou une matrice) apprise, assortie d'une fonction de score f(h, r, t) qui doit classer les triplets vrais au-dessus des triplets corrompus. Les familles canoniques se distinguent par la forme de ce score : translationnelle (TransE, −‖h + r − t‖, puis TransH et TransR qui projettent d'abord les entités sur un hyperplan ou un espace propre à la relation), bilinéaire (RESCAL avec une matrice pleine par relation, DistMult avec un produit trilinéaire diagonal Σᵢ hᵢrᵢtᵢ, ComplEx avec un produit hermitien Re(⟨h, r, t̄⟩) sur ℂᵏ) et rotationnelle (RotatE, où la relation est une rotation élément par élément en espace complexe, t ≈ h ∘ r avec |rᵢ| = 1). Le score ne dit rien de la vérité d'un triplet : il ordonne des candidats sous les contraintes d'expressivité propres à sa forme algébrique.",
+  "see_also": "link prediction, relation pattern, negative sampling"
+ },
+ {
+  "term": "link prediction",
+  "definition": "Link prediction (prédiction de liens) : estimation des entrées manquantes du tenseur binaire d'adjacence Y ∈ {0,1}^(Nₑ×Nₑ×Nᵣ) — un axe pour l'entité de tête, un pour l'entité de queue, un pour le type de relation — sous la forme du classement de candidats de tête ou de queue pour un triplet (h, r, ?) ou (?, r, t). La tâche est nominalement posée sous l'hypothèse de monde ouvert (open-world assumption : une arête absente signifie « inconnu », pas « faux »), mais l'entraînement standard ferme localement le monde (local closed-world assumption, LCWA, Knowledge Vault) en traitant les triplets absents comme négatifs. On complète ici un graphe existant ; la construction du graphe, son schéma et son interrogation relèvent d'un autre document.",
+  "see_also": "knowledge graph embedding, negative sampling, MRR / Hits@k"
+ },
+ {
+  "term": "relation pattern",
+  "definition": "Relation pattern (motif relationnel) : propriété logique d'une relation qu'un modèle de plongement peut ou non représenter par construction — symétrie (r(h, t) ⇒ r(t, h)), antisymétrie, inversion (r₁(h, t) ⇒ r₂(t, h)) et composition (r₁(h, x) ∧ r₂(x, t) ⇒ r₃(h, t)). La matrice d'expressivité de RotatE l'établit par preuve : TransE échoue sur la seule symétrie (h + r = t et t + r = h forcent r = 0), DistMult ne tient que la symétrie (son score est algébriquement symétrique en h et t), ComplEx tient tout sauf la composition, RotatE tient les quatre. Ce motif logique est distinct de la cardinalité d'une relation (1-N, N-1, N-N), problème séparé de TransE que TransH corrige : sous une relation 1-N, toutes les queues d'un même couple (h, r) convergent vers un même point. Tenir un motif en théorie ne garantit ni de l'apprendre par descente de gradient sur des données incomplètes, ni de battre un modèle plus simple bien réglé.",
+  "see_also": "knowledge graph embedding, hyperparameter tuning"
+ },
+ {
+  "term": "negative sampling",
+  "definition": "Negative sampling (échantillonnage négatif) : fabrication des contre-exemples d'entraînement par corruption d'un triplet vrai, en remplaçant sa tête ou sa queue par une entité tirée au sort. La corruption uniforme fabrique une proportion importante de faux négatifs sur les relations 1-N et N-1, ce qui motive le schéma Bernoulli de TransH (probabilité tph/(tph + hpt) de corrompre la tête). Le self-adversarial negative sampling de RotatE remplace la pondération uniforme des négatifs par un softmax à température α sur leurs scores courants, si bien que les négatifs les plus difficiles pèsent davantage dans le gradient. Trois familles de fonctions de perte coexistent pour la même tâche : ranking à marge, log-vraisemblance softmax sur négatifs échantillonnés et perte logistique ponctuelle. La régularisation N3 (norme nucléaire tensorielle, Lacroix et al.) et l'ajout de prédicats réciproques complètent la recette d'entraînement.",
+  "see_also": "knowledge graph embedding, hyperparameter tuning"
+ },
+ {
+  "term": "MRR / Hits@k",
+  "definition": "MRR (Mean Reciprocal Rank, rang réciproque moyen) et Hits@k : métriques du protocole d'évaluation. Pour chaque triplet de test, le triplet vrai est classé côté sujet et côté objet parmi tous les candidats de substitution ; le MRR est la moyenne des inverses de ces rangs, Hits@k la proportion de rangs inférieurs ou égaux à k. Le réglage filtré (filtered setting), introduit par Bordes et al. pour TransE et repris par ConvE, retire du classement les candidats qui forment eux-mêmes des triplets vrais présents dans train/valid/test, contre le réglage brut (raw) qui les compte comme concurrents. Le filtrage ne neutralise pas tout : il n'élimine pas les artefacts de jeu de données comme les relations inverses, et il ne dit rien de la tie-breaking policy (politique de départage des ex æquo) — TOP, BOTTOM ou RANDOM — qui fixe le rang du triplet vrai quand plusieurs candidats reçoivent le même score. Sun et al. (ACL 2020) montrent que ConvKB et CapsE produisent sur FB15k-237 des masses de scores égaux, de sorte que leurs résultats publiés dépendent fortement de cette politique, tandis que ConvE, RotatE et TuckER y sont insensibles ; Rossi et al. (TKDD 2021) retrouvent l'écart avec leur propre code.",
+  "see_also": "inverse-relation leakage, hyperparameter tuning"
+ },
+ {
+  "term": "inverse-relation leakage",
+  "definition": "Inverse-relation leakage (fuite par relations inverses) : artefact des benchmarks FB15k et WN18 où un triplet de test a très souvent son inverse (t, r⁻¹, h) dans l'entraînement, si bien qu'une règle triviale — repérer les paires de relations inverses et recopier le rang du triplet inverse — rivalise avec les modèles de plongement de son époque. Identifiée par Toutanova & Chen (2015), qui construisent FB15k-237 en retirant les relations quasi dupliquées et inverses, puis mesurée par Dettmers et al. avec leur « modèle inverse » (ConvE) et, indépendamment, par Akrami et al. (SIGMOD 2020), elle a conduit à remplacer FB15k et WN18 par FB15k-237 et WN18RR comme jeux de référence.",
+  "see_also": "MRR / Hits@k, link prediction"
+ },
+ {
+  "term": "hyperparameter tuning",
+  "definition": "Hyperparameter tuning (réglage des hyperparamètres) : choix de la fonction de perte, du type d'entraînement (negative sampling, 1-N ou KvsAll), de la régularisation, de l'initialisation et de la dimension d'embedding. L'étude « Old Dog New Tricks » (Ruffinelli, Broscheit & Gemulla, ICLR 2020, cadre LibKGE) montre qu'une fois RESCAL, TransE, DistMult, ComplEx et ConvE réentraînés sous une même recherche d'hyperparamètres, l'écart rapporté entre architectures anciennes et récentes se referme largement, voire s'inverse, la perte en entropie croisée restant le seul choix systématiquement bon ; Kadlec et al. (2017) sur DistMult et Ali et al. (TPAMI 2021, PyKEEN) retrouvent indépendamment que la stratégie d'entraînement pèse autant que l'architecture, même si l'ampleur exacte varie selon le protocole.",
+  "see_also": "negative sampling, relation pattern"
+ }
+]

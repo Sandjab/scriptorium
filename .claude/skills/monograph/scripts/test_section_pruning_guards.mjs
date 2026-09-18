@@ -74,7 +74,9 @@ async function loadBuildPrompt(name) {
   const end = src.indexOf(endMark, start);
   if (end < 0) throw new Error(`${name} : fin de buildPrompt introuvable`);
   const mod = await loadModule(name,
-    "const buildScript = '/B/build.py', lintScript = '/B/lint.py', themeDir = '/T';\n" +
+    // `contrasteScript` : ajouté aux buildPrompt des 3 workflows par le lint de contraste sombre
+    // (étape 1bis) — le fixture doit le définir comme les autres chemins, sinon ReferenceError.
+    "const buildScript = '/B/build.py', lintScript = '/B/lint.py', contrasteScript = '/B/contraste.py', themeDir = '/T';\n" +
     src.slice(start, end + endMark.length) + '\nexport { buildPrompt };\n');
   return { buildPrompt: mod.buildPrompt, src };
 }

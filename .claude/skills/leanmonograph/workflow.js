@@ -640,7 +640,22 @@ const stylePassPrompt = (path) => [
 
 // ── Orchestration ────────────────────────────────────────────────────────────
 
-const safeParse = (s, what) => { try { return s ? JSON.parse(s) : null; }
+// Le loader (un agent) rend parfois le JSON ENVELOPPÉ — une phrase d'introduction puis un bloc
+// ```json``` — au lieu du contenu verbatim demandé (58e run : 3/16 chargements, dont `arch`, ce
+// qui faisait repartir le run en Sweep+Plan frais). Le code enlève l'enveloppe avant de parser :
+// on ne redemande pas au modèle ce qu'une découpe déterministe suffit à réparer.
+// 58e run : le loader de `arch` avait extrait la valeur (13 344 c.) mais n'en avait AFFICHÉ que
+// 200 (aperçu FIRST200/LAST200 de son propre script) — et a « recopié verbatim » ce qu'il avait
+// vu. Un agent ne peut restituer que ce qui est passé dans son contexte : on l'exige.
+const LOAD_RULE = `Lis d'abord le fichier EN ENTIER (cat ou Read, sans head/tail/extrait/aperçu tronqué) : tu ne peux recopier que ce que tu as vu en entier. Puis mets le JSON lui-même dans le champ « content » — jamais une phrase qui dit l'avoir affiché.`;
+const unwrapJson = (s) => {
+  if (typeof s !== 'string') return s;
+  const m = s.match(/```(?:json)?\s*([\s\S]*?)```/);
+  if (m) return m[1].trim();
+  const i = s.search(/[\[{]/);
+  return i > 0 ? s.slice(i).trim() : s;
+};
+const safeParse = (s, what) => { try { return s ? JSON.parse(unwrapJson(s)) : null; }
   catch (e) { log(`[resume] ${what} illisible (${e.message}) → ignoré`); return null; } };
 // Écriture best-effort d'un artefact de reprise (son échec ne tue jamais le run).
 async function ckptWrite(relName, obj, phaseName, labelName) {
@@ -677,13 +692,25 @@ if (RESUME) {
     // Panne silencieuse : le seul symptôme était la ligne « research=non ». Coût constaté au
     // 54e run : 4,5 M tokens et un council entier rejoués. Même remède que pour les sections.
     const readResearchKey = (key) =>
-      A(`Rends le contenu EXACT (verbatim, sans reformater ni tronquer) de la VALEUR de la clé « ${key} » du fichier ${ckptDir}/research.json — le JSON de cette seule clé, rien d'autre. Si le fichier ou la clé n'existe pas, rends "". N'écris, ne crée, ne modifie RIEN.`,
+      A(`Rends le contenu EXACT (verbatim, sans reformater ni tronquer) de la VALEUR de la clé « ${key} » du fichier ${ckptDir}/research.json — le JSON de cette seule clé, rien d'autre. ${LOAD_RULE} Si le fichier ou la clé n'existe pas, rends "". N'écris, ne crée, ne modifie RIEN.`,
         { schema: S_LOAD_ONE, model: M_IO, phase: 'Sweep', label: `resume-research:${key}` });
-    const [rArch, rSources, rFindings] = await parallel(
-      ['arch', 'allSources', 'allFindings'].map(k => () => readResearchKey(k)));
-    const pArch = rArch && safeParse(rArch.content, 'research.json:arch');
-    const pSources = rSources && safeParse(rSources.content, 'research.json:allSources');
-    const pFindings = rFindings && safeParse(rFindings.content, 'research.json:allFindings');
+    // Même garde-fou que pour les sections : un loader illisible est redemandé UNE fois, puis dit.
+    // Forme attendue : `arch` porte un outline (sinon c'est un aperçu tronqué qui parse quand
+    // même — ou pas), les deux autres sont des tableaux.
+    const wellFormed = (key, o) => key === 'arch' ? !!(o && Array.isArray(o.outline) && o.outline.length) : Array.isArray(o);
+    const readResearchKeyParsed = async (key) => {
+      let r = await readResearchKey(key);
+      let o = r && safeParse(r.content, `research.json:${key}`);
+      if (!wellFormed(key, o)) {
+        log(`[resume] research.json:${key} illisible ou mal formé au 1er essai → nouvelle tentative.`);
+        r = await readResearchKey(key);
+        o = r && safeParse(r.content, `research.json:${key} (retry)`);
+        if (!wellFormed(key, o)) { log(`⚠️ [resume] research.json:${key} NON rechargé après retry.`); o = null; }
+      }
+      return o;
+    };
+    const [pArch, pSources, pFindings] = await parallel(
+      ['arch', 'allSources', 'allFindings'].map(k => () => readResearchKeyParsed(k)));
     // `arch` seul est indispensable : sans lui il n'y a pas de plan à reprendre. Les findings
     // ne servent qu'aux sections SANS checkpoint ; on reprend même s'ils manquent, mais on le
     // DIT — une extraction sur findings vides fabrique une section à `claims: []` qui tombe
@@ -703,7 +730,7 @@ if (RESUME) {
       // Deux garde-fous : on redemande une fois, puis on le DIT bruyamment. Le ré-audit reste le
       // comportement de repli — il produit un résultat valide — mais il n'est plus silencieux.
       const readOne = (id) =>
-        A(`Rends le contenu EXACT (verbatim, sans reformater ni tronquer) du fichier ${ckptDir}/sec-${id}.json. N'écris rien.`,
+        A(`Rends le contenu EXACT (verbatim, sans reformater ni tronquer) du fichier ${ckptDir}/sec-${id}.json. ${LOAD_RULE} N'écris rien.`,
           { schema: S_LOAD_ONE, model: M_IO, phase: 'Sweep', label: `resume-sec:${id}` });
       const contents = await parallel(secIds.map(id => () => readOne(id)));
       const perdues = [];
