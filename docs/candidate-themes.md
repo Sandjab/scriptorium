@@ -877,25 +877,18 @@ la génération depuis le langage naturel. Text-to-SQL, Spider, BIRD, schema lin
 > l'agent qui appelle une base (cas d'usage à citer, pas l'objet). Domaine :
 > information-retrieval-representation.
 
-### Plongements de graphes de connaissances — `knowledge-graph-embeddings-link-prediction` → `information-retrieval-representation`
-**Verdict : gap réel (ajout 2026-09-01).** Seule trace : `graph-neural-networks` nomme « la prédiction
-de liens (link prediction) » comme catégorie OGB (« ogbl-collab, ogbl-citation2 […] Hits@K, MRR ») sans
-un mot sur les graphes multi-relationnels. `knowledge-graph-construction` pose l'incomplétude (« un
-graphe nécessairement incomplet […] traiter à tort tout fait non encore consigné comme faux ») sans
-jamais la traiter comme problème d'inférence. TransE, RotatE, ComplEx, DistMult : 0 occurrence.
-
-> Plonger un graphe de connaissances pour le compléter : les modèles de prédiction de liens et ce
-> qu'ils garantissent. Couvrir la tâche (triplets manquants, monde ouvert), les modèles
-> translationnels (TransE et ses limites sur les relations 1-N, TransH/R), bilinéaires (DistMult,
-> ComplEx et la symétrie), rotationnels (RotatE), et la comparaison avec les GNN relationnels
-> (R-GCN, CompGCN), l'entraînement par échantillonnage négatif, le protocole d'évaluation (MRR,
-> Hits@k, filtré vs brut) et ses controverses vérifiables (fuite par relations inverses dans FB15k,
-> Toutanova & Chen ; « old dog new tricks » de Ruffinelli et al. ; Sun et al. 2020 sur les
-> protocoles), l'usage en aval (complétion, recommandation, question-réponse) et les limites
-> (entités inédites, échelle). Public : ingénieur ML. Délimitations : `knowledge-graph-construction`
-> garde la construction (ici on COMPLÈTE) ; `graph-neural-networks` garde le message passing (citer
-> R-GCN) ; `entity-linking-disambiguation` garde le liage. Domaine :
-> information-retrieval-representation, entre knowledge-graph-construction et le reste de la chaîne.
+(`knowledge-graph-embeddings-link-prediction` : FAIT le 2026-09-18, retiré du backlog — 58e run
+/leanmonograph, 3 lancements, GREEN après backstop, classé dans information-retrieval-representation
+**15e et dernier du parcours, après knowledge-graph-construction** (2 arêtes :
+knowledge-graph-construction, text-embeddings ; 2 délimitations : knowledge-graph-construction,
+relation-extraction). 13/13 sections, 46 claims 27✓/14corr/5rej, 52 sources, 6 widgets + 3 figures ;
+~12,7 M tok / 140 agents / 4 h 10 — au-dessus de la fourchette : 9e arrêt d'élagage (2 sections
+tombaient, 7 ré-adjudications avant la prose, 4 regrains au phénomène) puis une reprise perdue.
+Build en échec mérité : 5 claims confirmés sur deux URL du même travail (PDF/page ACL, notebook/racine
+GitHub), 6 ré-adjudications après le Build. Backstop web : 8 faux sur 200 faits, dont un CONTRESENS
+porté jusque dans une figure (« > 300 Gio de mémoire pour les modèles lourds » = la taille des jeux
+OGB-LSC à télécharger) et une table lue à l'envers (Table 5 de TransH : TransE/TransH, pas
+unif./bern.).)
 
 ### Fonctions de hachage et hachage universel — `fonctions-de-hachage-universelles` → `probabilistic-structures-hashing`
 **Verdict : gap réel — désigné deux fois par le corpus (ajout 2026-09-01).** Les six thèmes du domaine
