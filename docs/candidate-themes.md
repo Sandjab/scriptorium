@@ -662,8 +662,21 @@ au même article que le texte.
 > continuité avec le thème texte, ou `deep-learning-foundations` par continuité avec les modèles
 > génératifs d'image.
 
-### MinHash & déduplication — `minhash-dedup` → `probabilistic-structures-hashing`
-**Verdict : partiel — REMONTÉ de « basse » à « moyenne » le 2026-09-01.** Le corpus le réclame :
+### ✅ FAIT — MinHash & déduplication — `minhash-dedup` → `probabilistic-structures-hashing`
+(**FAIT le 2026-09-19**, 59e run `/leanmonograph`, retiré du backlog — classé 5e du parcours de
+`probabilistic-structures-hashing`, entre `streaming-quantiles-sampling` et `minimal-perfect-hashing`,
+ce qui referme le renvoi cassé A3 de `pretraining-data-curation`. 10 sections, 40 claims
+(19 confirmés / 11 corrigés / 10 rejetés), 46 sources, 7 widgets + 3 figures ; **≈ 12,5 M tok /
+124 agents workflow + 16 agents de session / 3 h 16, 2 lancements**. **10e arrêt d'élagage** : la
+littérature du champ est mono-source par nature (Li & König 2010, Li-Owen-Zhang 2012, Charikar 2002)
+→ 7 rejets réparés AVANT la prose par une 2e source **tierce** (Odd Sketches, SuperMinHash, Fast
+Similarity Sketching, BayesLSH, Broder CPM 2000, un mémoire de Master déclaré comme tel), contre-lue
+dans le texte par la session. `build.success:false` mérité (7e occurrence de « même travail, deux
+URL ») : 4 jurés de ré-adjudication → 2 rejets, 1 corrigé (« en production » réfuté par la note 2
+de Manku et al.), 3 réparés. Backstop web (4 agents, 317 faits) : 3 faux corrigés, dont The Stack
+0,85 dans l'article contre 0,7 dans le billet BigCode. ⚠️ Deux faux allégués par les agents ne
+tenaient pas à la contre-lecture : l'un venait d'un `<sup>` aplati par MON fichier d'entrée.)
+**Verdict initial : partiel — REMONTÉ de « basse » à « moyenne » le 2026-09-01.** Le corpus le réclame :
 `pretraining-data-curation` (section `deduplication-effets`) écrit « La mécanique des signatures,
 MinHash et LSH (Locality-Sensitive Hashing), relève d'un autre document ; on la tient ici pour
 acquise » — et **aucun des 89 thèmes ne contient « MinHash »** (`approximate-nearest-neighbor`
