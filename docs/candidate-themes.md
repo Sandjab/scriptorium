@@ -585,7 +585,29 @@ comme en sombre**. Piège de MESURE re-confirmé au passage ([[charte-blue-deep-
 `bgOf` qui ne remonte pas le premier arrêt des dégradés fabrique 4 faux positifs sur le bandeau de
 titre (encre claire sur dégradé sombre, lue comme encre claire sur fond de page clair).)
 
-### Génération de code par LLM — `llm-code-generation` → `llm-agents-generation`
+### ✅ FAIT — Génération de code par LLM — `llm-code-generation` → `llm-agents-generation`
+(**FAIT le 2026-09-19**, 60e run `/leanmonograph`, retiré du backlog — classé 13e du parcours de
+`llm-agents-generation`, entre `llm-formal-math-theorem-proving` et `multimodal-vlm` : du kernel qui
+vérifie chaque pas à la suite de tests qui n'éprouve que des cas. 11 sections, 43 claims (25 confirmés /
+11 corrigés / 7 rejetés), 61 sources, 6 widgets + 3 figures ; **≈ 11,1 M tok / 120 agents workflow
++ 16 agents de session / ~2 h 42 de workflow, 2 lancements**. **Le brief ci-dessous était périmé et a
+été resserré avant lancement** : `agent-evaluation-observability` traite déjà SWE-bench/Verified/Pro et
+l'estimateur pass@k en profondeur, et `benchmark-contamination` est un candidat séparé — ces deux angles
+sont passés en renvoi. **11e arrêt d'élagage** : 8 rejets au seul seuil (Aryabumi 2024 ×2, opt-out
+The Stack v2, Self-Debug, Reflexion, Codex 44,5/77,5, AlphaCode, CodeT) réparés AVANT la prose par
+regrain au phénomène avec un 2e travail distinct contre-lu dans le PDF (Ma 2023, Muennighoff 2023,
+Katzy 2024, LDB 2024, Inala 2022, B4 2024, CodeT/AlphaCode-C) ; un regrain d'agent corrigé à la
+contre-lecture (le 13 B texte seul BAT le 2,6 B code en logique chez Ma et al.). **`build.success:false`
+mérité, 8e occurrence du trou d'acceptation** : Codex-S confirmé sur une reprise Towards Data Science →
+ré-adjugé par 2 jurés en `corrected` (regrain PanGu-Coder-FT, Huawei 2022). **Backstop web (4 agents,
+371 faits) : 10 FAUX** — « le code s'exécute et marche » attribué à Pearce et al. alors que l'étude ne
+teste PAS la correction fonctionnelle (claim déclassé) ; « CoC interroge PyPI/npm » (auto-confirmation
+par prompt) ; « 19,3 à 28,9 points » = réductions RELATIVES par k (4 claims, prose, glossaire, widget) ;
+« 600 fois plus petit que GPT-3-175B » (aucun 175B dans le papier) ; EvalPlus « ne touche pas aux
+solutions de référence » (il les ré-implémente) ; LiveCodeBench v1 « > 600 » (400) ; The Stack v2
+« 6 To » (67,5 To bruts). Trois papiers se contredisent en interne (Aryabumi §3.1, Codex Fig. 1 vs
+§4.5, CodeT v1 vs v2) — la prose ne retient que les lectures compatibles.)
+
 **Verdict : gap réel mais ⚠️ frontière à caler (ajout 2026-08-06).** Le corpus n'a AUCUN thème
 code-centré : le code y apparaît toujours comme *application* d'autre chose — `agentic-ai` a une
 section « Applications : code, science et entreprise » (Claude Code, ChatDev, taux de succès),
