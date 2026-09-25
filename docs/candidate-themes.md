@@ -407,7 +407,20 @@ Lion/Adafactor/Sophia/Muon sont absents.
 > Délimitations : backpropagation couvre le calcul du gradient (ne pas le re-dériver) et l'esquisse
 > d'Adam — l'angle neuf est le paysage des optimiseurs et AdamW. Domaine : deep-learning-foundations.
 
-### RoPE / encodage positionnel — `rotary-position-embedding` → `deep-learning-foundations`
+### ✅ FAIT — RoPE / encodage positionnel — `rotary-position-embedding` → `deep-learning-foundations`
+(**FAIT le 2026-09-25**, 62e run `/leanmonograph`, retiré du backlog — classé 5e du parcours de
+`deep-learning-foundations`, entre `transformer-attention` et `sparse-attention-long-context` : l'attention
+aveugle à l'ordre, puis ce qu'on lui rend, puis le coût de la fenêtre longue. 11 sections, 40 claims
+(13 confirmés / 24 corrigés / 3 rejetés), 47 sources, 3 widgets + 4 figures ; **≈ 11,4 M tok / ~2 h,
+2 lancements**. **Le brief ci-dessous a été re-vérifié par LECTURE avant lancement** : le sinusoïdal
+absolu (`transformer-attention`) et la longueur effective (`context-engineering`,
+`sparse-attention-long-context`, `retrieval-augmented-generation`) passent en renvoi. **13e arrêt
+d'élagage** : 13 rejets au seuil, 10 regrainés au phénomène avec un 2e travail contre-lu dans le PDF
+(Wang 2019, Chi 2023, Haviv 2022, Barbero 2024, Wang 2024, LM-Infinite, Liu 2023, YaRN/LongLoRA,
+LongRoPE/Lu 2024), 3 rejets justes. **`build.success:false` mérité** : 5 claims `confirmed` sur un seul
+travail (miroir alphaXiv, blogs, PR d'un co-auteur de YaRN), ré-adjugés. **Un exemple FABRIQUÉ
+retiré** (« Phi-3-mini-128K, 84,8 % » : absent de RULER, 84,8 = Yi-34B), recopié dans 2 claims et la
+prose. Backstop web : 3 FAUX / 19 imprécis, tous contre-lus et corrigés.)
 **Verdict : partiel.** `transformer-attention` a une section « encodage positionnel sinusoïdal »
 (absolu) ; RoPE, l'encodage relatif, l'extension de contexte (PI/NTK/YaRN) et ALiBi sont absents.
 
