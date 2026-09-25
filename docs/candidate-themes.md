@@ -1893,7 +1893,7 @@ Trois enseignements, dont deux de fond :
   folklore des 2 %), sodium, hyponatrémie d'effort, boissons de l'effort.
 
 
-### Nitrate alimentaire et jus de betterave — `nitrates-betterave` → `nutrition-sportive`
+### ✅ FAIT — Nitrate alimentaire et jus de betterave — `nitrates-betterave` → `nutrition-sportive`
 **Verdict : gap réel — objet nommé deux fois puis laissé (ajout 2026-09-01).** Le nitrate n'apparaît
 que dans deux listes : `creatine` (« range la créatine dans le Groupe A de son cadre de classification
 ABCD […] aux côtés de la caféine, de la bêta-alanine, du bicarbonate, du jus de betterave et du
