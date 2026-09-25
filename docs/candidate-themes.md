@@ -161,6 +161,45 @@ section santé). ⚠️ Les pistes chiffrées des prompts ajoutés ci-dessous vi
 rédacteur et des rapports de lecture, **sans balayage web** : à corroborer en source primaire au
 Sweep, jamais des faits ; si une piste ne se corrobore pas, la retirer.
 
+**Ajout du 2026-09-25** (corpus à 99 thèmes classés) : +1 candidat
+`llm-classifieur-decision-typee`, issu d'une veille sur le lancement de Jev (TypeSafe AI, accès
+anticipé le 15 septembre 2026), modèle propriétaire qui ne génère pas de texte et rend une valeur
+typée assortie d'une probabilité. **Le produit lui-même est écarté comme sujet** : dix jours
+d'existence, architecture et poids non publiés, chiffres phares produits par le vendeur, corpus de
+presse entièrement dérivé du communiqué de lancement — donc une seule source au sens de la règle
+d'indépendance par travail — et deux évaluations tierces pseudonymes, chacune isolée et non
+répliquée, que l'exception `document-source` ne couvre pas puisqu'il s'agit de résultats
+empiriques. C'est exactement la jurisprudence de l'ajout du 2026-07-23 sur « graph engineering » :
+le buzz est écarté, le sujet de fond est retenu. Aucun des 99 thèmes classés n'a d'ailleurs un
+produit commercial pour objet. Le sujet de fond — le modèle de langage employé comme classifieur, à
+sortie typée et probabilité calibrée — est retenu en priorité haute après audit de couverture **par
+lecture** de la prose de six voisins (`structured-extraction-llm`, `calibration-classifieurs`,
+`decoding-sampling`, `llm-evaluation`, `hallucination-detection-uncertainty`,
+`knowledge-distillation`). Trois constats ont décidé du verdict :
+
+1. **La sortie typée est traitée en profondeur, la probabilité jamais.**
+   `structured-extraction-llm` tient le contrat de schéma et le décodage contraint, et relève même
+   l'inversion d'effet sur la classification à espace fermé (DDXPlus, Gemini-1.5-Flash : 41,6 % en
+   libre contre 60,3 % en mode JSON, soit +18,7 pts, quand le même mode coûte −26,7 pts sur GSM8K).
+   Mais aucune de ses sections n'associe une confiance à la valeur produite, et le mot `logprob` est
+   absent des 100 manifestes du corpus.
+2. **`calibration-classifieurs` ne parle jamais des modèles de langage** — constat déjà posé le
+   2026-08-06, revérifié ici par lecture : ECE, reliability diagram, Platt, isotonic, temperature
+   scaling et la prédiction conforme y vivent sur SVM, forêts, Naive Bayes et ResNet. La seule
+   occurrence de « language model » de toute la monographie est le titre d'une source en
+   bibliographie. La boîte à outils est complète, le raccordement au modèle de langage n'existe
+   nulle part.
+3. **Le seul modèle du corpus qui rend un nombre pondéré par ses probabilités de tokens est un
+   juge**, pas un décideur : `llm-evaluation` pose le probability weighting de G-Eval
+   (score = Σ p(sᵢ) × sᵢ) au service de l'évaluation de modèles, sans jamais lui appliquer d'ECE ni
+   de recalibration. `hallucination-detection-uncertainty` tient la calibration des confiances d'un
+   modèle de langage, mais en génération libre, jamais sur un espace d'étiquettes fermé.
+
+Recouvrement mesuré : les prérequis sont couverts aux deux tiers environ, mais dispersés sur cinq
+monographies et jamais orientés vers cet usage ; le cœur du sujet l'est à un cinquième au mieux. Le
+risque du run n'est donc pas la redondance, c'est le chevauchement de rappel — les délimitations de
+l'entrée sont à tenir fermement.
+
 - **Fabrication** : `/leanmonograph « <prompt riche> »` (défaut depuis le test GREEN du 2026-07-02 ;
   `/frugalmonograph` en repli) puis `/arrange <slug>`.
 - **Domaine** = celui de `tools/taxonomy.json` (source de vérité). Un thème = un seul domaine.
@@ -257,6 +296,92 @@ décrit** (TIME, Fortune, Yahoo — cette dernière syndication mot pour mot de 
 source comptée deux fois) ; ré-adjugés par 2 jurés indépendants → 1 réparé au seuil avec trois
 travaux distincts, 2 en exception `document-source` déclarée, 1 déclassé en `corrected`. L'agent
 Build a de nouveau eu raison de REFUSER de déclarer l'exception à la place des jurés.)
+
+### ✅ FAIT — Le LLM comme classifieur : décision typée et probabilité calibrée — `llm-classifieur-decision-typee` → `llm-agents-generation`
+**Verdict : gap réel (~80 % neuf sur le cœur).** Prérequis couverts aux deux tiers mais éclatés sur
+cinq voisins : `structured-extraction-llm` (schéma et décodage contraint), `calibration-classifieurs`
+(ECE et conforme, sans jamais un modèle de langage), `hallucination-detection-uncertainty`
+(calibration d'un modèle de langage, mais en génération libre), `llm-evaluation` (le juge et son
+probability weighting), `knowledge-distillation` (le petit modèle). Trois maillons ne sont posés
+nulle part : le pattern LLM-classifieur lui-même, le pont entre la calibration et le modèle de
+langage, et l'économie comparée de cet usage.
+
+> Le modèle de langage employé non pour écrire mais pour décider : il reçoit un texte et rend une
+> valeur typée — catégorie, booléen, note — assortie d'une probabilité, consommée par du code plutôt
+> que lue par un humain. Couvrir (1) le pattern d'architecture : espace d'étiquettes fermé, enum
+> contraint, lecture de la distribution sur un unique token de sortie, logit bias, extraction d'une
+> probabilité de classe, et le régime de coût qui en découle — une réponse d'un seul token est
+> dominée par le prefill, pas par le decode ; (2) la calibration de cette probabilité : ECE et
+> reliability diagram appliqués à une probabilité de classe produite par un modèle de langage, effet
+> du RLHF, sensibilité au prompt et à l'ordre des options, recalibration quand l'API ne rend pas les
+> logits ; (3) les quatre routes concurrentes et leurs critères d'arbitrage : décodage contraint par
+> enum, lecture des logprobs, tête de classification sur encodeur discriminatif (la piste GLiNER,
+> effleurée en une phrase dans `named-entity-recognition-sequence-labeling`), petit modèle distillé
+> sur les annotations du grand ; (4) la consommation décisionnelle : seuil d'acceptation, coûts
+> asymétriques entre faux positifs et faux négatifs, abstention et routage vers un modèle plus
+> lourd ; (5) étude de cas, la classe de produits « System One » / decision models apparue en
+> septembre 2026 avec Jev (TypeSafe AI) — traiter la classe, pas le produit, et surtout le mode
+> d'échec que l'évaluation tierce pré-enregistrée a mesuré : une description de critère erronée fait
+> tomber la justesse sous le plancher aléatoire, ce qui fait du libellé de la question un programme
+> à déboguer ; (6) le piège d'attribution de la décomposition : découper une question en
+> sous-questions puis ajuster une régression sur des exemples annotés relève fortement le score,
+> mais le gain appartient à l'ensemble annotations + régression, pas au modèle seul.
+> Délimitations : `structured-extraction-llm` couvre le contrat de schéma et le décodage contraint
+> (DFA, masques de logits, XGrammar, JSONSchemaBench) ainsi que l'inversion d'effet sur la
+> classification à espace fermé — ne rien re-dériver, y renvoyer ; `calibration-classifieurs` détient
+> tout l'appareil ECE / Platt / isotonic / temperature et la prédiction conforme en version ML
+> classique — l'angle neuf est le raccordement au modèle de langage, pas la théorie ;
+> `hallucination-detection-uncertainty` traite P(True), P(IK), l'entropie sémantique et l'abstention
+> sous garantie en génération libre — s'y appuyer et rester sur l'espace d'étiquettes fermé ;
+> `llm-evaluation` détient le juge et le probability weighting de G-Eval — la frontière est l'usage,
+> évaluer un modèle contre décider en production ; `knowledge-distillation` détient la fabrication du
+> petit modèle ; `llm-inference-serving` détient l'économie prefill/decode. Domaine :
+> llm-agents-generation.
+
+⚠️ **Discipline de sources pour ce run.** Tous les chiffres de performance et de prix de Jev sont
+soit produits par le vendeur, soit issus d'une évaluation tierce unique et pseudonyme. Le benchmark
+maison définit la bonne réponse comme la moyenne des réponses de deux modèles frontière : il mesure
+à quel prix le modèle est d'accord avec eux, pas à quelle fréquence il a raison. Aucun de ces
+chiffres ne doit viser `confirmed` — réserve déclarée en prose, ou rejet. Le fond du thème, lui,
+repose sur une littérature établie et corroborable ; c'est elle qui doit porter les sections.
+
+**FAIT le 2026-09-25** (61e run `/leanmonograph`), classé dans `llm-agents-generation` en 20e
+position, après `decoding-sampling`. 9 sections, 39 claims (12✓/18corr/9rej), 72 sources,
+5 widgets + 3 figures ; **≈ 10,4 M tok / 107 agents de workflow + 7 de session / ~3 h, deux runs
+utiles et deux reprises avortées**.
+
+**12e arrêt d'élagage**, déclenché avant la prose : 3 sections tombaient, dont une que le garde-fou
+ne voyait PAS (son unique rejet au seuil n'aurait pas suffi au quota — angle mort de
+[[elagage-supprime-section-sur-faux-rejet]]). Réparation : 7 regrains au phénomène + 4 énoncés
+neufs reconstruisant `piege-attribution-decomposition` **sans le produit**, ses 3 rejets d'origine
+étant sains (dépôt pseudonyme + billet d'analyse). 9/9 sections au retour, 0 perte.
+
+**Deux reprises perdues sur un blocage d'outillage neuf** → [[loader-resume-fige-sur-chemin-hors-cwd]] :
+le loader `resume-research:*` écrit un gros tableau dans `/tmp` puis tente de le relire, ce qui
+demande une autorisation que rien ne peut accorder en arrière-plan. Contourné en vidant
+`allFindings`/`allSources` du `research.json` (inutiles quand les 9 sections ont leur checkpoint),
+sans toucher ni au code ni aux permissions.
+
+**`build.success:false` mérité, 4 défauts de sources** — dont un cas NOUVEAU
+([[acceptance-compte-des-sources-hors-sujet]]) : un claim « confirmé sur 3 sources » dont la seule
+source recevable **ne mentionne pas le paramètre qu'il décrit** (0 occurrence vérifiée sur la page).
+Réparé par la spécification OpenAPI de l'éditeur + 2 travaux arbitrés. Plus 1 défaut trouvé par la
+session seule : une source de rang nul partagée avec un claim NON signalé.
+
+**Quatre erreurs de fond retirées**, toutes contre-lues en primaire : une attribution au RLHF que la
+source elle-même rétracte en tête de page ; une mesure attribuée aux logits alors qu'elle est
+estimée par échantillonnage ; un théorème dont les deux formulations sous contrainte étaient
+croisées ; et une « description fausse » qui est en réalité une **permutation** des descriptions
+entre catégories — distinction décisive, la littérature donnant à substituer et permuter des signes
+opposés. La prémisse « ajouter une consigne ne peut pas nuire » est retirée comme homme de paille.
+⚠️ **Deux corrections prescrites REFUSÉES après vérification** : la prose était déjà juste
+([[elagage-reparation-prescrite-est-une-hypothese]], 2 occurrences dans le seul run).
+
+Hook design : 2 exceptions de charte posées, 1 vrai défaut d'interligne corrigé — **après que ma
+première mesure se soit révélée fausse** (hauteur/interligne compte le padding comme une ligne ;
+la bonne mesure est `Range.getClientRects().length`), 8 cas réels ramenés à 1, le titre de charte.
+Lint contraste 0, lint.py 28 flags adjugés règle par règle, bijection biblio rétablie.
+
 ---
 
 ## Priorité moyenne
