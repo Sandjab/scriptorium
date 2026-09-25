@@ -1,0 +1,37 @@
+[
+ {
+  "term": "RoPE (Rotary Position Embedding)",
+  "definition": "RoPE (Rotary Position Embedding, encodage positionnel rotatif) : au lieu d'ajouter la position à la représentation d'entrée, RoPE découpe les vecteurs requête et clé en sous-espaces 2D et fait tourner chacun d'un angle proportionnel à la position, avec des fréquences en échelle géométrique, des plus hautes aux plus basses. Comme la composée de deux rotations ne dépend que de leur écart, le produit scalaire entre une requête en position m et une clé en position n ne voit que la distance relative n − m, sans aucun terme additif. La « décroissance à longue portée » annoncée n'est qu'une borne supérieure qualitative, contestée par la mesure ; et hors de sa longueur d'entraînement, RoPE extrapole mal, parce que ses dimensions de basse fréquence n'y ont jamais parcouru une rotation complète.",
+  "see_also": "Position Interpolation, NTK-aware scaling, YaRN"
+ },
+ {
+  "term": "ALiBi (Attention with Linear Biases)",
+  "definition": "ALiBi (Attention with Linear Biases, attention à biais linéaires) : n'encode pas la position dans les représentations mais retranche au logit d'attention une pénalité proportionnelle à la distance entre requête et clé, avec une pente propre à chaque tête. Son slogan « train short, test long » (entraîner court, tester long) repose sur une perplexité qui reste presque stable bien au-delà de la longueur d'entraînement, là où l'encodage sinusoïdal explose et où RoPE se dégrade. Une ré-analyse indépendante nuance cette « extrapolation » : la perplexité monte tout de même au-delà de la longueur d'entraînement, et le modèle exploite peu l'information située plus loin.",
+  "see_also": "NoPE, RoPE (Rotary Position Embedding)"
+ },
+ {
+  "term": "NoPE (No Positional Encoding)",
+  "definition": "NoPE (No Positional Encoding, absence d'encodage positionnel) : un décodeur causal entraîné sans aucun encodage de position explicite. Il n'est pas aveugle à l'ordre, car le masque causal suffit à lui faire retrouver une information de position, ce que montrent à la fois un sondage des représentations et une construction théorique. En généralisation de longueur, NoPE fait mieux que RoPE dans ce cadre, mais son avantage reste borné à une fraction de la longueur d'entraînement.",
+  "see_also": "ALiBi (Attention with Linear Biases)"
+ },
+ {
+  "term": "Position Interpolation",
+  "definition": "Position Interpolation (interpolation de positions, PI) : plutôt que de laisser les indices de position dépasser la longueur d'entraînement L, on les multiplie tous par L/L′ pour ramener la fenêtre cible L′ dans la plage déjà vue, ce qui compresse uniformément toutes les fréquences de RoPE. Les scores d'attention restent ainsi bien bornés, et un court fine-tuning suffit là où un fine-tuning direct sans interpolation n'élargit presque pas la fenêtre effective. Le prix est payé en contexte court : tasser aussi les positions d'origine entraîne une légère perte dans la fenêtre initiale.",
+  "see_also": "NTK-aware scaling, YaRN"
+ },
+ {
+  "term": "NTK-aware scaling",
+  "definition": "NTK-aware scaling (mise à l'échelle « NTK-aware ») : méthode d'extension de contexte née d'un billet informel sur un forum Reddit consacré à LLaMA, non d'une publication évaluée par les pairs. Au lieu de compresser toutes les fréquences comme Position Interpolation, elle relève la base de RoPE pour étirer surtout les basses fréquences et laisser presque intactes les hautes fréquences, porteuses du détail local. Le nom renvoie au Neural Tangent Kernel, dont l'intuition (un réseau apprend mal les hautes fréquences d'une entrée de faible dimension) a seulement motivé l'heuristique. Sa variante dynamic NTK recalcule le facteur d'échelle à chaque forward pass selon la longueur courante ; elle s'applique sans fine-tuning, et ce principe de mise à l'échelle dynamique vaut aussi pour les autres méthodes.",
+  "see_also": "Position Interpolation, YaRN"
+ },
+ {
+  "term": "YaRN (Yet another RoPE extensioN)",
+  "definition": "YaRN (Yet another RoPE extensioN) : combine deux mécanismes indépendants. Le premier, dit « NTK-by-parts », traite les fréquences inégalement par une rampe : les basses fréquences sont interpolées, les hautes laissées inchangées. Le second met à l'échelle la température du softmax d'attention, selon une formule ajustée par les auteurs sur la famille LLaMA. YaRN n'est pas gratuit : il demande quelques centaines de pas de fine-tuning pour atteindre son meilleur niveau en long contexte, et il dégrade légèrement les benchmarks à contexte court, d'autant plus que le facteur d'extension est grand. DeepSeek-V2 l'emploie en production pour étendre son contexte.",
+  "see_also": "NTK-aware scaling, LongRoPE"
+ },
+ {
+  "term": "LongRoPE",
+  "definition": "LongRoPE : méthode d'extension de contexte qui cherche les facteurs de mise à l'échelle au lieu de les dériver. Un algorithme évolutionnaire trouve des facteurs non uniformes, variables selon la dimension de RoPE et selon la position du token, ce qui suffit à étendre le contexte d'un facteur huit sans aucun fine-tuning. Pour aller beaucoup plus loin, LongRoPE procède par étapes : fine-tuning à une longueur intermédiaire, puis nouvelle interpolation sur ce modèle étendu, et réajustement final pour préserver les contextes courts.",
+  "see_also": "YaRN (Yet another RoPE extensioN), Position Interpolation"
+ }
+]

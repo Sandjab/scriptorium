@@ -1,0 +1,1522 @@
+{
+  "generator": "leanmonograph",
+  "theme": {
+    "slug": "rotary-position-embedding",
+    "title": "RoPE et l'extension de contexte : ce que la rotation encode, et ce qu'on lui fait subir pour aller plus loin"
+  },
+  "summary": {
+    "sections_total": 11,
+    "sections_retained": 11,
+    "claims_total": 40,
+    "confirmed": 13,
+    "corrected": 24,
+    "rejected": 3,
+    "retained": 37
+  },
+  "claims": [
+    {
+      "id": "claim:1",
+      "section": "pourquoi-la-position",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "En traduction automatique, ajouter à l'attention des représentations de position relatives apprises (Shaw et al., 2018) améliore modestement le BLEU par rapport au seul encodage absolu sinusoïdal ; l'ampleur varie selon la taille du modèle et selon le travail — de +0,3 à +1,3 BLEU chez Shaw et al., +0,3 dans une re-mesure indépendante sur WMT14 anglais→allemand.",
+      "original_statement": "Le PE relatif appris de Shaw et al. (2018) améliore la traduction automatique par rapport au PE absolu seul sur WMT 2014 : pour le modèle « big », +1,3 BLEU en anglais→allemand et +0,3 BLEU en anglais→français ; combiner PE relatif et PE absolu n'apporte aucun gain supplémentaire observé par les auteurs.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 0,
+          "note": "Vérifié verbatim dans Shaw et al. 2018 (PDF primaire, page 1 : « On the WMT 2014 English-to-German and English-to-French translation tasks, this approach yields improvements of 1.3 BLEU and 0.3 BLEU over absolute position representations, respectively. Notably, we observe that combining relative and absolute position representations yields no further improvement » ; détail par taille de modèle confirmé : big = 27.9→29.2 BLEU en-de (+1.3), +0.3 BLEU en-fr). C'est un résultat empirique mono-source par nature (une seule étude a mesuré ce chiffre) : je n'ai trouvé aucune source indépendante qui le corrobore (ACL Anthology et arXiv hébergent le même document) — seulement des pages qui citent/répètent le chiffre de Shaw et al. Le seuil ≥2 sources ne sera donc pas atteint, ce qui est le traitement correct pour ce type de résultat."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Vérifié verbatim dans le texte primaire (ar5iv) : « For English-to-German our approach improved performance over our baseline by 0.3 and 1.3 BLEU for the base and big configurations, respectively. For English-to-French it improved by 0.5 and 0.3 BLEU for the base and big configurations, respectively. » — pour le modèle big : +1,3 (en-de) et +0,3 (en-fr), exact. Et : « Notably, we observe that combining relative and absolute position representations yields no further improvement in translation quality. » — correspond mot pour mot à l'énoncé. Tient tel quel."
+        }
+      ],
+      "audit_note": "Réparé par regrain au phénomène (ré-audit post-élagage 2026-09-25) : 2 travaux indépendants (Google Brain ; Tencent AI Lab, re-mesure). Chiffres contre-lus dans les deux PDF par la session. L'énoncé d'origine taisait les résultats base (+0,3/+0,5)."
+    },
+    {
+      "id": "claim:2",
+      "section": "pourquoi-la-position",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "T5 (Raffel et al., 2020) encode la position relative par un unique biais scalaire par tête, appris et partagé entre les couches du modèle, ajouté directement au logit d'attention correspondant avant le softmax, et organisé en 32 buckets au total dont la taille croît logarithmiquement jusqu'à un plafond de 128 (au-delà duquel toutes les positions relatives partagent le même bucket) ; pour l'auto-attention bidirectionnelle de l'encodeur, les 32 buckets se répartissent en 16 par direction, dont les 8 premiers décalages sont exacts avant que la croissance logarithmique ne commence (le décodeur causal, à sens unique, n'étant pas scindé par direction, y bascule en log au-delà du 16e décalage).",
+      "original_statement": "T5 (Raffel et al., 2020) encode la position relative par un unique biais scalaire par tête, appris et partagé entre les couches du modèle, ajouté directement aux logits d'attention avant le softmax et organisé en 32 buckets dont la taille croît logarithmiquement au-delà des 16 premiers décalages, jusqu'à un plafond de 128.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "corrected_statement": "T5 (Raffel et al., 2020) encode la position relative par un unique biais scalaire par tête, appris et partagé entre les couches du modèle, ajouté directement au logit d'attention correspondant avant le softmax, et organisé en 32 buckets au total dont la taille croît logarithmiquement jusqu'à un plafond de 128 (au-delà duquel toutes les positions relatives partagent le même bucket) ; pour l'auto-attention bidirectionnelle de l'encodeur, les 32 buckets se répartissent en 16 par direction, dont les 8 premiers décalages sont exacts avant que la croissance logarithmique ne commence (le décodeur causal, à sens unique, n'étant pas scindé par direction, y bascule en log au-delà du 16e décalage).",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "Lu directement dans le PDF du papier T5 (p.5, §2.1) : scalaire par tête, partagé entre couches, ajouté au logit, 32 embeddings, croissance log « up to an offset of 128 » — cette partie tient. Mais le papier ne donne PAS le chiffre 16 comme seuil de bascule log ; en croisant avec l'implémentation Hugging Face (_relative_position_bucket, num_buckets=32, max_distance=128), pour l'auto-attention BIDIRECTIONNELLE (l'encodeur, cas standard) num_buckets est d'abord divisé par 2 (→16 par direction) puis max_exact = 16//2 = 8 : la bascule log se produit après le 8e décalage par direction, pas le 16e. Le chiffre 16 n'est correct que pour le décodeur causal (non bidirectionnel, donc non divisé : max_exact=32//2=16). L'énoncé, non qualifié encodeur/décodeur, énonce donc un chiffre faux pour le cas standard qu'il décrit."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "corrected_statement": "T5 (Raffel et al., 2020) encode la position relative par un unique biais scalaire par tête, appris et partagé entre les couches du modèle, ajouté directement aux logits d'attention avant le softmax et organisé en 32 buckets (16 par sens, positif/négatif) dont la taille croît logarithmiquement au-delà des 8 premiers décalages (et non 16), jusqu'à un plafond de 128.",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "Le papier confirme : biais scalaire par tête, partagé entre couches (« we also share the position embedding parameters across all layers... though within a given layer each attention head uses a different learned position embedding »), ajouté aux logits avant softmax, 32 embeddings, croissance logarithmique jusqu'à un plafond de 128. MAIS le seuil de bascule linéaire→log n'est PAS 16 : le code de référence (adapté du Mesh TensorFlow original, lien en commentaire dans le code HF) montre `num_buckets //= 2` (→16, split direction pos/neg) puis `max_exact = num_buckets // 2` (→8) : la zone exacte couvre les décalages 0–7, le log commence à 8. Le « 16 » de l'énoncé confond le nombre de buckets PAR DIRECTION avec le seuil de bascule, qui est 8. Erreur numérique vérifiée sur le code source, pas seulement déduite."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « T5 (Raffel et al., 2020) encode la position relative par un unique biais scalaire par tête, appris et partagé entre les couches du modèle, ajouté directement aux logits d'attention avant le softmax et organisé en 32 buckets dont la taille croît logarithmiquement au-delà des 16 premiers décalages, jusqu'à un plafond de 128. »"
+    },
+    {
+      "id": "claim:3",
+      "section": "pourquoi-la-position",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "L'encodage sinusoïdal absolu du Transformer original suffirait, par la seule linéarité de ses fonctions trigonométriques en décalage de position, à faire émerger dans l'attention une capacité de généralisation par position relative — c'est l'hypothèse avancée par Vaswani et al. (2017) elle-même, mais Shaw et al. (2018) choisissent de rendre ce mécanisme relatif explicite plutôt que de l'attendre de l'apprentissage ; substitué à l'encodage sinusoïdal, il améliore la traduction.",
+      "original_statement": "L'encodage sinusoïdal absolu du Transformer original suffirait, par la seule linéarité de ses fonctions trigonométriques en décalage de position, à faire émerger dans l'attention une capacité de généralisation par position relative — c'est l'hypothèse avancée par Vaswani et al. (2017) elle-même, mais Shaw et al. (2018) la jugent insuffisante et lui substituent un mécanisme relatif explicite qui améliore la traduction.",
+      "corroborated": 2,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "Vaswani et al. 2017 (ar5iv, §3.5) : « We chose this function because we hypothesized it would allow the model to easily learn to attend by relative positions, since for any fixed offset k, PE_pos+k can be represented as a linear function of PE_pos. » Shaw et al. 2018 (PDF, §2.1) le rapportent explicitement : « the authors hypothesized that sinusoidal position encodings would help the model to generalize to sequence lengths unseen during training by allowing it to learn to attend also by relative position » — puis proposent un mécanisme relatif explicite et démontrent un gain de traduction mesuré (cf. claim 0). Le papier ne dit pas verbatim « insuffisante », mais c'est une lecture fidèle de leur motivation + de leurs résultats (l'explicite bat l'implicite) ; ce n'est pas une déformation."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "corrected_statement": "L'encodage sinusoïdal absolu du Transformer original a été choisi par Vaswani et al. (2017) avec l'hypothèse explicite que sa linéarité en décalage de position (PE(pos+k) linéaire en PE(pos)) faciliterait l'apprentissage, par le modèle, d'une capacité à attendre par position relative. Shaw et al. (2018) ne jugent pas cette hypothèse insuffisante et ne la réfutent pas : ils présentent leur mécanisme relatif explicite comme une « alternative approach » partageant cette même propriété visée, et montrent qu'elle améliore empiriquement la traduction (BLEU, WMT 2014) par rapport au PE absolu seul.",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "Vaswani et al. 2017 (section 3.5) : « We chose this function because we hypothesized it would allow the model to easily learn to attend by relative positions » — confirmé. Mais Shaw et al. 2018 ne « jugent » pas cette hypothèse insuffisante : verbatim dans l'intro, ils écrivent que l'encodage sinusoïdal « would help the model to generalize to sequence lengths unseen during training by allowing it to learn to attend also by relative position. This property is shared by our relative position representations » puis présentent leur méthode comme « an alternative approach » — un vocabulaire additif/exploratoire, jamais correctif (pas de « insufficient », « limitation », « however » dans ce passage). L'énoncé sur-interprète une amélioration empirique comme un jugement explicite d'insuffisance que le texte ne porte pas."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "Vaswani et al. §3.5 state verbatim: \"we hypothesized it would allow the model to easily learn to attend by relative positions, since for any fixed offset k, PE_{pos+k} can be represented as a linear function of PE_pos\" — exact match to the claim's mechanism (linearity under offset) and attribution (Vaswani's own hypothesis, not a later gloss). Shaw et al. §2.1 restate this same hypothesis, then in §4.1–4.2 replace the sinusoidal encoding with explicit relative position representations, report no gain from combining relative+absolute (\"we did not observe any benefit from including sinusoidal position encodings in addition to relative position representations\"), and show +1.3 BLEU (WMT14 En-De) and +0.3 BLEU (WMT14 En-Fr) over the absolute-only baseline — confirming both the \"substitution\" and the translation improvement. One nuance: Shaw et al. never use the word \"insufficient\" themselves; \"jugent insuffisante\" is a fair interpretive gloss on their empirical replacement/no-added-benefit finding, not a verbatim judgment — this doesn't change the verdict but is worth flagging as a paraphrase rather than a quote."
+        }
+      ],
+      "audit_note": "Confirmé : 2/3 jurés, 2 sources indépendantes. | Backstop web 2026-09-25 : énoncé ou exemple corrigé après contre-lecture en primaire par la session (voir audit-report.md)."
+    },
+    {
+      "id": "claim:4",
+      "section": "pourquoi-la-position",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le mécanisme de self-attention est, en lui-même, entièrement invariant à l'ordre des tokens de la séquence d'entrée : sans représentation de position ajoutée, il ne peut distinguer deux séquences qui ne diffèrent que par l'ordre des mots.",
+      "original_statement": "Le mécanisme de self-attention est, en lui-même, entièrement invariant à l'ordre des tokens de la séquence d'entrée : sans représentation de position ajoutée, il ne peut distinguer deux séquences qui ne diffèrent que par l'ordre des mots.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "Shaw et al. 2018 (PDF, §1 Introduction) : « incorporating explicit representations of position information is an especially important consideration since the model is otherwise entirely invariant to sequence ordering. » Source indépendante (survey 2502.12370, distinct de Shaw/Vaswani) : « Transformers are inherently permutation-invariant and lack a natural understanding of sequence order. » Les deux confirment l'énoncé général et académiquement consensuel."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Confirmé verbatim dans l'introduction de Shaw et al. 2018 : « the model is otherwise entirely invariant to sequence ordering » — l'auto-attention est permutation-équivariante par construction (somme pondérée sur les paires clé/valeur sans dépendance à l'indice de position), propriété mathématique bien établie, cohérente avec l'énoncé. Tient tel quel."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:5",
+      "section": "mecanisme-rope",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "RoPE découpe les vecteurs requête et clé en d/2 sous-espaces 2D et fait tourner chacun d'un angle m·θ_i, où θ_i = 10000^(−2(i−1)/d) forme une échelle géométrique de fréquences, des plus hautes (i=1) aux plus basses (i=d/2).",
+      "original_statement": "RoPE découpe les vecteurs requête et clé en d/2 sous-espaces 2D et fait tourner chacun d'un angle m·θ_i, où θ_i = 10000^(−2(i−1)/d) forme une échelle géométrique de fréquences, des plus hautes (i=1) aux plus basses (i=d/2).",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "Vérifié directement dans le papier (Éq. 15) : Θ={θ_i=10000^(−2(i−1)/d), i∈[1,…,d/2]}, θ_1 = fréquence la plus haute, θ_{d/2} la plus basse — correspond exactement à l'énoncé. La page labml.ai (implémentation tierce indépendante) confirme la même formule et le découpage en d/2 sous-espaces 2D."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Confirmé verbatim contre l'Éq. 15 du papier : Θ={θᵢ=10000^(−2(i−1)/d), i∈[1,...,d/2]}, avec d/2 sous-espaces 2D et rotation de m·θᵢ pour chacun, fréquence décroissante de i=1 (θ₁=1, la plus haute) à i=d/2 (la plus basse). Formule et énoncé exacts."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes. Acceptation : src:8 (nn.labml.ai, implémentation annotée) n'a pas rang de source ; seconde source recevable ajoutée — Chen et al. 2023 (Position Interpolation), §2.1 : f(x,m) par paires (x_{2j}, x_{2j+1}) tournées de m·θ_j, θ_j = 10000^(−2j/d) (indexation à 0, équivalente), lu dans le PDF."
+    },
+    {
+      "id": "claim:6",
+      "section": "mecanisme-rope",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "L'identité R_{Θ,m}^T R_{Θ,n} = R_{Θ,n−m} fait émerger la position relative (n−m) dans le produit scalaire q_m^T k_n sans aucun terme additif — RoPE se distingue ainsi de Shaw et al. (2018), qui additionnent des embeddings relatifs appris aux clés/valeurs, et de l'encodage sinusoïdal absolu de Vaswani et al. (2017), qui additionne la position à la représentation d'entrée.",
+      "original_statement": "L'identité R_{Θ,m}^T R_{Θ,n} = R_{Θ,n−m} fait émerger la position relative (n−m) dans le produit scalaire q_m^T k_n sans aucun terme additif — RoPE se distingue ainsi de Shaw et al. (2018), qui additionnent des embeddings relatifs appris aux clés/valeurs, et de l'encodage sinusoïdal absolu de Vaswani et al. (2017), qui additionne la position à la représentation d'entrée.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "Éq. 16 du papier confirme littéralement R^T_{Θ,m} R_{Θ,n} = R_{Θ,n−m}, et le développement de q_m^T k_n montre que n−m apparaît par simple composition de rotations, sans terme additif. La comparaison à Shaw et al. 2018 est exacte : ce papier ajoute des représentations positionnelles relatives APPRISES aux clés (et valeurs) dans le calcul du score/du contexte — un mécanisme additif, distinct de la composition multiplicative de RoPE. Le rappel sur Vaswani et al. 2017 (sinusoïdal absolu additionné à l'entrée) est un fait bien établi, déjà couvert par transformer-attention."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Confirmé : l'Éq. 16 donne q_mᵀk_n via R_{Θ,n−m}=(R_{Θ,m})ᵀR_{Θ,n}, sans terme additif. Le papier oppose explicitement cette nature multiplicative à Shaw et al. 2018 (embeddings relatifs appris ADDITIONNÉS aux clés/valeurs) et à l'encodage sinusoïdal absolu de Vaswani et al. 2017 (ADDITIONNÉ à la représentation d'entrée) — contraste tenu tel quel dans le texte."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:7",
+      "section": "mecanisme-rope",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Le papier RoFormer (§3.4.3, par transformation d'Abel, Éq. 36–37) établit une borne analytique montrant que la BORNE SUPÉRIEURE du score d'attention décroît avec la distance relative — il ne prouve pas que le score d'attention lui-même décroît nécessairement ni de façon monotone. Cette borne est illustrée, non démontrée exhaustivement, par une figure empirique (Figure 2), et des travaux postérieurs montrent que la propriété de décroissance réelle ne tient pas dans tous les cas (par ex. sous des hypothèses générales sur la distribution de q et k). La « décroissance à longue portée » de RoPE reste donc une propriété partiellement formelle (borne prouvée) mais pas une garantie stricte que l'attention elle-même décroît.",
+      "original_statement": "Le papier RoFormer prouve mathématiquement, par une borne fermée et un taux de décroissance explicite, que l'attention décroît avec la distance relative entre tokens — la « décroissance à longue portée » de RoPE serait donc une garantie formelle et quantitative, et non une simple observation empirique.",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 3,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "corrected_statement": "Le papier RoFormer (§3.4.3, par transformation d'Abel, Éq. 36–37) établit une borne analytique montrant que la BORNE SUPÉRIEURE du score d'attention décroît avec la distance relative — il ne prouve pas que le score d'attention lui-même décroît nécessairement ni de façon monotone. Cette borne est illustrée, non démontrée exhaustivement, par une figure empirique (Figure 2), et des travaux postérieurs montrent que la propriété de décroissance réelle ne tient pas dans tous les cas (par ex. sous des hypothèses générales sur la distribution de q et k). La « décroissance à longue portée » de RoPE reste donc une propriété partiellement formelle (borne prouvée) mais pas une garantie stricte que l'attention elle-même décroît.",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "Le papier RoFormer prouve une borne (via transformation d'Abel) sur une somme pondérée, présentée avec une illustration empirique (Figure 2) — ce n'est pas un taux de décroissance strict de l'attention elle-même. Men et al. 2024 confirment indépendamment (§4.1) que ce qui est prouvé est la décroissance d'une BORNE SUPÉRIEURE du score d'attention, pas du score lui-même ; la littérature ultérieure (HoPE, etc.) montre en outre que les modèles entraînés apprennent des motifs (en U) qui contredisent la décroissance globale. L'énoncé du claim, qui présente cela comme « une garantie formelle et quantitative, et non une simple observation empirique », sur-interprète la portée de la preuve du papier."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "corrected_statement": "Le papier RoFormer avance, en prose (section 3.3, renvoyant à la section 3.4.3 pour le détail), que le réglage θᵢ=10000^(−2i/d) « provides a long-term decay property » : par une transformation d'Abel, il borne la magnitude MOYENNE |S_i| et montre qu'elle décroît avec la distance relative, illustré ensuite par la figure 2. Ce n'est ni un théorème/une proposition numérotée, ni une borne fermée assortie d'un taux de décroissance explicite garantissant une décroissance stricte et systématique du produit scalaire à toute distance — l'énoncé final s'appuie sur une figure, pas seulement sur une preuve fermée.",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Réfuté : le texte lui-même (« one can prove this setting provides a long-term decay property, refer to Section 3.4.3 for more details ») est de la prose sans numéro de théorème ; la démonstration ne porte que sur une magnitude MOYENNE bornée via somme d'Abel, et la tendance de décroissance est en définitive montrée par une figure (Fig. 2). Le claim sur-affirme en la qualifiant de « garantie formelle et quantitative » excluant toute observation empirique — c'est inexact : la preuve analytique est partielle (borne sur une moyenne) et l'appui final reste graphique."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "corrected_statement": "Le papier RoFormer (Su et al., 2021) dérive, via une sommation d'Abel, une borne supérieure fermée sur le produit scalaire (query·key) des représentations RoPE, et montre par illustration numérique (Figure 2) — pour le choix particulier θᵢ=10000^(−2i/d) — que le terme moyen de cette borne tend à décroître quand la distance relative |m−n| augmente. Ce n'est ni un taux de décroissance explicite en forme close, ni une preuve analytique de décroissance monotone pour toute distance (la décroissance du terme de la borne est montrée par une figure, pas dérivée) ; et la borne porte sur le produit scalaire brut, pas sur les poids d'attention normalisés (softmax). C'est donc un argument mixte formel + numérique, pas une garantie purement formelle et quantitative — et des travaux ultérieurs contestent la portée générale de la propriété (elle ne tient pas sous des hypothèses standards de vecteurs aléatoires gaussiens).",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "La lecture directe du §3.4.3 du papier (fourni comme source candidate) montre une inégalité (borne fermée, obtenue par sommation d'Abel) dont le terme est ensuite montré DÉCROISSANT « as shown in Figure 2 » — c'est-à-dire par illustration numérique pour un choix de fréquences donné, pas par une formule de taux de décroissance ni une preuve valable pour toute distance ; l'énoncé contesté surclaims donc sur « taux de décroissance explicite » et « garantie formelle et quantitative, non empirique ». Une source secondaire (Emergent Mind) confirme cette lecture : « rather than a rigorous proof with explicit decay rates »."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Le papier RoFormer prouve mathématiquement, par une borne fermée et un taux de décroissance explicite, que l'attention décroît avec la distance relative entre tokens — la « décroissance à longue portée » de RoPE serait donc une garantie formelle et quantitative, et non une simple observation empirique. »"
+    },
+    {
+      "id": "claim:8",
+      "section": "mecanisme-rope",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "RoPE préserve la norme des vecteurs (rotation orthogonale) et peut se combiner à l'attention linéaire (ex. Performer) en appliquant la rotation aux sorties de fonctions de noyau non-négatives φ, ψ. Mais le papier relève lui-même que la somme du numérateur peut alors contenir des termes NÉGATIFS (la rotation peut faire sortir des valeurs de la zone non-négative), si bien que les poids ne sont plus strictement normalisés/probabilistes ; les auteurs présentent cela comme une limite reconnue de la combinaison, pas comme une composition qui laisse l'approximation du noyau intacte.",
+      "original_statement": "RoPE préserve la norme des vecteurs (rotation orthogonale), ce qui le rend compatible avec l'attention linéaire : la rotation peut s'appliquer directement aux sorties des fonctions de noyau non-négatives (ex. Performer) sans perturber l'approximation du noyau.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "Le papier RoFormer indique explicitement que R^d_Θ est une matrice orthogonale (rotation, norme préservée) et l'applique à l'attention linéaire (Éq. 19) en faisant tourner directement les sorties de φ(q), φ(k). Performer (Choromanski et al. 2020), vérifié indépendamment, utilise bien une fonction noyau POSITIVE φ(x)=exp(ω^Tx−‖x‖²/2) pour approximer le noyau softmax sans biais — une rotation qui préserve la norme appliquée après φ ne perturbe donc pas la positivité ni l'approximation du noyau, ce qui valide la compatibilité annoncée."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "corrected_statement": "RoPE préserve la norme des vecteurs (rotation orthogonale) et peut se combiner à l'attention linéaire (ex. Performer) en appliquant la rotation aux sorties de fonctions de noyau non-négatives φ, ψ. Mais le papier relève lui-même que la somme du numérateur peut alors contenir des termes NÉGATIFS (la rotation peut faire sortir des valeurs de la zone non-négative), si bien que les poids ne sont plus strictement normalisés/probabilistes ; les auteurs présentent cela comme une limite reconnue de la combinaison, pas comme une composition qui laisse l'approximation du noyau intacte.",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Réfuté sur le point clé : le papier dit explicitement, dans la sous-section « RoPE with linear attention » (§3.3), que « the summation in the numerator could contain negative terms » et que les poids résultants « are not strictly probabilistic normalized ». La rotation PERTURBE donc bien l'approximation du noyau non-négatif — contrairement à ce qu'affirme le claim (« sans perturber l'approximation du noyau »)."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « RoPE préserve la norme des vecteurs (rotation orthogonale), ce qui le rend compatible avec l'attention linéaire : la rotation peut s'appliquer directement aux sorties des fonctions de noyau non-négatives (ex. Performer) sans perturber l'approximation du noyau. »"
+    },
+    {
+      "id": "claim:9",
+      "section": "proprietes-annoncees-mesurees",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "La « décroissance à longue portée » annoncée pour RoPE repose sur une borne qualitative, dérivée par sommation par parties et illustrée par un tracé, et non sur une propriété générale : un travail ultérieur montre qu'elle suppose des requêtes et des clés irréalistes, et qu'elle disparaît pour des requêtes et des clés tirées au hasard d'une gaussienne (espérance du score nulle à toute distance).",
+      "original_statement": "RoFormer établit la propriété de décroissance longue-portée de RoPE par une borne dérivée d'une transformation d'Abel (sommation par parties) — une inégalité qualitative sans taux de décroissance fermé — complétée par un tracé empirique (Figure 2), et non par une preuve d'un taux asymptotique explicite.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Vérifié directement dans le texte intégral (ar5iv) : Section 3.4.3 applique bien la transformation d'Abel (Eq. 36) et aboutit à une borne d'inégalité (Eq. 37, |Σ| ≤ (max|h_{i+1}-h_i|)·Σ|S_{i+1}|) sans taux asymptotique explicite, complétée par la Figure 2 (tracé empirique de la magnitude moyenne vs distance relative). Une seule source vérifiée par moi (arXiv/ar5iv = même document) ; recherche d'une deuxième source secondaire tierce détaillant spécifiquement la transformation d'Abel infructueuse (towardsdatascience et emergentmind ne détaillent pas cette étape)."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Confirmé par lecture directe de la §3.4.3 : la preuve utilise bien une transformation d'Abel (sommation par parties) et aboutit à une borne qualitative (|Σhi(Si+1-Si)| ≤ (max|hi+1-hi|)Σ|Si+1|), sans taux de décroissance asymptotique fermé. Figure 2 montre un tracé empirique de la moyenne de |Si| en fonction de la distance relative. L'énoncé tient tel quel."
+        }
+      ],
+      "audit_note": "Réparé par regrain au phénomène (ré-audit post-élagage 2026-09-25) : primaire (RoFormer) + contestation d'autres auteurs (Barbero et al.), passages contre-lus dans les PDF par la session. | Backstop web 2026-09-25 : énoncé ou exemple corrigé après contre-lecture en primaire par la session (voir audit-report.md)."
+    },
+    {
+      "id": "claim:10",
+      "section": "proprietes-annoncees-mesurees",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "La décroissance à longue portée que RoFormer met en avant pour justifier RoPE est contestée par deux travaux indépendants, l'un par la théorie, l'autre par l'observation : elle ne vaut que dans des conditions particulières (requêtes et clés constantes ou alignées), et des modèles entraînés n'apprennent pas une atténuation globale et monotone de l'attention avec la distance.",
+      "original_statement": "La décroissance longue-portée de RoPE, présentée par RoFormer comme une propriété acquise et bénéfique, est en réalité contestée empiriquement : HoPE (2024) montre que les modèles entraînés avec RoPE n'apprennent pas une décroissance globale monotone mais un décrochage local combiné à un motif en U à l'échelle globale, et argue que la décroissance est indésirable pour des usages modernes de récupération précise en contexte long.",
+      "corroborated": 3,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "Vérifié dans HoPE (2024) : l'abstract affirme explicitement que les modèles 'inherently learn attention with only a local-decay pattern while forming a U-shape pattern globally, contradicting the principle of long-term decay', et que 'long-term decay is outdated in the era of LLMs, as LLMs are now applied to tasks demanding precise retrieval of in-context information from arbitrary positions'. Corroboré indépendamment par Emergent Mind qui confirme le motif en U identifié par HoPE. La partie RoFormer du claim (décrite comme propriété acquise/bénéfique) est cohérente avec le texte de RoFormer déjà lu pour le claim 0 (« this fits with the intuition that a pair of tokens with a long relative distance should have less connection »)."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "L'abstract confirme mot pour mot le motif décrit : les modèles entraînés avec RoPE apprennent un 'local-decay pattern' combiné à un 'U-shape pattern' à l'échelle globale, ce qui contredit la décroissance longue-portée annoncée ; le papier argue explicitement que cette propriété est 'outdated' pour la récupération précise en contexte long. L'énoncé tient tel quel."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "RoFormer's abstract does present decaying inter-token dependency with distance as one of RoPE's \"valuable properties\". HoPE's abstract/intro directly contradicts this: it states models trained with RoPE \"inherently learn attention with only a local-decay pattern while forming a U-shape pattern globally\" (not a monotonic global decay), and explicitly argues long-term decay is \"outdated in the era of LLMs\" for tasks needing \"precise retrieval of in-context information from arbitrary positions\" — matching the claim's wording on scope, mechanism, and attribution exactly."
+        }
+      ],
+      "audit_note": "Ré-adjugé après le contrôle d'acceptation (2026-09-25) : l'appareil d'origine ne tenait que sur HoPE (RoFormer est le papier contesté, Emergent Mind un agrégateur). Regrainé au phénomène, porté par deux travaux indépendants (Oxford/Google DeepMind ; Xiaomi/Renmin), passages contre-lus dans les PDF par la session. Le motif en U reste propre à HoPE et descend en exemple attribué.",
+      "readjudication": "2026-09-25 : refusé au contrôle d'acceptation (une seule source réelle), ré-adjugé par ré-audit + contre-lecture en primaire par la session"
+    },
+    {
+      "id": "claim:11",
+      "section": "proprietes-annoncees-mesurees",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Sans adaptation, un modèle à RoPE extrapole mal au-delà de sa longueur d'entraînement : sa perplexité se dégrade vite, jusqu'à l'effondrement, comme le mesurent indépendamment les auteurs d'ALiBi et ceux de Position Interpolation.",
+      "original_statement": "Sur le propre banc d'extrapolation du papier ALiBi (WikiText-103, entraînement à 512 tokens), la perplexité à 10 512 tokens est de 60,77 pour RoPE (rotary) contre 18,32 pour ALiBi (et 341,53 pour le sinusoïdal absolu), ce qui montre l'échec de RoPE à extrapoler loin au-delà de sa longueur d'entraînement alors qu'ALiBi reste stable.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Vérifié directement dans le Table 2 (annexe) du papier ALiBi via ar5iv : modèles entraînés à L=512 sur WikiText-103, évalués à 10512 tokens — Sinusoïdal 341,53, Rotary (RoPE) 60,77, T5 bias 52,95, ALiBi 18,32. Les trois chiffres cités dans le claim correspondent exactement. Une seule source vérifiée (le papier lui-même) ; je n'ai pas trouvé de source secondaire indépendante reproduisant ce tableau précis dans le temps imparti."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Table 2 (Appendix A.1) du papier ALiBi, modèles entraînés sur L=512, donne exactement à 10 512 tokens : sinusoïdal 341,53, rotary (RoPE) 60,77, ALiBi 18,32. Correspondance numérique exacte avec l'énoncé ; ALiBi reste bien nettement plus stable que RoPE sur ce banc. L'énoncé tient tel quel."
+        }
+      ],
+      "audit_note": "Réparé par regrain au phénomène (ré-audit post-élagage 2026-09-25) : deux mesures indépendantes (autres auteurs, autres modèles, autres corpus), chiffres contre-lus dans les deux PDF. Les chiffres fins restent mono-source et descendent en exemples attribués ; l'énoncé d'origine taisait qu'il s'agit du jeu de validation."
+    },
+    {
+      "id": "claim:12",
+      "section": "proprietes-annoncees-mesurees",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Dans un décodeur causal, RoPE généralise en longueur moins bien que l'absence d'encodage explicite (NoPE) ; mais l'avantage de NoPE reste borné, il ne s'étend qu'à une fraction de la longueur d'entraînement.",
+      "original_statement": "Dans un décodeur causal, Kazemnejad et al. (NeurIPS 2023) montrent que RoPE, ALiBi et les embeddings de position absolus appris généralisent tous mal en longueur sur des tâches downstream, alors que l'absence totale d'encodage positionnel explicite (NoPE) les surpasse tous sur ce critère.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Vérifié directement dans l'abstract/contenu du papier : 'the most commonly used positional encoding methods, such as ALiBi, Rotary, and APE, are not well suited for length generalization in downstream tasks' et 'NoPE outperforms other explicit positional encoding methods while requiring no additional computation', dans un cadre décodeur causal sur tâches de raisonnement. Correspond exactement au claim. Une seule source candidate fournie et une seule vérifiée par moi malgré recherche (les pages secondaires trouvées — ML Anthology, NeurIPS poster — ne font que reprendre l'abstract, donc pas indépendantes au sens du travail ; une étude plus récente, 'A Formal Framework for Understanding Length Generalization', nuance le résultat dans un cadre différent mais ne l'infirme pas pour le cadre étudié par Kazemnejad)."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "L'abstract confirme que RoPE, ALiBi et les embeddings de position absolus appris ('APE') généralisent mal en longueur sur des tâches downstream (raisonnement, mathématiques) dans un décodeur causal, et que NoPE (absence d'encodage positionnel explicite) les surpasse tous — 'NoPE outperforms other explicit positional encoding methods'. L'énoncé tient tel quel."
+        }
+      ],
+      "audit_note": "Réparé par regrain au phénomène (ré-audit post-élagage 2026-09-25) : deux travaux sans auteur commun, autre échelle et autre tâche pour le second ; passages contre-lus dans les PDF. L'énoncé d'origine parlait de « tokens » là où Kazemnejad mesure des longueurs d'instance de tâches synthétiques. | Backstop web 2026-09-25 : énoncé ou exemple corrigé après contre-lecture en primaire par la session (voir audit-report.md)."
+    },
+    {
+      "id": "claim:13",
+      "section": "alibi-nope-contrepoints",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Un modèle ALiBi entraîné sur des séquences courtes garde une perplexité quasi stable sur des entrées bien plus longues, là où l'encodage sinusoïdal explose ; une ré-analyse indépendante conteste pourtant qu'il s'agisse d'une véritable extrapolation : les perplexités d'ALiBi augmentent au-delà de la longueur d'entraînement au lieu de rester constantes, et le modèle n'exploiterait guère l'information située au-delà de cette longueur.",
+      "original_statement": "ALiBi achieves a documented 'train short, test long' result: a 1.3B-parameter model trained at sequence length 1024 and evaluated at length 2048 matches the perplexity of a sinusoidal-embedding model trained directly at 2048, while using 11% less training time and 11% less memory.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 0,
+          "note": "Verified verbatim against the ALiBi paper's own text (Press et al., arxiv 2108.12409): the 1.3B/L=1024 model matches the perplexity of a sinusoidal model trained at L=2048 (tested at 2048), 11% faster training and 11% less memory. This is the paper's own reported result — a mono-source empirical finding. No independent third-party source reproducing these specific figures was found despite searching; every hit found was the paper itself or a mirror/paraphrase of its abstract."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Confirmed verbatim from the paper's own text (p.2, primary PDF read): '1.3 billion parameter LM trained on L = 1024 tokens with ALiBi achieves the same perplexity as a sinusoidal model trained on L = 2048 when both are tested on sequences of 2048 tokens, even though our model is 11% faster and uses 11% less memory.' Matches the claim's numbers exactly (11% less training time, 11% less memory, same perplexity at test length 2048)."
+        }
+      ],
+      "audit_note": "Réparé par regrain au phénomène (ré-audit post-élagage 2026-09-25) : primaire (Press et al.) + ré-analyse contestataire d'autres auteurs (Chi et al.), passages contre-lus dans les deux PDF par la session. Le chiffre 1,3 B / 11 % reste mono-source et descend en exemple attribué."
+    },
+    {
+      "id": "claim:14",
+      "section": "alibi-nope-contrepoints",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "RoPE's theoretical long-term decay property is commonly taken to mean it extrapolates well past its training length, but measured against ALiBi (and even against T5's learned relative bias) it extrapolates far worse: on WikiText-103 (trained at length 512), perplexity at test length 10512 is 60.77 for RoPE vs 52.95 for T5's relative bias and 18.32 for ALiBi — RoPE's rotation-based decay does not translate into competitive extrapolation in practice.",
+      "original_statement": "RoPE's theoretical long-term decay property is commonly taken to mean it extrapolates well past its training length, but measured against ALiBi (and even against T5's learned relative bias) it extrapolates far worse: on WikiText-103 (trained at length 512), perplexity at test length 10512 is 60.77 for RoPE vs 52.95 for T5's relative bias and 18.32 for ALiBi — RoPE's rotation-based decay does not translate into competitive extrapolation in practice.",
+      "corroborated": 3,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 0,
+          "note": "Downloaded the ALiBi paper's raw HTML and extracted Table 2 (models trained at L=512) directly: at L_valid=10512, perplexity is 341.53 (sinusoidal), 60.77 (rotary/RoPE), 52.95 (T5 bias), 18.32 (ALiBi) — exact match to the claim. Cross-checked the RoPE paper (Su et al., arxiv 2104.09864) itself: it frames long-term decay as linguistically motivated, not as an explicit extrapolation guarantee, supporting the claim's 'commonly taken to mean' framing rather than misattributing a claim to the RoPE authors. This specific table-cell data is mono-source (only in the ALiBi paper's appendix); no independent secondary reproduction of these exact numbers was found after searching."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "Verified against the ALiBi paper's Table 2 (extracted directly from the primary PDF, not a summary): trained at L=512 on WikiText-103, at test length Lvalid=10512, perplexity is Sinusoidal=341.53, Rotary=60.77, T5 Bias=52.95, ALiBi=18.32 — the claim's three numbers (RoPE/T5/ALiBi) are exact. The paper itself states 'the rotary position method improves over the sinusoidal one, [but] it still does not achieve satisfying results' while 'the T5 bias method leads to better extrapolation than either of these.' The RoPE paper's abstract separately confirms the 'long-term decay' framing the claim references as the (unmet) theoretical expectation. Note the claim's parenthetical framing ('commonly taken to mean') is interpretive/contextual, not itself a measured fact, but the core comparison is exact and well supported."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "Verified verbatim in the ALiBi paper's Appendix Table 2 (models trained at L=512 on WikiText-103, evaluated at Lvalid=10512): rotary (RoPE) PPL = 60.77, T5 bias PPL = 52.95, ALiBi PPL = 18.32 — the claim's three numbers match exactly. The RoPE paper itself (§3.4.3, §4.5.5) ties its \"long-term decay\" property to claimed strength on long texts, so \"commonly taken to mean it extrapolates well\" is a fair characterization of the common (and, per ALiBi's finding, mistaken) inference; ALiBi's own text (\"the rotary position method improves over the sinusoidal one, it still does not achieve satisfying results\") directly supports \"does not translate into competitive extrapolation in practice.\""
+        }
+      ],
+      "audit_note": "Confirmé : 3/3 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:15",
+      "section": "alibi-nope-contrepoints",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Un décodeur causal sans aucun encodage positionnel explicite (NoPE) n'est pas aveugle à l'ordre : le masque causal suffit à lui faire retrouver une information de position, que deux travaux indépendants mettent en évidence, l'un par sondage des représentations, l'autre par construction théorique.",
+      "original_statement": "Kazemnejad et al. (NeurIPS 2023) show that a decoder-only transformer with no explicit positional encoding (NoPE) outperforms ALiBi, RoPE, T5's relative bias and absolute position embeddings on length generalization, because the causal attention mask alone lets the model recover both absolute and relative positional information — but the result is established on small-scale models over synthetic reasoning/algorithmic tasks (e.g. SCAN-style splits), not on natural-language modeling at production scale.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 0,
+          "note": "Verified against the paper itself (arxiv 2305.19466) and independently confirmed venue via the official NeurIPS 2023 poster page (neurips.cc/virtual/2023/poster/72346), a third-party listing distinct in hosting from arXiv. Tasks are synthetic/algorithmic (Copy, Reverse, Addition, Polynomial Eval, Sorting, Summation, Parity, LEGO, SCAN, PCFG — SCAN literally present), model scale ~107M ('base' config), and the causal-mask mechanism is exactly what the paper's formal proof shows (first layer recovers absolute position via causal softmax, later layers derive relative position). Minor nuance not requiring correction: paper's body text says NoPE is 'on par with or even better than' T5's Relative Bias specifically, while its own abstract/intro claim it 'outperforms all' explicit PEs — the claim follows the paper's own headline framing. No genuinely independent (different-authorship) source was found; NeurIPS.cc and Semantic Scholar are the same work/authors under a different host, not independent per project convention, so excluded from independent_sources despite being opened and read."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Verified from the primary PDF (not a summary). Figure 1 gives mean reciprocal rank across length-generalization tasks: NoPE 0.69 > T5's Relative PE 0.55 > ALiBi 0.50 > Rotary 0.33 > APE 0.22 — the claim's ranking is exact. The paper's appendix proof shows the causal attention mask + softmax lets layer 1 recover absolute position and later layers implement relative-PE-like attention — matching the claim's mechanism explanation almost verbatim. Main experiments use a 'base' config (768 dim, 12 layers, 12 heads, ~small-scale) trained from scratch on 10 synthetic tasks (Addition, Sorting, LEGO, Parity, Copy/Reverse, SCAN, PCFG, etc.) — SCAN is literally one of the ten, so 'SCAN-style splits' is an accurate representative example. Crucially, the claim's caveat about production/natural-language scale is well founded: the paper's own Appendix F (1.3B-parameter code-pretraining experiment) found ALiBi more stable than NoPE beyond context 1800, i.e. the small-scale ranking does NOT hold unchanged at larger natural-data scale — exactly what the claim flags."
+        }
+      ],
+      "audit_note": "Réparé par regrain au phénomène (ré-audit post-élagage 2026-09-25) : deux travaux sans auteur commun (Haviv et al. précède Kazemnejad et al.) portent le mécanisme ; passages contre-lus dans les PDF. Le classement NoPE > T5 > ALiBi > Rotary > APE reste propre à Kazemnejad et descend en exemple attribué. | Backstop web 2026-09-25 : énoncé ou exemple corrigé après contre-lecture en primaire par la session (voir audit-report.md)."
+    },
+    {
+      "id": "claim:16",
+      "section": "echec-extrapolation-rope",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Au-delà de la longueur d'entraînement, les scores d'attention d'un modèle à RoPE sortent de la plage vue à l'entraînement et peuvent exploser ; Position Interpolation évite cette zone en ramenant les positions dans la fenêtre d'origine, où ses auteurs montrent que les scores restent bien mieux bornés.",
+      "original_statement": "Le théorème 2.1 de l'article Position Interpolation (Chen et al., Meta, arXiv:2306.15595) montre que la borne théorique sur l'erreur d'interpolation est au moins ~600 fois plus petite que la borne théorique sur l'erreur d'extrapolation de RoPE — un facteur d'environ 2×294,73, le calcul utilisant la base b=10000 de RoPE — ce qui justifie mathématiquement de ramener les positions dans la fenêtre vue à l'entraînement plutôt que d'extrapoler au-delà.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 0,
+          "note": "Vérifié directement dans arXiv:2306.15595 (source de l'énoncé lui-même, non indépendante) : le Théorème 2.1 donne |a(s)−a_linear(s)| ≤ d·max|h_j|/294.73 avec la base c=10000, et le papier conclut explicitement 'the interpolation bound is at least 2·294.73∼600× smaller than the extrapolation bound' — l'énoncé reproduit fidèlement ce résultat et sa justification. Recherche d'une DEUXIÈME source indépendante (survey long-contexte, blog theneuralbase.com) infructueuse : ce chiffre précis n'apparaît que dans le papier d'origine, aucune source tierce ne le reprend."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Confirmé mot pour mot sur la source primaire (HTML de arXiv:2306.15595) : le Théorème 2.1 donne une borne en 1/(32·ln c) avec c=base=10000, et le papier affirme explicitement « the interpolation bound is at least 2·294.73~600× smaller than the extrapolation bound ». Le facteur ~2×294,73 et la base 10000 sont bien ceux du papier. L'énoncé tient tel quel."
+        }
+      ],
+      "audit_note": "Réparé par regrain au phénomène (ré-audit post-élagage 2026-09-25) : primaire (PI) + analyse théorique et mesure propres d'autres auteurs (LM-Infinite), passages contre-lus dans les PDF. L'énoncé d'origine attribuait à tort le « ~600× » au théorème 2.1 et présentait deux bornes sur des quantités différentes comme deux « erreurs » comparables."
+    },
+    {
+      "id": "claim:17",
+      "section": "echec-extrapolation-rope",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Des scores d'attention bien tenus sur les distances vues à l'entraînement ne contraignent pas leur comportement au-delà : les composantes de RoPE dont l'entraînement n'a pas parcouru toute la période produisent, hors de la fenêtre, des valeurs hors distribution.",
+      "original_statement": "Position Interpolation explique le caractère catastrophique de l'extrapolation par une propriété d'approximateur universel de la famille trigonométrique sous-jacente à RoPE : il existe toujours des coefficients clé/requête qui donnent des scores d'attention petits sur les positions vues à l'entraînement (ex. [0, 2048]) mais beaucoup plus grands au-delà — la borne théorique devient alors non contraignante hors de ce domaine.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 0,
+          "note": "Confirmé dans la Section 2.2 d'arXiv:2306.15595 (même source que le claim 0, non indépendante) : 'the trigonometric family {φ_j} ... is a universal approximator ... there always exist coefficients {h_j} ... that corresponds to small function values in [0, 2048] but much larger in regions beyond' — correspond à l'énoncé. Aucune deuxième source indépendante trouvée reprenant cet argument précis."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Confirmé sur la même source primaire, citation directe de la section théorique : « the trigonometric family {φ_j} ... is a universal approximator ... there always exist coefficients {h_j} ... small ... in [0, 2048] but much larger in regions beyond ». Correspond exactement à l'énoncé, y compris l'idée que la borne théorique devient non contraignante hors du domaine d'entraînement. Tient tel quel."
+        }
+      ],
+      "audit_note": "Réparé par regrain au phénomène (ré-audit post-élagage 2026-09-25) : deux travaux d'auteurs distincts, par deux mécanismes (argument d'approximation ; dimension critique), passages contre-lus dans les PDF. L'énoncé d'origine disait à tort que la borne ne devient non contraignante qu'hors du domaine d'entraînement : PI la juge lâche partout. | Backstop web 2026-09-25 : énoncé ou exemple corrigé après contre-lecture en primaire par la session (voir audit-report.md)."
+    },
+    {
+      "id": "claim:18",
+      "section": "echec-extrapolation-rope",
+      "section_retained": true,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "Avec la base par défaut de RoPE (10000), Liu (2026, arXiv:2602.10959) dérive un « aliasing bound » analogue à une limite de Nyquist : la longueur de contexte L doit rester inférieure à la période fondamentale 2π·base, soit environ 2π×10000 ≈ 62 832 positions — au-delà de cet « horizon de collision », le modèle ne peut plus distinguer la position 0 d'une position lointaine, une rupture décrite comme catastrophique et non graduelle.",
+      "original_statement": "Avec la base par défaut de RoPE (10000), Liu (2026, arXiv:2602.10959) dérive un « aliasing bound » analogue à une limite de Nyquist : la longueur de contexte L doit rester inférieure à la période fondamentale 2π·base, soit environ 2π×10000 ≈ 62 832 positions — au-delà de cet « horizon de collision », le modèle ne peut plus distinguer la position 0 d'une position lointaine, une rupture décrite comme catastrophique et non graduelle.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 0,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 0,
+          "note": "Le papier arXiv:2602.10959 (Liu, 'Rotary Positional Embeddings as Phase Modulation', soumis fév. 2026, existence et contenu confirmés) énonce bien un 'aliasing bound' base > L/(2π), un 'collision horizon' à ~62 832 tokens pour base=10000, et qualifie la rupture de 'not gradually, but catastrophically'. L'énoncé reproduit fidèlement ces trois points. Réserve : source unique, très récente, apparemment non relue par les pairs — je n'ai trouvé qu'une citation en aparté par un papier ultérieur (2604.14430), aucune source tierce indépendante corroborant le chiffre 62 832 ou le raisonnement Nyquist lui-même."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "corrected_statement": "Liu (2026, arXiv:2602.10959) — un article isolé et très récent (soumis en février 2026, non encore corroboré) — reformule RoPE en modulation de phase et dérive, par analogie avec Nyquist, une borne base > L/(2π), soit L < 2π·base ≈ 62 832 positions pour base=10000 ; l'article qualifie le franchissement de cette borne de « collision horizon » catastrophique et non graduel. Ce cadrage est toutefois mathématiquement incomplet : seule la dimension de plus basse fréquence revient exactement en phase à L=2π·base — les autres dimensions, de périodes bien plus courtes et non commensurables, ne s'alignent pas simultanément à cette même position, si bien que le vecteur positionnel complet n'a pas de raison d'être réellement identique entre la position 0 et la position ~62 832 (l'article ne traite pas cette objection). Le cadrage « catastrophique et non graduel exactement à 62832 » contredit en outre la dégradation graduelle, bien documentée par ailleurs (PI, NTK-aware, YaRN), des modèles RoPE en base 10000 dès qu'ils dépassent leur longueur d'entraînement — très en-deçà de 62 832 tokens.",
+          "search_exhausted": false,
+          "n_sources": 0,
+          "note": "Le contenu attribué au papier est fidèlement rapporté (vérifié en HTML sur arXiv:2602.10959 : « collision horizon » à ~62k, « the model fundamentally cannot distinguish Position 0 from Position ~62k », rupture « not gradually but catastrophically » — quasi verbatim). Mais c'est une source unique très récente (fév. 2026) dont le raisonnement néglige les autres dimensions de fréquence et dont la conclusion (rupture nette à 62832, pas de dégradation avant) contredit le comportement empirique bien établi de RoPE base=10000. Doute réel sur la véracité du fait lui-même, pas seulement sur sa formulation → holds=false."
+        }
+      ],
+      "audit_note": "Rejeté : 1 confirmation(s), 0 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+    },
+    {
+      "id": "claim:19",
+      "section": "echec-extrapolation-rope",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "On explique souvent l'échec d'extrapolation de RoPE en disant simplement que « toutes les positions au-delà de L sont inédites », comme si l'ensemble du vecteur de position sortait uniformément de la distribution d'entraînement — alors que cette sortie de distribution touche essentiellement les dimensions de basse fréquence (grande longueur d'onde), qui n'ont pas bouclé une rotation complète pendant l'entraînement, tandis que les dimensions de haute fréquence en ont vu de nombreuses et généralisent nettement mieux au-delà de L.",
+      "original_statement": "On explique souvent l'échec d'extrapolation de RoPE en disant simplement que « toutes les positions au-delà de L sont inédites », comme si l'ensemble du vecteur de position sortait uniformément de la distribution d'entraînement — alors que cette sortie de distribution touche essentiellement les dimensions de basse fréquence (grande longueur d'onde), qui n'ont pas bouclé une rotation complète pendant l'entraînement, tandis que les dimensions de haute fréquence en ont vu de nombreuses et généralisent nettement mieux au-delà de L.",
+      "corroborated": 3,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "Deux sources indépendantes lues confirment le mécanisme dimension par dimension : YaRN (2309.00071) — 'the dimension never rotates fully at least once during pre-training ... every other token ... has a unique distance to it' pour les basses fréquences, vs relatif seul pour les hautes ; Scaling Laws of RoPE-based Extrapolation (2310.05209) — 'the last 36 dimensions lack sufficient training' / dimensions au-delà de d_extra jamais bouclées deviennent OOD. Le blog amaarora.github.io (trouvé en parallèle) illustre au contraire l'explication naïve 'mémorisation de positions absolues' critiquée par l'énoncé, confirmant que cette simplification circule bien dans la littérature de vulgarisation."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Confirmé sur la source primaire YaRN (HTML de arXiv:2309.00071) : le papier distingue explicitement les dimensions à longueur d'onde courte (λ≪L : « we do not interpolate », déjà bien réparties sur le cercle) des dimensions à longueur d'onde longue (λ≥L : « rotary embeddings might not be distributed evenly in the rotational domain », donc hors distribution) — et le NTK-by-parts interpole précisément les basses fréquences tout en laissant les hautes fréquences inchangées. C'est exactement le mécanisme décrit par l'énoncé, qui corrige à juste titre la simplification « tout est inédit au-delà de L ». Tient tel quel."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "Vérifié en primaire dans le vrai papier YaRN (arXiv:2309.00071, §3.2), pas dans l'un des trois candidats. Le papier dit noir sur blanc : pour les dimensions dont la longueur d'onde λ_d > L (basse fréquence), « this suggests that some dimensions' embeddings might not be distributed evenly in the rotational domain » (elles n'ont pas bouclé un tour complet pendant l'entraînement) — alors que pour λ_d ≪ L (haute fréquence), le papier choisit explicitement de « not interpolate at all », précisément parce que ces dimensions ont déjà vu de nombreux tours complets et n'ont donc pas besoin de correction pour extrapoler. Le blog EleutherAI (co-écrit par les auteurs de YaRN) porte le même argument via λ_d < L → « the whole period window is fully utilized » vs λ_d > L → « only occupy a portion of the whole period window ». L'énoncé contesté est donc une paraphrase fidèle du mécanisme central de YaRN (et de son ancêtre « NTK-aware », même raisonnement), pas une déformation.\n\nPoint important côté sourçage : sur les 3 URL candidates fournies, arXiv:2306.15595 n'est PAS le papier YaRN — c'est « Extending Context Window of LLMs via Positional Interpolation » (Chen et al.), un papier ANTÉRIEUR et DISTINCT, qui explique l'échec d'extrapolation par un tout autre mécanisme (scores d'attention qui explosent parce que la famille trigonométrique est un approximateur universel capable d'ajuster des coefficients petits sur [0,L] mais énormes au-delà — rien à voir avec des dimensions basse/haute fréquence qui bouclent ou non une rotation). J'ai lu ce papier directement (PDF) : il ne contient ni l'argument fréquence-dépendant, ni la notion de rotation complétée. arXiv:2104.09864 (RoFormer original, Su et al.) est antérieur au problème d'extrapolation et ne l'aborde pas du tout. Si cet énoncé doit être sourcé dans knowledge.json, la référence correcte est arXiv:2309.00071 (YaRN), pas 2306.15595 — sourcer sur ce dernier serait une attribution fausse (le document cité ne dit pas ce que l'énoncé lui attribuerait).\n\nCeci est une explication mécanistique/théorique d'un papier de méthode, pas la position d'un organisme normatif : document_source=false, le seuil normal ≥2 sources s'applique (ici atteint par 2 documents authentiquement distincts sur le fond, même si co-écrits par la même équipe)."
+        }
+      ],
+      "audit_note": "Confirmé : 3/3 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:20",
+      "section": "position-interpolation",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Position Interpolation linearly down-scales every position index into the model's original trained range (f'(x,m) = f(x, m·L/L')) before applying RoPE, compressing all frequency sub-spaces by the same factor L/L', rather than letting position indices exceed L (extrapolation).",
+      "original_statement": "Position Interpolation linearly down-scales every position index into the model's original trained range (f'(x,m) = f(x, m·L/L')) before applying RoPE, compressing all frequency sub-spaces by the same factor L/L', rather than letting position indices exceed L (extrapolation).",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "Verified directly in the primary source (arXiv 2306.15595, Chen et al. 2023, read via PDF): Eq. (4) is exactly f'(x,m)=f(x, mL/L'), and the text confirms it uniformly rescales the position index used across all frequency sub-spaces of RoPE (same m fed into every θ_j), rather than letting indices exceed L. YaRN's independent formalization (its Eq. 9, g(m)=s·m with h(θ)=θ unchanged) and aman.ai's independent primer both corroborate the general mechanism (down-scale positions before RoPE, don't extrapolate). Claim holds as stated."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Matches Eq. 4 exactly: f'(x,m) = f(x, mL/L'), replacing RoPE's position argument before the rotation is computed. Section 2.3 confirms the same scalar rescale (L/L') is applied uniformly to the position index feeding every frequency sub-space, as opposed to letting m exceed L (extrapolation, discussed in 2.2)."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:21",
+      "section": "position-interpolation",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Position Interpolation reaches a 32768-token context for LLaMA 7B and 13B (33B is only extended to 16384 in the paper's tables, not 32768; 65B only to 8192) using about 1000 fine-tuning steps. By contrast, the paper's own baseline shows that direct fine-tuning without interpolation, even after more than 10000 training batches, only moved the effective context window from 2048 to about 2560 tokens — it did not reach the extended lengths PI achieves, so '10000 steps to reach that length' is not accurate. Training used 32 or 128 A100 GPUs with a global batch size of 64 or 128 (two discrete configurations, not a continuous 64-128 range).",
+      "original_statement": "Position Interpolation reaches a 32768-token context for LLaMA 7B/13B/33B (65B: 8192) with only about 1000 fine-tuning steps, versus roughly 10000 steps needed for direct fine-tuning at that length without interpolation — validated with 32–128 A100 GPUs, batch sizes 64–128.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Confirmed exactly against the primary paper's Setup (Sec 3.1) and Table 1/2: models extended to 32768 for 7B/13B/33B, 65B only to 8192; 'If not specified otherwise, for PI... we fine-tune the models for 1000 steps. For the direct fine-tuning method, we use 10000 steps'; '32 A100 GPUs and 64 global batch size' for 7B/13B/33B-to-8192, '128 A100 GPUs and 128 global batch size' for all other cases. This is a mono-source empirical/methodological result — I only found one genuinely independent secondary source (aman.ai) that repeats the '32768 tokens, ~1000 steps for LLaMA-7B' part; none I could find reproduces the exact 10000-step comparison, the 65B/8192 detail, or the GPU/batch-size figures, so treat those specifics as effectively single-sourced."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "corrected_statement": "Position Interpolation reaches a 32768-token context for LLaMA 7B and 13B (33B is only extended to 16384 in the paper's tables, not 32768; 65B only to 8192) using about 1000 fine-tuning steps. By contrast, the paper's own baseline shows that direct fine-tuning without interpolation, even after more than 10000 training batches, only moved the effective context window from 2048 to about 2560 tokens — it did not reach the extended lengths PI achieves, so '10000 steps to reach that length' is not accurate. Training used 32 or 128 A100 GPUs with a global batch size of 64 or 128 (two discrete configurations, not a continuous 64-128 range).",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Tables 1, 2 and 4 show 33B PI results only up to a 16384 context window — no 32768 row exists for 33B, so the claim overgeneralizes to '7B/13B/33B'. Also the paper's intro explicitly states direct fine-tuning for >10000 batches only reached an effective window of 2560, not the extended length the claim implies as a comparable 10000-step outcome."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « Position Interpolation reaches a 32768-token context for LLaMA 7B/13B/33B (65B: 8192) with only about 1000 fine-tuning steps, versus roughly 10000 steps needed for direct fine-tuning at that length without interpolation — validated with 32–128 A100 GPUs, batch sizes 64–128. »"
+    },
+    {
+      "id": "claim:22",
+      "section": "position-interpolation",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Rééchelonner toutes les positions, y compris celles de la fenêtre d'origine, a un coût sur les contextes courts : plusieurs équipes mesurent une légère perte dans la fenêtre d'origine après extension par Position Interpolation, que ses auteurs attribuent, à titre d'hypothèse, au tassement des positions d'origine.",
+      "original_statement": "Because Position Interpolation rescales ALL position indices uniformly — including those already inside the original training window — it is commonly assumed to leave short-context performance untouched and only affect the newly extended range; in fact the paper itself reports a small but real perplexity degradation within the original context window after PI fine-tuning (0.01–0.05 on Proof-pile across models), because original positions now occupy a narrower region of the embedding.",
+      "corroborated": 3,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 0,
+          "note": "Confirmed exactly against the primary paper (Sec 3.2): 'we saw a degradation ranging from 0.01 to 0.05 across all models with extended with Position Interpolation' on Proof-pile, explained by positions in the original window now occupying 'a much narrower region'. I recomputed the deltas myself from Table 2 (e.g. 7B: 2.77→2.79/2.79/2.82; 13B: 2.66→2.67/2.68/2.68; 33B: 2.49→2.50/2.53; 65B: 2.42→2.43) and all fall in [0.01, 0.05], matching the claim exactly. This is a single empirical result — I found no independent secondary source reproducing this specific degradation figure, so it remains mono-sourced by my search."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Section 3.2 states verbatim: 'on the Proof-pile dataset, we saw a degradation ranging from 0.01 to 0.05 across all models ... expected since Position Interpolation forces position encodings in original context window to reside in a much narrower region.' Table 2's None-vs-PI rows at the 2048 column confirm the 0.01-0.05 range across 7B/13B/33B/65B."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Vérifié dans le PDF primaire (arXiv:2306.15595, §3.2, p.6-7, et Table 2). Le papier dit littéralement : « We saw a minor degradation of the perplexity on the original context window of 2048 for our extended models in some cases. For example, on the Proof-pile dataset, we saw a degradation ranging from 0.01 to 0.05 across all models with extended with Position Interpolation. A small degradation of performance within original evaluation context window is expected since Position Interpolation forces position encodings in original context window to reside in a much narrower region, which may negatively affect the language model's performance. » Table 2 (Proof-pile, fenêtre d'éval 2048) confirme les écarts chiffrés : 7B 2.77→2.79/2.79/2.82 (+0.02/+0.02/+0.05), 13B 2.66→2.67/2.68/2.68 (+0.01/+0.02/+0.02), 33B 2.49→2.50/2.53 (+0.01/+0.04), 65B 2.42→2.43 (+0.01) — plage exacte 0.01-0.05 sur tous les modèles testés. L'énoncé tient TEL QUEL, chiffres, périmètre (fenêtre originale 2048, dataset Proof-pile) et causalité (région d'embedding plus étroite) tous fidèles au texte source. C'est un RÉSULTAT EMPIRIQUE (mesure de perplexité), pas la position d'un organisme de référence : document_source=false, seuil ≥2 sources normal applicable (tranché par le code)."
+        }
+      ],
+      "audit_note": "Réparé par regrain au phénomène (ré-audit post-élagage 2026-09-25) : trois équipes sans auteur commun (Meta ; Nous/EleutherAI ; CUHK/MIT), passages contre-lus dans les PDF. L'énoncé d'origine généralisait à tort (la perte n'est observée que sur Proof-pile chez PI) et durcissait en causalité une hypothèse des auteurs."
+    },
+    {
+      "id": "claim:23",
+      "section": "position-interpolation",
+      "section_retained": true,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "On Proof-pile, the Position-Interpolation-extended LLaMA-7B (32768-token window) shows perplexity falling from 2.82 at 2048 tokens of context down to 2.24 at 16384, then rising back to 2.48 at 32768 — i.e. quality improves with more context up to a point, then degrades again near the edge of the extended window.",
+      "original_statement": "On Proof-pile, the Position-Interpolation-extended LLaMA-7B (32768-token window) shows perplexity falling from 2.82 at 2048 tokens of context down to 2.24 at 16384, then rising back to 2.48 at 32768 — i.e. quality improves with more context up to a point, then degrades again near the edge of the extended window.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 0,
+          "note": "Confirmed exactly against Table 2 of the primary paper (Proof-pile, 7B model, 32768-token PI window): perplexity 2.82 at 2048, 2.59 at 4096, 2.39 at 8192, 2.24 at 16384, 2.48 at 32768 — the claim's three cited figures (2.82 / 2.24 / 2.48) match verbatim, and the described U-shape (best at 16384, degrading again near the window edge) is accurate. This specific numeric table is essentially unique to the primary paper; I searched but found no independent secondary source reproducing these exact figures, so it remains mono-sourced by my search."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Table 2 (Proof-pile), 7B row with Context Window=32768, Method=PI: values at eval lengths 2048/4096/8192/16384/32768 are exactly 2.82/2.57/2.39/2.24/2.48 — matches the claim's numbers and the fall-then-rise pattern precisely."
+        }
+      ],
+      "audit_note": "Rejeté : 2 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+    },
+    {
+      "id": "claim:24",
+      "section": "ntk-dynamic-yarn",
+      "section_retained": true,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "contestable",
+      "statement": "Idée reçue à départager : NTK-aware, étant fine-tuné, devrait automatiquement surpasser Position Interpolation — or à contexte 32k (LLaMA 7B, 400 pas de fine-tuning), NTK-aware fait PIRE que PI (8,49 contre 3,57 de perplexité), ce qui a motivé le traitement « by parts ».",
+      "original_statement": "Idée reçue à départager : NTK-aware, étant fine-tuné, devrait automatiquement surpasser Position Interpolation — or à contexte 32k (LLaMA 7B, 400 pas de fine-tuning), NTK-aware fait PIRE que PI (8,49 contre 3,57 de perplexité), ce qui a motivé le traitement « by parts ».",
+      "corroborated": 3,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 0,
+          "note": "Vérifié dans le papier YaRN (arxiv 2309.00071), Table 5 (ablation, échelle 2k×16, 400 pas de fine-tuning) : PI=3,57 vs NTK-aware=8,49 à 32768. Le texte (§3.1) confirme explicitement que NTK-aware 'yields inferior results to PI' une fois fine-tuné, ce qui motive le passage à NTK-by-parts (§3.2). Résultat empirique mono-source : aucune seconde source indépendante trouvée reprenant ces chiffres précis (les blogs/surveys ouverts renvoient au papier sans le corroborer par une mesure tierce). N'est pas un cas document-source (résultat d'ablation, pas contenu d'un document de référence)."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Vérifié directement dans le PDF (Table 5, Appendix B.1, étude d'ablation) : ligne 'NTK-aware, fine-tuned, 400 pas, 2k×16', colonne d'évaluation 32768 = 8.49 ; ligne 'PI, fine-tuned, 400 pas, 2k×16', même colonne = 3.57 — chiffres exacts, LLaMA 7B. La motivation du traitement 'by parts' est bien énoncée par les auteurs (Section 3.1 fin + Appendix A.2) : certaines dimensions de NTK-aware s'extrapolent hors des bornes d'entraînement, ce qui rend NTK-aware fine-tuné inférieur à PI — c'est exactement ce défaut que 'NTK-by-parts' corrige."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Table 5 (Appendix B.1, ablation study) of the YaRN paper gives exactly these numbers for LLaMA 7B, fine-tuned 400 steps, evaluated at 32768 tokens: PI = 3.57, NTK-aware = 8.49 (NTK-by-parts = 2.81, YaRN = 2.77). The paper states directly that fine-tuning with NTK-aware interpolation \"yields inferior results to PI\" because some dimensions extrapolate to out-of-bound values, and cites the difficulty/cost of empirically tuning NTK-aware's base parameter as the reason it motivated the NTK-by-parts (and ultimately YaRN) approach — matching the claim's causal framing closely enough to hold. This is an empirical ablation result from a single paper, not a \"document describes its own content\" statement, so the document-source exception does not apply; it remains subject to the normal ≥2-independent-source threshold, which is for the code/council to decide, not this juror."
+        }
+      ],
+      "audit_note": "Rejeté : 3 confirmation(s), 1 source(s) indépendante(s) — seuil ≥2 non atteint ou réfuté."
+    },
+    {
+      "id": "claim:25",
+      "section": "ntk-dynamic-yarn",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Dynamic Scaling recalcule le facteur s = max(1, l'/L) à chaque passe avant selon la longueur de séquence courante, et le papier montre qu'appliqué à un modèle pré-entraîné sans aucun fine-tuning il fonctionne très bien lorsqu'il est combiné à NTK-aware ('Dynamic NTK'). Mais ce n'est pas une propriété exclusive de NTK-aware par opposition à des PI/NTK-aware « intrinsèquement statiques » : le papier présente le Dynamic Scaling comme une technique d'inférence générique, applicable aux quatre méthodes (PI, NTK-aware, NTK-by-parts, YaRN), et teste lui-même une variante 'PI + Dynamic' sans fine-tuning (Table 5, Appendix B.1).",
+      "original_statement": "Dynamic NTK recalcule le facteur d'échelle s = max(1, l'/L) à CHAQUE passe avant selon la longueur de séquence courante, et ne requiert aucun fine-tuning, contrairement à NTK-aware ou PI qui sont statiques et fixés avant l'entraînement.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Formule s=max(1, l'/L) recalculée à chaque passe avant, sans fine-tuning, confirmée directement dans le papier YaRN (§3.3 Dynamic NTK). Corroboré indépendamment par le primer d'Aman Chadha/Vinija Jain (auteurs distincts, site distinct) : 'the model adjusts its processing according to the actual sequence length' / échelle 'recalculated... as the model generates token by token', par opposition à un facteur fixé avant l'entraînement pour NTK-aware/PI statiques."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "corrected_statement": "Dynamic Scaling recalcule le facteur s = max(1, l'/L) à chaque passe avant selon la longueur de séquence courante, et le papier montre qu'appliqué à un modèle pré-entraîné sans aucun fine-tuning il fonctionne très bien lorsqu'il est combiné à NTK-aware ('Dynamic NTK'). Mais ce n'est pas une propriété exclusive de NTK-aware par opposition à des PI/NTK-aware « intrinsèquement statiques » : le papier présente le Dynamic Scaling comme une technique d'inférence générique, applicable aux quatre méthodes (PI, NTK-aware, NTK-by-parts, YaRN), et teste lui-même une variante 'PI + Dynamic' sans fine-tuning (Table 5, Appendix B.1).",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "La formule s=max(1,l'/L) et le fonctionnement 'sans fine-tuning' sont exacts (Section 3.4 : 'In each forward-pass, the position embedding updates the scale factor s=max(1,l′/L)...' et 'Dynamic NTK works exceptionally well on models pre-trained on L without any finetuning'). Mais l'opposition 'contrairement à NTK-aware ou PI qui sont statiques et fixés avant l'entraînement' sur-généralise : le papier définit explicitement Dynamic Scaling comme orthogonal et combinable avec les 4 méthodes ('There are two ways of applying an interpolation method that uses a scale factor s (including PI, NTK-aware, NTK-by-parts and YaRN)'), et Table 5 teste une ligne 'PI, ✗ fine-tuned, Dynamic' — PI n'est donc pas intrinsèquement statique dans ce papier, il a lui aussi une variante dynamique testée."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « Dynamic NTK recalcule le facteur d'échelle s = max(1, l'/L) à CHAQUE passe avant selon la longueur de séquence courante, et ne requiert aucun fine-tuning, contrairement à NTK-aware ou PI qui sont statiques et fixés avant l'entraînement. »"
+    },
+    {
+      "id": "claim:26",
+      "section": "ntk-dynamic-yarn",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "L'interpolation « NTK-by-parts », reprise dans YaRN, ne traite pas toutes les fréquences de RoPE de la même façon, à l'inverse de Position Interpolation qui réduit uniformément les angles de rotation de toutes les dimensions : les dimensions à haute fréquence (information locale) sont laissées inchangées, les dimensions à basse fréquence (longue portée) sont interpolées comme dans PI, et une rampe mélange les deux traitements entre deux bornes qui se règlent au cas par cas.",
+      "original_statement": "NTK-by-parts (repris dans YaRN) traite les fréquences de façon NON uniforme via une rampe γ(r), α=1/β=32 pour LLaMA : les basses fréquences (longue portée) sont interpolées, les hautes fréquences (locales) restent inchangées/extrapolées — à l'inverse de PI qui compresse uniformément toutes les fréquences.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Ramp γ(r) et α=1/β=32 pour LLaMA confirmés dans le papier YaRN (§3.2, arXiv 2309.00071) : basses fréquences (r<α) interpolées, hautes fréquences (r>β) inchangées, par opposition à la compression uniforme de PI. Le mécanisme non-uniforme lui-même est corroboré indépendamment par le PR original de bloc97 (auteur distinct de l'équipe YaRN, à l'origine de l'idée 'by parts' — 'generalizes on both Extrapolation, NTK-Aware and Linear interpolation'), mais ce PR ne redonne pas les valeurs numériques α=1/β=32 spécifiques à LLaMA, vérifiées seulement dans le papier."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Vérifié dans la Section 3.2 (Definition 1, Eq. 10-13) et Section 3.1/A.2 pour PI : la rampe γ(r) = 0 si r<α, 1 si r>β, (r-α)/(β-α) sinon (Eq. 11), avec 'good values for α and β are α=1 and β=32' pour la famille Llama — exact. r(d)=L/λ_d est PETIT pour les basses fréquences/grandes longueurs d'onde (portée longue), donc γ=0 et h(θ_d)=θ_d/s (interpolées comme PI) ; r(d) est GRAND pour les hautes fréquences/courtes longueurs d'onde (locales), donc γ=1 et h(θ_d)=θ_d (inchangées) — conforme au claim. PI, par contraste, applique g(m)=s·m et h(θ)=θ uniformément à toutes les dimensions (Eq. 9), donc compresse bien toutes les fréquences de façon uniforme."
+        }
+      ],
+      "audit_note": "Ré-adjugé après le contrôle d'acceptation (2026-09-25) : la PR GitHub de bloc97 est l'œuvre d'un co-auteur de YaRN (même travail). Description indépendante du mécanisme par LongRoPE (Microsoft) et Lu et al. ; α = 1 / β = 32 restent propres à YaRN et descendent en exemple attribué. ⚠️ L'exemple d'origine INVERSAIT la rampe (« γ=0 si r<α : extrapolation pure ») : YaRN §3.2 dit l'inverse, contre-lu dans le PDF.",
+      "readjudication": "2026-09-25 : refusé au contrôle d'acceptation (une seule source réelle), ré-adjugé par ré-audit + contre-lecture en primaire par la session"
+    },
+    {
+      "id": "claim:27",
+      "section": "ntk-dynamic-yarn",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "L'extension de contexte par YaRN dégrade légèrement les performances de Llama 2 7B sur les benchmarks à contexte court, et la baisse croît avec le facteur d'extension ; son ampleur varie selon l'évaluateur.",
+      "original_statement": "Le gain d'efficacité de YaRN (10x moins de tokens, 400 pas pour étendre à 32k/64k) n'est pas gratuit : le papier chiffre lui-même une dégradation en contexte court après extension — MMLU passe de 43,8 (Llama 2 7B de base) à 41,7 (YaRN s=32, extension à 128k).",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 0,
+          "note": "Table 3 du papier YaRN (arXiv 2309.00071) : MMLU Llama 2 7B base = 43,8 ; YaRN s=32 (extension 128k) = 41,7. Chiffres vérifiés exactement dans le PDF/HTML du papier. Aucune seconde source indépendante trouvée reprenant ces deux valeurs précises (un article Medium potentiellement pertinent était bloqué en 403) ; les sources secondaires ouvertes ne mentionnent qu'une dégradation qualitative ('<0,5%' en moyenne) sans les chiffres 43,8/41,7."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Vérifié dans Table 3 (Section 4.4, benchmarks Hugging Face Open LLM) : ligne '7B, None' MMLU = 43.8 ; ligne '7B, YaRN, 4k×32' (= extension à 128k) MMLU = 41.7 — chiffres exacts. Les '400 pas' pour étendre à 32k (ablation LLaMA 7B, base 2k, s=16) ou 64k (Llama 2 7B, base 4k, s=16) sont confirmés en Section 4.1 ; l'extension supplémentaire à 128k (s=32) ajoute 200 pas de plus à partir du checkpoint s=16, ce qui ne contredit pas le claim qui parle de l'extension de base à '32k/64k'. Le ratio '10x moins de tokens' vient de l'abstract ('requiring 10x less tokens and 2.5x less training steps than previous methods')."
+        }
+      ],
+      "audit_note": "Réparé par regrain au phénomène (ré-audit post-élagage 2026-09-25) : re-mesure par une autre équipe (LongRoPE, valeurs différentes : mesure distincte) + observation générale d'une troisième (Lu et al.) ; chiffres contre-lus dans les PDF. L'énoncé d'origine mêlait deux montages (32k LLaMA 7B et 64k Llama 2). | Backstop web 2026-09-25 : énoncé ou exemple corrigé après contre-lecture en primaire par la session (voir audit-report.md)."
+    },
+    {
+      "id": "claim:28",
+      "section": "longrope-et-changement-de-base",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "LongRoPE (Ding et al., 2024) remplace l'interpolation positionnelle uniforme par des facteurs de réechelonnage de RoPE propres à chaque dimension, trouvés par une recherche évolutionnaire guidée par la perplexité, et porte ainsi la fenêtre de contexte au-delà de 2 millions de tokens, au prix d'un fine-tuning en plusieurs étapes.",
+      "original_statement": "LongRoPE obtient un facteur ×8 d'extension de contexte SANS aucun fine-tuning en recherchant par algorithme évolutionnaire des facteurs de réechelonnage non uniformes — variables par dimension du RoPE et par position de token —, puis atteint 2048k tokens par une stratégie progressive en deux temps (fine-tuning à 256k, puis une seconde interpolation positionnelle sur ce modèle étendu) suivie d'un réajustement à 8k pour restaurer la performance en contexte court.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Vérifié sur le texte intégral (arxiv.org/html/2402.13753v1, §3.2) : citation exacte « 8×extension without fine-tuning […] extend LLaMA2's context window from 4k to 32k without fine-tuning », distincte du pipeline progressif (fine-tuning 256k → 2e interpolation → 2048k → réajustement 8k) confirmé par le README GitHub officiel. Un résumé tiers (emergentmind) contredisait à tort ce point — écarté après contre-lecture directe du texte primaire, qui fait foi. Seule alphaXiv est une source réellement indépendante de l'origine (Microsoft) ; GitHub README et arxiv sont l'origine elle-même, pas des corroborations."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Confirmé sur l'abstract arXiv et le README GitHub officiel : 8x sans fine-tuning, puis pipeline en deux temps (fine-tuning 256k → 2e interpolation vers 2048k) suivi d'un réajustement à 8k. Le README GitHub est le MÊME travail que le papier (mêmes auteurs) donc pas listé comme source indépendante distincte."
+        }
+      ],
+      "audit_note": "Ré-adjugé après le contrôle d'acceptation (2026-09-25) : src:30 (alphaXiv) était un miroir du papier. Regrainé : l'énoncé ne garde que ce qu'un travail d'un autre laboratoire décrit (arXiv:2603.18017, rapport tiers) ; le ×8 sans fine-tuning et le chemin 128k→256k→2048k descendent en exemples attribués à Ding et al. Corrigés au passage, contre-lus dans le PDF : pas d'échelle « par position de token », fine-tuning d'abord à 128k, réajustement « 4k and 8k », et LongRoPE n'équipe pas « toute la famille Phi-3 ».",
+      "readjudication": "2026-09-25 : refusé au contrôle d'acceptation (une seule source réelle), ré-adjugé par ré-audit + contre-lecture en primaire par la session"
+    },
+    {
+      "id": "claim:29",
+      "section": "longrope-et-changement-de-base",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le schéma de mise à l'échelle du RoPE dit « llama3 » (utilisé à partir de Llama 3.1) n'applique pas un facteur uniforme à toutes les fréquences : il définit deux seuils de longueur d'onde (low_freq_wavelen et high_freq_wavelen, dérivés de original_max_position_embeddings et de low_freq_factor/high_freq_factor), laisse intactes les dimensions à haute fréquence (courte longueur d'onde), divise par le facteur d'échelle les dimensions à basse fréquence (longue longueur d'onde), et interpole en rampe linéaire la bande intermédiaire.",
+      "original_statement": "Le schéma de mise à l'échelle du RoPE dit « llama3 » (utilisé à partir de Llama 3.1) n'applique pas un facteur uniforme à toutes les fréquences : il définit deux seuils de longueur d'onde (low_freq_wavelen et high_freq_wavelen, dérivés de original_max_position_embeddings et de low_freq_factor/high_freq_factor), laisse intactes les dimensions à haute fréquence (courte longueur d'onde), divise par le facteur d'échelle les dimensions à basse fréquence (longue longueur d'onde), et interpole en rampe linéaire la bande intermédiaire.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Mécanisme vérifié verbatim dans modeling_rope_utils.py (HuggingFace transformers, source lue) : low_freq_wavelen/high_freq_wavelen dérivés de original_max_position_embeddings et low_freq_factor/high_freq_factor, hautes fréquences inchangées, basses fréquences divisées par factor, bande intermédiaire en rampe linéaire (smooth_factor). Ré-implémentation indépendante (équipe ggml-org, code écrit séparément à partir de la spec Meta) dans llama.cpp confirme exactement le même algorithme à trois bandes — bonne indépendance de l'origine (transformers/Meta)."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Confirmé en lisant directement le code source : les 3 régions (haute fréquence intacte, basse fréquence divisée par le facteur, bande médiane en rampe linéaire) correspondent exactement à l'implémentation. Le papier officiel Llama 3 Herd of Models ne décrit PAS ce mécanisme (il ne mentionne que le choix de base 500k) et le fil HF Discussions consulté comme 2e candidate ne détaille pas le mécanisme non plus — risque de mono-source signalé, pas de document_source retenu (le code n'est pas une prise de position d'organisme mais un artefact technique)."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:30",
+      "section": "longrope-et-changement-de-base",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Code Llama et Qwen2.5-1M étendent le contexte en relevant directement la base du RoPE (respectivement à 1 000 000 et à 10 000 000, contre 10 000 par défaut) avant ou pendant l'entraînement continué, plutôt qu'en ré-échelonnant les positions a posteriori ; Qwen2.5-1M ajoute à l'inférence la Dual Chunk Attention (DCA), une méthode sans entraînement qui remappe les distances relatives pour dépasser d'au moins 4× la longueur vue à l'entraînement.",
+      "original_statement": "Code Llama et Qwen2.5-1M étendent le contexte en relevant directement la base du RoPE (respectivement à 1 000 000 et à 10 000 000, contre 10 000 par défaut) avant ou pendant l'entraînement continué, plutôt qu'en ré-échelonnant les positions a posteriori ; Qwen2.5-1M ajoute à l'inférence la Dual Chunk Attention (DCA), une méthode sans entraînement qui remappe les distances relatives pour dépasser d'au moins 4× la longueur vue à l'entraînement.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 4,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Code Llama : cité verbatim depuis arxiv.org/html/2308.12950v3 §2.4 — « we increase the base period θ from 10,000 to 1,000,000 for fine-tuning » (avant/pendant le fine-tuning long contexte, pas de réechelonnage a posteriori). Qwen2.5-1M : base relevée progressivement 10k→1M→5M→10M pendant le pré-entraînement continué (arxiv 2501.15383) ; DCA confirmée training-free, remappe les distances relatives, « at least four times, or even more, without additional training » — recoupé par une source tierce indépendante (ajithp.com). Seul le chiffre 1 000 000 de Code Llama n'a été recoupé que sur la source primaire (arxiv), pas encore par un tiers indépendant que j'ai ouvert moi-même."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 3,
+          "note": "Confirmé : Code Llama passe la base RoPE de 10 000 à 1 000 000 pour le fine-tuning (papier officiel) ; Qwen2.5-1M passe la base à 10 000 000 pendant le pré-entraînement continué et ajoute la DCA, méthode sans entraînement qui remappe les distances relatives et étend d'« au moins quatre fois, voire plus, sans entraînement additionnel » (citation exacte du technical report)."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 4 sources indépendantes. | Backstop web 2026-09-25 : énoncé ou exemple corrigé après contre-lecture en primaire par la session (voir audit-report.md)."
+    },
+    {
+      "id": "claim:31",
+      "section": "longrope-et-changement-de-base",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "Idée reçue à vérifier : étendre la fenêtre de contexte d'un LLM exigerait nécessairement un fine-tuning à la longueur cible — hypothèse contredite par LongRoPE (×8 sans aucun fine-tuning, par recherche évolutionnaire de facteurs seule) et par la Dual Chunk Attention de Qwen2.5-1M (extrapolation à l'inférence, sans entraînement additionnel), qui obtiennent une extension substantielle par un mécanisme purement inférentiel.",
+      "original_statement": "Idée reçue à vérifier : étendre la fenêtre de contexte d'un LLM exigerait nécessairement un fine-tuning à la longueur cible — hypothèse contredite par LongRoPE (×8 sans aucun fine-tuning, par recherche évolutionnaire de facteurs seule) et par la Dual Chunk Attention de Qwen2.5-1M (extrapolation à l'inférence, sans entraînement additionnel), qui obtiennent une extension substantielle par un mécanisme purement inférentiel.",
+      "corroborated": 3,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 5,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "Claim synthétique appuyé sur les deux mécanismes déjà vérifiés individuellement : LongRoPE ×8 sans fine-tuning (arxiv 2402.13753 §3.2, verbatim) et DCA de Qwen2.5-1M, purement inférentielle, ≥4× sans entraînement additionnel (arxiv 2501.15383, abstract verbatim). L'énoncé décrit correctement les deux comme des contre-exemples à l'idée reçue, sans déformer ni l'un ni l'autre."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "Synthèse valide des faits vérifiés aux claims 0 et 2 : LongRoPE atteint ×8 sans aucun fine-tuning par recherche évolutionnaire seule, et la DCA de Qwen2.5-1M est un mécanisme purement inférentiel (sans entraînement additionnel) qui étend d'au moins 4×. Ni sur-généralisation ni déformation détectée."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 4,
+          "note": "Vérifié dans les sources primaires : LongRoPE déclare explicitement un facteur ×8 (4k→32k) « without fine-tuning » via une recherche évolutionnaire des facteurs de rescale RoPE (perplexité, Fig. 3), tandis que l'extension complète à 2048k nécessite bien du fine-tuning — le claim ne confond pas les deux. Le rapport technique Qwen2.5-1M confirme que sa méthode d'extrapolation par longueur (Dual Chunk Attention) étend le contexte « by at least four times... without additional training », appliquée en inférence par remappage des positions relatives ; le modèle de base a été entraîné jusqu'à 256k, mais l'extension au-delà (jusqu'à 1M) est bien sans entraînement additionnel, exactement comme formulé."
+        }
+      ],
+      "audit_note": "Confirmé : 3/3 jurés, 5 sources indépendantes."
+    },
+    {
+      "id": "claim:32",
+      "section": "rope-en-production",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Dans la MLA de DeepSeek-V2, appliquer RoPE aux clés reconstruites depuis le vecteur latent KV intercalerait entre W^Q et W^UK une matrice de rotation qui dépend de la position, ce qui empêche d'absorber W^UK dans W^Q à l'inférence ; DeepSeek-V2 résout cela par un « RoPE découplé » : des requêtes supplémentaires par tête et une clé partagée, de dimension 64, portent seules la position, et la partie compressée reste absorbable.",
+      "original_statement": "Dans la MLA de DeepSeek-V2, appliquer RoPE directement au vecteur latent KV compressé coupleraient W^UK à une matrice de rotation dépendante de la position, empêchant d'absorber W^UK dans W^Q à l'inférence ; DeepSeek-V2 résout cela par un « RoPE découplé » — des requêtes additionnelles par tête et une clé partagée, de dimension 64 chacune, qui seules portent l'information de position.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Vérifié directement dans DeepSeek-V2 (arxiv 2405.04434, HTML) : le papier dit explicitement que RoPE sur le vecteur latent couple W^UK à une matrice de rotation dépendante de la position ('matrix multiplication does not obey a commutative law'), empêchant l'absorption dans W^Q, et fixe d_h^R=64 pour les requêtes additionnelles par tête et la clé partagée du RoPE découplé. La source indépendante (Towards Data Science) confirme le mécanisme (couplage + solution par requêtes additionnelles/clé partagée) mais ne donne pas le chiffre 64 — ce détail numérique n'est vérifié que dans le papier d'origine, qui n'est pas indépendant de lui-même."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Vérifié verbatim dans le papier : « W^UK ... will be coupled with a position-sensitive RoPE matrix » et « W^UK cannot be absorbed into W^Q anymore during inference ... matrix multiplication does not obey a commutative law ». Solution décrite exactement : requêtes additionnelles par tête q_t,i^R et clé partagée k_t^R, avec dimension par tête d_h^R = 64 explicitement donnée. Aucune déformation trouvée."
+        }
+      ],
+      "audit_note": "Ré-adjugé après le contrôle d'acceptation (2026-09-25) : src:37 était un billet de blog vulgarisant le papier. Réparé par une ré-analyse d'une autre équipe (TransMLA, Pékin), passage contre-lu dans le PDF. Énoncé corrigé à la marge : RoPE s'appliquerait aux clés reconstruites k^C, pas au vecteur latent lui-même (DeepSeek-V2 §2.1.3).",
+      "readjudication": "2026-09-25 : refusé au contrôle d'acceptation (une seule source réelle), ré-adjugé par ré-audit + contre-lecture en primaire par la session"
+    },
+    {
+      "id": "claim:33",
+      "section": "rope-en-production",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "DeepSeek-V2 étend son contexte de 4K à 128K en production par YaRN, avec s=40, alpha=1, beta=32 (cible 160K), puis 1000 pas d'entraînement supplémentaires à séquence de 32K et batch de 576 — en reprenant les valeurs alpha/beta que le papier YaRN original recommande pour la famille LLaMA.",
+      "original_statement": "DeepSeek-V2 étend son contexte de 4K à 128K en production par YaRN, avec s=40, alpha=1, beta=32 (cible 160K), puis 1000 pas d'entraînement supplémentaires à séquence de 32K et batch de 576 — en reprenant les valeurs alpha/beta que le papier YaRN original recommande pour la famille LLaMA.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "DeepSeek-V2 (arxiv 2405.04434) confirme mot pour mot s=40, α=1, β=32, cible 160K, et 1000 pas d'entraînement supplémentaires à séquence 32K / batch 576 — mais c'est l'origine du claim, pas une source indépendante. Le papier YaRN lui-même (source distincte, autres auteurs) confirme indépendamment que 'for the Llama family of models, good values for α and β are α=1 and β=32' : DeepSeek-V2 reprend donc exactement ces valeurs recommandées pour LLaMA, comme l'énonce le claim."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "Chiffres DeepSeek-V2 vérifiés verbatim : « we set the scale s to 40, α to 1, β to 32, and the target maximum context length to 160K » et « We additionally train the model for 1000 steps, with a sequence length of 32K and a batch size of 576 sequences ». α=1/β=32 correspond bien aux valeurs que YaRN recommande pour la famille LLaMA (corroboré par plusieurs sources secondaires citant le papier, extraction primaire du PDF gênée par un encodage binaire). Nuance à noter : le papier DeepSeek-V2 dit diverger du YaRN original sur le facteur d'échelle de longueur qui module l'entropie d'attention — mais ce facteur est distinct d'α/β, donc ça ne contredit pas l'énoncé."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:34",
+      "section": "rope-en-production",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "YaRN est souvent présenté comme une extension de contexte « sans fine-tuning » ou quasi gratuite ; en réalité le papier YaRN lui-même rapporte qu'l'état de l'art en long contexte s'atteint après un fine-tuning sur moins de 0,1 % des données de pré-entraînement : 400 pas pour s = 16, puis 200 pas de plus pour s = 32, et le déploiement en production de DeepSeek-V2 a nécessité 1000 pas d'entraînement supplémentaires, pas zéro.",
+      "original_statement": "YaRN est souvent présenté comme une extension de contexte « sans fine-tuning » ou quasi gratuite ; en réalité le papier YaRN lui-même rapporte qu'il faut de l'ordre de 400 à 600 pas de fine-tuning pour atteindre l'état de l'art en long contexte, et le déploiement en production de DeepSeek-V2 a nécessité 1000 pas d'entraînement supplémentaires, pas zéro.",
+      "corroborated": 3,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "Le papier YaRN rapporte lui-même 400 pas de fine-tuning pour s=16 puis 200 pas supplémentaires pour s=32 (soit jusqu'à ~600 au total) pour atteindre l'état de l'art en long contexte — ce n'est donc pas 'gratuit'. DeepSeek-V2 confirme séparément avoir dû faire 1000 pas d'entraînement supplémentaires en production, pas zéro. Les deux papiers sont des documents distincts, d'équipes différentes, mutuellement indépendants."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "Le chiffre « 400 à 600 pas » est bien celui du papier YaRN (confirmé via citation directe reprise par une source secondaire lisant le papier ; ma lecture directe du PDF a échoué sur un flux binaire mal décodé, donc corroboration indirecte sur ce point précis). Les « 1000 pas » de DeepSeek-V2 sont vérifiés verbatim dans le papier. Le cadrage « souvent présenté comme sans fine-tuning » est une formulation journalistique hedgée (« souvent présenté »), pas un fait dur à sourcer isolément — elle a un ancrage réel : le blog EleutherAI distingue une variante « Dynamic YaRN » explicitement sans fine-tuning, ce qui explique la confusion courante que l'énoncé dénonce. Rien qui invalide l'énoncé tel quel."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 3,
+          "note": "Vérifié en lecture primaire directe sur le PDF du papier YaRN et le HTML du papier DeepSeek-V2. Le papier YaRN (Table 1, Table 2, §4.1) rapporte explicitement : « fine-tuned for 400 steps » pour s=16, et un entraînement de transfert additionnel de 200 pas (400+200=600) pour s=32 — soit bien « de l'ordre de 400 à 600 pas » pour atteindre l'état de l'art (l'abstract dit lui-même : « YaRN reaches state-of-the-art performances in context window extensions after fine-tuning »). Le papier ne prétend PAS lui-même être « sans fine-tuning » pour la méthode YaRN de base — seule la variante distincte « Dynamic-YaRN » (combinée au Dynamic Scaling) l'est, ce qui corrobore le constat que la perception « sans fine-tuning » relève d'une confusion répandue avec cette variante. Le papier DeepSeek-V2, §3.1.4 « Long Context Extension », énonce littéralement : « After the initial pre-training of DeepSeek-V2, we employ YaRN […] to extend the default context window length from 4K to 128K. […] We additionally train the model for 1000 steps » — confirmant exactement le chiffre de 1000 pas d'entraînement supplémentaire en déploiement. Tous les chiffres de l'énoncé (400, 600, 1000) sont exacts et correctement attribués ; l'énoncé tient tel quel."
+        }
+      ],
+      "audit_note": "Confirmé : 3/3 jurés, 3 sources indépendantes. | Backstop web 2026-09-25 : énoncé ou exemple corrigé après contre-lecture en primaire par la session (voir audit-report.md)."
+    },
+    {
+      "id": "claim:35",
+      "section": "fenetre-annoncee-effective",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Réussir un test de récupération à haute précision comme le passkey retrieval ou le needle-in-a-haystack (NIAH) vanille — par exemple YaRN atteignant 99,4 % de précision passkey moyenne sur les longueurs testées jusqu'à 128k — ne suffit PAS à démontrer qu'un modèle exploite effectivement toute sa fenêtre de contexte annoncée : RULER montre que la quasi-totalité des modèles affichant une précision quasi parfaite au NIAH vanille subissent malgré tout de fortes baisses de performance sur des tâches plus exigeantes (multi-hop tracing, agrégation) à mesure que le contexte s'allonge.",
+      "original_statement": "Réussir un test de récupération à haute précision comme le passkey retrieval ou le needle-in-a-haystack (NIAH) vanille — par exemple YaRN atteignant 99,4 % de précision passkey à 128k — suffit à démontrer qu'un modèle exploite effectivement toute sa fenêtre de contexte annoncée.",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 3,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "corrected_statement": "Réussir un test de récupération à haute précision comme le passkey retrieval ou le needle-in-a-haystack (NIAH) vanille — par exemple YaRN atteignant 99,4 % de précision passkey à 128k — ne suffit PAS à démontrer qu'un modèle exploite effectivement toute sa fenêtre de contexte annoncée : RULER montre que la quasi-totalité des modèles affichant une précision quasi parfaite au NIAH vanille subissent malgré tout de fortes baisses de performance sur des tâches plus exigeantes (multi-hop tracing, agrégation) à mesure que le contexte s'allonge.",
+          "search_exhausted": false,
+          "n_sources": 0,
+          "note": "RULER (arXiv:2404.06654) réfute directement l'énoncé : 'Despite achieving nearly perfect accuracy in the vanilla NIAH test, almost all models exhibit large performance drops as the context length increases' — le succès au NIAH vanille (ou à un passkey isolé) n'implique donc pas l'exploitation réelle de la fenêtre. Le chiffre YaRN 99,4 %/128k est exact en lui-même (confirmé dans arXiv:2309.00071) mais sert ici de prémisse à une inférence fausse. Un survey indépendant (arXiv:2502.17129) fait la même distinction weak/strong extrapolation. Vérifié par lecture directe des sources ; aucune source listée car le rôle est de confirmer, et le claim ne tient pas."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "corrected_statement": "Réussir un test de récupération classique comme le passkey retrieval ou le NIAH vanille (par exemple YaRN atteignant 99,4 % de précision passkey à 128k) ne suffit PAS à démontrer qu'un modèle exploite effectivement toute sa fenêtre de contexte annoncée : RULER (NVIDIA, COLM 2024) montre que des modèles quasi parfaits sur le NIAH vanille et le passkey retrieval se dégradent fortement sur des tâches plus exigeantes (traçage multi-hop, agrégation), et seule la moitié des modèles annonçant ≥32k tokens maintient une performance jugée satisfaisante à 32k une fois testée sur ces tâches.",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Le chiffre YaRN 99,4% à 128k est exact (Table 9, arXiv:2309.00071), mais la conclusion générale est directement réfutée par RULER lui-même : 'while they achieve nearly perfect performance on the passkey retrieval and the vanilla NIAH task ... all of them exhibit large degradation in RULER as sequence length increases and they fail to maintain performance above the Llama-2-7B baseline at their claimed length.' Le claim confond une condition nécessaire (réussir NIAH/passkey) avec une condition suffisante."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "corrected_statement": "Passer un test de récupération à haute précision comme le passkey retrieval ou le needle-in-a-haystack (NIAH) vanille — par exemple YaRN atteignant 99,4 % de précision passkey à 128k — montre seulement qu'un modèle peut localiser une information isolée dans un contexte long ; cela ne suffit PAS à démontrer qu'il exploite effectivement toute sa fenêtre de contexte annoncée. RULER (Hsieh et al., 2024) montre que des modèles quasi parfaits sur le NIAH vanille subissent de fortes chutes de performance, à la même longueur de contexte, sur des tâches plus exigeantes (traçage multi-hop, agrégation, QA) — le NIAH vanille n'est « indicatif que d'une forme superficielle de compréhension du contexte long ». Le papier YaRN lui-même met en garde : ce test de passkey « ne détermine pas de façon exhaustive la performance en contexte long ».",
+          "search_exhausted": false,
+          "n_sources": 3,
+          "note": "Vérifié en primaire : le papier YaRN (2309.00071) confirme le chiffre exact — 99,4 % de précision passkey à 128k pour les modèles 7B et 13B — mais se met lui-même en garde contre l'extrapolation à « toute la fenêtre de contexte » (« perplexity may not be a great indicator... does not exhaustively determine long context performance »). RULER (2404.06654) réfute directement l'énoncé : il montre empiriquement que des modèles quasi parfaits au NIAH vanille chutent fortement sur des tâches RULER plus complexes à la même longueur de contexte, et qualifie explicitement le NIAH vanille de test « superficiel ». Un survey indépendant (2502.17129) corrobore par la distinction weak/strong extrapolation. L'énoncé est un résultat/argument méthodologique empirique, pas le contenu d'un document de référence normatif — document_source ne s'applique pas."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Réussir un test de récupération à haute précision comme le passkey retrieval ou le needle-in-a-haystack (NIAH) vanille — par exemple YaRN atteignant 99,4 % de précision passkey à 128k — suffit à démontrer qu'un modèle exploite effectivement toute sa fenêtre de contexte annoncée. » | Backstop web 2026-09-25 : énoncé ou exemple corrigé après contre-lecture en primaire par la session (voir audit-report.md). | Backstop web 2026-09-25 : énoncé ou exemple corrigé après contre-lecture en primaire par la session (voir audit-report.md)."
+    },
+    {
+      "id": "claim:36",
+      "section": "fenetre-annoncee-effective",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "La longueur de contexte qu'un modèle exploite réellement est souvent nettement inférieure à la fenêtre annoncée, comme le mesurent plusieurs bancs d'essai indépendants : RULER constate que la plupart des modèles passent sous son seuil avant d'atteindre leur longueur annoncée, BABILong que les modèles courants n'utilisent effectivement que 10 à 20 % de leur contexte sur des tâches de raisonnement.",
+      "original_statement": "RULER (NVIDIA, arXiv:2404.06654, COLM 2024) montre que parmi des modèles annonçant tous un contexte de 32k tokens ou plus, seule la moitié maintient une performance jugée satisfaisante (au-delà du seuil de référence fixé par la performance de Llama-2-7B à 4k, 85,6 %) une fois testée à 32k sur des tâches RULER plus exigeantes que le NIAH vanille (multi-hop tracing, agrégation).",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "Confirmé à la source primaire (arXiv:2404.06654 / version HTML) : 'While all models claim context size of 32K tokens or greater, only [about half of them] ... can maintain satisfactory performance at the length of 32K', seuil = performance de Llama-2-7b à 4K (85,6 %), et RULER va au-delà du NIAH vanille via multi-hop tracing et agrégation ('Despite achieving nearly perfect accuracy in the vanilla NIAH test, almost all models exhibit large performance drops...'). Le README GitHub du même dépôt (même travail, non compté comme source indépendante) donne le chiffre à jour 14/27. Le blog Nadir (auteur identifié, analyse propre resituant RULER dans le contexte 2026) rapporte indépendamment ce même résultat ('only half of the models claiming 32K-token context or larger could actually clear a fixed accuracy bar at 32K tokens') — sert de 2e source indépendante par TRAVAIL."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Vérifié verbatim dans le PDF (abstract + section 4 + Table 3) : seuil = performance de Llama2-7B à 4K = 85,6% (Table 3, ligne Llama2(7B)) ; 'While these models all claim context sizes of 32K tokens or greater, only half of them can maintain satisfactory performance at the length of 32K.' RULER ajoute bien multi-hop tracing (variable tracking) et aggregation (CWE/FWE) au-delà du NIAH vanille. Énoncé fidèle à la source, une seule source vérifiable par moi pour ce résultat propre à RULER (le README GitHub du même repo n'est pas indépendant du papier)."
+        }
+      ],
+      "audit_note": "Ré-adjugé après le contrôle d'acceptation (2026-09-25) : src:41 était un billet de blog reprenant RULER. Regrainé au phénomène « fenêtre effective < fenêtre annoncée », porté par trois travaux indépendants (NVIDIA ; AIRI ; HKU/ByteDance), passages contre-lus dans les PDF. ⚠️ L'exemple d'origine « Phi-3-mini-128K, 84,8 % » était FABRIQUÉ : Phi-3-mini ne figure dans aucune table de RULER (v3), et 84,8 est le wAvg de Yi-34B.",
+      "readjudication": "2026-09-25 : refusé au contrôle d'acceptation (une seule source réelle), ré-adjugé par ré-audit + contre-lecture en primaire par la session"
+    },
+    {
+      "id": "claim:37",
+      "section": "fenetre-annoncee-effective",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "La perplexité qui reste basse (ou baisse) avec la longueur de contexte est un signal nécessaire mais non suffisant de fenêtre effective : elle peut rester favorable pendant qu'une tâche downstream (récupération, raisonnement) se dégrade — et inversement, une tâche de récupération peut réussir pendant que la perplexité continue de se dégrader, comme le montre l'appendice B.5 du papier YaRN sur Code Llama 13B.",
+      "original_statement": "La perplexité qui reste basse (ou baisse) avec la longueur de contexte est un signal nécessaire mais non suffisant de fenêtre effective : elle peut rester favorable pendant qu'une tâche downstream (récupération, raisonnement) se dégrade — et inversement, une tâche de récupération peut réussir pendant que la perplexité continue de se dégrader, comme le montre l'appendice B.5 du papier YaRN sur Code Llama 13B.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "Confirmé à la source primaire : l'appendice B.5 de YaRN énonce exactement le cas cité — 'While the Code Llama 13b model exhibits increasing perplexity above 100k context lengths, it was still able to accurately retrieve the passkey at a context length of 128k' (Table 9), concluant que 'perplexity may not be a great indicator of whether an LLM is able to attend to all tokens'. Le point général (perplexité nécessaire mais non suffisante, peut rester favorable pendant qu'une tâche downstream se dégrade) est corroboré par un travail indépendant distinct, arXiv:2410.23771, dont le titre même porte sur ce défaut de la perplexité en contexte long et qui montre le sens inverse (perplexité basse, échec en récupération/raisonnement)."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "Appendice B.5 de YaRN vérifié verbatim (page 19) : 'While the Code Llama 13b model exhibits increasing perplexity above 100k context lengths, it was still able to accurately retrieve the passkey at a context length of 128k' — confirme exactement la direction citée (récupération réussit malgré perplexité qui se dégrade), et le texte explicite que 'the lowest perplexity point alone does not provide a comprehensive depiction on the effective context size.' L'autre direction (perplexité favorable pendant qu'une tâche downstream se dégrade) est indépendamment étayée par LongPPL, qui montre que le moyennage de PPL masque la dégradation sur les tokens critiques pour les tâches long-contexte."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 2 sources indépendantes."
+    },
+    {
+      "id": "claim:38",
+      "section": "ecosysteme",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Hugging Face Transformers configures every non-default RoPE scaling method (linear, dynamic, yarn, longrope, llama3, and on current main also proportional) through one unified `rope_parameters` config field, with per-type computation dispatched via the `ROPE_INIT_FUNCTIONS` table and validated by per-type `_validate_<rope_type>_rope_parameters` methods invoked through reflection in `validate_rope()` — there is no `ROPE_VALIDATION_FUNCTIONS` dict in the codebase, despite the docs page's prose mentioning that name. It does support per-layer-type overrides for hybrid-attention models (e.g. Gemma-3's full_attention/sliding_attention split).",
+      "original_statement": "Hugging Face Transformers configures every non-default RoPE scaling method (linear, dynamic, yarn, longrope, llama3) through one unified `rope_parameters` config field validated by `ROPE_VALIDATION_FUNCTIONS`, including per-layer-type overrides for hybrid-attention models.",
+      "corroborated": 0,
+      "refuted": 2,
+      "corrected": 2,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "corrected_statement": "Hugging Face Transformers configures every non-default RoPE scaling method (linear, dynamic, yarn, longrope, llama3) through one unified `rope_parameters` config field, with per-type computation dispatched via the `ROPE_INIT_FUNCTIONS` table and validated by per-type `_validate_<rope_type>_rope_parameters` methods invoked through reflection in `validate_rope()` — there is no `ROPE_VALIDATION_FUNCTIONS` dict in the codebase, despite the docs page's prose mentioning that name. It does support per-layer-type overrides for hybrid-attention models (e.g. Gemma-3's full_attention/sliding_attention split).",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "Unified rope_parameters field and per-layer-type overrides are real and confirmed directly in the source I read. But `ROPE_VALIDATION_FUNCTIONS` does not exist anywhere in modeling_rope_utils.py (I grepped the exact file the docs page itself links to as source): the actual dict is `ROPE_INIT_FUNCTIONS`, and validation runs through reflection-called `_validate_<type>_rope_parameters` methods, not a dict of that name. The docs page's own prose cites a stale/incorrect symbol name — a real inaccuracy, not a paraphrase issue."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "corrected_statement": "Hugging Face Transformers configures every non-default RoPE scaling method (linear, dynamic, yarn, longrope, llama3) through one unified `rope_parameters` config field, including per-layer-type overrides for hybrid-attention models (e.g. Gemma-3's full_attention/sliding_attention). But each rope_type's parameters are validated by dynamically-looked-up `_validate_<rope_type>_rope_parameters` methods, not by a centralized `ROPE_VALIDATION_FUNCTIONS` registry — that name does not exist in the actual source (`modeling_rope_utils.py`, pinned at the docs' own v5.17.0 tag), which instead exports `ROPE_INIT_FUNCTIONS` (for computing scaled frequencies, with keys linear/dynamic/yarn/longrope/llama3/proportional — note 'proportional', not the frequency-init role the claim implies for validation).",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "The unified `rope_parameters` field and per-layer-type override mechanism are both confirmed exactly (docs + a worked Gemma-3 example). But `ROPE_VALIDATION_FUNCTIONS`, though named in the docs prose, does not exist in the actual source at the very version the docs page pins — the primary source contradicts the docs' own prose, so the claim's specific validation mechanism is wrong as stated."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « Hugging Face Transformers configures every non-default RoPE scaling method (linear, dynamic, yarn, longrope, llama3) through one unified `rope_parameters` config field validated by `ROPE_VALIDATION_FUNCTIONS`, including per-layer-type overrides for hybrid-attention models. » | Backstop web 2026-09-25 : l'exemple Gemma-3 est celui de la documentation (config illustrative), pas la configuration des checkpoints publiés ; `proportional` ajouté d'après modeling_rope_utils.py (main), lu par la session."
+    },
+    {
+      "id": "claim:39",
+      "section": "ecosysteme",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "YaRN's context-extension gain comes from combining two independent mechanisms: a frequency-dependent NTK-by-parts ramp bounded by beta_fast=32/beta_slow=1, and an attention-softmax temperature scaling fit by the authors to √(1/t)=0.1·ln(s)+1 for LLaMA/Llama 2. This formula was shown to carry over without refitting across different sizes WITHIN the same LLaMA/Llama 2 family (7B/13B/70B) — but the source itself warns it does not transfer unchanged to other model classes: e.g. Mistral-7B needed different coefficients (a=0.07, b=1.0), so 'transfers unchanged across differently-sized... models' should not be read as model-class-agnostic.",
+      "original_statement": "YaRN's context-extension gain comes from combining two independent mechanisms — a frequency-dependent NTK-by-parts ramp bounded by beta_fast=32/beta_slow=1, and a temperature scaling of the attention softmax whose formula (√(1/t)=0.1·ln(s)+1) transfers unchanged across differently-sized fine-tuned models.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "Both mechanisms and exact numbers confirmed against primary source: paper's Section 3.2 gives the NTK-by-parts ramp with α=1/β=32 for the Llama family (= beta_slow=1/beta_fast=32 in HF's naming, which I independently confirmed defaults to 32/1 in the actual code), and Section 3.4/Eq.22 gives exactly '√(1/t)=0.1 ln(s)+1', which HF's `_compute_yarn_parameters` implements verbatim as `0.1 * mscale * log(scale) + 1.0` (default mscale=1). The paper itself states 'the same values of t also apply fairly well to Llama 2 models (7b, 13b and 70b)', i.e. the formula reused unchanged across differently-sized fine-tunes of the same family — matching the claim. Note this generalization is demonstrated only within the Llama/Llama-2 family, not across arbitrary model families (the paper and the EleutherAI blog, which is written by the same paper authors and not independent, both caveat that other model classes need re-derived coefficients), but the claim as worded does not overreach beyond that. The EleutherAI blog was excluded from independent_sources since Fan/Peng/Quesnelle wrote both it and the paper — same work, not independent corroboration."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "corrected_statement": "YaRN's context-extension gain comes from combining two independent mechanisms: a frequency-dependent NTK-by-parts ramp bounded by beta_fast=32/beta_slow=1, and an attention-softmax temperature scaling fit by the authors to √(1/t)=0.1·ln(s)+1 for LLaMA/Llama 2. This formula was shown to carry over without refitting across different sizes WITHIN the same LLaMA/Llama 2 family (7B/13B/70B) — but the source itself warns it does not transfer unchanged to other model classes: e.g. Mistral-7B needed different coefficients (a=0.07, b=1.0), so 'transfers unchanged across differently-sized... models' should not be read as model-class-agnostic.",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "The two-mechanism structure, the beta_fast=32/beta_slow=1 defaults, and the temperature formula are all accurate (also cross-checked against the current HF docs default values). But the same source that supports size-invariance within the LLaMA family explicitly says the parameters 'may not work out of the box for different model classes' (Mistral-7B needed different a/b) — the claim's 'transfers unchanged' overstates generality without that caveat."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (3 sources indépendantes). Origine : « YaRN's context-extension gain comes from combining two independent mechanisms — a frequency-dependent NTK-by-parts ramp bounded by beta_fast=32/beta_slow=1, and a temperature scaling of the attention softmax whose formula (√(1/t)=0.1·ln(s)+1) transfers unchanged across differently-sized fine-tuned models. »"
+    },
+    {
+      "id": "claim:40",
+      "section": "ecosysteme",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "\"NTK-aware\" RoPE interpolation originated as an informal Reddit post by user bloc97 (r/LocalLLaMA, June 2023), not a peer-reviewed publication. It draws motivation from Neural Tangent Kernel theory (the idea that deep networks struggle to learn high-frequency information from low-dimensional inputs) to justify scaling high and low RoPE frequencies differently, but applies that idea heuristically rather than through a rigorous formal derivation — so it does not carry stronger theoretical grounding than Position Interpolation, which was published as a paper (Chen et al. 2023) with a formal analysis.",
+      "original_statement": "\"NTK-aware\" RoPE interpolation is a peer-reviewed method derived rigorously from Neural Tangent Kernel theory, giving it a stronger theoretical grounding than plain linear (Position Interpolation) scaling.",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 3,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "corrected_statement": "\"NTK-aware\" RoPE interpolation originated as an informal Reddit post by user bloc97 (r/LocalLLaMA, June 2023), not a peer-reviewed publication. It draws motivation from Neural Tangent Kernel theory (the idea that deep networks struggle to learn high-frequency information from low-dimensional inputs) to justify scaling high and low RoPE frequencies differently, but applies that idea heuristically rather than through a rigorous formal derivation — so it does not carry stronger theoretical grounding than Position Interpolation, which was published as a paper (Chen et al. 2023) with a formal analysis.",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "Both sources I opened directly and independently (different authors: amaarora is an unaffiliated blogger; the EleutherAI/YaRN-authors blog is a separate work from amaarora's) confirm the same fact: NTK-aware scaling was proposed as a public Reddit post by bloc97, not peer-reviewed, and its NTK grounding is used heuristically/as motivation rather than as a rigorous derivation — the opposite of what the claim asserts. The claim's premise (peer-reviewed, rigorously derived, stronger grounding than PI) is false as stated."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "corrected_statement": "\"NTK-aware\" RoPE interpolation originated as a community proposal — a Reddit post by user bloc97 — motivated informally by Neural Tangent Kernel theory (the idea that deep nets struggle to learn high-frequency information), not as a peer-reviewed method rigorously derived from NTK theory. If anything, Position Interpolation (linear scaling) has the stronger formal/peer-reviewed grounding (a published Meta paper with an explicit interpolation argument), the reverse of what the claim states.",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "Both independently-checked sources agree: NTK-aware scaling is a Reddit-originated heuristic that borrows NTK theory as motivation, not a peer-reviewed derivation, and is explicitly contrasted as less formally grounded than Position Interpolation — the claim inverts the actual relationship."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "corrected_statement": "\"NTK-aware\" RoPE interpolation was not peer-reviewed and was not rigorously derived from Neural Tangent Kernel theory: it was proposed informally by Reddit user bloc97 in a June 2023 r/LocalLLaMA post (\"NTK-Aware Scaled RoPE Allows LLaMA Models to Have Extended (8k+) Context Size Without Any Fine-Tuning and Minimal Perplexity Degradation\"), which borrows NTK theory only as a loose analogy/motivation for scaling RoPE's frequencies non-uniformly, not as a formal derivation. The method was later analyzed and formalized in the peer-reviewed YaRN paper (Peng et al., ICLR 2024), but the NTK-aware method itself has no stronger peer-reviewed/theoretical grounding than plain linear Position Interpolation (Chen et al. 2023), which is itself an arXiv preprint, not itself peer-reviewed at time of writing either.",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "Both fetched sources independently and explicitly state NTK-aware RoPE originated as an informal Reddit post by user bloc97 (June 2023, r/LocalLLaMA), not a peer-reviewed publication; NTK theory is invoked only as loose inspiration/analogy for the frequency-scaling heuristic, with no rigorous derivation shown. The claim's two load-bearing assertions (peer-reviewed, rigorously derived) are both false. A direct fetch of the original Reddit post itself failed (Reddit is blocked for WebFetch), but the two secondary sources corroborate each other and cite the same primary post/title, so the finding is well supported despite not reading the primary post directly."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « \"NTK-aware\" RoPE interpolation is a peer-reviewed method derived rigorously from Neural Tangent Kernel theory, giving it a stronger theoretical grounding than plain linear (Position Interpolation) scaling. »"
+    }
+  ]
+}
