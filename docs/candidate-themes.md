@@ -395,7 +395,20 @@ GREEN après backstop [1 correction dure : blurb MetaGPT « ICLR 2025 »→« IC
 classé dans llm-agents-generation après agent-harness-engineering. Ajouté puis fabriqué dans la
 foulée de la veille « graph engineering » du 2026-07-23.)
 
-### Optimiseurs (Adam / AdamW) — `optimizers-adam` → `deep-learning-foundations`
+### ✅ FAIT — Optimiseurs (Adam / AdamW) — `optimizers-adam` → `deep-learning-foundations`
+(**FAIT le 2026-09-26**, 63e run `/leanmonograph`, retiré du backlog — classé 2e du parcours de
+`deep-learning-foundations`, entre `backpropagation` et `normalization-layers` : calculer le gradient,
+puis en tirer un pas, puis stabiliser l'entraînement. 10 sections, 39 claims (24 confirmés / 9 corrigés /
+6 rejetés), 62 sources, 5 widgets + 3 figures ; **≈ 8,6 M tok / ~1 h 20, 1 seul lancement**, aucun arrêt
+d'élagage. **Le brief a été re-vérifié par LECTURE avant lancement** : Adam de base (`backpropagation`),
+mémoire des états d'Adam (`distributed-training-parallelism`), warmup Post-LN (`normalization-layers`)
+et écart Kaplan/Chinchilla (`scaling-laws`) passent en renvoi. **`build.success:false` mérité** : 3 claims
+`confirmed` sur un seul travail de rang réel (figure 2 de Loshchilov & Hutter sur deux blogs, recette
+GPT-3, surcoût de Muon sur le seul billet de Keller Jordan), laissés en l'état. Backstop web (3 agents,
+25 claims) : 0 FAUX sur le fond, 9 imprécis corrigés, dont 5 dans la prose — inversion CIFAR-10 /
+ImageNet32x32 sur l'écart AdamW/SGDW, « Zhou et al. » pour Chen et al. (IJCAI 2020, avec une source
+`src:57` qui pointait vers un autre papier), ρₜ pour rₜ dans RAdam, un ε « plus grand en RL » sans
+source, et une conclusion « ne battent pas AdamW » alors que l'étude mesure encore ≈ 1,1×.)
 **Verdict : partiel (~60 % neuf).** `backpropagation` traite Adam de base (Kingma & Ba) comme étape
 post-gradient ; AdamW (weight decay découplé), schedules warmup/cosine, AdaGrad/RMSProp en propre et
 Lion/Adafactor/Sophia/Muon sont absents.
