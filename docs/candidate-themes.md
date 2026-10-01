@@ -1237,7 +1237,18 @@ method : 0 occurrence. ⚠️ Deux frontières à écrire dans le brief contre l
 > — se centrer sur les modèles thématiques et leur évaluation. Domaine :
 > information-retrieval-representation.
 
-### Reconnaissance vocale (ASR) — `speech-recognition-asr` → `deep-learning-foundations`
+### ✅ FAIT — Reconnaissance vocale (ASR) — `speech-recognition-asr` → `deep-learning-foundations`
+(**FAIT le 2026-10-02**, 64e run `/leanmonograph`, retiré du backlog — classé 16e du parcours de
+`deep-learning-foundations`, après `contrastive-self-supervised` : l'apprentissage sans labels transposé à la
+parole. 11 sections, 44 claims (24 confirmés / 5 corrigés / 15 rejetés), 44 sources, 4 widgets ; **≈ 9,1 M tok,
+2 lancements** (arrêt d'élagage). **Le gap a été re-vérifié par LECTURE avant lancement** : CTC en OCR
+(`document-ai`), modèle acoustique distillé (`knowledge-distillation`), Whisper quantifié (`quantization`)
+passent en renvoi. **Arrêt d'élagage au council** : 37 rejets sur 44, dont 31 tenus par tous les jurés sur la
+seule source primaire (sujet d'école, papiers fondateurs) — ré-audit manuel : 5 réparés, 18 regrainés,
+7 rejets maintenus, 1 inexact. Backstop web (4 agents) : 1 FAUX en prose (Koenecke et al., pire système) et une
+douzaine d'imprécisions corrigées ; une 2e source du ré-audit (OLMoASR) s'est révélée hors sujet → claim repassé
+en rejeté. ⚠️ Le brief citait le WER de Whisper Small quantifié depuis la prose de `quantization`, où ce claim
+est REJETÉ : retiré par l'Audit-prose ; le défaut de `quantization` est traité à part.)
 **Verdict : gap réel (modalité entièrement absente).** Whisper n'apparaît que comme cas d'usage de
 compression (`quantization`, WER PTQ 2 bits) ; CTC, wav2vec, Conformer = 0 occurrence. Adéquation à
 l'audience ML-engineering correcte mais moins centrale que les candidats texte/vision.
