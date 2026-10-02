@@ -1,0 +1,170 @@
+<div class="widget pif-root" id="pif-root">
+  <style>
+    .pif-root{--pif-ink:var(--ink,#15202E);--pif-soft:var(--ink-soft,#43536A);--pif-faint:var(--ink-faint,#5C697B);
+      --pif-card:var(--card,#fff);--pif-line:var(--line,#D7DFE9);--pif-wash:var(--blue-wash,#E7EEF6);
+      --pif-blue:var(--blue,#23537F);--pif-ols:var(--bordeaux-bright,#9B3443);--pif-true:#2F7D4F;--pif-bar:rgba(35,83,127,.55);
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--pif-ink);
+      border:1px solid var(--pif-line);border-radius:12px;padding:18px 18px 16px;background:var(--pif-card);max-width:900px}
+    .pif-root *{box-sizing:border-box}
+    html[data-theme="dark"] .pif-root{--pif-true:#7ECE9F;--pif-ols:#E58A97;--pif-bar:rgba(140,182,226,.55)}
+    .pif-k{font-size:.72rem;letter-spacing:.09em;text-transform:uppercase;color:var(--pif-faint);font-weight:600;margin:0 0 2px}
+    .pif-title{font-weight:700;font-size:1.05rem;margin:0 0 4px}
+    .pif-sub{font-size:.9rem;color:var(--pif-soft);margin:0 0 12px}
+    .pif-ctl{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px 18px;margin:0 0 10px;font-size:.9rem}
+    .pif-ctl label{display:block;font-weight:600}
+    .pif-ctl output{font-weight:400;color:var(--pif-soft);margin-left:4px}
+    .pif-ctl input[type=range]{width:100%;accent-color:var(--pif-blue)}
+    .pif-pre{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+    .pif-btn{padding:5px 10px;border:1px solid var(--pif-blue);background:var(--pif-card);color:var(--pif-blue);border-radius:7px;font:inherit;font-size:.85rem;cursor:pointer}
+    .pif-btn:hover{background:var(--pif-wash)}
+    .pif-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:14px}
+    @media (max-width:700px){.pif-grid{grid-template-columns:1fr}}
+    .pif-svg{width:100%;height:auto;display:block;border:1px solid var(--pif-line);border-radius:9px}
+    .pif-svg text{font:12px system-ui,sans-serif;fill:var(--pif-soft)}
+    .pif-svg .pif-tt{font-weight:700}
+    .pif-axis{stroke:var(--pif-line);stroke-width:1}
+    .pif-hb{fill:var(--pif-bar)}
+    .pif-vt{stroke:var(--pif-true);stroke-width:2.5}
+    .pif-vo{stroke:var(--pif-ols);stroke-width:2.5;stroke-dasharray:6 4}
+    .pif-svg text.pif-lt{fill:var(--pif-true);font-weight:700}
+    .pif-svg text.pif-lo{fill:var(--pif-ols);font-weight:700}
+    .pif-cv{fill:none;stroke:var(--pif-blue);stroke-width:2}
+    .pif-ref{stroke:var(--pif-true);stroke-width:1.2;stroke-dasharray:3 3}
+    .pif-dot{fill:var(--pif-blue);stroke:var(--pif-card);stroke-width:2}
+    .pif-stats{display:grid;grid-template-columns:1fr auto;gap:3px 10px;font-size:.88rem;margin:0 0 10px}
+    .pif-stats dt{color:var(--pif-soft)}
+    .pif-stats dd{margin:0;font-weight:700;font-variant-numeric:tabular-nums;text-align:right}
+    .pif-msg{font-size:.9rem;background:var(--pif-wash);border-radius:8px;padding:9px 11px;margin:10px 0 0}
+    .pif-note{font-size:.8rem;color:var(--pif-faint);margin:8px 0 0}
+  </style>
+  <p class="pif-k">Simulation Monte Carlo</p>
+  <p class="pif-title">Instrument faible : quand la 2SLS glisse vers l’OLS</p>
+  <p class="pif-sub">Modèle linéaire où des instruments Z déplacent un traitement X endogène. Affaiblissez la première étape et regardez où se placent les estimations 2SLS, comparées au vrai effet et à la limite de l’OLS.</p>
+  <div class="pif-ctl">
+    <div><label for="pif-f">Force de l’instrument : F attendu de la première étape <output id="pif-fo"></output></label>
+      <input type="range" id="pif-f" min="0" max="100" step="1" value="100"></div>
+    <div><label for="pif-r">Endogénéité : corrélation entre chocs de X et de Y <output id="pif-ro"></output></label>
+      <input type="range" id="pif-r" min="0" max="95" step="5" value="80"></div>
+    <div><label for="pif-k">Nombre d’instruments</label>
+      <select id="pif-k" class="pif-btn"><option value="1">1 instrument</option><option value="5" selected>5 instruments</option><option value="10">10 instruments</option></select></div>
+  </div>
+  <div class="pif-pre">
+    <button type="button" class="pif-btn" data-pif-f="100">Instrument fort</button>
+    <button type="button" class="pif-btn" data-pif-f="50">Instrument moyen</button>
+    <button type="button" class="pif-btn" data-pif-f="25">Instrument faible</button>
+    <button type="button" class="pif-btn" data-pif-f="0">Instrument sans pouvoir</button>
+    <button type="button" class="pif-btn" id="pif-new">Nouveaux tirages</button>
+  </div>
+  <div class="pif-grid">
+    <svg class="pif-svg" id="pif-h" viewBox="0 0 560 300" role="img" aria-label="Histogramme des estimations 2SLS"></svg>
+    <div>
+      <dl class="pif-stats">
+        <dt>Médiane des estimations 2SLS</dt><dd id="pif-med"></dd>
+        <dt>Écart interquartile</dt><dd id="pif-iqr"></dd>
+        <dt>Estimations hors du cadre</dt><dd id="pif-out"></dd>
+        <dt>Couverture de l’IC conventionnel à 95 %</dt><dd id="pif-cov"></dd>
+      </dl>
+      <svg class="pif-svg" id="pif-c" viewBox="0 0 320 190" role="img" aria-label="Couverture empirique selon la force de l’instrument"></svg>
+    </div>
+  </div>
+  <p class="pif-msg" id="pif-msg"></p>
+  <p class="pif-note">IC conventionnel : estimation ± 1,96 erreur-type de la 2SLS. Calcul dans le navigateur : 2 000 échantillons de 200 observations, vrai effet β = 1, chocs gaussiens de variance 1, instruments indépendants de même coefficient π en première étape. Le F attendu vaut alors environ 1 + nπ². Les ordres de grandeur sont propres à cette simulation et ne reproduisent aucune valeur critique publiée.</p>
+  <script>
+  (function(){
+    var N=200,R=2000,BETA=1,XMIN=-1,XMAX=3,NB=64,seed=7;
+    var el=function(i){return document.getElementById(i);};
+    var NS='http://www.w3.org/2000/svg';
+    function fmt(x,d){return x.toFixed(d===undefined?2:d).replace('.',',').replace('-','−');}
+    function sF(s){return Math.pow(100,s/100);}
+    function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+    function gauss(r){var sp=null;return function(){if(sp!==null){var s=sp;sp=null;return s;}var u=1-r(),v=r(),m=Math.sqrt(-2*Math.log(u));sp=m*Math.sin(2*Math.PI*v);return m*Math.cos(2*Math.PI*v);};}
+    /* Un tirage Monte Carlo (K instruments) : estimations 2SLS et couverture de l’IC conventionnel. */
+    function simulate(F,rho,K,reps,sd){
+      var g=gauss(rng(sd)),pi=Math.sqrt(Math.max(F-1,0)/N),q=Math.sqrt(1-rho*rho);
+      var est=new Float64Array(reps),cov=0,Z=new Float64Array(N*K),x=new Float64Array(N),y=new Float64Array(N);
+      var A=new Float64Array(K*K),bx=new Float64Array(K),by=new Float64Array(K);
+      for(var r=0;r<reps;r++){
+        A.fill(0);bx.fill(0);by.fill(0);
+        for(var i=0;i<N;i++){var v=g(),e=rho*v+q*g(),xi=v;
+          for(var k=0;k<K;k++){var zk=g();Z[i*K+k]=zk;xi+=pi*zk;}
+          x[i]=xi;y[i]=BETA*xi+e;
+          for(k=0;k<K;k++){var zk2=Z[i*K+k];bx[k]+=zk2*xi;by[k]+=zk2*y[i];for(var l=0;l<=k;l++)A[k*K+l]+=zk2*Z[i*K+l];}}
+        /* Cholesky de Z'Z = LL' */
+        for(k=0;k<K;k++){for(l=0;l<=k;l++){var s=A[k*K+l];for(var m=0;m<l;m++)s-=A[k*K+m]*A[l*K+m];A[k*K+l]=(k===l)?Math.sqrt(s):s/A[l*K+l];}}
+        /* x’Pz x = |L⁻¹Z’x|² et x’Pz y = (L⁻¹Z’x)·(L⁻¹Z’y) */
+        var ww=0,wu=0,w=new Float64Array(K),u=new Float64Array(K);
+        for(k=0;k<K;k++){var s1=bx[k],s2=by[k];for(m=0;m<k;m++){s1-=A[k*K+m]*w[m];s2-=A[k*K+m]*u[m];}w[k]=s1/A[k*K+k];u[k]=s2/A[k*K+k];ww+=w[k]*w[k];wu+=w[k]*u[k];}
+        var b=wu/ww,ss=0;for(i=0;i<N;i++){var rr=y[i]-b*x[i];ss+=rr*rr;}
+        var se=Math.sqrt(ss/(N-1)/ww);est[r]=b;if(Math.abs(b-BETA)<=1.96*se)cov++;
+      }
+      return {est:est,cov:cov/reps,olsLim:BETA+rho/(K*pi*pi+1)};
+    }
+    function quant(s,p){var k=(s.length-1)*p,lo=Math.floor(k),hi=Math.ceil(k);return s[lo]+(s[hi]-s[lo])*(k-lo);}
+    function mk(t,a,p,txt){var n=document.createElementNS(NS,t);for(var k in a)n.setAttribute(k,a[k]);if(txt!==undefined)n.textContent=txt;(p).appendChild(n);return n;}
+    var covCache={};
+    function covCurve(rho,K){
+      var key=rho+'|'+K+'|'+seed;if(covCache[key])return covCache[key];
+      var pts=[];for(var s=0;s<=100;s+=10){var F=sF(s);pts.push([s,simulate(F,rho,K,400,seed*31+s).cov]);}
+      covCache[key]=pts;return pts;
+    }
+    function drawHist(res){
+      var svg=el('pif-h');while(svg.firstChild)svg.removeChild(svg.firstChild);
+      var L=20,Rr=540,T=34,B=262,W=Rr-L,bins=new Array(NB).fill(0),out=0;
+      for(var i=0;i<res.est.length;i++){var b=res.est[i];if(b<XMIN||b>=XMAX){out++;continue;}bins[Math.floor((b-XMIN)/(XMAX-XMIN)*NB)]++;}
+      var mx=Math.max.apply(null,bins)||1,bw=W/NB,X=function(v){return L+(v-XMIN)/(XMAX-XMIN)*W;};
+      mk('text',{x:L,y:18,'class':'pif-tt'},svg,'Distribution des estimations 2SLS sur 2 000 échantillons');
+      for(i=0;i<NB;i++){var h=bins[i]/mx*(B-T-14);if(h>0)mk('rect',{x:L+i*bw+.5,y:B-h,width:bw-1,height:h,'class':'pif-hb'},svg);}
+      mk('line',{x1:L,y1:B,x2:Rr,y2:B,'class':'pif-axis'},svg);
+      for(var t=XMIN;t<=XMAX;t+=.5){mk('line',{x1:X(t),y1:B,x2:X(t),y2:B+4,'class':'pif-axis'},svg);mk('text',{x:X(t),y:B+17,'text-anchor':'middle'},svg,fmt(t,1));}
+      var xt=X(BETA),xo=X(Math.min(res.olsLim,XMAX));
+      mk('line',{x1:xt,y1:T,x2:xt,y2:B,'class':'pif-vt'},svg);
+      mk('line',{x1:xo,y1:T,x2:xo,y2:B,'class':'pif-vo'},svg);
+      var close=Math.abs(xo-xt)<70;
+      mk('text',{x:xt-4,y:T+10,'text-anchor':'end','class':'pif-lt'},svg,'vrai effet');
+      mk('text',{x:xo+4,y:T+(close?24:10),'class':'pif-lo'},svg,'limite OLS');
+      return out;
+    }
+    function drawCov(pts,s,c){
+      var svg=el('pif-c');while(svg.firstChild)svg.removeChild(svg.firstChild);
+      var L=42,Rr=306,T=34,B=150,X=function(v){return L+v/100*(Rr-L);},Y=function(v){return B-v*(B-T);};
+      mk('text',{x:8,y:16,'class':'pif-tt'},svg,'Couverture selon F (400 tirages par point)');
+      mk('line',{x1:L,y1:B,x2:Rr,y2:B,'class':'pif-axis'},svg);mk('line',{x1:L,y1:T,x2:L,y2:B,'class':'pif-axis'},svg);
+      [0,.5,1].forEach(function(v){mk('text',{x:L-5,y:Y(v)+4,'text-anchor':'end'},svg,Math.round(v*100)+' %');});
+      [[0,'1'],[50,'10'],[100,'100']].forEach(function(a){mk('text',{x:X(a[0]),y:B+15,'text-anchor':'middle'},svg,a[1]);});
+      mk('text',{x:(L+Rr)/2,y:B+32,'text-anchor':'middle'},svg,'F attendu (échelle log)');
+      mk('line',{x1:L,y1:Y(.95),x2:Rr,y2:Y(.95),'class':'pif-ref'},svg);
+      mk('text',{x:Rr,y:Y(.95)-4,'text-anchor':'end','class':'pif-lt'},svg,'95 % annoncés');
+      mk('polyline',{points:pts.map(function(p){return X(p[0])+','+Y(p[1]);}).join(' '),'class':'pif-cv'},svg);
+      mk('circle',{cx:X(s),cy:Y(c),r:5,'class':'pif-dot'},svg);
+    }
+    var timer=null;
+    function render(){
+      var s=+el('pif-f').value,F=sF(s),rho=+el('pif-r').value/100,K=+el('pif-k').value;
+      el('pif-fo').textContent='≈ '+(F<10?fmt(F,1):Math.round(F));
+      el('pif-ro').textContent=fmt(rho);
+      var res=simulate(F,rho,K,R,seed*1009+s*7+Math.round(rho*100)+K*131);
+      var srt=Array.prototype.slice.call(res.est).sort(function(a,b){return a-b;});
+      var med=quant(srt,.5),iqr=quant(srt,.75)-quant(srt,.25),out=drawHist(res);
+      el('pif-med').textContent=fmt(med);
+      el('pif-iqr').textContent=fmt(iqr);
+      el('pif-out').textContent=fmt(out/R*100,1)+' %';
+      el('pif-cov').textContent=fmt(res.cov*100,1)+' %';
+      drawCov(covCurve(rho,K),s,res.cov);
+      var gap=res.olsLim-BETA,share=gap>0.02?Math.max(0,Math.min(1,(med-BETA)/gap)):0,pc=fmt(res.cov*100,0)+' %',m;
+      if(rho<0.05)m='Sans endogénéité, l’OLS est déjà sans biais : quand l’instrument faiblit, la 2SLS perd en précision sans dériver dans une direction.';
+      else if(share<0.1)m='La médiane 2SLS reste proche du vrai effet (environ '+Math.round(share*100)+' % du chemin vers la limite de l’OLS) et l’intervalle conventionnel couvre ici '+pc+' des cas, pour 95 % annoncés.';
+      else if(share<0.6)m='La médiane 2SLS a parcouru environ '+Math.round(share*100)+' % du chemin vers la limite de l’OLS. La distribution s’étale et l’intervalle conventionnel ne couvre plus que '+pc+' des cas, pour 95 % annoncés.';
+      else m='L’instrument n’apporte presque plus d’information : la 2SLS reproduit l’essentiel du biais de l’OLS (médiane à '+Math.round(share*100)+' % du chemin) et l’intervalle conventionnel couvre '+pc+' des cas, pour 95 % annoncés.';
+      if(K===1&&rho>=0.05)m+=' Avec un seul instrument, la dérive de la médiane n’apparaît qu’à F très bas : comparez avec 5 ou 10 instruments.';
+      el('pif-msg').textContent=m;
+    }
+    function later(){clearTimeout(timer);timer=setTimeout(render,60);}
+    el('pif-f').addEventListener('input',later);
+    el('pif-r').addEventListener('input',later);
+    el('pif-k').addEventListener('change',render);
+    Array.prototype.forEach.call(el('pif-root').querySelectorAll('[data-pif-f]'),function(b){b.addEventListener('click',function(){el('pif-f').value=b.getAttribute('data-pif-f');render();});});
+    el('pif-new').addEventListener('click',function(){seed=(seed*48271+11)%2147483647;render();});
+    render();
+  })();
+  </script>
+</div>
