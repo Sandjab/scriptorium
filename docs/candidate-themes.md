@@ -868,8 +868,18 @@ C'est l'heuristique du renvoi cassé, la plus fiable du corpus. ⚠️ La théor
 > sur MinHash/Jaccard, la min-wise independence et la déduplication comme killer app. Domaine :
 > probabilistic-structures-hashing.
 
-### Généralisation en surparamétrisation — `generalisation-double-descent-grokking` → `deep-learning-foundations`
-**Verdict : gap réel — le plus net du domaine (ajout 2026-09-01).** Le corpus a les briques
+### ✅ FAIT — Généralisation en surparamétrisation — `generalisation-double-descent-grokking` → `deep-learning-foundations`
+(**FAIT le 2026-10-02**, 65e run `/leanmonograph`, retiré du backlog — classé 11e du parcours de
+`deep-learning-foundations`, après `mechanistic-interpretability`. 9 sections sur 10 (`deep-double-descent-trois-axes`
+coupée à l'élagage, son seul claim retenu étant couvert par la section Belkin), 35 claims (26 confirmés / 3 corrigés /
+6 rejetés), 40 sources, 3 widgets ; **≈ 8,2 M tok, 2 lancements**. Délimitation ajoutée par LECTURE avant lancement :
+`optimizers-adam` (publié après cette entrée) garde le débat adaptatif contre SGD. **Arrêt d'élagage au council** :
+10 claims retenus sur 39, 26 rejets tenus par tous les jurés sur la seule source primaire — ré-audit manuel :
+4 réparés, 18 regrainés, 5 rejets maintenus ; 6 « 2es sources » co-signées par les auteurs du primaire écartées.
+Backstop web (4 agents) : 2 FAUX en prose (Neyshabur et al. 2015 sur la norme ; « l'acquis reste linéaire » contre
+Lyu & Li 2020) et 8 imprécis, corrigés avant publication.)
+
+**Verdict initial : gap réel — le plus net du domaine (ajout 2026-09-01).** Le corpus a les briques
 éparses sans le fil : la double descente en une incise de `scaling-laws` (« où la perte remonte puis
 redescend avec l'échelle », comme forme que BNSL sait représenter), les minima plats en une phrase de
 `quantization` au service du QAT, SAM entre parenthèses dans `normalization-layers`, et le seul
@@ -1598,6 +1608,36 @@ Bengio, TPE, Hyperband/ASHA, NAS : 0 occurrence. ⚠️ Le candidat `gaussian-pr
 > réglage sur le test). Délimitations : `scaling-laws` garde µP ; `tabular-foundation-models` garde
 > TabPFN et cite AutoGluon ; `ensemble-learning` garde le boosting ; `gaussian-processes` (candidat)
 > — à arbitrer. Domaine : classical-ml-time-series.
+
+### Stacking et combinaison de modèles hétérogènes — `stacking-combinaison-de-modeles` → `classical-ml-time-series`
+**Verdict : partiel — objet nommé en trois phrases, jamais traité (ajout 2026-10-02).** Audit par
+lecture de la prose entière de `ensemble-learning` : le stacking n'y tient que les trois dernières
+phrases de la section « Variantes modernes » (Wolpert 1992, prédictions out-of-fold de niveau 0 →
+méta-modèle de niveau 1), plus deux renvois — les méta-estimateurs `Voting` et `Stacking` de
+scikit-learn nommés dans « Écosystème », et les gagnants Kaggle 2015 dont les ensembles XGBoost +
+réseaux « ne devançaient qu'à la marge un XGBoost bien réglé ». Le vote n'y existe que comme règle
+d'agrégation INTERNE (bagging, forêts, AdaBoost), jamais entre modèles hétérogènes. Blending, stacked
+regressions de Breiman, Super Learner, ensemble selection : absents de cette monographie. ⚠️ Seule
+`ensemble-learning` a été lue : la couverture de `tabular-foundation-models` (qui cite AutoGluon)
+reste à vérifier par lecture avant de lancer. Sujet étroit — l'alternative est d'enrichir
+`ensemble-learning` d'une vraie section ; ne lancer en thème que si l'angle « garanties et pièges »
+tient une monographie.
+
+> Combiner des modèles de familles différentes : ce que le stacking garantit, et ce qu'il coûte.
+> Couvrir la généralisation empilée (Wolpert 1992) et pourquoi les entrées du méta-modèle doivent
+> être out-of-fold (fuite sinon), les stacked regressions de Breiman (1996) et la contrainte de
+> poids positifs, le choix des entrées de niveau 1 (probabilités plutôt que classes — Ting & Witten),
+> le Super Learner (van der Laan, Polley & Hubbard 2007) et son inégalité oracle, l'ensemble
+> selection (Caruana et al. 2004), le blending sur jeu réservé et la leçon du Netflix Prize, le vote
+> dur et souple entre modèles hétérogènes, le stacking multi-couches d'AutoML (AutoGluon-Tabular), et
+> le gain réel mesuré face au meilleur modèle seul bien réglé — avec son coût en inférence et en
+> maintenance. ⚠️ Pistes issues de la mémoire du rédacteur, sans balayage web : à corroborer en
+> source primaire au Sweep, jamais des faits. Délimitations : `ensemble-learning` garde bagging,
+> forêts et boosting (citer ses trois phrases sur le stacking, ne pas re-dériver le biais-variance) ;
+> `model-merging` (candidat) garde la fusion dans l'espace des POIDS ; `optimisation-hyperparametres-automl`
+> (candidat) garde la recherche d'hyperparamètres et cite le stacking d'AutoGluon — arbitrer qui
+> porte AutoGluon AVANT de lancer ; `bayesian-deep-learning-uncertainty` (candidat) garde les deep
+> ensembles. Domaine : classical-ml-time-series.
 
 ---
 
