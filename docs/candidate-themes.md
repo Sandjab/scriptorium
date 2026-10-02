@@ -825,7 +825,19 @@ n'est traité nulle part. Sujet au sommet de la visibilité 2026 (leaderboards S
 > raisonnement générique. L'angle propre : le code comme modalité d'entraînement et d'évaluation.
 > Domaine : llm-agents-generation.
 
-### Édition de connaissances & désapprentissage — `model-editing-unlearning` → `deep-learning-foundations`
+### ✅ FAIT — Édition de connaissances & désapprentissage — `model-editing-unlearning` → `deep-learning-foundations`
+(**FAIT le 2026-10-03**, 71e run `/leanmonograph`, retiré du backlog — classé 27e et dernier du parcours de
+`deep-learning-foundations`, après `knowledge-distillation`. Gap re-vérifié par un audit de lecture des voisins avant
+lancement : critères et échecs de l'édition, désapprentissage, TOFU/WMDP/MUSE et RGPD art. 17 absents du corpus ;
+ROME comme test de localisation (`mechanistic-interpretability`) et extraction (`llm-safety-jailbreaks`) cités, pas
+refaits. 9 sections sur 9, 36 claims (32 confirmés / 3 corrigés / 1 rejeté), 38 sources, 3 widgets + figures ;
+**≈ 7,1 M tok de workflow (2 lancements) + ~1,1 M d'audit de couverture, ré-audit et backstop**. **21e arrêt
+d'élagage** (20 rejets sur 23 « tenus par tous, 1 source ») → ré-audit 4 agents : 6 réparés / 16 regrainés / 1 faux
+(« ROME sans gradient » : v* est optimisé par Adam). Build : note « 3 sources indépendantes » sur deux papiers
+co-signés → réparée. Backstop 3 agents : 5 FAUX (titre bibliographique inventé pour r-ROME ; deux réserves fausses
+introduites par la réparation des notes — MEMIT EST mesuré face à MEND, SISA ne se contredit pas sur ImageNet ; une
+« re-mesure indépendante » de l'attaque par quantification qui recopiait le tableau du primaire, remplacée par une vraie
+re-mesure ; une phrase sans source) + ~15 imprécis, corrigés.)
 **Verdict : gap réel (ajout 2026-08-06).** `mechanistic-interpretability` couvre le steering par
 features de SAE et l'intervention causale, et ne cite MEMIT que dans un blurb bibliographique ;
 « unlearning », « désapprentissage », « droit à l'oubli », TOFU : 0 occurrence dans le corpus.
