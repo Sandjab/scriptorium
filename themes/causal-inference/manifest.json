@@ -1,0 +1,490 @@
+{
+  "edition": "monographie",
+  "slug": "causal-inference",
+  "meta": {
+    "title": "Inférence causale pour l'ingénieur ML : l'identification avant l'estimation",
+    "kicker": "Inférence causale · monographie",
+    "h1": "Inférence causale pour l'ingénieur ML : l'identification avant l'estimation",
+    "lede": "Un modèle de machine learning, si flexible soit-il, ne transforme pas une corrélation en effet causal : il faut d'abord établir ce qui rend l'effet identifiable (hypothèses, graphe, plan d'expérience), puis l'estimer, puis chercher ce qui pourrait réfuter la conclusion.",
+    "meta_chips": [
+      "Monographie"
+    ],
+    "footer": "Inférence causale pour l'ingénieur ML : l'identification avant l'estimation · scriptorium"
+  },
+  "elements": [
+    {
+      "type": "abstract"
+    },
+    {
+      "type": "section",
+      "id": "resultats-potentiels",
+      "heading": "Potential outcomes : ce qu'est un effet causal",
+      "level": 3,
+      "prose": "<p>Un modèle de churn entraîné sur des millions de clients prédit très bien qui va partir. On lui demande alors ce qui se passerait si l'on offrait une remise à ces clients-là. Il n'en sait rien. Sa perte mesurait l'écart entre la prédiction et l'observation, et l'observation ne contient jamais ce qui serait arrivé sous une autre décision. Prédire et estimer un effet sont deux problèmes distincts. Le second exige d'abord de dire, hors des données, ce qui rend la comparaison légitime : c'est l'identification, et elle précède toute estimation.</p><p>Le langage le plus répandu pour poser ce problème est celui des potential outcomes (résultats potentiels). À chaque unité on associe deux résultats, Y(1) si elle reçoit le traitement T et Y(0) si elle ne le reçoit pas. L'effet causal individuel est leur différence, Y(1) − Y(0). Holland (1986) appelle « problème fondamental de l'inférence causale » le fait qu'une unité ne révèle jamais qu'un seul des deux. L'autre reste contrefactuel, pour toujours. On renonce donc à l'effet individuel au profit de moyennes sur une population.</p><p>Trois moyennes reviennent partout. L'ATE (Average Treatment Effect, effet moyen du traitement) vaut E[Y(1) − Y(0)] sur toute la population. L'ATT (Average Treatment effect on the Treated, effet moyen sur les traités) restreint cette moyenne aux unités effectivement traitées. C'est souvent la question d'un décideur qui a déjà ciblé. Le CATE (Conditional Average Treatment Effect) conditionne l'effet à des covariables X et décrit son hétérogénéité. Les méthodes de machine learning présentées plus loin visent surtout ce dernier.</p><p>Le cadre porte souvent le seul nom de Rubin, alors que son histoire est plus longue. Les potential outcomes apparaissent chez Neyman en 1923, pour des expériences agricoles randomisées. Ce texte n'a été traduit en anglais qu'en 1990, dans Statistical Science. Rubin (1974) étend la notion aux études non randomisées, et Holland (1986) lui attribue le « Rubin causal model ». Le sigle SUTVA ne vient que plus tard, dans les travaux de Rubin des années 1980.</p><p>SUTVA (Stable Unit Treatment Value Assumption) est la première hypothèse, et la plus souvent oubliée. Elle demande que le résultat d'une unité ne dépende pas du traitement des autres unités. Elle demande aussi qu'il n'existe qu'une seule version du traitement. Une remise qui pousse un client à parrainer ses proches viole la première condition. Deux remises de montants différents, codées de la même façon, violent la seconde. Sans SUTVA, Y(1) n'est même pas bien défini.</p><p>Deux hypothèses portent ensuite sur l'affectation au traitement. L'ignorability (non-confusion) pose que les potential outcomes sont indépendants de T sachant les covariables observées X. Autrement dit, à X fixé, être traité ne renseigne pas sur la manière dont l'unité aurait répondu. La positivity (recouvrement) exige que chaque profil X ait une probabilité d'être traité strictement comprise entre 0 et 1. Sans elle, certains profils n'ont aucun comparable dans l'autre groupe. L'effet y est alors extrapolé plutôt qu'estimé. Réunies, ces deux conditions forment la strong ignorability.</p><p>L'essai randomisé fournit ces hypothèses gratuitement. Le tirage au sort rend T indépendant de tout, observé ou non, et chaque unité a une chance connue d'être traitée. La différence des moyennes entre les bras estime alors l'ATE sans aucun modèle. Rubin (1974) en tire une position nette. La randomisation est à privilégier chaque fois que possible. Estimer des effets à partir de données non randomisées soigneusement contrôlées reste pourtant, selon lui, raisonnable et nécessaire dans de nombreux cas. L'ingénieur ML travaille presque toujours dans ce second cas, sur des traces que personne n'a tirées au sort.</p><p>Hors de l'essai, l'ignorability devient une hypothèse qu'aucune donnée ne teste, puisqu'elle porte sur des résultats jamais observés. Rosenbaum et Rubin (1983) montrent qu'on peut néanmoins la rendre maniable. Le propensity score (score de propension) est la probabilité d'être traité sachant les covariables observées. Ajuster sur ce seul scalaire suffit à retirer le biais dû à ces covariables. Encore faut-il savoir lesquelles mettre dans X, et la notation des potential outcomes ne le dit pas. Les graphes causaux répondent à cette question, avec une limite à garder en tête : ils parlent de confusion, jamais de positivity.</p>",
+      "claims": [
+        "claim:1",
+        "claim:2",
+        "claim:3",
+        "claim:4"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "graphes-causaux-backdoor",
+      "heading": "Graphes causaux : DAG, critère back-door et lien entre les deux cadres",
+      "level": 3,
+      "prose": "<p>Choisir les covariables d'ajustement demande une représentation que la notation Y(1), Y(0) n'offre pas. Un DAG (Directed Acyclic Graph, graphe orienté acyclique) écrit l'hypothèse sous une forme qu'un humain peut relire. Chaque nœud est une variable, chaque flèche une influence causale directe supposée. Les flèches absentes comptent autant, car chacune affirme qu'un lien n'existe pas. Pearl (1995) en fait un cadre non paramétrique. On y interroge le diagramme pour savoir si les hypothèses disponibles suffisent à identifier un effet à partir de données non expérimentales.</p><p>Trois motifs locaux reviennent dans tout DAG. Un confounder (facteur de confusion) cause à la fois le traitement et le résultat, selon T ← Z → Y. Il ouvre entre eux un chemin non causal qu'il faut bloquer. Un médiateur transmet l'effet, selon T → M → Y, et ajuster sur lui retire une partie de l'effet cherché. Un collider reçoit deux flèches, comme dans T → C ← Y. Laissé tel quel, il bloque le chemin. Conditionner sur lui l'ouvre et fabrique une association entre des variables qui n'en avaient pas. Le même geste d'ajustement est donc correct sur le premier motif et fautif sur les deux autres.</p><p>Le back-door criterion (critère de la porte dérobée) transforme ces motifs en règle. Formulé par Pearl en 1993, il est repris dans l'article de 1995. Un chemin back-door relie T à Y en partant d'une flèche qui pointe vers T. Dans la formulation de Pearl (2010), un ensemble S convient pour l'ajustement à deux conditions. Aucun élément de S n'est un descendant de T. Et S bloque tous les chemins back-door. La première condition écarte les médiateurs et les colliders situés en aval du traitement. La seconde ferme les routes de confusion.</p><p>Quand S convient, la distribution sous intervention se réécrit avec des quantités observables : P(y | do(t)) = Σ<sub>s</sub> P(y | t, s) P(s). L'opérateur do(·) désigne l'intervention qui force T à la valeur t, par opposition au simple conditionnement sur T = t. C'est la formule d'ajustement, estimable par régression sur données observationnelles. Elle coïncide exactement avec celle qu'on obtient sous l'ignorability conditionnelle Y<sub>t</sub> ⊥⊥ T | S, que le critère entraîne. Le pont entre les deux langages est là. Le graphe dit quand l'ignorability est garantie, les potential outcomes disent ce qu'elle signifie.</p><p>La figure 3 de Pearl (2010) montre ce que le graphe apporte. Dans ce DAG, les ensembles {Z1, Z3} et {W2, Z3} suffisent pour l'ajustement. L'ensemble {Z3} seul ne suffit pas. Z3 est un collider sur le chemin T ← W1 ← Z1 → Z3 ← Z2 → W2 → Y, et conditionner sur lui ouvre ce chemin au lieu de le bloquer. Pearl soutient que même un expert des potential outcomes ne trancherait pas à l'œil l'ignorability sur un tel graphe, alors que l'inspection des chemins le fait mécaniquement. C'est la position d'un partisan du cadre graphique, pas un consensus. Elle a le mérite de rendre l'hypothèse discutable avant tout calcul.</p><p>Le back-door ne couvre pas tous les cas identifiables. Pearl (1995) lui adjoint le front-door criterion (critère de la porte d'entrée), qui identifie l'effet par un médiateur observé quand le confounder entre traitement et résultat reste caché. Il illustre ces outils sur un problème de Cochran. L'effet de fumigants sur un rendement y est confondu par la population de vers de l'année précédente, non observée, qui guide le choix des fermiers. Le diagramme sert d'abord à expliciter les hypothèses. Il dit ensuite si elles suffisent à identifier l'effet total. Sinon, il indique quelles observations ou expériences y parviendraient.</p><p>Pour les cas qu'aucun des deux critères ne règle, Pearl (1995) introduit le do-calculus (do-calcul), fait de trois règles de réécriture. La première insère ou supprime une observation. La deuxième échange une action contre une observation, et la troisième insère ou supprime une action. Pearl laissait alors ouverte la question de savoir si elles suffisent à dériver tout effet identifiable. Huang et Valtorta (2006) ont démontré cette complétude, indépendamment de Shpitser et Pearl (2006). Si un effet est identifiable, une suite d'applications des trois règles le ramène à une formule purement observationnelle.</p><p>Reste le mot « équivalent ». L'introduction de Pearl (1995) dit le back-door équivalent à l'ignorability de Rosenbaum et Rubin (1983), et la formule circule encore. Dès la discussion du même article, deux discutants, Imbens et Rubin, contestent l'équivalence. Un mécanisme d'affectation séquentiel, qui dépend des résultats déjà observés, est ignorable au sens de Rubin. Le représenter exigerait pourtant un graphe immense, chaque unité y devenant un nœud distinct. Les textes ultérieurs de Pearl écrivent plus prudemment que le critère entraîne l'ignorability. Hernán et Robins, dans What If, construisent même un modèle où l'ignorability tient alors que le back-door échoue.</p><p>L'implication va donc du graphe vers l'ignorability, et seulement à graphe donné. La réciproque demande davantage : la faithfulness (fidélité), et un modèle causal sans indépendances entre mondes contrefactuels (de type FFRCISTG). Le critère ne dit rien non plus de la positivity, l'autre moitié de la strong ignorability. Surtout, il suppose un DAG correct, et aucune donnée observationnelle ne le garantit. Le graphe ne crée pas l'identification. Il la rend lisible, et donc contestable variable par variable. Les estimateurs qui suivent héritent de cette hypothèse sans pouvoir la vérifier.</p>",
+      "claims": [
+        "claim:5",
+        "claim:6",
+        "claim:7"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-backdoor-ensemble-ajustement"
+    },
+    {
+      "type": "section",
+      "id": "score-de-propension-doublement-robuste",
+      "heading": "Estimer sous non-confusion : propensity score, IPW et AIPW",
+      "level": 3,
+      "prose": "<p>Supposons l'identification acquise : un DAG crédible a désigné un ensemble de covariables X qui ferme toutes les routes de confusion. Il reste à estimer. La famille la plus ancienne repose sur le propensity score e(X) = P(T = 1 | X). Rosenbaum et Rubin (1983) en établissent la propriété centrale sous strong ignorability. Si les potential outcomes sont indépendants de T sachant X, ils le sont aussi sachant e(X). Un vecteur de covariables de grande dimension se ramène ainsi à un scalaire.</p><p>Le même article en propose trois usages. Le premier est l'appariement, où chaque traité est associé à un non-traité de score voisin pour estimer l'ATT. Le deuxième est la sous-classification en strates de score. Le troisième est un graphique à deux dimensions qui rend visible l'ajustement de covariance multivarié. L'appariement sur le score a depuis été contesté. King et Nielsen (2019) soutiennent qu'à mesure qu'on élague les paires, il peut accroître le déséquilibre et le biais au lieu de les réduire.</p><p>L'IPW (Inverse Probability Weighting, pondération par l'inverse de la probabilité) n'apparie rien. Il repondère chaque unité traitée par 1/e(X) et chaque témoin par 1/(1 − e(X)). L'échantillon pondéré imite alors une population où le traitement ne dépend plus de X. Le prix se paie au bord du recouvrement. Une propension proche de 0 ou de 1 produit des poids énormes, et la variance explose. Le remède le plus simple tronque les poids extrêmes. Les poids stabilisés en réduisent la dispersion. On peut aussi restreindre l'analyse à la zone de recouvrement, au prix d'un changement de population cible.</p><p>Les doubly robust estimators (estimateurs doublement robustes) combinent les deux approches. L'AIPW (Augmented Inverse Probability Weighting), issu des travaux de Robins, Rotnitzky et Zhao (1994), part d'un modèle de résultat et corrige ses résidus par pondération inverse. Il converge vers le bon effet si l'un des deux modèles est correct, propension ou résultat, sans qu'il faille savoir lequel. Cette double chance a fait sa popularité. Elle reste une garantie asymptotique.</p><p>Kang et Schafer (2007) en ont montré la limite pratique. Leur simulation estime une moyenne avec données manquantes, un cadre transposable à l'effet causal. Les deux modèles y sont légèrement faux et les poids instables. Les doubly robust estimators font alors moins bien que la simple régression de résultat. Robins, Sued, Lei-Gomez et Rotnitzky (2007) ont reproduit l'expérience. Avec n = 200 et deux modèles faux, l'erreur quadratique moyenne des moindres carrés ordinaires vaut 11,06. Celle des doubly robust estimators testés va de 14,74 à 169,91. Ces auteurs contestent pourtant la portée du résultat, en jugeant la loi de simulation favorable à la régression. Sans trancher ce désaccord, on retient que la double robustesse ne protège pas de poids instables.</p><p>Avant de lire l'estimation, on contrôle ce que la pondération ou l'appariement a produit. Les diagnostics usuels comparent les distributions des covariables entre groupes, avant et après correction. On calcule des différences moyennes standardisées, covariable par covariable. On superpose aussi les histogrammes du score par groupe pour juger le recouvrement. Ces contrôles sont nécessaires, mais ils ne prouvent pas l'absence de confusion. Ils ne portent que sur les covariables mesurées. Un bon équilibre de l'observé ne dit rien d'un confounder absent des données. L'ignorability reste supposée, jamais testée, ce qui pousse vers des stratégies qui changent d'hypothèse plutôt que d'estimateur.</p>",
+      "claims": [
+        "claim:8",
+        "claim:9",
+        "claim:10"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "difference-de-differences-echelonnee",
+      "heading": "Difference-in-differences : parallel trends et adoption échelonnée",
+      "level": 3,
+      "prose": "<p>Puisque l'ignorability ne se teste pas, on peut lui substituer une autre hypothèse. La difference-in-differences (différence de différences, DiD) ne suppose plus que traités et témoins soient comparables à covariables égales. Elle suppose que, sans traitement, leurs résultats auraient évolué de la même façon. C'est l'hypothèse de parallel trends (tendances parallèles). Les niveaux peuvent différer durablement, seule la trajectoire contrefactuelle doit être commune. Une seconde hypothèse l'accompagne, la no anticipation (absence d'anticipation). Les unités ne doivent pas réagir au traitement avant qu'il ne les touche. Dans l'exemple du churn, une remise annoncée un mois à l'avance la viole déjà.</p>\n<p>Dans le cas canonique à deux groupes et deux périodes, l'estimateur se lit directement. On soustrait l'évolution des témoins à celle des traités. En pratique, les dates de traitement varient souvent d'une unité à l'autre, ce qu'on appelle la staggered adoption (adoption échelonnée). Le réflexe courant est alors une régression TWFE (two-way fixed effects, effets fixes bidirectionnels). Elle combine un effet fixe par unité, un effet fixe par période et une indicatrice de traitement. L'identification sous-jacente peut être parfaitement correcte. L'estimateur, lui, ne l'exploite pas toujours comme on le croit.</p>\n<p>Goodman-Bacon (2021) en a donné la décomposition. Le coefficient TWFE est une moyenne pondérée de tous les estimateurs DiD 2×2 que l'on peut former entre cohortes et périodes. Certaines comparaisons opposent un groupe traité à des unités jamais traitées. D'autres opposent une cohorte traitée tôt à une cohorte traitée tard, avant que cette dernière ne soit traitée. La troisième famille pose problème. Une cohorte traitée tard y est comparée à une cohorte déjà traitée, qui sert de témoin après son propre traitement. On parle de comparaison « interdite ». Les poids de chaque comparaison dépendent de la taille des groupes et de la variance du traitement.</p>\n<p>Cette décomposition dit aussi quand le biais apparaît. Selon Goodman-Bacon, l'interprétation causale du TWFE exige les parallel trends et des effets constants dans le temps. Si l'effet évolue après l'adoption, la cohorte déjà traitée apporte sa propre dynamique d'effet dans le contrefactuel, et l'estimateur peut être biaisé. La nuance compte. Une hétérogénéité entre unités, avec des effets stables dans le temps, modifie surtout les poids. Elle n'engendre pas forcément un biais au sens de Goodman-Bacon. Dans tous les cas, le TWFE n'identifie pas l'ATT en général. Il en estime une moyenne pondérée, dont les poids ne peuvent devenir négatifs que si les effets varient dans le temps. L'article propose en outre un test d'équilibre et une décomposition des écarts entre spécifications.</p>\n<p>Le constat s'aggrave avec de Chaisemartin et D'Haultfoeuille (American Economic Review, 2020). Les régressions à effets fixes groupe et période estiment une somme pondérée d'ATE par groupe et par période. Or certains de ces poids peuvent être négatifs. Le coefficient peut alors être négatif alors même que tous les ATE sont positifs. Le signe se trompe sans que les parallel trends soient en cause. Les auteurs proposent un estimateur alternatif.</p>\n<p>Les event studies (études d'événement) héritent du même défaut. Elles régressent le résultat sur des indicatrices de leads et de lags autour de la date d'adoption. Le but est de suivre l'effet dans le temps et d'inspecter les pré-tendances. Sun et Abraham (2021) montrent que, sous adoption échelonnée, le coefficient d'un lead ou d'un lag peut être contaminé par les effets d'autres périodes. De fausses pré-tendances peuvent même naître de la seule hétérogénéité des effets. Le graphique censé rassurer sur les parallel trends peut donc alarmer à tort. Les auteurs proposent une méthode qui évite cette contamination.</p>\n<p>Callaway et Sant'Anna (Journal of Econometrics, 2021) changent d'unité d'analyse. Leur brique est l'ATT(g,t) = E[Y_t(g) − Y_t(0) | G = g], l'effet moyen à la période t pour la cohorte traitée pour la première fois en g. Le cadre suppose qu'une unité traitée le reste. Le groupe de comparaison peut être jamais traité ou pas encore traité, ce qui donne deux variantes des parallel trends. Toutes deux exigent une anticipation limitée, d'horizon connu, l'absence d'anticipation n'en étant que le cas de base. Toutes deux peuvent aussi être posées conditionnellement à des covariables X pré-traitement. Les ATT(g,t) s'agrègent ensuite par cohorte, en moyenne pondérée globale ou en event study selon la durée d'exposition e. Ce schéma évite le problème des poids négatifs du TWFE.</p>\n<p>La leçon dépasse l'économétrie des panels. L'hypothèse d'identification pouvait être juste, et c'est l'estimateur standard qui la trahissait. Quand le contrefactuel s'extrapole d'une série temporelle plutôt que d'un groupe témoin, une autre famille prend le relais. Brodersen et al. (Annals of Applied Statistics, 2015) présentent CausalImpact, fondé sur des BSTS (Bayesian structural time series), comme alternative aux schémas DiD classiques. Il modélise l'évolution temporelle de l'impact, avec saisonnalité et covariables variant dans le temps. Sa mécanique relève de la prévision de séries temporelles. Reste le cas le plus fréquent pour un ingénieur ML : une ignorability posée sur des centaines de covariables, où la tentation est de confier l'ajustement à un apprenant flexible.</p>",
+      "claims": [
+        "claim:11",
+        "claim:12",
+        "claim:13",
+        "claim:14"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-twfe-bacon-echelonne"
+    },
+    {
+      "type": "section",
+      "id": "double-machine-learning",
+      "heading": "Double/debiased machine learning : orthogonalité de Neyman et cross-fitting",
+      "level": 3,
+      "prose": "<p>Avec des centaines de covariables et des relations non linéaires, l'idée vient vite de remplacer les régressions de l'AIPW par une forêt ou un réseau. Chernozhukov, Chetverikov, Demirer, Duflo, Hansen, Newey et Robins ont formalisé ce que coûte cette substitution, et comment la rendre sûre. Leur article (Econometrics Journal, 2018) introduit le double/debiased machine learning (DML, apprentissage automatique double ou débiaisé). Il cible un paramètre d'intérêt de faible dimension, l'effet θ0. Les fonctions auxiliaires de grande dimension, estimées par ML, y jouent le rôle de nuisance parameters (paramètres de nuisance).</p>\n<p>Le premier écueil est le plug-in naïf. On insère la prédiction d'un apprenant régularisé dans l'estimation du paramètre causal. La régularisation qui rend l'apprenant performant en prédiction biaise alors l'effet qu'on en extrait. Ce biais de régularisation entre au premier ordre dans l'estimateur. En général, celui-ci n'atteint plus la vitesse en racine de n. S'y ajoute un biais de surajustement lorsque les mêmes données servent à apprendre les nuisances et à évaluer l'effet.</p>\n<p>La réponse combine deux ingrédients. Le premier est la Neyman orthogonality (orthogonalité de Neyman) du score. Sa dérivée par rapport aux nuisances s'annule à leur vraie valeur, si bien qu'une erreur sur les nuisances n'entre qu'au second ordre. Le biais se réduit alors à un produit des erreurs des nuisances. C'est l'effet d'une correction par la fonction d'influence. Le second ingrédient est le cross-fitting (ajustement croisé). On découpe l'échantillon en K plis. Les nuisances sont apprises sur les plis complémentaires, puis le score est évalué sur le pli laissé de côté. Cette séparation supprime le biais de surajustement sans restreindre la complexité de l'apprenant. Forêts aléatoires et lasso deviennent des apprenants de nuisance admissibles, tout comme réseaux de neurones et arbres boostés.</p><figure class='fig'><svg viewBox='0 0 760 400' role='img' aria-label='Schéma du cross-fitting à cinq plis : les nuisances sont apprises sur les plis complémentaires, les résidus calculés sur le pli laissé de côté, puis régressés les uns sur les autres et agrégés en une estimation avec intervalle ; encadré sur les deux biais corrigés.' font-size='13'><defs><marker id='dmlcf-arr' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='var(--ink-faint,#7A889B)'/></marker></defs><text x='20' y='26' fill='var(--ink,#15202E)' font-weight='600'>Échantillon de N observations, découpé en K = 5 plis</text><g stroke='var(--ink,#15202E)' stroke-width='1'><rect x='20' y='40' width='84' height='36' fill='var(--blue,#23537F)' fill-opacity='0.18'/><rect x='104' y='40' width='84' height='36' fill='var(--blue,#23537F)' fill-opacity='0.18'/><rect x='188' y='40' width='84' height='36' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.3'/><rect x='272' y='40' width='84' height='36' fill='var(--blue,#23537F)' fill-opacity='0.18'/><rect x='356' y='40' width='84' height='36' fill='var(--blue,#23537F)' fill-opacity='0.18'/></g><g fill='var(--ink,#15202E)' text-anchor='middle'><text x='62' y='63'>pli 1</text><text x='146' y='63'>pli 2</text><text x='230' y='63' font-weight='700' fill='var(--bordeaux,#7C2A38)'>pli k</text><text x='314' y='63'>pli 4</text><text x='398' y='63'>pli 5</text></g><text x='20' y='96' fill='var(--blue,#23537F)'>plis complémentaires : entraînement</text><text x='440' y='96' text-anchor='end' fill='var(--bordeaux,#7C2A38)'>pli k : évaluation</text><g stroke='var(--ink-faint,#7A889B)' stroke-width='1.5' fill='none' marker-end='url(#dmlcf-arr)'><path d='M110,102 L110,128'/><path d='M400,102 L400,128'/><path d='M252,165 L278,165'/><path d='M230,212 L230,248'/><path d='M230,300 L230,328'/></g><rect x='20' y='130' width='230' height='72' rx='4' fill='var(--blue,#23537F)' fill-opacity='0.08' stroke='var(--blue,#23537F)'/><text x='32' y='151' fill='var(--ink,#15202E)' font-weight='600'>1. Apprendre les nuisances</text><text x='32' y='171' fill='var(--ink,#15202E)'>Ê[Y|X], Ê[D|X] sur les plis ≠ k</text><text x='32' y='191' fill='var(--ink-faint,#7A889B)'>(ex. forêt aléatoire)</text><rect x='280' y='130' width='160' height='72' rx='4' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.08' stroke='var(--bordeaux,#7C2A38)'/><text x='292' y='151' fill='var(--ink,#15202E)' font-weight='600'>2. Résidus sur le pli k</text><text x='292' y='171' fill='var(--ink,#15202E)'>Ỹ = Y − Ê[Y|X]</text><text x='292' y='191' fill='var(--ink,#15202E)'>D̃ = D − Ê[D|X]</text><text x='222' y='226' text-anchor='end' fill='var(--ink-faint,#7A889B)' font-style='italic'>répété pour k = 1, …, K :</text><text x='222' y='242' text-anchor='end' fill='var(--ink-faint,#7A889B)' font-style='italic'>résidus hors pli pour tous</text><rect x='20' y='250' width='420' height='50' rx='4' fill='none' stroke='var(--ink,#15202E)'/><text x='32' y='271' fill='var(--ink,#15202E)' font-weight='600'>3. Régression des résidus sur les résidus</text><text x='32' y='290' fill='var(--ink,#15202E)'>Ỹ sur D̃ (Robinson, 1988), agrégée sur les K plis</text><rect x='20' y='330' width='420' height='50' rx='4' fill='var(--blue,#23537F)' fill-opacity='0.15' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='230' y='352' text-anchor='middle' fill='var(--ink,#15202E)' font-weight='700'>θ̂ et son intervalle de confiance</text><text x='230' y='371' text-anchor='middle' fill='var(--ink,#15202E)'>θ̂ ± 1,96 · σ̂ / √N</text><rect x='470' y='40' width='270' height='340' rx='6' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-dasharray='4 3'/><text x='486' y='66' fill='var(--ink,#15202E)' font-weight='700'>Deux biais, deux remèdes</text><text x='486' y='104' fill='var(--bordeaux,#7C2A38)' font-weight='600'>Biais de régularisation</text><text x='486' y='126' fill='var(--ink,#15202E)'>→ corrigé par l'orthogonalité</text><text x='486' y='145' fill='var(--ink,#15202E)'>de Neyman : l'erreur sur les</text><text x='486' y='164' fill='var(--ink,#15202E)'>nuisances n'entre qu'au</text><text x='486' y='183' fill='var(--ink,#15202E)'>2e ordre (produit des erreurs)</text><line x1='486' y1='212' x2='724' y2='212' stroke='var(--ink-faint,#7A889B)' stroke-width='0.75'/><text x='486' y='244' fill='var(--bordeaux,#7C2A38)' font-weight='600'>Biais de surajustement</text><text x='486' y='266' fill='var(--ink,#15202E)'>→ corrigé par la séparation</text><text x='486' y='285' fill='var(--ink,#15202E)'>des plis : les résidus du pli k</text><text x='486' y='304' fill='var(--ink,#15202E)'>viennent d'apprenants qui</text><text x='486' y='323' fill='var(--ink,#15202E)'>ne l'ont jamais vu</text></svg><figcaption><span class='fcap-k'></span>Cross-fitting du DML dans le modèle partiellement linéaire : chaque pli reçoit ses résidus d'apprenants entraînés sur les autres plis, puis la régression des résidus sur les résidus, agrégée sur les plis, donne θ̂ et son intervalle.</figcaption></figure>\n<p>L'article illustre ce second point par un ĝ0 artificiellement surajusté, qui converge pourtant à la vitesse N^{-1/2+ε}. Sans séparation d'échantillons, le terme de reste explose en N^ε. Avec un cross-fitting à deux plis, le biais disparaît.</p>\n<p>Le modèle partiellement linéaire rend la mécanique concrète. On pose Y = D·θ0 + g0(X) + U et D = m0(X) + V, où D désigne le traitement noté T jusqu'ici. Le score orthogonal est celui du partialling-out. On régresse les résidus Y − E[Y|X] sur les résidus D − E[D|X]. Cette résidualisation remonte à Robinson (1988). Avec cross-fitting, chaque prédiction de E[Y|X] et de E[D|X] provient d'un modèle entraîné sur les autres plis, par exemple une forêt aléatoire. L'estimateur de θ0 converge alors en racine de n et devient asymptotiquement normal. Des intervalles de confiance valides en découlent.</p>\n<p>Une idée reçue veut que chaque nuisance converge elle-même à la vitesse n^{-1/2}. La condition est plus clémente. C'est le produit des erreurs d'estimation qui doit être en o(n^{-1/2}). Il suffit pour cela que chaque nuisance converge plus vite que n^{-1/4}. À exactement n^{-1/4}, le produit n'est qu'en O(n^{-1/2}), et le biais résiduel cesse d'être négligeable. Le score de Robinson ajoute une asymétrie. L'erreur sur E[D|X] y intervient au carré, donc cette nuisance doit à elle seule être en o(n^{-1/4}). À l'inverse, si la fonction m0 = E[D|X] est connue ou estimée à vitesse N^{-1/2}, la seule convergence de l'autre nuisance suffit (remarque 4.3 de l'article).</p>\n<p>Le cadre dépasse le modèle partiellement linéaire. Il couvre sa variante avec variable instrumentale. Il couvre aussi l'ATE, avec un score de type AIPW, ainsi que l'effet sur les traités. Le LATE (Local Average Treatment Effect, effet local du traitement) en fait également partie. Côté outils, le package DoubleML, développé par Bach, Chernozhukov, Kurz et Spindler, en propose des implémentations, tout comme EconML.</p>\n<p>La limite de fond demeure. La garantie du DML porte sur l'estimation, jamais sur l'identification. Elle suppose l'ignorability ou un instrument valide, ainsi que la positivity, sans les tester ni les remplacer. Avec un confounder non observé, le DML converge toujours en racine de n, avec un intervalle étroit. Mais il converge vers une quantité d'association, que l'article nomme « average predictive effect ». Un intervalle de confiance DML valide n'est donc pas la preuve d'un effet causal. Enfin, θ0 reste un effet moyen. Pour savoir à quels clients la remise profite, il faut descendre au CATE.</p>",
+      "claims": [
+        "claim:15",
+        "claim:16",
+        "claim:17",
+        "claim:18"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "meta-learners-cate",
+      "heading": "Meta-learners : estimer l'hétérogénéité (S, T, X, R, DR)",
+      "level": 3,
+      "prose": "<p>Le CATE sert précisément à cibler. Les meta-learners (méta-apprenants) l'estiment en assemblant des modèles de base quelconques, comme des forêts aléatoires, des réseaux de neurones ou BART (Bayesian Additive Regression Trees). Ces modèles ne sont pas conçus pour estimer directement une différence de résultats potentiels. Künzel, Sekhon, Bickel et Yu ont formalisé la famille (PNAS, 2019). Ils y présentent le S-learner et le T-learner comme les approches de base. Le X-learner est leur contribution.</p>\n<p>Le S-learner apprend un seul modèle du résultat, où le traitement figure parmi les variables d'entrée. L'effet se lit comme l'écart de prédiction quand T passe de 0 à 1. Un apprenant régularisé peut alors négliger un traitement peu prédictif, ce qui ramène l'effet vers zéro. Le T-learner apprend au contraire deux modèles séparés, un par bras. Chacun ne voit qu'une partie des données.</p>\n<p>Le X-learner vise le cas où un groupe est beaucoup plus grand que l'autre. Prenons des traités minoritaires et des témoins nombreux. Le X-learner exploite le modèle appris sur les témoins pour imputer un effet individuel à chaque traité. Il peut aussi tirer parti de la structure de la fonction CATE. Sous régularité, avec un CATE linéaire et des réponses lipschitziennes, il atteint le taux paramétrique en n, à condition que le groupe témoin soit beaucoup plus grand que le groupe traité. Une idée reçue en fait le meilleur meta-learner dès que les groupes sont déséquilibrés. Son avantage n'est pourtant démontré que sous ces conditions et en simulation. Les auteurs eux-mêmes concluent qu'aucun meta-learner n'est uniformément le meilleur. Le X-learner se comporte simplement de façon favorable dans leurs simulations.</p>\n<p>Le R-learner de Nie et Wager (Biometrika, 2021) importe la résidualisation du DML. Une première étape estime l'espérance conditionnelle du résultat, m(x) = E[Y|X=x], et le propensity score. Une seconde minimise un objectif adaptatif bâti sur ces estimations. Son intérêt tient à sa propriété dite quasi-oracle. Si les deux nuisances sont estimées à des vitesses o(n^{-1/4}), même peu précises, le R-learner atteint les bornes d'erreur d'un oracle qui les connaîtrait. Le résultat est démontré pour la régression à noyau pénalisée. Le cadre admet toutefois lasso, réseaux et boosting. Foster et Syrgkanis (Annals of Statistics, 2023) retrouvent ces vitesses oracle pour une variante contrainte, à partir d'un théorème général sur les pertes Neyman-orthogonales.</p>\n<p>Le DR-learner de Kennedy (Electronic Journal of Statistics, 2023) prolonge au CATE la double robustesse. C'est un estimateur doublement robuste en deux étapes. Sa borne d'erreur générique ne s'écarte de celle de l'oracle que par un terme produit. Ce terme multiplie l'erreur sur la propension par l'erreur sur les régressions de résultat. On retrouve la structure de second ordre du DML. Sous des conditions de lissage, le DR-learner atteint l'efficacité oracle. Curth et van der Schaar (AISTATS 2021) en tirent une règle lisible. La vitesse oracle est atteinte si la somme des vitesses de la propension et des régressions dépasse celle du CATE.</p>\n<p>Passer de l'effet moyen à l'effet individuel ne change rien aux hypothèses. Chaque meta-learner suppose la même ignorability et la même positivity que l'ATE. Le X-learner n'y échappe pas, le DR-learner non plus. Sur des données confondues, un T-learner produit un CATE confondu, avec autant d'assurance qu'un bon. Reste à obtenir des intervalles de confiance valides pour un CATE estimé par un modèle flexible. Une autre voie, qui adapte la forêt elle-même au lieu d'assembler des modèles de base, y répond avec un estimateur de variance.</p>",
+      "claims": [
+        "claim:19",
+        "claim:20",
+        "claim:21",
+        "claim:22"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "forets-causales",
+      "heading": "Causal forests et generalized random forests",
+      "level": 3,
+      "prose": "<p>Les meta-learners laissent à l'ingénieur le choix du modèle de base, et avec lui la question de l'incertitude. Les causal forests (forêts causales) de Wager et Athey prennent le problème dans l'autre sens. La forêt est construite pour l'effet, puis munie d'un estimateur de variance.</p><p>L'article, déposé sur arXiv en 2015, paraît au Journal of the American Statistical Association en 2018. Il étend les forêts aléatoires à l'estimation de réponses individualisées au traitement. Le cadre reste celui des potential outcomes sous unconfoundedness, autre nom de l'ignorability. La forêt n'identifie donc rien par elle-même. Elle estime un effet dont l'identification a été acquise en amont.</p><p>Le résultat principal est asymptotique. Sous ignorability et positivity, les estimations sont ponctuellement consistantes et asymptotiquement normales, centrées sur le vrai effet en un point x. Deux conditions de construction portent ce résultat. Les arbres doivent être honnêtes, et chacun se construit sur un sous-échantillon de taille contrôlée. La dimension des covariables, elle, reste fixe. Un estimateur de variance fournit alors des intervalles de confiance asymptotiquement valides pour le CATE en x. Les auteurs y voient, à leur connaissance, le premier ensemble de résultats permettant d'utiliser tout type de forêt aléatoire pour une inférence statistique valide.</p><p>L'honest estimation (estimation honnête) sépare les rôles des données. Un sous-échantillon sert à choisir les splits (coupures), un autre à estimer l'effet dans les feuilles. Ce n'est pas une simple précaution contre le surajustement : c'est une condition de la théorie de normalité asymptotique. Le package R/C++ grf, de Tibshirani, Athey, Sverdrup et Wager, l'applique par défaut.</p><p>La théorie demande davantage que l'honnêteté. Chernozhukov et ses coauteurs en dressent la liste dans Applied Causal Inference Powered by ML and AI. Elle comprend l'équilibre des splits et la sélection aléatoire des variables. Elle exige aussi des arbres complets et un sous-échantillonnage sans remise. Les auteurs préviennent que ces garanties valent en basse dimension, sous des hyperparamètres souvent violés en pratique. Dans les simulations de l'article original, la forêt causale surpasse pourtant l'appariement par plus proches voisins. L'écart se creuse quand s'ajoutent des covariables non pertinentes.</p><p>Les generalized random forests (GRF) d'Athey, Tibshirani et Wager, publiées aux Annals of Statistics en 2019, généralisent ce mécanisme. La forêt n'y sert plus à prédire. Elle fabrique des poids adaptatifs, qui servent ensuite à résoudre des équations de moments locales. Toute quantité définie par de telles équations devient alors estimable, avec consistance, normalité asymptotique et intervalles de confiance. La régression quantile en est un cas. Les effets hétérogènes avec variables instrumentales en sont un autre : les instrumental forests estiment un effet de type LATE conditionnel. Le package grf expose ces variantes sous les noms causal_forest, instrumental_forest et quantile_forest. Il fournit des intervalles sur le CATE comme sur l'ATE, et des diagnostics d'hétérogénéité comme le RATE (Rank Average Treatment Effect).</p><p>La validité de ces intervalles a une portée précise. Elle vaut pour l'estimand identifié sous ignorability, et pour lui seul. Un intervalle étroit sur données observationnelles ne prouve donc pas l'effet causal. Un confounder non mesuré le déplace sans que sa largeur en garde la trace. Face aux meta-learners, la forêt causale l'emporte sur l'inférence formelle, pas sur l'identification. Les simulations de Künzel et al. le rappellent, puisque aucun meta-learner n'y est uniformément meilleur. La forêt reste une option parmi d'autres.</p><p>Encore faut-il se servir de ces CATE estimés. Le marketing en a fait un usage propre, en ciblant les clients par l'effet attendu plutôt que par le risque prédit.</p>",
+      "claims": [
+        "claim:23",
+        "claim:24",
+        "claim:25",
+        "claim:26"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "uplift-modelling",
+      "heading": "Uplift modelling : cibler par l'effet et l'évaluer",
+      "level": 3,
+      "prose": "<p>Cet usage porte un nom : l'uplift modelling (modélisation d'uplift). Il ne cherche pas les clients qui vont résilier. Il cherche ceux dont la remise change la décision. Dans l'exemple du churn, un client perdu d'avance et un client fidèle quoi qu'il arrive ont tous deux un uplift nul. Le modèle de churn, lui, les place pourtant aux deux extrêmes de son score.</p><p>Les uplift trees de Rzepakowski et Jaroszewicz, parus dans Knowledge and Information Systems en 2012, transposent cette idée aux arbres de décision. Un arbre de classification découpe ses nœuds pour gagner en pureté de classe. Un uplift tree les découpe pour maximiser le gain d'une divergence entre les distributions de réponse des groupes traité et témoin. Cette divergence peut être celle de Kullback-Leibler ou une distance euclidienne au carré. La version de la revue ajoute le chi-deux, absent de la version préliminaire présentée à ICDM en 2010.</p><p>Le critère généralise celui d'un arbre ordinaire. Si le groupe témoin est vide, le gain KL se réduit au gain d'entropie. Les gains euclidien et chi-deux se réduisent alors au gain de Gini. L'article traite aussi le cas de plusieurs traitements, avec ses propres méthodes d'élagage.</p><p>La bibliothèque CausalML, décrite en 2020 par Chen, Harinen, Lee, Yung et Zhao, reprend ces critères de découpe. Dans sa version actuelle, elle réunit aussi des meta-learners, de l'estimation doublement robuste et des approches par réseaux de neurones. Son cas d'usage principal est le ciblage de campagnes par estimation du CATE. Elle accepte des données expérimentales comme observationnelles, ce qui déplace toute la charge sur l'identification.</p><p>Évaluer un tel modèle bute sur le problème fondamental de l'inférence causale. L'ITE (Individual Treatment Effect, effet individuel du traitement) n'est jamais observé, puisque chaque client n'est vu que traité ou que témoin. Aucune erreur individuelle ne se calcule donc sur données réelles. Gutierrez et Gérardy ont montré en 2017 une équivalence utile à l'entraînement. À la limite, minimiser l'erreur quadratique par rapport à l'effet non observé revient à la minimiser sur une variable cible modifiée, le transformed outcome (résultat transformé).</p><p>Pour l'évaluation, Radcliffe a proposé en 2007 de comparer des groupes plutôt que des individus. On trie la population par uplift prédit, puis on mesure le gain incrémental obtenu en ciblant une fraction croissante. La courbe obtenue est la Qini curve, extension de la courbe de Lorenz à l'uplift. La valeur Qini est l'aire entre cette courbe de gains incrémentaux et la diagonale du ciblage aléatoire ; le coefficient Qini la rapporte à celle du ciblage optimal. Il joue pour l'uplift le rôle que le Gini joue pour un classifieur.</p><figure class='fig'><svg viewBox='0 0 760 420' role='img' aria-label='Allure illustrative d’une courbe Qini : en abscisse la fraction de population ciblée, triée par uplift prédit décroissant ; en ordonnée le gain incrémental cumulé. La courbe du modèle monte vite, culmine, puis redescend vers le gain total quand on cible les clients à uplift négatif ; la diagonale représente le ciblage aléatoire ; l’aire hachurée entre les deux est la valeur Qini (non normalisée).' font-size='13'><defs><pattern id='qini-hatch' patternUnits='userSpaceOnUse' width='8' height='8' patternTransform='rotate(45)'><line x1='0' y1='0' x2='0' y2='8' stroke='var(--blue,#23537F)' stroke-width='1.6' stroke-opacity='0.45'/></pattern></defs><polygon points='80,340 142,249 204,184 266,132 328,98 390,85 452,93 514,119 576,158 638,197 700,236' fill='url(#qini-hatch)'/><g stroke='var(--ink,#15202E)' stroke-width='1.2' fill='none'><line x1='80' y1='340' x2='710' y2='340'/><line x1='80' y1='340' x2='80' y2='50'/></g><g fill='var(--ink-faint,#7A889B)' text-anchor='middle'><text x='80' y='358'>0 %</text><text x='235' y='358'>25 %</text><text x='390' y='358'>50 %</text><text x='545' y='358'>75 %</text><text x='700' y='358'>100 %</text></g><g stroke='var(--ink,#15202E)' stroke-width='1'><line x1='235' y1='340' x2='235' y2='345'/><line x1='390' y1='340' x2='390' y2='345'/><line x1='545' y1='340' x2='545' y2='345'/><line x1='700' y1='340' x2='700' y2='345'/></g><text x='390' y='384' text-anchor='middle' fill='var(--ink,#15202E)'>fraction de la population ciblée (triée par uplift prédit décroissant)</text><text x='30' y='195' text-anchor='middle' fill='var(--ink,#15202E)' transform='rotate(-90 30 195)'>gain incrémental cumulé</text><line x1='80' y1='340' x2='700' y2='236' stroke='var(--ink-faint,#7A889B)' stroke-width='2' stroke-dasharray='6 5'/><line x1='700' y1='236' x2='700' y2='340' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-dasharray='2 4'/><polyline points='80,340 142,249 204,184 266,132 328,98 390,85 452,93 514,119 576,158 638,197 700,236' fill='none' stroke='var(--blue,#23537F)' stroke-width='3' stroke-linejoin='round'/><line x1='390' y1='85' x2='390' y2='340' stroke='var(--blue,#23537F)' stroke-width='1' stroke-dasharray='3 4'/><circle cx='390' cy='85' r='4.5' fill='var(--blue,#23537F)'/><text x='390' y='72' text-anchor='middle' fill='var(--blue,#23537F)' font-weight='600'>gain maximal : seuil de ciblage optimal</text><circle cx='700' cy='236' r='4' fill='var(--ink,#15202E)'/><text x='694' y='324' text-anchor='end' fill='var(--ink,#15202E)'>gain total (tout le monde traité)</text><path d='M680,124 Q660,160 618,172' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.3'/><text x='740' y='98' text-anchor='end' fill='var(--bordeaux,#7C2A38)' font-weight='600'>la courbe redescend :</text><text x='740' y='114' text-anchor='end' fill='var(--bordeaux,#7C2A38)'>uplift négatif (« sleeping dogs »)</text><rect x='196' y='238' width='168' height='42' rx='4' fill='var(--paper,#FFFFFF)' fill-opacity='0.92' stroke='var(--blue,#23537F)' stroke-width='0.8'/><text x='280' y='255' text-anchor='middle' fill='var(--blue,#23537F)' font-weight='600'>aire hachurée</text><text x='280' y='272' text-anchor='middle' fill='var(--blue,#23537F)'>= Qini (non normalisé)</text><text x='560' y='296' text-anchor='middle' fill='var(--ink-faint,#7A889B)'>diagonale : ciblage aléatoire</text><text x='740' y='408' text-anchor='end' fill='var(--bordeaux,#7C2A38)' font-style='italic'>Courbe non biaisée seulement si elle est estimée sur un essai randomisé.</text><text x='80' y='408' fill='var(--ink-faint,#7A889B)' font-style='italic'>Valeurs illustratives.</text></svg><figcaption><span class='fcap-k'></span>Allure d’une courbe Qini (valeurs illustratives) : le gain incrémental culmine puis redescend quand le ciblage atteint les clients à uplift négatif, et l’aire entre la courbe et la diagonale du ciblage aléatoire forme la valeur Qini, que le coefficient Qini normalise par l’aire du ciblage optimal.</figcaption></figure><p>Les métriques sur vérité terrain restent réservées aux données simulées. La PEHE (Precision in Estimation of Heterogeneous Effects) est l'erreur quadratique moyenne entre effet estimé et effet vrai. Elle exige les deux potential outcomes de chaque unité. Seul un jeu simulé ou semi-synthétique les fournit, comme celui qu'employait Hill en 2011.</p><p>Même sur un essai randomisé, la Qini curve est un instrument bruité. Bokelmann et Lessmann montrent que ses signaux, comme ceux du MSE sur transformed outcome, dépendent fortement du bruit des données. Deux modèles peuvent alors être départagés par le hasard. Ils recommandent d'appliquer par défaut des ajustements de réduction de variance aux données d'essai.</p><p>Hors essai randomisé, le problème change de nature. La courbe de Radcliffe est non biaisée sur un essai randomisé, mais elle souffre de confusion ailleurs. Un confounder entre traitement et réponse la gonfle ou la déforme sans signal d'alarme. Un bon score Qini ou AUUC (Area Under the Uplift Curve) ne valide alors le ciblage causal que si l'effet est identifié. La même logique de pondération par la propension se retrouve dans le learning to rank, où l'inverse propensity scoring s'applique aux clics.</p><p>Le ciblage le plus fin hérite ainsi de l'identification sans pouvoir la remplacer. Or l'identification peut aussi se perdre par un geste ordinaire de modélisation : le choix des variables d'ajustement.</p>",
+      "claims": [
+        "claim:27",
+        "claim:28",
+        "claim:29",
+        "claim:30"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "pieges-collider-selection",
+      "heading": "Pièges : biais de collider, biais de sélection et ajustement abusif",
+      "level": 3,
+      "prose": "<p>Jusqu'ici, l'identification était menacée par ce qui manque, un confounder non mesuré. Elle peut aussi tomber par excès, quand on ajuste sur une variable qu'il fallait laisser de côté. Le cas typique est le collider. Conditionner dessus, par stratification, restriction ou régression, crée une association factice entre ses causes. Elle apparaît même quand ces causes sont indépendantes.</p><p>Le mécanisme se voit sur un exemple minimal. Supposons que deux variables U et V causent indépendamment un collider binaire C. Restreindre l'analyse aux unités où C vaut 1 suffit à les associer. Dans l'exemple du churn, ce serait le cas d'une étude limitée aux clients ayant répondu à une enquête de satisfaction. Il suffit que la remise et l'intention de partir poussent toutes deux à répondre.</p><p>Nguyen, Dafoe et Ogburn ont chiffré ce biais pour des variables binaires, dans Epidemiologic Methods en 2019. Ils dérivent son ampleur quand on stratifie sur le collider ou sur l'un de ses enfants directs. Ils la dérivent aussi pour un ajustement par régression linéaire sur le collider. Des critères simples permettent enfin de prédire si le biais sera positif ou négatif. Cole et ses coauteurs avaient illustré le même piège en 2010, dans l'International Journal of Epidemiology.</p><p>Hernán et Robins donnent à ce mécanisme une portée plus large, au chapitre 8 de What If. Ils appellent selection bias (biais de sélection) tout biais issu du conditionnement sur un effet commun de deux variables. L'une est le traitement ou une de ses causes. L'autre est l'issue ou une de ses causes. La sélection, ou la censure, tient alors le rôle du collider.</p><p>Leurs figures en donnent deux formes. Dans la figure 8.1, la sélection est un décès avant la naissance, effet commun du traitement A et de l'issue Y eux-mêmes. Dans la figure 8.3, la censure C dépend du traitement A et d'une cause U de l'issue. Le selection bias cesse ainsi d'être une catégorie à part. Il devient un chemin non causal ouvert dans le DAG, lisible avant tout calcul.</p><p>La conséquence heurte un réflexe répandu en ML, qui fait entrer dans le modèle toute variable corrélée à l'exposition et à l'issue. Ajuster sur un collider ou sur l'un de ses descendants ouvre un chemin que l'absence d'ajustement laissait fermé. Le M-bias (biais en M) et le selection bias en sont deux formes. Un ajustement excessif peut donc aggraver le biais, et pas seulement la variance. Le choix de S ne relève pas de la sélection de variables prédictives. Il se décide sur le graphe, en bloquant les chemins back-door sans en ouvrir par un collider.</p><p>Le vocabulaire tend un dernier piège avec la Granger causality (causalité de Granger). Elle teste si le passé d'une série améliore la prédiction d'une autre, ce qui reste une précédence prédictive et non un effet au sens des potential outcomes.</p><p>Un ensemble S bien choisi ne règle pourtant que la part visible du problème. Reste la confusion que personne n'a mesurée, et qu'aucun ajustement ne bloque. On ne peut pas la tester ; on peut demander quelle force il lui faudrait pour renverser la conclusion.</p>",
+      "claims": [
+        "claim:31",
+        "claim:32",
+        "claim:33"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-collider-selection-enquete"
+    },
+    {
+      "type": "section",
+      "id": "sensibilite-refutation",
+      "heading": "Mettre l'hypothèse à l'épreuve : sensibilité, placebo et réfutation",
+      "level": 3,
+      "prose": "<p>La confusion non mesurée ne se teste pas, mais une question plus modeste reste ouverte. Quelle force faudrait-il prêter à un confounder invisible pour que la conclusion tombe ? Les analyses de sensibilité répondent à cette question. Elles transforment une hypothèse tout-ou-rien en une grandeur que l'on peut chiffrer et discuter.</p><p>Cinelli et Hazlett partent de l'omitted variable bias (biais de variable omise) de la régression linéaire. Leur article de 2020, paru dans le Journal of the Royal Statistical Society série B, étend ce cadre classique. Selon les auteurs, leur outil ne suppose aucune forme fonctionnelle pour l'assignation du traitement. Il ne suppose pas non plus de loi particulière pour les confounders non observés. Cette propriété est revendiquée par Cinelli et Hazlett eux-mêmes, sans corroboration par un second travail.</p><p>Leur résumé le plus repris est la robustness value (valeur de robustesse). Elle donne la force minimale d'association qu'un confounder non observé devrait avoir à la fois avec le traitement et avec le résultat pour ramener l'effet estimé à zéro. Cette force s'exprime en R² partiel, c'est-à-dire en part de variance résiduelle expliquée. Elle est supposée égale des deux côtés. On peut aussi la calculer pour le seuil qui changerait la conclusion, plutôt que pour l'effet nul. Proche de 1, elle signale un résultat qui résiste à de très forts confounders. Proche de 0, elle avertit qu'un confounder faible suffirait à l'annuler.</p><p>Le package R sensemakr implémente ces outils, et un portage Python existe sous le nom de PySensemakr. Il calcule la robustness value, des bornes et des contours de sensibilité. Il permet surtout un benchmarking contre les covariables observées. Le confounder hypothétique se compare alors à une variable que l'on a réellement mesurée. Dans l'exemple du churn, la question devient concrète : un facteur caché, comme une offre concurrente reçue par le client, pèserait-il plus que l'ancienneté de l'abonnement ? Un expert du métier peut trancher cette question, alors qu'il ne peut rien dire d'un confounder abstrait.</p><p>L'épidémiologie a suivi une voie parallèle. VanderWeele et Ding ont introduit l'E-value en 2017, dans les Annals of Internal Medicine. Elle se lit sur l'échelle du risque relatif. C'est la force minimale d'association qu'un confounder non mesuré devrait avoir avec le traitement et avec le résultat pour expliquer entièrement l'association observée. Les auteurs recommandent de la rapporter deux fois, pour l'estimation ponctuelle et pour la borne de l'intervalle de confiance la plus proche de la nullité. Un risque relatif observé de 1,41 correspond ainsi à une E-value d'environ 2,17. Un confounder lié moins fortement aux deux variables ne suffirait pas à produire l'association. Le package R EValue et la commande Stata evalue automatisent ce calcul.</p><p>Les tests de falsification attaquent l'hypothèse sous un autre angle. Ils fabriquent une situation où l'effet est connu, en général nul, et vérifient que l'analyse le retrouve. DoWhy, la bibliothèque de Sharma et Kiciman, en fait une étape à part entière de son pipeline. Ses refuters (réfuteurs) sont des tests que tout estimateur correct devrait passer. Avec placebo_treatment, le traitement réel cède la place à une variable aléatoire indépendante, et l'effet estimé doit alors tendre vers zéro. random_common_cause ajoute une cause commune aléatoire et indépendante, qui ne devrait pas déplacer l'estimation. Quant à data_subset, il ré-estime l'effet sur un sous-échantillon aléatoire et attend un résultat stable.</p><p>Ces refuters n'ont pas tous la même portée. L'article de DoWhy range le placebo et le dummy outcome (résultat fictif) parmi les tests qui réfutent l'analyse entière, modèle, identification et estimation compris. Les sous-échantillons et le bootstrap, eux, ne mettent à l'épreuve qu'une seule étape. L'asymétrie reste la même dans tous les cas : un refuter peut infirmer une analyse, il ne prouve jamais l'identification. Une estimation biaisée par un confounder caché passe d'ailleurs le test placebo, puisque permuter le traitement détruit aussi le biais.</p><p>On ne prouve donc pas l'identification. Aucune donnée observationnelle ne démontre l'ignorability, et aucun estimateur, si flexible soit-il, ne la fabrique. Ce qu'une analyse peut livrer, c'est une mesure de sa fragilité. Elle chiffre la force qu'il faudrait à un confounder pour renverser la conclusion, et elle liste les tests de falsification passés. Un rapport d'effet qui omet cette mesure laisse au lecteur l'hypothèse entière à croire sur parole. Encore faut-il des outils qui rendent cette discipline praticable au quotidien.</p>",
+      "claims": [
+        "claim:34",
+        "claim:35",
+        "claim:36"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-e-value-confondant"
+    },
+    {
+      "type": "section",
+      "id": "ecosysteme",
+      "heading": "Écosystème & pour aller plus loin",
+      "level": 3,
+      "prose": "<p>Les bibliothèques présentées ici ne suppriment aucune des hypothèses discutées dans ce document. Leur intérêt est ailleurs. Chacune oblige à écrire une hypothèse, ou aide à la mettre à l'épreuve.</p><p>DoWhy structure l'analyse en quatre étapes : modéliser, identifier, estimer, réfuter. La modélisation pose le graphe causal. L'identification applique des critères sur ce graphe pour décider si l'effet est identifiable. Les méthodes statistiques n'interviennent qu'à l'estimation. Cette séparation est la thèse même de la bibliothèque, dont la documentation affirme : « Identification is the causal problem. Estimation is simply a statistical problem. » Les hypothèses y sont traitées en « first-class citizens ». La réfutation regroupe les tests de la section précédente, du traitement placebo à la validation par bootstrap. Pour l'estimation, DoWhy s'intègre à EconML et à CausalML.</p><p>EconML, développé à Microsoft Research, rassemble la plupart des estimateurs flexibles vus plus haut. On y trouve le DML et des apprenants doublement robustes. S'y ajoutent des estimateurs à base de forêts et les meta-learners S, T et X. Des méthodes à variables instrumentales et des régimes de traitement dynamiques complètent le catalogue. L'inférence, la validation et une interprétabilité par SHAP (méthode d'attribution des prédictions) accompagnent l'ensemble. Au moment de l'utiliser, on se rappelle que la garantie du DML vue plus haut porte sur l'estimation (vitesse √n, inférence valide), jamais sur l'ignorability que le modèle suppose.</p><p>CausalML, développé par Uber et déjà rencontré plus haut, vise surtout l'uplift modelling et l'estimation du CATE par ML. Sa documentation renvoie aux meta-learners de Künzel et al. et aux uplift trees de Rzepakowski et Jaroszewicz. Elle cite aussi le partitionnement récursif d'Athey et Imbens (2016). La forêt aléatoire orthogonale d'Oprescu, Syrgkanis et Wu (2018) figure également parmi ses références. Sur données observationnelles, la question reste celle de l'ignorability. CausalML s'appuie dessus, il ne la vérifie pas.</p><p>grf est un package R adossé à un backend C++17, distribué sur CRAN et conda-forge. Il expose causal_forest et instrumental_forest. On y trouve aussi regression_forest, quantile_forest et survival_forest. Ses forêts causales appliquent par défaut l'honest estimation décrite plus haut. Dans chaque arbre, une moitié du sous-échantillon choisit les splits, l'autre estime l'effet dans les feuilles. Les références fondatrices restent Wager et Athey pour l'inférence, puis Athey, Tibshirani et Wager pour les GRF.</p><p>Côté lectures, Causal Inference: What If de Hernán et Robins tient lieu de manuel de référence. Les auteurs le font citer Hernán et Robins (2020), Chapman &amp; Hall/CRC, mais il n'existe pour l'instant qu'en ligne. Le PDF est disponible gratuitement sur le site de Miguel Hernán. Il est accompagné de code en R, SAS, Stata, Python et Julia. On y retrouve notamment le selection bias analysé plus haut comme conditionnement sur un collider.</p><p>Aucune de ces bibliothèques n'identifie un effet à la place de son utilisateur. Elles n'estiment un effet causal que sous les hypothèses d'identification qu'il a posées. Leurs réfutations et leurs analyses de sensibilité ne testent ces hypothèses qu'en partie. Un test placebo réussi dans DoWhy ne prouve pas l'absence de confounder non observé. Le bon ordre de travail reste donc celui de tout le parcours : écrire le graphe et l'hypothèse avant d'ouvrir l'estimateur.</p>",
+      "claims": [
+        "claim:37",
+        "claim:38",
+        "claim:39",
+        "claim:40"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "synopsis-pipeline-causal-modeliser-refuter"
+    },
+    {
+      "type": "exercise",
+      "part": "Différence de différences sous adoption échelonnée",
+      "question": "<p>Une équipe estime l'effet d'une fonctionnalité déployée par vagues successives sur plusieurs marchés, au moyen d'une régression à effets fixes unité et période (TWFE). Tous les effets par groupe et par période sont, selon elle, positifs. Le coefficient TWFE peut-il malgré tout sortir négatif ? Pourquoi ?</p>",
+      "answer": "<p>Oui. Goodman-Bacon (2021) montre que le TWFE d'un DiD à dates de traitement variables est une moyenne pondérée de tous les DD 2×2 possibles, dont certains prennent des unités déjà traitées comme contrôles. De Chaisemartin et D'Haultfœuille (AER 2020) montrent que ces régressions estiment une somme pondérée d'ATE par groupe et période avec des poids possiblement négatifs : le coefficient peut être négatif alors que tous les ATE sont positifs. Le TWFE n'identifie donc pas l'ATT en général, et il est biaisé lorsque les effets varient dans le temps. En event study, Sun et Abraham (2021) ajoutent que des leads ou lags peuvent être contaminés par d'autres périodes, au point de faire apparaître de fausses pré-tendances.</p>"
+    },
+    {
+      "type": "exercise",
+      "part": "Ce que garantit un intervalle de confiance",
+      "question": "<p>Sur des données observationnelles, un estimateur DML (ou une forêt causale) donne un intervalle de confiance étroit, l'équilibre des covariables après pondération est excellent, et les réfuteurs de DoWhy ne signalent rien. Peut-on conclure à un effet causal ?</p>",
+      "answer": "<p>Non. La garantie de DML porte sur l'estimation : elle suppose l'identification (non-confusion ou instrument valide, recouvrement) sans la tester. De même, l'inférence d'une forêt causale vaut pour l'estimand identifié sous non-confusion. Un bon équilibre ne porte que sur les covariables mesurées et ne dit rien des confondants non observés. Les réfuteurs de DoWhy peuvent infirmer une analyse, mais ne prouvent pas l'identification. Reste à justifier l'ensemble d'ajustement sur un graphe (critère back-door, en évitant tout collider) et à chiffrer la force qu'un confondant caché devrait avoir pour annuler l'effet (robustness value, E-value).</p>"
+    },
+    {
+      "type": "biblio",
+      "entries": [
+        {
+          "label": "Rubin 1974, Estimating causal effects of treatments in randomized and nonrandomized studies, J. Educ. Psychol. 66(5): 688-701 (PDF texte intégral)",
+          "href": "https://pdfs.semanticscholar.org/5451/22e2990590524459ec9b59ccac6ce71e3b6a.pdf"
+        },
+        {
+          "label": "Rubin 1974, notice ERIC EJ118470",
+          "href": "https://eric.ed.gov/?id=EJ118470"
+        },
+        {
+          "label": "Rosenbaum & Rubin 1983, The central role of the propensity score in observational studies for causal effects, Biometrika 70(1): 41-55 (scan JSTOR)",
+          "href": "https://www.stat.cmu.edu/~ryantibs/journalclub/rosenbaum_1983.pdf"
+        },
+        {
+          "label": "Hernán & Robins, Causal Inference: What If (version du 21 nov. 2025)",
+          "href": "https://static1.squarespace.com/static/675db8b0dd37046447128f5f/t/691fb7706ce66332f0b44467/1763686256720/hernan_robins_WhatIf_21nov25.pdf"
+        },
+        {
+          "label": "Pearl 1995, Causal diagrams for empirical research, Biometrika 82(4): 669-688 (PDF)",
+          "href": "https://ics.uci.edu/~dechter/courses/ics-295cr/spring-2021/reading/biometrika_1995.pdf"
+        },
+        {
+          "label": "Pearl 2009, Causal inference in statistics: An overview, Statistics Surveys 3: 96-146",
+          "href": "https://ftp.cs.ucla.edu/pub/stat_ser/r350.pdf"
+        },
+        {
+          "label": "Neyman (1923/1990), On the Application of Probability Theory to Agricultural Experiments. Essay on Principles. Section 9, Statistical Science",
+          "href": "https://projecteuclid.org/journals/statistical-science/volume-5/issue-4/On-the-Application-of-Probability-Theory-to-Agricultural-Experiments-Essay/10.1214/ss/1177012031.full"
+        },
+        {
+          "label": "Pearl (2010), An Introduction to Causal Inference (JMLR W&CP 6, NIPS 2008 workshop)",
+          "href": "https://proceedings.mlr.press/v6/pearl10a/pearl10a.pdf"
+        },
+        {
+          "label": "Pearl (1995), Causal diagrams for empirical research, Biometrika 82(4) (tech. report R-218-B)",
+          "href": "https://bayes.cs.ucla.edu/R218-B.pdf"
+        },
+        {
+          "label": "Huang & Valtorta, Pearl's Calculus of Intervention Is Complete (UAI 2006)",
+          "href": "https://arxiv.org/pdf/1206.6831"
+        },
+        {
+          "label": "Kang & Schafer 2007, Demystifying Double Robustness, Statistical Science 22(4): 523-539 (arXiv:0804.2958)",
+          "href": "https://arxiv.org/abs/0804.2958"
+        },
+        {
+          "label": "Robins, Sued, Lei-Gomez & Rotnitzky 2007, Comment: Performance of double-robust estimators when 'inverse probability' weights are highly variable, Statistical Science 22(4): 544-559 (arXiv:0804.2965)",
+          "href": "https://arxiv.org/abs/0804.2965"
+        },
+        {
+          "label": "Austin 2011, An introduction to propensity score methods for reducing the effects of confounding in observational studies, Multivariate Behav. Res. 46(3): 399-424 (PMC3144483, texte intégral via Europe PMC)",
+          "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3144483/"
+        },
+        {
+          "label": "NBER w25018, Goodman-Bacon, Difference-in-Differences with Variation in Treatment Timing",
+          "href": "https://www.nber.org/papers/w25018"
+        },
+        {
+          "label": "EconPapers, Journal of Econometrics 225(2):254-277",
+          "href": "https://econpapers.repec.org/RePEc:eee:econom:v:225:y:2021:i:2:p:254-277"
+        },
+        {
+          "label": "AER 110(9), de Chaisemartin & D'Haultfoeuille, Two-Way Fixed Effects Estimators with Heterogeneous Treatment Effects",
+          "href": "https://www.aeaweb.org/articles?id=10.1257%2Faer.20181169"
+        },
+        {
+          "label": "de Chaisemartin & D'Haultfœuille, version arXiv 1803.08807v7 (mars 2020) du même article — lue, non comptée comme source distincte",
+          "href": "https://arxiv.org/abs/1803.08807"
+        },
+        {
+          "label": "Roth, Sant'Anna, Bilinski & Poe, What's Trending in Difference-in-Differences? A Synthesis of the Recent Econometrics Literature (Journal of Econometrics 2023 ; arXiv 2201.01194v3)",
+          "href": "https://arxiv.org/abs/2201.01194"
+        },
+        {
+          "label": "Borusyak, Jaravel & Spiess, Revisiting Event Study Designs: Robust and Efficient Estimation (arXiv 2108.12419v5, janv. 2024 ; Review of Economic Studies)",
+          "href": "https://arxiv.org/abs/2108.12419"
+        },
+        {
+          "label": "EconPapers, Sun & Abraham, Journal of Econometrics 225(2):175-199",
+          "href": "https://econpapers.repec.org/RePEc:eee:econom:v:225:y:2021:i:2:p:175-199"
+        },
+        {
+          "label": "Sun & Abraham, version arXiv 1804.05785v2 du même article — lue, non comptée comme source distincte",
+          "href": "https://arxiv.org/abs/1804.05785"
+        },
+        {
+          "label": "Chernozhukov, Chetverikov, Demirer, Duflo, Hansen, Newey, Robins — Double/Debiased Machine Learning for Treatment and Structural Parameters (Econometrics Journal 2018 ; arXiv v7)",
+          "href": "https://arxiv.org/abs/1608.00060"
+        },
+        {
+          "label": "Stefan Wager — Causal Inference: A Statistical Learning Approach (manuel, Stanford, version 2026)",
+          "href": "https://web.stanford.edu/~swager/causal_inf_book.pdf"
+        },
+        {
+          "label": "Edward H. Kennedy — Semiparametric Doubly Robust Targeted Double Machine Learning: A Review (arXiv 2203.06469 v2)",
+          "href": "https://arxiv.org/abs/2203.06469"
+        },
+        {
+          "label": "Metalearners for Heterogeneous Treatment Effects (Künzel et al., PNAS 2019, PMC full text)",
+          "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC6410831/"
+        },
+        {
+          "label": "Meta-learners for Estimating Heterogeneous Treatment Effects using Machine Learning (arXiv 1706.03461)",
+          "href": "https://arxiv.org/abs/1706.03461"
+        },
+        {
+          "label": "Nie & Wager, Quasi-Oracle Estimation of Heterogeneous Treatment Effects (arXiv 1712.04912 ; Biometrika 108(2):299-319, 2021)",
+          "href": "https://arxiv.org/abs/1712.04912"
+        },
+        {
+          "label": "Foster & Syrgkanis, Orthogonal Statistical Learning (arXiv 1901.09036 ; Annals of Statistics 51(3), 2023)",
+          "href": "https://arxiv.org/abs/1901.09036"
+        },
+        {
+          "label": "Kennedy, Towards optimal doubly robust estimation of heterogeneous causal effects (arXiv 2004.14497 ; Electron. J. Statist. 17(2):3008-3049, 2023)",
+          "href": "https://arxiv.org/abs/2004.14497"
+        },
+        {
+          "label": "Curth & van der Schaar, Nonparametric Estimation of Heterogeneous Treatment Effects: From Theory to Learning Algorithms (AISTATS 2021, PMLR 130:1810-1818)",
+          "href": "https://arxiv.org/abs/2101.10943"
+        },
+        {
+          "label": "Wager & Athey, Estimation and Inference of Heterogeneous Treatment Effects using Random Forests (arXiv 1510.04342 ; JASA 113(523):1228-1242, 2018)",
+          "href": "https://arxiv.org/abs/1510.04342"
+        },
+        {
+          "label": "Chernozhukov, Hansen, Kallus, Spindler & Syrgkanis, Applied Causal Inference Powered by ML and AI (arXiv 2403.02467, ch. 14.4)",
+          "href": "https://arxiv.org/abs/2403.02467"
+        },
+        {
+          "label": "Athey, Tibshirani & Wager, Generalized Random Forests (arXiv 1610.01271 ; Annals of Statistics 47(2), 2019)",
+          "href": "https://arxiv.org/abs/1610.01271"
+        },
+        {
+          "label": "grf documentation",
+          "href": "https://grf-labs.github.io/grf/"
+        },
+        {
+          "label": "grf causal_forest reference",
+          "href": "https://grf-labs.github.io/grf/reference/causal_forest.html"
+        },
+        {
+          "label": "Rzepakowski & Jaroszewicz, Decision trees for uplift modeling with single and multiple treatments, Knowl. Inf. Syst. 32:303-327 (2012), open access",
+          "href": "https://link.springer.com/article/10.1007/s10115-011-0434-0"
+        },
+        {
+          "label": "Gutierrez & Gérardy, Causal Inference and Uplift Modelling: A Review of the Literature (JMLR W&CP / PMLR 67, 2017 ; en-tête du PDF : 2016)",
+          "href": "http://proceedings.mlr.press/v67/gutierrez17a/gutierrez17a.pdf"
+        },
+        {
+          "label": "Shalit, Johansson, Sontag 2017, supplementary (hyperparameter selection: PEHE not computable on real data since only one outcome observed, unless simulated)",
+          "href": "https://proceedings.mlr.press/v70/shalit17a/shalit17a-supp.pdf"
+        },
+        {
+          "label": "Gutierrez & Gérardy 2017, Causal Inference and Uplift Modelling: A Review (never observe both outcomes; Qini curve from Radcliffe 2007)",
+          "href": "https://proceedings.mlr.press/v67/gutierrez17a.html"
+        },
+        {
+          "label": "Bokelmann & Lessmann, Improving uplift model evaluation on RCT data (evaluation impossible at individual level; Qini/uplift curves)",
+          "href": "https://arxiv.org/abs/2210.02152"
+        },
+        {
+          "label": "Radcliffe 2007, Using control groups to target on predicted lift (Edinburgh research portal)",
+          "href": "https://www.research.ed.ac.uk/en/publications/using-control-groups-to-target-on-predicted-lift-building-and-ass/"
+        },
+        {
+          "label": "Evaluating Uplift Modeling under Structural Biases: Insights into Metric Stability and Model Robustness (arXiv 2603.20775)",
+          "href": "https://arxiv.org/html/2603.20775v1"
+        },
+        {
+          "label": "Nguyen, Dafoe, Ogburn — The magnitude and direction of collider bias for binary variables (arXiv 1609.00606)",
+          "href": "https://arxiv.org/abs/1609.00606"
+        },
+        {
+          "label": "Hernán & Robins, Causal Inference: What If (ch. 6 and 8 on collider conditioning)",
+          "href": "https://www.popdata.bc.ca/sites/default/files/documents/events/etu/Hernan_Book.pdf"
+        },
+        {
+          "label": "Cinelli & Hazlett, Making Sense of Sensitivity: Extending Omitted Variable Bias (JRSS-B 2020 ; copie auteur lue)",
+          "href": "https://carloscinelli.com/files/Cinelli%20and%20Hazlett%20(2020)%20-%20Making%20Sense%20of%20Sensitivity.pdf"
+        },
+        {
+          "label": "Zheng, Wu, D'Amour & Franks, Sensitivity to Unobserved Confounding in Studies with Factor-structured Outcomes (arXiv 2208.06552v2)",
+          "href": "https://arxiv.org/abs/2208.06552"
+        },
+        {
+          "label": "Sensitivity Analysis in Observational Research: Introducing the E-Value (Annals of Internal Medicine) — notice PubMed 28693043",
+          "href": "https://pubmed.ncbi.nlm.nih.gov/28693043/"
+        },
+        {
+          "label": "Gaster, Eggertsen, Støvring, Ehrenstein & Petersen, Quantifying the impact of unmeasured confounding in observational studies with the E value (BMJ Medicine 2023, PMC10163534)",
+          "href": "https://pmc.ncbi.nlm.nih.gov/articles/PMC10163534/"
+        },
+        {
+          "label": "Refuting causal estimates (DoWhy documentation)",
+          "href": "https://www.pywhy.org/dowhy/main/user_guide/refuting_causal_estimates/index.html"
+        },
+        {
+          "label": "DoWhy: An End-to-End Library for Causal Inference (arXiv 2011.04216)",
+          "href": "https://arxiv.org/pdf/2011.04216"
+        },
+        {
+          "label": "DoWhy docs: Placebo Treatment refuter",
+          "href": "https://www.pywhy.org/dowhy/v0.10.1/user_guide/refuting_causal_estimates/refuting_effect_estimates/placebo_treatment.html"
+        },
+        {
+          "label": "DoWhy v0.8 simple example notebook (refutation methods)",
+          "href": "https://www.pywhy.org/dowhy/v0.8/example_notebooks/dowhy_simple_example.html"
+        },
+        {
+          "label": "Hou & Fernández-Loría — Honesty in Causal Forests: When It Helps and When It Hurts (arXiv 2506.13107 v6)",
+          "href": "https://arxiv.org/abs/2506.13107"
+        },
+        {
+          "label": "Daniel Jacob — CATE meets ML: The Conditional Average Treatment Effect and Machine Learning (arXiv 2104.09935 v2)",
+          "href": "https://arxiv.org/abs/2104.09935"
+        },
+        {
+          "label": "DoWhy documentation",
+          "href": "https://www.pywhy.org/dowhy/main/"
+        }
+      ]
+    },
+    {
+      "type": "pointers",
+      "title": "Pour aller plus loin",
+      "items": [
+        {
+          "name": "DoubleML",
+          "url": "https://docs.doubleml.org/stable/index.html",
+          "kind": "package",
+          "blurb": "Paquet Python et R implémentant le double/debiased machine learning avec cross-fitting pour l'inférence causale."
+        },
+        {
+          "name": "EconML",
+          "url": "https://www.pywhy.org/EconML/",
+          "kind": "library",
+          "blurb": "Bibliothèque Python (PyWhy) d'estimation d'effets de traitement hétérogènes par apprentissage automatique et méthodes économétriques."
+        },
+        {
+          "name": "grf",
+          "url": "https://grf-labs.github.io/grf/",
+          "kind": "package",
+          "blurb": "Paquet R/C++ de forêts aléatoires généralisées pour l'estimation et l'inférence d'effets hétérogènes."
+        },
+        {
+          "name": "sensemakr (R)",
+          "url": "https://cran.r-project.org/web/packages/sensemakr/index.html",
+          "kind": "package",
+          "blurb": "Paquet R d'analyse de sensibilité étendant le cadre du biais de variable omise (Cinelli & Hazlett), maintenu par Carlos Cinelli."
+        },
+        {
+          "name": "PySensemakr",
+          "url": "https://pysensemakr.readthedocs.io/en/latest/notebooks/quickstart.html",
+          "kind": "package",
+          "blurb": "Portage Python de sensemakr pour évaluer l'effet d'un confondeur non observé sur une régression linéaire."
+        },
+        {
+          "name": "DoWhy",
+          "url": "https://www.pywhy.org/dowhy/main/",
+          "kind": "library",
+          "blurb": "Bibliothèque Python d'inférence causale (PyWhy) : modélisation par graphe, identification, estimation et réfutation."
+        },
+        {
+          "name": "DoWhy (Sharma & Kiciman, arXiv)",
+          "url": "https://arxiv.org/abs/2011.04216",
+          "kind": "reading",
+          "blurb": "Article de présentation de DoWhy (Sharma & Kiciman, 2020) et de ses quatre étapes : modéliser, identifier, estimer, réfuter."
+        },
+        {
+          "name": "CausalML",
+          "url": "https://causalml.readthedocs.io/en/latest/about.html",
+          "kind": "library",
+          "blurb": "Paquet Python de modélisation d'uplift et de méthodes d'inférence causale pour estimer les effets de traitement."
+        },
+        {
+          "name": "Sensitivity Analysis in Observational Research: Introducing the E-Value (VanderWeele & Ding)",
+          "url": "https://www.acpjournals.org/doi/10.7326/M16-2607",
+          "kind": "reading",
+          "blurb": "Article des Annals of Internal Medicine (VanderWeele & Ding) introduisant l'E-value."
+        },
+        {
+          "name": "Double/Debiased Machine Learning for Treatment and Causal Parameters (Chernozhukov et al.)",
+          "url": "https://arxiv.org/abs/1608.00060",
+          "kind": "reading",
+          "blurb": "Article fondateur du double ML : score orthogonal et cross-fitting pour une inférence valide à vitesse 1/√n."
+        },
+        {
+          "name": "Causal Inference: What If (Hernán & Robins)",
+          "url": "https://miguelhernan.org/whatifbook",
+          "kind": "reading",
+          "blurb": "Manuel gratuit de référence sur l'inférence causale, avec code et jeux de données."
+        }
+      ]
+    },
+    {
+      "type": "glossary"
+    }
+  ]
+}

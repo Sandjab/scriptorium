@@ -1,0 +1,194 @@
+<div class="widget pev-root" id="pev-root">
+  <style>
+    .pev-root{--pev-ink:var(--ink,#15202E);--pev-soft:var(--ink-soft,#43536A);--pev-faint:var(--ink-faint,#5C697B);
+      --pev-card:var(--card,#fff);--pev-line:var(--line,#D7DFE9);--pev-wash:var(--blue-wash,#E7EEF6);
+      --pev-blue:var(--blue,#23537F);--pev-red:var(--bordeaux-bright,#9B3443);--pev-green:#2F7D4F;
+      --pev-zoneok:rgba(47,125,79,.07);--pev-zoneko:rgba(155,52,67,.08);
+      --pev-grid:rgba(21,32,46,.10);
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--pev-ink);
+      border:1px solid var(--pev-line);border-radius:12px;padding:18px 18px 16px;background:var(--pev-card);max-width:900px}
+    .pev-root *{box-sizing:border-box}
+    html[data-theme="dark"] .pev-root{--pev-green:#7ECE9F;--pev-red:#E58A97;--pev-grid:rgba(228,235,243,.12);
+      --pev-zoneok:rgba(126,206,159,.08);--pev-zoneko:rgba(229,138,151,.10)}
+    .pev-k{font-size:.8rem;letter-spacing:.09em;text-transform:uppercase;color:var(--pev-faint);font-weight:600;margin:0 0 2px}
+    .pev-title{font-weight:700;font-size:1.05rem;margin:0 0 4px}
+    .pev-sub{font-size:.9rem;color:var(--pev-soft);margin:0 0 12px}
+    .pev-root code{font:.86em ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--pev-wash);color:var(--pev-ink);padding:1px 5px;border-radius:4px}
+    .pev-ctl{display:flex;flex-wrap:wrap;gap:10px;align-items:stretch;margin-bottom:10px}
+    .pev-c{border:1px solid var(--pev-line);border-radius:9px;padding:8px 11px;font-size:.85rem;flex:1 1 230px}
+    .pev-cn{font-size:.8rem;text-transform:uppercase;letter-spacing:.07em;color:var(--pev-faint);font-weight:700;margin-bottom:4px}
+    .pev-c label{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:3px 0}
+    .pev-c input[type=number]{width:84px;padding:3px 6px;border:1px solid var(--pev-line);border-radius:6px;background:var(--pev-card);color:var(--pev-ink);font:inherit}
+    .pev-c input[type=range]{width:100%;accent-color:var(--pev-blue)}
+    .pev-hint{font-size:.8rem;color:var(--pev-faint)}
+    .pev-btn{padding:6px 11px;border:1px solid var(--pev-blue);background:var(--pev-card);color:var(--pev-blue);
+      border-radius:8px;font:600 .82rem system-ui,sans-serif;cursor:pointer;margin-top:6px}
+    .pev-btn:hover{background:var(--pev-wash)}
+    .pev-out{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0 10px}
+    @media (max-width:640px){.pev-out{grid-template-columns:1fr}}
+    .pev-tile{border:1px solid var(--pev-line);border-radius:9px;padding:7px 10px}
+    .pev-tile .pev-v{font-size:1.25rem;font-weight:700;font-variant-numeric:tabular-nums}
+    .pev-tile .pev-l{font-size:.8rem;color:var(--pev-faint)}
+    .pev-svg{width:100%;height:auto;display:block;border:1px solid var(--pev-line);border-radius:9px;touch-action:none}
+    .pev-svg text{font:12px system-ui,sans-serif;fill:var(--pev-soft)}
+    .pev-verdict{margin-top:10px;padding:9px 12px;border-radius:9px;border-left:4px solid var(--pev-blue);background:var(--pev-wash);font-size:.9rem}
+    .pev-verdict.pev-ko{border-left-color:var(--pev-red)}
+    .pev-verdict.pev-ok{border-left-color:var(--pev-green)}
+    .pev-note{font-size:.8rem;color:var(--pev-faint);margin:10px 0 0}
+    .pev-check{font-size:.8rem;color:var(--pev-soft);margin-top:4px}
+  </style>
+
+  <p class="pev-k">Analyse de sensibilité</p>
+  <p class="pev-title">E-value : quelle force faudrait-il à un confondant caché ?</p>
+  <p class="pev-sub">L'E-value (VanderWeele et Ding, 2017) est la force minimale, sur l'échelle du risque relatif, qu'un confondant non mesuré devrait avoir <b>à la fois</b> avec le traitement et avec le résultat pour ramener l'association observée à 1. Formule : <code>E = RR + √(RR·(RR − 1))</code>, après inversion <code>1/RR</code> si RR &lt; 1.</p>
+
+  <div class="pev-ctl">
+    <div class="pev-c">
+      <div class="pev-cn">Association observée</div>
+      <label>RR estimé <input type="number" id="pev-rr" min="0.05" max="20" step="0.01" value="1.41"></label>
+      <label>Borne de l'IC la plus proche de 1 <input type="number" id="pev-lo" min="0.05" max="20" step="0.01" value="1.22"></label>
+      <div class="pev-hint">Si RR &lt; 1, la borne la plus proche de 1 est la borne supérieure. Borne par défaut purement illustrative.</div>
+      <button type="button" class="pev-btn" id="pev-prose">Cas de la prose : RR = 1,41</button>
+      <div class="pev-check" id="pev-check"></div>
+    </div>
+    <div class="pev-c">
+      <div class="pev-cn">Confondant hypothétique U</div>
+      <label>RR confondant–traitement <span id="pev-xv">2,00</span></label>
+      <input type="range" id="pev-x" min="0" max="1000" value="301">
+      <label>RR confondant–résultat <span id="pev-yv">2,00</span></label>
+      <input type="range" id="pev-y" min="0" max="1000" value="301">
+      <div class="pev-hint">Vous pouvez aussi cliquer ou glisser dans le graphique.</div>
+    </div>
+  </div>
+
+  <div class="pev-out">
+    <div class="pev-tile"><div class="pev-v" id="pev-e">–</div><div class="pev-l">E-value de l'estimation</div></div>
+    <div class="pev-tile"><div class="pev-v" id="pev-ec">–</div><div class="pev-l">E-value de la borne de l'IC</div></div>
+    <div class="pev-tile"><div class="pev-v" id="pev-b">–</div><div class="pev-l">Biais maximal B que produit U<br>(RR corrigé au mieux : <span id="pev-adj">–</span>)</div></div>
+  </div>
+
+  <svg class="pev-svg" id="pev-svg" viewBox="0 0 640 420" role="img" aria-label="Frontière des confondants juste suffisants pour annuler l'association"></svg>
+
+  <div class="pev-verdict" id="pev-verdict"></div>
+
+  <p class="pev-note">Frontière : couples (RR<sub>UT</sub>, RR<sub>UY</sub>) dont le facteur de biais <code>RR<sub>UT</sub>·RR<sub>UY</sub>/(RR<sub>UT</sub> + RR<sub>UY</sub> − 1)</code> égale le RR observé ; le point (E, E) est le couple symétrique minimal. Au-dessus de la courbe, un tel confondant <b>pourrait</b> expliquer toute l'association ; en dessous, il ne le peut pas à lui seul. L'E-value <b>ne teste pas l'ignorabilité</b> : elle mesure la fragilité d'un résultat, et dire si un confondant aussi fort est plausible reste un jugement sur le domaine.</p>
+
+  <script>
+  (function(){
+    var root=document.getElementById('pev-root');
+    function el(id){return document.getElementById(id);}
+    var NS='http://www.w3.org/2000/svg';
+    var MAXV=20, LMAX=Math.log(MAXV);
+    var W=640,H=420,ml=58,mr=18,mt=16,mb=48,pw=W-ml-mr,ph=H-mt-mb;
+    var st={x:2,y:2};
+    function fr(v,d){return v.toFixed(d===undefined?2:d).replace('.',',');}
+    function eval1(rr){ if(!(rr>0))return NaN; if(rr<1)rr=1/rr; return rr+Math.sqrt(rr*(rr-1)); }
+    function sx(v){return ml+pw*Math.log(v)/LMAX;}
+    function sy(v){return mt+ph*(1-Math.log(v)/LMAX);}
+    function ix(px){return Math.exp(Math.min(1,Math.max(0,(px-ml)/pw))*LMAX);}
+    function iy(py){return Math.exp(Math.min(1,Math.max(0,1-(py-mt)/ph))*LMAX);}
+    function s2v(s){return Math.exp(s/1000*LMAX);}
+    function v2s(v){return Math.round(Math.log(v)/LMAX*1000);}
+    function mk(tag,attrs,txt){var n=document.createElementNS(NS,tag);for(var k in attrs)n.setAttribute(k,attrs[k]);if(txt!==undefined)n.textContent=txt;return n;}
+    function frontier(R){ // y = R(x-1)/(x-R), x>R
+      var pts=[],i,x,y;
+      for(i=0;i<=400;i++){
+        x=R*Math.exp(i/400*(LMAX-Math.log(R)));
+        if(x<=R*1.0005)continue;
+        y=R*(x-1)/(x-R);
+        if(y>MAXV)continue;
+        pts.push(sx(x).toFixed(1)+','+sy(y).toFixed(1));
+      }
+      return pts;
+    }
+    function read(){
+      var rr=parseFloat(el('pev-rr').value), lo=parseFloat(el('pev-lo').value);
+      return {rr:rr,lo:lo};
+    }
+    function render(){
+      var inp=read(), rr=inp.rr, lo=inp.lo, valid=rr>0&&isFinite(rr);
+      var R=valid?(rr<1?1/rr:rr):NaN;
+      var E=eval1(rr);
+      // borne : si l'IC contient 1, E = 1
+      var Ec=NaN, crosses=false, Rc=NaN;
+      if(valid&&lo>0&&isFinite(lo)){
+        crosses=(rr>=1&&lo<=1)||(rr<1&&lo>=1);
+        Rc=crosses?1:(lo<1?1/lo:lo);
+        Ec=crosses?1:eval1(lo);
+      }
+      var B=st.x*st.y/(st.x+st.y-1);
+      el('pev-e').textContent=valid?fr(E):'–';
+      el('pev-ec').textContent=isFinite(Ec)?fr(Ec):'–';
+      el('pev-b').textContent=fr(B);
+      el('pev-adj').textContent=valid?(rr>=1?fr(rr/B):fr(rr*B)):'–';
+      el('pev-xv').textContent=fr(st.x); el('pev-yv').textContent=fr(st.y);
+      el('pev-check').textContent=Math.abs(rr-1.41)<1e-9?('Vérification : 1,41 + √(1,41 × 0,41) = '+fr(E,3)+' ≈ 2,17.'):'';
+
+      var svg=el('pev-svg'); while(svg.firstChild)svg.removeChild(svg.firstChild);
+      var ticks=[1,1.5,2,3,5,10,20],i,t;
+      for(i=0;i<ticks.length;i++){t=ticks[i];
+        svg.appendChild(mk('line',{x1:sx(t),x2:sx(t),y1:mt,y2:mt+ph,stroke:'var(--pev-grid)'}));
+        svg.appendChild(mk('line',{x1:ml,x2:ml+pw,y1:sy(t),y2:sy(t),stroke:'var(--pev-grid)'}));
+        svg.appendChild(mk('text',{x:sx(t),y:mt+ph+16,'text-anchor':'middle'},fr(t,t%1?1:0)));
+        svg.appendChild(mk('text',{x:ml-6,y:sy(t)+4,'text-anchor':'end'},fr(t,t%1?1:0)));
+      }
+      svg.appendChild(mk('text',{x:ml+pw/2,y:H-8,'text-anchor':'middle'},'RR confondant–traitement (échelle log)'));
+      svg.appendChild(mk('text',{x:14,y:mt+ph/2,'text-anchor':'middle',transform:'rotate(-90 14 '+(mt+ph/2)+')'},'RR confondant–résultat (échelle log)'));
+      if(valid&&R>1.0001&&R<MAXV){
+        var p=frontier(R);
+        if(p.length>1){
+          var first=p[0], last=p[p.length-1];
+          // zone « peut annuler » : au-dessus/à droite de la courbe
+          svg.appendChild(mk('polygon',{points:p.join(' ')+' '+sx(MAXV)+','+sy(MAXV),fill:'var(--pev-zoneko)'}));
+          svg.appendChild(mk('polyline',{points:p.join(' '),fill:'none',stroke:'var(--pev-red)','stroke-width':2.4}));
+        }
+        if(isFinite(Rc)&&Rc>1.0001&&Rc<R-1e-6){
+          var pc=frontier(Rc);
+          if(pc.length>1)svg.appendChild(mk('polyline',{points:pc.join(' '),fill:'none',stroke:'var(--pev-red)','stroke-width':1.5,'stroke-dasharray':'5 4',opacity:.8}));
+          if(Ec<MAXV)svg.appendChild(mk('circle',{cx:sx(Ec),cy:sy(Ec),r:4,fill:'var(--pev-card)',stroke:'var(--pev-red)','stroke-width':1.5}));
+        }
+        if(E<MAXV){
+          svg.appendChild(mk('line',{x1:sx(1),y1:sy(1),x2:sx(MAXV),y2:sy(MAXV),stroke:'var(--pev-faint)','stroke-dasharray':'2 4'}));
+          svg.appendChild(mk('circle',{cx:sx(E),cy:sy(E),r:5.5,fill:'var(--pev-red)'}));
+          svg.appendChild(mk('text',{x:sx(E)+9,y:sy(E)+16,style:'fill:var(--pev-red);font-weight:700'},'(E, E) = ('+fr(E)+', '+fr(E)+')'));
+        }
+        svg.appendChild(mk('text',{x:ml+pw-6,y:mt+16,'text-anchor':'end',style:'fill:var(--pev-red)'},'Peut annuler l’association'));
+        svg.appendChild(mk('text',{x:ml+8,y:mt+ph-8,style:'fill:var(--pev-green)'},'Trop faible pour l’annuler'));
+      }
+      var col=B>=R?'var(--pev-red)':'var(--pev-green)';
+      svg.appendChild(mk('circle',{cx:sx(st.x),cy:sy(st.y),r:8,fill:'none',stroke:col,'stroke-width':2.5}));
+      svg.appendChild(mk('circle',{cx:sx(st.x),cy:sy(st.y),r:2.5,fill:col}));
+      svg.appendChild(mk('text',{x:sx(st.x)+11,y:sy(st.y)-8,style:'fill:'+col+';font-weight:700'},'U'));
+
+      var v=el('pev-verdict'); v.className='pev-verdict';
+      if(!valid){v.textContent='Saisissez un risque relatif strictement positif.';return;}
+      if(R<=1.0001){v.textContent='RR = 1 : il n’y a aucune association à expliquer, E = 1.';return;}
+      var msg='Le confondant U (RR '+fr(st.x)+' avec le traitement, '+fr(st.y)+' avec le résultat) produit un biais d’au plus '+fr(B)+'. ';
+      if(B>=R){v.className+=' pev-ko';
+        msg+='C’est au moins le RR observé ('+fr(R)+') : U est au-dessus de la frontière et pourrait, à lui seul, ramener l’estimation à 1.';
+      }else if(isFinite(Rc)&&B>=Rc){v.className+=' pev-ko';
+        msg+='C’est moins que le RR observé ('+fr(R)+') : U ne peut pas annuler l’estimation, mais il dépasse la borne de l’IC ('+fr(Rc)+') et pourrait faire entrer 1 dans l’intervalle.';
+      }else{v.className+=' pev-ok';
+        msg+='C’est moins que le RR observé ('+fr(R)+')'+(isFinite(Rc)&&Rc>1?' et que la borne de l’IC ('+fr(Rc)+')':'')+' : U est sous la frontière et ne suffit pas à expliquer l’association.';
+      }
+      if(crosses)msg+=' L’IC saisi contient déjà 1 : son E-value vaut 1, aucun confondant n’est nécessaire pour le rendre compatible avec l’absence d’effet.';
+      v.textContent=msg;
+    }
+    function setXY(x,y){st.x=Math.max(1,Math.min(MAXV,x));st.y=Math.max(1,Math.min(MAXV,y));
+      el('pev-x').value=v2s(st.x);el('pev-y').value=v2s(st.y);render();}
+    el('pev-x').addEventListener('input',function(){st.x=s2v(+this.value);render();});
+    el('pev-y').addEventListener('input',function(){st.y=s2v(+this.value);render();});
+    el('pev-rr').addEventListener('input',render);
+    el('pev-lo').addEventListener('input',render);
+    el('pev-prose').addEventListener('click',function(){el('pev-rr').value='1.41';el('pev-lo').value='1.22';render();});
+    var svg=el('pev-svg'), drag=false;
+    function pt(ev){var r=svg.getBoundingClientRect();return {x:(ev.clientX-r.left)*W/r.width,y:(ev.clientY-r.top)*H/r.height};}
+    svg.addEventListener('pointerdown',function(ev){drag=true;try{svg.setPointerCapture(ev.pointerId);}catch(e){}var p=pt(ev);setXY(ix(p.x),iy(p.y));});
+    svg.addEventListener('pointermove',function(ev){if(!drag)return;var p=pt(ev);setXY(ix(p.x),iy(p.y));});
+    svg.addEventListener('pointerup',function(){drag=false;});
+    svg.addEventListener('pointercancel',function(){drag=false;});
+    st.x=s2v(301);st.y=s2v(301);
+    render();
+  })();
+  </script>
+</div>
