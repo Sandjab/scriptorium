@@ -1412,7 +1412,19 @@ qualité/coût par requête, en délimitant contre la section routage de llm-inf
 > citer en contrepoint) ; ensemble-learning couvre l'agrégation de prédictions (tous les modèles
 > répondent) vs le routage (un seul répond). Domaine : llm-agents-generation.
 
-### Petits modèles & inférence embarquée — `small-language-models-edge` → `llm-agents-generation`
+### ✅ FAIT — Petits modèles & inférence embarquée — `small-language-models-edge` → `llm-agents-generation`
+(**FAIT le 2026-10-02**, 70e run `/leanmonograph`, retiré du backlog — classé 24e du parcours de
+`llm-agents-generation`, juste après `llm-inference-serving`. Sujet RECENTRÉ avant lancement par un audit de lecture
+des voisins : « petit modèle utile » et quantification agressive déjà couverts par `scaling-laws`,
+`knowledge-distillation`, `pretraining-data-curation` et `quantization` (cités, pas refaits) ; runtimes et hybride
+bord/cloud vierges. Deux erreurs du prompt ci-dessous corrigées : la MoE n'est pas un levier acquis sur l'appareil
+(tous les experts résident en mémoire), et les scores de Phi sont des chiffres d'éditeur. 9 sections sur 9, 33 claims
+(18 confirmés / 14 corrigés / 1 rejeté), 28 sources, 1 widget + 4 figures ; **≈ 6,6 M tok de workflow (2 lancements)
++ ~1,5 M d'audit de couverture, ré-audit et backstop**. **20e arrêt d'élagage** (17 rejets, 15 « tenus par tous ») →
+ré-audit 4 agents : 7 document-source / 9 réparés ou regrainés / 1 rejet juste. Build : 5 notes « 2 sources
+indépendantes » fausses (copies d'un papier ; documents d'un même éditeur sur son produit) → réparées. Backstop
+3 agents : 4 FAUX (dont un introduit au ré-audit en lisant un résumé contredit par le corps ; table k-quants 7B à
+65B et non 7B ; repli cloud de Gemini Nano documenté ; attribution GPU+NPU) + ~15 imprécis, corrigés.)
 **Verdict : partiel (ajout 2026-08-06).** Les briques existent séparément — `quantization` (PTQ,
 formats FP8/FP4), `knowledge-distillation` (fabriquer de petits modèles), `llm-inference-serving`
 (servir côté datacenter) — mais le déploiement local est absent : « NPU » = 0 occurrence, et
