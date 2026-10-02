@@ -1003,7 +1003,16 @@ s'arrête »). Set-of-Mark, Mind2Web, arbre d'accessibilité, ScreenSpot, OmniPa
 > candidat `agent-tool-security` tient la défense architecturale. L'angle propre : le grounding et
 > l'espace d'actions. Domaine : llm-agents-generation.
 
-### Contamination des benchmarks — `benchmark-contamination` → `llm-agents-generation`
+### ✅ FAIT — Contamination des benchmarks — `benchmark-contamination` → `llm-agents-generation`
+(**FAIT le 2026-10-02**, 66e run `/leanmonograph`, retiré du backlog — classé 16e du parcours de
+`llm-agents-generation`, juste après `llm-evaluation`. 8 sections sur 8, 31 claims (7 confirmés / 22 corrigés /
+2 rejetés), 42 sources, 2 widgets + 3 figures ; **≈ 7 M tok, 2 lancements**. Gap re-vérifié par LECTURE avant
+lancement : `llm-evaluation` porte aussi un paragraphe chiffré sur la manipulation des classements (The Leaderboard
+Illusion), que ce backlog ne créditait pas — le thème y renvoie. **Arrêt d'élagage au council** : 22 rejets tenus
+par tous les jurés sur la seule source primaire — ré-audit manuel : 8 réparés, 10 regrainés, 1 document-source,
+2 FAUX (GSM-Symbolic relie bien sa baisse à une contamination possible ; GSM1k public depuis mars 2025).
+Backstop web (4 agents) : 3 FAUX et 16 imprécis corrigés avant publication ; chiffres datés par version
+(GSM1k 13 % v1 / 8 % v4 ; MMLU-Redux ; LiveBench). Le renvoi A2 de `pretraining-data-curation` a désormais une cible.)
 **Verdict : gap réel — renvoi cassé A2 (ajout 2026-09-01).** `pretraining-data-curation` écrit :
 « Savoir de combien un score publié s'en trouve faussé relève de la mesure, et le document consacré à
 l'évaluation des LLM traite ce versant. » Lecture de `llm-evaluation` : une monographie LLM-as-a-judge
