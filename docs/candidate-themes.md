@@ -1035,7 +1035,18 @@ pas. `pretraining-data-curation` tient la décontamination CÔTÉ CORPUS (n-gram
 > SWE-bench et l'écart de harness ; `scaling-laws` garde l'émergence. L'angle propre : mesurer de
 > combien, et concevoir contre. Domaine : llm-agents-generation (portail clos : /arrange tranchera).
 
-### Évaluation de la recherche d'information — `evaluation-ir-jugements-pertinence` → `information-retrieval-representation`
+### ✅ FAIT — Évaluation de la recherche d'information — `evaluation-ir-jugements-pertinence` → `information-retrieval-representation`
+(**FAIT le 2026-10-02**, 67e run `/leanmonograph`, retiré du backlog. 9 sections sur 9, 36 claims (16 confirmés /
+19 corrigés / 1 rejeté), 51 sources, 4 widgets ; **≈ 7,1 M tok de workflow + ~2-3 M de ré-audit et backstop,
+2 lancements**. ⚠️ Le prompt ci-dessous portait une attribution FAUSSE : il n'existe pas d'article « Clarke &
+Soboroff » — ce sont deux textes distincts, Soboroff (« Don't Use LLMs to Make Relevance Judgments », arXiv
+2409.15133) et Clarke & Dietz (arXiv 2412.17156) ; corrigé dans le sujet passé à la reprise. **Arrêt d'élagage
+au council** (20 rejets tenus par tous les jurés sur la seule source primaire) + une section extraite À VIDE
+(l'agent d'extraction a rappelé son outil de sortie avec un résultat vide après un résultat complet) — ré-audit
+manuel : 8 réparés, 8 regrainés, 3 FAUX, 1 rejet confirmé ; reprise unique. Le build a refusé 4 claims
+`confirmed` dont les « 2 sources » étaient deux copies d'un même travail (3 passés en document-source, 1 re-sourcé).
+Backstop web (4 agents) : 7 FAUX et 15 imprécis corrigés avant publication — jugements TREC historiques binaires,
+auteurs d'UMBRELA, objection de Soboroff ≠ circularité, intervalles de confiance d'Upadhyay et al., etc.)
 **Verdict : partiel, gap large — le socle que six thèmes invoquent sans le poser (ajout
 2026-09-01).** Couvert : les formules de DCG/NDCG/MAP/MRR et leur platitude dans `learning-to-rank`
 (« leur gradient par rapport aux scores est nul presque partout »), et le biais de pooling comme
@@ -1044,7 +1055,7 @@ pooling de TREC »). Le corpus cite des dizaines de nDCG@10 sur BEIR/MS MARCO/TR
 dire d'où viennent les qrels ; `hybrid-search-reranking` suppose que « quelques dizaines de jugements
 de pertinence suffisent », `bm25-inverted-index` renvoie « sur des corpus sans annotations de
 pertinence » à des proxys. Cranfield, qrels, bpref, Voorhees, tests de significativité, le débat
-LLM-juge de pertinence (Thomas et al./Bing, Faggioli et al., Clarke & Soboroff, UMBRELA) :
+LLM-juge de pertinence (Thomas et al./Bing, Faggioli et al., Soboroff, Clarke & Dietz, UMBRELA) :
 0 occurrence — `llm-evaluation` ne traite le juge que pour la génération.
 
 > Évaluer un système de recherche : d'où viennent les jugements, et ce que les métriques supposent.
