@@ -557,7 +557,24 @@ workflows (dédoublonnage par travail : identifiant arXiv/DOI + titre dépouill�
 d'édition). **Reste ouvert : ≥ 39 claims sur 28 thèmes du corpus publié sont dans ce cas** — audit
 non lancé.)
 
-### Inférence causale — `causal-inference` → `classical-ml-time-series`
+### ✅ FAIT — Inférence causale — `causal-inference` → `classical-ml-time-series`
+(**FAIT le 2026-10-02**, 68e run `/leanmonograph`, retiré du backlog — classé 5e du parcours de
+`classical-ml-time-series`, entre `tabular-foundation-models` et `time-series-forecasting`. 11 sections sur 11,
+40 claims (17 confirmés / 23 corrigés / 0 rejeté), 55 sources, 4 widgets + 1 synopsis + 2 figures ; **≈ 8,2 M tok
+de workflow (2 lancements) + ~1,6 M de ré-audit et backstop**. Gap revérifié par lecture avant lancement :
+`learning-to-rank` tient l'IPS sur les clics, `ia-emploi-marche-du-travail` emploie la DiD sans l'expliquer, le
+cadre lui-même était absent. **18e arrêt d'élagage** : 23 rejets au council, dont 21 « tenus par tous, une
+source » (théorèmes lus dans le seul papier fondateur) → ré-audit 4 agents : 17 réparés / 1 regrainé /
+1 document-source / 3 FAUX (« back-door ÉQUIVALENT à l'ignorabilité » : condition suffisante, réciproque sous
+fidélité ET modèle FFRCISTG, preuve dans Pearl 1993b — le même énoncé présent en double dans deux sections, avec
+des verdicts opposés ; définition du collider de What If ch. 8 mal restituée). Backstop 4 agents : 0 FAUX,
+21 imprécis corrigés (poids négatifs du TWFE seulement si l'effet varie dans le temps ; condition DML stricte
+o(n^-1/4) ; Qini non normalisé ; tldr sur-généralisant). Balayage d'indépendance post-build : **5 `confirmed`
+reposaient sur UN seul travail** (WP NBER + article publié ; PNAS + arXiv ; doc grf + papier des mêmes auteurs ;
+deux textes de Pearl) — réparés par un 2e travail lu en texte intégral, ou document-source déclaré.
+⚠️ **Le plan a laissé tomber trois piliers du sujet ci-dessous** : variables instrumentales (une mention),
+régression sur discontinuité et contrôle synthétique (absents) — voir le candidat
+`quasi-experiences-vi-rdd-controle-synthetique`.)
 **Verdict : gap réel.** `time-series-forecasting` cite CausalImpact (séries structurelles
 bayésiennes) ; `llm-evaluation` emploie « causal » au sens expérimental sans cadre formel ;
 potential outcomes, do-calculus, propensity scores = 0 occurrence.
@@ -572,6 +589,20 @@ potential outcomes, do-calculus, propensity scores = 0 occurrence.
 > time-series-forecasting couvre CausalImpact (le citer en pont) ; ia-productivite-esn discute
 > d'effets de l'IA sans méthodologie causale — se centrer sur l'identification et l'estimation
 > d'effets. Domaine : classical-ml-time-series.
+
+### Quasi-expériences : VI, discontinuité, contrôle synthétique — `quasi-experiences-vi-rdd-controle-synthetique` → `classical-ml-time-series`
+**Verdict : gap réel (ajout 2026-10-02, sorti du 68e run).** Le plan de `causal-inference` a privilégié le versant
+ML (DML, méta-learners, forêts, uplift) : les variables instrumentales n'y ont qu'une mention, la régression sur
+discontinuité et le contrôle synthétique en sont absents. Audit par lecture du document publié, pas au grep.
+
+> Les stratégies d'identification quasi-expérimentales que `causal-inference` laisse de côté : variables
+> instrumentales (pertinence, exclusion, monotonie ; LATE et compliers ; instruments faibles), régression sur
+> discontinuité (nette et floue, choix de fenêtre, tests de manipulation), contrôle synthétique et ses
+> variantes récentes, et leur rapport aux méthodes ML (DML avec instrument, forêts instrumentales). Même angle
+> que le thème parent : quelle hypothèse chaque méthode achète, et comment on la met à l'épreuve. Délimitations :
+> `causal-inference` tient le cadre (résultats potentiels, DAG, propension, DiD échelonnée, DML) — le citer, ne
+> pas le refaire ; `time-series-forecasting` tient CausalImpact. ⚠️ Toute attribution se vérifie en primaire au
+> Sweep, aucune n'est donnée ici comme fait. Domaine : classical-ml-time-series.
 
 ### Bandits multi-bras — `multi-armed-bandits` → `classical-ml-time-series`
 **Verdict : gap réel.** Aucune occurrence substantielle (les matches « Thompson » du corpus sont
