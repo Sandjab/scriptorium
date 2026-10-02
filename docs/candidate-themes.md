@@ -590,7 +590,17 @@ potential outcomes, do-calculus, propensity scores = 0 occurrence.
 > d'effets de l'IA sans méthodologie causale — se centrer sur l'identification et l'estimation
 > d'effets. Domaine : classical-ml-time-series.
 
-### Quasi-expériences : VI, discontinuité, contrôle synthétique — `quasi-experiences-vi-rdd-controle-synthetique` → `classical-ml-time-series`
+### ✅ FAIT — Quasi-expériences : VI, discontinuité, contrôle synthétique — `quasi-experiences-vi-rdd-controle-synthetique` → `classical-ml-time-series`
+(**FAIT le 2026-10-02**, 69e run `/leanmonograph`, retiré du backlog. 8 sections sur 8 (les trois piliers,
+deux sections chacun, + ML et écosystème), 31 claims (8 confirmés / 23 corrigés / 0 rejeté), 69 sources, 4 widgets
++ 2 figures ; **≈ 6,8 M tok de workflow (2 lancements) + ~1 M de ré-audit et backstop**. **19e arrêt d'élagage** :
+15 rejets au council, 13 « tenus par tous, une source » → ré-audit 3 agents : 13 réparés ou regrainés /
+2 document-source / 0 faux ; `iv-late-compliers` (0/3 retenus) serait tombée SANS alerte de la garde (non
+décisive). Build : 8 `confirmed` sur UN travail (WP + version publiée ; article + logiciel des mêmes auteurs) →
+réparés par un 2e travail d'autres auteurs. Backstop 3 agents : 5 FAUX (monotonie de McCrary INVERSÉE, aussi dans
+knowledge.json ; « moyenne brute » au lieu de pondérée ; « Kleibergen-Paap » ; deux numéros arXiv sous un faux
+titre) + 10 imprécis ; une erreur venait du 1er ré-audit (poids Prop 99 « non reproduits » alors que synth2 les
+retrouve à 0,003 près).)
 **Verdict : gap réel (ajout 2026-10-02, sorti du 68e run).** Le plan de `causal-inference` a privilégié le versant
 ML (DML, méta-learners, forêts, uplift) : les variables instrumentales n'y ont qu'une mention, la régression sur
 discontinuité et le contrôle synthétique en sont absents. Audit par lecture du document publié, pas au grep.
