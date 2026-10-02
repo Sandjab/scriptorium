@@ -885,8 +885,10 @@ const liveSections = enriched.filter(s => liveSet.has(s));
 // Garde « faux rejet probable » (39e run) : un claim rejeté au SEUL seuil de sources alors que
 // TOUS les jurés le tiennent ne doit jamais coûter une section en silence — quand il est
 // DÉCISIF (la section survivrait en le gardant), on s'arrête ICI, avant de payer la prose.
+// Un rejet déjà confirmé par un ré-audit manuel (`reaudited: true` posé dans sec-<id>.json) n'est
+// plus « probable » : il est jugé, et la section peut tomber (sinon la reprise s'arrête en boucle).
 const suspectLosses = enriched.filter(s => !liveSet.has(s)).map(s => {
-  const susp = s.claims.filter(c => c.audit === 'rejected' && c.tally
+  const susp = s.claims.filter(c => c.audit === 'rejected' && c.tally && !c.reaudited
     && c.tally.refuted === 0 && c.tally.corroborated >= 2);
   if (!susp.length) return null;
   const keptWith = s.kept.length + susp.length;
