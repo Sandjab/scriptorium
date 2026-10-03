@@ -104,6 +104,12 @@ Frontière code/jugement : le **code détecte**, le **modèle adjuge**.
   mots-outils, exit 2 comme les flags non hedgés) — leurs pivots textuels ne peuvent pas
   matcher une prose française (« universal solver » vs « agent universel »), le mécanisme
   `rejected_flags` est aveugle pour eux : l'agent adjuge en vérifiant MANUELLEMENT la prose.
+- `foreign_kept_statements` : même heuristique sur les claims **retenus** (exit 2). `decideAudit`
+  reprend tel quel le `corrected_statement` d'un juré, souvent anglais : au 75e run, trois claims
+  retenus sont arrivés au commit en anglais. Le geste est de traduire l'énoncé dans
+  `knowledge.json`, sens inchangé. Bornes vérifiées par
+  `.claude/skills/monograph/scripts/test_lint_foreign_kept.py`. ⚠️ Le corpus publié en porte
+  environ 250 (42 thèmes, mesure du 2026-10-03) : le contrôle ne vaut que pour les runs à venir.
 - `low_rank_sources` : claims **retenus** dont l'appareil de preuve repose sur des sources sans
   valeur probante (encyclopédie collaborative, marchand, blog, dépôt social, forum, reprise de
   presse ou fil de communiqués). Comble le trou du contrôle d'acceptation, qui **compte** les

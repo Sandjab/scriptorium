@@ -35,7 +35,8 @@ Vérifications :
      invoquée sur un miroir PR Newswire au lieu du document officiel.
 
 Sortie : JSON sur stdout. Exit 2 s'il existe ≥1 rejected_flag non hedgé, ≥1
-foreign_statement, OU ≥1 claim CONFIRMÉ sans deux sources de rang réel et sans
+foreign_statement, ≥1 foreign_kept_statement (claim RETENU à l'énoncé non français, à
+traduire dans knowledge.json), OU ≥1 claim CONFIRMÉ sans deux sources de rang réel et sans
 exception document-source déclarée (tous exigent une adjudication), 0 sinon,
 1 sur erreur d'usage/fichier.
 """
@@ -394,6 +395,21 @@ def main():
                 "note": "pivots textuels aveugles (statement non français) : vérifier "
                         "manuellement que la prose n'affirme pas ce contenu sans hedge",
             })
+    # 3 bis. Même heuristique sur les claims RETENUS : `decideAudit` reprend tel quel le
+    # corrected_statement d'un juré, souvent anglais (75e run : 3 retenus, 44e : 4). Le
+    # geste diffère du cas rejeté — traduire l'énoncé dans knowledge.json, sens inchangé.
+    foreign_kept = []
+    for c in kept:
+        stmt = c.get("statement", "")
+        is_foreign, en, fr = foreign_statement(stmt)
+        if is_foreign:
+            foreign_kept.append({
+                "claim": c.get("id"), "audit": c.get("audit"),
+                "en_stopwords": en, "fr_stopwords": fr,
+                "statement_head": stmt[:140],
+                "note": "énoncé retenu non français : le traduire dans knowledge.json "
+                        "(sens, chiffres et attributions inchangés)",
+            })
 
     # 2. Chiffres significatifs du corpus absents de knowledge.json.
     novel, seen = [], set()
@@ -453,12 +469,13 @@ def main():
         "rejected_flags": rejected_flags,
         "unhedged_count": len(unhedged),
         "foreign_statements": foreign,
+        "foreign_kept_statements": foreign_kept,
         "novel_numbers": novel,
         "low_rank_sources": low_rank,
         "low_rank_blocking": len(blocking),
         "prose_style": prose_style(theme, pre),
     }, ensure_ascii=False, indent=1))
-    return 2 if (unhedged or foreign or blocking) else 0
+    return 2 if (unhedged or foreign or foreign_kept or blocking) else 0
 
 
 if __name__ == "__main__":
