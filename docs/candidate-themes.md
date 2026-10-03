@@ -1285,6 +1285,41 @@ method : 0 occurrence. ⚠️ Deux frontières à écrire dans le brief contre l
 > (candidat) ; `time-series-forecasting` garde CausalImpact (le citer en contrepoint) ;
 > `hyperloglog` garde son cas de comptage. Domaine : classical-ml-time-series.
 
+### Retirer l'alignement par les poids : direction de refus et ablitération — `abliteration-alignment-removal` → `llm-agents-generation` (à trancher par /arrange)
+**Verdict : gap réel, vérifié par LECTURE (ajout 2026-10-03).** Le contournement d'alignement n'est
+couvert que côté PROMPT. `llm-safety-jailbreaks` (les 9 sections lues) : roleplay, encodages,
+langues peu dotées, multi-tours, GCG/PAIR/TAP, injection, red-teaming — aucune attaque ne touche
+aux poids ni aux activations ; sa section « Garanties » borne même BEB aux « méthodes d'alignement à
+poids figés au moment de l'inférence », ce qui laisse la porte ouverte exactement ici.
+`mechanistic-interpretability` (section Applications) est le plus proche : « The Rogue Scalpel »
+(steering aléatoire → conformité nuisible 0 % → 1-13 %), Goodfire qui AMPLIFIE une feature de refus
+(l'inverse du geste), model diffing qui isole des « features de refus » — mais la direction de
+refus d'Arditi et al. (2024) et l'orthogonalisation des poids n'y sont pas. `model-editing-unlearning`
+(« Masquer n'est pas effacer ») établit le même motif pour le savoir désappris (relearning bénin,
+quantification 4 bits) et fait elle-même l'analogie « le RLHF recouvre sans effacer ».
+Le fine-tuning malveillant (retrait de l'alignement par quelques exemples) : absent aussi.
+NB : « oblitération » n'est pas un terme établi ; « abliteration » est le mot-valise
+ablation + obliteration.
+
+> Retirer l'alignement d'un modèle à poids ouverts : la direction de refus et l'ablitération.
+> Couvrir le résultat fondateur (le refus est médié par une seule direction du flux résiduel,
+> Arditi et al. 2024 : l'ablater supprime le refus, l'ajouter le provoque), l'ablitération
+> proprement dite (orthogonalisation des poids contre cette direction, modèles « abliterated »
+> publiés en open-weights, coût mesuré en capacités), les variantes et limites (refus
+> multidimensionnel ou non, généralisation hors distribution), le retrait par fine-tuning
+> (quelques exemples nuisibles ou même bénins suffisent, « shadow alignment ») et par LoRA, ce que
+> cela dit de la PROFONDEUR de l'alignement (superficiel vs profond), puis les défenses qui
+> visent la résistance à la modification des poids (tamper-resistance, ex. TAR) et leur
+> évaluation adaptative, et l'enjeu de publication des poids ouverts. Public : ingénieur
+> ML/sécurité. ⚠️ Délimitations strictes : `llm-safety-jailbreaks` garde toutes les attaques par
+> la requête (le citer en contrepoint : BEB s'arrête aux poids figés) ; `mechanistic-interpretability`
+> garde l'outillage (SAE, steering, probing — citer Rogue Scalpel et Goodfire sans les refaire) ;
+> `model-editing-unlearning` garde l'oubli voulu et la récupération du savoir désappris (même
+> motif « masquer ≠ effacer », le dire) ; `rlhf-dpo` garde la mécanique de l'alignement lui-même ;
+> `lora` garde la mécanique des adaptateurs. ⚠️ Sujet à double usage : décrire mécanismes et
+> mesures publiés, sans recette opératoire. Domaine : llm-agents-generation (voisin de
+> llm-safety-jailbreaks), à trancher par /arrange contre deep-learning-foundations.
+
 ---
 
 ## Priorité basse / marginale
