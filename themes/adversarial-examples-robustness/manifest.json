@@ -1,0 +1,527 @@
+{
+ "edition": 1,
+ "slug": "adversarial-examples-robustness",
+ "meta": {
+  "title": "Exemples adverses et robustesse des réseaux : une perturbation invisible qui change la sortie",
+  "kicker": "Exemples adverses et robustesse · monographie",
+  "h1": "Exemples adverses et robustesse des réseaux : une perturbation invisible qui change la sortie",
+  "lede": "Quelques pixels modifiés, invisibles à l'œil, suffisent à faire changer d'avis un réseau de neurones : comment on fabrique ces exemples adverses, pourquoi tant de défenses ont été cassées, et ce que valent réellement les garanties de robustesse.",
+  "meta_chips": [
+   "Monographie"
+  ],
+  "footer": "Exemples adverses et robustesse des réseaux : une perturbation invisible qui change la sortie · scriptorium"
+ },
+ "elements": [
+  {
+   "type": "abstract"
+  },
+  {
+   "type": "section",
+   "id": "phenomene-szegedy-goodfellow",
+   "heading": "Le phénomène : une perturbation imperceptible qui change la sortie",
+   "level": 3,
+   "prose": "<p>L'histoire des réseaux convolutifs croise déjà, en passant, une découverte de 2013. Un réseau qui reconnaît une image peut la classer tout autrement après une retouche que personne ne voit. On appelle adversarial example (exemple adverse) une entrée ainsi perturbée pour changer la sortie du modèle. Le terme désigne une construction délibérée, pas un bruit accidentel, et il pose une question sur ce qu'un réseau a vraiment appris.</p><p>Szegedy et al. publient le constat fin 2013 sous le titre « Intriguing properties of neural networks ». Leur perturbation est imperceptible, et pourtant elle suffit à faire mal classer l'image. Elle ne doit rien au hasard. Elle sort d'une optimisation sous contrainte de boîte, menée avec L-BFGS (méthode quasi-Newton à mémoire limitée), qui coûte cher en calcul. Les auteurs en tirent une lecture troublante : les réseaux profonds apprennent des correspondances entrée-sortie dont la discontinuité est significative. On attendait une fonction lisse autour de chaque exemple d'entraînement.</p><p>Le second résultat pèse plus lourd encore pour la sécurité. La même perturbation trompe souvent un autre réseau, entraîné sur un sous-ensemble différent des données. Dans leurs expériences sur MNIST, un exemple conçu contre un premier modèle garde son effet sur un second qui ne l'a jamais vu. C'est la transferability (transférabilité). L'erreur n'est donc pas la particularité d'un jeu de poids : elle se partage entre modèles.</p><p>Un an plus tard, Goodfellow, Shlens et Szegedy proposent une autre explication dans « Explaining and Harnessing Adversarial Examples ». Szegedy et al. avaient évoqué la forte non-linéarité des réseaux. Le nouvel article attribue au contraire la vulnérabilité principalement à leur caractère linéaire, et non à la non-linéarité ni à l'overfitting (surapprentissage). L'argument repose sur un calcul simple. Perturbons une entrée d'au plus ε sur chaque coordonnée, c'est-à-dire en norme L∞. L'activation linéaire w·x varie alors de ε·||w||₁, quantité qui croît avec la dimension de l'entrée. Chaque pixel bouge à peine, mais ces petits changements s'additionnent en un grand écart de sortie.</p><p>La même linéarité rend compte du transfert. Des modèles qui résolvent la même tâche sur des données voisines apprennent des fonctions voisines. Ils partagent donc des directions adverses, quels que soient leur architecture ou leur jeu d'entraînement. L'article en tire aussi un outil, FGSM (Fast Gradient Sign Method). Il remplace l'optimisation coûteuse de Szegedy et al. par un seul pas de gradient, assez rapide pour servir à l'entraînement d'un réseau maxout sur MNIST.</p><p>Cette explication reste une hypothèse étayée, pas un verdict. Goodfellow et al. présentent la linéarité comme cause première et la soutiennent par des expériences, sans en faire une preuve exclusive. L'origine des adversarial examples est restée débattue. Une lecture concurrente, qui en cherche la source dans les données plutôt que dans le modèle, viendra plus loin rouvrir la question.</p><p>Reste la question pratique de l'ingénieur qui doit déployer un modèle. Qu'est-ce qu'être robuste, et comment le prouver ? Madry et al. (2017) donnent la forme de la réponse en cadrant la robustesse comme un problème d'optimisation min-max. Être robuste devient alors une propriété quantifiée : pour quelle norme, quel budget ε, quel adversaire. La prouver demande un adversaire défini, jamais une démonstration sur un exemple. Toute la suite décline cette exigence jusqu'à sa forme la plus stricte. Une défense se juge contre l'attaque la plus forte qui la connaît, pas contre l'attaque d'hier.</p>",
+   "claims": [
+    "claim:1",
+    "claim:2",
+    "claim:3"
+   ]
+  },
+  {
+   "type": "widget",
+   "ref": "probe-argument-lineaire-goodfellow"
+  },
+  {
+   "type": "section",
+   "id": "modele-de-menace-attaques-white-box",
+   "heading": "Modèle de menace et attaques white-box : FGSM, PGD, Carlini-Wagner",
+   "level": 3,
+   "prose": "<p>Dire qu'un modèle est robuste n'a de sens qu'une fois l'adversaire décrit. Cette description s'appelle le threat model (modèle de menace). Elle fixe d'abord ce que l'attaquant sait. En white-box (boîte blanche), il connaît l'architecture, les poids et les gradients du modèle. Elle fixe ensuite ce qu'il a le droit de modifier, et c'est là qu'interviennent les normes.</p><p>Trois normes dominent la littérature. La norme L∞ borne la variation maximale de chaque pixel. En L2, c'est l'énergie euclidienne de la perturbation qui est limitée, et elle peut se concentrer sur quelques zones. L0, enfin, compte les pixels modifiés sans rien dire de leur amplitude. Le budget ε est le rayon de la boule autorisée dans la norme choisie. Reste l'objectif de l'attaquant. Une targeted attack (attaque ciblée) impose une classe précise, tandis qu'une untargeted attack (attaque non ciblée) se contente de n'importe quelle erreur.</p><p>FGSM est l'attaque la plus simple de cette grille. Elle fait un seul pas : x_adv = x + ε·sign(∇x J(θ,x,y)), où J est la perte du modèle de paramètres θ sur l'entrée x d'étiquette y. Prendre le signe du gradient, et non le gradient lui-même, pousse chaque pixel au bord de l'intervalle autorisé. La perturbation reste ainsi bornée en norme L∞ par ε, exactement comme dans l'argument linéaire. Goodfellow et al. l'emploient avec ε = 0,25 sur MNIST.</p><p>Un seul pas ne trouve pas toujours le pire point de la boule. Kurakin, Goodfellow et Bengio itèrent donc FGSM en petits pas, avec une projection dans la boule ε après chacun : c'est la Basic Iterative Method. Madry et al. reprennent l'idée sous le nom de PGD (Projected Gradient Descent) et y ajoutent un départ aléatoire dans la boule L∞. Sur MNIST, leur budget est ε = 0,3 à l'échelle [0,1]. Sur CIFAR-10, c'est ε = 8/255 en L∞, valeur devenue une référence. Chez eux, PGD n'est pas une simple attaque. C'est l'adversaire interne d'un entraînement robuste formulé en min-max, sur lequel on reviendra.</p><p>Carlini et Wagner (2017) changent la question posée. Au lieu de fixer un budget et de chercher une erreur à l'intérieur, leurs trois attaques par optimisation cherchent la plus petite perturbation qui produit l'erreur. Chacune vise une norme, de L0 à L∞ en passant par L2. La version L2 minimise ||δ||² + c·f(x+δ), où f mesure la marge entre le logit de la classe cible et le meilleur des autres. La constante c se règle par recherche dichotomique. Un changement de variable par tanh gère la contrainte de boîte. Ces attaques visaient la defensive distillation (distillation défensive). Elles réussissent avec probabilité 100 % sur réseaux distillés comme non distillés, et la distillation n'augmente pas significativement la robustesse.</p><p>Ce vocabulaire sert aussi à mesurer ce qu'une évaluation ne prouve pas. Résister à PGD en L∞ ne suffit pas à établir une robustesse contre tout adversaire du premier ordre, c'est-à-dire tout adversaire qui n'exploite que le gradient. Madry et al. observent que les maxima locaux trouvés par PGD depuis des départs aléatoires ont des valeurs de perte concentrées. Ils en tirent la conjecture que PGD serait un adversaire du premier ordre « universel ». C'est un argument empirique, ni une garantie ni une preuve contre des attaques plus fortes ou adaptatives. Athalye, Carlini et Wagner (2018) ont d'ailleurs contourné par des adaptive attacks (attaques adaptatives) des défenses qui résistaient à PGD standard. Avant d'y venir, il faut retirer à l'attaquant ses gradients et voir ce qui lui reste.</p>",
+   "claims": [
+    "claim:4",
+    "claim:5",
+    "claim:6",
+    "claim:7"
+   ]
+  },
+  {
+   "type": "widget",
+   "ref": "probe-fgsm-pgd-projection"
+  },
+  {
+   "type": "section",
+   "id": "attaques-black-box-transfert-requetes",
+   "heading": "Attaques black-box : transfert par modèle substitut, requêtes et décisions",
+   "level": 3,
+   "prose": "<p>Priver l'attaquant de gradients ne le désarme pas. En black-box (boîte noire), il ne voit que ce que le modèle renvoie à ses requêtes. La transferability observée par Szegedy et al., puis expliquée par Goodfellow et al., lui offre une première voie. Une perturbation qui trompe un modèle a de bonnes chances d'en tromper un autre entraîné sur la même tâche. Papernot, McDaniel et Goodfellow (2016) montrent même que ce transfert ne se limite pas aux réseaux de neurones. Il atteint aussi la régression logistique, les SVM, les arbres de décision et les k plus proches voisins.</p><p>Papernot et al. (arXiv 2016, AsiaCCS 2017) en font une attaque complète contre des services distants. L'attaquant n'a qu'un accès par requêtes d'étiquettes. Il entraîne un substitute model (modèle substitut) sur les étiquettes renvoyées par la cible, et il étend ses données par une augmentation fondée sur la jacobienne. Il forge ensuite des exemples en white-box sur ce substitut, puis les envoie à la cible. Un réseau profond hébergé par MetaMind classe ainsi à tort 84,24 % des exemples forgés. Contre les modèles hébergés par Amazon et Google, attaqués avec des substituts de régression logistique, les taux atteignent 96,19 % et 88,94 %.</p><p>Le transfert a une limite connue. Liu et al. (2016) constatent que les exemples non ciblés transfèrent bien, mais que les exemples ciblés transfèrent rarement. Leur parade attaque un ensemble de substitute models à la fois. Elle produit des exemples ciblés transférables, testés contre le service Clarifai.</p><p>Une deuxième famille se passe de substitut et interroge directement la cible. Les score-based attacks (attaques par scores) lisent les sorties numériques du modèle pour estimer un gradient. ZOO (Zeroth Order Optimization), de Chen et al. (2017), procède par différences finies, coordonnée par coordonnée, au prix d'un grand nombre de requêtes. Ilyas et al. (2018) réduisent ce coût avec des NES (Natural Evolution Strategies). Ils traitent aussi les cas où seules les k premières classes, voire la seule étiquette, sont visibles. Square Attack (Andriushchenko et al., ECCV 2020) renonce à estimer le gradient. Elle procède par recherche aléatoire, avec des mises à jour en carrés localisés. Économe en requêtes, elle surpasse les attaques black-box qui l'ont précédée.</p><p>L'accès le plus pauvre ne livre que la décision finale, l'étiquette prédite. La Boundary Attack de Brendel, Rauber et Bethge (ICLR 2018) est la première decision-based attack (attaque par décision) efficace sur des modèles complexes : les attaques antérieures de cette famille se limitaient à des modèles ou à des jeux de données simples. Elle part d'un exemple déjà mal classé et se rapproche de l'entrée d'origine en longeant la frontière de décision. Avec assez de requêtes, ses perturbations en norme L2 rivalisent en taille avec celles des meilleures attaques white-box à gradient. Le prix reste un grand nombre de requêtes. HopSkipJumpAttack, de Chen, Jordan et Wainwright, estime la direction du gradient à partir des seules décisions binaires et en demande nettement moins. Sa re-mesure contre trois modèles défendus (distillation défensive, classification par régions, entraînement adverse) confirme la performance de la Boundary Attack en L2 à budget large. Limitée à 1 000 requêtes, celle-ci n'y produit en revanche aucun exemple adverse. Foolbox, bibliothèque Python de Rauber, Brendel et Bethge, implémente ces decision-based attacks.</p><figure class='fig'><svg viewBox='0 0 760 420' role='img' aria-label='Échelle descendante de l accès de l attaquant : boîte blanche, puis scores, puis décision seule ; transfert par substitut placé à part ; flèche de contrôle vers la boîte blanche signalant le masquage de gradient'><defs><marker id='fig-taxo-acces-ah' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto'><path d='M0,0 L10,5 L0,10 z' fill='var(--ink-faint,#7A889B)'/></marker><marker id='fig-taxo-acces-ahr' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto'><path d='M0,0 L10,5 L0,10 z' fill='var(--bordeaux,#7C2A38)'/></marker></defs><line x1='40' y1='55' x2='40' y2='360' stroke='var(--ink-faint,#7A889B)' stroke-width='1.5' marker-end='url(#fig-taxo-acces-ah)'/><text x='28' y='208' transform='rotate(-90 28 208)' text-anchor='middle' font-size='11' fill='var(--ink-faint,#7A889B)'>moins d'information → en général plus de requêtes</text><rect x='70' y='50' width='300' height='80' rx='6' fill='none' stroke='var(--blue,#23537F)' stroke-width='2'/><text x='86' y='74' font-size='14' font-weight='700' fill='var(--blue,#23537F)'>Boîte blanche</text><text x='86' y='96' font-size='12' fill='var(--ink,#15202E)'>voit : gradients, poids</text><text x='86' y='116' font-size='12' fill='var(--ink,#15202E)'>FGSM · PGD · C&amp;W</text><line x1='160' y1='131' x2='160' y2='163' stroke='var(--ink-faint,#7A889B)' stroke-width='1.5' marker-end='url(#fig-taxo-acces-ah)'/><rect x='130' y='165' width='300' height='80' rx='6' fill='none' stroke='var(--blue,#23537F)' stroke-width='2'/><text x='146' y='189' font-size='14' font-weight='700' fill='var(--blue,#23537F)'>Scores</text><text x='146' y='211' font-size='12' fill='var(--ink,#15202E)'>voit : sorties numériques du modèle</text><text x='146' y='231' font-size='12' fill='var(--ink,#15202E)'>ZOO · NES · Square Attack</text><line x1='220' y1='246' x2='220' y2='278' stroke='var(--ink-faint,#7A889B)' stroke-width='1.5' marker-end='url(#fig-taxo-acces-ah)'/><rect x='190' y='280' width='300' height='80' rx='6' fill='none' stroke='var(--blue,#23537F)' stroke-width='2'/><text x='206' y='304' font-size='14' font-weight='700' fill='var(--blue,#23537F)'>Décision seule</text><text x='206' y='326' font-size='12' fill='var(--ink,#15202E)'>voit : l'étiquette prédite</text><text x='206' y='346' font-size='12' fill='var(--ink,#15202E)'>Boundary Attack · HopSkipJump</text><path d='M492 318 C 530 250, 480 120, 374 94' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='2' stroke-dasharray='6 4' marker-end='url(#fig-taxo-acces-ahr)'/><text x='500' y='200' font-size='11' font-weight='700' fill='var(--bordeaux,#7C2A38)'>contrôle</text><rect x='555' y='120' width='195' height='170' rx='6' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1.5' stroke-dasharray='5 4'/><text x='567' y='142' font-size='13' font-weight='700' fill='var(--ink,#15202E)'>Transfert (à part)</text><text x='567' y='164' font-size='11' fill='var(--ink,#15202E)'>accès : étiquettes de la cible</text><text x='567' y='184' font-size='11' fill='var(--ink,#15202E)'>substitut entraîné sur ces</text><text x='567' y='199' font-size='11' fill='var(--ink,#15202E)'>étiquettes (Papernot et al.)</text><text x='567' y='219' font-size='11' fill='var(--ink,#15202E)'>ensemble de substituts</text><text x='567' y='234' font-size='11' fill='var(--ink,#15202E)'>(Liu et al.)</text><text x='567' y='254' font-size='11' fill='var(--ink,#15202E)'>attaque white-box sur le</text><text x='567' y='269' font-size='11' fill='var(--ink,#15202E)'>substitut, puis envoi à la cible</text><text x='40' y='398' font-size='11.5' fill='var(--bordeaux,#7C2A38)'>Règle de contrôle : si une attaque d'un niveau plus pauvre bat la boîte blanche, c'est un symptôme de masquage de gradient.</text></svg><figcaption><span class='fcap-k'></span>Ce que voit l'attaquant décide de l'attaque : plus l'accès s'appauvrit, plus il faut en général de requêtes, et une attaque plus pauvre qui bat la boîte blanche trahit un masquage de gradient.</figcaption></figure><p>Cacher le modèle ne suffit donc pas, et les attaques black-box jouent aussi un rôle de contrôle. En principe, une attaque black-box ne devrait jamais battre une attaque white-box contre le même modèle. La boîte noire est en effet un sous-cas de la boîte blanche. Quand l'ordre s'inverse, comme avec Square Attack sur certains modèles défendus, c'est un symptôme de gradient masking (masquage de gradient). Athalye, Carlini et Wagner (2018) y voient un signe d'obfuscated gradients (gradients obfusqués). Des exemples transférés depuis un autre modèle, plus efficaces que ceux calculés sur le modèle lui-même, en sont un autre. C'est pourquoi Square Attack figure dans AutoAttack, l'ensemble d'attaques standard présenté plus loin, comme sa seule composante black-box. Un modèle qui cède à la recherche aléatoire mais résiste au gradient ne prouve rien sur sa robustesse. Il signale que son gradient trompe l'attaquant. Toutes ces attaques partagent pourtant une hypothèse : l'adversaire écrit directement dans les pixels.</p>",
+   "claims": [
+    "claim:8",
+    "claim:9",
+    "claim:10",
+    "claim:11"
+   ]
+  },
+  {
+   "type": "section",
+   "id": "attaques-physiques",
+   "heading": "Attaques physiques : stickers sur panneaux, lunettes et patchs",
+   "level": 3,
+   "prose": "<p>Un attaquant réel n'a pas la main sur le tenseur d'entrée du réseau. Il ne contrôle qu'un objet du monde, et c'est la caméra qui décide de l'angle, de la distance et de la lumière. Eykholt et al. ont posé ce problème à CVPR 2018 avec RP2 (Robust Physical Perturbations), une méthode qui optimise la perturbation sous ces contraintes physiques. Leur cible est un vrai panneau stop, sur lequel ils collent de simples stickers noir et blanc. Un classifieur de panneaux range alors ce panneau dans la classe que l'attaquant a choisie, ce qui en fait une targeted attack.</p><p>En laboratoire, la mauvaise classification ciblée touche 100 % des images. Le test de terrain compte davantage, parce qu'il quitte les conditions contrôlées. Sur des images vidéo prises depuis un véhicule en mouvement, 84,8 % des images sont classées dans la classe visée. Ces deux chiffres ne reposent que sur l'article d'origine.</p><p>Le 84,8 % circule pourtant comme la preuve qu'on peut tromper une voiture autonome avec quelques autocollants. Il mesure autre chose : des vignettes de panneaux isolés soumises à un classifieur, et non les décisions d'une pile perception-décision embarquée. Le résumé de l'article ne mentionne d'ailleurs aucun détecteur d'objets.</p><p>La même équipe a franchi ce pas à USENIX WOOT 2018, avec une « Disappearance Attack » dirigée contre le détecteur YOLOv2. Un poster ou des stickers adverses lui font manquer le panneau stop dans environ 85 % des images vidéo de laboratoire, quel que soit le support. En extérieur, le taux tombe à 72,5 % pour le poster et à 63,5 % pour les stickers. Une re-mesure de Wang et al. (2023), menée en extérieur avec le même protocole, trouve 61,0 % pour les stickers. La menace existe donc bien, mais elle s'érode dès que l'on quitte le laboratoire pour la rue.</p><p>La reconnaissance faciale offre un second terrain, où l'objet piégé se porte sur soi. Sharif et al. (CCS 2016) impriment une monture de lunettes que l'attaquant met sur son visage avant de passer devant le système. La même monture sert deux objectifs selon son optimisation. Le dodging (évitement) consiste à ne pas être reconnu. L'impersonation (usurpation) consiste à se faire reconnaître comme une autre personne. Face aux réseaux de reconnaissance faciale de pointe qu'ils testent, leurs trois sujets échappent à la reconnaissance au moins 80 % du temps. Ces trois sujets sont les trois premiers auteurs, ce qui donne la mesure de l'échantillon. Dans le cas d'usurpation le plus cité, une femme sud-asiatique se fait reconnaître comme un homme moyen-oriental dans 88 % des essais, chiffre que seul l'article établit. Le code de l'attaque est public.</p><p>Brown, Mané, Roy, Abadi et Gilmer généralisent l'idée fin 2017 avec l'adversarial patch (patch adverse). Le patch est universel, au sens où il vaut pour n'importe quelle scène. Il résiste aux transformations de l'image et peut viser n'importe quelle classe. Une fois imprimé et posé dans le champ, il fait prédire « toaster » à plusieurs modèles ImageNet, qui ignorent alors tout le reste de la scène.</p><p>Ces attaques sortent du threat model en norme Lp, et c'est leur trait commun le plus important. Le budget ε invisible y cède la place à un masque localisé et visible, borné en surface plutôt qu'en amplitude. RP2 et Sharif et al. optimisent en outre explicitement des contraintes que la boule Lp ignore, de l'imprimabilité aux variations de point de vue, d'éclairage et de distance. Une garantie énoncée dans une boule Lp ne couvre donc pas, par construction, un sticker que tout le monde peut voir. C'est pourtant dans ce cadre borné que les défenses savent se formuler, à commencer par celle qui a le mieux résisté.</p>",
+   "claims": [
+    "claim:12",
+    "claim:13",
+    "claim:14",
+    "claim:15"
+   ]
+  },
+  {
+   "type": "section",
+   "id": "adversarial-training-compromis",
+   "heading": "Adversarial training : le min-max et son coût en exactitude propre",
+   "level": 3,
+   "prose": "<p>Cette défense, c'est l'adversarial training (entraînement adverse), que Madry et al. (ICLR 2018) formulent comme le min-max annoncé plus haut. La boucle interne cherche, autour de chaque exemple, la pire perturbation admissible dans le budget fixé, et PGD tient ce rôle d'attaque interne. La boucle externe minimise ensuite la perte du réseau sur ces exemples perturbés plutôt que sur les exemples propres.</p><p>Les auteurs proposent la sécurité contre un adversaire du premier ordre comme garantie de sécurité « naturelle et large ». Sa portée est précise. Elle vise un attaquant qui n'exploite que le gradient, pas toute attaque concevable. Elle s'appuie sur la conjecture empirique déjà rencontrée, selon laquelle un PGD bien réglé approche le pire adversaire de cette classe.</p><p>Cette robustesse se paie de deux façons. L'entraînement consomme plus de ressources, puisque chaque pas d'optimisation embarque une attaque complète. Il peut aussi faire baisser la clean accuracy (exactitude propre), mesurée sur des entrées non perturbées. Tsipras et al. (ICLR 2019) montrent que cet accuracy–robustness trade-off (compromis exactitude/robustesse) existe de façon prouvable dans un cadre simple et naturel, un modèle jouet. Ils en corroborent empiriquement le phénomène dans des cadres plus complexes. Leur résultat ne démontre pas que le trade-off soit inévitable en général. Ils observent en revanche que les représentations robustes s'alignent mieux sur les caractéristiques saillantes de l'image et sur la perception humaine, une piste que le débat sur l'origine des exemples adverses reprendra.</p><p>TRADES (méthode d'adversarial training de Zhang et al., ICML 2019) fait de ce trade-off un principe directeur de conception. La méthode décompose l'erreur robuste en une somme de deux termes : l'erreur naturelle, plus l'erreur de frontière. Les auteurs en dérivent une borne supérieure différentiable, qu'ils présentent comme la plus serrée possible uniformément sur les distributions et les prédicteurs mesurables. La dérivation s'appuie sur la théorie des classification-calibrated losses (pertes calibrées pour la classification).</p><p>Sur le terrain, TRADES a remporté la piste « modèles robustes » du NeurIPS 2018 Adversarial Vision Challenge. Ses auteurs revendiquent environ 2 000 soumissions et une avance de 11,41 % sur le second en distance L2 moyenne de perturbation. Le rapport des organisateurs, co-signé par l'équipe gagnante, ne compte que 352 participants pour cette piste. Participants et soumissions ne se dénombrent pas de la même manière, et le chiffre de 2 000 reste celui des seuls auteurs.</p><p>Un autre coût, moins visible, se loge dans la conduite de l'entraînement. Rice, Wong et Kolter (2020) décrivent le robust overfitting (surapprentissage robuste), qui dégrade fortement la robustesse en fin d'adversarial training. Ils l'observent sur SVHN, CIFAR-10, CIFAR-100 et ImageNet, en norme L∞ comme en norme L2. Leur thèse va plus loin que le constat. Selon eux, un simple early stopping (arrêt précoce) égale les gains de presque toutes les améliorations algorithmiques récentes. Aucune régularisation testée isolément n'améliore significativement ce que l'early stopping apporte seul.</p><figure class='fig'><svg viewBox='0 0 640 320' role='img' aria-label='Schéma qualitatif du surapprentissage robuste : en fonction des époques, l’exactitude robuste en entraînement monte continûment, tandis que celle en test monte, culmine puis redescend ; un repère vertical marque l’arrêt précoce au pic du test. Allure d’après Rice, Wong et Kolter 2020, sans données mesurées.'><g fill='none' stroke='var(--ink,#15202E)' stroke-width='1.5'><path d='M70 260 L70 30'/><path d='M70 260 L610 260'/><path d='M64 38 L70 28 L76 38'/><path d='M600 254 L612 260 L600 266'/></g><text x='340' y='284' text-anchor='middle' font-size='13' fill='var(--ink,#15202E)'>époques</text><text x='0' y='0' transform='translate(46 145) rotate(-90)' text-anchor='middle' font-size='13' fill='var(--ink,#15202E)'>exactitude robuste</text><path d='M250 262 L250 40' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1.2' stroke-dasharray='5 4'/><text x='250' y='34' text-anchor='middle' font-size='12' fill='var(--ink-faint,#7A889B)'>arrêt précoce</text><path d='M70 236 C160 140 320 70 590 38' fill='none' stroke='var(--blue,#23537F)' stroke-width='2.5'/><path d='M70 242 C140 182 190 140 250 140 C310 140 450 165 590 182' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='2.5'/><circle cx='250' cy='140' r='4.5' fill='var(--bordeaux,#7C2A38)'/><text x='262' y='160' font-size='12' fill='var(--bordeaux,#7C2A38)'>pic du test</text><text x='586' y='30' text-anchor='end' font-size='12' fill='var(--blue,#23537F)'>entraînement : monte toujours</text><text x='586' y='202' text-anchor='end' font-size='12' fill='var(--bordeaux,#7C2A38)'>test : culmine puis se dégrade</text><path d='M500 62 L500 166' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-dasharray='2 3'/><text x='494' y='118' text-anchor='end' font-size='11' fill='var(--ink-faint,#7A889B)'>écart qui se creuse</text><text x='340' y='310' text-anchor='middle' font-size='11' font-style='italic' fill='var(--ink-faint,#7A889B)'>allure qualitative d'après Rice, Wong et Kolter (2020), pas des données mesurées</text></svg><figcaption><span class='fcap-k'></span>Surapprentissage robuste, en allure qualitative d'après Rice, Wong et Kolter (2020) et sans données mesurées : l'exactitude robuste d'entraînement monte toujours, celle de test culmine puis se dégrade, d'où l'arrêt précoce au pic.</figcaption></figure><p>Gowal et al. retrouvent le phénomène avec des ordres de grandeur concrets. Sur CIFAR-10 à ε = 8/255 et sans données supplémentaires, passer de 200 à 400 époques fait perdre 0,64 point de robustesse. Avec des données supplémentaires, passer de 400 à 800 époques en fait perdre 1,43. Ils contestent en revanche la conclusion la plus forte, puisque chez eux TRADES avec early stopping reste plus compétitif que l'adversarial training classique. La robustesse empirique a donc un prix, et ses gains publiés dépendent d'un détail aussi banal que l'époque où l'on arrête l'entraînement. Reste une question plus inquiétante : contre quelle attaque tous ces chiffres ont-ils été mesurés ?</p>",
+   "claims": [
+    "claim:16",
+    "claim:17",
+    "claim:18",
+    "claim:19"
+   ]
+  },
+  {
+   "type": "section",
+   "id": "defenses-cassees-evaluation-adaptative",
+   "heading": "La course aux défenses cassées : gradients obfusqués et attaques adaptatives",
+   "level": 3,
+   "prose": "<p>Athalye, Carlini et Wagner ont posé cette question en 2018 à toute une génération de défenses. Ils ont examiné les 9 défenses non certifiées en white-box acceptées à ICLR 2018. Sept d'entre elles reposaient sur des obfuscated gradients. Ces modèles paraissaient robustes parce que l'optimisation de l'attaquant échouait, et non parce qu'aucune perturbation adverse n'existait autour des entrées. Le masquage ne produit qu'un faux sentiment de sécurité, et un adversaire qui en connaît le mécanisme peut le contourner.</p><p>Les auteurs distinguent trois types d'obfuscation. Le premier est celui des shattered gradients (gradients brisés). Le deuxième est celui des gradients stochastiques, qui varient d'un appel à l'autre. Le troisième regroupe les exploding / vanishing gradients (gradients explosifs ou évanescents). Pour chacun, ils conçoivent une technique d'attaque qui le neutralise au lieu de le subir.</p><p>Le bilan se résume souvent en « sept défenses cassées sur neuf », ce qui force le trait. Six défenses ont été contournées complètement et une partiellement, chacune dans le threat model que revendiquait son propre article. L'adversarial training de Madry et al. a résisté à l'analyse, puisque selon Athalye et al. l'approche « does not cause obfuscated gradients ». Leurs attaques réussissent parfois contre lui, mais sans invalider les affirmations de ses auteurs. Ce verdict a lui-même été discuté par la suite. Khoury et Hadfield-Menell soutiennent que l'adversarial training brise lui aussi le champ de gradients.</p><p>Deux ans plus tard, Tramèr, Carlini, Brendel et Madry (2020) ont repris l'exercice sur 13 défenses publiées à ICLR, ICML et NeurIPS, choisies à titre illustratif. Toutes ont été contournées par une adaptive attack, construite contre le mécanisme précis de la défense visée. Leur apport tient moins au décompte qu'à la méthode, car ils exposent pas à pas comment bâtir une telle attaque. Carlini et al. avaient déjà formulé en 2019, dans « On Evaluating Adversarial Robustness », des recommandations qui vont dans le même sens : définir la menace avant toute mesure, adapter l'attaque à la défense évaluée, ne jamais s'en tenir aux attaques standard.</p><p>La règle annoncée dès l'ouverture, et qui organise toute la suite, en découle. Une robustesse ne se prouve que contre l'attaque la plus forte qui connaît la défense, jamais contre l'attaque d'hier conçue avant elle. Le signe d'alarme déjà évoqué, une attaque black-box plus efficace que l'attaque white-box, s'éclaire du même coup. Dans ce cas, c'est le gradient qui trompe l'attaquant, pas le modèle qui résiste.</p><p>La même dynamique se rejoue dans l'espace discret des jetons, où l'attaquant ne peut plus déplacer l'entrée d'un ε infinitésimal. Les adaptive attacks contre les défenses de LLM relèvent du thème consacré aux jailbreaks et à la sécurité des LLM, et l'on s'en tient ici aux entrées continues.</p><p>Restait à faire de cette exigence une pratique reproductible, au lieu d'une expertise artisanale réservée à quelques équipes. AutoAttack, un ensemble d'attaques sans paramètres détaillé plus bas, a remesuré plus de 50 modèles publiés. Sa robust accuracy (exactitude robuste) est plus basse que celle annoncée dans tous les cas sauf un ou deux (l'abstract de Croce & Hein dit « sauf un », leur introduction « sauf deux »). L'écart dépasse 10 points dans 13 cas sur 49. RobustBench en a tiré son protocole d'évaluation standard, dont il faut maintenant voir ce qu'il mesure et ce qu'il laisse ouvert.</p>",
+   "claims": [
+    "claim:20",
+    "claim:21",
+    "claim:22",
+    "claim:23"
+   ]
+  },
+  {
+   "type": "section",
+   "id": "autoattack-robustbench-protocole",
+   "heading": "AutoAttack et RobustBench : un protocole d'évaluation standard",
+   "level": 3,
+   "prose": "<p>Un protocole commun était la suite logique de la course aux défenses cassées. Tant que chaque article choisit lui-même l'attaque qui l'évalue, le chiffre publié mesure d'abord la ténacité de l'attaque que ses propres auteurs ont bien voulu lancer. AutoAttack, proposé par Croce et Hein à l'ICML 2020, retire ce choix des mains du défenseur. C'est un ensemble de quatre attaques qui s'exécutent sans aucun hyperparamètre à régler, donc sans levier laissé à celui qui publie la défense. Ni le pas, ni le nombre d'itérations, ni la fonction de perte ne se négocient plus au cas par cas.</p><p>Les deux premières composantes reprennent PGD, l'attaque itérative déjà rencontrée, en corrigeant deux de ses défaillances connues. La première tient au pas de taille fixe, souvent mal choisi pour la défense qu'on attaque. La seconde vient de la fonction objectif, la cross-entropy (entropie croisée), qui pose ses propres problèmes à l'optimiseur. APGD-CE (variante de PGD à pas adaptatif) garde la cross-entropy et règle son pas toute seule au fil des itérations. APGD-T remplace cette perte par une perte DLR (Difference of Logits Ratio) et vise une classe cible. FAB-T (Fast Adaptive Boundary), ciblée elle aussi, complète ce trio d'attaques en white-box, tandis que Square Attack, déjà rencontrée, ferme la liste comme seule composante black-box de l'ensemble. Ce mélange de familles n'a rien de décoratif, car une défense qui masquerait ses gradients gênerait les trois premières attaques sans atteindre Square, qui n'en lit aucun.</p><p>Le bilan de Croce et Hein sur plus de 50 modèles défensifs, issus de 35 articles, a déjà été évoqué. La robust accuracy mesurée y est plus basse que celle publiée dans tous les cas sauf un ou deux (l'abstract de Croce & Hein dit « sauf un », leur introduction « sauf deux »). Un détail en donne la portée : dans 8 cas, l'écart avec le chiffre annoncé dépassait 30 points. Ce décompte provient des seuls auteurs de l'étude et n'a pas été recoupé par une mesure indépendante. L'ensemble a aussi identifié plusieurs défenses purement cassées, dont la robustesse affichée reposait sur des obfuscated gradients.</p><p>Restait à rendre ces mesures comparables d'un article à l'autre, sur des modèles que chacun peut recharger. RobustBench, conçu par Croce, Andriushchenko, Sehwag, Debenedetti, Flammarion, Chiang, Mittal et Hein, joue ce rôle de référence commune. Le benchmark est paru sur arXiv en octobre 2020, puis à NeurIPS 2021 dans la piste Datasets and Benchmarks. Il applique AutoAttack comme protocole sur CIFAR-10, CIFAR-100 et ImageNet, avec deux menaces fixées une fois pour toutes. En L∞, le budget vaut ε = 8/255 sur CIFAR et descend à 4/255 sur ImageNet. En L2, il vaut ε = 0,5 et ne concerne que CIFAR-10 ; des leaderboards (classements publics) des corruptions courantes, sans ε, s'y ajoutent. L'article recense plus de 120 modèles répartis sur sept leaderboards, qui couvrent à eux tous les trois jeux de données. Une bibliothèque ouverte en met plus de 80 à disposition, ce qui permet de rejouer l'évaluation au lieu de la croire sur parole.</p><p>L'admission au leaderboard empirique obéit à trois conditions, toutes tournées contre les évaluations trompeuses. La défense doit d'abord présenter des gradients en général non nuls par rapport à l'entrée, faute de quoi une attaque par gradient n'a rien à suivre. Sa forward pass (passe avant) doit ensuite être entièrement déterministe, sans tirage aléatoire caché. Elle ne doit enfin lancer aucune boucle d'optimisation au moment de l'inférence, quelle que soit la forme de cette boucle. Ces règles écartent par construction les défenses à obfuscated gradients ou à gradients aléatoires, celles-là mêmes qu'Athalye, Carlini et Wagner avaient contournées. Elles excluent aussi des méthodes honnêtes, qui ne trichent pas mais ne rentrent pas dans le cadre. Les défenses par randomized smoothing (lissage aléatoire), aléatoires à l'inférence par principe, n'y figurent donc pas. Elles relèvent d'un autre régime de preuve, où la robustesse ne se mesure plus contre une attaque mais se démontre.</p><p>Ce protocole ne prouve rien au sens strict, et ses auteurs ne prétendent pas le contraire. AutoAttack fournit une borne supérieure empirique de la robust accuracy : une attaque future peut toujours la faire baisser. Croce et Hein comme le README de RobustBench le présentent en complément des adaptive attacks, jamais comme une attaque finale. Le leaderboard accueille d'ailleurs des évaluations adaptatives externes, en particulier quand AutoAttack signale une possible surestimation de la robustesse. Les 13 défenses contournées par Tramèr et ses coauteurs montrent pourquoi cette porte doit rester ouverte. Une batterie standard fixe un plancher d'exigence commun, elle ne remplace pas l'attaque écrite contre une défense précise. Et une borne supérieure, même solidement établie, ne dit jamais ce qu'aucune attaque ne pourra faire.</p>",
+   "claims": [
+    "claim:24",
+    "claim:25",
+    "claim:26",
+    "claim:27"
+   ]
+  },
+  {
+   "type": "widget",
+   "ref": "synopsis-cascade-autoattack"
+  },
+  {
+   "type": "section",
+   "id": "defenses-certifiees",
+   "heading": "Défenses certifiées : randomized smoothing et bornes par relaxation",
+   "level": 3,
+   "prose": "<p>Pour obtenir l'autre moitié de la réponse, il faut changer la nature de la preuve elle-même. On passe alors de « aucune attaque connue ne réussit » à « aucune attaque ne peut réussir dans ce rayon ». Une garantie de ce type ne dépend pas de l'attaquant, et ne peut donc pas tomber devant la prochaine attaque publiée. Le randomized smoothing de Cohen, Rosenfeld et Kolter, présenté à l'ICML 2019, transforme tout classifieur de base en classifieur lissé par bruit gaussien. Ce classifieur lissé renvoie la classe que le réseau de base prédit le plus souvent quand on bruite son entrée. Pour lui, les auteurs prouvent une garantie de robustesse serrée (tight) en norme L2.</p><p>Le théorème central donne le rayon certifié R = (σ/2)(Φ⁻¹(p_A) − Φ⁻¹(p_B)), où Φ⁻¹ est l'inverse de la fonction de répartition gaussienne. Ici σ est l'écart-type du bruit, et p_A la probabilité de la classe majoritaire sous ce bruit. p_B désigne celle de la deuxième classe, si bien que le rayon grandit avec l'avance de la classe majoritaire. La garantie porte sur le classifieur lissé et non sur le réseau de base, dont la robustesse n'est pas héritée. Ce réseau de base doit d'ailleurs être entraîné avec du bruit gaussien pour que le lissage serve à quelque chose.</p><p>En pratique, personne ne connaît p_A exactement, et la certification devient une affaire de statistique. L'algorithme CERTIFY l'estime par échantillonnage de Monte-Carlo, d'abord sur n0 tirages puis sur n tirages de l'ordre de 100 000. Une borne inférieure de Clopper-Pearson encadre p_A, avec un seuil α typiquement fixé à 0,001. Quand cette borne ne suffit pas à conclure avec la confiance voulue, le classifieur s'abstient au lieu de répondre. La garantie n'est donc vraie qu'avec une probabilité d'au moins 1 − α, et jamais avec certitude. Avec α = 0,001, CERTIFY a au plus 0,1 % de chances de certifier à tort une entrée qui n'est pas robuste.</p><p>Sur ImageNet, la méthode atteint 49 % d'exactitude top-1 certifiée pour des perturbations L2 de norme inférieure à 0,5, soit 127/255. Le chiffre est mesuré sur un sous-échantillon de 500 images du jeu de test d'ImageNet. En 2019, l'article affirmait qu'aucune autre défense certifiée n'avait été montrée praticable à cette échelle. Ce 49 % se lit pourtant souvent comme une garantie absolue, valable pour toute perturbation et quelle que soit la norme. Il désigne en réalité la part des images que le classifieur lissé classe correctement, sans s'abstenir, et certifie dans la boule L2 de rayon 0,5. Cette certification tient avec une probabilité d'au moins 1 − α, et ne dit rien d'un rayon plus grand ni de la norme L∞. L'article le dit lui-même : la garantie serrée est, par construction, une boule L2 ; il suggère seulement que d'autres distributions de bruit pourraient certifier d'autres normes. Sur la dimension, il soutient même l'inverse de l'intuition : en haute résolution, on peut lisser avec un σ plus grand et certifier des rayons L2 plus grands.</p><p>Une seconde famille certifie sans bruit, en bornant ce que le réseau peut produire sur toute la région de perturbation autorisée. IBP (Interval Bound Propagation), proposée par Gowal et al. en 2018, propage simplement un intervalle couche par couche. Cette borne coûte peu, mais elle reste lâche sur un réseau quelconque entraîné sans elle. Elle ne devient serrée que si la perte et le calendrier d'hyperparamètres de l'entraînement adaptent le réseau à cette borne. IBP a ainsi produit les premiers résultats vérifiés non vides sur une version réduite d'ImageNet. CROWN (méthode de certification par relaxation linéaire), de Zhang, Weng, Chen, Hsieh et Daniel à NeurIPS 2018, s'étend à des fonctions d'activation générales. Elle donne des bornes plus serrées qu'IBP, au prix d'un calcul nettement plus coûteux. CROWN-IBP combine les deux pour l'entraînement, et son implémentation est publique. La vérification formelle des réseaux quantifiés, les QNN (Quantized Neural Networks), relève quant à elle du thème consacré à la quantization.</p><p>Toutes ces garanties partagent une même forme : elles portent sur une boule de norme fixée autour de l'entrée. Une image dégradée par le brouillard, le flou ou un capteur bruité n'a aucune raison de tomber dans une telle boule.</p>",
+   "claims": [
+    "claim:28",
+    "claim:29",
+    "claim:30",
+    "claim:31"
+   ]
+  },
+  {
+   "type": "widget",
+   "ref": "probe-rayon-certifie-lissage"
+  },
+  {
+   "type": "section",
+   "id": "corruptions-naturelles",
+   "heading": "Robustesse aux corruptions naturelles : un problème distinct",
+   "level": 3,
+   "prose": "<p>Ces dégradations-là ne cherchent rien, et c'est précisément ce qui les sépare d'une attaque. Une attaque L∞ ou L2 calcule le pire cas, borné en norme, contre un modèle précis dont elle exploite les gradients. Une corruption courante est une transformation fixe, indépendante du modèle, qui ne vise aucun de ses gradients. Hendrycks et Dietterich ont donné à ce second problème son banc d'essai, présenté à l'ICLR 2019. ImageNet-C applique des corruptions courantes à ImageNet, avec des niveaux de sévérité standardisés pour chacune. ImageNet-P l'accompagne pour les perturbations, et les deux servent à mesurer la robustesse hors de toute attaque adverse.</p><p>Leur premier constat déplace la question du progrès en vision : entre AlexNet et ResNet, la clean accuracy a fortement progressé, mais la robustesse relative aux corruptions n'a presque pas bougé. La mesure qui porte ce constat est la mCE relative (Relative mean Corruption Error) : elle rapporte la chute d'exactitude sous corruption à celle d'AlexNet, qui vaut 100 % par construction. Un ResNet-50 y obtient 105,0 % — alors que sa mCE simple, l'erreur brute moyenne, tombe à 76,7 % —, chiffre que seuls Hendrycks et Dietterich rapportent. Une re-mesure d'Orhan, en 2019, donne 91,1 pour un ResNeXt-101 32x8d entraîné normalement sur ImageNet. Les gains de clean accuracy ne se sont donc pas traduits par un gain équivalent face aux corruptions.</p><p>On pourrait croire qu'un réseau entraîné par adversarial training devient robuste « à tout », corruptions naturelles comprises. Hendrycks et Dietterich notent bien qu'une défense adverse, l'Adversarial Logit Pairing, pourtant contournée, apporte un bénéfice inattendu face aux corruptions. Ce bénéfice reste pourtant partiel, et rien ne permet de l'attendre d'un modèle à l'autre comme une propriété acquise. Yin et ses coauteurs l'ont montré à NeurIPS 2019, en analysant la robustesse dans le domaine de Fourier. L'augmentation par bruit gaussien et l'adversarial training améliorent la robustesse au bruit et à une partie des flous, sur CIFAR-10-C comme sur ImageNet-C. Les mêmes procédures dégradent en revanche nettement la robustesse au brouillard et au contraste. Au contraste le plus sévère de CIFAR-10-C, l'exactitude tombe de 85,66 % à 55,29 % après adversarial training (chiffre de Yin et al., source unique). Le mécanisme avancé est un biais du modèle vers les basses fréquences de l'image. Il résiste mieux aux corruptions de haute fréquence, et moins bien à celles qui vivent dans les basses. Kireev, Andriushchenko et Flammarion retrouvent la même asymétrie sur CIFAR-10-C, où brouillard et contraste se dégradent pour toutes les méthodes testées, adversarial training L2 compris.</p><figure class='fig'><svg viewBox='0 0 640 356' role='img' aria-label='Deux colonnes sur un axe de fréquence : à gauche, corruptions de basse fréquence (brouillard, contraste), flèche vers le bas, la robustesse se dégrade après adversarial training ou augmentation gaussienne ; à droite, corruptions de haute fréquence (bruit, une partie des flous), flèche vers le haut, la robustesse s’améliore. Seul chiffre : contraste le plus sévère de CIFAR-10-C, 85,66 % puis 55,29 %, source unique.'><text x='320' y='22' text-anchor='middle' font-size='13' font-weight='600' fill='var(--ink,#15202E)'>Après adversarial training ou augmentation par bruit gaussien</text><rect x='30' y='38' width='280' height='232' rx='8' fill='var(--bordeaux,#7C2A38)' fill-opacity='0.07' stroke='var(--bordeaux,#7C2A38)' stroke-opacity='0.45'/><rect x='330' y='38' width='280' height='232' rx='8' fill='var(--blue,#23537F)' fill-opacity='0.07' stroke='var(--blue,#23537F)' stroke-opacity='0.45'/><text x='170' y='62' text-anchor='middle' font-size='13' font-weight='700' fill='var(--bordeaux,#7C2A38)'>Basses fréquences</text><text x='170' y='82' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)'>brouillard · contraste</text><line x1='170' y1='100' x2='170' y2='168' stroke='var(--bordeaux,#7C2A38)' stroke-width='6' stroke-linecap='round'/><polygon points='154,166 186,166 170,190' fill='var(--bordeaux,#7C2A38)'/><text x='170' y='210' text-anchor='middle' font-size='13' font-weight='600' fill='var(--bordeaux,#7C2A38)'>robustesse dégradée</text><text x='170' y='228' text-anchor='middle' font-size='11.5' fill='var(--ink,#15202E)'>contraste le plus sévère, CIFAR-10-C</text><text x='170' y='246' text-anchor='middle' font-size='12' font-weight='600' fill='var(--ink,#15202E)'>85,66 % → 55,29 %</text><text x='170' y='262' text-anchor='middle' font-size='11' font-style='italic' fill='var(--ink-faint,#7A889B)'>Yin et al., source unique</text><text x='470' y='62' text-anchor='middle' font-size='13' font-weight='700' fill='var(--blue,#23537F)'>Hautes fréquences</text><text x='470' y='82' text-anchor='middle' font-size='12' fill='var(--ink,#15202E)'>bruit · une partie des flous</text><line x1='470' y1='190' x2='470' y2='122' stroke='var(--blue,#23537F)' stroke-width='6' stroke-linecap='round'/><polygon points='454,124 486,124 470,100' fill='var(--blue,#23537F)'/><text x='470' y='210' text-anchor='middle' font-size='13' font-weight='600' fill='var(--blue,#23537F)'>robustesse améliorée</text><text x='470' y='230' text-anchor='middle' font-size='11.5' fill='var(--ink,#15202E)'>sur CIFAR-10-C comme sur ImageNet-C</text><line x1='30' y1='284' x2='602' y2='284' stroke='var(--ink-faint,#7A889B)' stroke-width='1.5'/><polygon points='600,279 612,284 600,289' fill='var(--ink-faint,#7A889B)'/><text x='30' y='302' font-size='11.5' fill='var(--ink-faint,#7A889B)'>basse</text><text x='610' y='302' text-anchor='end' font-size='11.5' fill='var(--ink-faint,#7A889B)'>haute</text><text x='320' y='302' text-anchor='middle' font-size='11.5' fill='var(--ink-faint,#7A889B)'>fréquence de la corruption (domaine de Fourier)</text><text x='320' y='326' text-anchor='middle' font-size='11.5' font-style='italic' fill='var(--ink,#15202E)'>Mécanisme avancé : un biais du modèle vers les basses fréquences</text><text x='320' y='343' text-anchor='middle' font-size='11.5' font-style='italic' fill='var(--ink,#15202E)'>(Yin et al., NeurIPS 2019), asymétrie retrouvée par Kireev et al.</text></svg><figcaption><span class='fcap-k'></span>L’adversarial training et l’augmentation gaussienne améliorent la robustesse aux corruptions de haute fréquence (bruit, une partie des flous) et la dégradent pour les basses (brouillard, contraste), signe d’un biais du modèle vers les basses fréquences.</figcaption></figure><p>Les corruptions synthétiques ont elles-mêmes une limite de réalisme, que les jeux récents cherchent à réduire. 3D Common Corruptions, de Kar, Yeo, Atanov et Zamir (CVPR 2022), intègre la géométrie de la scène dans ses transformations. La profondeur y est estimée par MiDaS, un estimateur de profondeur, pour ImageNet et pour COCO. Ces transformations visent à se rapprocher des corruptions réelles et exposent des vulnérabilités de modèles existants. Elles servent aussi d'augmentation de données à l'entraînement, et jouent donc le rôle de remède autant que celui de test.</p><p>RobustBench inscrit cette distinction dans sa structure même, en séparant les leaderboards. Les corruptions courantes y ont des leaderboards distincts de ceux des menaces L∞ et L2 évaluées par AutoAttack. Ils sont trois, notés par l'exactitude moyenne sous corruption (des valeurs de mCE pour ImageNet ne figurent que dans le README) : CIFAR-10-C, CIFAR-100-C, puis ImageNet-C et ImageNet-3DCC (la version ImageNet de 3D Common Corruptions) réunis sur un même tableau. Avec les quatre leaderboards Lp (L∞ et L2 sur CIFAR-10, L∞ sur CIFAR-100 et sur ImageNet), on obtient sept leaderboards en octobre 2026. Le benchmark traite les corruptions comme un threat model parmi d'autres. Il justifie l'ajout d'ImageNet-3DCC par des corruptions plus réalistes, et parce qu'il permet de juger si des modèles ont pu sur-ajuster ImageNet-C.</p><p>Robustesse au pire cas et robustesse aux corruptions sont donc deux garanties qui ne se déduisent pas l'une de l'autre. Le biais fréquentiel qu'induit l'adversarial training laisse pourtant une question de fond : qu'apprend au juste un réseau standard, pour qu'une perturbation invisible suffise à le tromper ?</p>",
+   "claims": [
+    "claim:32",
+    "claim:33",
+    "claim:34",
+    "claim:35"
+   ]
+  },
+  {
+   "type": "section",
+   "id": "debat-non-robust-features",
+   "heading": "Le débat des « non-robust features » : bug du modèle ou propriété des données ?",
+   "level": 3,
+   "prose": "<p>À cette question, la réponse la plus discutée tient dans un titre en forme de manifeste. En mai 2019, Ilyas, Santurkar, Tsipras, Engstrom, Tran et Madry publient sur arXiv « Adversarial Examples Are Not Bugs, They Are Features ». Leur thèse attribue les exemples adverses à des non-robust features (features non robustes). Ce sont des motifs de la distribution des données, très prédictifs mais fragiles et incompréhensibles pour l'humain. La vulnérabilité cesse alors d'être un défaut d'entraînement du modèle. Elle devient la conséquence d'un réseau qui exploite fidèlement des corrélations réelles que l'œil ne perçoit pas.</p><p>« Incompréhensible pour l'humain » ne veut pas dire « bruit ». Ces features restent prédictives en généralisation, sur des données propres que le modèle n'a jamais vues. C'est là que la thèse se sépare de l'explication par bug ou par overfitting. Un réseau qui sur-ajuste retient des accidents de son jeu d'entraînement. Celui que décrivent Ilyas et al. est « correct » au sens de la généralisation, et la perturbation adverse agit sur un signal qu'il a eu raison d'apprendre.</p><p>L'article avance en trois temps, que son abstract annonce. Il propose d'abord un cadre théorique qui capture ces features. Il établit ensuite leur présence répandue dans les jeux de données standard. Il construit enfin un cadre simple, où le phénomène se rattache rigoureusement à un désalignement. Ce désalignement oppose la notion de robustesse spécifiée par l'humain à la géométrie propre des données.</p><p>Selon cette lecture, la thèse éclaire aussi ce qui intriguait depuis l'ouverture. Si les features fragiles appartiennent aux données, deux modèles entraînés sur la même distribution ont de bonnes raisons de les apprendre l'un et l'autre. La transferability cesse alors d'être une coïncidence. L'accuracy–robustness trade-off s'éclaire de la même façon. Tsipras et al. avaient montré que la robustesse peut s'opposer à l'exactitude, et que les features robustes apprises diffèrent des features standard. Priver un modèle de features prédictives, même fragiles, lui coûte de la clean accuracy. Les deux résultats se lisent ensemble sans se contredire.</p><p>Le débat s'est tenu en public, dans une discussion publiée par Distill la même année. Six commentaires y répondent à l'article, suivis d'une réponse des auteurs. Gilmer et Hendrycks rattachent les non-robust features à des corrélations superficielles. Ils élargissent la question à la robustesse aux changements de distribution, ce qui rejoint ImageNet-C, et à l'analyse fréquentielle. Goh signe deux notes. Dans « Robust Feature Leakage », il cherche d'autres mécanismes capables d'expliquer le transfert de non-robustesse. Il établit une borne inférieure pour l'expérience D<sub>rand</sub>, mais ne trouve pas d'effet sur D<sub>det</sub>. Sa seconde note analyse ce que sont des features utiles non robustes dans des modèles linéaires. Wallace montre qu'un entraînement sur des données mal étiquetées transfère comme les exemples non robustes. Le phénomène déborde alors l'adversarial pour toucher l'apprentissage de tout signal dépourvu de sens humain. Nakano appuie au contraire la thèse : les features de modèles robustes donnent de meilleurs transferts de style, signe qu'elles s'alignent mieux sur la perception humaine.</p><p>La contestation la plus directe vient de Nakkiran, sous un titre qui répond au premier : « Adversarial Examples are Just Bugs, Too ». Il construit des exemples adverses qui ne se transfèrent presque pas d'un modèle à l'autre. Ses propres mesures, que rien d'autre ne corrobore, donnent, pour des attaques ciblées L∞, un transfert de 0,8 % vers un ResNet-18 réentraîné, contre 52,1 % pour PGD (1,7 % contre 82,5 % en L2). Or un exemple qui ne transfère pas n'exploite pas une feature utile que les modèles partageraient. Nakkiran ajoute un jeu synthétique dépourvu de toute feature non robuste. L'entraînement standard y produit pourtant un classifieur vulnérable. Une partie au moins du phénomène relève donc du bug, sans feature utile derrière.</p><p>Une idée reçue veut que l'article d'Ilyas et al. ait tranché le débat et prouvé que tout exemple adverse est une feature. Son abstract ne revendique pourtant le lien rigoureux que dans « a simple setting ». Les réponses, celle de Nakkiran en tête, montrent qu'une part du phénomène peut se passer de feature utile. La lecture prudente admet deux mécanismes qui coexistent, dont le partage reste ouvert. Le versant interne de la question relève de l'interprétabilité mécaniste. Superposition et vulnérabilité adverse y sont étudiées dans un modèle jouet par Elhage et al. (« Toy Models of Superposition »), et le détail reste de ce côté de la frontière.</p><p>Pour l'ingénieur, la conséquence est pratique. Si une partie des exemples adverses exploite des features réellement prédictives, aucune correction du modèle ne les fera disparaître gratuitement. Défendre revient alors à renoncer à une part du signal, ou à changer la définition même de la robustesse. Le min-max de Madry et al. organise ce renoncement, et TRADES en formalise le prix. L'énigme d'ouverture et la difficulté de la défense ont ainsi la même racine. C'est pourquoi une robustesse ne se proclame pas : elle se mesure contre l'attaque la plus forte, avec des outils que chacun peut rejouer.</p>",
+   "claims": [
+    "claim:36",
+    "claim:37",
+    "claim:38",
+    "claim:39"
+   ]
+  },
+  {
+   "type": "section",
+   "id": "ecosysteme",
+   "heading": "Écosystème & pour aller plus loin",
+   "level": 3,
+   "prose": "<p>Ces outils sont ouverts, et rejouer une évaluation publiée ne demande que quelques lignes de Python. Le dépôt d'AutoAttack accompagne l'article de Croce et Hein, « Reliable evaluation of adversarial robustness with an ensemble of diverse parameter-free attacks » (ICML 2020, arXiv 2003.01690). Sa version standard enchaîne quatre attaques sans aucun réglage d'hyperparamètres. APGD-CE ouvre la série, non ciblé et sans redémarrage. APGD-T et FAB-T suivent, chacun contre neuf classes cibles. Square Attack ferme la marche avec un budget de 5000 requêtes. L'appel se résume à <code>AutoAttack(model, norm='Linf', eps=8/255, version='standard')</code>, suivi de <code>run_standard_evaluation(x, y, bs=...)</code>. Les normes Linf, L2 et L1 sont prises en charge.</p><p>RobustBench adopte cette version comme évaluation standard. La fonction <code>load_model(model_name='Carmon2019Unlabeled', dataset='cifar10', threat_model='Linf')</code> charge un modèle du leaderboard, consultable sur robustbench.github.io. Les corruptions courantes y ont leurs propres leaderboards, sur CIFAR-10-C, CIFAR-100-C, et ImageNet-C avec ImageNet-3DCC. Un score lu sur ce site n'est pourtant pas une garantie de robustesse. Comme on l'a vu, le leaderboard n'admet que des défenses à gradients d'entrée non nuls, à forward pass déterministe et sans boucle d'optimisation à l'inférence. Les défenses randomisées et celles à obfuscated gradients en sont exclues, ce qui ne revient pas à les valider. Le README accueille en outre des évaluations adaptatives complémentaires lorsque AutoAttack peut surestimer la robustesse. Le protocole reste une borne supérieure, en attente de l'attaque suivante.</p><p>Adversarial Robustness Toolbox (ART) élargit le champ au-delà des seules perturbations d'entrée. C'est une bibliothèque Python de sécurité du ML, hébergée par la Linux Foundation AI &amp; Data et publiée sous licence MIT. Le projet se décrit comme couvrant quatre familles de menaces : evasion (évasion), poisoning (empoisonnement), extraction et inference (inférence). Cette description vient de son propre README, seule source possible par nature. ART prend en charge TensorFlow, Keras, PyTorch, scikit-learn, XGBoost, LightGBM et CatBoost. Elle traite des images, des tables, de l'audio et de la vidéo.</p><p>Foolbox en est à sa troisième version. Foolbox 3, sous licence MIT, a été réécrite sur EagerPy. Grâce à cette couche, une seule base de code tourne nativement sur PyTorch, TensorFlow et JAX. La bibliothèque propose des attaques par gradient comme des decision-based attacks. Elle se cite par deux articles : l'atelier ICML 2017 « Foolbox: A Python toolbox to benchmark the robustness of machine learning models », puis l'article JOSS 2020 « Foolbox Native ».</p><p>Pour remonter le fil, les lectures fondatrices suivent l'ordre de l'arc. Szegedy et al. (2013) posent le phénomène, que Goodfellow et al. (2014) expliquent par la linéarité. Madry et al. (2017, arXiv 1706.06083) fixent PGD et le min-max. Avec Eykholt et al. (CVPR 2018), l'attaque quitte l'écran pour un vrai panneau. Le prix de la défense empirique se lit chez Zhang et al. (TRADES, ICML 2019), sa fragilité chez Rice, Wong et Kolter (2020). La chute des défenses se suit chez Athalye, Carlini et Wagner (2018), puis chez Tramèr, Carlini, Brendel et Madry (2020). Carlini et al. (2019) en tirent une méthode dans « On Evaluating Adversarial Robustness ». Croce et Hein (ICML 2020), puis Croce et al. (NeurIPS 2021), instituent le protocole. La voie certifiée part de Cohen, Rosenfeld et Kolter (ICML 2019), avec IBP (Gowal et al., 2018) et CROWN (Zhang et al., NeurIPS 2018) pour les bornes. Hendrycks et Dietterich (ICLR 2019) isolent les corruptions naturelles. Ilyas et al. (2019) et la discussion Distill qui leur répond referment la boucle.</p><p>Plusieurs thèmes voisins prolongent ces lectures sans les recouvrir. Le récit historique de Szegedy et de FGSM appartient à la monographie sur les réseaux convolutifs, point de départ de celle-ci. Les attaques sur le texte discret et les adaptive attacks contre les défenses de LLM relèvent du thème consacré aux jailbreaks et à la sécurité des LLM. La vérification formelle des QNN se lit dans celui sur la quantization. La superposition et la vulnérabilité adverse du modèle jouet appartiennent à l'interprétabilité mécaniste. Les generative adversarial networks, enfin, ne partagent avec ce sujet qu'un adjectif.</p>",
+   "claims": [
+    "claim:40",
+    "claim:41",
+    "claim:42",
+    "claim:43"
+   ]
+  },
+  {
+   "type": "exercise",
+   "part": "Évaluer une défense",
+   "question": "<p>Un article annonce une nouvelle défense non certifiée, évaluée contre FGSM et PGD, avec une exactitude robuste élevée sur CIFAR-10. Pourquoi ce chiffre ne suffit-il pas, que faut-il lui opposer, et que vaudra alors le résultat obtenu ?</p>",
+   "answer": "<p>L'histoire du domaine montre que ce type de chiffre surestime souvent la robustesse : Athalye, Carlini et Wagner (2018) ont établi que 7 des 9 défenses non certifiées en boîte blanche d'ICLR 2018 reposaient sur des gradients obfusqués, et leurs attaques en ont contourné 6 complètement et 1 partiellement, et Tramèr et al. (2020) ont contourné 13 défenses publiées par des attaques adaptatives. Il faut donc d'abord passer la défense à AutoAttack (APGD-CE, APGD-DLR ciblé, FAB ciblé, Square), qui, sur plus de 50 modèles, a donné une exactitude robuste plus basse que celle publiée dans tous les cas sauf un ou deux. Un indice d'alerte : si Square, attaque en boîte noire, fait mieux que les attaques à gradient, c'est un symptôme de masquage de gradient. Le résultat reste une borne supérieure empirique de l'exactitude robuste, pas une preuve, et ne dispense pas d'une attaque adaptative conçue contre la défense elle-même.</p>"
+  },
+  {
+   "type": "exercise",
+   "part": "Lire une garantie certifiée",
+   "question": "<p>Cohen et al. (2019) rapportent 49 % d'exactitude top-1 certifiée sur ImageNet par randomized smoothing. Que garantit exactement ce chiffre, et que ne garantit-il pas ?</p>",
+   "answer": "<p>C'est la part des images de test que le classifieur <em>lissé</em> par bruit gaussien classe correctement, sans s'abstenir, et certifie robuste contre toute perturbation de norme L2 inférieure à 0,5 (soit 127/255). La garantie est probabiliste : elle tient avec une probabilité d'au moins 1 − α (typiquement α = 0,001, sur un échantillonnage de Monte-Carlo). Elle porte sur le classifieur lissé, pas sur le réseau de base, et ne dit rien au-delà de ce rayon ni pour d'autres normes comme L∞. Ce n'est donc pas « 49 % des images inattaquables par toute perturbation ».</p>"
+  },
+  {
+   "type": "biblio",
+   "entries": [
+    {
+     "label": "Intriguing properties of neural networks",
+     "href": "https://arxiv.org/abs/1312.6199"
+    },
+    {
+     "label": "Delving into Transferable Adversarial Examples and Black-box Attacks",
+     "href": "https://arxiv.org/abs/1611.02770"
+    },
+    {
+     "label": "Threat of Adversarial Attacks on Deep Learning in Computer Vision: A Survey",
+     "href": "https://arxiv.org/abs/1801.00553"
+    },
+    {
+     "label": "Explaining and Harnessing Adversarial Examples",
+     "href": "https://arxiv.org/abs/1412.6572"
+    },
+    {
+     "label": "Fast is better than free: Revisiting adversarial training",
+     "href": "https://arxiv.org/abs/2001.03994"
+    },
+    {
+     "label": "Towards Deep Learning Models Resistant to Adversarial Attacks",
+     "href": "https://arxiv.org/abs/1706.06083"
+    },
+    {
+     "label": "Towards Evaluating the Robustness of Neural Networks",
+     "href": "https://arxiv.org/abs/1608.04644"
+    },
+    {
+     "label": "Obfuscated Gradients Give a False Sense of Security (Athalye, Carlini, Wagner)",
+     "href": "https://arxiv.org/abs/1802.00420"
+    },
+    {
+     "label": "Practical Black-Box Attacks against Machine Learning",
+     "href": "https://arxiv.org/abs/1602.02697"
+    },
+    {
+     "label": "A Review of Adversarial Attacks in Computer Vision (Zhang Y., Li Y., Li Y., Guo Z., Zhang D.)",
+     "href": "https://arxiv.org/abs/2308.07673"
+    },
+    {
+     "label": "Black-box Adversarial Attacks with Limited Queries and Information (Ilyas, Engstrom, Athalye, Lin)",
+     "href": "https://arxiv.org/abs/1804.08598"
+    },
+    {
+     "label": "Decision-Based Adversarial Attacks: Reliable Attacks Against Black-Box Machine Learning Models",
+     "href": "https://arxiv.org/abs/1712.04248"
+    },
+    {
+     "label": "HopSkipJumpAttack: A Query-Efficient Decision-Based Attack (Chen, Jordan, Wainwright)",
+     "href": "https://arxiv.org/abs/1904.02144"
+    },
+    {
+     "label": "Square Attack: a query-efficient black-box adversarial attack via random search (Andriushchenko et al.)",
+     "href": "https://arxiv.org/abs/1912.00049"
+    },
+    {
+     "label": "fra31/auto-attack repository README",
+     "href": "https://github.com/fra31/auto-attack"
+    },
+    {
+     "label": "Robust Physical-World Attacks on Deep Learning Visual Classification (Eykholt et al., CVPR 2018)",
+     "href": "https://arxiv.org/abs/1707.08945"
+    },
+    {
+     "label": "Adversarial Attacks on Traffic Sign Recognition: A Survey (Pavlitska, Lambing, Zöllner)",
+     "href": "https://arxiv.org/abs/2307.08278"
+    },
+    {
+     "label": "Physical Adversarial Attacks For Camera-based Smart Systems: Current Trends, Categorization, Applications, Research Challenges, and Future Outlook (Guesmi, Hanif, Ouni, Shafique)",
+     "href": "https://arxiv.org/abs/2308.06173"
+    },
+    {
+     "label": "Accessorize to a Crime: Real and Stealthy Attacks on State-of-the-Art Face Recognition (Sharif, Bhagavatula, Bauer, Reiter, CCS 2016)",
+     "href": "http://users.umiacs.umd.edu/~tudor/courses/ENEE657/Fall17/papers/Sharif16.pdf"
+    },
+    {
+     "label": "Physical Adversarial Examples for Object Detectors (Eykholt et al., USENIX WOOT 2018)",
+     "href": "https://www.usenix.org/system/files/conference/woot18/woot18-paper-eykholt.pdf"
+    },
+    {
+     "label": "Does Physical Adversarial Example Really Matter to Autonomous Driving? Towards System-Level Effect of Adversarial Object Evasion Attack (Wang, Luo, Sato, Xu, Chen)",
+     "href": "https://arxiv.org/abs/2308.11894"
+    },
+    {
+     "label": "Theoretically Principled Trade-off between Robustness and Accuracy",
+     "href": "https://arxiv.org/abs/1901.08573"
+    },
+    {
+     "label": "Opportunities and Challenges in Deep Learning Adversarial Robustness: A Survey",
+     "href": "https://arxiv.org/abs/2007.00753"
+    },
+    {
+     "label": "Adversarial Attacks are Reversible with Natural Supervision",
+     "href": "https://arxiv.org/abs/2103.14222"
+    },
+    {
+     "label": "Adversarial Vision Challenge",
+     "href": "https://mediatum.ub.tum.de/doc/1533680/document.pdf"
+    },
+    {
+     "label": "Overfitting in adversarially robust deep learning",
+     "href": "https://arxiv.org/abs/2002.11569"
+    },
+    {
+     "label": "Uncovering the Limits of Adversarial Training against Norm-Bounded Adversarial Examples",
+     "href": "https://arxiv.org/abs/2010.03593"
+    },
+    {
+     "label": "Robustness May Be at Odds with Accuracy (Tsipras et al.)",
+     "href": "https://arxiv.org/abs/1805.12152"
+    },
+    {
+     "label": "On the Geometry of Adversarial Examples",
+     "href": "https://arxiv.org/abs/1811.00525"
+    },
+    {
+     "label": "On Adaptive Attacks to Adversarial Example Defenses",
+     "href": "https://arxiv.org/abs/2002.08347"
+    },
+    {
+     "label": "Advances in adversarial attacks and defenses in computer vision: A survey",
+     "href": "https://arxiv.org/abs/2108.00401"
+    },
+    {
+     "label": "Reliable evaluation of adversarial robustness with an ensemble of diverse parameter-free attacks",
+     "href": "https://arxiv.org/abs/2003.01690"
+    },
+    {
+     "label": "RobustBench: a standardized adversarial robustness benchmark",
+     "href": "https://arxiv.org/abs/2010.09670"
+    },
+    {
+     "label": "Interpolated Adversarial Training: Achieving robust neural networks without sacrificing too much accuracy",
+     "href": "https://arxiv.org/abs/1906.06784"
+    },
+    {
+     "label": "Adversarial Concurrent Training: Optimizing Robustness and Accuracy Trade-off of Deep Neural Networks",
+     "href": "https://arxiv.org/abs/2008.07015"
+    },
+    {
+     "label": "Reliable Robustness Evaluation via Automatically Constructed Attack Ensembles",
+     "href": "https://ojs.aaai.org/index.php/AAAI/article/view/26064/25836"
+    },
+    {
+     "label": "RobustBench GitHub README",
+     "href": "https://github.com/RobustBench/robustbench"
+    },
+    {
+     "label": "Certified Adversarial Robustness via Randomized Smoothing",
+     "href": "https://arxiv.org/abs/1902.02918"
+    },
+    {
+     "label": "Provably Robust Deep Learning via Adversarially Trained Smoothed Classifiers",
+     "href": "https://arxiv.org/abs/1906.04584"
+    },
+    {
+     "label": "On the Effectiveness of Interval Bound Propagation for Training Verifiably Robust Models (Gowal et al.)",
+     "href": "https://arxiv.org/abs/1810.12715"
+    },
+    {
+     "label": "Efficient Neural Network Robustness Certification with General Activation Functions (CROWN, Zhang et al.)",
+     "href": "https://arxiv.org/abs/1811.00866"
+    },
+    {
+     "label": "A Fourier Perspective on Model Robustness in Computer Vision (Yin, Gontijo Lopes, Shlens, Cubuk, Gilmer — arXiv 1906.08988, NeurIPS 2019)",
+     "href": "https://arxiv.org/abs/1906.08988"
+    },
+    {
+     "label": "On the effectiveness of adversarial training against common corruptions (Kireev, Andriushchenko, Flammarion — arXiv 2103.02325)",
+     "href": "https://arxiv.org/abs/2103.02325"
+    },
+    {
+     "label": "RobustBench: Adversarial robustness benchmark",
+     "href": "https://robustbench.github.io/"
+    },
+    {
+     "label": "Benchmarking Neural Network Robustness to Common Corruptions and Perturbations (Hendrycks & Dietterich, ICLR 2019)",
+     "href": "https://arxiv.org/abs/1903.12261"
+    },
+    {
+     "label": "Robustness properties of Facebook's ResNeXt WSL models (Emin Orhan, arXiv 1907.07640)",
+     "href": "https://arxiv.org/abs/1907.07640"
+    },
+    {
+     "label": "Adversarial Examples Are Not Bugs, They Are Features (arXiv abstract)",
+     "href": "https://arxiv.org/abs/1905.02175"
+    },
+    {
+     "label": "Distill discussion of Adversarial Examples Are Not Bugs, They Are Features",
+     "href": "https://distill.pub/2019/advex-bugs-discussion/"
+    },
+    {
+     "label": "A Discussion of 'Adversarial Examples Are Not Bugs, They Are Features': Adversarial Examples are Just Bugs, Too (Nakkiran, Distill 2019)",
+     "href": "https://distill.pub/2019/advex-bugs-discussion/response-5/"
+    },
+    {
+     "label": "A Bayes-Optimal View on Adversarial Examples (Richardson & Weiss, arXiv 2002.08859)",
+     "href": "https://arxiv.org/abs/2002.08859"
+    },
+    {
+     "label": "Adversarial Robustness Toolbox (GitHub README)",
+     "href": "https://github.com/Trusted-AI/adversarial-robustness-toolbox"
+    },
+    {
+     "label": "Adversarial Robustness Toolbox – LFAI & Data",
+     "href": "https://lfaidata.foundation/projects/adversarial-robustness-toolbox/"
+    },
+    {
+     "label": "Attacks and Faults Injection in Self-Driving Agents on the Carla Simulator – Experience Report (Piazzesi, Hong, Ceccarelli)",
+     "href": "https://arxiv.org/abs/2202.12991"
+    },
+    {
+     "label": "Adversarial Robustness Toolbox (ART) - OECD.AI",
+     "href": "https://oecd.ai/en/catalogue/tools/adversarial-robustness-toolbox-art"
+    },
+    {
+     "label": "bethgelab/foolbox (GitHub README)",
+     "href": "https://github.com/bethgelab/foolbox"
+    },
+    {
+     "label": "Indicators of Attack Failure: Debugging and Improving Optimization of Adversarial Examples (Pintor, Demetrio, Sotgiu, Demontis, Carlini, Biggio, Roli)",
+     "href": "https://arxiv.org/abs/2106.09947"
+    },
+    {
+     "label": "Adversarial examples in the physical world",
+     "href": "https://arxiv.org/abs/1607.02533"
+    },
+    {
+     "label": "Transferability in Machine Learning: from Phenomena to Black-Box Attacks using Adversarial Samples",
+     "href": "https://arxiv.org/abs/1605.07277"
+    },
+    {
+     "label": "ZOO: Zeroth Order Optimization based Black-box Attacks to Deep Neural Networks without Training Substitute Models",
+     "href": "https://arxiv.org/abs/1708.03999"
+    },
+    {
+     "label": "Adversarial Patch",
+     "href": "https://arxiv.org/abs/1712.09665"
+    },
+    {
+     "label": "Accessorize to a Crime — code de l'attaque (dépôt GitHub de Sharif et al.)",
+     "href": "https://github.com/mahmoods01/accessorize-to-a-crime"
+    },
+    {
+     "label": "Towards Stable and Efficient Training of Verifiably Robust Neural Networks (CROWN-IBP)",
+     "href": "https://arxiv.org/abs/1906.06316"
+    },
+    {
+     "label": "On Evaluating Adversarial Robustness",
+     "href": "https://arxiv.org/abs/1902.06705"
+    }
+   ]
+  },
+  {
+   "type": "pointers",
+   "title": "Pour aller plus loin",
+   "items": [
+    {
+     "name": "Foolbox",
+     "url": "https://github.com/bethgelab/foolbox",
+     "kind": "library",
+     "blurb": "Bibliothèque Python MIT d'attaques adverses par gradient et par décision, sur PyTorch, TensorFlow et JAX via EagerPy."
+    },
+    {
+     "name": "Square Attack (code officiel)",
+     "url": "https://github.com/max-andr/square-attack",
+     "kind": "implementation",
+     "blurb": "Implémentation de référence (ECCV 2020) de Square Attack, attaque par score en boîte noire L2 et Linf fondée sur la recherche aléatoire."
+    },
+    {
+     "name": "AutoAttack",
+     "url": "https://github.com/fra31/auto-attack",
+     "kind": "tool",
+     "blurb": "Ensemble de quatre attaques sans paramètres (APGD-CE, APGD-DLR, FAB, Square) de Croce et Hein pour évaluer la robustesse, ICML 2020."
+    },
+    {
+     "name": "RobustBench",
+     "url": "https://github.com/RobustBench/robustbench",
+     "kind": "library",
+     "blurb": "Benchmark standardisé de robustesse adverse fondé sur AutoAttack, avec load_model pour charger les modèles du Model Zoo."
+    },
+    {
+     "name": "RobustBench leaderboard",
+     "url": "https://robustbench.github.io",
+     "kind": "tool",
+     "blurb": "Classements publics de modèles robustes par menace (Linf, L2, corruptions) sur CIFAR-10, CIFAR-100 et ImageNet."
+    },
+    {
+     "name": "Adversarial Robustness Toolbox (ART)",
+     "url": "https://github.com/Trusted-AI/adversarial-robustness-toolbox",
+     "kind": "library",
+     "blurb": "Bibliothèque MIT hébergée par la LF AI & Data couvrant evasion, poisoning, extraction et inference."
+    },
+    {
+     "name": "Szegedy et al. 2013, Intriguing properties of neural networks",
+     "url": "https://arxiv.org/abs/1312.6199",
+     "kind": "reading",
+     "blurb": "Papier fondateur du phénomène des exemples adverses."
+    },
+    {
+     "name": "Goodfellow et al. 2014, Explaining and Harnessing Adversarial Examples",
+     "url": "https://arxiv.org/abs/1412.6572",
+     "kind": "reading",
+     "blurb": "Attribue la vulnérabilité à la linéarité des réseaux et introduit FGSM."
+    },
+    {
+     "name": "Carlini & Wagner 2017, Towards Evaluating the Robustness of Neural Networks",
+     "url": "https://arxiv.org/abs/1608.04644",
+     "kind": "reading",
+     "blurb": "Attaques par optimisation montrant que la distillation défensive protège moins qu'annoncé."
+    },
+    {
+     "name": "Madry et al. 2018, Towards Deep Learning Models Resistant to Adversarial Attacks",
+     "url": "https://arxiv.org/abs/1706.06083",
+     "kind": "reading",
+     "blurb": "Formule l'entraînement adverse comme optimisation robuste min-max avec PGD (ICLR 2018)."
+    },
+    {
+     "name": "Athalye, Carlini & Wagner 2018, Obfuscated Gradients Give a False Sense of Security",
+     "url": "https://arxiv.org/abs/1802.00420",
+     "kind": "reading",
+     "blurb": "Identifie les gradients obfusqués et montre comment contourner les défenses concernées (ICML 2018)."
+    },
+    {
+     "name": "Croce & Hein 2020, Reliable evaluation of adversarial robustness",
+     "url": "https://arxiv.org/abs/2003.01690",
+     "kind": "reading",
+     "blurb": "Article d'AutoAttack : ensemble d'attaques diverses sans paramètres pour une évaluation fiable (ICML 2020)."
+    }
+   ]
+  },
+  {
+   "type": "glossary"
+  }
+ ]
+}
