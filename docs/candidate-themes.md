@@ -1327,7 +1327,10 @@ ablation + obliteration.
 > garde l'outillage (SAE, steering, probing — citer Rogue Scalpel et Goodfire sans les refaire) ;
 > `model-editing-unlearning` garde l'oubli voulu et la récupération du savoir désappris (même
 > motif « masquer ≠ effacer », le dire) ; `rlhf-dpo` garde la mécanique de l'alignement lui-même ;
-> `lora` garde la mécanique des adaptateurs. ⚠️ Sujet à double usage : décrire mécanismes et
+> `lora` garde la mécanique des adaptateurs ; `continual-learning-catastrophic-forgetting` (FAIT
+> le 2026-10-03, sections « oubli au fine-tuning » et « alignment tax » lues) garde l'oubli des
+> CAPACITÉS sous l'alignement — ce thème-ci traite le sens inverse, l'alignement perdu sous le
+> fine-tuning ; le dire en contrepoint. ⚠️ Sujet à double usage : décrire mécanismes et
 > mesures publiés, sans recette opératoire. Domaine : llm-agents-generation (voisin de
 > llm-safety-jailbreaks), à trancher par /arrange contre deep-learning-foundations.
 
