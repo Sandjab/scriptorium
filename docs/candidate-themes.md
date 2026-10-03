@@ -1011,7 +1011,18 @@ mais pour des QNN vérifiées par ILP. PGD, randomized smoothing, ImageNet-C, Il
 > formelle des QNN ; `mechanistic-interpretability` garde les SAE manipulables. Domaine :
 > deep-learning-foundations.
 
-### Apprentissage continu et oubli catastrophique — `continual-learning-catastrophic-forgetting` → `deep-learning-foundations`
+### ✅ FAIT — Apprentissage continu et oubli catastrophique — `continual-learning-catastrophic-forgetting` → `deep-learning-foundations`
+(**FAIT le 2026-10-03**, 73e run `/leanmonograph`, retiré du backlog. Gap re-vérifié par lecture avant lancement :
+`model-editing-unlearning` (71e) se délimite de l'oubli catastrophique sans le traiter. 11 sections sur 11, 43 claims
+(30 confirmés / 12 corrigés / 1 rejeté), 45 sources, 3 widgets + 2 figures ; **≈ 7,5 M tok de workflow** (4,16 premier
+lancement + 3,38 reprise) + ré-audit 4 agents + backstop 3 agents. **23e arrêt d'élagage : 34 rejets sur 43**, tous
+`search_exhausted=false` → ré-audit : 15 réparés / 6 regrainés / 11 corrigés / 1 document-source, 1 rejet maintenu
+(Llama-3-SynE, rapport technique mono-source, gardé en prose avec réserve) ; Hsu et al. (arXiv 1810.12488) sert de
+re-mesure indépendante de van de Ven & Tolias. Un loader de reprise refusé par les garde-fous de l'API, rattrapé par
+le retry. Backstop 3 agents : 4 FAUX (la prose réintroduisait « 5 %/25 % de rejeu » comme seuils, corrigés dans le
+claim ; tldr « la régularisation s'effondre dès que la tâche n'est plus fournie » — faux en Domain-IL ; étiquette « bug »
+et origine des références de continual-learning-baselines) + 9 DOUTEUX corrigés ; « effondrement dès un seul essai »
+(hérité de Wikipédia) remplacé par les chiffres de French 1999. Pilier « Limites » sans section dédiée.)
 **Verdict : gap réel (ajout 2026-09-01).** Le symptôme est mesuré, la discipline absente : `lora`
 (section `limites-et-idees-recues`) rapporte le « domain forgetting — un modèle fine-tuné sur Alpaca
 perd ses capacités arithmétiques » et les intruder dimensions corrélées « avec l'oubli du
