@@ -976,7 +976,20 @@ bancs dans `convolutional-networks`. Appariement hongrois, NMS, mAP comme constr
 > l'analyse de mise en page (le citer : c'est un client) ; `multimodal-vlm` garde le grounding par
 > VLM ; `contrastive-self-supervised` garde DINO. Domaine : deep-learning-foundations.
 
-### Exemples adverses et robustesse — `adversarial-examples-robustness` → `deep-learning-foundations`
+### ✅ FAIT — Exemples adverses et robustesse — `adversarial-examples-robustness` → `deep-learning-foundations`
+(**FAIT le 2026-10-03**, 72e run `/leanmonograph`, retiré du backlog — classé 12e du parcours de
+`deep-learning-foundations`, après `generalisation-double-descent-grokking` (de la généralisation en moyenne au pire
+cas). Gap re-vérifié par lecture des voisins avant lancement : un seul paragraphe dans `convolutional-networks`, la
+superposition dans `mechanistic-interpretability` (citée, pas refaite), le texte discret dans `llm-safety-jailbreaks`.
+11 sections sur 11, 43 claims (35 confirmés / 8 corrigés / 0 rejeté), 63 sources, 4 widgets + 3 figures ;
+**≈ 8,7 M tok** (4,0 premier lancement + 0,46 ré-audit + 3,7 reprise + 0,45 backstop). **22e arrêt d'élagage, record :
+26 rejets sur 43**, tous « tenus par tous, 1 source », les jurés n'ayant ouvert que le primaire
+(`search_exhausted=false`) → ré-audit 4 agents : 15 réparés / 9 regrainés / 1 réécrit / 1 document-source déclaré,
+0 rejet maintenu. Backstop 3 agents (~205 faits) : 2 FAUX (Cohen et al. crédités d'une faiblesse « L∞ et haute
+dimension » — l'article dit l'inverse sur la dimension ; une « métrique de type mCE » prêtée aux leaderboards de
+corruptions de RobustBench), 1 faux venu du ré-audit (HSJA : « aucun exemple à 1 000 requêtes » ne vaut que contre des
+modèles défendus), papier AutoAttack incohérent en interne (« sauf un » / « sauf deux »), ~9 imprécis ; claims 40/43
+appuyés sur deux README co-signés → regrain et document-source déclaré ; 7 travaux cités ajoutés à la bibliographie.)
 **Verdict : gap réel — objet nommé puis lâché (ajout 2026-09-01).** `convolutional-networks` referme
 `pieges-idees-recues` sur deux phrases : « Szegedy et ses coauteurs montrent dès 2013 qu'une
 perturbation imperceptible […] fait basculer la classification » ; « Goodfellow, Shlens et Szegedy
