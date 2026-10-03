@@ -1296,7 +1296,16 @@ method : 0 occurrence. ⚠️ Deux frontières à écrire dans le brief contre l
 > (candidat) ; `time-series-forecasting` garde CausalImpact (le citer en contrepoint) ;
 > `hyperloglog` garde son cas de comptage. Domaine : classical-ml-time-series.
 
-### Retirer l'alignement par les poids : direction de refus et ablitération — `abliteration-alignment-removal` → `llm-agents-generation` (à trancher par /arrange)
+### ✅ FAIT — Retirer l'alignement par les poids : direction de refus et ablitération — `abliteration-alignment-removal` → `llm-agents-generation` (à trancher par /arrange)
+(**FAIT le 2026-10-03**, 74e run `/leanmonograph`, retiré du backlog. 10 sections sur 10, 41 claims (33 confirmés /
+6 corrigés / 2 rejetés), 26 sources, 1 widget + 4 figures ; **≈ 7,1 M tok de workflow** (3,90 premier lancement + 3,16
+reprise) + ré-audit 4 agents + backstop 3 agents. **24e arrêt d'élagage : 30 rejets sur 40**, tous au seul seuil de
+sources → ré-audit : 3 réparés / 25 regrainés / 2 rejets maintenus (Joad et al. 2026, preprint mono-source), plus un
+claim AJOUTÉ sur le retrait par LoRA (Lermen et al., Yi et al.) que le plan avait omis. Backstop : 0 FAUX, 0 recette,
+15 IMPRÉCIS corrigés sur lecture des tables (MMLU de TAR : 7,5 à 12,6 points ; « below 10% » du résumé de Kuo et al.
+contredit par sa table 1 ; borne basse de la figure Kuo 68 % → 59 %). **Double usage** : lien vers le tutoriel
+d'abliteration de Labonne retiré de la bibliographie (ni le lint ni l'Audit-prose ne l'avaient vu), avec la mesure
+qu'il portait et l'attribution du mot à FailSpy (Wiktionary/Reddit seulement).)
 **Verdict : gap réel, vérifié par LECTURE (ajout 2026-10-03).** Le contournement d'alignement n'est
 couvert que côté PROMPT. `llm-safety-jailbreaks` (les 9 sections lues) : roleplay, encodages,
 langues peu dotées, multi-tours, GCG/PAIR/TAP, injection, red-teaming — aucune attaque ne touche
