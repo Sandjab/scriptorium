@@ -1054,7 +1054,15 @@ aucune arête, watermarking reste la chute en 21e. Backstop web : 10 faux sur 20
 ATTRIBUTIONS — la prose faisait dire au papier « Faults in Our Formal Benchmarking » trois choses
 absentes de son texte ; aucun chiffre prose-only n'était faux.)
 
-### Agents d'interface graphique — `computer-use-gui-agents` → `llm-agents-generation`
+### ✅ FAIT — Agents d'interface graphique — `computer-use-gui-agents` → `llm-agents-generation`
+(**FAIT le 2026-10-03**, 75e run `/leanmonograph`, retiré du backlog. 13 sections sur 13, 51 claims (35 confirmés /
+14 corrigés / 2 rejetés), 49 sources, 3 widgets + 3 figures ; **≈ 10 M tok, 2 lancements**. Gap re-vérifié par
+LECTURE avant lancement (8 thèmes lus) : grounding posé en constat seul, parseurs et modèles de grounding absents.
+**Arrêt d'élagage au council** : 38 rejets sur 51, tous `search_exhausted=false` — ré-audit 4 agents : 3 réparés,
+25 regrainés, 7 corrigés, 2 document-source, 1 rejet maintenu. Le build a refusé 3 claims `confirmed` dont la 2e source
+était un résumé alphaxiv du même article ou le dépôt de ses auteurs. Backstop web (3 agents) : 4 FAUX et 19 imprécis
+corrigés — notamment « aucun gain de SoM dans OSWorld » (vrai pour GPT-4o seul ; GPT-4V passe de 5,26 à 11,77 %),
+Mind2Web à trois opérations et non quatre, accélération 1,4× de ShowUI à l'entraînement et non à l'inférence.)
 **Verdict : partiel, gap net sur la mécanique (ajout 2026-09-01).** Les SCORES et la CONSTRUCTION des
 benchmarks sont couverts : `agentic-ai` donne la trajectoire OSWorld (« le meilleur agent atteint
 12,24 % contre 72,36 % pour les humains […] Agent S3 […] atteint 72,6 % »), WebArena, CUA
