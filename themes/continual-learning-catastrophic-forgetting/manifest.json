@@ -1,0 +1,392 @@
+{
+  "edition": 1,
+  "slug": "continual-learning-catastrophic-forgetting",
+  "meta": {
+    "title": "Apprendre sans oublier : le continual learning face au catastrophic forgetting",
+    "kicker": "Continual learning et oubli catastrophique · monographie",
+    "h1": "Apprendre sans oublier : le continual learning face au catastrophic forgetting",
+    "lede": "Un réseau qui apprend une nouvelle tâche peut perdre d'un coup ce qu'il savait : d'où vient cet oubli catastrophique, pourquoi le scénario d'évaluation décide de qui gagne, et ce que régularisation, rejeu et isolation de paramètres valent vraiment, jusqu'au fine-tuning des LLM.",
+    "meta_chips": [
+      "Monographie"
+    ],
+    "footer": "Apprendre sans oublier : le continual learning face au catastrophic forgetting · scriptorium"
+  },
+  "elements": [
+    {
+      "type": "abstract"
+    },
+    {
+      "type": "section",
+      "id": "phenomene-oubli-catastrophique",
+      "heading": "Le phénomène : catastrophic forgetting et dilemme stabilité-plasticité",
+      "level": 3,
+      "prose": "<p>En 1989, McCloskey et Cohen entraînent un réseau par backpropagation (rétropropagation) sur 17 additions à un chiffre « de uns », de 1+1 à 9+1 et de 1+2 à 1+9. Ils lui apprennent ensuite 17 additions « de deux ». Le réseau ne répond alors plus correctement aux premières. L'effondrement survient dès les premiers essais sur le nouveau jeu : selon le compte rendu de French (1999), les bonnes réponses aux additions de uns passent de 100 % à 20 % en un à cinq essais, puis à 1 % cinq essais plus tard. Ratcliff obtient indépendamment le même résultat en 1990, sur des tâches de mémoire de reconnaissance, avec plusieurs modèles à rétropropagation de types variés et des vecteurs de tailles différentes. Le phénomène porte depuis le nom de catastrophic forgetting (oubli catastrophique), ou catastrophic interference.</p><p>Le mot « catastrophique » n'a rien d'une emphase. On imagine volontiers un oubli lent et progressif, comparable à celui d'une mémoire humaine. McCloskey et Cohen ont observé tout autre chose : un effondrement abrupt, parfois immédiat. C'est cette brutalité, absente chez l'humain, qui fonde le terme.</p><p>La cause principale semble tenir à la façon dont le réseau représente ce qu'il sait. Ses représentations sont distribuées, si bien que chaque entrée mobilise les poids de nombreux nœuds de la couche cachée. Les représentations de plusieurs associations se recouvrent donc. Les mêmes poids portent plusieurs souvenirs à la fois. Une mise à jour pour la nouvelle tâche modifie ces poids partagés, et elle écrase du même coup les associations anciennes qui s'appuyaient sur eux.</p><p>Le problème prend alors la forme d'un dilemme. Un système doit rester sensible à l'information nouvelle sans en être désorganisé : c'est le stability-plasticity dilemma (dilemme stabilité-plasticité). Trop de stabilité, et le système n'apprend plus rien. Trop de plasticité, et chaque apprentissage écrase le précédent. Chaque méthode de continual learning (apprentissage continu) examinée plus loin se lit comme une position entre ces deux pôles.</p><p>L'oubli étudié ici est subi : le modèle perd ce qu'on aurait voulu qu'il garde. L'oubli voulu, qui efface délibérément un fait ou une capacité, relève du model editing (édition de modèles) et du machine unlearning, traités à part. Les deux problèmes se répondent, puisque l'un cherche à empêcher ce que l'autre cherche à provoquer.</p><p>Trois décennies plus tard, le dilemme résiste encore dans son cas le plus difficile. Van de Ven et Tolias (2019) le situent là où l'identité de la tâche n'est pas donnée au test et doit être inférée. Sur split MNIST comme sur permuted MNIST, les méthodes par régularisation, dont EWC (Elastic Weight Consolidation), y échouent. Rejouer des représentations d'expériences passées semble alors nécessaire. Savoir ou non quelle tâche on affronte devient ainsi la variable qui organise toute la suite.</p>",
+      "claims": [
+        "claim:1",
+        "claim:2",
+        "claim:3",
+        "claim:4"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "trois-scenarios-task-domain-class",
+      "heading": "Trois scénarios : Task-IL, Domain-IL, Class-IL",
+      "level": 3,
+      "prose": "<p>Van de Ven et Tolias (2019) font de cette variable le critère d'une taxonomie. Leurs trois scénarios se distinguent par une question posée au moment du test. L'identité de la tâche, le task-ID (identifiant de tâche), est-elle fournie au modèle ? Si elle ne l'est pas, le modèle doit-il l'inférer ? Hsu, Liu, Ramasamy et Kira avaient proposé fin 2018 une catégorisation voisine, par tâche, par domaine et par classe.</p><p>En Task-IL (task-incremental learning, apprentissage incrémental par tâche), le task-ID est donné au test. Le réseau peut alors disposer d'une tête de sortie par tâche. En Domain-IL (domain-incremental learning, incrémental par domaine), le task-ID n'est pas fourni, mais l'espace d'étiquettes reste le même. Seule la distribution des entrées se décale d'une tâche à l'autre. En Class-IL (class-incremental learning, incrémental par classe), le task-ID manque aussi, et chaque tâche apporte de nouvelles classes. Le modèle doit donc inférer la tâche en plus de la résoudre.</p><p>Split MNIST rend la différence concrète. Les dix chiffres y sont répartis en cinq tâches de deux chiffres, apprises l'une après l'autre. En Task-IL, le modèle sait d'où vient l'image et n'a que deux classes à départager. En Class-IL, il doit choisir parmi les dix chiffres sans aucune indication. Une même séquence de tâches peut ainsi être évaluée selon chacun des trois scénarios. Les auteurs posent que c'est le cas de toute séquence de tâches bien définies. Le scénario est un protocole d'évaluation, pas une propriété du jeu de données.</p><figure class='fig'><svg viewBox='0 0 720 430' role='img' aria-label='Schéma en trois colonnes : la même séquence split MNIST de cinq tâches de deux chiffres, puis la même image de test, un 2, soumise à trois questions. Task-IL : task-ID fourni, choix entre 2 et 3. Domain-IL : pas de task-ID, premier ou second chiffre de sa tâche. Class-IL : pas de task-ID, choix parmi les dix chiffres. La difficulté croît de gauche à droite.' font-size='12'><text x='360' y='20' text-anchor='middle' fill='var(--ink,#15202E)' font-weight='600'>Entraînement commun : split MNIST, 5 tâches apprises l’une après l’autre</text><rect x='40' y='32' width='104' height='44' rx='5' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='92' y='48' text-anchor='middle' fill='var(--ink-faint,#7A889B)' font-size='11'>tâche 1</text><text x='92' y='67' text-anchor='middle' fill='var(--ink,#15202E)' font-size='15' font-weight='600'>0 · 1</text><path d='M146 54 H166 M160 50 L167 54 L160 58' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1.5'/><rect x='174' y='32' width='104' height='44' rx='5' fill='none' stroke='var(--blue,#23537F)' stroke-width='2'/><text x='226' y='48' text-anchor='middle' fill='var(--ink-faint,#7A889B)' font-size='11'>tâche 2</text><text x='226' y='67' text-anchor='middle' fill='var(--ink,#15202E)' font-size='15' font-weight='600'>2 · 3</text><path d='M280 54 H300 M294 50 L301 54 L294 58' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1.5'/><rect x='308' y='32' width='104' height='44' rx='5' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='360' y='48' text-anchor='middle' fill='var(--ink-faint,#7A889B)' font-size='11'>tâche 3</text><text x='360' y='67' text-anchor='middle' fill='var(--ink,#15202E)' font-size='15' font-weight='600'>4 · 5</text><path d='M414 54 H434 M428 50 L435 54 L428 58' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1.5'/><rect x='442' y='32' width='104' height='44' rx='5' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='494' y='48' text-anchor='middle' fill='var(--ink-faint,#7A889B)' font-size='11'>tâche 4</text><text x='494' y='67' text-anchor='middle' fill='var(--ink,#15202E)' font-size='15' font-weight='600'>6 · 7</text><path d='M548 54 H568 M562 50 L569 54 L562 58' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1.5'/><rect x='576' y='32' width='104' height='44' rx='5' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='628' y='48' text-anchor='middle' fill='var(--ink-faint,#7A889B)' font-size='11'>tâche 5</text><text x='628' y='67' text-anchor='middle' fill='var(--ink,#15202E)' font-size='15' font-weight='600'>8 · 9</text><text x='360' y='102' text-anchor='middle' fill='var(--ink,#15202E)' font-weight='600'>Au test : la même image, trois questions différentes</text><rect x='20' y='114' width='210' height='272' rx='6' fill='none' stroke='var(--ink-faint,#7A889B)'/><text x='125' y='136' text-anchor='middle' fill='var(--ink,#15202E)' font-size='14' font-weight='700'>Task-IL</text><text x='125' y='152' text-anchor='middle' fill='var(--ink-faint,#7A889B)' font-size='11'>incrémental par tâche</text><rect x='106' y='162' width='38' height='38' rx='3' fill='var(--ink,#15202E)'/><text x='125' y='191' text-anchor='middle' fill='var(--paper,#FFFFFF)' font-size='26' font-weight='700'>2</text><text x='125' y='222' text-anchor='middle' fill='var(--blue,#23537F)' font-weight='600'>task-ID fourni : tâche 2</text><text x='125' y='244' text-anchor='middle' fill='var(--ink,#15202E)'>2 ou 3 ?</text><rect x='84' y='272' width='36' height='24' rx='3' fill='none' stroke='var(--blue,#23537F)' stroke-width='2'/><text x='102' y='289' text-anchor='middle' fill='var(--ink,#15202E)' font-size='12'>2</text><rect x='130' y='272' width='36' height='24' rx='3' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='148' y='289' text-anchor='middle' fill='var(--ink,#15202E)' font-size='12'>3</text><text x='125' y='314' text-anchor='middle' fill='var(--ink-faint,#7A889B)' font-size='11'>tête de la tâche 2 : 2 sorties</text><text x='36' y='346' fill='var(--ink-faint,#7A889B)' font-size='11'>difficulté</text><rect x='100' y='336' width='34' height='12' rx='2' fill='var(--bordeaux,#7C2A38)' stroke='var(--bordeaux,#7C2A38)'/><rect x='138' y='336' width='34' height='12' rx='2' fill='none' stroke='var(--bordeaux,#7C2A38)'/><rect x='176' y='336' width='34' height='12' rx='2' fill='none' stroke='var(--bordeaux,#7C2A38)'/><rect x='255' y='114' width='210' height='272' rx='6' fill='none' stroke='var(--ink-faint,#7A889B)'/><text x='360' y='136' text-anchor='middle' fill='var(--ink,#15202E)' font-size='14' font-weight='700'>Domain-IL</text><text x='360' y='152' text-anchor='middle' fill='var(--ink-faint,#7A889B)' font-size='11'>incrémental par domaine</text><rect x='341' y='162' width='38' height='38' rx='3' fill='var(--ink,#15202E)'/><text x='360' y='191' text-anchor='middle' fill='var(--paper,#FFFFFF)' font-size='26' font-weight='700'>2</text><text x='360' y='222' text-anchor='middle' fill='var(--bordeaux,#7C2A38)' font-weight='600'>pas de task-ID</text><text x='360' y='244' text-anchor='middle' fill='var(--ink,#15202E)'>premier ou second chiffre</text><text x='360' y='259' text-anchor='middle' fill='var(--ink,#15202E)' font-size='11'>de sa tâche ?</text><rect x='315' y='272' width='40' height='24' rx='3' fill='none' stroke='var(--blue,#23537F)' stroke-width='2'/><text x='335' y='289' text-anchor='middle' fill='var(--ink,#15202E)' font-size='12'>1er</text><rect x='365' y='272' width='40' height='24' rx='3' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='385' y='289' text-anchor='middle' fill='var(--ink,#15202E)' font-size='12'>2e</text><text x='360' y='314' text-anchor='middle' fill='var(--ink-faint,#7A889B)' font-size='11'>tête commune : 2 sorties</text><text x='271' y='346' fill='var(--ink-faint,#7A889B)' font-size='11'>difficulté</text><rect x='335' y='336' width='34' height='12' rx='2' fill='var(--bordeaux,#7C2A38)' stroke='var(--bordeaux,#7C2A38)'/><rect x='373' y='336' width='34' height='12' rx='2' fill='var(--bordeaux,#7C2A38)' stroke='var(--bordeaux,#7C2A38)'/><rect x='411' y='336' width='34' height='12' rx='2' fill='none' stroke='var(--bordeaux,#7C2A38)'/><rect x='490' y='114' width='210' height='272' rx='6' fill='none' stroke='var(--ink-faint,#7A889B)'/><text x='595' y='136' text-anchor='middle' fill='var(--ink,#15202E)' font-size='14' font-weight='700'>Class-IL</text><text x='595' y='152' text-anchor='middle' fill='var(--ink-faint,#7A889B)' font-size='11'>incrémental par classe</text><rect x='576' y='162' width='38' height='38' rx='3' fill='var(--ink,#15202E)'/><text x='595' y='191' text-anchor='middle' fill='var(--paper,#FFFFFF)' font-size='26' font-weight='700'>2</text><text x='595' y='222' text-anchor='middle' fill='var(--bordeaux,#7C2A38)' font-weight='600'>pas de task-ID</text><text x='595' y='244' text-anchor='middle' fill='var(--ink,#15202E)'>lequel des dix chiffres ?</text><text x='595' y='259' text-anchor='middle' fill='var(--ink,#15202E)' font-size='11'>(la tâche doit être inférée)</text><rect x='501.5' y='272' width='16' height='24' rx='3' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='509.5' y='289' text-anchor='middle' fill='var(--ink,#15202E)' font-size='11'>0</text><rect x='520.5' y='272' width='16' height='24' rx='3' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='528.5' y='289' text-anchor='middle' fill='var(--ink,#15202E)' font-size='11'>1</text><rect x='539.5' y='272' width='16' height='24' rx='3' fill='none' stroke='var(--blue,#23537F)' stroke-width='2'/><text x='547.5' y='289' text-anchor='middle' fill='var(--ink,#15202E)' font-size='11'>2</text><rect x='558.5' y='272' width='16' height='24' rx='3' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='566.5' y='289' text-anchor='middle' fill='var(--ink,#15202E)' font-size='11'>3</text><rect x='577.5' y='272' width='16' height='24' rx='3' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='585.5' y='289' text-anchor='middle' fill='var(--ink,#15202E)' font-size='11'>4</text><rect x='596.5' y='272' width='16' height='24' rx='3' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='604.5' y='289' text-anchor='middle' fill='var(--ink,#15202E)' font-size='11'>5</text><rect x='615.5' y='272' width='16' height='24' rx='3' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='623.5' y='289' text-anchor='middle' fill='var(--ink,#15202E)' font-size='11'>6</text><rect x='634.5' y='272' width='16' height='24' rx='3' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='642.5' y='289' text-anchor='middle' fill='var(--ink,#15202E)' font-size='11'>7</text><rect x='653.5' y='272' width='16' height='24' rx='3' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='661.5' y='289' text-anchor='middle' fill='var(--ink,#15202E)' font-size='11'>8</text><rect x='672.5' y='272' width='16' height='24' rx='3' fill='none' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='680.5' y='289' text-anchor='middle' fill='var(--ink,#15202E)' font-size='11'>9</text><text x='595' y='314' text-anchor='middle' fill='var(--ink-faint,#7A889B)' font-size='11'>tête unique : 10 sorties</text><text x='506' y='346' fill='var(--ink-faint,#7A889B)' font-size='11'>difficulté</text><rect x='570' y='336' width='34' height='12' rx='2' fill='var(--bordeaux,#7C2A38)' stroke='var(--bordeaux,#7C2A38)'/><rect x='608' y='336' width='34' height='12' rx='2' fill='var(--bordeaux,#7C2A38)' stroke='var(--bordeaux,#7C2A38)'/><rect x='646' y='336' width='34' height='12' rx='2' fill='var(--bordeaux,#7C2A38)' stroke='var(--bordeaux,#7C2A38)'/><path d='M40 408 H672 M664 403 L673 408 L664 413' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.5'/><text x='360' y='426' text-anchor='middle' fill='var(--ink-faint,#7A889B)' font-size='11'>mêmes données, même algorithme : seule la question au test change, et la difficulté croît</text></svg><figcaption><span class='fcap-k'></span>Sur la même séquence split MNIST, Task-IL, Domain-IL et Class-IL ne diffèrent que par la question posée au test sur une même image, de plus en plus difficile de gauche à droite.</figcaption></figure><p>Sur split comme sur permuted MNIST, les écarts de difficulté entre scénarios sont substantiels. L'intuition voudrait que Domain-IL soit le plus dur, puisque la distribution des entrées y change sans prévenir. La comparaison sur MNIST dit autre chose. C'est Class-IL, où la tâche doit être inférée, qui résiste le plus. EWC y échoue avec les autres méthodes par régularisation, alors qu'il réussit en Task-IL.</p><p>Pourquoi cet écart ? Une explication plausible, que ces mesures n'établissent pas à elles seules, relève du raisonnement. Le modèle doit à la fois résoudre chaque tâche et reconnaître laquelle il affronte. Or, sans accès aux données anciennes, il n'est jamais entraîné à opposer les classes d'une ancienne tâche à celles de la nouvelle. Rien ne lui apprend à distinguer un chiffre vu trois tâches plus tôt d'un chiffre vu à l'instant. Le rejeu tire son intérêt de là : il remet ces contrastes dans les données d'entraînement.</p><p>Hsu et ses coauteurs montrent aussi que des baselines simples rivalisent avec les méthodes dominantes. Adagrad et une régularisation L2 en font partie. Un rejeu naïf tient lui aussi son rang. L'axe de comparaison est désormais posé : chaque famille de méthodes se jugera scénario par scénario, à commencer par la régularisation.</p>",
+      "claims": [
+        "claim:5",
+        "claim:6",
+        "claim:7",
+        "claim:8"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "regularisation-ewc-si",
+      "heading": "Régularisation : EWC, SI et leurs limites",
+      "level": 3,
+      "prose": "<p>La première famille de réponses consiste à protéger ce qui compte. Si certains poids portent l'essentiel d'une tâche passée, il suffit de les rendre moins mobiles et de laisser les autres apprendre. EWC applique ce principe en ralentissant sélectivement l'apprentissage sur les poids importants pour les anciennes tâches. Kirkpatrick et ses coauteurs l'ont déposé sur arXiv en décembre 2016, puis publié dans PNAS en 2017. Ils l'ont validé sur des tâches MNIST séquentielles et sur l'apprentissage successif de jeux Atari 2600.</p><p>Deux ingrédients font la méthode. Le premier mesure l'importance de chaque poids par la Fisher information (information de Fisher), réduite à sa diagonale. On l'estime à partir des gradients au carré de la log-vraisemblance, sur un échantillon de données de l'ancienne tâche. Le second ajoute à la perte de la nouvelle tâche une pénalité quadratique. Celle-ci rappelle chaque poids vers sa valeur précédente, avec une force proportionnelle à son importance.</p><p>Cette pénalité admet une lecture bayésienne. Elle approche le posterior de l'ancienne tâche par une gaussienne centrée sur l'ancien optimum, dont la Fisher fixe la précision. C'est une approximation de Laplace, que Huszár rattache à la propagation de Laplace. Dans une note parue dans PNAS en 2018, il étend la dérivation à plus de deux tâches. La somme de pénalités d'EWC serait alors incohérente avec elle et pourrait compter deux fois les données antérieures. Les auteurs d'EWC ont répondu dans la même revue, sous un titre qui défend la validité empirique de leur pénalité. Van de Ven et Tolias notent qu'Online EWC remplace justement cette somme par une pénalité unique.</p><p>SI (Synaptic Intelligence) appartient à la même famille, avec une autre manière d'estimer l'importance. Zenke, Poole et Ganguli l'ont présentée à ICML 2017. Chaque synapse y accumule une information de pertinence au fil de l'entraînement. L'importance d'un paramètre découle de l'intégrale de chemin du gradient de la tâche, le long de la trajectoire suivie dans l'espace des paramètres. Elle se calcule en ligne, pendant l'entraînement, là où EWC calcule sa Fisher après coup.</p><p>Sur le papier, la famille est élégante. Sur split MNIST, elle se heurte au scénario. En Task-IL, EWC atteint 98,64 % d'exactitude moyenne chez van de Ven et Tolias. Online EWC et SI y dépassent 99 %. En Class-IL, les trois tombent à environ 20 %, dans un mouchoir de poche. Le plancher mesuré sans aucune méthode anti-oubli s'établit à 19,90 %. La re-mesure indépendante de Hsu et ses coauteurs confirme ce constat. Les trois méthodes y restent sous 20 %, au niveau d'une simple baseline entraînée avec Adam.</p><p>Ce niveau d'un cinquième environ appelle une lecture probable, qui reste une inférence. Split MNIST compte cinq tâches de deux chiffres. Un modèle qui ne prédit que les classes de la dernière tâche obtient à peu près ce score.</p><p>Conclure qu'EWC échoue en continual learning serait pourtant hâtif. Trois régularisations distinctes réussissent en Task-IL et s'effondrent ensemble en Class-IL, dans deux évaluations indépendantes. La difficulté tient donc d'abord au scénario, quand l'identité de la tâche doit être inférée. Une réserve demeure : aucun de ces travaux ne met à l'épreuve l'approximation diagonale de la Fisher. La famille la plus élégante échoue ainsi là où le problème est le plus réaliste. Dans le même tableau, seules les méthodes qui rejouent le passé obtiennent des résultats acceptables en Class-IL.</p>",
+      "claims": [
+        "claim:9",
+        "claim:10",
+        "claim:11",
+        "claim:12"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-ewc-penalite-fisher"
+    },
+    {
+      "type": "section",
+      "id": "rejeu-et-distillation-anti-oubli",
+      "heading": "Rejeu et distillation : experience replay, generative replay, LwF",
+      "level": 3,
+      "prose": "<p>La régularisation protège des poids. Une autre famille protège plutôt les données. Au lieu de deviner quels paramètres comptent, elle remet sous les yeux du réseau un échantillon du passé pendant qu'il apprend la tâche nouvelle. C'est le principe de l'experience replay (rejeu d'expériences) : un buffer conserve des exemples réels des tâches antérieures, mêlés aux données courantes à chaque mise à jour. Dans la comparaison de van de Ven & Tolias, sa forme la plus aboutie est iCaRL (Rebuffi et al.), une méthode conçue pour le Class-IL. Elle conserve des exemplaires pour chaque classe. Son classifieur retient la classe dont la moyenne d'exemplaires est la plus proche de l'entrée. Elle ajoute une perte de distillation calculée contre l'ancien modèle.</p>\n<p>Stocker des données réelles n'est pas toujours permis, ni souhaitable. Le generative replay (rejeu génératif) contourne cet obstacle. Avec DGR (Deep Generative Replay, Shin et al., NeurIPS 2017), un générateur de type GAN apprend la distribution des tâches passées. Il produit ensuite des pseudo-échantillons, mélangés aux données courantes pour entraîner le solveur. Aucune donnée réelle n'est conservée. Van de Ven & Tolias testent aussi une variante, DGR+distill.</p>\n<p>GEM (Gradient Episodic Memory, Lopez-Paz & Ranzato, 2017) emprunte une troisième voie. Il garde lui aussi une mémoire épisodique par tâche, mais elle ne sert pas d'exemples d'entraînement ordinaires. Elle sert de contrainte. À chaque pas, GEM vérifie si le gradient courant risque, au premier ordre, d'augmenter la perte sur les exemples mémorisés d'une tâche passée. Si c'est le cas, il le projette sur le gradient le plus proche qui respecte ces contraintes, par un programme quadratique. Les pertes sur la mémoire n'augmentent donc pas. La construction laisse même une place à un transfert positif vers les tâches anciennes.</p>\n<p>LwF (Learning without Forgetting, Li & Hoiem) se passe de toute donnée ancienne. Avant d'apprendre la nouvelle tâche, on enregistre les sorties de l'ancien réseau sur les nouvelles données. Ces sorties servent ensuite de soft targets (cibles douces) pendant l'entraînement. Van de Ven & Tolias rangent pourtant LwF parmi les méthodes de rejeu. Il rejoue en effet les entrées de la tâche courante, étiquetées par l'ancien modèle. Le procédé est une distillation, dont la technique relève de la knowledge distillation (distillation de connaissances).</p>\n<p>Ce rejeu à bon marché a ses limites. Sur split MNIST, rejouer les images courantes limite l'oubli mieux que la régularisation, et ce dans les trois scénarios. En Class-IL, LwF plafonne pourtant à 23,85 %, à peine au-dessus des méthodes de régularisation. Sur permuted MNIST, il ne fonctionne pas. Les entrées des différentes tâches y sont décorrélées. Les images courantes ne renseignent donc guère sur ce que l'ancien modèle faisait des anciennes. Les auteurs avancent cette explication comme la plus probable.</p>\n<p>Le verdict tombe en Class-IL, là où la régularisation s'effondrait. Sur split MNIST, van de Ven & Tolias mesurent 90,79 % pour DGR et 91,79 % pour DGR+distill. iCaRL dépasse 94 % avec un budget de 2000. EWC, Online EWC et SI restent bloqués autour de 20 %. Hsu et al. retrouvent indépendamment ce contraste : un rejeu naïf de données stockées y atteint 90,78 %. Sur permuted MNIST, le tableau de Class-IL est le même, et seuls les rejeux réussissent. La régularisation réussit en Task-IL, comme LwF sur split MNIST, mais toutes deux échouent dès que la tâche doit être inférée. Le rejeu de données passées, stockées ou générées, est ainsi la seule approche testée qui tienne dans les trois scénarios ; LwF, qui ne rejoue que les entrées courantes, n'y parvient pas. Une dernière famille contourne la difficulté autrement, en réservant des paramètres à chaque tâche.</p>",
+      "claims": [
+        "claim:13",
+        "claim:14",
+        "claim:15",
+        "claim:16"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "isolation-parametres-et-task-id",
+      "heading": "Isolation de paramètres et le prix du task-ID",
+      "level": 3,
+      "prose": "<p>Si deux tâches ne partagent pas les mêmes poids, l'une ne peut pas écraser l'autre. L'isolation de paramètres part de cette évidence. Sa forme la plus simple existe déjà en Task-IL, avec une tête de sortie propre à chaque tâche. D'autres méthodes descendent l'isolation dans les couches cachées. XdG (context-dependent gating, activation conditionnée par le contexte), proposé par Masse, Grant & Freedman (PNAS 2018), active pour chaque tâche un ensemble d'unités en grande partie disjoint. La méthode est simple et peu coûteuse. Elle maintient la performance sur un grand nombre de tâches séquentielles, surtout combinée à une stabilisation des poids. Mais le contexte, c'est-à-dire l'identité de la tâche, lui est fourni.</p>\n<p>PackNet (Mallya & Lazebnik, CVPR 2018) procède par élagage itératif. Il libère des paramètres d'un réseau déjà entraîné, puis les réutilise pour apprendre la tâche suivante. Les auteurs ajoutent ainsi trois tâches à un VGG-16 entraîné sur ImageNet. Les exactitudes obtenues restent proches de celles de réseaux entraînés séparément. À l'inférence, il faut pourtant savoir quel masque appliquer, donc quelle tâche on traite.</p>\n<p>Les Progressive Neural Networks (Rusu et al., 2016) poussent la logique jusqu'à l'expansion du modèle. Chaque tâche reçoit une nouvelle colonne. Des connexions latérales relient la colonne k aux seules colonnes antérieures j&lt;k. Les colonnes anciennes ne sont jamais modifiées, si bien que l'oubli est évité par construction. Le prix est une taille qui croît avec le nombre de tâches. Les auteurs évaluent l'architecture en apprentissage par renforcement, sur Atari et sur des labyrinthes 3D. Activer des sous-réseaux spécialisés évoque les mixture-of-experts (mélanges d'experts), qui forment un sujet à part entière.</p>\n<p>Toutes ces méthodes partagent une condition. XdG et PackNet requièrent l'identité de la tâche à l'inférence, ce qui les cantonne en pratique au Task-IL. Or le task-ID rend le problème facile pour presque toute méthode. Sur split MNIST en Task-IL, toutes les méthodes comparées par van de Ven & Tolias dépassent 98 %. XdG y atteint 99,10 %. La re-mesure de Hsu et al. place EWC, Online EWC et SI entre 97,70 et 98,56 %. Les deux études voient ces trois méthodes tomber à environ 20 % en Class-IL. Sur permuted MNIST, combiner chaque méthode avec XdG, c'est-à-dire fournir le task-ID aux couches cachées, améliore nettement son Task-IL. Van de Ven & Tolias y voient la preuve que, là aussi, le Task-IL est plus facile que le Domain-IL.</p>\n<p>Les mêmes mesures confirment ce que suggérait déjà la régularisation : EWC n'échoue pas en continual learning en général. En Task-IL, EWC est compétitif, à 98,64 % chez van de Ven & Tolias et 97,70 % chez Hsu et al. Il faut toutefois explorer ses hyperparamètres sur une plage bien plus large qu'à l'habitude. La méthode peine en revanche en Domain-IL et échoue en Class-IL. Une partie des échecs rapportés en Task-IL tient donc au réglage plutôt qu'à la méthode. On ne juge plus une méthode seule, mais une méthode dans un scénario et sous un protocole. Encore faut-il des instruments communs pour chiffrer l'oubli.</p>",
+      "claims": [
+        "claim:17",
+        "claim:18",
+        "claim:19",
+        "claim:20"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "metriques-acc-bwt-fwt",
+      "heading": "Mesurer l'oubli : exactitude moyenne, backward et forward transfer",
+      "level": 3,
+      "prose": "<p>Comparer des méthodes suppose de s'entendre sur ce qu'on mesure. Le cadre de référence vient de Lopez-Paz & Ranzato, dans l'article même qui présente GEM (NIPS 2017). Pour eux, une méthode se juge à son exactitude au test, mais aussi à sa capacité à transférer la connaissance entre tâches. Tout repose sur une matrice R de dimension T×T. L'entrée R<sub>i,j</sub> est l'exactitude de test sur la tâche t<sub>j</sub> après le dernier exemple de la tâche t<sub>i</sub>. Chaque tâche garde son propre jeu de test, évalué après chaque tâche apprise.</p>\n<p>L'exactitude moyenne (ACC) lit la dernière ligne de cette matrice. Elle vaut ACC = (1/T) Σ<sub>i=1..T</sub> R<sub>T,i</sub>, soit la moyenne des exactitudes sur toutes les tâches une fois la dernière apprise. Elle dit où en est le modèle à la fin. Elle ne dit pas ce qu'il a perdu en route.</p>\n<p>Le backward transfer (BWT, transfert vers l'arrière) mesure ce que les tâches suivantes ont fait aux anciennes. Il s'écrit BWT = (1/(T−1)) Σ<sub>i&lt;T</sub> (R<sub>T,i</sub> − R<sub>i,i</sub>). C'est l'écart moyen entre l'exactitude finale sur chaque tâche et celle mesurée juste après son apprentissage. Un BWT fortement négatif est l'oubli catastrophique. Un BWT positif signale l'inverse, quand apprendre une tâche en améliore une plus ancienne. Prenons une illustration purement arithmétique. Une tâche à 98 % juste après son apprentissage et à 60 % à la fin pèse −38 points dans la somme.</p>\n<p>Le forward transfer (FWT, transfert vers l'avant) regarde dans l'autre sens. Il s'écrit FWT = (1/(T−1)) Σ<sub>i=2..T</sub> (R<sub>i−1,i</sub> − b̄<sub>i</sub>). Il compare l'exactitude sur une tâche pas encore apprise à celle, b̄<sub>i</sub>, du modèle à l'initialisation aléatoire. Le BWT n'a pas de sens pour la première tâche, ni le FWT pour la dernière. D'où les bornes des sommes et le dénominateur T−1. Pour les deux métriques, plus grand vaut mieux. À ACC égale, les auteurs préfèrent le modèle dont le BWT et le FWT sont les plus élevés. Contrairement à une approche par distillation, GEM autorise d'ailleurs un BWT positif. Ses auteurs déclarent viser d'abord à limiter le BWT négatif plutôt qu'à gagner en FWT.</p>\n<p>Le protocole d'origine compte autant que les formules. Lopez-Paz & Ranzato visent un flux de nombreuses tâches pauvres en exemples, où chaque exemple n'est vu qu'une fois. Leurs expériences portent sur T = 20 tâches. Les variantes de MNIST y comptent 1000 exemples par tâche. Ils opposent ce cadre à la littérature antérieure, qui supposait peu de tâches et plusieurs passes. ACC et BWT ont pourtant été reprises telles quelles dans des protocoles multi-époques à peu de tâches. Ebrahimi et al. (2020) les emploient sur 5-Split MNIST. Saha et al. (2021) les appliquent à split CIFAR-100 découpé en 10 tâches. Van de Ven & Tolias évaluent eux aussi split et permuted MNIST en plusieurs passes.</p>\n<p>Ces instruments ne lèvent pas la difficulté rencontrée plus haut. Une exactitude moyenne finale ne se lit qu'avec son scénario. Sur split MNIST, EWC passe de 98,64 % en Task-IL à 20,01 % en Class-IL chez van de Ven & Tolias. Chez Hsu et al., il passe de 97,70 % à 19,80 %. Une même métrique ne se compare donc qu'à l'intérieur d'un même scénario. C'est précisément là que se logent les pièges d'évaluation.</p>",
+      "claims": [
+        "claim:21",
+        "claim:22",
+        "claim:23",
+        "claim:24"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-matrice-r-acc-bwt-fwt"
+    },
+    {
+      "type": "section",
+      "id": "pieges-evaluation",
+      "heading": "Pièges d'évaluation : scénario non déclaré, task-ID, baselines sous-réglées",
+      "level": 3,
+      "prose": "<p>Le tableau complet de van de Ven & Tolias montre ce qu'il en coûte d'oublier cette règle. Entre les 98,64 % de Task-IL et les 20,01 % de Class-IL, EWC passe sur split MNIST par un palier intermédiaire, à 63,95 % en Domain-IL, sur les mêmes données. Rien n'a changé dans l'algorithme ni dans le jeu de données : seule la question posée au modèle au moment du test diffère.</p><p>Ce profil n'est pas un accident d'implémentation. Hsu et al. retrouvent la même chute, avec un palier à 58,85 % en Domain-IL. Les autres méthodes de régularisation suivent la même pente : Online EWC y tombe à 64,32 % chez van de Ven & Tolias et à 57,33 % chez Hsu et al. Le generative replay, lui, tient bien mieux sur ce scénario intermédiaire. DGR y atteint 95,72 %, et DGR+distill 96,83 %. Un article qui annonce « 98 % sur split MNIST » sans nommer son scénario ne dit donc presque rien. Le chiffre peut décrire le problème facile, où le task-ID est fourni, ou le problème réaliste, où il doit être inféré.</p><p>La leçon a cependant une portée bornée. Sur split comme sur permuted MNIST, EWC, Online EWC et SI réussissent en Task-IL et échouent en Class-IL. Seules les méthodes à rejeu y dépassent 90 %. Ce sont pourtant de petits benchmarks. Van de Ven & Tolias soulignent eux-mêmes que les images MNIST sont faciles à générer, et laissent ouverte la question de savoir si le generative replay restera aussi efficace sur des distributions d'entrée plus complexes. Il vaut donc comme résultat sur MNIST, et comme hypothèse de travail au-delà.</p><p>Le second piège touche les baselines elles-mêmes. Plusieurs travaux antérieurs rapportaient un EWC médiocre, y compris en Task-IL. Van de Ven & Tolias obtiennent au contraire, on l'a vu, un EWC compétitif sur split MNIST, en balayant les hyperparamètres sur une plage beaucoup plus large qu'à l'habitude. Les valeurs qu'ils retiennent dépassent l'usage de plusieurs ordres de grandeur. Leur explication tient à la nature des tâches. Départager deux chiffres est facile, si bien qu'en fin de tâche les gradients sont minuscules, et la Fisher avec eux. Une pénalité pondérée par une Fisher aussi faible ne retient presque rien tant que son coefficient reste aux valeurs usuelles. Un échec publié peut donc refléter un réglage insuffisant plutôt qu'une limite de la méthode.</p><p>Contre ce piège, le dépôt continual-learning-baselines de ContinualAI publie un statut de reproduction pour chaque expérience. Une coche ✅ indique que la performance de l'article de référence est retrouvée, même avec d'autres hyperparamètres. Une croix ❌ indique l'inverse : EWC sur permuted MNIST en fournit un exemple, avec une ACC de 0,83 contre 0,94 dans la référence. L'étiquette « bug » s'ajoute quand la performance tombe bien en deçà de l'attendu. Ce statut dit si un résultat publié est retrouvé, pas pourquoi un écart survient. La baseline peut être défaillante, ou la réimplémentation sous-réglée, et la croix ne tranche pas entre les deux.</p><p>Scénario implicite et baseline mal réglée guettent aussi l'étude de l'oubli dans les LLM. Une intuition répandue sur l'effet protecteur de l'échelle y résiste mal à la mesure.</p>",
+      "claims": [
+        "claim:25",
+        "claim:26",
+        "claim:27",
+        "claim:28"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-scenario-change-tout"
+    },
+    {
+      "type": "section",
+      "id": "llm-oubli-au-fine-tuning",
+      "heading": "LLM : l'oubli au fine-tuning",
+      "level": 3,
+      "prose": "<p>Avec les LLM, le problème change d'échelle sans changer de nature. Les poids partagés qui portaient les additions de McCloskey & Cohen portent désormais des connaissances, des aptitudes de raisonnement et des formats de réponse. Le fine-tuning (ajustement d'un modèle pré-entraîné sur de nouvelles données) les remet tous en jeu à la fois.</p><p>Luo et al. étudient le continual instruction fine-tuning, où un LLM est ajusté sur des jeux d'instructions présentés en séquence. Ils observent l'oubli catastrophique de façon générale chez des modèles de 1B à 7B paramètres. Le résultat le plus frappant va contre l'intuition. Dans cette plage, l'oubli s'aggrave quand la taille augmente. La dégradation touche les connaissances de domaine, le raisonnement et la compréhension de lecture. Les auteurs jugent eux-mêmes ce résultat surprenant. Ils avancent avec prudence une explication possible : les grands modèles partent d'une performance initiale plus élevée, et ont donc davantage à perdre. L'idée que l'échelle protège de l'oubli ne tient pas ici, du moins dans cette plage et sous ce protocole.</p><p>La même étude fait ressortir deux autres facteurs. BLOOMZ, un modèle decoder-only (décodeur seul), oublie moins que mT0, un modèle encoder-decoder (encodeur-décodeur). Un instruction tuning (ajustement sur instructions) général atténue aussi l'oubli lors des ajustements ultérieurs. ALPACA-7B, passé par une telle étape, oublie ainsi moins que LLaMA-7B. Luo et al. notent enfin un effet secondaire inattendu, puisque le fine-tuning continu peut réduire certains biais de langage, dont le biais de genre.</p><p>Le point de départ côté méthodes vient des mesures d'oubli de LoRA (Low-Rank Adaptation). Dans « LoRA Learns Less and Forgets Less » (TMLR 2024), Biderman et al. comparent LoRA au full fine-tuning (ajustement de tous les poids). Le protocole couvre un instruction fine-tuning d'environ 100K exemples et un continual pre-training (pré-entraînement continu) de 20B tokens, en code et en mathématiques. LoRA y apprend nettement moins dans le domaine cible. En contrepartie, il préserve mieux les performances du modèle de base hors de ce domaine.</p><p>Les auteurs relient cet écart à la forme des mises à jour. Le full fine-tuning apprend des perturbations de poids dont le rang est 10 à 100 fois supérieur à celui des configurations LoRA typiques. LoRA atténue aussi l'oubli davantage que les régularisations usuelles, weight decay ou dropout, et maintient des sorties plus variées. Lu à travers le stability-plasticity dilemma, ce résultat est un réglage du curseur plutôt qu'une victoire. Contraindre le rang des mises à jour achète de la stabilité au prix de la plasticité. La mécanique des adaptateurs relève de l'étude de LoRA elle-même.</p><p>Le fine-tuning sur une tâche n'est pas la seule étape qui fait oublier. L'alignement sur des préférences humaines, que l'on présente plutôt comme un raffinement, a lui aussi un coût en capacités.</p>",
+      "claims": [
+        "claim:29",
+        "claim:30",
+        "claim:31"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "alignment-tax-comme-oubli",
+      "heading": "L'alignment tax, une forme d'oubli",
+      "level": 3,
+      "prose": "<p>Lin et al. donnent un nom à ce coût dans « Mitigating the Alignment Tax of RLHF » (EMNLP 2024). Aligner un LLM par RLHF (Reinforcement Learning from Human Feedback, apprentissage par renforcement à partir de retours humains) peut lui faire oublier des capacités acquises au pré-entraînement et au SFT (supervised fine-tuning, ajustement supervisé). C'est l'alignment tax (taxe d'alignement). Vue sous cet angle, elle n'est qu'un cas particulier d'oubli catastrophique, où la nouvelle tâche est la préférence humaine.</p><p>Les auteurs décrivent un compromis qui reproduit le stability-plasticity dilemma presque terme à terme. Les méthodes d'atténuation existantes créent une tension entre performance d'alignement et préservation des capacités. Gagner sur un axe se paie sur l'autre. Leur résultat central est d'une grande sobriété. Le model averaging (moyenne de modèles), qui interpole les poids avant et après RLHF, obtient le front de Pareto alignement-oubli le plus fort parmi un large éventail de méthodes comparées. Il ne demande aucun entraînement supplémentaire.</p><p>L'explication théorique proposée rappelle le mécanisme posé dès McCloskey & Cohen. Selon les auteurs, le model averaging augmente la diversité des features dans les couches où les tâches partagent des espaces de features qui se recouvrent. Le recouvrement des représentations, cause de l'oubli, devient ici le lieu où le model averaging agit. Heterogeneous Model Averaging (HMA) pousse l'idée plus loin. Les couches n'offrent pas toutes le même compromis alignement-oubli, si bien que HMA fixe un ratio d'interpolation distinct par couche de transformer. La méthode est validée sur OpenLLaMA-3B, puis étendue à Mistral-7B avec une évaluation par modèles de préférence et par GPT-4.</p><p>Le compromis ne disparaît pas pour autant. Interpoler vers le modèle d'avant RLHF rend une partie du gain d'alignement. Une re-mesure indépendante de Lu et al., sur Qwen1.5 et LLaMA-3, montre qu'une fusion unique fait aussi baisser nettement les scores de préférence. La taxe est donc atténuable, pas supprimée. Le bon point d'équilibre dépend du modèle. La dérive vis-à-vis du modèle de récompense, l'over-optimization, est une autre question qui relève de l'étude des méthodes d'alignement par préférences. Seule la perte de capacités pré-entraînées compte ici comme oubli.</p><p>Moyenner des poids préserve l'ancien modèle sans revoir ses données. Le levier suivant est plus direct, puisqu'il remet les anciennes données sous les yeux du modèle. C'est le rejeu de données antérieures, que le continual pre-training combine à un nouveau réglage du learning rate (taux d'apprentissage).</p>",
+      "claims": [
+        "claim:32",
+        "claim:33",
+        "claim:34",
+        "claim:35"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "pre-entrainement-continu-et-rejeu",
+      "heading": "Pré-entraînement continu : re-warming, re-decaying et rejeu de données",
+      "level": 3,
+      "prose": "<p>Le rejeu, seule famille qui tenait dans les trois scénarios de split MNIST, revient ici à l'échelle du pré-entraînement. Le continual pre-training ajoute pourtant une variable que les benchmarks de vision laissaient dans l'ombre. Il s'agit du schedule du learning rate. Chez Gupta et al. (2023), le modèle de départ a suivi un schedule usuel en deux temps, le cosine schedule : un warmup (montée progressive) linéaire, puis une décroissance cosinus. Reprendre l'entraînement sur un nouveau corpus revient donc à repartir d'un modèle dont le learning rate est déjà tombé au plus bas.</p><p>Gupta et al. étudient ce cas sur un Pythia de 410M paramètres. Le corpus amont est la Pile, soit 300B tokens. Le corpus aval est SlimPajama, avec 297B tokens. Leur hypothèse centrale tient au re-warming (ré-augmentation du learning rate) : sans lui, le modèle exploiterait mal le calcul investi sur les nouvelles données. Ils font varier le checkpoint de départ, le learning rate maximal et la longueur du warmup.</p><p>Le résultat suit une courbe en deux temps. Le re-warming fait d'abord monter la perte, sur l'amont comme sur l'aval. Puis l'aval s'améliore, jusqu'à dépasser un modèle entraîné from scratch (depuis zéro), même quand le jeu aval est volumineux. Le gain se paie par un oubli de l'amont. On retrouve le dilemme de McCloskey & Cohen sous une autre forme : rouvrir la plasticité, c'est céder de la stabilité.</p><p>Ibrahim et al. (2024) montrent qu'on peut regagner cette stabilité sans renoncer au gain. Ils combinent trois leviers. Le premier est le re-warming. Le deuxième est le re-decaying, une nouvelle décroissance du learning rate en fin d'entraînement. Le troisième est le rejeu d'une part des données précédentes. Ensemble, ces leviers égalent un ré-entraînement complet sur l'union des données, mesuré par la perte finale et par le score moyen sur plusieurs benchmarks. Le tout coûte une fraction du calcul d'un nouveau départ.</p><p>Les expériences principales portent sur 405M paramètres, et un modèle de 10B sert de validation. Deux décalages de distribution sont testés sur des corpus de centaines de milliards de tokens. Le décalage faible enchaîne deux jeux de pré-entraînement anglais. Le décalage fort passe de l'anglais à l'allemand.</p><p>Ce second axe dément une idée reçue, selon laquelle une petite fraction fixe de rejeu suffirait toujours. L'oubli des anciennes données croît avec l'écart de distribution, et le rejeu le réduit. Un décalage fort demande donc davantage de rejeu pour limiter l'oubli d'autant. Pour leurs expériences à 405M, les auteurs retiennent 5 % de rejeu pour le décalage faible et 25 % pour le passage à l'allemand. Ce sont des compromis entre oubli et nombre de nouveaux tokens vus, pas des seuils minimaux : plusieurs pourcentages donnent une perte de validation moyenne voisine.</p><p>Les auteurs proposent aussi de sortir du cosine schedule. Leurs « infinite learning rate schedules » passent à un learning rate constant et élevé entre les tâches, sans re-warming. Une décroissance exponentielle intervient seulement à la fin. Ce schedule ne dépend plus d'un budget de tokens fixé d'avance, ce qui convient mieux à un modèle destiné à recevoir des données indéfiniment.</p><figure class='fig'><svg viewBox='0 0 760 500' role='img' aria-label='Trois allures qualitatives du learning rate en fonction des tokens, sur un ancien puis un nouveau corpus : cosinus laissé au plancher, re-warming puis re-decaying avec rejeu, et infinite schedule à LR constant puis décroissance exponentielle finale' font-family='inherit'><text x='195' y='18' text-anchor='middle' font-size='12' fill='var(--ink-faint,#7A889B)'>ancien corpus</text><text x='515' y='18' text-anchor='middle' font-size='12' fill='var(--ink-faint,#7A889B)'>nouveau corpus</text><line x1='320' y1='24' x2='320' y2='440' stroke='var(--ink-faint,#7A889B)' stroke-width='1' stroke-dasharray='3 3'/><text x='710' y='452' text-anchor='end' font-size='11' fill='var(--ink-faint,#7A889B)'>tokens →</text><line x1='70' y1='140' x2='710' y2='140' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><line x1='70' y1='40' x2='70' y2='140' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='62' y='94' text-anchor='end' font-size='11' fill='var(--ink-faint,#7A889B)'>LR</text><text x='78' y='42' font-size='12' font-weight='600' fill='var(--ink,#15202E)'>(1) Cosinus, puis on continue sans re-warming</text><polyline fill='none' stroke='var(--blue,#23537F)' stroke-width='2.2' points='70,140 100,58 100.0,58.0 109.2,58.3 118.3,59.2 127.5,60.7 136.7,62.8 145.8,65.4 155.0,68.5 164.2,72.1 173.3,76.0 182.5,80.2 191.7,84.7 200.8,89.3 210.0,94.0 219.2,98.7 228.3,103.3 237.5,107.8 246.7,112.0 255.8,115.9 265.0,119.5 274.2,122.6 283.3,125.2 292.5,127.3 301.7,128.8 310.8,129.7 320.0,130.0'/><line x1='320' y1='130' x2='710' y2='130' stroke='var(--bordeaux,#7C2A38)' stroke-width='2.2' stroke-dasharray='6 4'/><text x='332' y='104' font-size='11' fill='var(--bordeaux,#7C2A38)'>LR resté au plancher : le calcul sur les nouvelles</text><text x='332' y='118' font-size='11' fill='var(--bordeaux,#7C2A38)'>données est mal exploité (d'après Gupta et al.)</text><line x1='70' y1='280' x2='710' y2='280' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><line x1='70' y1='180' x2='70' y2='280' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='62' y='234' text-anchor='end' font-size='11' fill='var(--ink-faint,#7A889B)'>LR</text><text x='78' y='182' font-size='12' font-weight='600' fill='var(--ink,#15202E)'>(2) Re-warming puis re-decaying (Ibrahim et al.)</text><polyline fill='none' stroke='var(--blue,#23537F)' stroke-width='2.2' points='70,280 100,198 100.0,198.0 109.2,198.3 118.3,199.2 127.5,200.7 136.7,202.8 145.8,205.4 155.0,208.5 164.2,212.1 173.3,216.0 182.5,220.2 191.7,224.7 200.8,229.3 210.0,234.0 219.2,238.7 228.3,243.3 237.5,247.8 246.7,252.0 255.8,255.9 265.0,259.5 274.2,262.6 283.3,265.2 292.5,267.3 301.7,268.8 310.8,269.7 320.0,270.0 350,198 350.0,198.0 364.6,198.3 379.2,199.2 393.8,200.7 408.3,202.8 422.9,205.4 437.5,208.5 452.1,212.1 466.7,216.0 481.2,220.2 495.8,224.7 510.4,229.3 525.0,234.0 539.6,238.7 554.2,243.3 568.8,247.8 583.3,252.0 597.9,255.9 612.5,259.5 627.1,262.6 641.7,265.2 656.2,267.3 670.8,268.8 685.4,269.7 700.0,270.0'/><text x='358' y='194' font-size='11' fill='var(--ink,#15202E)'>re-warming</text><text x='610' y='234' text-anchor='middle' font-size='11' fill='var(--ink,#15202E)'>re-decaying</text><text x='358' y='296' font-size='11' font-style='italic' fill='var(--blue,#23537F)'>+ rejeu d'une part des anciennes données</text><line x1='70' y1='420' x2='710' y2='420' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><line x1='70' y1='320' x2='70' y2='420' stroke='var(--ink-faint,#7A889B)' stroke-width='1'/><text x='62' y='374' text-anchor='end' font-size='11' fill='var(--ink-faint,#7A889B)'>LR</text><text x='78' y='322' font-size='12' font-weight='600' fill='var(--ink,#15202E)'>(3) Infinite schedule</text><polyline fill='none' stroke='var(--blue,#23537F)' stroke-width='2.2' points='70,420 100,338 100.0,338.0 106.2,339.1 112.5,342.1 118.8,346.6 125.0,352.0 131.2,357.4 137.5,361.9 143.8,364.9 150.0,366.0 600,366 600.0,366.0 606.2,373.5 612.5,379.8 618.8,384.9 625.0,389.2 631.2,392.8 637.5,395.7 643.8,398.2 650.0,400.2 656.2,401.9 662.5,403.3 668.8,404.4 675.0,405.4 681.2,406.2 687.5,406.8 693.8,407.4 700.0,407.8'/><text x='332' y='358' font-size='11' fill='var(--ink,#15202E)'>LR constant et élevé entre les tâches, sans re-warming ni budget fixé</text><text x='710' y='436' text-anchor='end' font-size='11' fill='var(--ink,#15202E)'>décroissance exponentielle finale</text><rect x='70' y='462' width='640' height='30' rx='4' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='1'/><text x='390' y='482' text-anchor='middle' font-size='11' fill='var(--ink,#15202E)'>Compromis du re-warming : la perte monte d'abord, puis l'aval s'améliore — au prix d'un oubli de l'amont.</text></svg><figcaption><span class='fcap-k'></span>Allure qualitative (axe vertical sans valeurs) des trois schedules de learning rate en pré-entraînement continu : cosinus laissé au plancher, re-warming puis re-decaying avec rejeu, et infinite schedule qui ne dépend pas d'un budget de tokens fixé d'avance.</figcaption></figure><p>Llama-3-SynE montre ces leviers à l'œuvre sur un modèle réel. Il adapte Llama-3 8B au chinois et au raisonnement scientifique, sur environ 100B tokens répartis en deux étapes. La première est une adaptation bilingue de 92,5B tokens, avec un ratio chinois:anglais de 2:8. La seconde injecte des données synthétiques sur 7,5B tokens. Les auteurs présentent la part d'anglais comme un équilibrage bilingue ; la lire comme un rejeu est une interprétation de cette monographie. Ce cas repose sur un seul rapport technique : source unique, non corroborée.</p><p>Le mélange de données est organisé par thèmes, et un curriculum fondé sur la perplexité ordonne l'apprentissage. Les gains rapportés sont nets : +8,81 points sur C-Eval et +12,00 sur MATH. Le principal recul porte sur MMLU, avec 1,41 point ; MBPP perd aussi 1,40 point. Code, poids et données sont publiés, ce qui rend le cas reproductible et mène naturellement aux outils de la discipline.</p>",
+      "claims": [
+        "claim:36",
+        "claim:37",
+        "claim:39"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "ecosysteme-et-pour-aller-plus-loin",
+      "heading": "Écosystème & pour aller plus loin",
+      "level": 3,
+      "prose": "<p>Les pièges d'évaluation décrits plus haut ont une contrepartie pratique : quelques bibliothèques partagées fixent les scénarios, les métriques et les baselines. Avalanche, née dans la communauté ContinualAI, est une bibliothèque d'apprentissage continu de bout en bout construite sur PyTorch. Elle est publiée sous licence MIT, avec un statut déclaré Beta, et s'installe par <code>pip install avalanche-lib</code>.</p><p>Son README l'organise en quatre modules principaux. Benchmarks fournit les flux de données. Training regroupe les stratégies et les baselines. Evaluation calcule les métriques, et Models accueille l'expansion de modèle et les modèles task-aware. Un module Logging s'y ajoute pour écrire vers la sortie standard, un fichier ou TensorBoard.</p><p>Le dépôt continual-learning-baselines, déjà rencontré, repose sur Avalanche et reproduit des stratégies publiées. On y trouve EWC, SI, GEM et sa variante A-GEM, LwF et iCaRL, ainsi que GDumb, LaMAML, RWalk, le generative replay et d'autres. Les benchmarks vont de Permuted MNIST et Split MNIST à Split CIFAR-100, Split Tiny ImageNet et CORe50, en réglage batch comme online.</p><p>Chaque résultat y est placé face à une exactitude de référence. Celle-ci vient d'un article publié, pas toujours celui qui a introduit la méthode, ou à défaut d'Avalanche. Le statut reproduit (✅) ou non reproduit (❌), décrit plus haut, accompagne chaque méthode. iCaRL sur Split CIFAR-100 en Class-IL obtient ainsi une ACC de 0,48 contre 0,50 de référence, et il est marqué reproduit. C'est la pratique qui manquait aux comparaisons de scénarios non déclarés.</p><p>Mammoth, maintenu par aimagelab, sert plutôt de banc d'essai à grande échelle. Ce framework PyTorch sous licence MIT propose plus de 70 méthodes. Il couvre Class-IL, Domain-IL et Task-IL, ainsi qu'un cadre General Continual Learning qui englobe les trois. Son README annonce une vingtaine de jeux de données : 23 selon sa section Datasets, 20 selon son introduction. C'est aussi la codebase officielle de Dark Experience Replay (DER++).</p><p>Plusieurs thèmes voisins de cette monographie prolongent ses frontières. La mécanique des adaptateurs, dont on a repris les mesures d'oubli, relève du thème lora. La distillation comme technique, que LwF emploie, appartient au thème knowledge-distillation. L'over-optimization du RLHF reste au thème rlhf-dpo.</p><p>L'oubli voulu, par model editing ou machine unlearning, est traité dans model-editing-unlearning : il forme le symétrique de l'oubli subi étudié ici. Les experts routés de mixture-of-experts sont un cousin de l'isolation de paramètres. Enfin, agentic-memory aborde une autre manière d'accumuler sans oublier, par une mémoire externe plutôt que par les poids.</p>",
+      "claims": [
+        "claim:40",
+        "claim:41",
+        "claim:42",
+        "claim:43"
+      ]
+    },
+    {
+      "type": "exercise",
+      "part": "Lire un résultat d'apprentissage continu",
+      "question": "<p>Un article annonce qu'EWC atteint 98,6 % d'exactitude moyenne sur split MNIST et en conclut que la régularisation « résout » l'oubli catastrophique. Quelle information manque pour juger ce chiffre, et que devient-il quand on la fait varier ?</p>",
+      "answer": "<p>Il manque le <strong>scénario</strong> d'évaluation. Chez van de Ven &amp; Tolias, EWC obtient 98,64 en Task-IL, 63,95 en Domain-IL et 20,01 en Class-IL sur split MNIST ; Hsu et al. retrouvent le même profil (97,70 / 58,85 / 19,80). En Class-IL, EWC, Online EWC et SI tombent au niveau du fine-tuning sans méthode (environ 20 %), alors que les méthodes à rejeu (DGR, DGR+distill, iCaRL) dépassent 90 %. Le 98,6 % ne vaut donc qu'en Task-IL, où l'identité de la tâche est fournie au test ; un scénario non déclaré rend la comparaison trompeuse. Ces résultats sont établis sur de petits benchmarks MNIST.</p>"
+    },
+    {
+      "type": "exercise",
+      "part": "Mesurer l'oubli",
+      "question": "<p>Après l'apprentissage de T tâches, on dispose de la matrice R, où R<sub>i,j</sub> est l'exactitude sur la tâche j après avoir appris la tâche i. Comment calculer l'exactitude moyenne (ACC) et le backward transfer (BWT), et quelle valeur de BWT signale un oubli catastrophique ?</p>",
+      "answer": "<p>Dans le cadre de Lopez-Paz &amp; Ranzato (2017), l'ACC est la moyenne, sur les T tâches, des exactitudes de la dernière ligne de R (mesurées après la dernière tâche). Le BWT est BWT = (1/(T−1)) Σ<sub>i&lt;T</sub> (R<sub>T,i</sub> − R<sub>i,i</sub>) : l'écart moyen entre l'exactitude finale sur chaque tâche et celle mesurée juste après son apprentissage. Un BWT fortement négatif traduit l'oubli catastrophique. Le forward transfer, lui, compare R<sub>i−1,i</sub> à l'exactitude b̄<sub>i</sub> d'un modèle à l'initialisation aléatoire.</p>"
+    },
+    {
+      "type": "biblio",
+      "entries": [
+        {
+          "label": "French (1999), Catastrophic forgetting in connectionist networks, Trends in Cognitive Sciences (PDF)",
+          "href": "https://www.cs.swarthmore.edu/~meeden/DevelopmentalRobotics/cat_forget.pdf"
+        },
+        {
+          "label": "Three scenarios for continual learning (van de Ven & Tolias), arXiv 1904.07734",
+          "href": "https://arxiv.org/abs/1904.07734"
+        },
+        {
+          "label": "Re-evaluating Continual Learning Scenarios: A Categorization and Case for Strong Baselines (Hsu, Liu, Ramasamy & Kira), arXiv 1810.12488",
+          "href": "https://arxiv.org/abs/1810.12488"
+        },
+        {
+          "label": "Class-incremental learning: survey and performance evaluation on image classification (Masana et al., TPAMI 2022), arXiv 2010.15277",
+          "href": "https://arxiv.org/abs/2010.15277"
+        },
+        {
+          "label": "Overcoming catastrophic forgetting in neural networks (Kirkpatrick et al.), arXiv abstract",
+          "href": "https://arxiv.org/abs/1612.00796"
+        },
+        {
+          "label": "Towards continual task learning in artificial neural networks: current approaches and insights from neuroscience (McCaffary, 2021), arXiv 2112.14146",
+          "href": "https://arxiv.org/abs/2112.14146"
+        },
+        {
+          "label": "Note on the quadratic penalties in elastic weight consolidation (Huszár), arXiv",
+          "href": "https://arxiv.org/abs/1712.03847"
+        },
+        {
+          "label": "Learning without Forgetting (Li & Hoiem), arXiv 1606.09282",
+          "href": "https://arxiv.org/pdf/1606.09282"
+        },
+        {
+          "label": "Few-Shot Self Reminder to Overcome Catastrophic Forgetting (Wen, Cao & Huang, 2018), arXiv 1812.00543",
+          "href": "https://arxiv.org/pdf/1812.00543"
+        },
+        {
+          "label": "Gradient Episodic Memory for Continual Learning (Lopez-Paz & Ranzato), arXiv 1706.08840 PDF",
+          "href": "https://arxiv.org/pdf/1706.08840"
+        },
+        {
+          "label": "A continual learning survey: Defying forgetting in classification tasks (De Lange et al., TPAMI 2021), arXiv 1909.08383",
+          "href": "https://arxiv.org/pdf/1909.08383"
+        },
+        {
+          "label": "A Comprehensive Survey of Continual Learning: Theory, Method and Application (Wang, Zhang, Su & Zhu), arXiv 2302.00487",
+          "href": "https://arxiv.org/pdf/2302.00487"
+        },
+        {
+          "label": "ContinualAI/continual-learning-baselines (GitHub, README)",
+          "href": "https://github.com/ContinualAI/continual-learning-baselines"
+        },
+        {
+          "label": "PackNet: Adding Multiple Tasks to a Single Network by Iterative Pruning (Mallya & Lazebnik)",
+          "href": "https://arxiv.org/pdf/1711.05769"
+        },
+        {
+          "label": "Progressive Neural Networks (Rusu et al.)",
+          "href": "https://arxiv.org/pdf/1606.04671"
+        },
+        {
+          "label": "Gradient Episodic Memory for Continual Learning (Lopez-Paz & Ranzato, NeurIPS 2017)",
+          "href": "https://proceedings.neurips.cc/paper/2017/file/f87522788a2be2d171666752f97ddebb-Paper.pdf"
+        },
+        {
+          "label": "Learning to Learn without Forgetting by Maximizing Transfer and Minimizing Interference (Riemer et al., ICLR 2019), arXiv 1810.11910",
+          "href": "https://arxiv.org/pdf/1810.11910"
+        },
+        {
+          "label": "Gradient Projection Memory for Continual Learning (Saha, Garg & Roy, ICLR 2021), arXiv 2103.09762",
+          "href": "https://arxiv.org/pdf/2103.09762"
+        },
+        {
+          "label": "Adversarial Continual Learning (Ebrahimi, Meier, Calandra, Darrell & Rohrbach, ECCV 2020), arXiv 2003.09553",
+          "href": "https://arxiv.org/pdf/2003.09553"
+        },
+        {
+          "label": "An Empirical Study of Catastrophic Forgetting in Large Language Models During Continual Fine-tuning (Luo et al.)",
+          "href": "https://arxiv.org/abs/2308.08747"
+        },
+        {
+          "label": "Scaling Laws for Forgetting When Fine-Tuning Large Language Models (Kalajdzievski, 2024)",
+          "href": "https://arxiv.org/abs/2401.05605"
+        },
+        {
+          "label": "Soup to go: mitigating forgetting during continual learning with model averaging (Kleiman et al., 2025)",
+          "href": "https://arxiv.org/abs/2501.05559"
+        },
+        {
+          "label": "Mitigating Catastrophic Forgetting in Continual Learning through Model Growth (Süalp & Rezaei, 2025)",
+          "href": "https://arxiv.org/abs/2509.01213"
+        },
+        {
+          "label": "LoRA Learns Less and Forgets Less (Biderman et al.), TMLR 2024",
+          "href": "https://arxiv.org/abs/2405.09673"
+        },
+        {
+          "label": "LoRA vs Full Fine-tuning: An Illusion of Equivalence (Shuttleworth et al.)",
+          "href": "https://arxiv.org/abs/2410.21228"
+        },
+        {
+          "label": "LoRA vs. Full Fine-Tuning: A Theoretical Perspective (Zindari, Mulayoff, Stich, 2026)",
+          "href": "https://arxiv.org/abs/2605.19018"
+        },
+        {
+          "label": "How Much is Too Much? Exploring LoRA Rank Trade-offs for Retaining Knowledge and Domain Robustness (Rathore et al., 2025)",
+          "href": "https://arxiv.org/abs/2512.15634"
+        },
+        {
+          "label": "Mitigating the Alignment Tax of RLHF (Lin et al., EMNLP 2024)",
+          "href": "https://arxiv.org/abs/2309.06256"
+        },
+        {
+          "label": "Online Merging Optimizers for Boosting Rewards and Mitigating Tax in Alignment (Lu et al., 2024)",
+          "href": "https://arxiv.org/abs/2405.17931"
+        },
+        {
+          "label": "Continual Learning of Large Language Models: A Comprehensive Survey (Shi et al.)",
+          "href": "https://arxiv.org/abs/2404.16789"
+        },
+        {
+          "label": "Simple and Scalable Strategies to Continually Pre-train Large Language Models (Ibrahim et al.)",
+          "href": "https://arxiv.org/abs/2403.08763"
+        },
+        {
+          "label": "Reuse, Don't Retrain: A Recipe for Continued Pretraining of Language Models (Parmar et al., 2024)",
+          "href": "https://arxiv.org/abs/2407.07263"
+        },
+        {
+          "label": "Efficient Continual Pre-training by Mitigating the Stability Gap (Guo et al., arXiv 2406.14833)",
+          "href": "https://arxiv.org/html/2406.14833"
+        },
+        {
+          "label": "Continual Pre-Training of Large Language Models: How to (re)warm your model? (Gupta et al., arXiv 2308.04014)",
+          "href": "https://arxiv.org/abs/2308.04014"
+        },
+        {
+          "label": "Scaling Law with Learning Rate Annealing (Tissue, Wang, Wang, arXiv 2408.11029)",
+          "href": "https://arxiv.org/html/2408.11029"
+        },
+        {
+          "label": "Towards Effective and Efficient Continual Pre-training of Large Language Models (Chen et al., arXiv 2407.18743, v1 html)",
+          "href": "https://arxiv.org/html/2407.18743v1"
+        },
+        {
+          "label": "Learning Dynamics in Continual Pre-Training for Large Language Models (Wang et al., arXiv 2505.07796)",
+          "href": "https://arxiv.org/html/2505.07796"
+        },
+        {
+          "label": "ContinualAI/avalanche README",
+          "href": "https://github.com/ContinualAI/avalanche"
+        },
+        {
+          "label": "aimagelab/mammoth README",
+          "href": "https://github.com/aimagelab/mammoth"
+        },
+        {
+          "label": "aimagelab/mammoth LICENSE",
+          "href": "https://github.com/aimagelab/mammoth/blob/master/LICENSE"
+        },
+        {
+          "label": "aimagelab/mammoth README (raw)",
+          "href": "https://raw.githubusercontent.com/aimagelab/mammoth/master/README.md"
+        },
+        {
+          "label": "aimagelab/mammoth, répertoire datasets",
+          "href": "https://github.com/aimagelab/mammoth/tree/master/datasets"
+        },
+        {
+          "label": "McClelland, McNaughton & O'Reilly (1995), Why there are complementary learning systems in the hippocampus and neocortex, Psychological Review 102(3) (PDF)",
+          "href": "https://stanford.edu/~jlmcc/papers/McCMcNaughtonOReilly95.pdf"
+        },
+        {
+          "label": "Ruiz-Garcia (2022), Model architecture can transform catastrophic forgetting into positive transfer, Scientific Reports, arXiv 2108.03940",
+          "href": "https://arxiv.org/abs/2108.03940"
+        }
+      ]
+    },
+    {
+      "type": "pointers",
+      "title": "Pour aller plus loin",
+      "items": [
+        {
+          "name": "Avalanche",
+          "url": "https://github.com/ContinualAI/avalanche",
+          "kind": "library",
+          "blurb": "Bibliothèque PyTorch d'apprentissage continu (ContinualAI, licence MIT) organisée en modules benchmarks, training, evaluation, models et logging."
+        },
+        {
+          "name": "continual-learning-baselines",
+          "url": "https://github.com/ContinualAI/continual-learning-baselines",
+          "kind": "implementation",
+          "blurb": "Dépôt d'expériences reproduisant des stratégies classiques (EWC, SI, GEM, A-GEM, LwF, iCaRL, GDumb, etc.) en s'appuyant sur Avalanche."
+        },
+        {
+          "name": "Mammoth",
+          "url": "https://github.com/aimagelab/mammoth",
+          "kind": "library",
+          "blurb": "Framework PyTorch de benchmark en apprentissage continu (plus de 70 méthodes, licence MIT, scénarios Class-IL, Domain-IL et Task-IL), codebase officielle de DER/DER++."
+        }
+      ]
+    },
+    {
+      "type": "glossary"
+    }
+  ]
+}
