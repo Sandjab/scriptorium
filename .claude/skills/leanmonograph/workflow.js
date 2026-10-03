@@ -43,6 +43,7 @@ const repoRoot = themeDir.replace(/\/themes\/[^/]+\/?$/, '');
 const buildScript = repoRoot + '/.claude/skills/monograph/scripts/build.py';
 const contrasteScript = repoRoot + '/.claude/skills/monograph/scripts/lint_contraste_sombre.py';
 const lintScript = repoRoot + '/.claude/skills/leanmonograph/scripts/lint.py';
+const auditReportScript = repoRoot + '/.claude/skills/leanmonograph/scripts/audit_report.py';
 const RESUME = (A0.resume === true) || (String(A0.resume) === 'true');
 const WANT_VERDICTS = (A0.verdicts === true) || (String(A0.verdicts) === 'true');
 const ckptDir = themeDir + '/.leanmonograph';   // checkpoints isolés de /monograph et /frugalmonograph
@@ -167,7 +168,8 @@ const S_FIGURE_CODE = { type:'object', additionalProperties:false,
   properties:{ ref:{type:'string'}, after_section_id:{type:'string'}, caption:{type:'string'},
     kind:{ type:'string', enum:['figure'] } } };
 
-const S_BUILD = { type:'object', additionalProperties:false, required:['success','files','acceptance','errors'], properties:{
+const S_BUILD = { type:'object', additionalProperties:false, required:['success','files','acceptance','audit_report_written','errors'], properties:{
+  audit_report_written:{type:'boolean'},  // audit_report.py a écrit les rapports (exit 0)
   success:{type:'boolean'},
   files:{ type:'array', items:{type:'string'} },
   build_output:{type:'string'},
@@ -628,7 +630,11 @@ const buildPrompt = (expectIds) => [
   `     "corrected" pour faire passer ce contrôle.`,
   `   - quelles catégories d'audit sont présentes parmi confirmed/corrected/rejected → audit_categories_present ;`,
   `   - confirmed_claims = nombre de claims confirmés.`,
-  `Rends : success (build OK et acceptation OK), files (fichiers de dist/), build_output (sortie de build.py), lint_flags (nb de flags non hedgés au 1er lint), lint_fixed (nb corrigés), lint_note (adjudications, 1 ligne), acceptance{…}, errors[] (vide si tout va bien).`,
+  `4) EN DERNIER, après toute correction de knowledge.json : exécute python3 "${auditReportScript}" "${themeDir}"`,
+  `   Il écrit ${themeDir}/audit-report.json et .md par code, depuis les checkpoints et knowledge.json. N'écris JAMAIS ces`,
+  `   rapports toi-même. Exit 0 → audit_report_written=true. Exit ≠ 0 → audit_report_written=false et recopie son`,
+  `   message d'erreur (stderr) dans errors[] ; ne contourne pas l'échec.`,
+  `Rends : success (build OK et acceptation OK), files (fichiers de dist/), build_output (sortie de build.py), lint_flags (nb de flags non hedgés au 1er lint), lint_fixed (nb corrigés), lint_note (adjudications, 1 ligne), acceptance{…}, audit_report_written, errors[] (vide si tout va bien).`,
 ].join('\n');
 
 const S_STYLE = { type:'object', additionalProperties:false, required:['file','n_changes'],
@@ -972,57 +978,28 @@ const knowledge = {
 };
 const knowledgeJson = JSON.stringify(knowledge, null, 2);
 
-// ── Rapport d'audit (vue de diagnostic dérivée) ──────────────────────────────
-const retainedSectionIds = new Set(liveSections.map(s => s.section.id));
-const idByClaimObj = new Map();
-liveClaims.forEach((ac, i) => idByClaimObj.set(ac, 'claim:' + (i + 1)));
-const reportClaims = sectionData.flatMap(s => (s.claims || []).map(ac => {
-  const sectionRetained = retainedSectionIds.has(ac.sectionId);
-  const t = ac.tally || null;
-  return { id: idByClaimObj.get(ac) || null, section: ac.sectionId, section_retained: sectionRetained,
-    retained: sectionRetained && ac.audit !== 'rejected', audit: ac.audit, kind: t ? t.kind : 'unknown',
-    statement: ac.statement, original_statement: ac.original_statement || ac.statement,
-    corroborated: t ? t.corroborated : null, refuted: t ? t.refuted : null, corrected: t ? t.corrected : null,
-    n_sources: (ac.sources || []).length, jurors: t ? t.jurors : [], audit_note: ac.note || '' };
-}));
-const auditReport = {
-  generator: 'leanmonograph', theme: { slug, title: arch.title },
-  summary: { sections_total: enriched.length, sections_retained: liveSections.length,
-    claims_total: reportClaims.length,
-    confirmed: reportClaims.filter(c => c.audit === 'confirmed').length,
-    corrected: reportClaims.filter(c => c.audit === 'corrected').length,
-    rejected: reportClaims.filter(c => c.audit === 'rejected').length,
-    retained: reportClaims.filter(c => c.retained).length },
-  claims: reportClaims,
+// ── Rapport d'audit : écrit par CODE au Build (scripts/audit_report.py) ─────
+// Un script Workflow n'a pas de filesystem : le rapport était recopié VERBATIM par un agent,
+// ce qui échouait en silence au-delà du plafond de sortie ({written:false} au 75e run, 5e
+// occurrence). Il est désormais calculé depuis les checkpoints + knowledge.json par le script,
+// que l'agent de Build exécute — et il décrit l'état FINAL (backstop compris). Seul le résumé
+// du run reste calculé ici, pour la valeur de retour.
+const auditSummary = {
+  sections_total: sectionData.length, sections_retained: liveSections.length,
+  claims_total: audited.length,
+  confirmed: audited.filter(c => c.audit === 'confirmed').length,
+  corrected: audited.filter(c => c.audit === 'corrected').length,
+  rejected: audited.filter(c => c.audit === 'rejected').length,
+  retained: liveClaims.filter(c => c.audit !== 'rejected').length,
 };
-const _esc = v => String(v == null ? '' : v).replace(/\|/g, '\\|').replace(/\s*\n+\s*/g, ' ').trim();
-const _num = v => v == null ? '?' : v;
-const auditReportMd = [
-  `# Rapport d'audit — ${_esc(auditReport.theme.title)} (${auditReport.generator})`, ``,
-  `Thème : \`${_esc(slug)}\``, ``,
-  `## Synthèse`,
-  `- Sections : ${auditReport.summary.sections_retained}/${auditReport.summary.sections_total} retenues`,
-  `- Claims : ${auditReport.summary.claims_total} audités → **${auditReport.summary.confirmed} confirmed**, ${auditReport.summary.corrected} corrected, ${auditReport.summary.rejected} rejected ; ${auditReport.summary.retained} retenus dans le document`,
-  ``, `Légende jurés : \`lentille✓\` corrobore · \`lentille✗\` réfute · \`~\` propose une correction.`, ``,
-  `## Par claim`, ``,
-  `| id | section | kind | audit | corrob. | réfut. | corrig. | sources | jurés | énoncé |`,
-  `|---|---|---|---|---|---|---|---|---|---|`,
-  ...auditReport.claims.map(c => {
-    const jur = (c.jurors || []).map(j => `${j.lens}${j.holds ? '✓' : '✗'}${j.corrected ? '~' : ''}`).join(' ');
-    return `| ${c.id || '—'} | ${_esc(c.section)} | ${c.kind} | ${c.audit}${c.retained ? '' : ' (non retenu)'} | ${_num(c.corroborated)} | ${_num(c.refuted)} | ${_num(c.corrected)} | ${c.n_sources} | ${_esc(jur)} | ${_esc(c.statement)} |`;
-  }),
-].join('\n');
 
 // ── Author : knowledge + (tldr/glossaire ∥ prose séquentielle) ───────────────
 phase('Author');
-// knowledge.json = source de vérité : son écriture échoue BRUYAMMENT (pas de best-effort),
-// contrairement aux rapports annexes ci-dessous.
+// knowledge.json = source de vérité : son écriture échoue BRUYAMMENT (pas de best-effort).
 await A(
   `Crée le dossier si besoin (mkdir -p ${themeDir}) puis écris VERBATIM, sans aucune modification, le fichier suivant.\nChemin : ${themeDir}/knowledge.json\nContenu :\n${knowledgeJson}`,
   { schema: S_CKPT, model: M_IO, phase: 'Author', label: 'write:knowledge' }
 );
-await _writeVerbatim(`${themeDir}/audit-report.json`, JSON.stringify(auditReport, null, 2), 'Author', 'write:audit-report.json');
-await _writeVerbatim(`${themeDir}/audit-report.md`, auditReportMd, 'Author', 'write:audit-report.md');
 
 const liveOutline = arch.outline.filter(o => liveOutlineIds.has(o.id));
 const sectionsBrief = liveOutline.map(o => `- ${o.id} : ${o.heading}`).join('\n');
@@ -1208,6 +1185,12 @@ phase('Build');
 // Les ids POST-élagage voyagent jusqu'à build.py : le manifeste réellement écrit par Compose
 // est comparé au plan vivant (39e run : « 11/11 retenues » annoncé, 10 dans le document).
 const built = await A(buildPrompt(liveOutline.map(o => o.id)), { schema: S_BUILD, phase: 'Build', label: 'build' });
+// Échec BRUYANT : un rapport manquant était jusqu'ici avalé en silence ({written:false}).
+if (built && !built.audit_report_written) {
+  const msg = `audit-report.json/.md NON écrits — relancer : python3 ${auditReportScript} ${themeDir}`;
+  log(`[audit-report] ${msg}`);
+  built.errors = [...(built.errors || []), msg];
+}
 
 return {
   slug, title: arch.title, themeDir,
@@ -1217,6 +1200,6 @@ return {
     rejected: claims.filter(c => c.audit === 'rejected').length },
   sources: sources.length,
   widgets: { kept: widgets.length },
-  audit: auditReport.summary,
+  audit: auditSummary,
   build: built,
 };

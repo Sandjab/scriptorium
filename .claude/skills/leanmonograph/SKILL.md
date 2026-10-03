@@ -57,7 +57,10 @@ Identique à `/monograph`, au **scriptPath** près.
 6. **Rapporte** : `dist/<slug>.html`, le bilan d'audit (`confirmed`/`corrected`/`rejected`,
    ≥2 sources vérifié), les widgets retenus, le tableau de verdicts (si santé), et le **bilan lint** (`lint_flags`/`lint_fixed`
    du retour de build + `checked/fixed/hedged` de l'Audit-prose). Rapport d'audit annexe :
-   `themes/<slug>/audit-report.json` + `.md` (mêmes champs que frugal — comparables).
+   `themes/<slug>/audit-report.json` + `.md` (mêmes champs que frugal — comparables). Ils sont
+   écrits par CODE au Build (`scripts/audit_report.py <themeDir>`, depuis les checkpoints et
+   `knowledge.json`) et décrivent l'état final : après toute correction manuelle de
+   `knowledge.json` (ré-audit, backstop), relancer ce script avant de commiter.
    Si `build.success` est faux, **remonte l'erreur** — ne déclare pas un succès.
 
 ## Coût (ordre de grandeur — à annoncer avant de lancer)

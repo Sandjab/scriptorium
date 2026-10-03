@@ -76,7 +76,8 @@ async function loadBuildPrompt(name) {
   const mod = await loadModule(name,
     // `contrasteScript` : ajouté aux buildPrompt des 3 workflows par le lint de contraste sombre
     // (étape 1bis) — le fixture doit le définir comme les autres chemins, sinon ReferenceError.
-    "const buildScript = '/B/build.py', lintScript = '/B/lint.py', contrasteScript = '/B/contraste.py', themeDir = '/T';\n" +
+    // `auditReportScript` : étape 4 du buildPrompt lean (rapport d'audit écrit par code).
+    "const buildScript = '/B/build.py', lintScript = '/B/lint.py', contrasteScript = '/B/contraste.py', auditReportScript = '/B/audit_report.py', themeDir = '/T';\n" +
     src.slice(start, end + endMark.length) + '\nexport { buildPrompt };\n');
   return { buildPrompt: mod.buildPrompt, src };
 }
