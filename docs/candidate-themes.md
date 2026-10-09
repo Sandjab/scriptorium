@@ -1247,7 +1247,17 @@ array (table des suffixes) » sans le décrire. Rank/select, wavelet tree, FM-in
 > `minimal-perfect-hashing` garde les MPHF ; le candidat `bitmaps-compresses-roaring` tient les
 > bitmaps. Domaine : probabilistic-structures-hashing.
 
-### Analyse de survie — `analyse-de-survie` → `classical-ml-time-series`
+### ✅ FAIT — Analyse de survie — `analyse-de-survie` → `classical-ml-time-series`
+(**FAIT le 2026-10-10**, 77e run `/leanmonograph`, retiré du backlog. 12 sections sur 12, 44 claims (22 confirmés /
+21 corrigés / 1 rejeté), 50 sources, 3 widgets + 2 figures ; **≈ 8,9 M tok, 2 lancements**. Gap re-vérifié par
+LECTURE avant lancement : `causal-inference` (paru depuis la passe) ne traite la censure que comme collider dans un DAG
+(délimitation ajoutée au sujet). **Arrêt d'élagage au council** : 28 rejets sur 46, dont 22 `search_exhausted=false` —
+ré-audit 4 agents : 7 réparés, 9 regrainés, 7 document-source déclarés, 1 rejet maintenu (IBS de Periáñez, empirique
+mono-source), 4 doublons retirés (Harrell/Uno extrait 3×, Kaplan-Meier 1958 2×) et 2 claims ajoutés pour sauver la
+section applications (Chapelle 2014, maintenance prédictive). Backstop web (3 agents) : 0 FAUX, 13 imprécis corrigés —
+« ~50 % de censure » réintroduit par la prose après retrait du claim, « survie doublée » pour un HR de 0,5 (c'est le
+temps moyen et médian qui double sous hazard constant), « partial likelihood » nommée par Cox en 1975 et non 1972 ; la
+correction proposée par un agent pour l'argument des 250 pertes de Kaplan-Meier était elle-même fausse, refaite sur le PDF.)
 **Verdict : gap réel — le plus net du domaine (ajout 2026-09-01).** Tous les hits du grep sont des
 faux amis vérifiés en lecture : « Cox » est Box-Cox dans `time-series-forecasting`, « churn » est le
 code churn d'`ia-productivite-esn`, « hazard » désigne les hazard ratios cités sans méthode par les
