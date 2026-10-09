@@ -1157,7 +1157,17 @@ LLM-juge de pertinence (Thomas et al./Bing, Faggioli et al., Soboroff, Clarke & 
 > comme résultat. L'angle propre : la méthodologie de mesure. Domaine :
 > information-retrieval-representation.
 
-### Du langage naturel à la requête structurée — `text-to-sql-semantic-parsing` → `information-retrieval-representation`
+### ✅ FAIT — Du langage naturel à la requête structurée — `text-to-sql-semantic-parsing` → `information-retrieval-representation`
+(**FAIT le 2026-10-09**, 76e run `/leanmonograph`, retiré du backlog. 12 sections sur 12, 45 claims (15 confirmés /
+26 corrigés / 4 rejetés), 47 sources, 2 widgets + 2 figures ; **≈ 9 M tok, 2 lancements**. Gap re-vérifié par
+LECTURE avant lancement : Spider n'apparaissait que comme banc cité en passant dans `llm-code-generation` (délimitation
+ajoutée au sujet). **Arrêt d'élagage au council** : 32 rejets sur 48, tous `search_exhausted=false` — ré-audit 4 agents ;
+le chiffre o1-preview de Spider 2.0 extrait dans 6 sections (5 retirés) et deux sections (schema linking, erreurs
+typiques) vides de leur objet, regarnies de claims sourcés ≥2. SpotIt « 98 paires / 1 534 » absent du papier, réécrit ;
+Spider 2.0-AIFunc écarté (co-auteurs de Spider 2.0). Backstop web (3 agents) : 1 FAUX (taxonomie d'erreurs
+d'ANNOTATION présentée comme erreurs des modèles, venue de la note d'un doublon retiré) et 26 imprécis corrigés —
+notamment ChatGPT 39,30 % et non 40,08 % sur BIRD, DAIL-SQL 86,6 % avec self-consistency seulement, 73,0 % sur BIRD
+attribué à tort à o1-preview.)
 **Verdict : gap réel — objet nommé puis laissé (ajout 2026-09-01).** `structured-extraction-llm`
 annonce « Trois cas d'usage […] chatbots équipés d'outils externes, conversion langage naturel vers
 requêtes structurées, et extraction de données structurées depuis du texte libre. Ce troisième cas
