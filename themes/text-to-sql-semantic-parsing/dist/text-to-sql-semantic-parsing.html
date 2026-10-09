@@ -1,0 +1,1882 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Du langage naturel à la requête exécutable : text-to-SQL et parsing sémantique</title>
+<style>
+/* vietnamese */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLySOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLyTOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 500;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLySOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLyTOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 600;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 700;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLySOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 700;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLyTOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 700;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 800;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLySOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 800;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLyTOxKsv4RnUPU.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 800;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/archivo/v25/k3kPo8UDI-1M0wlSV9XAw6lQkqWY8Q82sLydOxKsv4Rn.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx3cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxTcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxPcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx_cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx7cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxDcwgknk-4.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx3cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxTcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxPcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx_cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx7cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxDcwgknk-4.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx3cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxTcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* greek */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxPcwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx_cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPx7cwgknk-6nFg.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v24/tDbv2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKwBNntkaToggR7BYRbKPxDcwgknk-4.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCt-xNNww_2s0amA9M8onfmTNmnUHowCw.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCt-xNNww_2s0amA9M8on7mTNmnUHowCw.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCt-xNNww_2s0amA9M8onXmTNmnUHowCw.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCt-xNNww_2s0amA9M8onTmTNmnUHowCw.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCt-xNNww_2s0amA9M8onrmTNmnUHo.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCr-xNNww_2s0amA9M0knjsS_ulYHs.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCr-xNNww_2s0amA9M9knjsS_ulYHs.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCr-xNNww_2s0amA9M2knjsS_ulYHs.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCr-xNNww_2s0amA9M3knjsS_ulYHs.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCr-xNNww_2s0amA9M5knjsS_ul.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vKsW3MafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vKsW3FafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vKsW3OafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vKsW3PafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vKsW3BafaPWnII.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vmtm3MafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vmtm3FafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vmtm3OafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vmtm3PafaPWnIIMrY.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/spectral/v15/rnCs-xNNww_2s0amA9vmtm3BafaPWnII.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* =====================================================================
+   charte.css — Charte graphique commune (monograph skill)
+   Sources :
+     (1) themes/automatic-prompt-optimization/legacy/apo-base.html  l.11-192
+     (2) themes/automatic-prompt-optimization/legacy/build/assemble.py  EXTRA_CSS
+     (3) themes/automatic-prompt-optimization/legacy/build/widgets/theme-tooltips.html  <style> blocks
+   NE PAS modifier — fichier de référence distillé depuis le legacy APO.
+   ===================================================================== */
+
+/* ===== (1) BASE : tokens + typographie + composants de mise en page ===== */
+
+  :root{
+    --paper:#F4F6FA; --card:#FFFFFF;
+    --ink:#15202E; --ink-soft:#43536A; --ink-faint:#5C697B;
+    --blue:#23537F; --blue-deep:#142E49; --blue-bright:#2B73B1; --blue-wash:#E7EEF6;
+    --bordeaux:#7C2A38; --bordeaux-bright:#9B3443; --bordeaux-wash:#F3E3E6;
+    --line:#D7DFE9; --line-soft:#E7ECF3;
+    --code:#11283F;
+    --maxw:1240px;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Spectral",Georgia,serif; font-size:17px; line-height:1.62;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,h4,.lbl,.chip,nav,th,.tag,.fcap-k{font-family:"Archivo",system-ui,sans-serif;}
+  code,kbd,.mono{font-family:"JetBrains Mono",monospace;}
+
+  /* progress bar */
+  #prog{position:fixed;top:0;left:0;height:3px;width:0;background:var(--bordeaux-bright);z-index:60;transition:width .08s linear;}
+
+  /* header */
+  header.top{
+    background:linear-gradient(165deg,var(--blue-deep),#0E2236 70%);
+    color:#EAF1F8; padding:62px 28px 54px;
+    border-bottom:3px solid var(--bordeaux);
+  }
+  .top-in{max-width:var(--maxw);margin:0 auto;}
+  .kicker{font-family:"JetBrains Mono",monospace;font-size:12.5px;letter-spacing:.22em;
+    text-transform:uppercase;color:#9DC2E0;margin:0 0 16px;}
+  header.top h1{font-size:clamp(30px,4.6vw,52px);line-height:1.05;margin:0;font-weight:800;letter-spacing:-.01em;}
+  header.top h1 em{font-style:normal;color:#E7B3BD;}
+  header.top .lede{font-size:18px;max-width:760px;margin:20px 0 0;color:#C7D7E6;line-height:1.55;}
+  .meta{margin-top:26px;display:flex;flex-wrap:wrap;gap:10px;}
+  .meta span{font-family:"JetBrains Mono",monospace;font-size:11.5px;letter-spacing:.04em;
+    border:1px solid rgba(157,194,224,.35);color:#B7CFE4;padding:5px 11px;border-radius:2px;}
+
+  /* layout */
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 28px;display:grid;
+    grid-template-columns:248px minmax(0,1fr);gap:48px;align-items:start;}
+  nav.toc{position:sticky;top:22px;padding:30px 0 60px;font-size:13.5px;max-height:calc(100vh - 30px);overflow:auto;}
+  nav.toc .navhead{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-faint);margin:18px 0 9px;font-weight:700;}
+  nav.toc a{display:block;color:var(--ink-soft);text-decoration:none;padding:4px 12px;border-left:2px solid var(--line);
+    line-height:1.32;margin:1px 0;transition:.15s;}
+  nav.toc a:hover{color:var(--blue-bright);border-left-color:var(--blue-bright);}
+  nav.toc a.active{color:var(--bordeaux);border-left-color:var(--bordeaux);font-weight:600;background:var(--bordeaux-wash);}
+  nav.toc a.sub{padding-left:24px;font-size:12.5px;}
+
+  main{padding:42px 0 100px;min-width:0;}
+  section{margin-bottom:30px;scroll-margin-top:18px;}
+  .part-band{margin:54px 0 10px;padding:14px 0 12px;border-top:2px solid var(--blue-deep);border-bottom:1px solid var(--line);}
+  .part-band .pk{font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.2em;color:var(--bordeaux);text-transform:uppercase;}
+  .part-band h2{font-size:clamp(24px,3.2vw,34px);margin:6px 0 0;font-weight:800;letter-spacing:-.01em;color:var(--blue-deep);}
+  h3{font-size:22px;margin:36px 0 8px;color:var(--blue-deep);font-weight:700;letter-spacing:-.005em;}
+  h4{font-size:16px;margin:22px 0 6px;color:var(--ink);font-weight:700;}
+  p{margin:11px 0;}
+  a.ref{color:var(--blue-bright);text-decoration:none;border-bottom:1px solid var(--blue-wash);font-weight:500;}
+  a.ref:hover{border-bottom-color:var(--blue-bright);}
+  strong{font-weight:600;}
+  .hl{color:var(--bordeaux);font-weight:600;}
+  em.term{font-style:italic;color:var(--ink);}
+  .lead{font-size:18.5px;color:var(--ink-soft);line-height:1.6;}
+
+  /* cards & components */
+  .card{background:var(--card);border:1px solid var(--line);border-radius:7px;padding:22px 24px;margin:16px 0;
+    box-shadow:0 1px 2px rgba(20,46,73,.04);}
+  .opt{border-left:3px solid var(--blue);}
+  .opt .lbl{font-family:"Archivo";font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--blue);font-weight:700;}
+  .opt h4{margin:3px 0 8px;font-size:18px;}
+  .pc{display:grid;grid-template-columns:1fr 1fr;gap:10px 26px;margin-top:12px;}
+  @media(max-width:620px){.pc{grid-template-columns:1fr;}}
+  .pc ul{margin:4px 0;padding:0;list-style:none;font-size:15px;}
+  .pc li{padding:3px 0 3px 22px;position:relative;line-height:1.45;color:var(--ink-soft);}
+  .pros .k,.cons .k{font-family:"Archivo";font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;display:block;margin-bottom:3px;}
+  .pros .k{color:var(--blue);}.cons .k{color:var(--bordeaux);}
+  .pros li::before{content:"+";position:absolute;left:4px;color:var(--blue-bright);font-weight:700;}
+  .cons li::before{content:"–";position:absolute;left:5px;color:var(--bordeaux-bright);font-weight:700;}
+  .links{margin-top:13px;font-family:"JetBrains Mono",monospace;font-size:12.5px;display:flex;gap:16px;flex-wrap:wrap;}
+  .links a{color:var(--blue);text-decoration:none;border-bottom:1px dotted var(--blue);}
+  .links a:hover{color:var(--bordeaux);border-bottom-color:var(--bordeaux);}
+  .links a::before{content:"↗ ";opacity:.6;}
+
+  /* callout */
+  .callout{background:var(--bordeaux-wash);border:1px solid #E3C3C9;border-left:4px solid var(--bordeaux);
+    border-radius:6px;padding:18px 22px;margin:20px 0;}
+  .callout .ct{font-family:"Archivo";font-weight:700;color:var(--bordeaux);font-size:13px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
+  .note{background:var(--blue-wash);border:1px solid #CFE0EF;border-left:4px solid var(--blue);border-radius:6px;padding:18px 22px;margin:20px 0;}
+  .note .ct{font-family:"Archivo";font-weight:700;color:var(--blue);font-size:13px;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px;}
+
+  /* figures */
+  figure.fig{margin:24px 0;background:var(--card);border:1px solid var(--line);border-radius:7px;padding:24px 22px 16px;}
+  figure.fig svg{width:100%;height:auto;display:block;}
+  figcaption{margin-top:12px;font-size:13.5px;color:var(--ink-faint);line-height:1.45;border-top:1px solid var(--line-soft);padding-top:10px;}
+  figcaption .fcap-k{color:var(--bordeaux);font-weight:700;font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin-right:8px;}
+
+  /* table */
+  .tbl-w{overflow-x:auto;margin:18px 0;border:1px solid var(--line);border-radius:7px;}
+  table{border-collapse:collapse;width:100%;font-size:14px;background:var(--card);}
+  th{background:var(--blue-deep);color:#E7F0F8;text-align:left;padding:11px 14px;font-size:12px;letter-spacing:.04em;font-weight:600;position:sticky;top:0;}
+  td{padding:11px 14px;border-top:1px solid var(--line-soft);vertical-align:top;line-height:1.45;color:var(--ink-soft);}
+  td:first-child{color:var(--ink);font-weight:600;font-family:"Archivo";font-size:13.5px;}
+  tr:hover td{background:#FAFCFE;}
+  .tag{display:inline-block;font-family:"JetBrains Mono",monospace;font-size:11px;padding:2px 7px;border-radius:3px;background:var(--blue-wash);color:var(--blue);}
+  .tag.b{background:var(--bordeaux-wash);color:var(--bordeaux);}
+
+  /* verdicts (santé) */
+  .verdicts h4.vd-sub{margin:22px 0 4px;font-family:"Archivo";font-weight:700;font-size:15px;color:var(--ink);}
+  .vmeter{display:inline-flex;align-items:center;gap:3px;white-space:nowrap;}
+  .vmeter i{width:9px;height:9px;border-radius:2px;background:var(--line);display:inline-block;}
+  .vmeter i.on{background:var(--bordeaux);}
+  .vmeter b{margin-left:6px;font-family:"Archivo";font-size:12.5px;font-weight:700;color:var(--ink);}
+  .vmeter.vm-na{font-family:"Archivo";font-size:12.5px;font-weight:700;color:var(--ink-soft);font-style:italic;}
+  .vbadge{display:inline-block;font-family:"Archivo";font-size:12px;font-weight:700;padding:2px 9px;border-radius:30px;border:1px solid var(--line);color:var(--ink);background:var(--card);}
+  .vbadge.vb-interdit{color:var(--bordeaux);border-color:var(--bordeaux);}
+  .vd-safety{font-size:14px;color:var(--ink-soft);margin:10px 2px 24px;line-height:1.5;}
+
+  code{background:#E9EEF4;color:var(--code);padding:1.5px 6px;border-radius:4px;font-size:14px;}
+  .axis-chips{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 4px;}
+  .axis-chips a{font-family:"Archivo";font-size:12.5px;font-weight:600;text-decoration:none;color:var(--blue);
+    background:var(--card);border:1px solid var(--line);padding:7px 13px;border-radius:30px;transition:.15s;}
+  .axis-chips a:hover{background:var(--blue-deep);color:#fff;border-color:var(--blue-deep);}
+
+  /* decision path (interactive Part II) */
+  .dpath{margin:18px 0;}
+  .fork{background:var(--card);border:1px solid var(--line);border-radius:7px;margin:10px 0;overflow:hidden;}
+  .fork-h{padding:13px 18px;background:#F0F4F9;border-bottom:1px solid var(--line);
+    font-family:"Archivo";font-weight:700;font-size:14px;color:var(--blue-deep);display:flex;gap:10px;align-items:baseline;}
+  .fork-h .n{font-family:"JetBrains Mono";color:var(--bordeaux);font-size:12px;}
+  .branches{display:grid;grid-template-columns:1fr 1fr;}
+  @media(max-width:620px){.branches{grid-template-columns:1fr;}}
+  .br{padding:14px 18px;font-size:14.5px;line-height:1.5;color:var(--ink-faint);border-right:1px solid var(--line-soft);}
+  .br.chosen{color:var(--ink);background:linear-gradient(0deg,var(--bordeaux-wash),#fff);border-left:3px solid var(--bordeaux);}
+  .br .st{font-family:"Archivo";font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:5px;}
+  .br.chosen .st{color:var(--bordeaux);}
+  .br.alt .st{color:var(--ink-faint);}
+  .br.chosen .st::after{content:" ◆ retenu";color:var(--bordeaux);}
+
+  /* collapsible examples */
+  details.ex{margin:18px 0;border:1px solid var(--line);border-radius:6px;background:#FBFCFE;overflow:hidden;}
+  details.ex>summary{cursor:pointer;list-style:none;padding:12px 18px;font-family:"Archivo",sans-serif;
+    font-weight:700;font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--blue-deep);
+    background:#EBF1F7;display:flex;align-items:center;gap:11px;user-select:none;transition:.15s;}
+  details.ex>summary::-webkit-details-marker{display:none;}
+  details.ex>summary::before{content:"▸";color:var(--bordeaux);font-size:13px;line-height:1;
+    transition:transform .2s ease;display:inline-block;}
+  details.ex[open]>summary::before{transform:rotate(90deg);}
+  details.ex>summary:hover{background:#E1EAF3;color:var(--bordeaux);}
+  details.ex>summary .cnt{margin-left:auto;font-family:"JetBrains Mono",monospace;font-size:10px;
+    letter-spacing:.04em;color:var(--ink-faint);font-weight:400;}
+  .exbody{padding:8px 20px 16px;font-size:15px;line-height:1.55;color:var(--ink-soft);}
+  .exbody p{margin:9px 0;}
+  .eg{margin:11px 0;padding:11px 15px;border-left:3px solid var(--blue);background:#fff;
+    border:1px solid var(--line-soft);border-left:3px solid var(--blue);border-radius:0 5px 5px 0;}
+  .eg.b{border-left-color:var(--bordeaux);}
+  .eg .egk{font-family:"Archivo",sans-serif;font-size:11.5px;font-weight:700;letter-spacing:.04em;
+    color:var(--blue-deep);display:block;margin-bottom:4px;}
+  .eg.b .egk{color:var(--bordeaux);}
+  .eg p{margin:5px 0;}
+  .exbody code{font-size:13px;}
+  .arrow{color:var(--bordeaux);font-weight:600;}
+
+  /* worked examples: code / diff / calc / steps */
+  .exbody pre.code{background:#0E2132;color:#D6E3EF;border:1px solid #1C3650;border-radius:6px;
+    padding:12px 14px;margin:11px 0;font-family:"JetBrains Mono",monospace;font-size:11.8px;line-height:1.62;
+    overflow-x:auto;white-space:pre;}
+  .exbody pre.code .h{color:#E7B3BD;}
+  .exbody pre.code .c{color:#7C9DBA;}
+  .exbody pre.code .del{display:block;background:rgba(155,52,67,.32);color:#F2C6CC;}
+  .exbody pre.code .add{display:block;background:rgba(44,119,182,.30);color:#C5DEF3;}
+  .calc{background:#fff;border:1px solid var(--line-soft);border-left:3px solid var(--blue-deep);
+    border-radius:0 5px 5px 0;padding:9px 14px;margin:10px 0;font-family:"JetBrains Mono",monospace;
+    font-size:12px;line-height:1.75;color:var(--ink);overflow-x:auto;white-space:pre-wrap;}
+  .calc .r{color:var(--bordeaux);font-weight:700;}
+  .calc .g{color:#1C6A4C;font-weight:700;}
+  .calc .c{color:var(--ink-faint);}
+  ol.steps{counter-reset:s;margin:11px 0;padding:0;list-style:none;}
+  ol.steps li{position:relative;padding:5px 0 5px 32px;font-size:14.5px;line-height:1.5;margin:3px 0;color:var(--ink-soft);}
+  ol.steps li b{color:var(--ink);}
+  ol.steps li::before{counter-increment:s;content:counter(s);position:absolute;left:0;top:4px;
+    width:21px;height:21px;background:var(--blue-deep);color:#fff;border-radius:50%;
+    font-family:"JetBrains Mono",monospace;font-size:11px;display:flex;align-items:center;justify-content:center;font-weight:600;}
+  .eg pre.code{margin:8px 0;}
+
+  footer{background:var(--blue-deep);color:#A9C2D8;padding:34px 28px;font-size:13px;}
+  footer .fin{max-width:var(--maxw);margin:0 auto;font-family:"JetBrains Mono",monospace;letter-spacing:.03em;}
+
+  @media(max-width:900px){
+    .wrap{grid-template-columns:1fr;gap:0;}
+    nav.toc{position:static;max-height:none;border-bottom:1px solid var(--line);margin-bottom:10px;
+      display:grid;grid-template-columns:1fr 1fr;gap:0 18px;}
+  }
+
+/* ===== (2) ENRICHISSEMENTS : blocs xwrap / xabstract / xtldr / gloss-grid / gterm ===== */
+
+  /* ===== enrichissements (blocs ajoutes) ===== */
+  .xwrap{max-width:var(--maxw);margin:0 auto;padding:0 28px;}
+  .xabstract{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--bordeaux);
+    border-radius:8px;padding:24px 28px;margin:28px 0 0;box-shadow:0 1px 2px rgba(20,46,73,.05);}
+  .xabstract .xk{font-family:"Archivo",system-ui,sans-serif;font-size:11px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--bordeaux);font-weight:700;margin:0 0 9px;}
+  .xabstract .xthese{font-size:19px;line-height:1.5;color:var(--ink);font-weight:600;margin:0 0 12px;
+    font-family:"Spectral",Georgia,serif;}
+  .xabstract ul{margin:8px 0 0;padding:0;list-style:none;}
+  .xabstract li{position:relative;padding:5px 0 5px 22px;font-size:15px;color:var(--ink-soft);line-height:1.5;}
+  .xabstract li::before{content:"\25B8";position:absolute;left:2px;color:var(--blue-bright);font-weight:700;}
+  .xabstract .xpath li::before{content:counter(xp);counter-increment:xp;background:var(--blue-deep);color:#fff;
+    width:19px;height:19px;border-radius:50%;font-family:"JetBrains Mono",monospace;font-size:10px;left:0;top:5px;
+    display:flex;align-items:center;justify-content:center;}
+  .xabstract ul.xpath{counter-reset:xp;}
+  .xabstract .xfoot{font-size:13px;color:var(--ink-faint);margin:14px 0 0;line-height:1.5;}
+  .xtldr{background:var(--blue-wash);border:1px solid #CFE0EF;border-left:4px solid var(--blue);
+    border-radius:6px;padding:14px 20px;margin:16px 0 4px;}
+  .xtldr .xk{font-family:"Archivo",system-ui,sans-serif;font-size:11px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--blue);font-weight:700;margin-bottom:7px;}
+  .xtldr ul{margin:0;padding-left:19px;}
+  .xtldr li{font-size:14px;color:var(--ink-soft);line-height:1.5;margin:4px 0;}
+  .gloss-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin:18px 0;}
+  @media(max-width:760px){.gloss-grid{grid-template-columns:1fr;}}
+  .gterm{background:var(--card);border:1px solid var(--line);border-radius:7px;padding:14px 17px;
+    border-left:3px solid var(--blue);}
+  .gterm .gt-name{font-family:"Archivo",system-ui,sans-serif;font-weight:700;color:var(--blue-deep);
+    font-size:14.5px;display:block;margin-bottom:5px;}
+  .gterm .gt-def{font-size:13.5px;color:var(--ink-soft);line-height:1.5;margin:0;}
+  .gterm .gt-see{font-family:"JetBrains Mono",monospace;font-size:10.5px;color:var(--ink-faint);
+    margin:8px 0 0;}
+
+  .xptr-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin:18px 0;}
+  @media(max-width:760px){.xptr-grid{grid-template-columns:1fr;}}
+  .xptr{background:var(--card);border:1px solid var(--line);border-radius:7px;padding:14px 17px;
+    border-left:3px solid var(--blue-bright);}
+  .xptr .xptr-name{font-family:"Archivo",system-ui,sans-serif;font-weight:700;color:var(--blue);
+    font-size:14.5px;text-decoration:none;}
+  .xptr .xptr-name:hover{text-decoration:underline;}
+  .xptr .xptr-kind{font-family:"JetBrains Mono",monospace;font-size:9.5px;letter-spacing:.08em;
+    text-transform:uppercase;color:#fff;background:var(--blue-bright);border-radius:4px;
+    padding:1px 6px;margin-left:8px;vertical-align:middle;}
+  .xptr .xptr-blurb{font-size:13.5px;color:var(--ink-soft);line-height:1.5;margin:8px 0 0;}
+
+/* ===== (3) DARK MODE + BOUTON THÈME + TOOLTIPS ===== */
+
+  /* Transitions douces sur les surfaces principales lors de la bascule */
+  html.theme-anim body,
+  html.theme-anim .card,
+  html.theme-anim .callout,
+  html.theme-anim .note,
+  html.theme-anim figure.fig,
+  html.theme-anim .tbl-w,
+  html.theme-anim nav.toc a{
+    transition:background-color .25s ease, color .25s ease, border-color .25s ease;
+  }
+
+  html[data-theme="dark"]{
+    /* papier sombre, encre claire */
+    --paper:#0E1620; --card:#16212E;
+    --ink:#E4EBF3; --ink-soft:#AFC0D2; --ink-faint:#8393A6;
+    /* bleus : on éclaircit pour rester lisibles sur fond foncé */
+    --blue:#6FA8D8; --blue-deep:#0A1521; --blue-bright:#7FB6E4; --blue-wash:#1B2C3E;
+    /* bordeaux : accent gardé lisible, remonté en clarté */
+    --bordeaux:#C86F7B; --bordeaux-bright:#D67C88; --bordeaux-wash:#2C1A1F;
+    --line:#2A3848; --line-soft:#212E3C;
+    --code:#0A1521;
+    color-scheme:dark;
+  }
+
+  /* Ajustements ciblés sur surfaces déjà opaques du doc (non pilotées par les variables) */
+  html[data-theme="dark"] body{background:var(--paper);color:var(--ink);}
+  html[data-theme="dark"] header.top{
+    background:linear-gradient(165deg,#0A1521,#060D16 70%);
+    border-bottom-color:var(--bordeaux);
+  }
+  html[data-theme="dark"] th{background:#0A1521;color:#D7E6F4;}
+  html[data-theme="dark"] tr:hover td{background:#1B2735;}
+  html[data-theme="dark"] code{background:#0E1C2A;color:#CFE0F2;}
+  html[data-theme="dark"] .card{box-shadow:0 1px 2px rgba(0,0,0,.45);}
+  html[data-theme="dark"] details.ex{background:#101A25;}
+  html[data-theme="dark"] details.ex>summary{background:#142231;color:#CFE0F2;}
+  /* Ce survol pose un fond PLUS CLAIR que --card : l'encre d'accent n'y atteint que 4,08:1
+     même avec le --bordeaux relevé ci-dessus. Encre dédiée pour ce seul état → 4,63:1. */
+  html[data-theme="dark"] details.ex>summary:hover{background:#1A2C3E;color:#CD7C87;}
+  html[data-theme="dark"] .eg{background:#101A25;}
+  html[data-theme="dark"] .calc{background:#101A25;}
+  html[data-theme="dark"] .fork-h{background:#142231;}
+  html[data-theme="dark"] footer{background:#0A1521;color:#8CA6BE;}
+  /* la coloration de pre.code reste codée en dur dans le doc (déjà sombre, cohérente) */
+
+  #theme_toggle{
+    position:fixed; top:14px; right:14px; z-index:120;
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:"Archivo",system-ui,sans-serif; font-size:12px; font-weight:700;
+    letter-spacing:.08em; text-transform:uppercase;
+    color:var(--blue); background:var(--card);
+    border:1px solid var(--line); border-radius:30px;
+    padding:8px 14px; cursor:pointer; line-height:1;
+    box-shadow:0 2px 6px rgba(20,46,73,.14);
+    transition:background-color .15s, color .15s, border-color .15s, box-shadow .15s;
+  }
+  #theme_toggle:hover{
+    color:#fff; background:var(--blue-deep); border-color:var(--blue-deep);
+  }
+  #theme_toggle:focus-visible{
+    outline:2px solid var(--bordeaux); outline-offset:2px;
+  }
+  #theme_toggle #theme_toggle_ico{font-size:14px;}
+  html[data-theme="dark"] #theme_toggle{
+    box-shadow:0 2px 8px rgba(0,0,0,.5);
+  }
+  html[data-theme="dark"] #theme_toggle:hover{
+    color:#0A1521; background:var(--blue-bright); border-color:var(--blue-bright);
+  }
+  /* --blue-bright éclairci en sombre : le blanc du badge n'y tient plus (2,16:1), encre sombre */
+  html[data-theme="dark"] .xptr .xptr-kind{color:#0A1521;}
+  @media print{ #theme_toggle{display:none;} }
+
+  .theme-gloss{
+    cursor:help; text-decoration:none;
+    border-bottom:1px dotted var(--bordeaux);
+    color:inherit; outline:none;
+  }
+  .theme-gloss:focus-visible{
+    outline:2px solid var(--bordeaux); outline-offset:2px; border-radius:2px;
+  }
+  abbr.theme-gloss{text-decoration:none;}
+
+  #theme_tip{
+    position:absolute; z-index:130; max-width:300px;
+    background:var(--blue-deep); color:#EAF1F8;
+    border:1px solid var(--bordeaux);
+    border-radius:6px; padding:9px 12px;
+    font-family:"Archivo",system-ui,sans-serif; font-size:13px; line-height:1.45;
+    box-shadow:0 6px 20px rgba(10,21,33,.4);
+    opacity:0; transform:translateY(3px); pointer-events:none;
+    transition:opacity .14s ease, transform .14s ease;
+  }
+  #theme_tip[data-show="1"]{ opacity:1; transform:translateY(0); }
+  #theme_tip::after{
+    content:""; position:absolute; left:var(--theme-tip-ax,16px);
+    bottom:-6px; width:10px; height:10px;
+    background:var(--blue-deep);
+    border-right:1px solid var(--bordeaux); border-bottom:1px solid var(--bordeaux);
+    transform:rotate(45deg);
+  }
+  #theme_tip[data-below="1"]::after{
+    bottom:auto; top:-6px;
+    border-right:none; border-bottom:none;
+    border-left:1px solid var(--bordeaux); border-top:1px solid var(--bordeaux);
+  }
+  html[data-theme="dark"] #theme_tip{
+    background:#1B2C3E; color:#E4EBF3;
+  }
+  html[data-theme="dark"] #theme_tip::after{ background:#1B2C3E; }
+  @media print{ #theme_tip{display:none;} }
+
+  /* --blue-deep porte DEUX rôles : couleur de texte (h3, .part-band h2) et couleur de fond
+     (th, bordure de .part-band). En thème sombre il est assombri à #0A1521 pour son rôle de
+     FOND — ce qui rend les titres illisibles sur --paper #0E1620 (contraste mesuré 1,01:1).
+     On rétablit une encre claire pour le seul rôle de texte. Trouvé le 2026-08-10 (revue
+     visuelle de berberine), affectait tout le corpus en thème sombre.
+     2026-08-12 (revue visuelle de collagene) : le correctif ne couvrait que les titres —
+     les termes du glossaire portent la même encre et étaient restés à 1,13:1. */
+  html[data-theme="dark"] h3,
+  html[data-theme="dark"] .part-band h2,
+  html[data-theme="dark"] .gterm .gt-name{ color:var(--blue-bright); }
+
+</style>
+</head>
+<body>
+<div id="prog" style="width:0%"></div>
+<header class="top"><div class="top-in">
+  <p class="kicker">Text-to-SQL · monographie</p>
+  <h1>Du langage naturel à la requête exécutable : text-to-SQL et parsing sémantique</h1>
+  <p class="lede">Traduire une question en SQL exécutable semble réglé quand les scores dépassent 90 % sur Spider ; sur des bases d'entreprise réelles, le même problème retombe à environ un cinquième des tâches résolues — et les benchmarks eux-mêmes se trompent souvent.</p>
+  <div class="meta"><span>Monographie</span></div>
+</div></header>
+<div class="wrap">
+<nav class="toc" id="toc"><a href="#tache-et-spider">La tâche et Spider : généraliser à des bases jamais vues</a>
+<a href="#bird-bases-realistes">BIRD : valeurs sales, connaissance externe et efficacité</a>
+<a href="#spider-2-entreprise">Spider 2.0 : les flux d'entreprise</a>
+<a href="#schema-linking">Le schema linking, cœur du problème</a>
+<a href="#approches">Les approches : de la grammaire au LLM qui s'auto-corrige</a>
+<a href="#erreurs-typiques">Erreurs typiques : la requête plausible et fausse</a>
+<a href="#evaluation-correspondance-execution">Évaluer : exact match, exécution et test suites</a>
+<a href="#benchmarks-bruites">Quand les benchmarks se trompent : erreurs d'annotation et classements</a>
+<a href="#securite-droits">Sécurité : injection, droits et périmètre</a>
+<a href="#couche-semantique-production">En production : modèle sémantique et services gérés</a>
+<a href="#graphes-sparql-cypher">Au-delà du SQL : text-to-SPARQL et text-to-Cypher</a>
+<a href="#ecosysteme">Écosystème &amp; pour aller plus loin</a></nav>
+<main>
+<div class="xwrap"><div class="xabstract"><div class="xk">Résumé</div><p class="xthese">Traduire une question en SQL exécutable semble résolu sur les benchmarks académiques, mais les bases réelles et l'évaluation elle-même montrent que le problème reste largement ouvert.</p><ul><li>Les scores quasi saturés sur Spider prédisent mal ce qu'un système accomplit sur des bases réalistes et des flux d'entreprise.</li><li>Le schema linking, qui relie la question aux bonnes tables, colonnes et valeurs, concentre une part importante des échecs.</li><li>Les approches ont glissé du décodage contraint par la grammaire vers des LLM qui se servent de l'exécution comme récompense ou comme critère de sélection.</li><li>La même démarche s'étend aux graphes de connaissances, avec text-to-SPARQL et text-to-Cypher.</li><li>Une requête fausse s'exécute souvent sans erreur : le vrai danger est la réponse plausible et silencieusement inexacte.</li><li>Comparer le texte de la requête ou son résultat se trompe chacun à sa façon, et aucune vérification ne prouve l'équivalence de deux requêtes en général.</li><li>Les erreurs d'annotation des benchmarks suffisent à rebattre les classements des systèmes.</li><li>Les droits d'accès bornent ce que lit la requête générée, mais ne protègent pas d'une injection glissée dans la question.</li></ul></div></div>
+<section id="tache-et-spider">
+<h3>La tâche et Spider : généraliser à des bases jamais vues</h3>
+<p>Le text-to-SQL consiste à traduire une question en langage naturel en une requête SQL que le moteur de la base exécute. C'est un cas de semantic parsing (parsing sémantique) : la phrase devient une représentation formelle de son sens. La cible n'est pas un objet JSON à remplir selon un schéma, mais un programme. Ce programme lit des tables, filtre des lignes, joint des relations et agrège des valeurs. Sa justesse se juge donc à ce qu'il renvoie, et pas seulement à sa forme.</p>
+<p>Spider, publié par Yu et al. à EMNLP 2018, a fixé le cadre moderne de la tâche. Il réunit 10 181 questions et 5 693 requêtes SQL complexes uniques. Ces requêtes portent sur 200 bases multi-tables, qui couvrent 138 domaines. L'annotation a mobilisé onze étudiants.</p>
+<p>La rupture tient au découpage. La plupart des travaux antérieurs utilisaient une base unique, avec les mêmes requêtes cibles en entraînement et en test. Spider sépare au contraire les bases et les requêtes entre les deux jeux. Le modèle doit donc écrire des requêtes pour des schémas qu'il n'a jamais vus, avec des structures de requêtes nouvelles. C'est une cross-domain generalization (généralisation inter-domaines), imposée par construction plutôt que souhaitée.</p>
+<p>Le point de départ était très bas. Au lancement, le meilleur modèle testé, SQLNet, atteignait 12,4 % d'exact set match sur le test du découpage par base. Les variantes séquence à séquence, avec ou sans attention et mécanisme de copie, restaient entre 3,7 et 5,3 %. TypeSQL montait à 8,2 %.</p>
+<p>Encore faut-il savoir ce que mesure ce score. L'exact set match, métrique officielle d'origine de Spider, compare la structure de la requête prédite à celle de la référence. Une requête équivalente mais écrite autrement est alors jugée fausse. Zhong, Yu et Klein ont chiffré ces faux négatifs en 2020, sur les 21 soumissions du classement Spider. Ils en trouvent environ 2,5 % en moyenne. Dans le pire cas, la proportion atteint 8,1 %.</p>
+<p>D'où une question qui traversera tout le sujet : que veut dire « traduire correctement » ? Reproduire la requête de l'annotateur, ou renvoyer la même réponse que lui ? Avant d'y répondre, les benchmarks suivants déplacent la difficulté vers un autre terrain, celui des données elles-mêmes.</p>
+</section>
+<section id="bird-bases-realistes">
+<h3>BIRD : valeurs sales, connaissance externe et efficacité</h3>
+<p>Les bases de Spider sont petites et propres. BIRD, benchmark présenté à NeurIPS 2023 dans la piste Datasets &amp; Benchmarks, part du constat inverse. Il compte 12 751 paires texte-SQL réparties sur 95 bases. Celles-ci totalisent 33,4 Go et couvrent 37 domaines professionnels, de la blockchain à la santé en passant par l'éducation. Le site officiel distingue 9 428 exemples d'entraînement et 1 534 de développement. Le test n'est accessible que par soumission.</p>
+<p>Trois défis structurent le benchmark. Le premier tient aux valeurs, conservées dans leur format d'origine au lieu d'être nettoyées. Elles sont volumineuses, sales et bruitées. Le deuxième défi est la connaissance externe. Chaque exemple porte une evidence (indice de connaissance externe), rédigée en langage naturel et annotée par des experts. Elle relie un terme de la question à une colonne, une valeur ou une formule. Le troisième défi est l'efficacité d'exécution, que BIRD revendique comme le premier benchmark text-to-SQL à mesurer.</p>
+<p>La métrique principale est l'execution accuracy, notée EX. Une requête prédite est correcte si son résultat d'exécution coïncide avec celui de la requête de référence. Sa forme syntaxique n'entre plus en compte. L'efficacité passe par le VES (Valid Efficiency Score), qui pondère chaque requête valide par son temps d'exécution relatif à la référence. Depuis août 2024, le site officiel retient le R-VES (Reward-based VES) pour les nouvelles soumissions de test.</p>
+<p>Les scores d'origine situent la difficulté. Sur le test, GPT-4 atteint 54,89 % d'EX avec les indices de connaissance externe. Sans eux, il tombe à 34,88 %, un chiffre propre à l'article BIRD. Les humains font bien mieux. Ingénieurs de données et étudiants en bases de données atteignent 92,96 %, quand ChatGPT obtenait 39,30 % au lancement (40,08 % avec chaîne de raisonnement).</p>
+<p>On attribue volontiers ce retard à la complexité syntaxique du SQL. L'article BIRD met plutôt en avant la compréhension des valeurs de la base et la connaissance externe. Les quelque 20 points que gagne GPT-4 avec les indices vont dans ce sens. Des travaux tiers traitent d'ailleurs le manque de connaissance experte comme un goulot. Une réserve demeure : BIRD ne le démontre pas par une ablation qui isolerait chaque facteur.</p>
+<p>L'écart s'est depuis resserré. Le classement officiel consulté en septembre 2026 place GrainSQL en tête, avec 82,95 % d'EX sur le test et 84,10 de R-VES. La distance aux performances humaines tombe ainsi à une dizaine de points. BIRD reste pourtant fidèle au format d'une question pour une requête. La marche suivante change d'échelle et quitte ce format.</p>
+</section>
+<section id="spider-2-entreprise">
+<h3>Spider 2.0 : les flux d'entreprise</h3>
+<p>Spider 2.0, publié par Lei et al. à ICLR 2025, quitte les bases de démonstration pour les entrepôts de données. Il réunit 632 tâches tirées de workflows d'entreprise, sur 213 bases. Le SQL attendu est multi-dialecte, réparti sur six systèmes. BigQuery domine avec 33,86 % des tâches, juste devant Snowflake. SQLite et DuckDB suivent, puis PostgreSQL et ClickHouse ferment la marche avec moins de 2 % chacun.</p>
+<p>La taille des schémas change d'ordre de grandeur. Une base de Spider 2.0 compte en moyenne 743,5 colonnes, contre 54,2 pour BIRD. Les variantes lite et snow montent un peu plus haut, autour de 800 colonnes. Certaines bases en dépassent 1 000. Les requêtes s'allongent aussi, avec 144 à 162 tokens en moyenne contre 30,9 pour BIRD. La plupart dépendent du moteur : 85,98 % appellent des fonctions propres au dialecte. On en compte 6,5 à 7,1 par requête.</p>
+<p>La tâche elle-même sort du cadre « une question, une requête ». Dans la version complète, l'agent travaille sur un codebase dont il doit parcourir la configuration et la documentation. Selon Lei et al., 12,34 % des tâches sont des workflows dbt (outil de transformation de données en SQL) de niveau projet. Une part voisine, 12,97 %, exige de consulter une documentation externe. Les variantes lite et snow restent autonomes. Elles fournissent une documentation auxiliaire avec le schéma. Près d'un tiers des tâches, 30,54 %, sont classées difficiles, un classement fondé sur la seule longueur de la requête de référence (160 tokens ou plus).</p>
+<p>Les scores s'effondrent. Dans la version 2 de l'article, le meilleur cadre d'agent à base d'o1-preview résout 21,3 % des tâches. La version 1 donnait 17,0 %. Sur les variantes, o1-preview plafonne à 23,22 % pour lite et 23,77 % pour snow. Un tiers, ReFoRCE, fait tourner Spider-Agent avec d'autres modèles et retrouve le même ordre de grandeur : 24,86 % sur lite et 24,31 % sur snow avec o3. ReFoRCE, système tiers évalué sur lite et snow, rapporte 24,86 % sur lite pour Spider-Agent avec o3. Sur snow, le même agent atteint 24,31 %.</p>
+<p>Le résumé de Spider 2.0 oppose ce 21,3 % aux 91,2 % de Spider 1.0 et aux 73,0 % de BIRD. Mais la comparaison juxtapose des systèmes différents. L'introduction attribue ces deux scores académiques à des méthodes à base de GPT-4, pas au cadre d'agent o1-preview. À méthode égale, la mesure devient nette. DAIL-SQL, méthode qui place le schéma dans le contexte d'un LLM, obtient avec GPT-4o 86,6 % sur Spider 1.0. Il descend à 57,4 % sur BIRD. Sur Spider 2.0-lite, il ne dépasse pas 5,68 %.</p><figure class='fig'><svg viewBox='0 0 720 290' role='img' aria-label='Deux panneaux alignés sur Spider 1.0, BIRD et Spider 2.0-lite : à gauche, colonnes moyennes par base en échelle logarithmique (BIRD 54,2 ; Spider 2.0-lite 803,6) ; à droite, exactitude d’exécution de DAIL-SQL avec GPT-4o (86,6 %, 57,4 %, 5,68 %).' font-family='inherit' font-size='12'><text x='130' y='22' fill='var(--ink,#15202E)' font-weight='600'>Colonnes moyennes par base (échelle log)</text><text x='440' y='22' fill='var(--ink,#15202E)' font-weight='600'>EX de DAIL-SQL + GPT-4o (%)</text><text x='118' y='84' text-anchor='end' fill='var(--ink,#15202E)'>Spider 1.0</text><text x='118' y='144' text-anchor='end' fill='var(--ink,#15202E)'>BIRD</text><text x='118' y='204' text-anchor='end' fill='var(--ink,#15202E)'>Spider 2.0-lite</text><line x1='130' y1='55' x2='130' y2='225' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6' stroke-dasharray='3 3'/><text x='130' y='242' text-anchor='middle' fill='var(--ink-faint,#7A889B)'>10</text><line x1='235' y1='55' x2='235' y2='225' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6' stroke-dasharray='3 3'/><text x='235' y='242' text-anchor='middle' fill='var(--ink-faint,#7A889B)'>100</text><line x1='340' y1='55' x2='340' y2='225' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6' stroke-dasharray='3 3'/><text x='340' y='242' text-anchor='middle' fill='var(--ink-faint,#7A889B)'>1 000</text><line x1='130' y1='225' x2='340' y2='225' stroke='var(--ink-faint,#7A889B)'/><text x='135' y='84' fill='var(--ink-faint,#7A889B)' font-style='italic'>non tracé (hors de la comparaison source)</text><rect x='130' y='128' width='77.1' height='24' fill='var(--blue,#23537F)'/><text x='213' y='144' fill='var(--ink,#15202E)'>54,2</text><rect x='130' y='188' width='200' height='24' fill='var(--blue,#23537F)'/><text x='336' y='204' fill='var(--ink,#15202E)' font-weight='600'>803,6</text><text x='130' y='262' fill='var(--ink-faint,#7A889B)'>Spider 2.0 complet : 743,5 · snow : 812,1</text><line x1='440' y1='55' x2='440' y2='225' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6' stroke-dasharray='3 3'/><text x='440' y='242' text-anchor='middle' fill='var(--ink-faint,#7A889B)'>0</text><line x1='495' y1='55' x2='495' y2='225' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6' stroke-dasharray='3 3'/><text x='495' y='242' text-anchor='middle' fill='var(--ink-faint,#7A889B)'>25</text><line x1='550' y1='55' x2='550' y2='225' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6' stroke-dasharray='3 3'/><text x='550' y='242' text-anchor='middle' fill='var(--ink-faint,#7A889B)'>50</text><line x1='605' y1='55' x2='605' y2='225' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6' stroke-dasharray='3 3'/><text x='605' y='242' text-anchor='middle' fill='var(--ink-faint,#7A889B)'>75</text><line x1='660' y1='55' x2='660' y2='225' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6' stroke-dasharray='3 3'/><text x='660' y='242' text-anchor='middle' fill='var(--ink-faint,#7A889B)'>100</text><line x1='440' y1='225' x2='660' y2='225' stroke='var(--ink-faint,#7A889B)'/><rect x='440' y='68' width='190.5' height='24' fill='var(--blue,#23537F)'/><text x='636.5' y='84' fill='var(--ink,#15202E)' font-weight='600'>86,6 %</text><rect x='440' y='128' width='126.3' height='24' fill='var(--blue,#23537F)'/><text x='572.3' y='144' fill='var(--ink,#15202E)' font-weight='600'>57,4 %</text><rect x='440' y='188' width='12.5' height='24' fill='var(--bordeaux,#7C2A38)'/><text x='458.5' y='204' fill='var(--ink,#15202E)' font-weight='600'>5,68 %</text><text x='440' y='262' fill='var(--ink-faint,#7A889B)'>même méthode, même modèle sur les trois jeux</text></svg><figcaption><span class="fcap-k">Figure 1</span>À méthode égale (DAIL-SQL + GPT-4o), l’exactitude d’exécution vaut 86,6 % sur Spider 1.0, 57,4 % sur BIRD (~54 colonnes par base) et 5,68 % sur Spider 2.0-lite (~800 colonnes), jeu qui change aussi de dialecte SQL et de longueur de requête ; les 91,2 %, 73,0 % et 21,3 % du résumé de Spider 2.0, obtenus par des systèmes différents, ne sont pas tracés.</figcaption></figure>
+<p>La chute est réelle, et d'autres auteurs la constatent : ReFoRCE parle de « sharp performance drop ». Y lire la distance entre benchmark académique et production reste en revanche l'interprétation des auteurs, pas une mesure. Un obstacle précède toutefois l'écriture même de la requête. Parmi des centaines de colonnes, le modèle doit d'abord retrouver celles que la question désigne.</p>
+</section>
+<section id="schema-linking">
+<h3>Le schema linking, cœur du problème</h3>
+<p>Cette étape porte un nom, le schema linking (liaison au schéma) : relier les mots de la question aux tables, aux colonnes et aux valeurs de la base. Elle paraît modeste. Une question nomme rarement une colonne telle qu'elle est déclarée, et plusieurs colonnes peuvent prétendre au même mot. Une valeur citée doit être retrouvée dans les données, sous la forme exacte où elle est stockée. Une relation entre deux entités doit souvent être reconstruite sans que le schéma déclare la jointure.</p><p>L'analyse d'erreurs de Lei et al. sur Spider 2.0 donne la mesure de ce poids. Sur 300 exemples tirés au hasard, le mauvais schema linking représente 27,6 % des échecs. Les colonnes en comptent 16,6 % et les tables 10,1 %. La somme des deux ne retombe d'ailleurs pas sur le total publié. Ce n'est pas la première cause d'échec : l'analyse de données erronée la devance, avec 35,5 %. C'est en revanche la deuxième grande catégorie, et la plus directement liée à la taille des schémas. Le phénomène ne date pas de Spider 2.0. DIN-SQL (méthode qui décompose la génération en sous-tâches) a classé les échecs d'un LLM en few-shot (quelques exemples placés dans le prompt) sur 500 requêtes de Spider. Le schema linking y était déjà la catégorie la plus nombreuse, devant les JOIN.</p><p>Les jointures implicites forment une catégorie voisine, comptée à part. Les erreurs de JOIN pèsent 8,3 % des échecs de Spider 2.0. Les bases BigQuery n'ont souvent pas de clés étrangères explicites. Le modèle doit alors deviner les clés à partir des noms et des descriptions de colonnes. La syntaxe propre à l'entrepôt ajoute ses pièges, puisque même en few-shot les modèles exploitent mal les jokers et les suffixes de tables comme <code>_TABLE_SUFFIX</code>. Les colonnes imbriquées, qui rangent tableaux ou dictionnaires dans une même cellule, abaissent aussi nettement le taux de réussite. Les modèles y saisissent mal le rôle de chaque sous-champ.</p><p>L'échelle explique pourquoi la difficulté grandit. La Table 2 de Spider 2.0 donne en moyenne 803,6 colonnes par base pour la variante lite et 812,1 pour snow. BIRD en compte 54,2. Le rapport atteint donc un facteur d'environ 14 à 15 selon la variante. Le chiffre de 812 que cite l'introduction de l'article est celui de snow ; le résumé parle de bases de « plus de 1 000 colonnes ». Le texte de l'analyse d'erreurs annonce « plus de 755 » colonnes pour lite, valeur que la table ne reproduit pas.</p><p>Les valeurs posent un problème distinct de celui des noms. Une partie du schema linking consiste à retrouver dans la base les valeurs que la question cite, ce que fait un récupérateur de valeurs. Le système CodeS illustre le besoin par une question de BIRD où « Jesenik » se trouve dans la colonne <code>a2</code> de la table <code>district</code>. Rien dans le nom de la colonne ne le laisse deviner. CodeS filtre d'abord les candidats par un index BM25 (fonction de classement lexical), puis affine par plus longue sous-chaîne commune. Ce filtrage préalable n'a rien d'un luxe : la base Donor de BIRD compte environ 116,5 millions de valeurs. Le système CHESS procède autrement, sur des bases de millions de lignes. Il indexe les valeurs par LSH pour retenir les candidats les plus proches, puis les affine par distance d'édition et similarité sémantique.</p><p>Les LLM à long contexte relancent une question de fond : faut-il encore lier explicitement ? Maamari et al. (2024) constatent que les modèles récents exploitent bien les éléments pertinents quand le schéma tient dans la fenêtre de contexte, malgré de nombreux éléments inutiles. Le filtrage, lui, peut retirer des colonnes nécessaires. Leur pipeline s'en passe et atteint 71,83 % sur BIRD. Les auteurs reconnaissent pourtant que l'étape reste utile aux modèles moins capables. Quand le schéma déborde du contexte, la conclusion s'inverse en pratique. Sur Spider 2.0, ReFoRCE garde un schema linking au niveau des tables, réservé aux exemples de plus de 50K tokens. Sur ce sous-ensemble de lite, son rappel atteint 86,24 %. C'est donc entre la question et le schéma que se décide la justesse d'une requête, et chaque famille d'approches y répond à sa manière.</p>
+</section>
+<section id="approches">
+<h3>Les approches : de la grammaire au LLM qui s'auto-corrige</h3>
+<p>La plus ancienne des réponses ne s'occupe pas du sens mais de la forme. PICARD (Scholak, Schucher et Bahdanau, EMNLP 2021) contraint le décodage d'un modèle de langage déjà affiné par analyse incrémentale. À chaque pas, les tokens qui rendraient le préfixe inadmissible sont rejetés. Selon son résumé, la méthode porte des modèles T5 affinés de performance moyenne à l'état de l'art sur Spider. Des travaux indépendants la décrivent comme un module qui force la sortie à respecter la grammaire SQL et élimine presque entièrement les requêtes invalides. Son analyseur étant sensible au schéma, il écarte aussi des colonnes ou des tables inexistantes. Dans l'article, un T5-Large prédit ainsi la colonne <code>cell_phone</code>, inexistante (la référence est <code>cell_number</code>), que PICARD détecte et évite.. Les auteurs restent plus prudents que leurs lecteurs, puisque PICARD « aide à trouver » des séquences valides sans garantie absolue. Surtout, une grammaire écarte l'impossible sans désigner le bon choix parmi les colonnes qui existent.</p><p>Avec les LLM, le schéma passe dans le prompt, et le problème devient celui du prompt. DAIL-SQL en a mené une étude systématique. Elle porte sur la représentation de la question, puis sur la sélection et l'organisation des exemples. Ses 86,2 % d'EX sur le test de Spider (86,6 % avec self-consistency) s'accompagnent d'une attention marquée à l'efficacité en tokens. L'article examine aussi le fine-tuning (ajustement fin) supervisé de LLM open source pour la tâche.</p><p>La décomposition prolonge cette logique en découpant le travail. DIN-SQL génère la requête par sous-tâches et réinjecte leurs résultats dans le LLM. Il ajoute une étape de self-correction (auto-correction) avant de rendre la requête. Le gain est net sur Spider, avec 85,3 % d'EX contre 79,9 % pour l'état de l'art précédent. Sur BIRD, la même méthode plafonne à 55,9 %.</p><p>L'exécution peut aussi devenir un signal d'entraînement plutôt qu'un simple test final. Arctic-Text2SQL-R1, publié par Snowflake en mai 2025, entraîne par reinforcement learning (apprentissage par renforcement), noté RL, avec l'algorithme GRPO. Sa récompense est volontairement minimale. Elle vaut 1 si le résultat est exact, 0,1 si le SQL est valide et s'exécute, 0 sinon. Cette simplicité vise à éviter le reward hacking (détournement de la récompense), où le modèle maximise son score sans résoudre la tâche. L'équipe rapporte aussi que le RL en ligne bat le RL par lots. Le modèle 7B atteint 68,47 % d'EX sur le test de BIRD, et le 32B 71,83 %. Le 7B est annoncé avec 95 fois moins de paramètres que DeepSeek-v3. L'article valide encore, à l'inférence, la récupération de valeurs et le vote majoritaire. Aucun module de schema linking n'intervient dans les évaluations de l'article, qui reposent sur un décodage unique, sans ensemble ni re-ranking externe.</p><p>Cette récompense a une limite que BIRD rend visible. Elle optimise l'EX, pas le VES, donc ni l'efficience des requêtes ni leur équivalence sémantique. Une requête juste mais lente y vaut une requête juste et rapide.</p><p>Le test-time scaling (mise à l'échelle au moment du test) pousse plus loin l'usage du calcul. Agentar-Scale-SQL, d'Ant Group, l'orchestre selon trois axes. Le premier est un raisonnement interne renforcé par RL. Le deuxième est un raffinement itératif séquentiel. Le troisième génère des candidats en parallèle et les départage par un tournoi. Le système atteint 81,67 % d'EX sur le test de BIRD, et 74,90 % sur le dev. À sa soumission, le 25 septembre 2025, le classement BIRD le plaçait en tête, devant AskData + GPT-4o à 80,88 %. Cette première place est datée. En octobre 2026, plusieurs systèmes le devancent, dont GrainSQL à 82,95 %.</p><p>Chaque famille déplace la frontière sans la supprimer. La grammaire garantit presque la forme. Le prompt et la décomposition améliorent le choix des éléments du schéma. L'exécution, elle, fournit un signal d'apprentissage. Les scores quasi saturés sur Spider 1.0, au-delà de 85 % pour DIN-SQL comme pour DAIL-SQL, prédisent pourtant mal la performance en entreprise. On l'a vu, le meilleur agent à base d'o1-preview ne résout que 21,3 % des tâches de Spider 2.0, même si cette comparaison juxtapose des systèmes différents. Ce qui résiste à tous ces progrès n'est pas le SQL invalide. Ce sont des requêtes qui tournent et répondent à côté.</p>
+</section>
+<div class="widget sptts-root" id="sptts-root">
+  <style>
+    .sptts-root{--sptts-ink:var(--ink,#15202E);--sptts-soft:var(--ink-soft,#43536A);
+      --sptts-faint:var(--ink-faint,#5C697B);--sptts-card:var(--card,#fff);--sptts-paper:var(--paper,#F4F6FA);
+      --sptts-line:var(--line,#D7DFE9);--sptts-line-soft:var(--line-soft,#E7ECF3);
+      --sptts-blue:var(--blue,#23537F);--sptts-bright:var(--blue-bright,#2B73B1);--sptts-wash:var(--blue-wash,#E7EEF6);
+      --sptts-bord:var(--bordeaux-bright,#9B3443);
+      --sptts-green:#2F7D5B;--sptts-amber:#9A6412;--sptts-onbright:#fff;
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--sptts-ink);
+      border:1px solid var(--sptts-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--sptts-card);max-width:980px}
+    html[data-theme="dark"] .sptts-root{--sptts-green:#7ECEAB;--sptts-amber:#E2B464;--sptts-onbright:#0A1521}
+    .sptts-root *{box-sizing:border-box}
+    .sptts-k{font-size:12px;letter-spacing:.09em;text-transform:uppercase;color:var(--sptts-faint);font-weight:700;margin:0 0 2px}
+    .sptts-title{font-weight:700;font-size:1.05rem;margin:0 0 4px;line-height:1.3}
+    .sptts-sub{font-size:13px;color:var(--sptts-soft);margin:0 0 10px;line-height:1.5}
+    .sptts-sub b{color:var(--sptts-ink)}
+    .sptts-q{margin:0 0 12px;padding:8px 11px;border-left:3px solid var(--sptts-bright);background:var(--sptts-wash);
+      border-radius:0 8px 8px 0;font-size:14px;line-height:1.45}
+    .sptts-q b{color:var(--sptts-blue)}
+    .sptts-root code,.sptts-root .sptts-sql{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+
+    .sptts-settings{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;margin:0 0 12px;
+      padding:9px 11px;border:1px dashed var(--sptts-line);border-radius:9px;background:var(--sptts-paper)}
+    .sptts-grp{display:flex;flex-direction:column;gap:4px}
+    .sptts-lab{font-size:12px;letter-spacing:.03em;color:var(--sptts-faint);font-weight:700}
+    .sptts-seg{display:flex;gap:4px;flex-wrap:wrap}
+    .sptts-seg button{border:1px solid var(--sptts-line);border-radius:6px;background:var(--sptts-card);
+      color:var(--sptts-soft);font-weight:600;font-size:12px;line-height:1.2;font-family:inherit;padding:6px 9px;cursor:pointer;white-space:nowrap}
+    .sptts-seg button:hover{border-color:var(--sptts-bright);color:var(--sptts-blue)}
+    .sptts-seg button.sptts-on{background:var(--sptts-blue);color:var(--sptts-onbright);border-color:var(--sptts-blue)}
+
+    .sptts-rail{display:flex;gap:5px;margin:0 0 10px;flex-wrap:wrap}
+    .sptts-ph{flex:1 1 100px;min-width:96px;border:1px solid var(--sptts-line);border-radius:8px;
+      padding:6px 7px;background:var(--sptts-card);text-align:center;cursor:pointer;font:inherit;color:inherit}
+    .sptts-ph:disabled{cursor:default}
+    .sptts-ph .sptts-pn{font-size:12px;color:var(--sptts-faint);font-weight:700}
+    .sptts-ph .sptts-pl{font-size:12.5px;font-weight:700;color:var(--sptts-soft);margin-top:1px;line-height:1.25}
+    .sptts-ph.sptts-active{border-color:var(--sptts-bright);background:var(--sptts-wash);box-shadow:0 0 0 1px var(--sptts-bright)}
+    .sptts-ph.sptts-active .sptts-pl{color:var(--sptts-blue)}
+    .sptts-ph.sptts-done{border-color:color-mix(in srgb,var(--sptts-green) 45%,transparent);background:color-mix(in srgb,var(--sptts-green) 10%,var(--sptts-card))}
+    .sptts-ph.sptts-done .sptts-pn{color:var(--sptts-green)}
+    .sptts-ph.sptts-skip{opacity:.55;border-style:dashed}
+
+    .sptts-ctl{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 10px}
+    .sptts-ctl button{border:1px solid var(--sptts-bright);border-radius:7px;background:transparent;color:var(--sptts-bright);
+      font-weight:600;font-size:13px;line-height:1;font-family:inherit;padding:8px 12px;cursor:pointer}
+    .sptts-ctl button:hover{background:var(--sptts-wash)}
+    .sptts-ctl button.sptts-primary{background:var(--sptts-blue);color:var(--sptts-onbright);border-color:var(--sptts-blue)}
+    .sptts-ctl button:disabled{opacity:.42;cursor:default}
+    .sptts-count{font:600 13px/1.2 ui-monospace,monospace;color:var(--sptts-soft);margin-left:auto}
+    .sptts-bar{height:6px;border-radius:3px;background:var(--sptts-line-soft);overflow:hidden;margin:0 0 10px}
+    .sptts-bar i{display:block;height:100%;background:var(--sptts-bright);transition:width .2s}
+
+    .sptts-trace{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 12px;font-size:12.5px;color:var(--sptts-faint)}
+    .sptts-tk{font:600 12px/1.2 ui-monospace,monospace;border:1px solid var(--sptts-line);border-radius:6px;padding:4px 7px;color:var(--sptts-soft);background:var(--sptts-card)}
+    .sptts-tk.sptts-err{border-color:var(--sptts-bord);color:var(--sptts-bord)}
+    .sptts-tk.sptts-emp{border-color:var(--sptts-amber);color:var(--sptts-amber)}
+    .sptts-tk.sptts-ok{border-color:var(--sptts-green);color:var(--sptts-green)}
+    .sptts-tk.sptts-cur{box-shadow:0 0 0 2px var(--sptts-bright)}
+    .sptts-arr{color:var(--sptts-faint)}
+
+    .sptts-grid{display:flex;gap:14px;flex-wrap:wrap}
+    .sptts-main{flex:1 1 440px;min-width:0}
+    .sptts-side{flex:1 1 300px;min-width:0}
+    .sptts-stage{border:1px solid var(--sptts-line-soft);border-radius:9px;background:var(--sptts-paper);padding:11px 12px;min-height:320px}
+    .sptts-sh{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--sptts-faint);font-weight:700;margin:0 0 6px}
+    .sptts-sh b{color:var(--sptts-blue)}
+    .sptts-fh{font-weight:700;font-size:15px;margin:0 0 6px;color:var(--sptts-ink)}
+    .sptts-p{font-size:13.5px;line-height:1.55;color:var(--sptts-soft);margin:6px 0}
+    .sptts-p b{color:var(--sptts-ink)}
+    .sptts-p code,.sptts-li code{font-size:.92em;color:var(--sptts-ink)}
+    .sptts-sql{margin:8px 0;padding:9px 10px;border-radius:7px;background:var(--sptts-card);border:1px solid var(--sptts-line);
+      font-size:12.5px;line-height:1.5;white-space:pre-wrap;color:var(--sptts-ink);overflow-x:auto}
+    .sptts-sql mark{background:color-mix(in srgb,var(--sptts-amber) 24%,var(--sptts-card));color:inherit;border-radius:3px;padding:0 2px;font-weight:700}
+    .sptts-tbl{border-collapse:collapse;font-size:12.5px;margin:6px 0;width:100%}
+    .sptts-tbl th,.sptts-tbl td{border-bottom:1px solid var(--sptts-line-soft);padding:3px 6px;text-align:left;color:var(--sptts-soft);background:transparent}
+    .sptts-tbl th{color:var(--sptts-faint);font-weight:700}
+    .sptts-tbl td.sptts-num{text-align:right;font-family:ui-monospace,monospace}
+    .sptts-tbl tr.sptts-win td{color:var(--sptts-green);font-weight:700}
+    .sptts-tbl tr.sptts-out td{opacity:.55}
+    .sptts-li{font-size:13.5px;line-height:1.55;color:var(--sptts-soft);margin:4px 0;padding-left:20px}
+    .sptts-li li{margin:2px 0}
+    .sptts-oracle{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 0}
+    .sptts-badge{font-weight:700;font-size:12px;line-height:1.2;font-family:inherit;border-radius:6px;padding:4px 8px;border:1px solid var(--sptts-line);color:var(--sptts-soft)}
+    .sptts-badge.sptts-y{border-color:var(--sptts-green);color:var(--sptts-green)}
+    .sptts-badge.sptts-n{border-color:var(--sptts-bord);color:var(--sptts-bord)}
+    .sptts-badge.sptts-u{border-style:dashed;color:var(--sptts-faint)}
+    .sptts-verdict{margin:10px 0 0;padding:10px 12px;border-radius:8px;font-size:13.5px;line-height:1.55;border:1px solid;color:var(--sptts-soft)}
+    .sptts-verdict.sptts-good{border-color:var(--sptts-green);background:color-mix(in srgb,var(--sptts-green) 10%,var(--sptts-card))}
+    .sptts-verdict.sptts-bad{border-color:var(--sptts-bord);background:color-mix(in srgb,var(--sptts-bord) 10%,var(--sptts-card))}
+    .sptts-verdict b{color:var(--sptts-ink)}
+    .sptts-verdict code{color:var(--sptts-ink)}
+
+    .sptts-db{border:1px solid var(--sptts-line-soft);border-radius:9px;padding:9px 10px;background:var(--sptts-card)}
+    .sptts-t{margin:0 0 8px;border:1px solid var(--sptts-line);border-radius:7px;padding:5px 7px;transition:opacity .2s}
+    .sptts-t.sptts-dim{opacity:.4}
+    .sptts-t.sptts-sel{border-color:var(--sptts-bright);box-shadow:0 0 0 1px var(--sptts-bright)}
+    .sptts-tn{font:700 12.5px/1.3 ui-monospace,monospace;color:var(--sptts-blue)}
+    .sptts-t table{border-collapse:collapse;width:100%;font:12px/1.35 ui-monospace,monospace;margin-top:3px}
+    .sptts-t th,.sptts-t td{padding:1px 4px;text-align:left;color:var(--sptts-soft);border:0;background:transparent}
+    .sptts-t th{color:var(--sptts-faint);font-weight:700}
+    .sptts-t th.sptts-hc{color:var(--sptts-bright);text-decoration:underline}
+    .sptts-t td.sptts-hit{color:var(--sptts-ink);font-weight:800;background:color-mix(in srgb,var(--sptts-amber) 24%,var(--sptts-card))}
+    .sptts-t tr.sptts-hrow td{color:var(--sptts-ink);background:color-mix(in srgb,var(--sptts-bright) 16%,var(--sptts-card))}
+    .sptts-desc{font-size:12px;color:var(--sptts-faint);margin:2px 0 0;line-height:1.35;font-style:italic}
+    .sptts-root th{position:static;letter-spacing:0;font-family:inherit;font-size:inherit}
+    .sptts-root td:first-child{font-family:inherit;font-size:inherit;font-weight:inherit;color:var(--sptts-soft)}
+    .sptts-root tr:not(.sptts-hrow):hover td:not(.sptts-hit){background:transparent}
+    .sptts-root code{background:color-mix(in srgb,var(--sptts-line) 45%,transparent);color:inherit;padding:0 3px;border-radius:3px;font-size:.92em}
+    .sptts-root .sptts-sql mark{font-size:inherit}
+    .sptts-note{margin:12px 0 0;font-size:12.5px;color:var(--sptts-faint);line-height:1.55}
+    .sptts-note b{color:var(--sptts-soft)}
+  </style>
+
+  <p class="sptts-k">Vue d'ensemble</p>
+  <p class="sptts-title">Le pipeline text-to-SQL de bout en bout : lier, retrouver, générer, exécuter, corriger, choisir</p>
+  <p class="sptts-sub">Instance jouet inspirée de l'exemple de CodeS, où la valeur « Jesenik » se cache dans la colonne <code>district.a2</code>. Le générateur est <b>simulé</b> : ses brouillons sont scriptés et déterministes. L'exécution, elle, est <b>réellement calculée</b> sur la base jouet de droite. Désactivez une étape pour voir la requête plausible mais fausse qu'elle laisse passer.</p>
+  <div class="sptts-q">Question : <b>« Quel est le montant total des prêts accordés aux comptes ouverts dans le district de Jesenik ? »</b></div>
+
+  <div class="sptts-settings" id="sptts-settings">
+    <div class="sptts-grp"><span class="sptts-lab">1 · Schema linking</span>
+      <div class="sptts-seg" data-key="link"><button data-v="1">activé</button><button data-v="0">désactivé</button></div></div>
+    <div class="sptts-grp"><span class="sptts-lab">2 · Récupération de valeurs</span>
+      <div class="sptts-seg" data-key="vals"><button data-v="1">activée</button><button data-v="0">désactivée</button></div></div>
+    <div class="sptts-grp"><span class="sptts-lab">5 · Auto-correction (plafond d'itérations)</span>
+      <div class="sptts-seg" data-key="cap"><button data-v="0">0 (désactivée)</button><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button></div></div>
+    <div class="sptts-grp"><span class="sptts-lab">6 · Candidats et sélection</span>
+      <div class="sptts-seg" data-key="cands"><button data-v="1">1 candidat</button><button data-v="3">3 candidats + vote</button></div></div>
+  </div>
+
+  <div class="sptts-rail" id="sptts-rail"></div>
+  <div class="sptts-ctl">
+    <button id="sptts-prev">◀ Précédent</button>
+    <button id="sptts-next" class="sptts-primary">Pas suivant ▶</button>
+    <button id="sptts-play">Lecture jusqu'à convergence</button>
+    <button id="sptts-reset">Réinitialiser</button>
+    <span class="sptts-count" id="sptts-count"></span>
+  </div>
+  <div class="sptts-bar"><i id="sptts-barfill"></i></div>
+  <div class="sptts-trace" id="sptts-trace"></div>
+
+  <div class="sptts-grid">
+    <div class="sptts-main"><div class="sptts-stage" id="sptts-stage" aria-live="polite"></div></div>
+    <div class="sptts-side">
+      <p class="sptts-sh">Base jouet <b id="sptts-dbtag"></b></p>
+      <div class="sptts-db" id="sptts-db"></div>
+    </div>
+  </div>
+  <p class="sptts-note"><b>Ce que montre le jouet.</b> L'oracle d'exécution répond à deux questions : la requête tourne-t-elle, et renvoie-t-elle des lignes ? Il ne dit jamais si ces lignes répondent à la question. Seule la comparaison avec la requête de référence, absente en production, tranche la justesse. Le vote compare les résultats d'exécution des candidats (auto-cohérence), et un tournoi par paires suit la même logique. Ni l'un ni l'autre ne restitue une information que les étapes amont ont perdue.</p>
+
+  <script>
+  (function(){
+    var root=document.getElementById('sptts-root');
+    var $=function(id){return document.getElementById(id);};
+    function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+    function fmt(n){return n===null?'NULL':String(n).replace(/\B(?=(\d{3})+(?!\d))/g,'\u202f');}
+
+    /* ---------- Base jouet ---------- */
+    var DB={
+      district:{cols:['district_id','a2','a3'],rows:[[1,'Praha','Praha'],[2,'Jesenice','central Bohemia'],[3,'Jesenik','north Moravia'],[4,'Olomouc','north Moravia']]},
+      account:{cols:['account_id','district_id'],rows:[[101,3],[102,3],[103,2],[104,4],[105,1]]},
+      client:{cols:['client_id','account_id','district_id','type'],rows:[[1,101,3,'OWNER'],[2,101,3,'DISPONENT'],[3,102,4,'OWNER'],[4,103,2,'OWNER'],[5,104,3,'OWNER'],[6,105,1,'OWNER']]},
+      loan:{cols:['loan_id','account_id','amount'],rows:[[1,101,80000],[2,102,50000],[3,103,30000],[4,104,20000],[5,105,99000]]}
+    };
+    var DESC={'district.a2':'nom du district','account.district_id':'district de l\u2019agence','loan.amount':'montant du prêt'};
+    var ORDER=['district','account','client','loan'];
+    var LINKED={district:['district_id','a2'],account:['account_id','district_id'],loan:['account_id','amount']};
+
+    /* ---------- Moteur d'exécution exact ---------- */
+    function likeRe(p){return new RegExp('^'+p.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/%/g,'.*').replace(/_/g,'.')+'$','i');}
+    function matchD(f){
+      var re=f.op==='LIKE'?likeRe(f.val):null;
+      return DB.district.rows.filter(function(r){return re?re.test(r[1]):r[1]===f.val;}).map(function(r){return r[0];});
+    }
+    function execute(s){
+      if(s.form==='join'&&!s.qualified) return {status:'error',msg:'ambiguous column name: account_id',rows:[],d:[],sum:null};
+      var d=matchD(s.filter), rows=[];
+      if(s.path==='client'){
+        DB.client.rows.forEach(function(c){ if(d.indexOf(c[2])<0) return;
+          DB.loan.rows.forEach(function(l){ if(l[1]===c[1]) rows.push({loan:l[0],acc:l[1],via:'client '+c[0]+' ('+c[3]+')',dist:c[2],amt:l[2]}); });});
+      } else {
+        var acc=DB.account.rows.filter(function(a){return d.indexOf(a[1])>=0;});
+        DB.loan.rows.forEach(function(l){ acc.forEach(function(a){ if(a[0]===l[1]) rows.push({loan:l[0],acc:l[1],via:'compte '+a[0],dist:a[1],amt:l[2]}); });});
+      }
+      var sum=rows.length?rows.reduce(function(t,r){return t+r.amt;},0):null;
+      return {status:rows.length?'ok':'empty',msg:'',rows:rows,d:d,sum:sum};
+    }
+    var GOLD={path:'account',form:'join',qualified:true,filter:{op:'=',val:'Jesenik'}};
+    var GOLDRES=execute(GOLD);
+
+    /* ---------- SQL affiché ---------- */
+    function sql(s,mark){
+      var m=function(t,k){return mark===k?'<mark>'+esc(t)+'</mark>':esc(t);};
+      var pred=m(s.filter.op==='LIKE'?"LIKE '"+s.filter.val+"'":"= '"+s.filter.val+"'",'filter');
+      if(s.form==='in') return 'SELECT SUM(amount)\nFROM loan\nWHERE account_id IN (\n  SELECT account_id FROM account\n  WHERE district_id IN (\n    SELECT district_id FROM district\n    WHERE a2 '+pred+'));';
+      var t=s.path==='client'?['client','c']:['account','a'];
+      return 'SELECT SUM(l.amount)\nFROM loan AS l\nJOIN '+t[0]+' AS '+t[1]+' ON '+m(s.qualified?'l.account_id':'account_id','qual')+' = '+t[1]+'.account_id\nJOIN district AS d ON '+t[1]+'.district_id = d.district_id\nWHERE d.a2 '+pred+';';
+    }
+
+    /* ---------- Boucle exécution / auto-correction ---------- */
+    function fix(s,res){
+      var n=JSON.parse(JSON.stringify(s));
+      if(res.status==='error'){n.qualified=true;return {spec:n,mark:'qual',why:'Le message d\u2019erreur nomme la colonne ambiguë, et le modèle la préfixe par l\u2019alias de sa table.'};}
+      if(res.status==='empty'&&s.filter.op==='='){n.filter={op:'LIKE',val:'Jesen%'};return {spec:n,mark:'filter',why:'Zéro ligne : le modèle soupçonne la graphie de la valeur et relâche le prédicat en préfixe.'};}
+      return null;
+    }
+    function runCand(s0,cap){
+      var steps=[],s=s0,it=0,res=execute(s),f;
+      steps.push({spec:s,res:res,fix:null});
+      while(res.status!=='ok'&&it<cap&&(f=fix(s,res))){it++;s=f.spec;res=execute(s);steps.push({spec:s,res:res,fix:f});}
+      return {steps:steps,final:steps[steps.length-1],iters:it};
+    }
+
+    /* ---------- Valeurs : filtre lexical puis plus longue sous-chaîne commune ---------- */
+    function tri(s){s=s.toLowerCase();var o={};for(var i=0;i+3<=s.length;i++)o[s.substr(i,3)]=1;return o;}
+    function jac(a,b){var A=tri(a),B=tri(b),i=0,u=0,k;for(k in A){u++;if(B[k])i++;}for(k in B)if(!A[k])u++;return u?i/u:0;}
+    function lcs(a,b){a=a.toLowerCase();b=b.toLowerCase();var best=0,prev=new Array(b.length+1).fill(0);
+      for(var i=1;i<=a.length;i++){var cur=new Array(b.length+1).fill(0);for(var j=1;j<=b.length;j++){if(a[i-1]===b[j-1]){cur[j]=prev[j-1]+1;if(cur[j]>best)best=cur[j];}}prev=cur;}return best;}
+    var KW='Jesenik';
+    function valueTable(){
+      var seen={},list=[];
+      [['district',1,'a2'],['district',2,'a3'],['client',3,'type']].forEach(function(c){
+        DB[c[0]].rows.forEach(function(r){var key=c[0]+'.'+c[2]+'|'+r[c[1]];if(seen[key])return;seen[key]=1;
+          list.push({col:c[0]+'.'+c[2],v:r[c[1]],j:jac(KW,r[c[1]]),l:lcs(KW,r[c[1]])});});});
+      list.sort(function(a,b){return (b.j>0)-(a.j>0)||b.l-a.l||b.j-a.j||(a.col+a.v<b.col+b.v?-1:1);});
+      return list;
+    }
+
+    /* ---------- État et construction des étapes ---------- */
+    var cfg={link:1,vals:1,cap:2,cands:1};
+    var PH=[['1','Schema linking'],['2','Valeurs'],['3','Génération'],['4','Exécution (oracle)'],['5','Auto-correction'],['6','Candidats et vote'],['✓','Bilan']];
+    var frames=[],idx=0,timer=null,ctx=null;
+
+    function baseSpec(path,form){return {path:path,form:form,qualified:form==='in',filter:cfg.vals?{op:'=',val:'Jesenik'}:{op:'=',val:'Jeseník'}};}
+    function statusTxt(r){return r.status==='error'?'erreur':r.status==='empty'?'vide (SUM = NULL)':r.rows.length+' ligne'+(r.rows.length>1?'s':'')+' → '+fmt(r.sum);}
+    function stCls(r){return r.status==='error'?'sptts-err':r.status==='empty'?'sptts-emp':'sptts-ok';}
+
+    function build(){
+      var c1=runCand(baseSpec(cfg.link?'account':'client','join'),cfg.cap);
+      var cands=[c1];
+      if(cfg.cands===3){cands.push(runCand(baseSpec('account','in'),cfg.cap));cands.push(runCand(baseSpec('client','join'),cfg.cap));}
+      var chosen=0,votes=null;
+      if(cfg.cands===3){
+        votes={};cands.forEach(function(c,i){var r=c.final.res;if(r.status!=='ok')return;var k=String(r.sum);(votes[k]=votes[k]||[]).push(i);});
+        var best=null;Object.keys(votes).forEach(function(k){var v=votes[k];if(!best||v.length>best.length||(v.length===best.length&&v[0]<best[0]))best=v;});
+        chosen=best?best[0]:0;
+      }
+      ctx={c1:c1,cands:cands,chosen:chosen,votes:votes};
+      var F=[{ph:0,kind:'link'},{ph:1,kind:'vals'},{ph:2,kind:'gen'}];
+      c1.steps.forEach(function(st,k){ if(k>0)F.push({ph:4,kind:'fix',k:k}); F.push({ph:3,kind:'exec',k:k}); });
+      if(c1.final.res.status!=='ok') F.push({ph:4,kind:cfg.cap===0?'nofix':'cap'});
+      if(cfg.cands===3){F.push({ph:5,kind:'cands'});F.push({ph:5,kind:'vote'});}
+      F.push({ph:6,kind:'bilan'});
+      frames=F;
+    }
+
+    /* ---------- Rendu de la base ---------- */
+    function renderDB(f){
+      var hlTables=null,hitCells={},hitRows={},tag='';
+      if(cfg.link&&f.ph<6){hlTables=LINKED;if(f.kind==='link')tag='· tables liées en surbrillance';}
+      else if(f.kind==='link'){tag='· schéma complet dans le prompt';}
+      if(f.kind==='vals'&&cfg.vals){hitCells['district|3|1']=1;tag='· valeur appariée';}
+      var r=null;
+      if(f.kind==='exec')r=ctx.c1.steps[f.k].res;
+      if(f.kind==='fix')r=ctx.c1.steps[f.k-1].res;
+      if(f.kind==='cands')r=ctx.cands[1].final.res;
+      if(f.kind==='bilan'||f.kind==='vote'||f.kind==='cap'||f.kind==='nofix')r=ctx.cands[ctx.chosen].final.res;
+      if(r){
+        r.d.forEach(function(id){hitRows['district|'+id]=1;});
+        r.rows.forEach(function(x){hitRows['loan|'+x.loan]=1;});
+        tag=r.status==='ok'?'· lignes atteintes par la requête':(r.status==='empty'?'· aucune ligne atteinte':'· la requête n\u2019a pas tourné');
+      }
+      $('sptts-dbtag').textContent=tag;
+      var h='';
+      ORDER.forEach(function(t){
+        var T=DB[t],lc=hlTables&&hlTables[t];
+        var cls='sptts-t'+(hlTables?(lc?' sptts-sel':' sptts-dim'):'');
+        h+='<div class="'+cls+'"><div class="sptts-tn">'+t+'</div><table><tr>';
+        T.cols.forEach(function(c){h+='<th class="'+(lc&&lc.indexOf(c)>=0?'sptts-hc':'')+'">'+c+'</th>';});
+        h+='</tr>';
+        T.rows.forEach(function(row){
+          h+='<tr class="'+(hitRows[t+'|'+row[0]]?'sptts-hrow':'')+'">';
+          row.forEach(function(v,j){h+='<td class="'+(hitCells[t+'|'+row[0]+'|'+j]?'sptts-hit':'')+'">'+esc(v)+'</td>';});
+          h+='</tr>';
+        });
+        h+='</table>';
+        if(lc&&f.kind==='link'){var ds=lc.filter(function(c){return DESC[t+'.'+c];}).map(function(c){return c+' : '+DESC[t+'.'+c];});if(ds.length)h+='<p class="sptts-desc">'+esc(ds.join(' · '))+'</p>';}
+        h+='</div>';
+      });
+      $('sptts-db').innerHTML=h;
+    }
+
+    /* ---------- Rendu des étapes ---------- */
+    function resultTable(r){
+      if(r.status==='error')return '<div class="sptts-sql">Erreur : '+esc(r.msg)+'</div>';
+      if(r.status==='empty')return '<p class="sptts-p">Aucune ligne ne passe le filtre : <code>SUM</code> sur zéro ligne renvoie <b>NULL</b>, pas 0.</p>';
+      var h='<table class="sptts-tbl"><tr><th>prêt</th><th>compte</th><th>rattaché via</th><th>district</th><th>montant</th></tr>';
+      r.rows.forEach(function(x){h+='<tr><td>'+x.loan+'</td><td>'+x.acc+'</td><td>'+esc(x.via)+'</td><td>'+x.dist+'</td><td class="sptts-num">'+fmt(x.amt)+'</td></tr>';});
+      return h+'<tr class="sptts-win"><td colspan="4">SUM(amount)</td><td class="sptts-num">'+fmt(r.sum)+'</td></tr></table>';
+    }
+    function oracle(r){
+      var b=function(c,t){return '<span class="sptts-badge '+c+'">'+t+'</span>';};
+      return '<div class="sptts-oracle">'+b(r.status==='error'?'sptts-n':'sptts-y',r.status==='error'?'S\u2019exécute : non':'S\u2019exécute : oui')+
+        (r.status==='error'?'':b(r.status==='ok'?'sptts-y':'sptts-n',r.status==='ok'?'Renvoie des lignes : oui':'Renvoie des lignes : non'))+
+        b('sptts-u','Répond à la question : invisible pour l\u2019oracle')+'</div>';
+    }
+    function diagnose(s,r){
+      if(r.status==='error')return 'La requête n\u2019a jamais tourné : le système renvoie une erreur à l\u2019utilisateur.';
+      if(r.status==='empty')return 'Le système renvoie NULL. Cette réponse vide ne signifie pas « aucun prêt » : le filtre ne trouve pas la valeur telle qu\u2019elle est stockée.';
+      var causes=[];
+      if(s.path==='client')causes.push('la jointure passe par <code>client.district_id</code>, le domicile du titulaire, au lieu du district de l\u2019agence. Le compte 101 a deux titulaires (OWNER et DISPONENT), si bien que son prêt compte double ; le compte 102, ouvert à Jesenik par un client domicilié ailleurs, disparaît, et le compte 104, ouvert ailleurs par un habitant de Jesenik, s\u2019invite');
+      if(s.filter.op==='LIKE')causes.push('<code>LIKE \'Jesen%\'</code> attrape aussi le district de Jesenice');
+      return causes.length?'Cause : '+causes.join(' ; ')+'.':'';
+    }
+
+    function renderStage(f){
+      var h='',c1=ctx.c1;
+      if(f.kind==='link'){
+        h+='<p class="sptts-sh">Étape <b>1</b> · schema linking</p>';
+        if(cfg.link){
+          h+='<p class="sptts-fh">Sélectionner les tables et les colonnes utiles</p><p class="sptts-p">Le lieur relie les mots de la question au schéma : « prêts » → <code>loan.amount</code>, « comptes ouverts dans » → <code>account.district_id</code> (district de l\u2019agence), « district de Jesenik » → <code>district</code>. La table <code>client</code> est écartée. Le prompt ne reçoit que trois tables, accompagnées des descriptions de colonnes.</p><p class="sptts-p">Dans un vrai système, ce choix relève du jugement du modèle ; il est figé ici.</p>';
+        } else {
+          h+='<p class="sptts-fh">Étape désactivée : tout le schéma part dans le prompt</p><p class="sptts-p">Le modèle reçoit les quatre tables, aux noms opaques (<code>a2</code>, <code>a3</code>) et sans descriptions. Deux colonnes <code>district_id</code> mènent au district : celle de <code>account</code> (l\u2019agence) et celle de <code>client</code> (le domicile). Rien ne les distingue, et la jointure reste implicite.</p><p class="sptts-p">Dans ce scénario, le générateur prendra le chemin par <code>client</code>.</p>';
+        }
+      }
+      else if(f.kind==='vals'){
+        h+='<p class="sptts-sh">Étape <b>2</b> · récupération de valeurs</p>';
+        if(cfg.vals){
+          var L=valueTable();
+          h+='<p class="sptts-fh">Retrouver où la base stocke « Jesenik »</p><p class="sptts-p">Un filtre lexical écarte d\u2019abord les valeurs sans rapport ; le recouvrement de trigrammes tient ici le rôle de l\u2019index BM25 de CodeS. La plus longue sous-chaîne commune classe ensuite les valeurs restantes.</p>';
+          h+='<table class="sptts-tbl"><tr><th>colonne</th><th>valeur</th><th>trigrammes</th><th>sous-chaîne</th></tr>';
+          L.forEach(function(x,i){h+='<tr class="'+(i===0?'sptts-win':(x.j>0?'':'sptts-out'))+'"><td>'+x.col+'</td><td>'+esc(x.v)+'</td><td class="sptts-num">'+x.j.toFixed(2)+'</td><td class="sptts-num">'+(x.j>0?x.l+' / '+KW.length:'écartée')+'</td></tr>';});
+          h+='</table><p class="sptts-p">Ajouté au prompt : <code>district.a2 = \'Jesenik\'</code>. Le nom opaque <code>a2</code> ne laissait pas deviner cette colonne.</p>';
+        } else {
+          h+='<p class="sptts-fh">Étape désactivée : la valeur reste à deviner</p><p class="sptts-p">Le modèle ne voit que le schéma. Il connaît la ville sous sa graphie tchèque, <b>« Jeseník »</b>, avec un accent, alors que la base stocke <code>Jesenik</code> sans accent. Rien ne l\u2019en avertira avant l\u2019exécution.</p>';
+        }
+      }
+      else if(f.kind==='gen'){
+        var s=c1.steps[0].spec;
+        h+='<p class="sptts-sh">Étape <b>3</b> · génération décomposée</p><p class="sptts-fh">Découper la question en sous-tâches, puis écrire le brouillon</p>';
+        h+='<ol class="sptts-li"><li>Isoler le district : <code>WHERE d.a2 = \''+esc(s.filter.val)+'\'</code></li><li>Relier le district aux comptes, via <code>'+(s.path==='client'?'client.district_id':'account.district_id')+'</code></li><li>Relier les comptes aux prêts par <code>loan.account_id</code></li><li>Agréger : <code>SUM(amount)</code></li></ol>';
+        h+='<div class="sptts-sql">'+sql(s)+'</div><p class="sptts-p">Le brouillon est plausible. Sa condition de jointure laisse pourtant <code>account_id</code> sans préfixe de table.</p>';
+      }
+      else if(f.kind==='exec'){
+        var st=c1.steps[f.k];
+        h+='<p class="sptts-sh">Étape <b>4</b> · exécution n° '+(f.k+1)+'</p><p class="sptts-fh">L\u2019exécution sert d\u2019oracle</p>';
+        h+='<div class="sptts-sql">'+sql(st.spec)+'</div>'+resultTable(st.res)+oracle(st.res);
+        if(st.res.status==='ok')h+='<p class="sptts-p">Le résultat n\u2019est pas vide, donc la boucle s\u2019arrête. Le système n\u2019a aucun moyen interne de savoir si ce montant est le bon.</p>';
+      }
+      else if(f.kind==='fix'){
+        var st2=c1.steps[f.k],prev=c1.steps[f.k-1].res;
+        h+='<p class="sptts-sh">Étape <b>5</b> · auto-correction, itération '+f.k+' / '+cfg.cap+'</p><p class="sptts-fh">Réécrire à partir du retour d\u2019exécution</p>';
+        h+='<p class="sptts-p">Retour reçu : <b>'+esc(statusTxt(prev))+'</b>'+(prev.msg?' (<code>'+esc(prev.msg)+'</code>)':'')+'. '+st2.fix.why+'</p>';
+        h+='<div class="sptts-sql">'+sql(st2.spec,st2.fix.mark)+'</div><p class="sptts-p">La requête réécrite repart à l\u2019exécution.</p>';
+      }
+      else if(f.kind==='nofix'){
+        h+='<p class="sptts-sh">Étape <b>5</b> · auto-correction</p><p class="sptts-fh">Étape désactivée : le premier retour est définitif</p><p class="sptts-p">Sans boucle de correction, le système rend telle quelle la sortie de la première exécution : <b>'+esc(statusTxt(c1.final.res))+'</b>.</p>';
+      }
+      else if(f.kind==='cap'){
+        h+='<p class="sptts-sh">Étape <b>5</b> · auto-correction</p><p class="sptts-fh">Plafond atteint ('+cfg.cap+' itération'+(cfg.cap>1?'s':'')+')</p><p class="sptts-p">La boucle s\u2019arrête sur <b>'+esc(statusTxt(c1.final.res))+'</b>. Un plafond plus haut aurait permis une réécriture de plus.</p>';
+      }
+      else if(f.kind==='cands'){
+        h+='<p class="sptts-sh">Étape <b>6</b> · plusieurs candidats</p><p class="sptts-fh">Trois brouillons, chacun avec sa propre boucle d\u2019exécution</p>';
+        ctx.cands.forEach(function(c,i){
+          var lab=['C1 · jointure (chemin de l\u2019étape 3)','C2 · sous-requêtes IN par account','C3 · jointure par client'][i];
+          h+='<p class="sptts-p"><b>'+lab+'</b><br>'+c.steps.map(function(s){return '<span class="sptts-tk '+stCls(s.res)+'">'+esc(statusTxt(s.res))+'</span>';}).join(' <span class="sptts-arr">→</span> ')+'</p>';
+        });
+        h+='<div class="sptts-sql">'+sql(ctx.cands[1].final.spec)+'</div><p class="sptts-p">C2 ne ressemble pas à la requête de référence et ne contient aucune jointure. Quand elle filtre la bonne valeur, elle renvoie pourtant le même résultat. Plusieurs requêtes peuvent être correctes, d\u2019où l\u2019évaluation par exécution plutôt que par correspondance exacte.</p>';
+      }
+      else if(f.kind==='vote'){
+        h+='<p class="sptts-sh">Étape <b>6</b> · sélection</p><p class="sptts-fh">Vote par résultat d\u2019exécution</p>';
+        var keys=Object.keys(ctx.votes||{});
+        if(!keys.length){h+='<p class="sptts-p">Aucun candidat ne renvoie de lignes. Le vote n\u2019a rien à départager, et C1 est rendu par défaut.</p>';}
+        else{
+          h+='<table class="sptts-tbl"><tr><th>résultat</th><th>candidats</th><th>voix</th></tr>';
+          keys.sort(function(a,b){return ctx.votes[b].length-ctx.votes[a].length||ctx.votes[a][0]-ctx.votes[b][0];}).forEach(function(k){var v=ctx.votes[k];h+='<tr class="'+(v[0]===ctx.chosen?'sptts-win':'')+'"><td class="sptts-num">'+fmt(+k)+'</td><td>'+v.map(function(i){return 'C'+(i+1);}).join(', ')+'</td><td class="sptts-num">'+v.length+'</td></tr>';});
+          h+='</table><p class="sptts-p">Les candidats en erreur ou vides ne votent pas, et l\u2019égalité profite au plus petit numéro. Retenu : <b>C'+(ctx.chosen+1)+'</b>. La majorité ne garantit rien : quand les candidats partagent la même information manquante, le vote entérine l\u2019erreur commune.</p>';
+        }
+      }
+      else if(f.kind==='bilan'){
+        var fin=ctx.cands[ctx.chosen].final, r=fin.res, good=r.status==='ok'&&r.sum===GOLDRES.sum;
+        h+='<p class="sptts-sh">Bilan · ce que reçoit l\u2019utilisateur</p><p class="sptts-fh">Requête rendue'+(cfg.cands===3?' (C'+(ctx.chosen+1)+')':'')+'</p>';
+        h+='<div class="sptts-sql">'+sql(fin.spec)+'</div>'+resultTable(r)+oracle(r);
+        h+='<div class="sptts-verdict '+(good?'sptts-good':'sptts-bad')+'">Référence : <b>'+fmt(GOLDRES.sum)+'</b> (prêts 1 et 2, sur les comptes 101 et 102 ouverts à Jesenik). ';
+        if(good)h+='<b>Juste.</b> L\u2019exécution a validé la forme, et la comparaison avec la référence confirme le fond. En production, ce second contrôle manque.';
+        else if(r.status==='ok')h+='<b>Plausible et faux : '+fmt(r.sum)+'.</b> La requête tourne et renvoie un montant crédible, et l\u2019oracle n\u2019y voit rien. '+diagnose(fin.spec,r);
+        else h+='<b>Échec visible.</b> '+diagnose(fin.spec,r);
+        h+='</div>';
+      }
+      $('sptts-stage').innerHTML=h;
+    }
+
+    function renderRail(f){
+      var off={0:!cfg.link,1:!cfg.vals,4:cfg.cap===0,5:cfg.cands!==3};
+      var h='';
+      PH.forEach(function(p,i){
+        var first=frames.findIndex(function(x){return x.ph===i;});
+        var cls='sptts-ph'+(i===f.ph?' sptts-active':(i<f.ph&&!off[i]?' sptts-done':''))+(off[i]?' sptts-skip':'');
+        h+='<button class="'+cls+'" data-go="'+first+'"'+(first<0?' disabled':'')+'><div class="sptts-pn">'+p[0]+(off[i]?' · désactivée':'')+'</div><div class="sptts-pl">'+p[1]+'</div></button>';
+      });
+      $('sptts-rail').innerHTML=h;
+    }
+    function renderTrace(f){
+      var h='<span>Trace d\u2019exécution (C1) :</span>',cur=f.kind==='exec'?f.k:-1;
+      ctx.c1.steps.forEach(function(s,k){
+        var seen=frames.findIndex(function(x){return x.kind==='exec'&&x.k===k;})<=idx;
+        if(k>0)h+='<span class="sptts-arr">→</span>';
+        h+=seen?'<span class="sptts-tk '+stCls(s.res)+(k===cur?' sptts-cur':'')+'">exéc. '+(k+1)+' : '+esc(statusTxt(s.res))+'</span>':'<span class="sptts-tk">exéc. '+(k+1)+' : ?</span>';
+      });
+      var done=frames.slice(0,idx+1).filter(function(x){return x.kind==='fix';}).length;
+      h+='<span>· corrections : '+done+' / '+cfg.cap+'</span>';
+      $('sptts-trace').innerHTML=h;
+    }
+    function render(){
+      var f=frames[idx];
+      renderRail(f);renderTrace(f);renderStage(f);renderDB(f);
+      $('sptts-count').textContent='Étape '+(idx+1)+' / '+frames.length;
+      $('sptts-barfill').style.width=((idx+1)/frames.length*100)+'%';
+      $('sptts-prev').disabled=idx===0;$('sptts-next').disabled=idx===frames.length-1;
+      $('sptts-play').textContent=timer?'Pause':(idx===frames.length-1?'Relire jusqu\u2019à convergence':'Lecture jusqu\u2019à convergence');
+      root.querySelectorAll('.sptts-seg').forEach(function(g){var k=g.getAttribute('data-key');
+        g.querySelectorAll('button').forEach(function(b){b.classList.toggle('sptts-on',+b.getAttribute('data-v')===cfg[k]);});});
+    }
+    function stop(){if(timer){clearInterval(timer);timer=null;}}
+    function go(i){idx=Math.max(0,Math.min(frames.length-1,i));render();}
+
+    $('sptts-prev').addEventListener('click',function(){stop();go(idx-1);});
+    $('sptts-next').addEventListener('click',function(){stop();go(idx+1);});
+    $('sptts-reset').addEventListener('click',function(){stop();go(0);});
+    $('sptts-play').addEventListener('click',function(){
+      if(timer){stop();render();return;}
+      if(idx===frames.length-1)idx=0;
+      timer=setInterval(function(){if(idx>=frames.length-1){stop();render();return;}go(idx+1);},1100);
+      render();
+    });
+    $('sptts-rail').addEventListener('click',function(e){var b=e.target.closest('[data-go]');if(!b||b.disabled)return;stop();go(+b.getAttribute('data-go'));});
+    $('sptts-settings').addEventListener('click',function(e){
+      var b=e.target.closest('button');if(!b)return;var k=b.parentNode.getAttribute('data-key');
+      cfg[k]=+b.getAttribute('data-v');stop();
+      var ph=frames[idx].ph;build();
+      var j=frames.findIndex(function(x){return x.ph>=ph;});go(j<0?frames.length-1:j);
+    });
+    build();render();
+  })();
+  </script>
+</div>
+
+<section id="erreurs-typiques">
+<h3>Erreurs typiques : la requête plausible et fausse</h3>
+<p>Une requête invalide se signale d'elle-même, puisque le moteur la refuse. Le cas dangereux est l'autre : une requête qui s'exécute, renvoie un tableau propre et répond à une autre question. Une étude portant sur 4 602 requêtes fausses produites par des LLM en mesure la fréquence. Elle classe comme « sémantiques » 36,1 % des erreurs sur BIRD, c'est-à-dire repérables seulement avec le schéma et la question. Sur Spider, la proportion tombe à 17,7 %. SQLens et NL2SQL-BUGs, deux travaux consacrés à la détection d'erreurs en text-to-SQL, décrivent la même classe de requêtes valides et fausses. NL2SQL-BUGs la juge plus subtile et plus difficile à détecter que les erreurs de syntaxe, qu'un compilateur repère ; SQLens décrit la même classe de requêtes syntaxiquement valides mais sémantiquement fausses, dont la détection exige de raisonner à la fois sur la logique de la requête et sur la structure de la base.</p><p>Les exemples ont l'air anodin. À la question « Whose post has the highest popularity? », un modèle sélectionne <code>MAX(ViewCount)</code> au lieu du nom de l'auteur. Ailleurs, l'utilisateur demande les étudiants sans amis. Le SQL emploie <code>INTERSECT</code> au lieu de <code>EXCEPT</code> et rend exactement ceux qui en ont. Aucune erreur n'est levée.</p><p>Ces erreurs silencieuses touchent la structure plus que la syntaxe. Elles portent d'abord sur le choix des tables et des jointures. Viennent ensuite les conditions <code>WHERE</code> et les sous-requêtes, puis les regroupements. L'analyse d'erreurs de Pourreza et Rafiei, sur 500 requêtes du jeu d'entraînement de Spider traitées par un few-shot simple (CodeX Davinci), place le schema linking en tête et les JOIN en deuxième. <code>GROUP BY</code> et les imbrications suivent. Le SQL invalide n'y représente qu'un petit nombre de cas. Un de leurs exemples résume le piège : une colonne nommée « average » est choisie au lieu de calculer la moyenne de la colonne <code>capacity</code>.</p><p>D'autres taxonomies recoupent ces catégories. Une étude des erreurs en in-context learning (apprentissage en contexte), noté ICL, relève des tables manquantes ou en trop et des conditions inadéquates. Elle isole aussi la portée des sous-requêtes. Dans un de ses cas, une sous-requête de maximum parcourt toute la table <code>satscores</code> alors que la requête principale travaille sur la table jointe. NL2SQL-BUGs nomme de son côté les écarts de condition et de type de jointure, ainsi que les écarts de sous-requête. Son exemple illustratif est un <code>INNER JOIN</code> écrit à la place d'un <code>LEFT JOIN</code>, qui exclut les étudiants sans cours. Les lignes sans correspondance et les valeurs NULL relèvent de la même famille de pièges, invisibles tant qu'on ne compare pas le résultat à la question.</p><p>Spider 2.0 ajoute deux sources d'erreur que les benchmarks courts masquaient. Les SQL attendus y dépassent souvent 100 lignes et sollicitent les fonctions propres à chaque moteur. Les 35,5 % d'analyse de données erronée relevés plus haut se répartissent en trois sous-types. Les fonctions de dialecte en pèsent 10,3 %. Les calculs avancés comptent pour 7,5 %. La planification de requête complexe, qui enchaîne plusieurs requêtes, atteint 17,7 % et devient la difficulté centrale.</p><p>Les exemples de référence eux-mêmes ne sont pas à l'abri de ces écarts. Une taxonomie récente des erreurs d'annotation (Jin et al.), appliquée à BIRD Mini-Dev (sous-ensemble réduit du dev de BIRD), range les défauts des exemples fautifs en quatre motifs. Le motif E1, un désaccord entre la question et la logique de la requête gold, en concerne 29,3 %. Le motif E2, un désaccord avec le schéma ou les données, domine avec 57,8 %. Le motif E3 tient à la connaissance du domaine, pour 10,7 %. Le motif E4, l'ambiguïté, atteint 29,7 %. La somme dépasse 100 %, sans doute parce qu'un même exemple peut relever de plusieurs motifs. Ce que ces erreurs d'annotation font aux classements est traité plus loin, avec les benchmarks bruités.</p><p>Toutes ces fautes ont un point commun : elles passent l'exécution. Une métrique qui compare le texte des requêtes rejette des SQL équivalents mais écrits autrement. Une métrique qui compare seulement les résultats sur une base accepte un SQL faux dès qu'il rend par hasard le bon tableau. Une requête qui tourne n'est pas une requête juste, et c'est à l'évaluation de faire la différence.</p>
+</section>
+<section id="evaluation-correspondance-execution">
+<h3>Évaluer : exact match, exécution et test suites</h3>
+<p>Les erreurs silencieuses du catalogue précédent posent une question de mesure : comment savoir qu'une requête est juste sans relire chacune d'elles ? Une même question admet souvent plusieurs requêtes correctes. Une jointure peut remplacer une sous-requête, et l'ordre des clauses ne change rien au résultat. L'exact set match compare pourtant la forme, clause par clause, et rejette donc des traductions justes écrites autrement. Ces faux négatifs, mesurés par Zhong et al. à environ 2,5 % en moyenne sur le dev de Spider (2,6 % dans le détail), jusqu'à 8,1 % au pire,, en font une borne inférieure de la précision sémantique.</p><p>L'execution accuracy prend le parti inverse et juge le comportement plutôt que la forme. Elle compare les résultats renvoyés, la dénotation, mais sur une seule base. Deux requêtes différentes peuvent coïncider sur cette instance par hasard, et la métrique les accepte alors à tort. Sur le dev de Spider, ces faux positifs atteignent jusqu'à 8 % dans le pire cas.</p><p>La test suite accuracy (précision sur une suite de bases de test) vise l'écart entre ces deux erreurs. Les mêmes auteurs la présentent à EMNLP 2020. Le principe consiste à multiplier les instances sur lesquelles comparer les dénotations. Les auteurs génèrent d'abord un grand nombre de bases aléatoires, puis en distillent une petite suite. Les bases retenues le sont pour leur forte couverture de code de la requête de référence. Une requête fausse qui coïncidait par hasard sur une instance a peu de chances de coïncider sur toutes. Les faux positifs de l'execution accuracy reculent d'autant. Zhong et al. y voient une borne supérieure serrée de la précision sémantique. Ils l'ont validée sur 21 soumissions du classement Spider. Sur 100 requêtes prédites tirées au hasard parmi celles que l'exact set match rejette mais que la test suite accepte, toutes se sont révélées équivalentes à la référence à la lecture manuelle. Des suites distillées sont publiées pour onze jeux de données text-to-SQL.</p><p>Pourquoi ne pas simplement prouver que deux requêtes sont équivalentes ? Parce que l'équivalence de requêtes SQL est indécidable en général. Sous sémantique ensembliste, elle ne se décide que pour des fragments. Le fragment classique est celui des conjunctive queries (requêtes conjonctives). Chandra et Merlin ont montré en 1977 que leur équivalence y est NP-complète. Elle revient à l'existence d'un homomorphisme entre les deux requêtes. Or SQL ne travaille pas sur des ensembles mais sur des multi-ensembles, où les doublons comptent. Sous cette bag semantics (sémantique multi-ensembliste), l'inclusion des conjunctive queries reste une question ouverte de longue date. Elle devient indécidable pour leurs unions et pour celles qui portent des inégalités. Aucun évaluateur ne peut donc garantir la correction d'une requête générée. Il reste deux voies : approcher l'équivalence par des test suites, ou la vérifier dans des bornes données.</p><p>SpotIt (Klopfenstein et al., ICLR 2026) suit la seconde voie. Plutôt que de tirer des bases au hasard, il cherche activement une base qui différencie la requête générée de la référence. Cette bounded verification (vérification bornée) s'appuie sur un solveur SMT (Satisfiability Modulo Theories) et étend le vérificateur VeriEQL. Les auteurs l'appliquent aux 1 533 paires du jeu de développement de BIRD, pour dix méthodes. La précision rapportée y baisse d'environ 10 à 14 points par rapport à l'évaluation officielle. L'article donne d'ailleurs deux fourchettes, 9,8 à 13,5 % dans les résultats et 11,3 à 14,2 % dans l'introduction. Le classement bouge aussi. Le système CSC-32B tombe de 71,32 % à 57,82 % et glisse de la 1re à la 4e place. Pour lui, 207 requêtes acceptées par le test officiel sont distinguées de la référence par une base trouvée. SpotIt mesure pourtant la distance à la référence, pas à la vérité : encore faut-il que la référence soit juste.</p>
+</section>
+<div class="widget pvt-root" id="pvt-root">
+  <style>
+    .pvt-root{--pvt-ink:var(--ink,#15202E);--pvt-soft:var(--ink-soft,#43536A);
+      --pvt-faint:var(--ink-faint,#7A889B);--pvt-card:var(--card,#fff);
+      --pvt-line:var(--line,#D7DFE9);--pvt-blue:var(--blue,#23537F);
+      --pvt-bright:var(--blue-bright,#2C77B6);--pvt-hot:var(--bordeaux-bright,#9B3443);
+      --pvt-ok:#2E7D4F;--pvt-gold:#8A5E10;--pvt-onbright:#fff;
+      --pvt-wash:rgba(44,119,182,.08);--pvt-hotwash:rgba(155,52,67,.10);--pvt-goldwash:rgba(138,94,16,.12);
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--pvt-ink);
+      border:1px solid var(--pvt-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--pvt-card);max-width:780px}
+    .pvt-root *{box-sizing:border-box}
+    html[data-theme="dark"] .pvt-root{--pvt-onbright:#0B131C;--pvt-ok:#5FBF86;--pvt-gold:#D9A441;
+      --pvt-wash:rgba(120,170,220,.10);--pvt-hotwash:rgba(230,110,125,.14);--pvt-goldwash:rgba(217,164,65,.14)}
+    .pvt-k{font-size:.8rem;letter-spacing:.09em;text-transform:uppercase;color:var(--pvt-faint);font-weight:600;margin:0 0 2px}
+    .pvt-title{font-weight:700;font-size:1.05rem;margin:0 0 4px}
+    .pvt-sub{font-size:.88rem;color:var(--pvt-soft);margin:0 0 12px}
+    .pvt-lab{font-size:.85rem;font-weight:600;color:var(--pvt-soft);margin:0 0 6px}
+    .pvt-cands{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+    .pvt-cands button,.pvt-gold button,.pvt-bases button{font:inherit;font-size:.86rem;cursor:pointer;
+      border:1px solid var(--pvt-line);background:transparent;color:var(--pvt-ink);border-radius:999px;padding:5px 11px}
+    .pvt-cands button[aria-pressed="true"],.pvt-gold button[aria-pressed="true"]{background:var(--pvt-bright);
+      border-color:var(--pvt-bright);color:var(--pvt-onbright);font-weight:600}
+    .pvt-gold{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 10px;font-size:.86rem;color:var(--pvt-soft)}
+    .pvt-sql{font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre-wrap;
+      background:var(--pvt-wash);border:1px solid var(--pvt-line);border-radius:8px;padding:8px 10px;margin:0 0 4px}
+    .pvt-sqlnote{font-size:.85rem;color:var(--pvt-soft);margin:0 0 12px}
+    .pvt-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px;margin:0 0 12px}
+    .pvt-card{border:1px solid var(--pvt-line);border-radius:10px;padding:10px 11px}
+    .pvt-card.pvt-fn{border-color:var(--pvt-gold);background:var(--pvt-goldwash)}
+    .pvt-card.pvt-fp{border-color:var(--pvt-hot);background:var(--pvt-hotwash)}
+    .pvt-ch{font-weight:700;font-size:.92rem;margin:0}
+    .pvt-cq{font-size:.82rem;color:var(--pvt-soft);margin:0 0 6px}
+    .pvt-v{font-size:1.05rem;font-weight:800;margin:4px 0}
+    .pvt-v.pvt-yes{color:var(--pvt-ok)} .pvt-v.pvt-no{color:var(--pvt-hot)}
+    .pvt-tag{display:inline-block;font-size:.78rem;font-weight:700;border-radius:4px;padding:1px 6px;margin:0 0 6px}
+    .pvt-tag.pvt-t-ok{color:var(--pvt-ok);border:1px solid var(--pvt-ok)}
+    .pvt-tag.pvt-t-fn{color:var(--pvt-gold);border:1px solid var(--pvt-gold)}
+    .pvt-tag.pvt-t-fp{color:var(--pvt-hot);border:1px solid var(--pvt-hot)}
+    .pvt-det{font-size:.84rem;color:var(--pvt-soft)}
+    .pvt-det table{border-collapse:collapse;width:100%;font-size:.8rem}
+    .pvt-det td,.pvt-det th{border-bottom:1px solid var(--pvt-line);padding:2px 3px;text-align:left;vertical-align:top;overflow-wrap:break-word}
+    .pvt-det th{font-weight:600;color:var(--pvt-faint)}
+    .pvt-cls{font-size:.82rem}
+    .pvt-clr{border-bottom:1px solid var(--pvt-line);padding:3px 0}
+    .pvt-clh{display:flex;justify-content:space-between;gap:8px;font-weight:600;color:var(--pvt-ink)}
+    .pvt-m{overflow-wrap:anywhere;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.8rem}
+    .pvt-okc{color:var(--pvt-ok);font-weight:700} .pvt-koc{color:var(--pvt-hot);font-weight:700}
+    .pvt-bases{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 8px}
+    .pvt-bases button[aria-pressed="true"]{border-color:var(--pvt-blue);border-width:2px;font-weight:600}
+    .pvt-db{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:0 0 6px}
+    .pvt-db table{border-collapse:collapse;width:100%;font-size:.82rem}
+    .pvt-db caption{text-align:left;font-weight:600;font-size:.82rem;color:var(--pvt-soft);padding:0 0 2px}
+    .pvt-db td,.pvt-db th{border-bottom:1px solid var(--pvt-line);padding:2px 5px;text-align:left}
+    .pvt-db th{color:var(--pvt-faint);font-weight:600}
+    .pvt-null{color:var(--pvt-hot);font-style:italic;font-weight:600}
+    .pvt-dbnote{font-size:.84rem;color:var(--pvt-soft);margin:0 0 12px}
+    .pvt-mat{border-collapse:collapse;width:100%;font-size:.84rem;margin:0 0 8px}
+    .pvt-mat th,.pvt-mat td{border-bottom:1px solid var(--pvt-line);padding:4px 6px;text-align:center}
+    .pvt-mat th:first-child,.pvt-mat td:first-child{text-align:left}
+    .pvt-mat th{color:var(--pvt-faint);font-weight:600;font-size:.8rem}
+    .pvt-mat tr.pvt-sel td{background:var(--pvt-wash)}
+    .pvt-mat td.pvt-cfn{background:var(--pvt-goldwash);color:var(--pvt-gold);font-weight:700}
+    .pvt-mat td.pvt-cfp{background:var(--pvt-hotwash);color:var(--pvt-hot);font-weight:700}
+    .pvt-foot{font-size:.84rem;color:var(--pvt-soft);margin:0}
+    .pvt-scroll{overflow-x:auto}
+  </style>
+
+  <p class="pvt-k">Sonde · trois métriques face à cinq requêtes</p>
+  <p class="pvt-title">« Quels étudiants ne suivent aucun cours ? »</p>
+  <p class="pvt-sub">Choisissez une requête candidate. Les trois verdicts sont recalculés sur cette instance jouet : la forme (exact set match), la dénotation sur la base unique (EX) et les dénotations sur une petite suite de bases (test suite).</p>
+
+  <p class="pvt-lab">Requête candidate</p>
+  <div class="pvt-cands" id="pvt-cands" role="group" aria-label="Requête candidate"></div>
+  <div class="pvt-gold" id="pvt-gold" role="group" aria-label="Forme de la référence annotée">
+    <span>Référence annotée dans le jeu de test :</span>
+  </div>
+  <div class="pvt-sql" id="pvt-sql"></div>
+  <p class="pvt-sqlnote" id="pvt-sqlnote"></p>
+
+  <div class="pvt-grid" id="pvt-grid" aria-live="polite"></div>
+
+  <p class="pvt-lab">Bases de la suite : cliquez pour inspecter</p>
+  <div class="pvt-bases" id="pvt-bases" role="group" aria-label="Base affichée"></div>
+  <div class="pvt-db" id="pvt-db"></div>
+  <p class="pvt-dbnote" id="pvt-dbnote"></p>
+
+  <p class="pvt-lab">Vue d'ensemble : verdict de chaque métrique contre la vérité sémantique</p>
+  <div class="pvt-scroll"><table class="pvt-mat" id="pvt-mat"></table></div>
+  <p class="pvt-foot">Un échec sur une seule base prouve que la requête est fausse ; un succès sur toutes les bases ne prouve pas l'équivalence, il la rend seulement plus probable. La suite doit donc contenir des bases capables de distinguer les requêtes : la base 3, où tout le monde suit un cours, ne départage presque rien.</p>
+
+  <script>
+  (function(){
+    var root=document.getElementById('pvt-root');
+    function $(id){return document.getElementById(id);}
+    function el(tag,cls,txt){var e=document.createElement(tag); if(cls) e.className=cls; if(txt!=null) e.textContent=txt; return e;}
+    function clear(n){while(n.firstChild) n.removeChild(n.firstChild);}
+
+    /* Bases jouets : etudiants(id, nom) et inscriptions(etudiant_id, cours_id, note). */
+    var BASES=[
+      {name:'Base 1 (celle du benchmark)', short:'Base 1',
+       et:[[1,'Alice'],[2,'Bruno'],[3,'Chloé'],[4,'David']],
+       ins:[[1,101,14],[1,102,12],[3,101,15],[4,103,11]],
+       note:'Seul Bruno ne suit aucun cours, et toutes les notes sont saisies. C’est la seule base que voit l’EX classique.'},
+      {name:'Base 2 (une note manquante)', short:'Base 2',
+       et:[[1,'Alice'],[2,'Bruno'],[3,'Chloé'],[4,'David']],
+       ins:[[1,101,14],[3,101,15],[3,102,null],[4,103,11]],
+       note:'Chloé est inscrite à un cours qui n’a pas encore de note (NULL). Cette base démasque la requête qui confond « sans cours » et « sans note ».'},
+      {name:'Base 3 (tout le monde inscrit)', short:'Base 3',
+       et:[[1,'Alice'],[2,'Bruno'],[3,'Chloé']],
+       ins:[[1,101,14],[2,102,9],[3,101,15]],
+       note:'La bonne réponse est vide. Une requête qui renvoie toujours le vide passe ici : cette base seule ne distingue presque rien.'},
+      {name:'Base 4 (plusieurs étudiants sans cours)', short:'Base 4',
+       et:[[1,'Alice'],[2,'Bruno'],[3,'Chloé'],[4,'David'],[5,'Emma']],
+       ins:[[1,101,null],[4,103,11]],
+       note:'Bruno, Chloé et Emma ne suivent aucun cours ; Alice a une inscription sans note.'}
+    ];
+
+    /* Évaluation de chaque requête : code déterministe qui suit la sémantique SQL de la requête affichée. */
+    function hasIns(db,id){return db.ins.some(function(r){return r[0]===id;});}
+    var Q={
+      except:function(db){ /* SELECT id FROM etudiants EXCEPT SELECT etudiant_id FROM inscriptions */
+        return db.et.filter(function(e){return !hasIns(db,e[0]);}).map(function(e){return e[0];});},
+      leftnull:function(db){ /* LEFT JOIN ... WHERE i.etudiant_id IS NULL : une ligne par étudiant sans correspondance */
+        var out=[]; db.et.forEach(function(e){ if(!hasIns(db,e[0])) out.push(e[0]); }); return out;},
+      inner:function(db){ /* JOIN interne : i.etudiant_id n'est jamais NULL après la jointure */
+        var out=[]; db.et.forEach(function(e){ db.ins.forEach(function(r){ if(r[0]===e[0] && r[0]===null) out.push(e[0]); }); }); return out;},
+      intersect:function(db){ /* INTERSECT : étudiants qui ONT au moins une inscription */
+        return db.et.filter(function(e){return hasIns(db,e[0]);}).map(function(e){return e[0];});},
+      notenull:function(db){ /* LEFT JOIN ... WHERE i.note IS NULL : une ligne par inscription sans note, ou par étudiant sans inscription */
+        var out=[]; db.et.forEach(function(e){
+          var m=db.ins.filter(function(r){return r[0]===e[0];});
+          if(!m.length) out.push(e[0]); else m.forEach(function(r){ if(r[2]===null) out.push(e[0]); });
+        }); return out;}
+    };
+
+    /* Décomposition en clauses, à la manière de l'exact set match de Spider (valeurs ignorées, alias résolus). */
+    var CANDS=[
+      {id:'except', label:'Référence (EXCEPT)', ok:true,
+       sql:'SELECT id FROM etudiants\nEXCEPT\nSELECT etudiant_id FROM inscriptions;',
+       expl:'La formulation annotée par défaut : on retire de tous les étudiants ceux qui ont une inscription.',
+       cl:{'SELECT':'etudiants.id','FROM':'etudiants','WHERE':'—','Opérateur':'EXCEPT','2e membre':'etudiant_id ← inscriptions'}},
+      {id:'leftnull', label:'Équivalent réécrit (LEFT JOIN)', ok:true,
+       sql:'SELECT e.id FROM etudiants e\nLEFT JOIN inscriptions i ON e.id = i.etudiant_id\nWHERE i.etudiant_id IS NULL;',
+       expl:'Même sens, autre forme : la jointure externe garde les étudiants sans correspondance, puis le filtre IS NULL ne retient qu’eux.',
+       cl:{'SELECT':'etudiants.id','FROM':'etudiants LEFT JOIN inscriptions','WHERE':'inscriptions.etudiant_id IS NULL','Opérateur':'—','2e membre':'—'}},
+      {id:'inner', label:'INNER JOIN au lieu de LEFT JOIN', ok:false,
+       sql:'SELECT e.id FROM etudiants e\nJOIN inscriptions i ON e.id = i.etudiant_id\nWHERE i.etudiant_id IS NULL;',
+       expl:'La jointure interne élimine justement les étudiants sans inscription : le filtre IS NULL ne trouve plus rien, la réponse est toujours vide.',
+       cl:{'SELECT':'etudiants.id','FROM':'etudiants JOIN inscriptions','WHERE':'inscriptions.etudiant_id IS NULL','Opérateur':'—','2e membre':'—'}},
+      {id:'intersect', label:'INTERSECT au lieu de EXCEPT', ok:false,
+       sql:'SELECT id FROM etudiants\nINTERSECT\nSELECT etudiant_id FROM inscriptions;',
+       expl:'Un seul mot change et le sens s’inverse : la requête renvoie les étudiants qui suivent au moins un cours.',
+       cl:{'SELECT':'etudiants.id','FROM':'etudiants','WHERE':'—','Opérateur':'INTERSECT','2e membre':'etudiant_id ← inscriptions'}},
+      {id:'notenull', label:'Coïncide par hasard (note IS NULL)', ok:false,
+       sql:'SELECT e.id FROM etudiants e\nLEFT JOIN inscriptions i ON e.id = i.etudiant_id\nWHERE i.note IS NULL;',
+       expl:'Plausible et fausse : elle confond « aucun cours » et « une note manquante ». Elle tombe juste tant qu’aucune note n’est NULL.',
+       cl:{'SELECT':'etudiants.id','FROM':'etudiants LEFT JOIN inscriptions','WHERE':'inscriptions.note IS NULL','Opérateur':'—','2e membre':'—'}}
+    ];
+    var GOLDS=[{id:'except',label:'forme EXCEPT'},{id:'leftnull',label:'forme LEFT JOIN'}];
+    var state={cand:'except', gold:'except', base:0};
+
+    function byId(id){for(var i=0;i<CANDS.length;i++) if(CANDS[i].id===id) return CANDS[i];}
+    function sortKey(a){return a.slice().sort(function(x,y){return x-y;}).join(',');}
+    /* EX : multiensembles égaux, sans tenir compte de l'ordre des lignes. */
+    function sameDen(a,b){return sortKey(a)===sortKey(b);}
+    function names(db,ids){
+      if(!ids.length) return '∅ (aucune ligne)';
+      return ids.slice().sort(function(x,y){return x-y;}).map(function(id){
+        var e=db.et.filter(function(r){return r[0]===id;})[0]; return id+' '+(e?e[1]:'?');}).join(', ');}
+    function em(c,g){var keys=Object.keys(g.cl); return keys.every(function(k){return c.cl[k]===g.cl[k];});}
+    function exOn(c,g,i){return sameDen(Q[c.id](BASES[i]),Q[g.id](BASES[i]));}
+    function ts(c,g){for(var i=0;i<BASES.length;i++) if(!exOn(c,g,i)) return false; return true;}
+    function kind(verdict,truth){
+      if(verdict&&truth) return ['Vrai positif','pvt-t-ok',''];
+      if(!verdict&&!truth) return ['Vrai négatif','pvt-t-ok',''];
+      if(!verdict&&truth) return ['Faux négatif','pvt-t-fn','pvt-fn'];
+      return ['Faux positif','pvt-t-fp','pvt-fp'];
+    }
+
+    function buttons(){
+      var box=$('pvt-cands'); clear(box);
+      CANDS.forEach(function(c){
+        var b=el('button',null,c.label); b.type='button'; b.setAttribute('aria-pressed',String(state.cand===c.id));
+        b.addEventListener('click',function(){state.cand=c.id; render();}); box.appendChild(b);});
+      var gb=$('pvt-gold'); Array.prototype.slice.call(gb.querySelectorAll('button')).forEach(function(b){gb.removeChild(b);});
+      GOLDS.forEach(function(g){
+        var b=el('button',null,g.label); b.type='button'; b.setAttribute('aria-pressed',String(state.gold===g.id));
+        b.addEventListener('click',function(){state.gold=g.id; render();}); gb.appendChild(b);});
+      var bb=$('pvt-bases'); clear(bb);
+      BASES.forEach(function(d,i){
+        var b=el('button',null,d.short); b.type='button'; b.setAttribute('aria-pressed',String(state.base===i));
+        b.addEventListener('click',function(){state.base=i; render();}); bb.appendChild(b);});
+    }
+
+    function card(title,question,verdict,truth){
+      var k=kind(verdict,truth), c=el('div','pvt-card '+k[2]);
+      c.appendChild(el('p','pvt-ch',title)); c.appendChild(el('p','pvt-cq',question));
+      c.appendChild(el('p','pvt-v '+(verdict?'pvt-yes':'pvt-no'),verdict?'✓ Acceptée':'✗ Rejetée'));
+      c.appendChild(el('span','pvt-tag '+k[1],k[0]));
+      var d=el('div','pvt-det'); c.appendChild(d); return {card:c,det:d};
+    }
+
+    function render(){
+      buttons();
+      var c=byId(state.cand), g=byId(state.gold);
+      $('pvt-sql').textContent=c.sql;
+      $('pvt-sqlnote').textContent=(c.ok?'Vérité (par construction) : requête correcte. ':'Vérité (par construction) : requête fausse. ')+c.expl;
+      var grid=$('pvt-grid'); clear(grid);
+
+      /* 1. Exact set match */
+      var vEM=em(c,g), A=card('Exact set match','La forme correspond-elle à la référence, clause par clause ?',vEM,c.ok);
+      var t=el('div','pvt-cls');
+      Object.keys(g.cl).forEach(function(k){
+        var same=c.cl[k]===g.cl[k], r=el('div','pvt-clr'), top=el('div','pvt-clh');
+        top.appendChild(el('span',null,k)); top.appendChild(el('span',same?'pvt-okc':'pvt-koc',same?'= identique':'≠ différente'));
+        r.appendChild(top);
+        r.appendChild(el('div','pvt-m','cand. : '+c.cl[k]));
+        if(!same) r.appendChild(el('div','pvt-m','réf. : '+g.cl[k]));
+        t.appendChild(r);});
+      A.det.appendChild(t);
+      if(!vEM&&c.ok) A.det.appendChild(el('p',null,'La requête est juste, mais sa forme diffère de celle de l’annotateur : c’est le faux négatif de l’exact match.'));
+      grid.appendChild(A.card);
+
+      /* 2. EX sur la base 1 */
+      var d1=BASES[0], vEX=exOn(c,g,0), B=card('EX sur la base 1','Le résultat sur l’unique base du benchmark est-il le même ?',vEX,c.ok);
+      B.det.appendChild(el('div',null,'Candidate : '+names(d1,Q[c.id](d1))));
+      B.det.appendChild(el('div',null,'Référence : '+names(d1,Q[g.id](d1))));
+      if(vEX&&!c.ok) B.det.appendChild(el('p',null,'Les deux résultats coïncident sur cette base, alors que la requête est fausse : c’est le faux positif de l’EX à base unique.'));
+      grid.appendChild(B.card);
+
+      /* 3. Test suite */
+      var vTS=ts(c,g), C=card('Test suite','Le résultat est-il le même sur chacune des '+BASES.length+' bases ?',vTS,c.ok);
+      var t2=el('table'), h2=el('tr'); ['Base','Cand.','Réf.',''].forEach(function(x){h2.appendChild(el('th',null,x));}); t2.appendChild(h2);
+      BASES.forEach(function(d,i){
+        var r=el('tr'), ok=exOn(c,g,i), a=Q[c.id](d), b=Q[g.id](d);
+        r.appendChild(el('td',null,'B'+(i+1)));
+        r.appendChild(el('td','pvt-m',a.length?sortKey(a).replace(/,/g,', '):'∅'));
+        r.appendChild(el('td','pvt-m',b.length?sortKey(b).replace(/,/g,', '):'∅'));
+        r.appendChild(el('td',ok?'pvt-okc':'pvt-koc',ok?'✓':'✗')); t2.appendChild(r);});
+      C.det.appendChild(t2);
+      if(!vTS&&vEX){var first=-1; for(var i=0;i<BASES.length;i++) if(!exOn(c,g,i)){first=i;break;}
+        C.det.appendChild(el('p',null,BASES[first].short+' démasque la requête que la base 1 laissait passer.'));}
+      grid.appendChild(C.card);
+
+      /* Base inspectée */
+      var db=BASES[state.base], box=$('pvt-db'); clear(box);
+      var te=el('table'); te.appendChild(el('caption',null,'etudiants'));
+      var he=el('tr'); ['id','nom'].forEach(function(x){he.appendChild(el('th',null,x));}); te.appendChild(he);
+      db.et.forEach(function(r){var tr=el('tr'); tr.appendChild(el('td',null,String(r[0]))); tr.appendChild(el('td',null,r[1])); te.appendChild(tr);});
+      var ti=el('table'); ti.appendChild(el('caption',null,'inscriptions'));
+      var hi=el('tr'); ['etudiant_id','cours_id','note'].forEach(function(x){hi.appendChild(el('th',null,x));}); ti.appendChild(hi);
+      db.ins.forEach(function(r){var tr=el('tr'); r.forEach(function(v){tr.appendChild(v===null?el('td','pvt-null','NULL'):el('td',null,String(v)));}); ti.appendChild(tr);});
+      box.appendChild(te); box.appendChild(ti);
+      $('pvt-dbnote').textContent=db.name+'. '+db.note+' Bonne réponse : '+names(db,Q.except(db))+'.';
+
+      /* Matrice d'ensemble */
+      var m=$('pvt-mat'); clear(m);
+      var hm=el('tr'); ['Requête','Vérité','Exact match','EX base 1','Test suite'].forEach(function(x){hm.appendChild(el('th',null,x));}); m.appendChild(hm);
+      CANDS.forEach(function(q){
+        var r=el('tr',q.id===state.cand?'pvt-sel':null);
+        r.appendChild(el('td',null,q.label)); r.appendChild(el('td',null,q.ok?'correcte':'fausse'));
+        [em(q,g),exOn(q,g,0),ts(q,g)].forEach(function(v){
+          var k=kind(v,q.ok), cls=k[2]==='pvt-fn'?'pvt-cfn':(k[2]==='pvt-fp'?'pvt-cfp':null);
+          r.appendChild(el('td',cls,(v?'✓':'✗')+(cls?' '+k[0].toLowerCase():'')));});
+        r.style.cursor='pointer'; r.addEventListener('click',function(){state.cand=q.id; render();});
+        m.appendChild(r);});
+    }
+    render();
+  })();
+  </script>
+</div>
+
+<section id="benchmarks-bruites">
+<h3>Quand les benchmarks se trompent : erreurs d'annotation et classements</h3>
+<p>Toutes les métriques vues jusqu'ici confrontent la prédiction à une requête gold (requête de référence annotée). Elles supposent cette annotation exacte. Deux audits indépendants montrent que l'hypothèse ne tient pas sur BIRD. Wretblad et al. (ACL 2024) examinent les 106 exemples du domaine financier de BIRD. Ils relèvent du bruit dans 52 d'entre eux, soit 49 %. Sur ces 106 exemples, 22 portent une requête gold erronée, soit 20,7 %.</p><p>Jin, Choi, Zhu et Kang étendent l'audit en 2026 sous un titre sans ambiguïté, « Pervasive Annotation Errors Break Text-to-SQL Benchmarks and Leaderboards ». Sur BIRD Mini-Dev, ils trouvent des erreurs d'annotation dans 263 exemples sur 498, soit 52,8 %. Ces erreurs mêlent requêtes gold fausses, questions ambiguës et connaissance externe erronée. Spider 2.0-Snow fait pire. Sur les 121 exemples dont la requête gold est publique, 76 sont fautifs, soit 62,8 %. Jin et al. sont seuls à avoir mesuré ce taux. Il rend incertain le plafond atteignable sur ce sous-ensemble, et l'écart entre deux agents y devient difficile à interpréter.</p><p>Le bruit ne se contente pas de déprimer les scores. Il rebat les classements. Chez Wretblad et al., la correction des requêtes gold produit un « re-classement drastique ». Une baseline zero-shot (sans exemple dans le prompt) sur GPT-3.5 y dépasse alors DIN-SQL et le système MAC-SQL.</p><p>Jin et al. mesurent l'effet à plus grande échelle. Ils tirent 100 exemples au hasard dans BIRD Dev et en corrigent les annotations. Près de la moitié, 48 %, a demandé une intervention humaine. Seize agents open source sont ensuite réévalués. Leur exactitude varie de -7 % à +31 % en relatif, et leur rang bouge jusqu'à neuf positions dans un sens ou dans l'autre. CHESS gagne le plus en valeur relative : il passe de 62 % à 81 % d'exactitude, et de la 7e place à la première, à égalité avec GenaSQL. MAC-SQL connaît le plus grand déplacement : il gagne neuf places et remonte de la 14e à la 5e. À l'inverse, le système GSR recule de la 4e à la 13e place.</p><figure class='fig'><svg viewBox='0 0 720 340' role='img' aria-label='Slopegraph des rangs de seize agents sur 100 exemples de BIRD Dev, avant et après correction des annotations (Jin et al. 2026) : CHESS passe de la 7e à la 1re place, MAC-SQL de la 14e à la 5e, GSR recule de la 4e à la 13e ; Spearman avec le Dev complet 0,85 avant correction, 0,32 après.' font-family='inherit'><text x='220' y='26' font-size='12' font-weight='600' fill='var(--ink,#15202E)' text-anchor='middle'>Annotations originales</text><text x='500' y='26' font-size='12' font-weight='600' fill='var(--ink,#15202E)' text-anchor='middle'>Annotations corrigées</text><line x1='220' y1='50' x2='220' y2='275' stroke='var(--ink-faint,#7A889B)' stroke-width='1' opacity='0.5'/><line x1='500' y1='50' x2='500' y2='275' stroke='var(--ink-faint,#7A889B)' stroke-width='1' opacity='0.5'/><circle cx='220' cy='50' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='500' cy='50' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='220' cy='65' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='500' cy='65' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='220' cy='80' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='500' cy='80' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='220' cy='95' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='500' cy='95' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='220' cy='110' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='500' cy='110' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='220' cy='125' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='500' cy='125' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='220' cy='140' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='500' cy='140' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='220' cy='155' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='500' cy='155' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='220' cy='170' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='500' cy='170' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='220' cy='185' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='500' cy='185' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='220' cy='200' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='500' cy='200' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='220' cy='215' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='500' cy='215' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='220' cy='230' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='500' cy='230' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='220' cy='245' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='500' cy='245' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='220' cy='260' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='500' cy='260' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='220' cy='275' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='500' cy='275' r='2' fill='var(--ink-faint,#7A889B)'/><text x='208' y='53' font-size='9' fill='var(--ink-faint,#7A889B)' text-anchor='end'>1</text><text x='512' y='53' font-size='9' fill='var(--ink-faint,#7A889B)' text-anchor='start'>1</text><text x='208' y='98' font-size='9' fill='var(--ink-faint,#7A889B)' text-anchor='end'>4</text><text x='512' y='98' font-size='9' fill='var(--ink-faint,#7A889B)' text-anchor='start'>4</text><text x='208' y='158' font-size='9' fill='var(--ink-faint,#7A889B)' text-anchor='end'>8</text><text x='512' y='158' font-size='9' fill='var(--ink-faint,#7A889B)' text-anchor='start'>8</text><text x='208' y='218' font-size='9' fill='var(--ink-faint,#7A889B)' text-anchor='end'>12</text><text x='512' y='218' font-size='9' fill='var(--ink-faint,#7A889B)' text-anchor='start'>12</text><text x='208' y='278' font-size='9' fill='var(--ink-faint,#7A889B)' text-anchor='end'>16</text><text x='512' y='278' font-size='9' fill='var(--ink-faint,#7A889B)' text-anchor='start'>16</text><line x1='220' y1='140' x2='500' y2='50' stroke='var(--blue,#23537F)' stroke-width='2.5'/><circle cx='220' cy='140' r='4.5' fill='var(--blue,#23537F)'/><circle cx='500' cy='50' r='4.5' fill='var(--blue,#23537F)'/><text x='160' y='144' font-size='12' font-weight='600' fill='var(--blue,#23537F)' text-anchor='end'>CHESS · 7e</text><text x='560' y='54' font-size='12' font-weight='600' fill='var(--blue,#23537F)'>1er · CHESS</text><text x='600' y='68' font-size='10' fill='var(--blue,#23537F)'>+6 places</text><line x1='220' y1='245' x2='500' y2='110' stroke='var(--blue,#23537F)' stroke-width='2.5'/><circle cx='220' cy='245' r='4.5' fill='var(--blue,#23537F)'/><circle cx='500' cy='110' r='4.5' fill='var(--blue,#23537F)'/><text x='160' y='249' font-size='12' font-weight='600' fill='var(--blue,#23537F)' text-anchor='end'>MAC-SQL · 14e</text><text x='560' y='114' font-size='12' font-weight='600' fill='var(--blue,#23537F)'>5e · MAC-SQL</text><text x='600' y='128' font-size='10' fill='var(--blue,#23537F)'>+9 places</text><line x1='220' y1='95' x2='500' y2='230' stroke='var(--bordeaux,#7C2A38)' stroke-width='2.5'/><circle cx='220' cy='95' r='4.5' fill='var(--bordeaux,#7C2A38)'/><circle cx='500' cy='230' r='4.5' fill='var(--bordeaux,#7C2A38)'/><text x='160' y='99' font-size='12' font-weight='600' fill='var(--bordeaux,#7C2A38)' text-anchor='end'>GSR · 4e</text><text x='560' y='234' font-size='12' font-weight='600' fill='var(--bordeaux,#7C2A38)'>13e · GSR</text><text x='600' y='248' font-size='10' fill='var(--bordeaux,#7C2A38)'>−9 places</text><text x='360' y='297' font-size='10' fill='var(--ink-faint,#7A889B)' text-anchor='middle'>rang parmi 16 agents (1 = meilleur) ; points gris : autres agents, rangs individuels non repris</text><text x='360' y='319' font-size='11.5' fill='var(--ink,#15202E)' text-anchor='middle'>Spearman avec le classement du Dev complet : 0,85 sur le sous-ensemble non corrigé, 0,32 sur le corrigé</text></svg><figcaption><span class="fcap-k">Figure 2</span>Sur 100 exemples de BIRD Dev ré-annotés par Jin et al. (2026), corriger la requête gold suffit à faire monter CHESS de la 7e à la 1re place et MAC-SQL de la 14e à la 5e, tandis que GSR chute de la 4e à la 13e.</figcaption></figure><p>Une corrélation de rangs résume ce désordre. Le classement sur le sous-ensemble non corrigé suit de près celui du Dev complet, avec un coefficient de Spearman de 0,85. Celui du sous-ensemble corrigé ne s'y rattache qu'à 0,32. Les erreurs d'annotation brouillent donc le classement : sur ces 16 agents et ces 100 exemples, la corrélation avec le Dev complet tombe à 0,32 (p = 0,23, faible), ce qui laisse craindre un jugement faussé de ce qui paraît prometteur. Les auteurs publient jeux corrigés et code. Sur un benchmark aussi bruité, un écart de quelques points entre agents dit peu de chose. Et la justesse, même bien mesurée, ne suffit pas quand la requête s'exécute sur une base de production.</p>
+</section>
+<section id="securite-droits">
+<h3>Sécurité : injection, droits et périmètre</h3>
+<p>Jusqu'ici, l'erreur restait involontaire. Un système text-to-SQL exécute pourtant du code qu'aucun humain n'a relu, et un adversaire peut chercher à l'orienter. Pedro, Castro, Carreira et Santos décrivent ainsi les injections « prompt-to-SQL », notées P2SQL. Leur cadre est une application où un middleware comme LangChain traduit la demande de l'utilisateur en SQL. C'est de la prompt injection (injection d'invite) appliquée au SQL. Un prompt non assaini suffit à produire une injection SQL. Sur 7 LLM testés, les attaques se reproduisent sur les modèles assez fiables pour servir de chatbot, avec des exceptions (GPT-4 plus robuste, attaque en plusieurs étapes seulement partielle sur PaLM2 et Llama 2).</p><p>Une demande en apparence anodine, « Change the phone number of the user John Doe... », produit ainsi un UPDATE sur la table users. Un « DROP TABLE users CASCADE » glissé dans l'entrée peut aussi être reflété tel quel vers la base. L'attaque se mène parfois en plusieurs étapes. Un UPDATE modifie par exemple l'adresse courriel d'une victime, puis un SELECT final masque la modification.</p><p>Le réflexe consiste à durcir le prompt système. Une consigne comme « Never perform DELETE, DROP or UPDATE... » cède pourtant devant une entrée qui commence par « Ignore the previous instructions... ». Pedro et al. jugent ce durcissement manuel « exceedingly fragile ». Ils proposent quatre défenses sous forme d'extensions de LangChain, validées sur une application réelle. La première consiste à durcir les permissions de la base, par exemple avec une connexion du chatbot restreinte à la lecture seule. Un second groupe, Peng et al., confirme le risque hors du laboratoire. Ils manipulent les modules text-to-SQL de six applications commerciales pour leur faire produire du code malveillant. Les effets vont de la fuite de données au déni de service.</p><p>La menace ne passe pas seulement par la question. Un modèle affiné peut porter une backdoor (porte dérobée), posée en amont par data poisoning (empoisonnement des données d'entraînement). Il se comporte normalement tant qu'un déclencheur n'apparaît pas dans la question. Il génère alors une requête exécutable malveillante. Peng et al. atteignent 100 % de réussite d'attaque sur quatre modèles open source, sans dégrader leur performance. ToxicSQL, dans sa version publiée à SIGMOD 2026, chiffre la dose nécessaire. Injecter 0,44 % de données empoisonnées donne 79,41 % de réussite d'attaque. La précision sur les entrées bénignes reste élevée. Les auteurs proposent aussi des stratégies de détection et d'atténuation.</p><p>Les services gérés déplacent une partie de la réponse vers la base elle-même. Cortex Analyst, le service text-to-SQL géré de Snowflake, s'intègre au RBAC (Role-Based Access Control) de la plateforme. L'accès exige un rôle CORTEX_USER, qui couvre toutes les fonctions d'IA, ou CORTEX_ANALYST_USER, limité à ce service. Il faut aussi le droit SELECT sur les tables du modèle sémantique. S'y ajoutent des droits sur le stage (zone de stockage de fichiers) qui contient le fichier YAML de ce modèle. Par défaut, CORTEX_USER est accordé au rôle PUBLIC. Un administrateur peut le révoquer et réserver CORTEX_ANALYST_USER à des rôles précis. Le SQL généré reste ainsi borné par les privilèges existants. La documentation ne dit pas nettement sous quel rôle il s'exécute, même si la lecture naturelle désigne l'appelant.</p><p>Une idée reçue en découle : puisque Cortex Analyst respecte le RBAC, il serait protégé contre l'injection. Le RBAC borne le périmètre lisible et les écritures. Il ne détecte pas une requête abusive ou trompeuse formulée à l'intérieur des droits de l'utilisateur. Le scénario P2SQL le montre, où le SELECT final masque un UPDATE exécuté avec les droits de l'application. La page de Cortex Analyst ne mentionne d'ailleurs ni prompt injection ni garde-fou d'exécution. Les droits fixent l'ampleur des dégâts possibles, pas l'innocence de la requête. Le modèle sémantique, qui délimite déjà la surface visible par le LLM, joue en production un rôle plus large encore.</p>
+</section>
+<section id="couche-semantique-production">
+<h3>En production : modèle sémantique et services gérés</h3>
+<p>Le modèle sémantique évoqué à propos des droits n'est pas qu'un périmètre de sécurité. C'est aussi la réponse que les services gérés apportent au schema linking. Cortex Analyst ne laisse pas le LLM deviner le sens d'un schéma brut aux centaines de colonnes. Il génère le SQL à partir d'un modèle qui déclare ce que la base contient et comment ses parties se relient. Le contraste avec Spider 2.0 est net. Là, 12,97 % des tâches exigent de consulter une documentation externe, parce que la connaissance métier ne se déduit pas du schéma seul.</p>
+<p>Le modèle décrit d'abord des tables logiques, qui représentent des entités métier. Il y attache des dimensions, dont des dimensions temporelles. Viennent ensuite les faits, c'est-à-dire des attributs au niveau de la ligne. Les métriques sont des agrégats de faits déclarés une fois pour toutes, par SUM, AVG ou COUNT. Une métrique définie comme la somme d'un fait épargne au modèle de réinventer l'agrégation, cette source d'erreurs silencieuses déjà rencontrée. Les relations, enfin, déclarent les jointures sur des clés partagées. La jointure implicite qu'un LLM devait inférer devient une donnée fixée d'avance.</p>
+<p>La spécification ne s'arrête pas à la structure. Elle accepte des filtres prédéfinis et des synonymes, c'est-à-dire des noms alternatifs pour un même concept métier. Des valeurs d'exemple accompagnent les colonnes. Elle prévoit surtout des verified queries (requêtes vérifiées), qui guident la génération et servent à évaluer la justesse du modèle. Leur existence suppose que cette justesse n'est pas acquise d'office, même avec une couche sémantique.</p>
+<p>Côté format, la documentation actuelle présente les Semantic Views, objets définis au niveau du schéma, comme la forme moderne de ce modèle. Les fichiers YAML déposés sur un stage restent pris en charge au titre de l'existant. La génération repose par défaut sur une combinaison de modèles Mistral et Llama hébergés par Snowflake. La documentation liste aussi des modèles préférés, dont Claude, GPT 4.1 et Arctic Text2SQL. La sélection entre eux est automatique. La facturation se compte en crédits par message traité, sur les seules réponses HTTP 200. L'exécution du SQL produit est facturée à part, par l'entrepôt.</p>
+<p>Le multi-turn (conversation à plusieurs tours) révèle les limites de l'édifice. L'historique est transmis dans le champ messages de chaque requête, car le modèle ne conserve aucun état d'un appel à l'autre. Tout l'historique est donc retraité à chaque nouvelle question, ce qui augmente le coût de calcul. Le service n'a pas non plus accès aux résultats des requêtes SQL précédentes. Une question de suivi ne peut s'appuyer que sur le texte échangé, jamais sur les lignes déjà renvoyées. La documentation reconnaît une dégradation sur les conversations longues ou à changements d'intention fréquents. Elle borne aussi les questions à ce que SQL peut répondre.</p>
+<p>Le bilan reste mesuré. Une couche sémantique réduit le besoin de schema linking sur le schéma brut, parce qu'elle fournit métadonnées, définitions métier et relations déclarées. La précision s'en trouve améliorée. Elle ne garantit pas pour autant une traduction fiable, et les requêtes plausibles et fausses restent possibles à l'intérieur de son périmètre. Un agent qui interroge une base à travers un tel service hérite de ces propriétés comme de ces limites. Reste à savoir si ces leçons tiennent hors du modèle relationnel, lorsque la base est un graphe.</p>
+</section>
+<section id="graphes-sparql-cypher">
+<h3>Au-delà du SQL : text-to-SPARQL et text-to-Cypher</h3>
+<p>Rien dans le schema linking n'est propre aux tables. Une base de graphes pose les mêmes questions, avec des entités et des relations à la place des tables et des colonnes. Spider4SPARQL, publié en 2023 par Kosten, Cudré-Mauroux et Stockinger, transpose Spider aux graphes de connaissances RDF (Resource Description Framework). Ces graphes s'interrogent en SPARQL (leur langage de requête). Les auteurs annoncent 9 693 questions écrites à la main, reprises de Spider. Elles s'accompagnent de 4 721 requêtes SPARQL inédites, réparties sur 166 graphes. Un travail tiers confirme la construction : 166 des 200 bases de Spider y sont matérialisées en RDF, avec 4 721 requêtes SPARQL équivalentes au SQL d'origine., avec des requêtes SPARQL équivalentes au SQL d'origine.</p>
+<p>Le résultat rappelle les débuts de Spider. Les systèmes de KGQA (question answering sur graphe de connaissances) et les LLM testés n'atteignent qu'une EX d'au plus 45 %. Une part de l'écart avec le SQL tient au linking. Chaque mot de la question doit être relié à des IRI (Internationalized Resource Identifiers), les identifiants des entités et des relations du graphe. CypherBench, travail indépendant, observe de même que l'interrogation des grands graphes de connaissances encyclopédiques (RDF) reste difficile pour les LLM, contrairement au text-to-SQL.</p>
+<p>Les benchmarks historiques du text-to-SPARQL sont LC-QuAD 2.0 et la série QALD. Le premier compte environ 30 000 questions complexes avec leur SPARQL, sur DBpedia et Wikidata. La seconde est plus petite, mais multilingue. Leurs métriques reproduisent le débat déjà mené sur le SQL. L'EX compare l'ensemble des réponses à celui de la requête gold.</p>
+<p>Côté Cypher (langage de requête de la base de graphes Neo4j), le jeu Neo4j Text2Cypher date de 2024. Il a été assemblé en combinant et en nettoyant des jeux publics associant question, schéma et requête. Ses auteurs, chez Neo4j, comptent 44 387 instances, dont 4 833 réservées au test. Le fine-tuning de modèles sur ce jeu améliore Google-BLEU et Exact Match par rapport aux modèles de base. CypherBench y voit un effort parallèle, à grande échelle et divers. Il relève pourtant que 49 % de ses questions ne sont liées à aucun graphe réel. Sur cette part, aucune métrique par exécution n'est possible.</p>
+<p>Le billet de benchmark de Neo4j confronte quatre modèles affinés à dix modèles de fondation. Il évalue de deux façons. La première compare le texte du Cypher prédit à celui de référence, avec Google-BLEU. La seconde compare les résultats d'exécution. Sur la métrique d'exécution (ExactMatch) du billet, GPT-4o et un modèle déjà affiné par ailleurs (tomasonjo_text2cypher, qui avait vu 14,4 % du jeu de test à l'entraînement) arrivent en tête, autour de 30 % chacun (chiffre d'un seul billet, source unique, non corroborée). (chiffre d'un seul billet, source unique, non corroborée). Le même billet note que l'ExactMatch est très sensible : une espace ou un saut de ligne en trop suffit à le faire échouer. La fragilité de la correspondance textuelle, mesurée sur Spider, réapparaît ici. Les modèles de fondation fermés obtiennent les meilleurs résultats d'ensemble, mais à un coût élevé. En BLEU, Gemma2-9B-It est le meilleur modèle ouvert, et les modèles affinés restent en dessous avec une marge de progrès.</p>
+<p>La boucle d'auto-correction a elle aussi son équivalent. Allemang et Sequeda, chez data.world, ajoutent deux mécanismes à la génération de SPARQL. L'OBQC (Ontology-based Query Check) fait vérifier par l'ontologie du graphe la cohérence sémantique de la requête générée. Un LLM répare ensuite la requête à partir de l'explication d'erreur. C'est l'analogue de la boucle exécution et self-correction du SQL, l'ontologie servant de schéma. Sur un benchmark d'entreprise de type « chat with the data », la précision atteint 72 %, plus 8 % de réponses « je ne sais pas ». Leurs travaux antérieurs donnaient 54 % avec le graphe de connaissances seul et 16 % en SQL direct. Ces chiffres viennent d'un seul groupe.</p>
+<p>Fitch et Kurtz comparent SPARQL et SQL sur des métadonnées de neuroimagerie : leur meilleure configuration atteint 100 % en SPARQL (ontologie annotée en contexte) contre 57 % en SQL auto-généré, sur 21 questions. Ils en concluent que la richesse du schéma, plus que le langage de requête, détermine la fiabilité. L'échantillon ne compte que 21 questions. Les leçons du SQL se transfèrent donc aux graphes. Le linking y reste le point dur. L'exécution y reste un arbitre imparfait. Une couche sémantique explicite, ontologie ou modèle déclaré, y améliore la fiabilité sans la garantir. Les langages de graphe eux-mêmes relèvent d'un autre sujet, la construction de graphes de connaissances.</p>
+</section>
+<section id="ecosysteme">
+<h3>Écosystème &amp; pour aller plus loin</h3>
+<p>Le parcours de ce document repose sur une poignée de jeux de données, d'outils et de systèmes à retrouver à la source. Spider (EMNLP 2018) reste le point de départ. Ses questions, annotées par 11 étudiants, correspondent à 5 693 requêtes SQL complexes uniques. BIRD (NeurIPS 2023) compte 12 751 paires question-SQL sur 95 bases. À sa publication, ChatGPT y obtenait 39,30 % d'EX sur le test avec connaissances externes (40,08 % avec chaîne de pensée), contre 92,96 % pour les humains. BIRD Mini-Dev en extrait 500 paires issues de 11 bases du dev, pour des cycles de développement peu coûteux. Il est disponible en SQLite, MySQL et PostgreSQL, et sa V2 compte 780 instances.</p>
+<p>Spider 2.0, accepté en oral à ICLR 2025, se décline en trois réglages. Spider2-Lite réunit 547 exemples sur BigQuery, Snowflake et SQLite, avec des métadonnées préparées. Spider2-Snow en compte autant, sur Snowflake seul. Spider2-DBT rassemble 68 tâches au niveau du dépôt (78 projets dans la version du papier), avec dbt. Le SQL attendu y dépasse souvent cent lignes.</p>
+<p>Les outils d'évaluation suivent une même logique. L'EX sur une seule base peut déclarer correctes des requêtes sémantiquement différentes de la référence. Les test suites distillées de Zhong, Yu et Klein ont répondu à ce défaut. Elles sont devenues la métrique officielle de Spider, SParC et CoSQL. SpotIt va plus loin : son moteur de bounded verification par SMT cherche activement une base qui distingue la requête générée de la requête de référence. Il apporte un encodage SMT inédit d'opérateurs SQL sur chaînes et dates. SpotIt+ le prolonge en extrayant des contraintes de bases exemples, pour que les bases contre-exemples restent plausibles.</p>
+<p>Les meilleurs systèmes dépassent 90 % d'EX sur Spider 1.0. Cela ne signifie pas que le text-to-SQL est résolu. Les scores chutent à 73,0 % sur BIRD (méthodes à base de GPT-4 citées fin 2024 ; le haut du classement dépasse depuis 80 %), puis à 21,3 % sur Spider 2.0 (agent o1-preview), avec les réserves de comparaison déjà signalées. DAIL-SQL, de Gao et al., est d'abord une étude de benchmark des prompts LLM. Elle compare représentation du schéma, sélection des exemples et organisation du prompt, pour 86,6 % sur Spider à sa publication. CHESS orchestre quatre agents : Information Retriever, Schema Selector, Candidate Generator et Unit Tester. Il atteint 71,10 % sur le test BIRD avec un grand budget, à moins de 2 points de la méthode propriétaire en tête, avec, selon ses auteurs, environ 83 % d'appels LLM en moins que celle-ci.</p>
+<p>Le haut du classement BIRD s'obtient par deux voies distinctes. Arctic-Text2SQL-R1 applique le RL à récompense d'exécution simple à des modèles de taille modeste. Sa version 32B atteint 71,83 %, et sa version 14B 70,04 %. Agentar-Scale-SQL mise au contraire sur le test-time scaling décrit plus haut. Il atteint 81,67 % sur le test BIRD, premier du classement officiel au moment de sa publication. Côté services, Cortex Analyst s'utilise par API REST. L'utilisateur fournit une question et un modèle sémantique, en YAML ou en vue sémantique, et le service renvoie du SQL.</p>
+<p>Plusieurs sujets voisins prolongent celui-ci. L'extraction structurée par LLM traite la sortie contrainte par un schéma JSON, là où le text-to-SQL produit un programme exécutable. La construction de graphes de connaissances couvre SPARQL et GQL (Graph Query Language) en tant que langages. L'IA agentique étudie l'agent qui appelle une base, cité ici comme cas d'usage. La génération de code par LLM, enfin, couvre HumanEval, le reranking et Self-Debug, et ne cite Spider qu'en passant. Le fil se referme ainsi. Un système text-to-SQL ne vaut que par son évaluation, par sa sécurité et par la couche sémantique qui l'encadre, en SQL comme sur les graphes.</p>
+</section>
+<details class="ex"><summary>Vérifie ta compréhension<span class="cnt">Partie Évaluer une requête</span></summary><div class="exbody"><p><b>Question.</b> <p>Un système produit une requête SQL écrite autrement que la référence mais qui renvoie le même résultat sur la base de développement. Que diront l'exact set match, l'exactitude d'exécution sur cette seule base et la test suite accuracy, et pourquoi aucune de ces métriques ne tranche-t-elle l'équivalence de façon certaine ?</p></p><div class="eg b"><span class="egk">Réponse</span><p>L'exact set match peut la rejeter : il compare la forme et produit des faux négatifs, environ 2,5 % en moyenne et 8,1 % au pire sur les soumissions du classement Spider selon Zhong et al. L'exactitude d'exécution sur une seule base l'accepte, mais elle accepterait aussi une requête différente qui ne coïnciderait que sur cette instance (faux positif). La test suite accuracy exécute les deux requêtes sur une petite suite de bases distillée pour une forte couverture : elle réduit ces faux positifs et se présente comme une borne supérieure serrée, sans être une preuve. L'équivalence de requêtes SQL est en effet indécidable en général ; SpotIt pousse plus loin en cherchant par vérification bornée (SMT) une base qui sépare les deux requêtes.</p></div></div></details>
+<details class="ex"><summary>Vérifie ta compréhension<span class="cnt">Partie Lire un écart de benchmarks</span></summary><div class="exbody"><p><b>Question.</b> <p>On lit souvent : « 91,2 % sur Spider 1.0, 73,0 % sur BIRD, 21,3 % sur Spider 2.0 ». Que mesure vraiment cette chute, et pourquoi le schema linking y pèse-t-il autant ?</p></p><div class="eg b"><span class="egk">Réponse</span><p>Ces trois chiffres juxtaposent des systèmes différents (méthodes à base de GPT-4 d'un côté, agent o1-preview de l'autre). À méthode égale, Lei et al. mesurent pour DAIL-SQL + GPT-4o 86,6 % sur Spider 1.0, 57,4 % sur BIRD et 5,68 % sur Spider 2.0-lite : la chute est réelle, mais y voir l'écart « académique contre production » reste une interprétation des auteurs. Le schema linking y contribue : les bases de Spider 2.0 comptent en moyenne de 743,5 à 812,1 colonnes selon la variante contre 54,2 pour BIRD, et le mauvais schema linking représente 27,6 % des échecs dans l'analyse de 300 exemples de Lei et al. Quand le schéma tient dans le contexte, des modèles récents peuvent s'en passer (Maamari et al.) ; quand il le dépasse, ReFoRCE conserve un linking au niveau des tables.</p></div></div></details>
+<section id="biblio"><h3>Bibliographie &amp; repos</h3><div><a href="https://arxiv.org/abs/1809.08887">Spider: A Large-Scale Human-Labeled Dataset for Complex and Cross-Domain Semantic Parsing and Text-to-SQL Task (Yu et al.)</a></div><div><a href="https://arxiv.org/abs/2208.13629">A Survey on Text-to-SQL Parsing: Concepts, Methods, and Future Directions (Qin et al.)</a></div><div><a href="https://arxiv.org/abs/1905.08205">Towards Complex Text-to-SQL in Cross-Domain Database with Intermediate Representation (Guo et al., IRNet)</a></div><div><a href="https://arxiv.org/abs/2010.02840">Semantic Evaluation for Text-to-SQL with Distilled Test Suites (Zhong, Yu, Klein)</a></div><div><a href="https://arxiv.org/abs/2310.18538">Evaluating Cross-Domain Text-to-SQL Models and Benchmarks (Pourreza, Rafiei)</a></div><div><a href="https://arxiv.org/abs/2411.07763">Spider 2.0: Evaluating Language Models on Real-World Enterprise Text-to-SQL Workflows</a></div><div><a href="https://arxiv.org/abs/2305.03111">Can LLM Already Serve as A Database Interface? A BIg Bench for Large-Scale Database Grounded Text-to-SQLs (BIRD)</a></div><div><a href="https://arxiv.org/abs/2503.04959">DB-Explore: Automated Database Exploration and Instruction Synthesis for Text-to-SQL (Ma et al.)</a></div><div><a href="https://arxiv.org/abs/2402.11517">Knowledge-to-SQL: Enhancing SQL Generation with Data Expert LLM (Hong et al.)</a></div><div><a href="https://arxiv.org/abs/2404.12560">Dubo-SQL: Diverse Retrieval-Augmented Generation and Fine Tuning for Text-to-SQL (Thorpe et al.)</a></div><div><a href="https://arxiv.org/abs/2406.08426">Next-Generation Database Interfaces: A Survey of LLM-based Text-to-SQL (Hong et al.)</a></div><div><a href="https://bird-bench.github.io/">BIRD-SQL official site</a></div><div><a href="https://arxiv.org/html/2502.00675">ReFoRCE: A Text-to-SQL Agent with Self-Refinement, Consensus Enforcement, and Column Exploration (Deng et al., UCSD/Snowflake)</a></div><div><a href="https://arxiv.org/html/2304.11015">Din-SQL: Decomposed In-Context Learning of Text-to-SQL with Self-Correction (Pourreza &amp; Rafiei, arXiv 2304.11015)</a></div><div><a href="https://arxiv.org/html/2408.07702">The Death of Schema Linking? Text-to-SQL in the Age of Well-Reasoned Language Models (Maamari et al., Distyl AI, arXiv 2408.07702)</a></div><div><a href="https://proceedings.iclr.cc/paper_files/paper/2025/file/46c10f6c8ea5aa6f267bcdabcb123f97-Paper-Conference.pdf">Spider 2.0 (ICLR 2025 proceedings PDF), section 4.2</a></div><div><a href="https://arxiv.org/html/2402.16347">CodeS: Towards Building Open-source Language Models for Text-to-SQL (Li et al., arXiv 2402.16347)</a></div><div><a href="https://arxiv.org/html/2405.16755">CHESS: Contextual Harnessing for Efficient SQL Synthesis (Talaei et al., arXiv 2405.16755)</a></div><div><a href="https://arxiv.org/abs/2109.05093">PICARD: Parsing Incrementally for Constrained Auto-Regressive Decoding from Language Models</a></div><div><a href="https://arxiv.org/html/2310.13575">Semantic Decomposition of Question and SQL for Text-to-SQL Parsing (Eyal et al.)</a></div><div><a href="https://arxiv.org/abs/2505.20315">Arctic-Text2SQL-R1 (arXiv)</a></div><div><a href="https://www.snowflake.com/en/blog/engineering/arctic-text2sql-r1-sql-generation-benchmark/">Snowflake engineering blog: Arctic-Text2SQL-R1</a></div><div><a href="https://arxiv.org/abs/2509.24403">Agentar-Scale-SQL: Advancing Text-to-SQL through Orchestrated Test-Time Scaling</a></div><div><a href="https://web.archive.org/web/20251015000000/https://bird-bench.github.io/">BIRD leaderboard, capture web.archive.org d'octobre 2025 (tenu par l'équipe BIRD)</a></div><div><a href="https://arxiv.org/abs/2308.15363">DAIL-SQL (arXiv)</a></div><div><a href="https://arxiv.org/html/2601.08778">Text-to-SQL annotation errors (arXiv 2601.08778)</a></div><div><a href="https://arxiv.org/html/2501.09310">Understanding, Detecting, and Repairing Real-World In-Context-Learning-Based Text-to-SQL Errors (arXiv 2501.09310)</a></div><div><a href="https://arxiv.org/html/2506.04494">Gong et al., SQLens: An End-to-End Framework for Error Detection and Correction in Text-to-SQL (arXiv 2506.04494)</a></div><div><a href="https://arxiv.org/html/2503.11984">Liu et al., NL2SQL-BUGs: A Benchmark for Detecting Semantic Errors in NL2SQL Translation (arXiv 2503.11984)</a></div><div><a href="https://arxiv.org/html/2503.18003">Bag-semantics query containment undecidability results (arXiv 2503.18003)</a></div><div><a href="https://www.arxiv.org/pdf/2510.26840">SpotIt: Evaluating Text-to-SQL Evaluation with Formal Verification (arXiv 2510.26840)</a></div><div><a href="https://arxiv.org/html/2402.12243">Wretblad et al., Understanding the Effects of Noise in Text-to-SQL: An Examination of the BIRD-Bench Benchmark (ACL 2024, arXiv 2402.12243)</a></div><div><a href="https://arxiv.org/html/2308.01990">From Prompt Injections to SQL Injection Attacks (Pedro et al.)</a></div><div><a href="https://arxiv.org/abs/2211.15363">On the Security Vulnerabilities of Text-to-SQL Models (Peng et al.)</a></div><div><a href="https://arxiv.org/abs/2503.05445">Are Your LLM-based Text-to-SQL Models Secure? Exploring SQL Injection via Backdoor Attacks (ToxicSQL)</a></div><div><a href="https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-analyst">Snowflake docs - Cortex Analyst</a></div><div><a href="https://docs.snowflake.com/user-guide/snowflake-cortex/cortex-analyst/semantic-model-spec">Cortex Analyst semantic model specification (docs)</a></div><div><a href="https://arxiv.org/abs/2309.16248">Spider4SPARQL: A Complex Benchmark for Evaluating Knowledge Graph Question Answering Systems (Kosten et al.)</a></div><div><a href="https://arxiv.org/html/2511.09354">Spider4SSC &amp; S2CLite (travail tiers décrivant Spider4SPARQL)</a></div><div><a href="https://arxiv.org/html/2412.18702">CypherBench (Feng et al., travail tiers)</a></div><div><a href="https://arxiv.org/abs/2412.10064">Text2Cypher: Bridging Natural Language and Graph Databases (Ozsoy et al., Neo4j)</a></div><div><a href="https://arxiv.org/html/2405.11706">Increasing the LLM Accuracy for Question Answering: Ontologies to the Rescue! (Allemang, Sequeda)</a></div><div><a href="https://arxiv.org/html/2607.18029">Natural Language Access to Domain-Specific Metadata: A Reusable Framework for LLM Query Generation (Fitch, Kurtz)</a></div><div><a href="https://neo4j.com/blog/developer/benchmarking-neo4j-text2cypher-dataset/">Benchmarking Neo4j Text2Cypher dataset (Neo4j blog)</a></div><div><a href="https://github.com/taoyds/test-suite-sql-eval">test-suite-sql-eval repository (official metric of Spider, SParC, CoSQL)</a></div><div><a href="https://yale-lily.github.io/spider">Spider leaderboard page (Yale LILY)</a></div><div><a href="https://www.snowflake.com/en/engineering-blog/arctic-text2sql-r1-sql-generation-benchmark/">Arctic-Text2SQL-R1 (Snowflake engineering blog)</a></div></section>
+<section id="pointers"><h3>Pour aller plus loin</h3><div class="xptr-grid"><div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2109.05093">PICARD</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Décodage contraint par analyse incrémentale qui rejette les tokens inadmissibles à chaque étape pour générer du SQL valide avec des modèles de langage.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2308.15363">DAIL-SQL</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Évaluation des techniques d'ingénierie d'invites pour le text-to-SQL avec LLM, qui présente DAIL-SQL (86,6 % d'exactitude d'exécution sur Spider).</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2304.11015">DIN-SQL</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Décomposition du text-to-SQL en sous-tâches avec auto-correction par apprentissage en contexte.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2505.20315">Arctic-Text2SQL-R1</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Apprentissage par renforcement avec la seule correction d'exécution comme récompense, qui permet à un modèle 7B de dépasser des systèmes de classe 70B.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2509.24403">Agentar-Scale-SQL</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Mise à l'échelle au test orchestrée (raisonnement par RL, raffinement séquentiel, synthèse parallèle), 81,67 % d'exactitude d'exécution sur le test de BIRD.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://github.com/taoyds/test-suite-sql-eval">test-suite-sql-eval</a><span class="xptr-kind">implementation</span><p class="xptr-blurb">Dépôt de l'évaluation sémantique par test suites distillées pour le text-to-SQL.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2010.02840">Semantic Evaluation for Text-to-SQL with Distilled Test Suites</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Article fondateur de l'évaluation par bases de test minimales, qui corrige les faux négatifs des métriques existantes (jusqu'à 8,1 %).</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2305.03111">BIRD benchmark</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Benchmark de 12 751 paires texte-SQL sur 95 bases (33,4 Go) pour le text-to-SQL ancré dans de grandes bases de données.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://arxiv.org/abs/2411.07763">Spider 2.0</a><span class="xptr-kind">reading</span><p class="xptr-blurb">Benchmark de 632 problèmes de workflows d'entreprise text-to-SQL sur des bases réelles.</p></div>
+<div class="xptr"><a class="xptr-name" href="https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-analyst">Snowflake Cortex Analyst</a><span class="xptr-kind">tool</span><p class="xptr-blurb">Fonction Snowflake entièrement gérée, propulsée par LLM, qui répond en langage naturel à des questions sur des données structurées sans écrire de SQL.</p></div></div></section>
+<section id="glossaire"><h3>Glossaire</h3><div class="gloss-grid"><div class="gterm"><span class="gt-name">Text-to-SQL</span><p class="gt-def">Traduction d'une question en langage naturel en une requête SQL exécutable sur une base donnée ; c'est un cas de semantic parsing (analyse sémantique), qui produit un programme et non un simple texte. Le cadre de référence est cross-domain : les bases de test n'ont jamais été vues à l'entraînement (Spider), puis réalistes et volumineuses (BIRD), puis issues de flux d'entreprise multi-dialectes (Spider 2.0).</p><p class="gt-see">→ Schema linking, Execution accuracy</p></div>
+<div class="gterm"><span class="gt-name">Schema linking</span><p class="gt-def">Liaison au schéma : étape qui relie les mots de la question aux tables, colonnes et valeurs de la base, y compris les jointures implicites. Elle inclut la recherche dans la base des valeurs citées par la question (un récupérateur de valeurs repère, par exemple, la colonne qui contient un nom de lieu). Le mauvais schema linking pèse lourd dans les échecs sur Spider 2.0, dont les bases comptent des centaines de colonnes ; avec des LLM à long contexte, il reste surtout utile aux modèles les moins précis quand le schéma tient dans la fenêtre.</p><p class="gt-see">→ Text-to-SQL, Semantic layer</p></div>
+<div class="gterm"><span class="gt-name">Exact set match</span><p class="gt-def">Correspondance exacte par ensembles : métrique de Spider qui compare la requête prédite à la référence clause par clause, sans l'exécuter. Elle produit des faux négatifs, car une requête équivalente écrite autrement est jugée fausse ; c'est donc une borne inférieure de la précision sémantique.</p><p class="gt-see">→ Execution accuracy, Test suite accuracy</p></div>
+<div class="gterm"><span class="gt-name">Execution accuracy</span><p class="gt-def">Exactitude d'exécution : métrique qui juge une requête correcte si son résultat sur la base coïncide avec celui de la requête de référence. Elle accepte les écritures équivalentes, mais produit des faux positifs : sur une seule base, une requête sémantiquement différente peut rendre le même résultat par coïncidence. C'est la métrique principale de BIRD et de Spider 2.0, et elle sert aussi de récompense pour l'apprentissage par renforcement.</p><p class="gt-see">→ Exact set match, Test suite accuracy</p></div>
+<div class="gterm"><span class="gt-name">Test suite accuracy</span><p class="gt-def">Exactitude sur suite de tests : variante de l'execution accuracy qui compare les résultats sur une petite suite de bases distillée à partir de bases générées aléatoirement, choisie pour sa forte couverture. Elle réduit les faux positifs de l'exécution sur une base unique et est devenue la métrique officielle de Spider. L'équivalence de requêtes SQL étant indécidable en général, aucune suite ne la garantit ; la vérification d'équivalence bornée (SpotIt) cherche activement une base qui distingue deux requêtes.</p><p class="gt-see">→ Execution accuracy, Exact set match</p></div>
+<div class="gterm"><span class="gt-name">Constrained decoding</span><p class="gt-def">Décodage contraint : génération où, à chaque pas, les tokens qui rendraient la requête syntaxiquement ou structurellement inadmissible sont rejetés. PICARD l'applique à un modèle de langage déjà affiné par analyse incrémentale de la sortie, ce qui évite par exemple de produire une colonne absente du schéma. Il garantit une requête bien formée, pas une requête juste.</p><p class="gt-see">→ Text-to-SQL</p></div>
+<div class="gterm"><span class="gt-name">Semantic layer</span><p class="gt-def">Couche sémantique (ou modèle sémantique) : description déclarée au-dessus du schéma brut (tables logiques, dimensions, faits, métriques, relations de jointure) à partir de laquelle un service géré comme Cortex Analyst génère le SQL. Elle réduit le schema linking sur le schéma brut et fixe les agrégations et les jointures, ce qui améliore la précision sans garantir une traduction fiable. Combinée aux droits d'accès de l'entrepôt, elle borne ce que lit la requête, mais ne détecte pas une requête abusive à l'intérieur de ces droits.</p><p class="gt-see">→ Schema linking</p></div></div></section>
+</main>
+</div>
+<!-- ───────────────────────────────────────────────────────────────────
+     COUCHE THÈME — bouton bascule dark-mode + infobulles de glossaire.
+     Extrait du widget theme-tooltips (CSS exclus : voir charte.css).
+     Injecté verbatim dans toutes les éditions à l'emplacement du jeton THEME_LAYER.
+     ─────────────────────────────────────────────────────────────────── -->
+
+<!-- (B) BOUTON BASCULE -->
+<button id="theme_toggle" type="button" aria-pressed="false"
+        title="Basculer le thème clair / sombre">
+  <span id="theme_toggle_ico" aria-hidden="true">☾</span>
+  <span id="theme_toggle_lbl">Sombre</span>
+</button>
+
+<!-- Popover unique réutilisé (créé aussi par JS en secours) -->
+<div id="theme_tip" role="tooltip" aria-hidden="true"></div>
+
+<!-- SCRIPT — (B) bascule + persistance, (C) infobulles accessibles.
+     Tout en IIFE, fonctions préfixées theme_. Aucun alert. -->
+<script>
+(function(){
+  "use strict";
+  var KEY = "theme_pref_v1";
+  var docEl = document.documentElement;
+
+  /* ---- stockage sûr : jamais d'erreur si localStorage indisponible ---- */
+  function theme_read(){
+    try { return window.localStorage.getItem(KEY); } catch(e){ return null; }
+  }
+  function theme_write(v){
+    try { window.localStorage.setItem(KEY, v); } catch(e){ /* silencieux */ }
+  }
+
+  /* ---- (B) application du thème ---- */
+  function theme_apply(mode, persist){
+    var dark = (mode === "dark");
+    if (dark) docEl.setAttribute("data-theme","dark");
+    else docEl.removeAttribute("data-theme");
+    var btn = document.getElementById("theme_toggle");
+    if (btn){
+      btn.setAttribute("aria-pressed", dark ? "true" : "false");
+      var ico = document.getElementById("theme_toggle_ico");
+      var lbl = document.getElementById("theme_toggle_lbl");
+      if (ico) ico.textContent = dark ? "☀" : "☾";
+      if (lbl) lbl.textContent = dark ? "Clair" : "Sombre";
+    }
+    if (persist) theme_write(dark ? "dark" : "light");
+  }
+
+  /* Appliquer la préférence au plus tôt (limite le flash). */
+  theme_apply(theme_read() === "dark" ? "dark" : "light", false);
+
+  function theme_initToggle(){
+    var btn = document.getElementById("theme_toggle");
+    if (!btn) return;
+    btn.addEventListener("click", function(){
+      docEl.classList.add("theme-anim"); /* transitions seulement sur action */
+      var nowDark = docEl.getAttribute("data-theme") === "dark";
+      theme_apply(nowDark ? "light" : "dark", true);
+    });
+  }
+
+  /* ---- (C) infobulles accessibles ---- */
+  var tip = null, current = null, uid = 0;
+
+  function theme_tipEl(){
+    if (tip) return tip;
+    tip = document.getElementById("theme_tip");
+    if (!tip){
+      tip = document.createElement("div");
+      tip.id = "theme_tip";
+      tip.setAttribute("role","tooltip");
+      tip.setAttribute("aria-hidden","true");
+      document.body.appendChild(tip);
+    }
+    return tip;
+  }
+
+  function theme_show(el){
+    var def = el.getAttribute("data-def");
+    if (!def) return;
+    var t = theme_tipEl();
+    t.textContent = def; /* textContent : aucune injection HTML possible */
+    if (!el.id) el.id = "theme_gloss_" + (++uid);
+    t.id = "theme_tip"; /* stable */
+    el.setAttribute("aria-describedby", "theme_tip");
+
+    /* mesure puis positionnement (au-dessus si la place le permet) */
+    t.style.left = "0px"; t.style.top = "0px";
+    t.setAttribute("aria-hidden","false");
+    t.setAttribute("data-show","1");
+
+    var r = el.getBoundingClientRect();
+    var tw = t.offsetWidth, th = t.offsetHeight;
+    var sx = window.pageXOffset, sy = window.pageYOffset;
+    var margin = 8;
+
+    var left = r.left + sx + (r.width/2) - (tw/2);
+    left = Math.max(sx + margin, Math.min(left, sx + document.documentElement.clientWidth - tw - margin));
+
+    var below = (r.top < th + 12); /* pas de place au-dessus → on passe dessous */
+    var top = below ? (r.bottom + sy + 8) : (r.top + sy - th - 8);
+    if (below) t.setAttribute("data-below","1"); else t.removeAttribute("data-below");
+
+    /* recentre la flèche sur le terme */
+    var ax = (r.left + sx + r.width/2) - left;
+    ax = Math.max(8, Math.min(ax, tw - 16));
+    t.style.setProperty("--theme-tip-ax", ax + "px");
+
+    t.style.left = left + "px";
+    t.style.top = top + "px";
+    current = el;
+  }
+
+  function theme_hide(){
+    if (!tip) return;
+    tip.removeAttribute("data-show");
+    tip.setAttribute("aria-hidden","true");
+    if (current){
+      current.removeAttribute("aria-describedby");
+      current = null;
+    }
+  }
+
+  function theme_wire(el){
+    if (el.getAttribute("data-theme-wired")) return;
+    el.setAttribute("data-theme-wired","1");
+    if (!el.hasAttribute("tabindex")) el.setAttribute("tabindex","0");
+    el.addEventListener("mouseenter", function(){ theme_show(el); });
+    el.addEventListener("mouseleave", theme_hide);
+    el.addEventListener("focus", function(){ theme_show(el); });
+    el.addEventListener("blur", theme_hide);
+  }
+
+  function theme_scan(root){
+    var nodes = (root || document).querySelectorAll(".theme-gloss[data-def]");
+    for (var i=0;i<nodes.length;i++) theme_wire(nodes[i]);
+  }
+
+  /* Échap referme ; un défilement masque l'infobulle (position figée sinon) */
+  document.addEventListener("keydown", function(e){
+    if (e.key === "Escape" || e.keyCode === 27) theme_hide();
+  });
+  window.addEventListener("scroll", theme_hide, true);
+
+  /* Termes ajoutés dynamiquement après coup */
+  function theme_observe(){
+    if (typeof MutationObserver === "undefined") return;
+    var mo = new MutationObserver(function(muts){
+      for (var i=0;i<muts.length;i++){
+        var added = muts[i].addedNodes;
+        for (var j=0;j<added.length;j++){
+          var n = added[j];
+          if (n.nodeType === 1){
+            if (n.classList && n.classList.contains("theme-gloss")) theme_wire(n);
+            if (n.querySelectorAll) theme_scan(n);
+          }
+        }
+      }
+    });
+    mo.observe(document.body, {childList:true, subtree:true});
+  }
+
+  /* ---- init ---- */
+  function theme_init(){
+    theme_apply(theme_read() === "dark" ? "dark" : "light", false);
+    theme_initToggle();
+    theme_scan(document);
+    theme_observe();
+  }
+  if (document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", theme_init);
+  } else {
+    theme_init();
+  }
+})();
+</script>
+
+<footer><div class="fin">Du langage naturel à la requête exécutable : text-to-SQL et parsing sémantique · scriptorium</div></footer>
+<script>
+  const prog=document.getElementById('prog');
+  const onScroll=()=>{const h=document.documentElement;const sc=h.scrollTop;const max=h.scrollHeight-h.clientHeight;
+    prog.style.width=(max>0?(sc/max*100):0)+'%';};
+  document.addEventListener('scroll',onScroll,{passive:true});onScroll();
+  const links=[...document.querySelectorAll('nav.toc a')];
+  const map=new Map(links.map(a=>[a.getAttribute('href').slice(1),a]));
+  const obs=new IntersectionObserver((entries)=>{entries.forEach(e=>{
+    if(e.isIntersecting){links.forEach(l=>l.classList.remove('active'));
+      const a=map.get(e.target.id); if(a)a.classList.add('active');}});
+  },{rootMargin:'-12% 0px -78% 0px',threshold:0});
+  document.querySelectorAll('section[id]').forEach(s=>obs.observe(s));
+</script>
+</body></html>

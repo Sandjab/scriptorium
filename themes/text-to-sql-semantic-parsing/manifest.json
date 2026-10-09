@@ -1,0 +1,450 @@
+{
+  "edition": 1,
+  "slug": "text-to-sql-semantic-parsing",
+  "meta": {
+    "title": "Du langage naturel à la requête exécutable : text-to-SQL et parsing sémantique",
+    "kicker": "Text-to-SQL · monographie",
+    "h1": "Du langage naturel à la requête exécutable : text-to-SQL et parsing sémantique",
+    "lede": "Traduire une question en SQL exécutable semble réglé quand les scores dépassent 90 % sur Spider ; sur des bases d'entreprise réelles, le même problème retombe à environ un cinquième des tâches résolues — et les benchmarks eux-mêmes se trompent souvent.",
+    "meta_chips": [
+      "Monographie"
+    ],
+    "footer": "Du langage naturel à la requête exécutable : text-to-SQL et parsing sémantique · scriptorium"
+  },
+  "elements": [
+    {
+      "type": "abstract"
+    },
+    {
+      "type": "section",
+      "id": "tache-et-spider",
+      "heading": "La tâche et Spider : généraliser à des bases jamais vues",
+      "level": 3,
+      "prose": "<p>Le text-to-SQL consiste à traduire une question en langage naturel en une requête SQL que le moteur de la base exécute. C'est un cas de semantic parsing (parsing sémantique) : la phrase devient une représentation formelle de son sens. La cible n'est pas un objet JSON à remplir selon un schéma, mais un programme. Ce programme lit des tables, filtre des lignes, joint des relations et agrège des valeurs. Sa justesse se juge donc à ce qu'il renvoie, et pas seulement à sa forme.</p>\n<p>Spider, publié par Yu et al. à EMNLP 2018, a fixé le cadre moderne de la tâche. Il réunit 10 181 questions et 5 693 requêtes SQL complexes uniques. Ces requêtes portent sur 200 bases multi-tables, qui couvrent 138 domaines. L'annotation a mobilisé onze étudiants.</p>\n<p>La rupture tient au découpage. La plupart des travaux antérieurs utilisaient une base unique, avec les mêmes requêtes cibles en entraînement et en test. Spider sépare au contraire les bases et les requêtes entre les deux jeux. Le modèle doit donc écrire des requêtes pour des schémas qu'il n'a jamais vus, avec des structures de requêtes nouvelles. C'est une cross-domain generalization (généralisation inter-domaines), imposée par construction plutôt que souhaitée.</p>\n<p>Le point de départ était très bas. Au lancement, le meilleur modèle testé, SQLNet, atteignait 12,4 % d'exact set match sur le test du découpage par base. Les variantes séquence à séquence, avec ou sans attention et mécanisme de copie, restaient entre 3,7 et 5,3 %. TypeSQL montait à 8,2 %.</p>\n<p>Encore faut-il savoir ce que mesure ce score. L'exact set match, métrique officielle d'origine de Spider, compare la structure de la requête prédite à celle de la référence. Une requête équivalente mais écrite autrement est alors jugée fausse. Zhong, Yu et Klein ont chiffré ces faux négatifs en 2020, sur les 21 soumissions du classement Spider. Ils en trouvent environ 2,5 % en moyenne. Dans le pire cas, la proportion atteint 8,1 %.</p>\n<p>D'où une question qui traversera tout le sujet : que veut dire « traduire correctement » ? Reproduire la requête de l'annotateur, ou renvoyer la même réponse que lui ? Avant d'y répondre, les benchmarks suivants déplacent la difficulté vers un autre terrain, celui des données elles-mêmes.</p>",
+      "claims": [
+        "claim:1",
+        "claim:2",
+        "claim:3"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "bird-bases-realistes",
+      "heading": "BIRD : valeurs sales, connaissance externe et efficacité",
+      "level": 3,
+      "prose": "<p>Les bases de Spider sont petites et propres. BIRD, benchmark présenté à NeurIPS 2023 dans la piste Datasets &amp; Benchmarks, part du constat inverse. Il compte 12 751 paires texte-SQL réparties sur 95 bases. Celles-ci totalisent 33,4 Go et couvrent 37 domaines professionnels, de la blockchain à la santé en passant par l'éducation. Le site officiel distingue 9 428 exemples d'entraînement et 1 534 de développement. Le test n'est accessible que par soumission.</p>\n<p>Trois défis structurent le benchmark. Le premier tient aux valeurs, conservées dans leur format d'origine au lieu d'être nettoyées. Elles sont volumineuses, sales et bruitées. Le deuxième défi est la connaissance externe. Chaque exemple porte une evidence (indice de connaissance externe), rédigée en langage naturel et annotée par des experts. Elle relie un terme de la question à une colonne, une valeur ou une formule. Le troisième défi est l'efficacité d'exécution, que BIRD revendique comme le premier benchmark text-to-SQL à mesurer.</p>\n<p>La métrique principale est l'execution accuracy, notée EX. Une requête prédite est correcte si son résultat d'exécution coïncide avec celui de la requête de référence. Sa forme syntaxique n'entre plus en compte. L'efficacité passe par le VES (Valid Efficiency Score), qui pondère chaque requête valide par son temps d'exécution relatif à la référence. Depuis août 2024, le site officiel retient le R-VES (Reward-based VES) pour les nouvelles soumissions de test.</p>\n<p>Les scores d'origine situent la difficulté. Sur le test, GPT-4 atteint 54,89 % d'EX avec les indices de connaissance externe. Sans eux, il tombe à 34,88 %, un chiffre propre à l'article BIRD. Les humains font bien mieux. Ingénieurs de données et étudiants en bases de données atteignent 92,96 %, quand ChatGPT obtenait 39,30 % au lancement (40,08 % avec chaîne de raisonnement).</p>\n<p>On attribue volontiers ce retard à la complexité syntaxique du SQL. L'article BIRD met plutôt en avant la compréhension des valeurs de la base et la connaissance externe. Les quelque 20 points que gagne GPT-4 avec les indices vont dans ce sens. Des travaux tiers traitent d'ailleurs le manque de connaissance experte comme un goulot. Une réserve demeure : BIRD ne le démontre pas par une ablation qui isolerait chaque facteur.</p>\n<p>L'écart s'est depuis resserré. Le classement officiel consulté en septembre 2026 place GrainSQL en tête, avec 82,95 % d'EX sur le test et 84,10 de R-VES. La distance aux performances humaines tombe ainsi à une dizaine de points. BIRD reste pourtant fidèle au format d'une question pour une requête. La marche suivante change d'échelle et quitte ce format.</p>",
+      "claims": [
+        "claim:5",
+        "claim:6",
+        "claim:7",
+        "claim:8"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "spider-2-entreprise",
+      "heading": "Spider 2.0 : les flux d'entreprise",
+      "level": 3,
+      "prose": "<p>Spider 2.0, publié par Lei et al. à ICLR 2025, quitte les bases de démonstration pour les entrepôts de données. Il réunit 632 tâches tirées de workflows d'entreprise, sur 213 bases. Le SQL attendu est multi-dialecte, réparti sur six systèmes. BigQuery domine avec 33,86 % des tâches, juste devant Snowflake. SQLite et DuckDB suivent, puis PostgreSQL et ClickHouse ferment la marche avec moins de 2 % chacun.</p>\n<p>La taille des schémas change d'ordre de grandeur. Une base de Spider 2.0 compte en moyenne 743,5 colonnes, contre 54,2 pour BIRD. Les variantes lite et snow montent un peu plus haut, autour de 800 colonnes. Certaines bases en dépassent 1 000. Les requêtes s'allongent aussi, avec 144 à 162 tokens en moyenne contre 30,9 pour BIRD. La plupart dépendent du moteur : 85,98 % appellent des fonctions propres au dialecte. On en compte 6,5 à 7,1 par requête.</p>\n<p>La tâche elle-même sort du cadre « une question, une requête ». Dans la version complète, l'agent travaille sur un codebase dont il doit parcourir la configuration et la documentation. Selon Lei et al., 12,34 % des tâches sont des workflows dbt (outil de transformation de données en SQL) de niveau projet. Une part voisine, 12,97 %, exige de consulter une documentation externe. Les variantes lite et snow restent autonomes. Elles fournissent une documentation auxiliaire avec le schéma. Près d'un tiers des tâches, 30,54 %, sont classées difficiles, un classement fondé sur la seule longueur de la requête de référence (160 tokens ou plus).</p>\n<p>Les scores s'effondrent. Dans la version 2 de l'article, le meilleur cadre d'agent à base d'o1-preview résout 21,3 % des tâches. La version 1 donnait 17,0 %. Sur les variantes, o1-preview plafonne à 23,22 % pour lite et 23,77 % pour snow. Un tiers, ReFoRCE, fait tourner Spider-Agent avec d'autres modèles et retrouve le même ordre de grandeur : 24,86 % sur lite et 24,31 % sur snow avec o3. ReFoRCE, système tiers évalué sur lite et snow, rapporte 24,86 % sur lite pour Spider-Agent avec o3. Sur snow, le même agent atteint 24,31 %.</p>\n<p>Le résumé de Spider 2.0 oppose ce 21,3 % aux 91,2 % de Spider 1.0 et aux 73,0 % de BIRD. Mais la comparaison juxtapose des systèmes différents. L'introduction attribue ces deux scores académiques à des méthodes à base de GPT-4, pas au cadre d'agent o1-preview. À méthode égale, la mesure devient nette. DAIL-SQL, méthode qui place le schéma dans le contexte d'un LLM, obtient avec GPT-4o 86,6 % sur Spider 1.0. Il descend à 57,4 % sur BIRD. Sur Spider 2.0-lite, il ne dépasse pas 5,68 %.</p><figure class='fig'><svg viewBox='0 0 720 290' role='img' aria-label='Deux panneaux alignés sur Spider 1.0, BIRD et Spider 2.0-lite : à gauche, colonnes moyennes par base en échelle logarithmique (BIRD 54,2 ; Spider 2.0-lite 803,6) ; à droite, exactitude d’exécution de DAIL-SQL avec GPT-4o (86,6 %, 57,4 %, 5,68 %).' font-family='inherit' font-size='12'><text x='130' y='22' fill='var(--ink,#15202E)' font-weight='600'>Colonnes moyennes par base (échelle log)</text><text x='440' y='22' fill='var(--ink,#15202E)' font-weight='600'>EX de DAIL-SQL + GPT-4o (%)</text><text x='118' y='84' text-anchor='end' fill='var(--ink,#15202E)'>Spider 1.0</text><text x='118' y='144' text-anchor='end' fill='var(--ink,#15202E)'>BIRD</text><text x='118' y='204' text-anchor='end' fill='var(--ink,#15202E)'>Spider 2.0-lite</text><line x1='130' y1='55' x2='130' y2='225' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6' stroke-dasharray='3 3'/><text x='130' y='242' text-anchor='middle' fill='var(--ink-faint,#7A889B)'>10</text><line x1='235' y1='55' x2='235' y2='225' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6' stroke-dasharray='3 3'/><text x='235' y='242' text-anchor='middle' fill='var(--ink-faint,#7A889B)'>100</text><line x1='340' y1='55' x2='340' y2='225' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6' stroke-dasharray='3 3'/><text x='340' y='242' text-anchor='middle' fill='var(--ink-faint,#7A889B)'>1 000</text><line x1='130' y1='225' x2='340' y2='225' stroke='var(--ink-faint,#7A889B)'/><text x='135' y='84' fill='var(--ink-faint,#7A889B)' font-style='italic'>non tracé (hors de la comparaison source)</text><rect x='130' y='128' width='77.1' height='24' fill='var(--blue,#23537F)'/><text x='213' y='144' fill='var(--ink,#15202E)'>54,2</text><rect x='130' y='188' width='200' height='24' fill='var(--blue,#23537F)'/><text x='336' y='204' fill='var(--ink,#15202E)' font-weight='600'>803,6</text><text x='130' y='262' fill='var(--ink-faint,#7A889B)'>Spider 2.0 complet : 743,5 · snow : 812,1</text><line x1='440' y1='55' x2='440' y2='225' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6' stroke-dasharray='3 3'/><text x='440' y='242' text-anchor='middle' fill='var(--ink-faint,#7A889B)'>0</text><line x1='495' y1='55' x2='495' y2='225' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6' stroke-dasharray='3 3'/><text x='495' y='242' text-anchor='middle' fill='var(--ink-faint,#7A889B)'>25</text><line x1='550' y1='55' x2='550' y2='225' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6' stroke-dasharray='3 3'/><text x='550' y='242' text-anchor='middle' fill='var(--ink-faint,#7A889B)'>50</text><line x1='605' y1='55' x2='605' y2='225' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6' stroke-dasharray='3 3'/><text x='605' y='242' text-anchor='middle' fill='var(--ink-faint,#7A889B)'>75</text><line x1='660' y1='55' x2='660' y2='225' stroke='var(--ink-faint,#7A889B)' stroke-width='0.6' stroke-dasharray='3 3'/><text x='660' y='242' text-anchor='middle' fill='var(--ink-faint,#7A889B)'>100</text><line x1='440' y1='225' x2='660' y2='225' stroke='var(--ink-faint,#7A889B)'/><rect x='440' y='68' width='190.5' height='24' fill='var(--blue,#23537F)'/><text x='636.5' y='84' fill='var(--ink,#15202E)' font-weight='600'>86,6 %</text><rect x='440' y='128' width='126.3' height='24' fill='var(--blue,#23537F)'/><text x='572.3' y='144' fill='var(--ink,#15202E)' font-weight='600'>57,4 %</text><rect x='440' y='188' width='12.5' height='24' fill='var(--bordeaux,#7C2A38)'/><text x='458.5' y='204' fill='var(--ink,#15202E)' font-weight='600'>5,68 %</text><text x='440' y='262' fill='var(--ink-faint,#7A889B)'>même méthode, même modèle sur les trois jeux</text></svg><figcaption><span class='fcap-k'></span>À méthode égale (DAIL-SQL + GPT-4o), l’exactitude d’exécution vaut 86,6 % sur Spider 1.0, 57,4 % sur BIRD (~54 colonnes par base) et 5,68 % sur Spider 2.0-lite (~800 colonnes), jeu qui change aussi de dialecte SQL et de longueur de requête ; les 91,2 %, 73,0 % et 21,3 % du résumé de Spider 2.0, obtenus par des systèmes différents, ne sont pas tracés.</figcaption></figure>\n<p>La chute est réelle, et d'autres auteurs la constatent : ReFoRCE parle de « sharp performance drop ». Y lire la distance entre benchmark académique et production reste en revanche l'interprétation des auteurs, pas une mesure. Un obstacle précède toutefois l'écriture même de la requête. Parmi des centaines de colonnes, le modèle doit d'abord retrouver celles que la question désigne.</p>",
+      "claims": [
+        "claim:9",
+        "claim:10",
+        "claim:11",
+        "claim:12"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "schema-linking",
+      "heading": "Le schema linking, cœur du problème",
+      "level": 3,
+      "prose": "<p>Cette étape porte un nom, le schema linking (liaison au schéma) : relier les mots de la question aux tables, aux colonnes et aux valeurs de la base. Elle paraît modeste. Une question nomme rarement une colonne telle qu'elle est déclarée, et plusieurs colonnes peuvent prétendre au même mot. Une valeur citée doit être retrouvée dans les données, sous la forme exacte où elle est stockée. Une relation entre deux entités doit souvent être reconstruite sans que le schéma déclare la jointure.</p><p>L'analyse d'erreurs de Lei et al. sur Spider 2.0 donne la mesure de ce poids. Sur 300 exemples tirés au hasard, le mauvais schema linking représente 27,6 % des échecs. Les colonnes en comptent 16,6 % et les tables 10,1 %. La somme des deux ne retombe d'ailleurs pas sur le total publié. Ce n'est pas la première cause d'échec : l'analyse de données erronée la devance, avec 35,5 %. C'est en revanche la deuxième grande catégorie, et la plus directement liée à la taille des schémas. Le phénomène ne date pas de Spider 2.0. DIN-SQL (méthode qui décompose la génération en sous-tâches) a classé les échecs d'un LLM en few-shot (quelques exemples placés dans le prompt) sur 500 requêtes de Spider. Le schema linking y était déjà la catégorie la plus nombreuse, devant les JOIN.</p><p>Les jointures implicites forment une catégorie voisine, comptée à part. Les erreurs de JOIN pèsent 8,3 % des échecs de Spider 2.0. Les bases BigQuery n'ont souvent pas de clés étrangères explicites. Le modèle doit alors deviner les clés à partir des noms et des descriptions de colonnes. La syntaxe propre à l'entrepôt ajoute ses pièges, puisque même en few-shot les modèles exploitent mal les jokers et les suffixes de tables comme <code>_TABLE_SUFFIX</code>. Les colonnes imbriquées, qui rangent tableaux ou dictionnaires dans une même cellule, abaissent aussi nettement le taux de réussite. Les modèles y saisissent mal le rôle de chaque sous-champ.</p><p>L'échelle explique pourquoi la difficulté grandit. La Table 2 de Spider 2.0 donne en moyenne 803,6 colonnes par base pour la variante lite et 812,1 pour snow. BIRD en compte 54,2. Le rapport atteint donc un facteur d'environ 14 à 15 selon la variante. Le chiffre de 812 que cite l'introduction de l'article est celui de snow ; le résumé parle de bases de « plus de 1 000 colonnes ». Le texte de l'analyse d'erreurs annonce « plus de 755 » colonnes pour lite, valeur que la table ne reproduit pas.</p><p>Les valeurs posent un problème distinct de celui des noms. Une partie du schema linking consiste à retrouver dans la base les valeurs que la question cite, ce que fait un récupérateur de valeurs. Le système CodeS illustre le besoin par une question de BIRD où « Jesenik » se trouve dans la colonne <code>a2</code> de la table <code>district</code>. Rien dans le nom de la colonne ne le laisse deviner. CodeS filtre d'abord les candidats par un index BM25 (fonction de classement lexical), puis affine par plus longue sous-chaîne commune. Ce filtrage préalable n'a rien d'un luxe : la base Donor de BIRD compte environ 116,5 millions de valeurs. Le système CHESS procède autrement, sur des bases de millions de lignes. Il indexe les valeurs par LSH pour retenir les candidats les plus proches, puis les affine par distance d'édition et similarité sémantique.</p><p>Les LLM à long contexte relancent une question de fond : faut-il encore lier explicitement ? Maamari et al. (2024) constatent que les modèles récents exploitent bien les éléments pertinents quand le schéma tient dans la fenêtre de contexte, malgré de nombreux éléments inutiles. Le filtrage, lui, peut retirer des colonnes nécessaires. Leur pipeline s'en passe et atteint 71,83 % sur BIRD. Les auteurs reconnaissent pourtant que l'étape reste utile aux modèles moins capables. Quand le schéma déborde du contexte, la conclusion s'inverse en pratique. Sur Spider 2.0, ReFoRCE garde un schema linking au niveau des tables, réservé aux exemples de plus de 50K tokens. Sur ce sous-ensemble de lite, son rappel atteint 86,24 %. C'est donc entre la question et le schéma que se décide la justesse d'une requête, et chaque famille d'approches y répond à sa manière.</p>",
+      "claims": [
+        "claim:13",
+        "claim:14",
+        "claim:15",
+        "claim:17"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "approches",
+      "heading": "Les approches : de la grammaire au LLM qui s'auto-corrige",
+      "level": 3,
+      "prose": "<p>La plus ancienne des réponses ne s'occupe pas du sens mais de la forme. PICARD (Scholak, Schucher et Bahdanau, EMNLP 2021) contraint le décodage d'un modèle de langage déjà affiné par analyse incrémentale. À chaque pas, les tokens qui rendraient le préfixe inadmissible sont rejetés. Selon son résumé, la méthode porte des modèles T5 affinés de performance moyenne à l'état de l'art sur Spider. Des travaux indépendants la décrivent comme un module qui force la sortie à respecter la grammaire SQL et élimine presque entièrement les requêtes invalides. Son analyseur étant sensible au schéma, il écarte aussi des colonnes ou des tables inexistantes. Dans l'article, un T5-Large prédit ainsi la colonne <code>cell_phone</code>, inexistante (la référence est <code>cell_number</code>), que PICARD détecte et évite.. Les auteurs restent plus prudents que leurs lecteurs, puisque PICARD « aide à trouver » des séquences valides sans garantie absolue. Surtout, une grammaire écarte l'impossible sans désigner le bon choix parmi les colonnes qui existent.</p><p>Avec les LLM, le schéma passe dans le prompt, et le problème devient celui du prompt. DAIL-SQL en a mené une étude systématique. Elle porte sur la représentation de la question, puis sur la sélection et l'organisation des exemples. Ses 86,2 % d'EX sur le test de Spider (86,6 % avec self-consistency) s'accompagnent d'une attention marquée à l'efficacité en tokens. L'article examine aussi le fine-tuning (ajustement fin) supervisé de LLM open source pour la tâche.</p><p>La décomposition prolonge cette logique en découpant le travail. DIN-SQL génère la requête par sous-tâches et réinjecte leurs résultats dans le LLM. Il ajoute une étape de self-correction (auto-correction) avant de rendre la requête. Le gain est net sur Spider, avec 85,3 % d'EX contre 79,9 % pour l'état de l'art précédent. Sur BIRD, la même méthode plafonne à 55,9 %.</p><p>L'exécution peut aussi devenir un signal d'entraînement plutôt qu'un simple test final. Arctic-Text2SQL-R1, publié par Snowflake en mai 2025, entraîne par reinforcement learning (apprentissage par renforcement), noté RL, avec l'algorithme GRPO. Sa récompense est volontairement minimale. Elle vaut 1 si le résultat est exact, 0,1 si le SQL est valide et s'exécute, 0 sinon. Cette simplicité vise à éviter le reward hacking (détournement de la récompense), où le modèle maximise son score sans résoudre la tâche. L'équipe rapporte aussi que le RL en ligne bat le RL par lots. Le modèle 7B atteint 68,47 % d'EX sur le test de BIRD, et le 32B 71,83 %. Le 7B est annoncé avec 95 fois moins de paramètres que DeepSeek-v3. L'article valide encore, à l'inférence, la récupération de valeurs et le vote majoritaire. Aucun module de schema linking n'intervient dans les évaluations de l'article, qui reposent sur un décodage unique, sans ensemble ni re-ranking externe.</p><p>Cette récompense a une limite que BIRD rend visible. Elle optimise l'EX, pas le VES, donc ni l'efficience des requêtes ni leur équivalence sémantique. Une requête juste mais lente y vaut une requête juste et rapide.</p><p>Le test-time scaling (mise à l'échelle au moment du test) pousse plus loin l'usage du calcul. Agentar-Scale-SQL, d'Ant Group, l'orchestre selon trois axes. Le premier est un raisonnement interne renforcé par RL. Le deuxième est un raffinement itératif séquentiel. Le troisième génère des candidats en parallèle et les départage par un tournoi. Le système atteint 81,67 % d'EX sur le test de BIRD, et 74,90 % sur le dev. À sa soumission, le 25 septembre 2025, le classement BIRD le plaçait en tête, devant AskData + GPT-4o à 80,88 %. Cette première place est datée. En octobre 2026, plusieurs systèmes le devancent, dont GrainSQL à 82,95 %.</p><p>Chaque famille déplace la frontière sans la supprimer. La grammaire garantit presque la forme. Le prompt et la décomposition améliorent le choix des éléments du schéma. L'exécution, elle, fournit un signal d'apprentissage. Les scores quasi saturés sur Spider 1.0, au-delà de 85 % pour DIN-SQL comme pour DAIL-SQL, prédisent pourtant mal la performance en entreprise. On l'a vu, le meilleur agent à base d'o1-preview ne résout que 21,3 % des tâches de Spider 2.0, même si cette comparaison juxtapose des systèmes différents. Ce qui résiste à tous ces progrès n'est pas le SQL invalide. Ce sont des requêtes qui tournent et répondent à côté.</p>",
+      "claims": [
+        "claim:18",
+        "claim:19",
+        "claim:20",
+        "claim:21"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "synopsis-pipeline-text-to-sql"
+    },
+    {
+      "type": "section",
+      "id": "erreurs-typiques",
+      "heading": "Erreurs typiques : la requête plausible et fausse",
+      "level": 3,
+      "prose": "<p>Une requête invalide se signale d'elle-même, puisque le moteur la refuse. Le cas dangereux est l'autre : une requête qui s'exécute, renvoie un tableau propre et répond à une autre question. Une étude portant sur 4 602 requêtes fausses produites par des LLM en mesure la fréquence. Elle classe comme « sémantiques » 36,1 % des erreurs sur BIRD, c'est-à-dire repérables seulement avec le schéma et la question. Sur Spider, la proportion tombe à 17,7 %. SQLens et NL2SQL-BUGs, deux travaux consacrés à la détection d'erreurs en text-to-SQL, décrivent la même classe de requêtes valides et fausses. NL2SQL-BUGs la juge plus subtile et plus difficile à détecter que les erreurs de syntaxe, qu'un compilateur repère ; SQLens décrit la même classe de requêtes syntaxiquement valides mais sémantiquement fausses, dont la détection exige de raisonner à la fois sur la logique de la requête et sur la structure de la base.</p><p>Les exemples ont l'air anodin. À la question « Whose post has the highest popularity? », un modèle sélectionne <code>MAX(ViewCount)</code> au lieu du nom de l'auteur. Ailleurs, l'utilisateur demande les étudiants sans amis. Le SQL emploie <code>INTERSECT</code> au lieu de <code>EXCEPT</code> et rend exactement ceux qui en ont. Aucune erreur n'est levée.</p><p>Ces erreurs silencieuses touchent la structure plus que la syntaxe. Elles portent d'abord sur le choix des tables et des jointures. Viennent ensuite les conditions <code>WHERE</code> et les sous-requêtes, puis les regroupements. L'analyse d'erreurs de Pourreza et Rafiei, sur 500 requêtes du jeu d'entraînement de Spider traitées par un few-shot simple (CodeX Davinci), place le schema linking en tête et les JOIN en deuxième. <code>GROUP BY</code> et les imbrications suivent. Le SQL invalide n'y représente qu'un petit nombre de cas. Un de leurs exemples résume le piège : une colonne nommée « average » est choisie au lieu de calculer la moyenne de la colonne <code>capacity</code>.</p><p>D'autres taxonomies recoupent ces catégories. Une étude des erreurs en in-context learning (apprentissage en contexte), noté ICL, relève des tables manquantes ou en trop et des conditions inadéquates. Elle isole aussi la portée des sous-requêtes. Dans un de ses cas, une sous-requête de maximum parcourt toute la table <code>satscores</code> alors que la requête principale travaille sur la table jointe. NL2SQL-BUGs nomme de son côté les écarts de condition et de type de jointure, ainsi que les écarts de sous-requête. Son exemple illustratif est un <code>INNER JOIN</code> écrit à la place d'un <code>LEFT JOIN</code>, qui exclut les étudiants sans cours. Les lignes sans correspondance et les valeurs NULL relèvent de la même famille de pièges, invisibles tant qu'on ne compare pas le résultat à la question.</p><p>Spider 2.0 ajoute deux sources d'erreur que les benchmarks courts masquaient. Les SQL attendus y dépassent souvent 100 lignes et sollicitent les fonctions propres à chaque moteur. Les 35,5 % d'analyse de données erronée relevés plus haut se répartissent en trois sous-types. Les fonctions de dialecte en pèsent 10,3 %. Les calculs avancés comptent pour 7,5 %. La planification de requête complexe, qui enchaîne plusieurs requêtes, atteint 17,7 % et devient la difficulté centrale.</p><p>Les exemples de référence eux-mêmes ne sont pas à l'abri de ces écarts. Une taxonomie récente des erreurs d'annotation (Jin et al.), appliquée à BIRD Mini-Dev (sous-ensemble réduit du dev de BIRD), range les défauts des exemples fautifs en quatre motifs. Le motif E1, un désaccord entre la question et la logique de la requête gold, en concerne 29,3 %. Le motif E2, un désaccord avec le schéma ou les données, domine avec 57,8 %. Le motif E3 tient à la connaissance du domaine, pour 10,7 %. Le motif E4, l'ambiguïté, atteint 29,7 %. La somme dépasse 100 %, sans doute parce qu'un même exemple peut relever de plusieurs motifs. Ce que ces erreurs d'annotation font aux classements est traité plus loin, avec les benchmarks bruités.</p><p>Toutes ces fautes ont un point commun : elles passent l'exécution. Une métrique qui compare le texte des requêtes rejette des SQL équivalents mais écrits autrement. Une métrique qui compare seulement les résultats sur une base accepte un SQL faux dès qu'il rend par hasard le bon tableau. Une requête qui tourne n'est pas une requête juste, et c'est à l'évaluation de faire la différence.</p>",
+      "claims": [
+        "claim:23",
+        "claim:24"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "evaluation-correspondance-execution",
+      "heading": "Évaluer : exact match, exécution et test suites",
+      "level": 3,
+      "prose": "<p>Les erreurs silencieuses du catalogue précédent posent une question de mesure : comment savoir qu'une requête est juste sans relire chacune d'elles ? Une même question admet souvent plusieurs requêtes correctes. Une jointure peut remplacer une sous-requête, et l'ordre des clauses ne change rien au résultat. L'exact set match compare pourtant la forme, clause par clause, et rejette donc des traductions justes écrites autrement. Ces faux négatifs, mesurés par Zhong et al. à environ 2,5 % en moyenne sur le dev de Spider (2,6 % dans le détail), jusqu'à 8,1 % au pire,, en font une borne inférieure de la précision sémantique.</p><p>L'execution accuracy prend le parti inverse et juge le comportement plutôt que la forme. Elle compare les résultats renvoyés, la dénotation, mais sur une seule base. Deux requêtes différentes peuvent coïncider sur cette instance par hasard, et la métrique les accepte alors à tort. Sur le dev de Spider, ces faux positifs atteignent jusqu'à 8 % dans le pire cas.</p><p>La test suite accuracy (précision sur une suite de bases de test) vise l'écart entre ces deux erreurs. Les mêmes auteurs la présentent à EMNLP 2020. Le principe consiste à multiplier les instances sur lesquelles comparer les dénotations. Les auteurs génèrent d'abord un grand nombre de bases aléatoires, puis en distillent une petite suite. Les bases retenues le sont pour leur forte couverture de code de la requête de référence. Une requête fausse qui coïncidait par hasard sur une instance a peu de chances de coïncider sur toutes. Les faux positifs de l'execution accuracy reculent d'autant. Zhong et al. y voient une borne supérieure serrée de la précision sémantique. Ils l'ont validée sur 21 soumissions du classement Spider. Sur 100 requêtes prédites tirées au hasard parmi celles que l'exact set match rejette mais que la test suite accepte, toutes se sont révélées équivalentes à la référence à la lecture manuelle. Des suites distillées sont publiées pour onze jeux de données text-to-SQL.</p><p>Pourquoi ne pas simplement prouver que deux requêtes sont équivalentes ? Parce que l'équivalence de requêtes SQL est indécidable en général. Sous sémantique ensembliste, elle ne se décide que pour des fragments. Le fragment classique est celui des conjunctive queries (requêtes conjonctives). Chandra et Merlin ont montré en 1977 que leur équivalence y est NP-complète. Elle revient à l'existence d'un homomorphisme entre les deux requêtes. Or SQL ne travaille pas sur des ensembles mais sur des multi-ensembles, où les doublons comptent. Sous cette bag semantics (sémantique multi-ensembliste), l'inclusion des conjunctive queries reste une question ouverte de longue date. Elle devient indécidable pour leurs unions et pour celles qui portent des inégalités. Aucun évaluateur ne peut donc garantir la correction d'une requête générée. Il reste deux voies : approcher l'équivalence par des test suites, ou la vérifier dans des bornes données.</p><p>SpotIt (Klopfenstein et al., ICLR 2026) suit la seconde voie. Plutôt que de tirer des bases au hasard, il cherche activement une base qui différencie la requête générée de la référence. Cette bounded verification (vérification bornée) s'appuie sur un solveur SMT (Satisfiability Modulo Theories) et étend le vérificateur VeriEQL. Les auteurs l'appliquent aux 1 533 paires du jeu de développement de BIRD, pour dix méthodes. La précision rapportée y baisse d'environ 10 à 14 points par rapport à l'évaluation officielle. L'article donne d'ailleurs deux fourchettes, 9,8 à 13,5 % dans les résultats et 11,3 à 14,2 % dans l'introduction. Le classement bouge aussi. Le système CSC-32B tombe de 71,32 % à 57,82 % et glisse de la 1re à la 4e place. Pour lui, 207 requêtes acceptées par le test officiel sont distinguées de la référence par une base trouvée. SpotIt mesure pourtant la distance à la référence, pas à la vérité : encore faut-il que la référence soit juste.</p>",
+      "claims": [
+        "claim:25",
+        "claim:26",
+        "claim:27",
+        "claim:28"
+      ]
+    },
+    {
+      "type": "widget",
+      "ref": "probe-verdicts-em-ex-test-suite"
+    },
+    {
+      "type": "section",
+      "id": "benchmarks-bruites",
+      "heading": "Quand les benchmarks se trompent : erreurs d'annotation et classements",
+      "level": 3,
+      "prose": "<p>Toutes les métriques vues jusqu'ici confrontent la prédiction à une requête gold (requête de référence annotée). Elles supposent cette annotation exacte. Deux audits indépendants montrent que l'hypothèse ne tient pas sur BIRD. Wretblad et al. (ACL 2024) examinent les 106 exemples du domaine financier de BIRD. Ils relèvent du bruit dans 52 d'entre eux, soit 49 %. Sur ces 106 exemples, 22 portent une requête gold erronée, soit 20,7 %.</p><p>Jin, Choi, Zhu et Kang étendent l'audit en 2026 sous un titre sans ambiguïté, « Pervasive Annotation Errors Break Text-to-SQL Benchmarks and Leaderboards ». Sur BIRD Mini-Dev, ils trouvent des erreurs d'annotation dans 263 exemples sur 498, soit 52,8 %. Ces erreurs mêlent requêtes gold fausses, questions ambiguës et connaissance externe erronée. Spider 2.0-Snow fait pire. Sur les 121 exemples dont la requête gold est publique, 76 sont fautifs, soit 62,8 %. Jin et al. sont seuls à avoir mesuré ce taux. Il rend incertain le plafond atteignable sur ce sous-ensemble, et l'écart entre deux agents y devient difficile à interpréter.</p><p>Le bruit ne se contente pas de déprimer les scores. Il rebat les classements. Chez Wretblad et al., la correction des requêtes gold produit un « re-classement drastique ». Une baseline zero-shot (sans exemple dans le prompt) sur GPT-3.5 y dépasse alors DIN-SQL et le système MAC-SQL.</p><p>Jin et al. mesurent l'effet à plus grande échelle. Ils tirent 100 exemples au hasard dans BIRD Dev et en corrigent les annotations. Près de la moitié, 48 %, a demandé une intervention humaine. Seize agents open source sont ensuite réévalués. Leur exactitude varie de -7 % à +31 % en relatif, et leur rang bouge jusqu'à neuf positions dans un sens ou dans l'autre. CHESS gagne le plus en valeur relative : il passe de 62 % à 81 % d'exactitude, et de la 7e place à la première, à égalité avec GenaSQL. MAC-SQL connaît le plus grand déplacement : il gagne neuf places et remonte de la 14e à la 5e. À l'inverse, le système GSR recule de la 4e à la 13e place.</p><figure class='fig'><svg viewBox='0 0 720 340' role='img' aria-label='Slopegraph des rangs de seize agents sur 100 exemples de BIRD Dev, avant et après correction des annotations (Jin et al. 2026) : CHESS passe de la 7e à la 1re place, MAC-SQL de la 14e à la 5e, GSR recule de la 4e à la 13e ; Spearman avec le Dev complet 0,85 avant correction, 0,32 après.' font-family='inherit'><text x='220' y='26' font-size='12' font-weight='600' fill='var(--ink,#15202E)' text-anchor='middle'>Annotations originales</text><text x='500' y='26' font-size='12' font-weight='600' fill='var(--ink,#15202E)' text-anchor='middle'>Annotations corrigées</text><line x1='220' y1='50' x2='220' y2='275' stroke='var(--ink-faint,#7A889B)' stroke-width='1' opacity='0.5'/><line x1='500' y1='50' x2='500' y2='275' stroke='var(--ink-faint,#7A889B)' stroke-width='1' opacity='0.5'/><circle cx='220' cy='50' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='500' cy='50' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='220' cy='65' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='500' cy='65' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='220' cy='80' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='500' cy='80' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='220' cy='95' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='500' cy='95' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='220' cy='110' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='500' cy='110' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='220' cy='125' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='500' cy='125' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='220' cy='140' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='500' cy='140' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='220' cy='155' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='500' cy='155' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='220' cy='170' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='500' cy='170' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='220' cy='185' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='500' cy='185' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='220' cy='200' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='500' cy='200' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='220' cy='215' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='500' cy='215' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='220' cy='230' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='500' cy='230' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='220' cy='245' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='500' cy='245' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='220' cy='260' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='500' cy='260' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='220' cy='275' r='2' fill='var(--ink-faint,#7A889B)'/><circle cx='500' cy='275' r='2' fill='var(--ink-faint,#7A889B)'/><text x='208' y='53' font-size='9' fill='var(--ink-faint,#7A889B)' text-anchor='end'>1</text><text x='512' y='53' font-size='9' fill='var(--ink-faint,#7A889B)' text-anchor='start'>1</text><text x='208' y='98' font-size='9' fill='var(--ink-faint,#7A889B)' text-anchor='end'>4</text><text x='512' y='98' font-size='9' fill='var(--ink-faint,#7A889B)' text-anchor='start'>4</text><text x='208' y='158' font-size='9' fill='var(--ink-faint,#7A889B)' text-anchor='end'>8</text><text x='512' y='158' font-size='9' fill='var(--ink-faint,#7A889B)' text-anchor='start'>8</text><text x='208' y='218' font-size='9' fill='var(--ink-faint,#7A889B)' text-anchor='end'>12</text><text x='512' y='218' font-size='9' fill='var(--ink-faint,#7A889B)' text-anchor='start'>12</text><text x='208' y='278' font-size='9' fill='var(--ink-faint,#7A889B)' text-anchor='end'>16</text><text x='512' y='278' font-size='9' fill='var(--ink-faint,#7A889B)' text-anchor='start'>16</text><line x1='220' y1='140' x2='500' y2='50' stroke='var(--blue,#23537F)' stroke-width='2.5'/><circle cx='220' cy='140' r='4.5' fill='var(--blue,#23537F)'/><circle cx='500' cy='50' r='4.5' fill='var(--blue,#23537F)'/><text x='160' y='144' font-size='12' font-weight='600' fill='var(--blue,#23537F)' text-anchor='end'>CHESS · 7e</text><text x='560' y='54' font-size='12' font-weight='600' fill='var(--blue,#23537F)'>1er · CHESS</text><text x='600' y='68' font-size='10' fill='var(--blue,#23537F)'>+6 places</text><line x1='220' y1='245' x2='500' y2='110' stroke='var(--blue,#23537F)' stroke-width='2.5'/><circle cx='220' cy='245' r='4.5' fill='var(--blue,#23537F)'/><circle cx='500' cy='110' r='4.5' fill='var(--blue,#23537F)'/><text x='160' y='249' font-size='12' font-weight='600' fill='var(--blue,#23537F)' text-anchor='end'>MAC-SQL · 14e</text><text x='560' y='114' font-size='12' font-weight='600' fill='var(--blue,#23537F)'>5e · MAC-SQL</text><text x='600' y='128' font-size='10' fill='var(--blue,#23537F)'>+9 places</text><line x1='220' y1='95' x2='500' y2='230' stroke='var(--bordeaux,#7C2A38)' stroke-width='2.5'/><circle cx='220' cy='95' r='4.5' fill='var(--bordeaux,#7C2A38)'/><circle cx='500' cy='230' r='4.5' fill='var(--bordeaux,#7C2A38)'/><text x='160' y='99' font-size='12' font-weight='600' fill='var(--bordeaux,#7C2A38)' text-anchor='end'>GSR · 4e</text><text x='560' y='234' font-size='12' font-weight='600' fill='var(--bordeaux,#7C2A38)'>13e · GSR</text><text x='600' y='248' font-size='10' fill='var(--bordeaux,#7C2A38)'>−9 places</text><text x='360' y='297' font-size='10' fill='var(--ink-faint,#7A889B)' text-anchor='middle'>rang parmi 16 agents (1 = meilleur) ; points gris : autres agents, rangs individuels non repris</text><text x='360' y='319' font-size='11.5' fill='var(--ink,#15202E)' text-anchor='middle'>Spearman avec le classement du Dev complet : 0,85 sur le sous-ensemble non corrigé, 0,32 sur le corrigé</text></svg><figcaption><span class='fcap-k'></span>Sur 100 exemples de BIRD Dev ré-annotés par Jin et al. (2026), corriger la requête gold suffit à faire monter CHESS de la 7e à la 1re place et MAC-SQL de la 14e à la 5e, tandis que GSR chute de la 4e à la 13e.</figcaption></figure><p>Une corrélation de rangs résume ce désordre. Le classement sur le sous-ensemble non corrigé suit de près celui du Dev complet, avec un coefficient de Spearman de 0,85. Celui du sous-ensemble corrigé ne s'y rattache qu'à 0,32. Les erreurs d'annotation brouillent donc le classement : sur ces 16 agents et ces 100 exemples, la corrélation avec le Dev complet tombe à 0,32 (p = 0,23, faible), ce qui laisse craindre un jugement faussé de ce qui paraît prometteur. Les auteurs publient jeux corrigés et code. Sur un benchmark aussi bruité, un écart de quelques points entre agents dit peu de chose. Et la justesse, même bien mesurée, ne suffit pas quand la requête s'exécute sur une base de production.</p>",
+      "claims": [
+        "claim:29",
+        "claim:30",
+        "claim:31"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "securite-droits",
+      "heading": "Sécurité : injection, droits et périmètre",
+      "level": 3,
+      "prose": "<p>Jusqu'ici, l'erreur restait involontaire. Un système text-to-SQL exécute pourtant du code qu'aucun humain n'a relu, et un adversaire peut chercher à l'orienter. Pedro, Castro, Carreira et Santos décrivent ainsi les injections « prompt-to-SQL », notées P2SQL. Leur cadre est une application où un middleware comme LangChain traduit la demande de l'utilisateur en SQL. C'est de la prompt injection (injection d'invite) appliquée au SQL. Un prompt non assaini suffit à produire une injection SQL. Sur 7 LLM testés, les attaques se reproduisent sur les modèles assez fiables pour servir de chatbot, avec des exceptions (GPT-4 plus robuste, attaque en plusieurs étapes seulement partielle sur PaLM2 et Llama 2).</p><p>Une demande en apparence anodine, « Change the phone number of the user John Doe... », produit ainsi un UPDATE sur la table users. Un « DROP TABLE users CASCADE » glissé dans l'entrée peut aussi être reflété tel quel vers la base. L'attaque se mène parfois en plusieurs étapes. Un UPDATE modifie par exemple l'adresse courriel d'une victime, puis un SELECT final masque la modification.</p><p>Le réflexe consiste à durcir le prompt système. Une consigne comme « Never perform DELETE, DROP or UPDATE... » cède pourtant devant une entrée qui commence par « Ignore the previous instructions... ». Pedro et al. jugent ce durcissement manuel « exceedingly fragile ». Ils proposent quatre défenses sous forme d'extensions de LangChain, validées sur une application réelle. La première consiste à durcir les permissions de la base, par exemple avec une connexion du chatbot restreinte à la lecture seule. Un second groupe, Peng et al., confirme le risque hors du laboratoire. Ils manipulent les modules text-to-SQL de six applications commerciales pour leur faire produire du code malveillant. Les effets vont de la fuite de données au déni de service.</p><p>La menace ne passe pas seulement par la question. Un modèle affiné peut porter une backdoor (porte dérobée), posée en amont par data poisoning (empoisonnement des données d'entraînement). Il se comporte normalement tant qu'un déclencheur n'apparaît pas dans la question. Il génère alors une requête exécutable malveillante. Peng et al. atteignent 100 % de réussite d'attaque sur quatre modèles open source, sans dégrader leur performance. ToxicSQL, dans sa version publiée à SIGMOD 2026, chiffre la dose nécessaire. Injecter 0,44 % de données empoisonnées donne 79,41 % de réussite d'attaque. La précision sur les entrées bénignes reste élevée. Les auteurs proposent aussi des stratégies de détection et d'atténuation.</p><p>Les services gérés déplacent une partie de la réponse vers la base elle-même. Cortex Analyst, le service text-to-SQL géré de Snowflake, s'intègre au RBAC (Role-Based Access Control) de la plateforme. L'accès exige un rôle CORTEX_USER, qui couvre toutes les fonctions d'IA, ou CORTEX_ANALYST_USER, limité à ce service. Il faut aussi le droit SELECT sur les tables du modèle sémantique. S'y ajoutent des droits sur le stage (zone de stockage de fichiers) qui contient le fichier YAML de ce modèle. Par défaut, CORTEX_USER est accordé au rôle PUBLIC. Un administrateur peut le révoquer et réserver CORTEX_ANALYST_USER à des rôles précis. Le SQL généré reste ainsi borné par les privilèges existants. La documentation ne dit pas nettement sous quel rôle il s'exécute, même si la lecture naturelle désigne l'appelant.</p><p>Une idée reçue en découle : puisque Cortex Analyst respecte le RBAC, il serait protégé contre l'injection. Le RBAC borne le périmètre lisible et les écritures. Il ne détecte pas une requête abusive ou trompeuse formulée à l'intérieur des droits de l'utilisateur. Le scénario P2SQL le montre, où le SELECT final masque un UPDATE exécuté avec les droits de l'application. La page de Cortex Analyst ne mentionne d'ailleurs ni prompt injection ni garde-fou d'exécution. Les droits fixent l'ampleur des dégâts possibles, pas l'innocence de la requête. Le modèle sémantique, qui délimite déjà la surface visible par le LLM, joue en production un rôle plus large encore.</p>",
+      "claims": [
+        "claim:32",
+        "claim:33",
+        "claim:34",
+        "claim:35"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "couche-semantique-production",
+      "heading": "En production : modèle sémantique et services gérés",
+      "level": 3,
+      "prose": "<p>Le modèle sémantique évoqué à propos des droits n'est pas qu'un périmètre de sécurité. C'est aussi la réponse que les services gérés apportent au schema linking. Cortex Analyst ne laisse pas le LLM deviner le sens d'un schéma brut aux centaines de colonnes. Il génère le SQL à partir d'un modèle qui déclare ce que la base contient et comment ses parties se relient. Le contraste avec Spider 2.0 est net. Là, 12,97 % des tâches exigent de consulter une documentation externe, parce que la connaissance métier ne se déduit pas du schéma seul.</p>\n<p>Le modèle décrit d'abord des tables logiques, qui représentent des entités métier. Il y attache des dimensions, dont des dimensions temporelles. Viennent ensuite les faits, c'est-à-dire des attributs au niveau de la ligne. Les métriques sont des agrégats de faits déclarés une fois pour toutes, par SUM, AVG ou COUNT. Une métrique définie comme la somme d'un fait épargne au modèle de réinventer l'agrégation, cette source d'erreurs silencieuses déjà rencontrée. Les relations, enfin, déclarent les jointures sur des clés partagées. La jointure implicite qu'un LLM devait inférer devient une donnée fixée d'avance.</p>\n<p>La spécification ne s'arrête pas à la structure. Elle accepte des filtres prédéfinis et des synonymes, c'est-à-dire des noms alternatifs pour un même concept métier. Des valeurs d'exemple accompagnent les colonnes. Elle prévoit surtout des verified queries (requêtes vérifiées), qui guident la génération et servent à évaluer la justesse du modèle. Leur existence suppose que cette justesse n'est pas acquise d'office, même avec une couche sémantique.</p>\n<p>Côté format, la documentation actuelle présente les Semantic Views, objets définis au niveau du schéma, comme la forme moderne de ce modèle. Les fichiers YAML déposés sur un stage restent pris en charge au titre de l'existant. La génération repose par défaut sur une combinaison de modèles Mistral et Llama hébergés par Snowflake. La documentation liste aussi des modèles préférés, dont Claude, GPT 4.1 et Arctic Text2SQL. La sélection entre eux est automatique. La facturation se compte en crédits par message traité, sur les seules réponses HTTP 200. L'exécution du SQL produit est facturée à part, par l'entrepôt.</p>\n<p>Le multi-turn (conversation à plusieurs tours) révèle les limites de l'édifice. L'historique est transmis dans le champ messages de chaque requête, car le modèle ne conserve aucun état d'un appel à l'autre. Tout l'historique est donc retraité à chaque nouvelle question, ce qui augmente le coût de calcul. Le service n'a pas non plus accès aux résultats des requêtes SQL précédentes. Une question de suivi ne peut s'appuyer que sur le texte échangé, jamais sur les lignes déjà renvoyées. La documentation reconnaît une dégradation sur les conversations longues ou à changements d'intention fréquents. Elle borne aussi les questions à ce que SQL peut répondre.</p>\n<p>Le bilan reste mesuré. Une couche sémantique réduit le besoin de schema linking sur le schéma brut, parce qu'elle fournit métadonnées, définitions métier et relations déclarées. La précision s'en trouve améliorée. Elle ne garantit pas pour autant une traduction fiable, et les requêtes plausibles et fausses restent possibles à l'intérieur de son périmètre. Un agent qui interroge une base à travers un tel service hérite de ces propriétés comme de ces limites. Reste à savoir si ces leçons tiennent hors du modèle relationnel, lorsque la base est un graphe.</p>",
+      "claims": [
+        "claim:36",
+        "claim:37",
+        "claim:38"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "graphes-sparql-cypher",
+      "heading": "Au-delà du SQL : text-to-SPARQL et text-to-Cypher",
+      "level": 3,
+      "prose": "<p>Rien dans le schema linking n'est propre aux tables. Une base de graphes pose les mêmes questions, avec des entités et des relations à la place des tables et des colonnes. Spider4SPARQL, publié en 2023 par Kosten, Cudré-Mauroux et Stockinger, transpose Spider aux graphes de connaissances RDF (Resource Description Framework). Ces graphes s'interrogent en SPARQL (leur langage de requête). Les auteurs annoncent 9 693 questions écrites à la main, reprises de Spider. Elles s'accompagnent de 4 721 requêtes SPARQL inédites, réparties sur 166 graphes. Un travail tiers confirme la construction : 166 des 200 bases de Spider y sont matérialisées en RDF, avec 4 721 requêtes SPARQL équivalentes au SQL d'origine., avec des requêtes SPARQL équivalentes au SQL d'origine.</p>\n<p>Le résultat rappelle les débuts de Spider. Les systèmes de KGQA (question answering sur graphe de connaissances) et les LLM testés n'atteignent qu'une EX d'au plus 45 %. Une part de l'écart avec le SQL tient au linking. Chaque mot de la question doit être relié à des IRI (Internationalized Resource Identifiers), les identifiants des entités et des relations du graphe. CypherBench, travail indépendant, observe de même que l'interrogation des grands graphes de connaissances encyclopédiques (RDF) reste difficile pour les LLM, contrairement au text-to-SQL.</p>\n<p>Les benchmarks historiques du text-to-SPARQL sont LC-QuAD 2.0 et la série QALD. Le premier compte environ 30 000 questions complexes avec leur SPARQL, sur DBpedia et Wikidata. La seconde est plus petite, mais multilingue. Leurs métriques reproduisent le débat déjà mené sur le SQL. L'EX compare l'ensemble des réponses à celui de la requête gold.</p>\n<p>Côté Cypher (langage de requête de la base de graphes Neo4j), le jeu Neo4j Text2Cypher date de 2024. Il a été assemblé en combinant et en nettoyant des jeux publics associant question, schéma et requête. Ses auteurs, chez Neo4j, comptent 44 387 instances, dont 4 833 réservées au test. Le fine-tuning de modèles sur ce jeu améliore Google-BLEU et Exact Match par rapport aux modèles de base. CypherBench y voit un effort parallèle, à grande échelle et divers. Il relève pourtant que 49 % de ses questions ne sont liées à aucun graphe réel. Sur cette part, aucune métrique par exécution n'est possible.</p>\n<p>Le billet de benchmark de Neo4j confronte quatre modèles affinés à dix modèles de fondation. Il évalue de deux façons. La première compare le texte du Cypher prédit à celui de référence, avec Google-BLEU. La seconde compare les résultats d'exécution. Sur la métrique d'exécution (ExactMatch) du billet, GPT-4o et un modèle déjà affiné par ailleurs (tomasonjo_text2cypher, qui avait vu 14,4 % du jeu de test à l'entraînement) arrivent en tête, autour de 30 % chacun (chiffre d'un seul billet, source unique, non corroborée). (chiffre d'un seul billet, source unique, non corroborée). Le même billet note que l'ExactMatch est très sensible : une espace ou un saut de ligne en trop suffit à le faire échouer. La fragilité de la correspondance textuelle, mesurée sur Spider, réapparaît ici. Les modèles de fondation fermés obtiennent les meilleurs résultats d'ensemble, mais à un coût élevé. En BLEU, Gemma2-9B-It est le meilleur modèle ouvert, et les modèles affinés restent en dessous avec une marge de progrès.</p>\n<p>La boucle d'auto-correction a elle aussi son équivalent. Allemang et Sequeda, chez data.world, ajoutent deux mécanismes à la génération de SPARQL. L'OBQC (Ontology-based Query Check) fait vérifier par l'ontologie du graphe la cohérence sémantique de la requête générée. Un LLM répare ensuite la requête à partir de l'explication d'erreur. C'est l'analogue de la boucle exécution et self-correction du SQL, l'ontologie servant de schéma. Sur un benchmark d'entreprise de type « chat with the data », la précision atteint 72 %, plus 8 % de réponses « je ne sais pas ». Leurs travaux antérieurs donnaient 54 % avec le graphe de connaissances seul et 16 % en SQL direct. Ces chiffres viennent d'un seul groupe.</p>\n<p>Fitch et Kurtz comparent SPARQL et SQL sur des métadonnées de neuroimagerie : leur meilleure configuration atteint 100 % en SPARQL (ontologie annotée en contexte) contre 57 % en SQL auto-généré, sur 21 questions. Ils en concluent que la richesse du schéma, plus que le langage de requête, détermine la fiabilité. L'échantillon ne compte que 21 questions. Les leçons du SQL se transfèrent donc aux graphes. Le linking y reste le point dur. L'exécution y reste un arbitre imparfait. Une couche sémantique explicite, ontologie ou modèle déclaré, y améliore la fiabilité sans la garantir. Les langages de graphe eux-mêmes relèvent d'un autre sujet, la construction de graphes de connaissances.</p>",
+      "claims": [
+        "claim:39",
+        "claim:40",
+        "claim:41"
+      ]
+    },
+    {
+      "type": "section",
+      "id": "ecosysteme",
+      "heading": "Écosystème & pour aller plus loin",
+      "level": 3,
+      "prose": "<p>Le parcours de ce document repose sur une poignée de jeux de données, d'outils et de systèmes à retrouver à la source. Spider (EMNLP 2018) reste le point de départ. Ses questions, annotées par 11 étudiants, correspondent à 5 693 requêtes SQL complexes uniques. BIRD (NeurIPS 2023) compte 12 751 paires question-SQL sur 95 bases. À sa publication, ChatGPT y obtenait 39,30 % d'EX sur le test avec connaissances externes (40,08 % avec chaîne de pensée), contre 92,96 % pour les humains. BIRD Mini-Dev en extrait 500 paires issues de 11 bases du dev, pour des cycles de développement peu coûteux. Il est disponible en SQLite, MySQL et PostgreSQL, et sa V2 compte 780 instances.</p>\n<p>Spider 2.0, accepté en oral à ICLR 2025, se décline en trois réglages. Spider2-Lite réunit 547 exemples sur BigQuery, Snowflake et SQLite, avec des métadonnées préparées. Spider2-Snow en compte autant, sur Snowflake seul. Spider2-DBT rassemble 68 tâches au niveau du dépôt (78 projets dans la version du papier), avec dbt. Le SQL attendu y dépasse souvent cent lignes.</p>\n<p>Les outils d'évaluation suivent une même logique. L'EX sur une seule base peut déclarer correctes des requêtes sémantiquement différentes de la référence. Les test suites distillées de Zhong, Yu et Klein ont répondu à ce défaut. Elles sont devenues la métrique officielle de Spider, SParC et CoSQL. SpotIt va plus loin : son moteur de bounded verification par SMT cherche activement une base qui distingue la requête générée de la requête de référence. Il apporte un encodage SMT inédit d'opérateurs SQL sur chaînes et dates. SpotIt+ le prolonge en extrayant des contraintes de bases exemples, pour que les bases contre-exemples restent plausibles.</p>\n<p>Les meilleurs systèmes dépassent 90 % d'EX sur Spider 1.0. Cela ne signifie pas que le text-to-SQL est résolu. Les scores chutent à 73,0 % sur BIRD (méthodes à base de GPT-4 citées fin 2024 ; le haut du classement dépasse depuis 80 %), puis à 21,3 % sur Spider 2.0 (agent o1-preview), avec les réserves de comparaison déjà signalées. DAIL-SQL, de Gao et al., est d'abord une étude de benchmark des prompts LLM. Elle compare représentation du schéma, sélection des exemples et organisation du prompt, pour 86,6 % sur Spider à sa publication. CHESS orchestre quatre agents : Information Retriever, Schema Selector, Candidate Generator et Unit Tester. Il atteint 71,10 % sur le test BIRD avec un grand budget, à moins de 2 points de la méthode propriétaire en tête, avec, selon ses auteurs, environ 83 % d'appels LLM en moins que celle-ci.</p>\n<p>Le haut du classement BIRD s'obtient par deux voies distinctes. Arctic-Text2SQL-R1 applique le RL à récompense d'exécution simple à des modèles de taille modeste. Sa version 32B atteint 71,83 %, et sa version 14B 70,04 %. Agentar-Scale-SQL mise au contraire sur le test-time scaling décrit plus haut. Il atteint 81,67 % sur le test BIRD, premier du classement officiel au moment de sa publication. Côté services, Cortex Analyst s'utilise par API REST. L'utilisateur fournit une question et un modèle sémantique, en YAML ou en vue sémantique, et le service renvoie du SQL.</p>\n<p>Plusieurs sujets voisins prolongent celui-ci. L'extraction structurée par LLM traite la sortie contrainte par un schéma JSON, là où le text-to-SQL produit un programme exécutable. La construction de graphes de connaissances couvre SPARQL et GQL (Graph Query Language) en tant que langages. L'IA agentique étudie l'agent qui appelle une base, cité ici comme cas d'usage. La génération de code par LLM, enfin, couvre HumanEval, le reranking et Self-Debug, et ne cite Spider qu'en passant. Le fil se referme ainsi. Un système text-to-SQL ne vaut que par son évaluation, par sa sécurité et par la couche sémantique qui l'encadre, en SQL comme sur les graphes.</p>",
+      "claims": [
+        "claim:43",
+        "claim:44",
+        "claim:45"
+      ]
+    },
+    {
+      "type": "exercise",
+      "part": "Évaluer une requête",
+      "question": "<p>Un système produit une requête SQL écrite autrement que la référence mais qui renvoie le même résultat sur la base de développement. Que diront l'exact set match, l'exactitude d'exécution sur cette seule base et la test suite accuracy, et pourquoi aucune de ces métriques ne tranche-t-elle l'équivalence de façon certaine ?</p>",
+      "answer": "<p>L'exact set match peut la rejeter : il compare la forme et produit des faux négatifs, environ 2,5 % en moyenne et 8,1 % au pire sur les soumissions du classement Spider selon Zhong et al. L'exactitude d'exécution sur une seule base l'accepte, mais elle accepterait aussi une requête différente qui ne coïnciderait que sur cette instance (faux positif). La test suite accuracy exécute les deux requêtes sur une petite suite de bases distillée pour une forte couverture : elle réduit ces faux positifs et se présente comme une borne supérieure serrée, sans être une preuve. L'équivalence de requêtes SQL est en effet indécidable en général ; SpotIt pousse plus loin en cherchant par vérification bornée (SMT) une base qui sépare les deux requêtes.</p>"
+    },
+    {
+      "type": "exercise",
+      "part": "Lire un écart de benchmarks",
+      "question": "<p>On lit souvent : « 91,2 % sur Spider 1.0, 73,0 % sur BIRD, 21,3 % sur Spider 2.0 ». Que mesure vraiment cette chute, et pourquoi le schema linking y pèse-t-il autant ?</p>",
+      "answer": "<p>Ces trois chiffres juxtaposent des systèmes différents (méthodes à base de GPT-4 d'un côté, agent o1-preview de l'autre). À méthode égale, Lei et al. mesurent pour DAIL-SQL + GPT-4o 86,6 % sur Spider 1.0, 57,4 % sur BIRD et 5,68 % sur Spider 2.0-lite : la chute est réelle, mais y voir l'écart « académique contre production » reste une interprétation des auteurs. Le schema linking y contribue : les bases de Spider 2.0 comptent en moyenne de 743,5 à 812,1 colonnes selon la variante contre 54,2 pour BIRD, et le mauvais schema linking représente 27,6 % des échecs dans l'analyse de 300 exemples de Lei et al. Quand le schéma tient dans le contexte, des modèles récents peuvent s'en passer (Maamari et al.) ; quand il le dépasse, ReFoRCE conserve un linking au niveau des tables.</p>"
+    },
+    {
+      "type": "biblio",
+      "entries": [
+        {
+          "label": "Spider: A Large-Scale Human-Labeled Dataset for Complex and Cross-Domain Semantic Parsing and Text-to-SQL Task (Yu et al.)",
+          "href": "https://arxiv.org/abs/1809.08887"
+        },
+        {
+          "label": "A Survey on Text-to-SQL Parsing: Concepts, Methods, and Future Directions (Qin et al.)",
+          "href": "https://arxiv.org/abs/2208.13629"
+        },
+        {
+          "label": "Towards Complex Text-to-SQL in Cross-Domain Database with Intermediate Representation (Guo et al., IRNet)",
+          "href": "https://arxiv.org/abs/1905.08205"
+        },
+        {
+          "label": "Semantic Evaluation for Text-to-SQL with Distilled Test Suites (Zhong, Yu, Klein)",
+          "href": "https://arxiv.org/abs/2010.02840"
+        },
+        {
+          "label": "Evaluating Cross-Domain Text-to-SQL Models and Benchmarks (Pourreza, Rafiei)",
+          "href": "https://arxiv.org/abs/2310.18538"
+        },
+        {
+          "label": "Spider 2.0: Evaluating Language Models on Real-World Enterprise Text-to-SQL Workflows",
+          "href": "https://arxiv.org/abs/2411.07763"
+        },
+        {
+          "label": "Can LLM Already Serve as A Database Interface? A BIg Bench for Large-Scale Database Grounded Text-to-SQLs (BIRD)",
+          "href": "https://arxiv.org/abs/2305.03111"
+        },
+        {
+          "label": "DB-Explore: Automated Database Exploration and Instruction Synthesis for Text-to-SQL (Ma et al.)",
+          "href": "https://arxiv.org/abs/2503.04959"
+        },
+        {
+          "label": "Knowledge-to-SQL: Enhancing SQL Generation with Data Expert LLM (Hong et al.)",
+          "href": "https://arxiv.org/abs/2402.11517"
+        },
+        {
+          "label": "Dubo-SQL: Diverse Retrieval-Augmented Generation and Fine Tuning for Text-to-SQL (Thorpe et al.)",
+          "href": "https://arxiv.org/abs/2404.12560"
+        },
+        {
+          "label": "Next-Generation Database Interfaces: A Survey of LLM-based Text-to-SQL (Hong et al.)",
+          "href": "https://arxiv.org/abs/2406.08426"
+        },
+        {
+          "label": "BIRD-SQL official site",
+          "href": "https://bird-bench.github.io/"
+        },
+        {
+          "label": "ReFoRCE: A Text-to-SQL Agent with Self-Refinement, Consensus Enforcement, and Column Exploration (Deng et al., UCSD/Snowflake)",
+          "href": "https://arxiv.org/html/2502.00675"
+        },
+        {
+          "label": "Din-SQL: Decomposed In-Context Learning of Text-to-SQL with Self-Correction (Pourreza & Rafiei, arXiv 2304.11015)",
+          "href": "https://arxiv.org/html/2304.11015"
+        },
+        {
+          "label": "The Death of Schema Linking? Text-to-SQL in the Age of Well-Reasoned Language Models (Maamari et al., Distyl AI, arXiv 2408.07702)",
+          "href": "https://arxiv.org/html/2408.07702"
+        },
+        {
+          "label": "Spider 2.0 (ICLR 2025 proceedings PDF), section 4.2",
+          "href": "https://proceedings.iclr.cc/paper_files/paper/2025/file/46c10f6c8ea5aa6f267bcdabcb123f97-Paper-Conference.pdf"
+        },
+        {
+          "label": "CodeS: Towards Building Open-source Language Models for Text-to-SQL (Li et al., arXiv 2402.16347)",
+          "href": "https://arxiv.org/html/2402.16347"
+        },
+        {
+          "label": "CHESS: Contextual Harnessing for Efficient SQL Synthesis (Talaei et al., arXiv 2405.16755)",
+          "href": "https://arxiv.org/html/2405.16755"
+        },
+        {
+          "label": "PICARD: Parsing Incrementally for Constrained Auto-Regressive Decoding from Language Models",
+          "href": "https://arxiv.org/abs/2109.05093"
+        },
+        {
+          "label": "Semantic Decomposition of Question and SQL for Text-to-SQL Parsing (Eyal et al.)",
+          "href": "https://arxiv.org/html/2310.13575"
+        },
+        {
+          "label": "Arctic-Text2SQL-R1 (arXiv)",
+          "href": "https://arxiv.org/abs/2505.20315"
+        },
+        {
+          "label": "Snowflake engineering blog: Arctic-Text2SQL-R1",
+          "href": "https://www.snowflake.com/en/blog/engineering/arctic-text2sql-r1-sql-generation-benchmark/"
+        },
+        {
+          "label": "Agentar-Scale-SQL: Advancing Text-to-SQL through Orchestrated Test-Time Scaling",
+          "href": "https://arxiv.org/abs/2509.24403"
+        },
+        {
+          "label": "BIRD leaderboard, capture web.archive.org d'octobre 2025 (tenu par l'équipe BIRD)",
+          "href": "https://web.archive.org/web/20251015000000/https://bird-bench.github.io/"
+        },
+        {
+          "label": "DAIL-SQL (arXiv)",
+          "href": "https://arxiv.org/abs/2308.15363"
+        },
+        {
+          "label": "Text-to-SQL annotation errors (arXiv 2601.08778)",
+          "href": "https://arxiv.org/html/2601.08778"
+        },
+        {
+          "label": "Understanding, Detecting, and Repairing Real-World In-Context-Learning-Based Text-to-SQL Errors (arXiv 2501.09310)",
+          "href": "https://arxiv.org/html/2501.09310"
+        },
+        {
+          "label": "Gong et al., SQLens: An End-to-End Framework for Error Detection and Correction in Text-to-SQL (arXiv 2506.04494)",
+          "href": "https://arxiv.org/html/2506.04494"
+        },
+        {
+          "label": "Liu et al., NL2SQL-BUGs: A Benchmark for Detecting Semantic Errors in NL2SQL Translation (arXiv 2503.11984)",
+          "href": "https://arxiv.org/html/2503.11984"
+        },
+        {
+          "label": "Bag-semantics query containment undecidability results (arXiv 2503.18003)",
+          "href": "https://arxiv.org/html/2503.18003"
+        },
+        {
+          "label": "SpotIt: Evaluating Text-to-SQL Evaluation with Formal Verification (arXiv 2510.26840)",
+          "href": "https://www.arxiv.org/pdf/2510.26840"
+        },
+        {
+          "label": "Wretblad et al., Understanding the Effects of Noise in Text-to-SQL: An Examination of the BIRD-Bench Benchmark (ACL 2024, arXiv 2402.12243)",
+          "href": "https://arxiv.org/html/2402.12243"
+        },
+        {
+          "label": "From Prompt Injections to SQL Injection Attacks (Pedro et al.)",
+          "href": "https://arxiv.org/html/2308.01990"
+        },
+        {
+          "label": "On the Security Vulnerabilities of Text-to-SQL Models (Peng et al.)",
+          "href": "https://arxiv.org/abs/2211.15363"
+        },
+        {
+          "label": "Are Your LLM-based Text-to-SQL Models Secure? Exploring SQL Injection via Backdoor Attacks (ToxicSQL)",
+          "href": "https://arxiv.org/abs/2503.05445"
+        },
+        {
+          "label": "Snowflake docs - Cortex Analyst",
+          "href": "https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-analyst"
+        },
+        {
+          "label": "Cortex Analyst semantic model specification (docs)",
+          "href": "https://docs.snowflake.com/user-guide/snowflake-cortex/cortex-analyst/semantic-model-spec"
+        },
+        {
+          "label": "Spider4SPARQL: A Complex Benchmark for Evaluating Knowledge Graph Question Answering Systems (Kosten et al.)",
+          "href": "https://arxiv.org/abs/2309.16248"
+        },
+        {
+          "label": "Spider4SSC & S2CLite (travail tiers décrivant Spider4SPARQL)",
+          "href": "https://arxiv.org/html/2511.09354"
+        },
+        {
+          "label": "CypherBench (Feng et al., travail tiers)",
+          "href": "https://arxiv.org/html/2412.18702"
+        },
+        {
+          "label": "Text2Cypher: Bridging Natural Language and Graph Databases (Ozsoy et al., Neo4j)",
+          "href": "https://arxiv.org/abs/2412.10064"
+        },
+        {
+          "label": "Increasing the LLM Accuracy for Question Answering: Ontologies to the Rescue! (Allemang, Sequeda)",
+          "href": "https://arxiv.org/html/2405.11706"
+        },
+        {
+          "label": "Natural Language Access to Domain-Specific Metadata: A Reusable Framework for LLM Query Generation (Fitch, Kurtz)",
+          "href": "https://arxiv.org/html/2607.18029"
+        },
+        {
+          "label": "Benchmarking Neo4j Text2Cypher dataset (Neo4j blog)",
+          "href": "https://neo4j.com/blog/developer/benchmarking-neo4j-text2cypher-dataset/"
+        },
+        {
+          "label": "test-suite-sql-eval repository (official metric of Spider, SParC, CoSQL)",
+          "href": "https://github.com/taoyds/test-suite-sql-eval"
+        },
+        {
+          "label": "Spider leaderboard page (Yale LILY)",
+          "href": "https://yale-lily.github.io/spider"
+        },
+        {
+          "label": "Arctic-Text2SQL-R1 (Snowflake engineering blog)",
+          "href": "https://www.snowflake.com/en/engineering-blog/arctic-text2sql-r1-sql-generation-benchmark/"
+        }
+      ]
+    },
+    {
+      "type": "pointers",
+      "title": "Pour aller plus loin",
+      "items": [
+        {
+          "name": "PICARD",
+          "url": "https://arxiv.org/abs/2109.05093",
+          "kind": "reading",
+          "blurb": "Décodage contraint par analyse incrémentale qui rejette les tokens inadmissibles à chaque étape pour générer du SQL valide avec des modèles de langage."
+        },
+        {
+          "name": "DAIL-SQL",
+          "url": "https://arxiv.org/abs/2308.15363",
+          "kind": "reading",
+          "blurb": "Évaluation des techniques d'ingénierie d'invites pour le text-to-SQL avec LLM, qui présente DAIL-SQL (86,6 % d'exactitude d'exécution sur Spider)."
+        },
+        {
+          "name": "DIN-SQL",
+          "url": "https://arxiv.org/abs/2304.11015",
+          "kind": "reading",
+          "blurb": "Décomposition du text-to-SQL en sous-tâches avec auto-correction par apprentissage en contexte."
+        },
+        {
+          "name": "Arctic-Text2SQL-R1",
+          "url": "https://arxiv.org/abs/2505.20315",
+          "kind": "reading",
+          "blurb": "Apprentissage par renforcement avec la seule correction d'exécution comme récompense, qui permet à un modèle 7B de dépasser des systèmes de classe 70B."
+        },
+        {
+          "name": "Agentar-Scale-SQL",
+          "url": "https://arxiv.org/abs/2509.24403",
+          "kind": "reading",
+          "blurb": "Mise à l'échelle au test orchestrée (raisonnement par RL, raffinement séquentiel, synthèse parallèle), 81,67 % d'exactitude d'exécution sur le test de BIRD."
+        },
+        {
+          "name": "test-suite-sql-eval",
+          "url": "https://github.com/taoyds/test-suite-sql-eval",
+          "kind": "implementation",
+          "blurb": "Dépôt de l'évaluation sémantique par test suites distillées pour le text-to-SQL."
+        },
+        {
+          "name": "Semantic Evaluation for Text-to-SQL with Distilled Test Suites",
+          "url": "https://arxiv.org/abs/2010.02840",
+          "kind": "reading",
+          "blurb": "Article fondateur de l'évaluation par bases de test minimales, qui corrige les faux négatifs des métriques existantes (jusqu'à 8,1 %)."
+        },
+        {
+          "name": "BIRD benchmark",
+          "url": "https://arxiv.org/abs/2305.03111",
+          "kind": "reading",
+          "blurb": "Benchmark de 12 751 paires texte-SQL sur 95 bases (33,4 Go) pour le text-to-SQL ancré dans de grandes bases de données."
+        },
+        {
+          "name": "Spider 2.0",
+          "url": "https://arxiv.org/abs/2411.07763",
+          "kind": "reading",
+          "blurb": "Benchmark de 632 problèmes de workflows d'entreprise text-to-SQL sur des bases réelles."
+        },
+        {
+          "name": "Snowflake Cortex Analyst",
+          "url": "https://docs.snowflake.com/en/user-guide/snowflake-cortex/cortex-analyst",
+          "kind": "tool",
+          "blurb": "Fonction Snowflake entièrement gérée, propulsée par LLM, qui répond en langage naturel à des questions sur des données structurées sans écrire de SQL."
+        }
+      ]
+    },
+    {
+      "type": "glossary"
+    }
+  ]
+}
