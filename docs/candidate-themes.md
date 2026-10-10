@@ -1473,7 +1473,19 @@ confidentialité ; DP-SGD, apprentissage fédéré, attaques par membership infe
 > mécanismes de protection et leurs garanties. Domaine : deep-learning-foundations (à trancher par
 > /arrange).
 
-### Synthèse vocale & codecs audio neuronaux — `speech-synthesis-tts` → `deep-learning-foundations`
+### ✅ FAIT — Synthèse vocale & codecs audio neuronaux — `speech-synthesis-tts` → `deep-learning-foundations`
+(**FAIT le 2026-10-10**, 78e run `/leanmonograph`, retiré du backlog. 8 sections sur 8, 33 claims (23 confirmés /
+8 corrigés / 2 rejetés), 40 sources, 5 widgets + 1 figure ; **≈ 9,6 M tok, 3 lancements**. Gap re-vérifié par LECTURE
+avant lancement : `speech-recognition-asr` (paru depuis la passe) ne nomme la synthèse que comme direction inverse,
+`diffusion-models` traite WaveGrad/DiffWave/AudioLDM en un paragraphe. Le plan a lâché SoundStream et VITS, ajoutés
+au ré-audit. **Arrêt d'élagage au council** : 20 rejets sur 32, tous `search_exhausted=false` — ré-audit 4 agents,
+2 rejets restants (doublon, « parité humaine » de Tacotron 2) et 5 fausses indépendances réparées (papier + son README,
+page projet + papier, FastSpeech + FastSpeech 2). Le loader de reprise a été refusé par le classifieur de l'API
+(`reasoning_extraction`) : section FastSpeech ré-auditée à vide et écrasée, restaurée depuis la sauvegarde. Backstop
+(3 agents) : 4 FAUX — dont deux venus de notes de l'Extract laissées en place (WaveNet de Tacotron 2 « entraîné sur des
+mel réels », fausse incohérence des 0,92 M de HiFi-GAN) — et ~20 imprécis ; l'avantage du CQT « qui disparaît » hors
+laboratoire, issu du ré-audit, est faux dans la table même de Müller (CQT meilleur que mel 14 fois sur 16). Dépôt
+lifeiteng/vall-e retiré : recette exécutable de clonage de voix.)
 **Verdict : gap réel (ajout 2026-07-17 ; modalité absente, audience comparable au candidat ASR).**
 Seul `diffusion-models` touche l'audio, via DiffWave comme vocoder (MOS 4,44 sur LJSpeech).
 
