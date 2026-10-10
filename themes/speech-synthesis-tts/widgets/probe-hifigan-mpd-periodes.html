@@ -1,0 +1,208 @@
+<div class="widget phmp-root" id="phmp-root">
+  <style>
+    .phmp-root{--phmp-ink:var(--ink,#15202E);--phmp-soft:var(--ink-soft,#43536A);
+      --phmp-faint:var(--ink-faint,#7A889B);--phmp-card:var(--card,#fff);
+      --phmp-line:var(--line,#D7DFE9);--phmp-bright:var(--blue-bright,#2C77B6);
+      --phmp-hot:var(--bordeaux-bright,#9B3443);--phmp-onbright:#fff;
+      --phmp-wash:rgba(44,119,182,.07);--phmp-hotwash:rgba(155,52,67,.12);
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--phmp-ink);
+      border:1px solid var(--phmp-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--phmp-card);max-width:780px}
+    .phmp-root *{box-sizing:border-box}
+    html[data-theme="dark"] .phmp-root{--phmp-onbright:#0B131C;
+      --phmp-wash:rgba(120,170,220,.10);--phmp-hotwash:rgba(230,110,125,.16)}
+    .phmp-k{font-size:.8rem;letter-spacing:.09em;text-transform:uppercase;color:var(--phmp-soft);font-weight:600;margin:0 0 2px}
+    .phmp-title{font-weight:700;font-size:1.05rem;margin:0 0 4px}
+    .phmp-sub{font-size:.88rem;color:var(--phmp-soft);margin:0 0 12px}
+    .phmp-panel{border-top:1px solid var(--phmp-line);padding-top:12px;margin-top:14px}
+    .phmp-h{font-weight:700;font-size:.95rem;margin:0 0 6px}
+    .phmp-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 10px;font-size:.86rem;color:var(--phmp-soft)}
+    .phmp-row button{font:inherit;font-size:.86rem;cursor:pointer;border:1px solid var(--phmp-line);
+      background:transparent;color:var(--phmp-ink);border-radius:999px;padding:5px 11px;font-variant-numeric:tabular-nums}
+    .phmp-row button[aria-pressed="true"]{background:var(--phmp-bright);border-color:var(--phmp-bright);
+      color:var(--phmp-onbright);font-weight:600}
+    .phmp-row .phmp-pow{border-style:dashed}
+    .phmp-svg{width:100%;height:auto;display:block;border:1px solid var(--phmp-line);border-radius:8px;background:var(--phmp-wash)}
+    .phmp-svg text{font:12px system-ui,-apple-system,"Segoe UI",sans-serif;fill:var(--phmp-soft)}
+    .phmp-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:12px;align-items:start;margin-top:10px}
+    @media (max-width:620px){.phmp-grid{grid-template-columns:1fr}#phmp-mat text{font-size:16px}}
+    .phmp-note{font-size:.88rem;color:var(--phmp-ink);margin:0 0 8px}
+    .phmp-note b{font-variant-numeric:tabular-nums}
+    .phmp-small{font-size:.82rem;color:var(--phmp-soft);margin:0}
+    .phmp-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:10px 0}
+    .phmp-stat{border:1px solid var(--phmp-line);border-radius:8px;padding:8px 10px}
+    .phmp-stat .phmp-v{font-size:1.25rem;font-weight:700;font-variant-numeric:tabular-nums}
+    .phmp-stat .phmp-l{font-size:.8rem;color:var(--phmp-soft)}
+    .phmp-tbl{border-collapse:collapse;font-size:.84rem;font-variant-numeric:tabular-nums;width:100%}
+    .phmp-tbl th,.phmp-tbl td{border-bottom:1px solid var(--phmp-line);padding:4px 6px;text-align:right}
+    .phmp-tbl th:first-child,.phmp-tbl td:first-child{text-align:left}
+    .phmp-tbl th{color:var(--phmp-soft);font-weight:600}
+    .phmp-tbl tr.phmp-red td{background:var(--phmp-hotwash)}
+    .phmp-tblwrap{overflow-x:auto}
+    .phmp-cap{font-size:.84rem;color:var(--phmp-soft);border-left:3px solid var(--phmp-hot);padding:4px 0 4px 10px;margin:12px 0 0}
+  </style>
+
+  <p class="phmp-k">Discriminateur multi-période</p>
+  <p class="phmp-title">Remodeler un signal 1D en matrice de largeur p</p>
+  <p class="phmp-sub">Chaque sous-discriminateur du MPD de HiFi-GAN replie la forme d'onde en une matrice de hauteur ⌈T/p⌉ et de largeur p, puis applique des convolutions 2D de noyau (k × 1). Chaque colonne est donc traitée comme un signal à part, formé des échantillons espacés de p.</p>
+
+  <div class="phmp-row" role="group" aria-label="Période p">
+    <span>Période p :</span>
+    <span id="phmp-pbtns" style="display:contents"></span>
+  </div>
+  <p class="phmp-small" style="margin:-4px 0 8px">Boutons pleins : nombres premiers de l'article. Boutons pointillés : puissances de 2 (4, 8, 16).</p>
+
+  <svg class="phmp-svg" id="phmp-wave" viewBox="0 0 700 170" role="img" aria-label="Forme d'onde de 66 échantillons colorés par colonne"></svg>
+
+  <div class="phmp-grid">
+    <svg class="phmp-svg" id="phmp-mat" viewBox="0 0 380 340" role="img" aria-label="Matrice remodelée"></svg>
+    <div>
+      <p class="phmp-note" id="phmp-info"></p>
+      <p class="phmp-note" id="phmp-col"></p>
+      <p class="phmp-small">Survolez une colonne de la matrice (souris) pour retrouver ses échantillons dans la forme d'onde ; cliquez ou touchez-la pour l'épingler, puis de nouveau pour la libérer. Les cases grises sont le remplissage par réflexion qui complète T jusqu'à un multiple de p.</p>
+    </div>
+  </div>
+
+  <div class="phmp-panel">
+    <p class="phmp-h">Ensemble de périodes : quels regroupements se recouvrent ?</p>
+    <div class="phmp-row" role="group" aria-label="Ensemble de périodes">
+      <button type="button" id="phmp-setp">Premiers [2, 3, 5, 7, 11]</button>
+      <button type="button" id="phmp-set2">Puissances de 2 [2, 4, 8, 16]</button>
+      <span style="margin-left:6px">ou composez :</span>
+      <span id="phmp-sbtns" style="display:contents"></span>
+    </div>
+    <svg class="phmp-svg" id="phmp-strip" viewBox="0 0 700 200" role="img" aria-label="Positions des multiples de chaque période"></svg>
+    <div class="phmp-stats" id="phmp-stats"></div>
+    <div class="phmp-tblwrap"><table class="phmp-tbl" id="phmp-tbl"></table></div>
+    <p class="phmp-small" style="margin-top:6px">Points rouges : position déjà repérée par une période plus petite de l'ensemble. Ligne « union » : positions repérées par au moins une période (pâle si plusieurs). Deux échantillons i et j tombent dans la même colonne de la période p si p divise j − i. Ils sont regroupés à la fois par p et par q si ppcm(p, q) divise j − i. Quand q est un multiple de p, ppcm(p, q) = q : tout ce que voit une colonne de q, une colonne de p le voit déjà.</p>
+    <p class="phmp-cap" id="phmp-cap">Dans l'article HiFi-GAN (Kong et al., 2020), les périodes [2, 3, 5, 7, 11] sont choisies premières pour éviter au maximum ces recouvrements ; l'ablation qui les remplace par cinq puissances de 2, [2, 4, 8, 16, 32], coûte 0,20 point de MOS (le préréglage « Puissances de 2 » ci-dessus n'en garde que quatre, pour l'illustration). L'entraînement adversarial lui-même relève de la monographie sur les GAN.</p>
+  </div>
+
+  <script>
+  (function(){
+    var $=function(id){return document.getElementById(id);};
+    var NS='http://www.w3.org/2000/svg', T=66;
+    var PER=[2,3,4,5,7,8,11,16], PRIMES=[2,3,5,7,11], POW2=[2,4,8,16];
+    var st={p:5,pin:null,hov:null,set:PRIMES.slice()};
+    /* colonne affichée : le survol souris prime, sinon la colonne épinglée par clic/toucher */
+    function cur(){return st.hov!==null?st.hov:st.pin;}
+    /* largeur du viewBox calée sur la largeur rendue : le texte à 12 unités reste ≥ 11 px réels sur mobile */
+    function vbw(svg){var w=svg.getBoundingClientRect().width;return w>0?Math.max(280,Math.min(700,Math.round(w))):700;}
+    var x=[];
+    for(var t=0;t<T;t++){x.push(.55*Math.sin(2*Math.PI*t/11)+.3*Math.sin(2*Math.PI*t/4.4+.7)+.15*Math.sin(2*Math.PI*t/2.6+1.9));}
+    function el(n,a,txt){var e=document.createElementNS(NS,n);for(var k in a)e.setAttribute(k,a[k]);if(txt!=null)e.textContent=txt;return e;}
+    function clr(j,p,a){var h=Math.round(j*360/p+205)%360;return 'hsla('+h+',62%,50%,'+(a==null?1:a)+')';}
+    function gcd(a,b){return b?gcd(b,a%b):a;}
+    function lcm(a,b){return a*b/gcd(a,b);}
+    function fr(v,d){return v.toFixed(d).replace('.',',');}
+    function padded(p){var n=Math.ceil(T/p)*p,y=x.slice();for(var i=T;i<n;i++)y.push(x[2*(T-1)-i]);return y;}
+
+    /* Boutons de période */
+    PER.forEach(function(p){var b=document.createElement('button');b.type='button';b.textContent=p;
+      b.id='phmp-pb'+p;if(PRIMES.indexOf(p)<0)b.className='phmp-pow';
+      b.addEventListener('click',function(){st.p=p;st.pin=null;st.hov=null;render1();});$('phmp-pbtns').appendChild(b);
+      var s=document.createElement('button');s.type='button';s.textContent=p;s.id='phmp-sb'+p;
+      if(PRIMES.indexOf(p)<0)s.className='phmp-pow';
+      s.addEventListener('click',function(){var i=st.set.indexOf(p);if(i>=0){if(st.set.length>1)st.set.splice(i,1);}
+        else{st.set.push(p);st.set.sort(function(a,b){return a-b;});}render2();});
+      $('phmp-sbtns').appendChild(s);});
+    $('phmp-setp').addEventListener('click',function(){st.set=PRIMES.slice();render2();});
+    $('phmp-set2').addEventListener('click',function(){st.set=POW2.slice();render2();});
+
+    /* Panneau 1 : forme d'onde + matrice */
+    function render1(){
+      var p=st.p,rows=Math.ceil(T/p),y=padded(p),n=y.length,col=cur();
+      PER.forEach(function(q){$('phmp-pb'+q).setAttribute('aria-pressed',q===p?'true':'false');});
+      var w=$('phmp-wave');w.innerHTML='';
+      var W=vbw(w);w.setAttribute('viewBox','0 0 '+W+' 170');
+      var L=34,R=12,top=16,H=120,dx=(W-L-R)/(n-1),cy=top+H/2,sc=H/2/1.05,r0=Math.min(3.4,dx*.42),r1=Math.min(4.6,dx*.55);
+      var X=function(i){return L+i*dx;},Y=function(v){return cy-v*sc;};
+      w.appendChild(el('line',{x1:L,x2:W-R,y1:cy,y2:cy,stroke:'currentColor','stroke-opacity':.25}));
+      var d='';for(var i=0;i<T;i++)d+=(i?'L':'M')+X(i).toFixed(1)+' '+Y(x[i]).toFixed(1);
+      w.appendChild(el('path',{d:d,fill:'none',stroke:'currentColor','stroke-opacity':.35,'stroke-width':1.2}));
+      for(i=0;i<n;i++){var j=i%p,on=col===null||col===j,isPad=i>=T;
+        var c=el('circle',{cx:X(i),cy:Y(y[i]),r:on&&col!==null?r1:r0,
+          fill:isPad?'none':clr(j,p,on?1:.18),stroke:isPad?'currentColor':clr(j,p,on?1:.18),
+          'stroke-opacity':isPad?(on?.6:.2):1,'stroke-dasharray':isPad?'2 2':'none'});
+        c.appendChild(el('title',{},(isPad?'remplissage ':'échantillon ')+i+' → ligne '+Math.floor(i/p)+', colonne '+j));
+        w.appendChild(c);}
+      for(i=0;i<n;i+=p){w.appendChild(el('line',{x1:X(i),x2:X(i),y1:top+H+4,y2:top+H+10,stroke:'currentColor','stroke-opacity':.4}));}
+      w.appendChild(el('text',{x:L,y:top+H+26},'t = 0'));
+      w.appendChild(el('text',{x:W-R,y:top+H+26,'text-anchor':'end'},'t = '+(n-1)+(n>T?' (dont '+(n-T)+' de remplissage)':'')));
+      if(W>=560)w.appendChild(el('text',{x:W/2,y:top+H+26,'text-anchor':'middle'},'repères tous les p = '+p+' échantillons'));
+      w.style.color='var(--phmp-ink)';
+
+      var m=$('phmp-mat');m.innerHTML='';m.style.color='var(--phmp-ink)';
+      var ML=30,MT=22,AW=380-ML-10,AH=340-MT-10,cw=Math.min(44,AW/p),ch=Math.min(26,AH/rows);
+      m.appendChild(el('text',{x:ML,y:14},'colonnes (largeur p = '+p+')'));
+      for(var r=0;r<rows;r++){
+        if(rows<=12||r%Math.ceil(rows/10)===0)m.appendChild(el('text',{x:ML-4,y:MT+r*ch+ch/2+4,'text-anchor':'end'},r));
+        for(j=0;j<p;j++){i=r*p+j;var on2=col===null||col===j,pad=i>=T;
+          var rc=el('rect',{x:ML+j*cw+.5,y:MT+r*ch+.5,width:cw-1,height:ch-1,rx:2,
+            fill:pad?'rgba(128,128,128,.25)':clr(j,p,on2?.85:.15)});
+          rc.appendChild(el('title',{},(pad?'remplissage ':'échantillon ')+i+' = '+fr(y[i],2)));
+          m.appendChild(rc);}}
+      /* sous-signal de chaque colonne, tracé verticalement */
+      for(j=0;j<p;j++){var dd='',cxm=ML+j*cw+cw/2,amp=cw*.4;
+        for(r=0;r<rows;r++){i=r*p+j;dd+=(r?'L':'M')+(cxm+y[i]*amp).toFixed(1)+' '+(MT+r*ch+ch/2).toFixed(1);}
+        m.appendChild(el('path',{d:dd,fill:'none',stroke:'currentColor','stroke-opacity':col===null||col===j?.8:.2,'stroke-width':1.2}));
+        var hit=el('rect',{x:ML+j*cw,y:MT,width:cw,height:rows*ch,fill:'transparent',style:'cursor:pointer'});
+        (function(jj){
+          /* survol : souris seulement (un toucher émet aussi enter, qui annulerait le clic qui suit) */
+          hit.addEventListener('pointerenter',function(e){if(e.pointerType==='mouse'&&st.hov!==jj){st.hov=jj;render1();}});
+          /* clic / toucher : épingle ; ne libère que si cette colonne était déjà épinglée */
+          hit.addEventListener('click',function(){st.pin=st.pin===jj?null:jj;render1();});})(j);
+        m.appendChild(hit);}
+      $('phmp-info').innerHTML='p = <b>'+p+'</b> : matrice de <b>'+rows+'</b> lignes × <b>'+p+'</b> colonnes ('+rows*p+' cases'+(n>T?', dont '+(n-T)+' de remplissage':'')+'). Le noyau (k × 1) glisse le long d\'une colonne sans jamais mélanger deux colonnes.';
+      var jj=col===null?0:col,lst=[];for(i=jj;i<T;i+=p)lst.push(i);
+      $('phmp-col').innerHTML='Colonne <b>'+jj+'</b>'+(col===null?' (par exemple)':(st.hov===null?' (épinglée)':''))+' : échantillons '+(lst.length>8?lst.slice(0,7).join(', ')+', …, '+lst[lst.length-1]:lst.join(', '))+'. C\'est un signal sous-échantillonné d\'un facteur '+p+' : le sous-discriminateur juge la structure périodique de période '+p+'.';
+    }
+    $('phmp-mat').addEventListener('pointerleave',function(e){if(e.pointerType==='mouse'&&st.hov!==null){st.hov=null;render1();}});
+
+    /* Panneau 2 : recouvrements entre périodes */
+    function render2(){
+      var S=st.set;
+      PER.forEach(function(q){$('phmp-sb'+q).setAttribute('aria-pressed',S.indexOf(q)>=0?'true':'false');});
+      var isP=S.join()===PRIMES.join(),is2=S.join()===POW2.join();
+      $('phmp-setp').setAttribute('aria-pressed',isP?'true':'false');
+      $('phmp-set2').setAttribute('aria-pressed',is2?'true':'false');
+      var sv=$('phmp-strip');sv.innerHTML='';sv.style.color='var(--phmp-ink)';
+      var W=vbw(sv),L=70,R=12,rh=Math.min(26,150/(S.length+1)),top=10,dx=(W-L-R)/(T-1),rc=Math.min(3.2,dx*.45),bw=Math.min(6,dx*.8);
+      var hits=[];for(var i=0;i<T;i++){hits.push(0);S.forEach(function(p){if(i%p===0)hits[i]++;});}
+      S.forEach(function(p,k){var yy=top+k*rh+rh/2;
+        sv.appendChild(el('text',{x:L-8,y:yy+4,'text-anchor':'end'},'p = '+p));
+        sv.appendChild(el('line',{x1:L,x2:W-R,y1:yy,y2:yy,stroke:'currentColor','stroke-opacity':.12}));
+        for(var i2=0;i2<T;i2+=p){sv.appendChild(el('circle',{cx:L+i2*dx,cy:yy,r:rc,
+          fill:S.some(function(q){return q<p&&i2%q===0;})?'var(--phmp-hot)':'var(--phmp-bright)'}));}});
+      var yb=top+S.length*rh+rh/2+4;
+      sv.appendChild(el('text',{x:L-8,y:yb+4,'text-anchor':'end'},'union'));
+      var cov=0;
+      for(i=0;i<T;i++){if(hits[i]>=1){cov++;
+        sv.appendChild(el('rect',{x:L+i*dx-bw/2,y:yb-6,width:bw,height:12,rx:1,fill:'var(--phmp-bright)','fill-opacity':hits[i]>=2?.45:1}));}}
+      var yl=yb+24;
+      sv.appendChild(el('text',{x:L,y:yl},'0'));
+      sv.appendChild(el('text',{x:W-R,y:yl,'text-anchor':'end'},'65'));
+      sv.appendChild(el('text',{x:(L+W-R)/2,y:yl,'text-anchor':'middle'},W>=560?'positions 0 à 65 : départs de la colonne 0 (multiples de p)':'multiples de p (0 à 65)'));
+      sv.setAttribute('viewBox','0 0 '+W+' '+Math.ceil(yl+8));
+
+      /* paires de périodes */
+      var rowsH='<tr><th>Paire (p, q)</th><th>ppcm</th><th>Multiples communs dans 0–65</th><th>Paires de q déjà regroupées par p</th></tr>';
+      var nested=0,sumR=0,np=0;
+      function pairsDiv(m){var c=0;for(var d=m;d<T;d+=m)c+=T-d;return c;}
+      for(var a=0;a<S.length;a++)for(var b=a+1;b<S.length;b++){
+        var p=S[a],q=S[b],l=lcm(p,q),mult=Math.floor((T-1)/l)+1,ratio=pairsDiv(l)/pairsDiv(q);
+        if(q%p===0)nested++;sumR+=ratio;np++;
+        rowsH+='<tr'+(q%p===0?' class="phmp-red"':'')+'><td>('+p+', '+q+')'+(q%p===0?' — '+q+' multiple de '+p:'')+'</td><td>'+l+'</td><td>'+mult+'</td><td>'+Math.round(100*ratio)+' %</td></tr>';}
+      $('phmp-tbl').innerHTML=np?rowsH:'<tr><td>Ajoutez au moins deux périodes.</td></tr>';
+      $('phmp-stats').innerHTML=
+        '<div class="phmp-stat"><div class="phmp-v">'+cov+' / '+T+'</div><div class="phmp-l">positions distinctes repérées par au moins une période</div></div>'+
+        '<div class="phmp-stat"><div class="phmp-v">'+nested+' / '+np+'</div><div class="phmp-l">paires où la plus grande période est un multiple de la plus petite</div></div>'+
+        '<div class="phmp-stat"><div class="phmp-v">'+(np?Math.round(100*sumR/np)+' %':'—')+'</div><div class="phmp-l">recouvrement moyen des regroupements, par paire</div></div>';
+    }
+    render1();render2();
+    var rsz=null,lastW=vbw($('phmp-wave'));
+    window.addEventListener('resize',function(){clearTimeout(rsz);rsz=setTimeout(function(){
+      var nw=vbw($('phmp-wave'));if(nw!==lastW){lastW=nw;render1();render2();}},150);});
+  })();
+  </script>
+</div>
