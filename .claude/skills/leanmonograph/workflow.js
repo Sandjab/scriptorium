@@ -741,7 +741,10 @@ if (RESUME) {
       // comportement de repli — il produit un résultat valide — mais il n'est plus silencieux.
       const readOne = (id) =>
         A(`Rends le contenu EXACT (verbatim, sans reformater ni tronquer) du fichier ${ckptDir}/sec-${id}.json. ${LOAD_RULE} N'écris rien.`,
-          { schema: S_LOAD_ONE, model: M_IO, phase: 'Sweep', label: `resume-sec:${id}` });
+          // Opus, pas M_IO : au 78e run, Sonnet a refusé ce « verbatim » (`reasoning_extraction`) 2 fois sur 2
+          // sur une section qui parle de distillation → section ré-auditée et écrasée. Atténuation seulement :
+          // Opus a aussi refusé au 1er essai ; c'est le retry ci-dessous qui a sauvé la reprise.
+          { schema: S_LOAD_ONE, model: 'opus', phase: 'Sweep', label: `resume-sec:${id}` });
       const contents = await parallel(secIds.map(id => () => readOne(id)));
       const perdues = [];
       for (let i = 0; i < secIds.length; i++) {
