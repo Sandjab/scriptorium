@@ -625,7 +625,19 @@ discontinuité et le contrôle synthétique en sont absents. Audit par lecture d
 > pas le refaire ; `time-series-forecasting` tient CausalImpact. ⚠️ Toute attribution se vérifie en primaire au
 > Sweep, aucune n'est donnée ici comme fait. Domaine : classical-ml-time-series.
 
-### Bandits multi-bras — `multi-armed-bandits` → `classical-ml-time-series`
+### ✅ FAIT — Bandits multi-bras — `multi-armed-bandits` → `classical-ml-time-series`
+(**FAIT le 2026-10-17**, 80e run `/leanmonograph`, retiré du backlog. 10 sections sur 10, 33 claims (18 confirmés /
+14 corrigés / 1 rejeté), 27 sources, 3 widgets + 2 figures ; **≈ 8,9 M tok, 2 lancements**. Gap re-vérifié par
+LECTURE avant lancement : `recommender-systems` renvoie deux fois l'exploration aux bandits « hors périmètre »,
+`prompt-optimization` et `pretraining-data-curation` ne les citent qu'en passant. **Arrêt d'élagage au council** :
+24 rejets sur 39, tous `search_exhausted=false` — ré-audit 4 agents : 8 réparés / 8 corrigés / 6 regrainés /
+5 document-source / 4 doublons retirés / 1 rejet maintenu (TS contre LinUCB en display : simulation unique). Faux
+de fond corrigés : « UCB1 premier à regret logarithmique » (Lai-Robbins 1985 et Agrawal 1995 le précèdent),
+comparaison UCB1 / Lai-Robbins prise à l'envers, et la borne NeuralUCB Õ(d̃√T) qu'un agent du ré-audit avait
+réduite à Õ(√(d̃T)). Notes de l'Extract corrigées sur les PDF (plages LinUCB/ε-greedy de Chapelle & Li ; +9,5 %
+et non +10,3 % — le texte de Li et al. contredit sa propre table). Backstop (3 agents, ~195 faits) : 0 FAUX,
+9 imprécis + 1 phrase sans source retirée ; deux URL du même papier fusionnées en bibliographie. En-têtes de
+tableau des widgets à 1,77:1 en thème CLAIR (fond `th` de la charte hérité), invisibles au lint sombre.)
 **Verdict : gap réel.** Aucune occurrence substantielle (les matches « Thompson » du corpus sont
 des noms d'auteurs).
 
@@ -1330,7 +1342,7 @@ method : 0 occurrence. ⚠️ Deux frontières à écrire dans le brief contre l
 > validation de la plateforme, les pièges (multiplicité, effet de nouveauté, biais de survie,
 > métriques de garde) et les plateformes d'expérimentation. Public : ingénieur ML/data.
 > ⚠️ Délimitations strictes : ce thème traite l'expérience RANDOMISÉE À ALLOCATION FIXE —
-> l'allocation adaptative relève de `multi-armed-bandits` (candidat) ; l'identification d'effets
+> l'allocation adaptative relève de `multi-armed-bandits` (FAIT) ; l'identification d'effets
 > sans randomisation (propension, DiD, IV, DML, effets hétérogènes) relève de `causal-inference`
 > (candidat) ; `time-series-forecasting` garde CausalImpact (le citer en contrepoint) ;
 > `hyperloglog` garde son cas de comptage. Domaine : classical-ml-time-series.
