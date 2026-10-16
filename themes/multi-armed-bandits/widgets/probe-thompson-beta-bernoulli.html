@@ -1,0 +1,197 @@
+<div class="widget ptbb-root" id="ptbb-root">
+  <style>
+    .ptbb-root{line-height:1.55;--ptbb-ink:var(--ink,#15202E);--ptbb-soft:var(--ink-soft,#43536A);
+      --ptbb-faint:var(--ink-faint,#7A889B);--ptbb-card:var(--card,#fff);
+      --ptbb-line:var(--line,#D7DFE9);--ptbb-bright:var(--blue-bright,#2C77B6);
+      --ptbb-onbright:#fff;--ptbb-wash:rgba(44,119,182,.08);
+      --ptbb-c0:#2C77B6;--ptbb-c1:#9B3443;--ptbb-c2:#3C7A4E;
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ptbb-ink);
+      border:1px solid var(--ptbb-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--ptbb-card);max-width:820px}
+    .ptbb-root *{box-sizing:border-box}
+    html[data-theme="dark"] .ptbb-root{--ptbb-onbright:#0B131C;--ptbb-wash:rgba(120,170,220,.10);
+      --ptbb-c0:#6EAAE1;--ptbb-c1:#E66E7D;--ptbb-c2:#7CC48F}
+    .ptbb-k{font-size:.8rem;letter-spacing:.09em;text-transform:uppercase;color:var(--ptbb-soft);font-weight:600;margin:0 0 2px}
+    .ptbb-title{font-weight:700;font-size:1.05rem;margin:0 0 4px}
+    .ptbb-sub{font-size:.88rem;color:var(--ptbb-soft);margin:0 0 12px}
+    .ptbb-bar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:0 0 10px;font-size:.88rem;color:var(--ptbb-soft)}
+    .ptbb-bar button,.ptbb-bar select{font:inherit;font-size:.88rem;cursor:pointer;border:1px solid var(--ptbb-line);
+      background:transparent;color:var(--ptbb-ink);border-radius:999px;padding:4px 12px}
+    .ptbb-bar select{border-radius:8px;background:var(--ptbb-card)}
+    .ptbb-bar .ptbb-main{background:var(--ptbb-bright);border-color:var(--ptbb-bright);color:var(--ptbb-onbright);font-weight:600}
+    .ptbb-bar button[aria-pressed="true"]{border-color:var(--ptbb-bright);font-weight:600}
+    .ptbb-sep{flex:1 1 0}
+    .ptbb-svg{width:100%;height:auto;display:block}
+    .ptbb-svg text{font:12px system-ui,-apple-system,"Segoe UI",sans-serif;fill:var(--ptbb-soft)}
+    .ptbb-axis{stroke:var(--ptbb-line);stroke-width:1}
+    .ptbb-log{font-size:.9rem;margin:6px 0 10px;padding:6px 10px;border-radius:8px;background:var(--ptbb-wash);
+      font-variant-numeric:tabular-nums;min-height:2.2em}
+    .ptbb-wrap{overflow-x:auto}
+    .ptbb-tbl{border-collapse:collapse;width:100%;font-size:.88rem;font-variant-numeric:tabular-nums}
+    .ptbb-tbl th,.ptbb-tbl td{padding:5px 8px;border-bottom:1px solid var(--ptbb-line);text-align:right;white-space:nowrap}
+    .ptbb-tbl th{font-weight:600;color:var(--ptbb-soft);background:none}
+    .ptbb-tbl th:first-child,.ptbb-tbl td:first-child{text-align:left}
+    .ptbb-sw{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:baseline}
+    .ptbb-meter{display:inline-block;width:56px;height:6px;border-radius:3px;background:var(--ptbb-line);vertical-align:middle;margin-left:6px;overflow:hidden}
+    .ptbb-meter i{display:block;height:100%}
+    .ptbb-note{font-size:.84rem;color:var(--ptbb-soft);margin:10px 0 0}
+    .ptbb-note b{color:var(--ptbb-ink)}
+  </style>
+
+  <p class="ptbb-k">Mécanisme</p>
+  <p class="ptbb-title">Thompson sampling Beta-Bernoulli : un tirage par bras, puis l’argmax</p>
+  <p class="ptbb-sub">Chaque bras paie 1 avec une probabilité inconnue p. Son posterior part de Beta(1, 1), uniforme, et devient Beta(1 + s, 1 + f) après s succès et f échecs. À chaque tour, on tire un θ dans chaque posterior et on joue le bras dont le θ est le plus grand.</p>
+
+  <div class="ptbb-bar">
+    <button type="button" class="ptbb-main" id="ptbb-step">Tour suivant</button>
+    <button type="button" id="ptbb-step10">+10 tours</button>
+    <button type="button" id="ptbb-step100">+100 tours</button>
+    <button type="button" id="ptbb-reset">Réinitialiser</button>
+    <span class="ptbb-sep"></span>
+    <label for="ptbb-scen">Scénario</label>
+    <select id="ptbb-scen">
+      <option value="0">3 bras : p = 0,30 · 0,50 · 0,60</option>
+      <option value="1">2 bras proches : p = 0,50 · 0,55</option>
+      <option value="2">3 bras rares : p = 0,04 · 0,05 · 0,08</option>
+    </select>
+    <button type="button" id="ptbb-reveal" aria-pressed="false">Montrer les vrais p</button>
+  </div>
+
+  <svg class="ptbb-svg" id="ptbb-svg" viewBox="0 0 760 270" role="img" aria-label="Densités a posteriori Beta de chaque bras, avec le tirage du dernier tour"></svg>
+
+  <div class="ptbb-log" id="ptbb-log" aria-live="polite">Aucun tour joué : les posteriors sont uniformes, chaque bras a la même chance d’être tiré.</div>
+
+  <div class="ptbb-wrap">
+    <table class="ptbb-tbl">
+      <thead><tr>
+        <th>Bras</th><th>Succès s</th><th>Échecs f</th><th>Moyenne a posteriori</th>
+        <th>Fréquence de jeu</th><th>P(meilleur | données)</th><th id="ptbb-th-true" hidden>Vrai p</th>
+      </tr></thead>
+      <tbody id="ptbb-body"></tbody>
+    </table>
+  </div>
+
+  <p class="ptbb-note">À observer : un posterior encore <b>large</b> produit de temps en temps un tirage élevé, et le bras est rejoué ; un bras <b>médiocre et bien connu</b> voit sa courbe se resserrer sous celle du meilleur et n’est presque plus tiré. La fréquence de jeu suit la probabilité a posteriori d’être le meilleur (<i>probability matching</i>). Aucun paramètre d’exploration n’est à régler : l’incertitude du posterior en tient lieu.</p>
+
+  <script>
+  (function(){
+    var root=document.getElementById('ptbb-root'); if(!root) return;
+    var SCEN=[[0.30,0.50,0.60],[0.50,0.55],[0.04,0.05,0.08]];
+    var NAMES=['A','B','C'];
+    var COLS=['--ptbb-c0','--ptbb-c1','--ptbb-c2'];
+    var svg=document.getElementById('ptbb-svg'), body=document.getElementById('ptbb-body');
+    var logEl=document.getElementById('ptbb-log'), thTrue=document.getElementById('ptbb-th-true');
+    var revealBtn=document.getElementById('ptbb-reveal'), scenSel=document.getElementById('ptbb-scen');
+    var NS='http://www.w3.org/2000/svg';
+    var W=760,H=270,L=40,R=16,T=32,B=34,PW=W-L-R,PH=H-T-B;
+    var st, reveal=false, pBest=[];
+
+    function fr(x,d){return x.toFixed(d).replace('.',',');}
+    function col(i){return 'var('+COLS[i]+')';}
+    function nrm(){var u=1-Math.random(),v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+    function gam(k){ /* Marsaglia-Tsang, k >= 1 */
+      var d=k-1/3,c=1/Math.sqrt(9*d),x,v,u;
+      for(;;){do{x=nrm();v=1+c*x;}while(v<=0);v=v*v*v;u=Math.random();
+        if(u<1-0.0331*x*x*x*x) return d*v;
+        if(Math.log(u)<0.5*x*x+d*(1-v+Math.log(v))) return d*v;}
+    }
+    function beta(a,b){var x=gam(a),y=gam(b);return x/(x+y);}
+    function lgam(z){ /* Lanczos */
+      var g=7,c=[0.99999999999980993,676.5203681218851,-1259.1392167224028,771.32342877765313,-176.61502916214059,12.507343278686905,-0.13857109526572012,9.9843695780195716e-6,1.5056327351493116e-7];
+      z-=1;var x=c[0];for(var i=1;i<g+2;i++)x+=c[i]/(z+i);var t=z+g+0.5;
+      return 0.5*Math.log(2*Math.PI)+(z+0.5)*Math.log(t)-t+Math.log(x);
+    }
+    function dens(x,a,b){
+      if(x<=0||x>=1) return 0;
+      return Math.exp(lgam(a+b)-lgam(a)-lgam(b)+(a-1)*Math.log(x)+(b-1)*Math.log(1-x));
+    }
+    function reset(){
+      var p=SCEN[+scenSel.value];
+      st={p:p,s:p.map(function(){return 0;}),f:p.map(function(){return 0;}),n:p.map(function(){return 0;}),t:0,last:null};
+      computePBest(); render();
+      logEl.textContent='Aucun tour joué : les posteriors sont uniformes, chaque bras a la même chance d’être tiré.';
+    }
+    function computePBest(){
+      var K=st.p.length,M=4000,w=st.p.map(function(){return 0;});
+      for(var m=0;m<M;m++){var bi=0,bv=-1;
+        for(var i=0;i<K;i++){var th=beta(1+st.s[i],1+st.f[i]);if(th>bv){bv=th;bi=i;}}
+        w[bi]++;}
+      pBest=w.map(function(x){return x/M;});
+    }
+    function step(){
+      var K=st.p.length,th=[],bi=0;
+      for(var i=0;i<K;i++){th[i]=beta(1+st.s[i],1+st.f[i]);if(th[i]>th[bi])bi=i;}
+      var r=Math.random()<st.p[bi]?1:0;
+      if(r)st.s[bi]++;else st.f[bi]++;
+      st.n[bi]++;st.t++;st.last={th:th,arm:bi,r:r};
+    }
+    function run(k){
+      for(var j=0;j<k;j++)step();
+      computePBest(); render();
+      var l=st.last,parts=l.th.map(function(v,i){return 'θ'+NAMES[i]+' = '+fr(v,3);});
+      logEl.textContent='Tour '+st.t+' : '+parts.join(' ; ')+'. Le plus grand est θ'+NAMES[l.arm]+
+        ', donc on joue le bras '+NAMES[l.arm]+' : récompense '+l.r+(l.r?' (s augmente).':' (f augmente).')+
+        (k>1?' Seul le dernier des '+k+' tours est marqué sur les courbes.':'');
+    }
+    function el(tag,attrs,txt){var e=document.createElementNS(NS,tag);for(var a in attrs)e.setAttribute(a,attrs[a]);if(txt!=null)e.textContent=txt;return e;}
+    function render(){
+      while(svg.firstChild)svg.removeChild(svg.firstChild);
+      var K=st.p.length,N=240,curves=[],ymax=0;
+      for(var i=0;i<K;i++){var a=1+st.s[i],b=1+st.f[i],pts=[];
+        for(var j=0;j<=N;j++){var x=j/N,y=dens(x,a,b);pts.push([x,y]);if(y>ymax)ymax=y;}
+        curves.push(pts);}
+      ymax=Math.max(ymax*1.08,1.5);
+      function X(x){return L+x*PW;} function Y(y){return T+PH-(y/ymax)*PH;}
+      svg.appendChild(el('line',{x1:L,y1:T+PH,x2:L+PW,y2:T+PH,'class':'ptbb-axis'}));
+      svg.appendChild(el('line',{x1:L,y1:T,x2:L,y2:T+PH,'class':'ptbb-axis'}));
+      for(var g=0;g<=10;g+=2){var gx=X(g/10);
+        svg.appendChild(el('line',{x1:gx,y1:T+PH,x2:gx,y2:T+PH+4,'class':'ptbb-axis'}));
+        svg.appendChild(el('text',{x:gx,y:T+PH+17,'text-anchor':'middle'},fr(g/10,1)));}
+      svg.appendChild(el('text',{x:L+PW,y:T+PH+30,'text-anchor':'end'},'probabilité de succès θ'));
+      svg.appendChild(el('text',{x:14,y:T+PH/2,'text-anchor':'middle',transform:'rotate(-90 14 '+(T+PH/2)+')'},'densité'));
+      for(i=0;i<K;i++){
+        var d='',area='M'+X(0)+','+Y(0);
+        curves[i].forEach(function(p,j){d+=(j?'L':'M')+X(p[0]).toFixed(1)+','+Y(p[1]).toFixed(1);area+='L'+X(p[0]).toFixed(1)+','+Y(p[1]).toFixed(1);});
+        area+='L'+X(1)+','+Y(0)+'Z';
+        svg.appendChild(el('path',{d:area,fill:col(i),'fill-opacity':'0.10',stroke:'none'}));
+        svg.appendChild(el('path',{d:d,fill:'none',stroke:col(i),'stroke-width':'2'}));
+        if(reveal){var tx=X(st.p[i]);
+          svg.appendChild(el('line',{x1:tx,y1:T,x2:tx,y2:T+PH,stroke:col(i),'stroke-width':'1','stroke-dasharray':'2 4'}));}
+      }
+      if(st.last){
+        for(i=0;i<K;i++){var th=st.last.th[i],px=X(th),py=Y(dens(th,1+st.s[i]-(i===st.last.arm&&st.last.r?1:0),1+st.f[i]-(i===st.last.arm&&!st.last.r?1:0)));
+          var win=i===st.last.arm;
+          svg.appendChild(el('line',{x1:px,y1:py,x2:px,y2:T+PH,stroke:col(i),'stroke-width':win?'2':'1','stroke-dasharray':'4 3'}));
+          svg.appendChild(el('circle',{cx:px,cy:py,r:win?6.5:4.5,fill:win?col(i):'var(--ptbb-card)',stroke:col(i),'stroke-width':'2'}));
+          svg.appendChild(el('text',{x:px,y:py-10,'text-anchor':'middle',fill:col(i),style:'fill:'+col(i)+';font-weight:'+(win?'700':'400')},'θ'+NAMES[i]+(win?' ← joué':'')));
+        }
+      }
+      var lg=L+12;
+      for(i=0;i<K;i++){
+        svg.appendChild(el('circle',{cx:lg+6,cy:12,r:5,fill:col(i)}));
+        var lt=el('text',{x:lg+15,y:16},'Bras '+NAMES[i]+' : Beta('+(1+st.s[i])+', '+(1+st.f[i])+')');
+        svg.appendChild(lt); lg+=190;
+      }
+      var rows='';
+      for(i=0;i<K;i++){
+        var mean=(1+st.s[i])/(2+st.s[i]+st.f[i]),freq=st.t?st.n[i]/st.t:0;
+        rows+='<tr><td><span class="ptbb-sw" style="background:'+col(i)+'"></span>Bras '+NAMES[i]+'</td>'+
+          '<td>'+st.s[i]+'</td><td>'+st.f[i]+'</td><td>'+fr(mean,3)+'</td>'+
+          '<td>'+(st.t?fr(100*freq,1)+' %':'—')+' <span class="ptbb-meter"><i style="width:'+(100*freq).toFixed(1)+'%;background:'+col(i)+'"></i></span> <span style="color:var(--ptbb-faint)">('+st.n[i]+')</span></td>'+
+          '<td>'+fr(100*pBest[i],1)+' % <span class="ptbb-meter"><i style="width:'+(100*pBest[i]).toFixed(1)+'%;background:'+col(i)+'"></i></span></td>'+
+          (reveal?'<td>'+fr(st.p[i],2)+'</td>':'')+'</tr>';
+      }
+      body.innerHTML=rows;
+      thTrue.hidden=!reveal;
+    }
+    document.getElementById('ptbb-step').addEventListener('click',function(){run(1);});
+    document.getElementById('ptbb-step10').addEventListener('click',function(){run(10);});
+    document.getElementById('ptbb-step100').addEventListener('click',function(){run(100);});
+    document.getElementById('ptbb-reset').addEventListener('click',reset);
+    scenSel.addEventListener('change',reset);
+    revealBtn.addEventListener('click',function(){reveal=!reveal;revealBtn.setAttribute('aria-pressed',String(reveal));
+      revealBtn.textContent=reveal?'Masquer les vrais p':'Montrer les vrais p';render();});
+    reset();
+  })();
+  </script>
+</div>
