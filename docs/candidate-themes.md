@@ -448,7 +448,18 @@ prose. Backstop web : 3 FAUX / 19 imprécis, tous contre-lus et corrigés.)
 (`variational-autoencoders` : FAIT le 2026-07-19, retiré du backlog — 16e run /leanmonograph
 GREEN direct, classé dans deep-learning-foundations avant diffusion-models.)
 
-### Systèmes de recommandation — `recommender-systems` → `information-retrieval-representation`
+### ✅ FAIT — Systèmes de recommandation — `recommender-systems` → `information-retrieval-representation`
+(**FAIT le 2026-10-16**, 79e run `/leanmonograph`, retiré du backlog. 13 sections sur 13, 40 claims (23 confirmés /
+17 corrigés / 0 rejeté), 57 sources, 4 widgets + 1 figure ; **≈ 10,1 M tok, 2 lancements**. Gap re-vérifié par
+LECTURE avant lancement : seulement des paragraphes chez les voisins (Mult-VAE, PinSage, ScaNN/MIPS, Annoy chez
+Spotify, graphe d'items Taobao) ; prompt élargi à 8 piliers (neuronal/séquentiel, biais et IPS, reproductibilité).
+**Arrêt d'élagage au council** : 31 rejets sur 49, tous `search_exhausted=false` — ré-audit 4 agents, 0 rejet maintenu
+(16 réparés / 11 regrainés / 4 document-source), 10 doublons retirés (Rendle 2020 extrait dans 6 sections), deux
+exemples faux corrigés jusque dans les notes (négatifs YouTube = impressions NON cliquées ; Amazon). Backstop
+(3 agents, ~236 énoncés) : 4 FAUX (chaînes de Markov « souffrant des données creuses » — SASRec dit l'inverse ; 2 M
+de r_ui = jeu de TEST de Hu et al. ; Yi et al. emploient bien « cold start » ; survey Chen et al. 2023) et 23 imprécis,
+dont l'effondrement vers l'AUC présenté comme général (démontré pour un seul négatif échantillonné) et une fausse
+indépendance (PDF de Sarwar + sa notice).)
 **Verdict : nouveau gap.** `approximate-nearest-neighbor`/`text-embeddings` n'effleurent que
 l'indexation/similarité.
 
