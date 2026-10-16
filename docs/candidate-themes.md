@@ -200,6 +200,41 @@ monographies et jamais orientés vers cet usage ; le cœur du sujet l'est à un 
 risque du run n'est donc pas la redondance, c'est le chevauchement de rappel — les délimitations de
 l'entrée sont à tenir fermement.
 
+**Passe d'enrichissement du 2026-10-17** (corpus à 120 thèmes / 122 documents) : veille web IA
+(revue des billets 2026 de Raschka, dont « GPT-6 Astra, Looped Transformers, and Hidden Reasoning »
+du 9 septembre ; ControlConf 2026 ; actualité ECMWF, AIE, AI Act) puis tri des mots-clés absents du
+corpus ET du backlog, et audit de couverture **par lecture** confié à 4 agents-lecteurs (un par
+grappe : sécurité des modèles de pointe, architecture, données/organisations, IA pour la science et
+3D), grep pour localiser, verdict sur la prose lue, citations verbatim. Bilan : **10 candidats
+ajoutés** (5 en haute, 5 en moyenne), 1 entrée corrigée. Quatre constats ont décidé des verdicts :
+
+1. **Le reward hacking n'est PAS un gap** malgré son omniprésence dans la veille :
+   `agentic-rl-environments` lui consacre une section (« Goodhart, reward hacking et l'horizon de la
+   vérification », Reward Hacking Benchmark compris), `rlhf-dpo` §10 et `self-improving-harness` §10
+   le complètent. Ce qui manque est sa **généralisation** en désalignement (MacDiarmid et al.,
+   nov. 2025, cité en bibliographie seulement) — volet absorbé par `sycophancy-emergent-misalignment`.
+   Au passage : `self-improving-harness` date MacDiarmid « (Anthropic/Redwood, 2024) », ce qui paraît
+   faux (nov. 2025) — à contre-lire.
+2. **`recursive-language-models` couvre la récurrence architecturale, mais pas à l'échelle LLM.**
+   Universal Transformer, ACT, Coconut, HRM, TRM y sont traités, avec la réserve écrite que HRM/TRM
+   « n'ont pas démontré de généralisation hors distribution » ; le bouclage d'un LLM pré-entraîné
+   (Huginn, Mixture-of-Recursions, Ouro) n'apparaît nulle part — d'où `looped-transformers-recurrent-depth`.
+3. **Un faux positif de localisation corrigé par la lecture** : les 5 manifestes qui contenaient
+   « NeRF » au grep insensible à la casse sont des thèmes santé (« nerf vague », « nerfs
+   périphériques »). NeRF, Gaussian splatting, DUSt3R, VGGT : 0 occurrence réelle.
+4. **Deux candidats n'ont pas de domaine naturel.** Météo et protéines ne sont des « fondations »
+   que par défaut (`deep-learning-foundations` compte déjà 30 thèmes) : l'agent-lecteur recommande un
+   domaine neuf `ai-for-science` (confiance 0,7), à n'ouvrir qu'avec un 3e thème (matériaux,
+   potentiels interatomiques appris, découverte de médicaments — non cherchés). Énergie et AI Act
+   n'entrent dans `ai-organizations` qu'en élargissant son blurb (aujourd'hui centré sur le travail).
+   Décision laissée à `/arrange`.
+
+Correction du backlog : l'entrée `privacy-preserving-ml` affirmait « attaques par membership
+inference = 0 occurrence » — faux aujourd'hui (prose notamment dans
+`benchmark-contamination` et `model-editing-unlearning`). ⚠️ Les identifiants
+arXiv 2026 cités dans les prompts ci-dessous n'ont PAS tous été ouverts par les lecteurs (signalés
+« non vérifié ») : pistes à corroborer au Sweep, jamais des faits.
+
 - **Fabrication** : `/leanmonograph « <prompt riche> »` (défaut depuis le test GREEN du 2026-07-02 ;
   `/frugalmonograph` en repli) puis `/arrange <slug>`.
 - **Domaine** = celui de `tools/taxonomy.json` (source de vérité). Un thème = un seul domaine.
@@ -381,6 +416,114 @@ Hook design : 2 exceptions de charte posées, 1 vrai défaut d'interligne corrig
 première mesure se soit révélée fausse** (hauteur/interligne compte le padding comme une ligne ;
 la bonne mesure est `Range.getClientRects().length`), 8 cas réels ramenés à 1, le titre de charte.
 Lint contraste 0, lint.py 28 flags adjugés règle par règle, bijection biblio rétablie.
+
+### Surveillance de la chaîne de pensée, scheming et AI control — `cot-monitoring-scheming-ai-control` → `llm-agents-generation`
+**Verdict : gap réel** (passe du 2026-10-17). `reasoning-test-time-compute` traite la seule
+*fidélité* du CoT (« La faithfulness (fidélité) du chain-of-thought […] est une limite distincte,
+souvent sous-estimée ») ; `mechanistic-interpretability` §11 juge les circuits « inadaptées à la
+surveillance et au contrôle » ; `llm-safety-jailbreaks` ne traite qu'attaque et défense. Scheming,
+sandbagging, monitorability, alignment faking, situational awareness, Greenblatt : 0 occurrence.
+
+> Surveiller un modèle peut-être adverse : chaîne de pensée, scheming et contrôle. Couvrir la
+> surveillance du CoT comme dispositif de sûreté et sa fragilité (position paper multi-labos de
+> Korbak et al., juil. 2025 ; suite « Monitoring Monitorability » d'OpenAI, déc. 2025, métrique
+> g-mean², ouverte en avril 2026 ; MonitorBench, arXiv 2603.28590, non vérifié), la pression
+> d'optimisation sur le CoT qui le rend illisible, le scheming en contexte (Apollo Research 2024) et
+> l'alignment faking (Greenblatt et al., Anthropic/Redwood 2024), le sandbagging (van der Weij et al.,
+> ICLR 2025, modèles verrouillés par mot de passe), la conscience de l'évaluation qui brouille les
+> mesures, les protocoles d'AI control (Greenblatt et al., ICML 2024 : trusted/untrusted monitoring,
+> resampling, évaluations de sabotage) et leur passage en production (ControlConf 2026 : moniteurs
+> de CoT sur le trafic interne d'agents de code ; évaluations de sabotage dans des system cards),
+> les moniteurs fondés sur les seules actions (arXiv 2605.29601). Actualité à traiter comme
+> rumeur : le bouclage supposé d'Astra et la baisse de monitorabilité rapportée dans sa system card.
+> Public : ingénieur ML / sûreté. Délimitations : `reasoning-test-time-compute` garde la fidélité
+> du CoT (citer Arcuschin 2025 sans refaire) ; `agent-tool-security` (candidat) garde les défenses
+> contre l'injection ; `mechanistic-interpretability` garde les sondes et circuits ;
+> `sycophancy-emergent-misalignment` (candidat) garde la GENÈSE du désalignement — ici,
+> l'observer et le contenir. Domaine : llm-agents-generation (à trancher par /arrange).
+
+### Transformers bouclés et profondeur récurrente — `looped-transformers-recurrent-depth` → `deep-learning-foundations`
+**Verdict : gap réel** (passe du 2026-10-17). `recursive-language-models` (section
+« famille-modeles-recursifs ») couvre Universal Transformer, ACT, Coconut, HRM et TRM sur tâches
+dédiées ; `reasoning-test-time-compute` ne donne que la borne TC⁰ du passage unique ; `scaling-laws`
+dit seulement que la répartition largeur/profondeur a « un effet minime ». Le bouclage à l'échelle
+d'un LLM pré-entraîné : 0 occurrence. Sujet d'actualité (rumeur Astra, The Information,
+1er septembre 2026 ; billet de Raschka du 9 septembre).
+
+> Transformers bouclés : réappliquer les mêmes blocs pour gagner de la profondeur sans paramètres.
+> Couvrir le principe (poids partagés, profondeur effective vs paramètres, coût en FLOPs et KV cache
+> non réduit), la lignée (Universal Transformers 2018 — renvoi), le passage à l'échelle LLM :
+> recurrent depth et raisonnement latent de Geiping et al. 2025 (Huginn, arXiv 2502.05171),
+> Mixture-of-Recursions et le routage du nombre de passes par token (arXiv 2507.10524), Ouro de
+> ByteDance (arXiv 2510.25741 ; sorties anticipées, efficacité paramétrique, boucler aide le
+> raisonnement sans stocker plus de connaissances), Nanbeige4.2 (non vérifié), la profondeur logique
+> virtuelle (arXiv 2506.18233), les lois d'échelle des MoE bouclés (SMELT, non vérifié), le lien
+> supposé avec le raisonnement caché et la monitorabilité — en séparant fermement ce qui est
+> publié de la rumeur Astra (non confirmée par OpenAI). Public : ingénieur ML. Délimitations :
+> `recursive-language-models` garde UT, HRM/TRM, Coconut (citer sans refaire) ;
+> `reasoning-test-time-compute` garde le scaling par tokens de pensée ; `mixture-of-experts` garde
+> le routage par experts ; `cot-monitoring-scheming-ai-control` (candidat) garde la monitorabilité.
+> Domaine : deep-learning-foundations (ou llm-agents-generation, à trancher par /arrange).
+
+### Prévision météorologique par apprentissage — `weather-forecasting-ml` → domaine à trancher (`ai-for-science` ?)
+**Verdict : gap réel** (passe du 2026-10-17). Seulement des tangentes : DGMR (nowcasting radar,
+`generative-adversarial-networks`), l'héritage du score de Brier (`calibration-classifieurs`), la
+météo comme variable exogène (`time-series-forecasting`). GraphCast, Pangu, FourCastNet, GenCast,
+AIFS, WeatherBench 2 : 0 occurrence.
+
+> La prévision météorologique apprise : des réanalyses aux modèles opérationnels. Couvrir le
+> problème (réanalyse ERA5, prévision numérique physique IFS comme référence, échéances), les
+> architectures (Pangu-Weather, Nature 2023 ; GraphCast, Science 2023, GNN sur maillage
+> icosaédrique ; FourCastNet), le probabiliste et les ensembles (GenCast, Nature 2024/25,
+> diffusion), le passage en opérationnel à l'ECMWF (AIFS déterministe le 25 février 2025, AIFS ENS
+> le 1er juillet 2025, ENS v2 le 12 mai 2026), l'évaluation (WeatherBench 2, CRPS, scores
+> auto-déclarés par chaque labo), les limites (lissage, extrêmes, robustesse hors climat
+> d'entraînement), et la cohabitation physique/IA (« complémentaires » selon l'ECMWF). Risque :
+> chiffres de skill auto-déclarés, résolutions divergentes selon les sources — indépendance par
+> travail à tenir. Public : ingénieur ML. Délimitations : `graph-neural-networks` et
+> `diffusion-models` gardent les mécanismes génériques ; `time-series-forecasting` la prévision de
+> séries. Domaine : nouveau `ai-for-science` (si un 3e thème) sinon deep-learning-foundations —
+> à trancher par /arrange.
+
+### Prédiction de structure des protéines — `protein-structure-prediction` → domaine à trancher (`ai-for-science` ?)
+**Verdict : partiel** (passe du 2026-10-17). `diffusion-models` (« Molécules et protéines ») couvre
+la conception : « RFdiffusion (Watson et al., Nature 2023) […] adaptant RoseTTAFold comme débruiteur
+DDPM » ; `agentic-ai` nomme AlphaFold comme outil de Co-Scientist. Tout le versant prédiction
+manque : AlphaFold 2/3, ESM, Boltz, Chai, CASP, Nobel 2024 = 0 occurrence.
+
+> Prédire la structure des protéines : d'AlphaFold aux modèles ouverts. Couvrir le problème et
+> CASP, AlphaFold 2 (Jumper et al., Nature 2021 : MSA, Evoformer, module de structure, pLDDT), les
+> modèles de langage de protéines (ESM-2/ESMFold, Lin et al., Science 2023 ; ESM-3), AlphaFold 3
+> (Abramson et al., Nature 2024 : complexes, ligands, diffusion) et ses réplications ouvertes
+> (Boltz-1/2, Chai-1), ce que montrent les évaluations CASP16 (Proteins 2025-26 : l'avance d'AF3 sur
+> les complexes disparaît face à AF2 en échantillonnage massif), les limites (dynamique,
+> désordre, mutations ponctuelles) et le passage à la conception (renvoi). Risque : préprints,
+> benchmarks maison et revendications commerciales (Isomorphic, EvolutionaryScale). Public :
+> ingénieur ML. Délimitations : `diffusion-models` garde RFdiffusion et la conception par
+> diffusion (citer sans re-dériver) ; `transformer-attention` l'attention. Domaine : nouveau
+> `ai-for-science` (avec `weather-forecasting-ml`) sinon deep-learning-foundations — à trancher par
+> /arrange.
+
+### Empreinte énergétique de l'IA — `ia-empreinte-energetique` → `ai-organizations` (blurb à élargir)
+**Verdict : gap réel** (passe du 2026-10-17). Des miettes : GLaM et ses 456 MWh
+(`mixture-of-experts`), un « 38,8× de réduction d'énergie » issu de projections (`quantization`),
+l'énergie par token « peu documentés en source primaire » (`small-language-models-edge`). Énergie
+par requête, centres de données, AIE, eau, effet Jevons : rien.
+
+> Ce que consomme l'IA : énergie, eau, et ce que valent les chiffres publiés. Couvrir l'entraînement
+> vs l'inférence, l'énergie par requête et le problème du périmètre de mesure (Google, août 2025,
+> arXiv 2508.15734 : 0,24 Wh médiane en périmètre complet vs 0,10 Wh en périmètre étroit ; le
+> 0,34 Wh déclaré par OpenAI ; l'étude Joule 2026 à 0,31 Wh médiane et ~3,9 Wh pour une réponse de
+> raisonnement — à ouvrir en primaire), l'écart de deux ordres de grandeur entre estimations et sa
+> cause, les centres de données (AIE « Energy and AI » 2025 : 415 TWh en 2024, ~945 TWh projetés en
+> 2030), l'eau (Li et al., « Making AI Less Thirsty »), la mesure par tâche (Luccioni et al.,
+> FAccT 2024), les leviers (quantization, SLM, batching) et l'effet rebond. Risque : chiffres
+> d'éditeur mono-sources par nature (relèvent de `document-source` : « Google déclare X », jamais un
+> fait sur la consommation réelle) ; ne jamais comparer 0,24 et 0,34 Wh sans comparer les
+> méthodes. Public : décideur et ingénieur. Délimitations : `llm-inference-serving`, `quantization`,
+> `small-language-models-edge` gardent les techniques d'efficacité (les citer). Domaine :
+> ai-organizations en élargissant son blurb, ou domaine « IA & société » avec `ai-act-regulation-ia`
+> — à trancher par /arrange.
 
 ---
 
@@ -1394,6 +1537,104 @@ ablation + obliteration.
 > mesures publiés, sans recette opératoire. Domaine : llm-agents-generation (voisin de
 > llm-safety-jailbreaks), à trancher par /arrange contre deep-learning-foundations.
 
+### Complaisance et désalignement émergent — `sycophancy-emergent-misalignment` → `llm-agents-generation`
+**Verdict : partiel** (passe du 2026-10-17). `rlhf-dpo` §10 : « La sycophancy (flatterie
+systématique) en est l'exemple le mieux documenté […] Wen et al. (2024) » ; une feature de
+sycophancy dans `mechanistic-interpretability`. « Emergent misalignment » n'apparaît qu'en titres
+de bibliographie ; Betley : 0 occurrence. Absorbe le volet « reward hacking → désalignement
+généralisé », le reward hacking lui-même étant déjà traité (`agentic-rl-environments`).
+
+> Comment l'entraînement fabrique le désalignement : complaisance et désalignement émergent.
+> Couvrir la mesure et la taxonomie de la sycophancy (Sharma et al., ICLR 2024) et son origine dans
+> la préférence humaine, le désalignement émergent par fine-tuning étroit (Betley et al., ICML 2025 ;
+> publication Nature 2026 à vérifier), le passage du reward hacking en RL de production au
+> désalignement généralisé (MacDiarmid et al., Anthropic, nov. 2025), les « persona features »
+> (OpenAI 2025), la sycophancy comme déclencheur (arXiv 2606.09068, non vérifié), les critiques
+> méthodologiques (« Overtrained, not misaligned », mai 2026 : 2 modèles sur 12 réguliers selon les
+> seeds ; sycophancy envers les chercheurs, arXiv 2606.08629 ; position paper ICML 2026 sur la
+> surinterprétation) et les mitigations (inoculation prompting, early stopping). Public : ingénieur
+> ML / sûreté. Délimitations : `rlhf-dpo` et `agentic-rl-environments` gardent Goodhart et le
+> Reward Hacking Benchmark (citer) ; `cot-monitoring-scheming-ai-control` (candidat) garde la
+> détection et le contrôle ; `abliteration-alignment-removal` le retrait volontaire. Domaine :
+> llm-agents-generation.
+
+### Connexions résiduelles et hyper-connexions — `residual-connections-hyper-connections` → `deep-learning-foundations`
+**Verdict : partiel, assez large pour un thème** (passe du 2026-10-17). Le résiduel est partout un
+moyen, nulle part un objet : `backpropagation` (« la connexion résiduelle y = F(x) + x de ResNet
+ajoute un chemin identité »), `normalization-layers` (Pre/Post/Peri-LN à fond), `transformer-attention`
+(effondrement de rang sans raccourcis ; attention sink), `mechanistic-interpretability` (flux
+résiduel additif). Hyper-connexions, mHC, DenseFormer, activations massives : 0 occurrence.
+
+> Le flux résiduel comme objet de conception. Couvrir pourquoi le raccourci identité fonctionne
+> (dégradation, effondrement de rang — renvois), la mise à l'échelle en profondeur (DeepNet/DeepNorm,
+> arXiv 2203.00555), DenseFormer (2402.02622), les hyper-connexions et la largeur du flux
+> (ByteDance, arXiv 2409.19606), mHC et la contrainte doublement stochastique par Sinkhorn
+> (DeepSeek, arXiv 2512.24880) et son adoption annoncée dans DeepSeek-V4, les activations massives
+> (Sun et al. 2024, 2402.17762) et leur lien causal avec les attention sinks. Risque : pour mHC, pas
+> encore de réplication indépendante trouvée (papier DeepSeek + résumés) — seuil de 2 sources tenu
+> pour les hyper-connexions de base et pour activations massives + sinks, pas pour les chiffres de
+> mHC. Public : ingénieur ML. Délimitations : `normalization-layers` garde le placement de la
+> normalisation ; `transformer-attention` et `sparse-attention-long-context` gardent StreamingLLM et
+> les sinks côté usage. Domaine : deep-learning-foundations.
+
+### Reconstruction 3D et rendu neuronal — `neural-3d-reconstruction-rendering` → `deep-learning-foundations`
+**Verdict : gap réel** (passe du 2026-10-17). Une seule trace : Marble exporte « en Gaussian
+splats — une représentation de la scène par un nuage de gaussiennes 3D » (`world-models`). NeRF,
+rastérisation de gaussiennes, DUSt3R, VGGT : 0 occurrence (les « nerf » du grep sont des nerfs).
+
+> Reconstruire et rendre une scène 3D par apprentissage. Couvrir les champs de radiance neuronaux
+> (NeRF, Mildenhall et al., ECCV 2020 : rendu volumique différentiable, encodage positionnel) et
+> leurs accélérations, le 3D Gaussian Splatting (Kerbl et al., SIGGRAPH 2023 : primitives
+> explicites, rastérisation différentiable, temps réel), le passage au feed-forward sans
+> optimisation par scène (DUSt3R, CVPR 2024 ; VGGT, CVPR 2025 ; survey arXiv 2507.14501), les
+> métriques (PSNR, SSIM, LPIPS — dépendants de la scène et du GPU) et leurs limites, et le pont vers
+> les modèles de monde. Risque : sujet très visuel, widgets coûteux ; chiffres de FPS non
+> comparables d'un matériel à l'autre. Public : ingénieur ML / vision. Délimitations :
+> `world-models` garde les modèles de monde (citer Marble) ; `object-detection-segmentation` et
+> `video-generation-models` (candidats) gardent leur objet. Domaine : deep-learning-foundations.
+
+### Attribution des données d'entraînement — `training-data-attribution` → `llm-agents-generation`
+**Verdict : partiel, recentré** (passe du 2026-10-17). Mémorisation et extraction sont DÉJÀ
+traitées : `pretraining-data-curation` §5 (Kandpal/Carlini 2023 : « une séquence présente dix fois
+dans le corpus est régénérée environ mille fois plus souvent »), `llm-safety-jailbreaks` §5
+(attaque « poem » de Nasr 2023), `benchmark-contamination` (membership inference « proche du
+hasard » sur le pré-entraînement), `model-editing-unlearning` §11 (preuve RGPD). Fonctions
+d'influence, TRAK, Grosse 2023, contentieux de droit d'auteur : 0 phrase de prose.
+
+> Quelle donnée a produit cette sortie ? Attribution des données d'entraînement. Couvrir les
+> fonctions d'influence et leur passage à l'échelle LLM (Grosse et al., Anthropic 2023,
+> arXiv 2308.03296), TRAK (Park et al., ICML 2023), la mémorisation contrefactuelle et ses
+> approximations, les limites (la self-influence trompée par les quasi-doublons, arXiv 2506.20481),
+> les travaux 2026 (Mechanistic Data Attribution, arXiv 2601.21996 ; DABGO — non vérifiés), et
+> l'usage probatoire en contentieux (Bartz c. Anthropic, accord de 1,5 Md $ approuvé à l'été 2026 —
+> date discordante, ouvrir le docket ; NYT c. OpenAI et Kadrey c. Meta en cours). Risque : volet
+> juridique mouvant et documenté surtout par des cabinets qui se reprennent — borner à des
+> décisions datées. Public : ingénieur ML. Délimitations : `pretraining-data-curation`,
+> `llm-safety-jailbreaks`, `benchmark-contamination` gardent mémorisation, extraction et
+> membership inference (renvoyer) ; `privacy-preserving-ml` (candidat) garde la DP et le fédéré ;
+> `mechanistic-interpretability` garde l'attribution patching (homonymie à signaler). Domaine :
+> llm-agents-generation ou deep-learning-foundations (à trancher par /arrange).
+
+### Régulation de l'IA : l'AI Act européen — `ai-act-regulation-ia` → `ai-organizations` (blurb à élargir)
+**Verdict : gap réel** (passe du 2026-10-17). Une seule section : `llm-watermarking-detection` §15
+« Marquage obligatoire : article 50 » (« l'obligation réelle est technologiquement neutre »). Les
+trois thèmes `ia-*` n'ont aucune prose réglementaire. ⚠️ **Ne lancer qu'après publication au JO de
+l'omnibus numérique** : les dates d'application divergent encore entre sources.
+
+> L'AI Act européen : ce qu'il impose, à qui, et quand. Couvrir l'architecture par niveaux de risque
+> du règlement (UE) 2024/1689 (pratiques interdites, haut risque, transparence de l'article 50,
+> modèles d'IA à usage général et risque systémique), le calendrier (interdictions en février 2025,
+> obligations GPAI au 2 août 2025, article 50 en août 2026), le code de bonnes pratiques GPAI
+> (juillet 2025), l'omnibus numérique (accord provisoire du 7 mai 2026 : haut risque autonome
+> reporté au 2 décembre 2027, embarqué au 2 août 2028 — à confirmer au JO), la gouvernance (AI
+> Office), et la comparaison avec la Chine (mesures d'étiquetage de la CAC, 2025) et les
+> États-Unis. Risque : sujet plus rapide que la règle des 2 sources ; notes de cabinets qui se
+> reprennent (indépendance par travail, pas par URL) ; le texte primaire relève de
+> `document-source`, à dater. Public : décideur, ingénieur. Délimitations : `llm-watermarking-detection`
+> garde l'article 50 et le marquage (citer) ; `model-editing-unlearning` le RGPD. Domaine :
+> ai-organizations en élargissant son blurb, ou « IA & société » avec `ia-empreinte-energetique`
+> — à trancher par /arrange.
+
 ---
 
 ## Priorité basse / marginale
@@ -1484,7 +1725,9 @@ poids (merge_and_unload), qui n'est pas la fusion inter-modèles.
 
 ### ML préservant la confidentialité — `privacy-preserving-ml` → `deep-learning-foundations`
 **Verdict : gap réel (audience à confirmer).** `count-min-sketch` est le seul thème à effleurer la
-confidentialité ; DP-SGD, apprentissage fédéré, attaques par membership inference = 0 occurrence.
+confidentialité ; DP-SGD et apprentissage fédéré = 0 occurrence. (Corrigé le 2026-10-17 : les attaques
+par membership inference et l'extraction ne sont PLUS absentes — `benchmark-contamination` et
+`model-editing-unlearning` en ont de la prose ; les citer, et se délimiter de `training-data-attribution`.)
 
 > Machine learning préservant la confidentialité : entraîner sans exposer les données. Couvrir la
 > confidentialité différentielle (définition (ε, δ), mécanismes de base, composition), DP-SGD
