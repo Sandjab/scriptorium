@@ -1,0 +1,518 @@
+{
+ "edition": "monographie",
+ "slug": "recommender-systems",
+ "meta": {
+  "title": "Systèmes de recommandation et collaborative filtering : prédire les préférences à grande échelle",
+  "kicker": "Systèmes de recommandation · monographie",
+  "h1": "Systèmes de recommandation et collaborative filtering : prédire les préférences à grande échelle",
+  "lede": "Du voisinage item-item aux architectures two-tower de l'industrie, comment on prédit ce qu'un utilisateur aimera, et pourquoi une partie du progrès affiché tenait à des baselines mal réglées et à des métriques biaisées.",
+  "meta_chips": [
+   "Monographie"
+  ],
+  "footer": "Systèmes de recommandation et collaborative filtering : prédire les préférences à grande échelle · scriptorium"
+ },
+ "elements": [
+  {
+   "type": "abstract"
+  },
+  {
+   "type": "section",
+   "id": "filtrage-par-voisinage",
+   "heading": "Collaborative filtering par voisinage : user-based, item-based et similarités",
+   "level": 3,
+   "prose": "<p>Tout part d'une matrice. Ses lignes sont des utilisateurs, ses colonnes des items, et chaque cellule porte une note ou une interaction. L'immense majorité de ces cellules est vide, parce qu'un utilisateur ne touche qu'une infime fraction du catalogue. La question est de prédire les cellules manquantes à partir des seules traces laissées par tous les autres. C'est le principe du collaborative filtering (filtrage collaboratif). Il ignore le contenu des items et ne regarde que les comportements.</p><p>L'un des premiers systèmes automatisés, GroupLens (Resnick et al., CSCW 1994), recommandait des articles Usenet. Il pondérait les notes des autres lecteurs par la corrélation entre leurs notes passées et celles de l'utilisateur cible. C'est l'approche user-based : trouver les utilisateurs qui ont noté comme moi, puis agréger leurs avis sur l'item visé. Breese, Heckerman et Kadie (UAI 1998) rangent ces méthodes parmi les algorithmes memory-based (à base de mémoire), qui calculent chaque prédiction à la volée sur toute la matrice. Ils les opposent aux algorithmes model-based (à base de modèle), qui apprennent d'abord un modèle et s'en servent ensuite pour prédire. Leur comparaison porte sur la corrélation de Pearson, la similarité cosinus et plusieurs variantes, dont la fréquence inverse des utilisateurs.</p><p>La sparsity (caractère creux) de la matrice fragilise ces calculs. Deux utilisateurs n'ont souvent en commun qu'une poignée d'items notés. Une similarité estimée sur si peu de co-notations reste bruitée. D'où les variantes ajustées et les pondérations par le nombre d'items communs.</p><p>Sarwar, Karypis, Konstan et Riedl (WWW 2001) retournent le problème. Leur filtrage item-based compare les colonnes de la matrice plutôt que ses lignes. Pour prédire la note d'un utilisateur sur un item, on regarde ses propres notes sur les items les plus similaires à celui-ci. Les auteurs testent trois similarités entre items, le cosinus, la corrélation de Pearson et l'adjusted cosine (cosinus ajusté). Cette dernière soustrait d'abord la note moyenne de chaque utilisateur. Un lecteur sévère et un lecteur généreux deviennent ainsi comparables, puisque l'échelle de notation individuelle est corrigée avant le calcul.</p><p>L'argument décisif est d'échelle. Les similarités entre items sont relativement stables, si bien qu'on peut les précalculer hors ligne. Les voisinages d'utilisateurs, eux, bougent à chaque nouvelle note et doivent être cherchés en ligne. Sur un extrait de MovieLens (100 000 notes, 943 utilisateurs, 1 682 films), Sarwar et al. rapportent en outre des prédictions un peu meilleures qu'avec l'approche user-based, un gain qu'ils jugent eux-mêmes modeste. Ce résultat reste local. Il ne se généralise pas à tous les jeux de données.</p><p>Amazon (Linden, Smith et York, IEEE Internet Computing 2003) porte cette logique en production avec son item-to-item collaborative filtering. Un calcul hors ligne, coûteux, construit une table d'items similaires. En ligne, recommander revient à chercher dans cette table les items proches de ceux que l'utilisateur a achetés ou notés. La requête reste donc rapide, quel que soit le nombre de clients. Les auteurs affirment que l'approche passe à l'échelle de dizaines de millions de clients et de millions d'items. Ce partage entre un calcul lourd hors ligne et une requête légère en ligne reviendra dans l'architecture industrielle.</p><p>Ces heuristiques semblent vouées à céder la place aux modèles appris. Elles reviendront pourtant, quand il faudra juger les modèles neuronaux : bien réglés, des voisinages simples battent souvent des architectures récentes. Leur faiblesse est ailleurs. Aucune fonction de coût ne dit ce qu'une bonne similarité doit capturer, et c'est ce manque que comblent les facteurs latents.</p>",
+   "claims": [
+    "claim:1",
+    "claim:2",
+    "claim:3"
+   ]
+  },
+  {
+   "type": "section",
+   "id": "matrix-factorization",
+   "heading": "Matrix factorization : facteurs latents, termes de biais, ALS et régularisation",
+   "level": 3,
+   "prose": "<p>Le Netflix Prize a déplacé le centre de gravité du domaine. Lancé en 2006, ce concours promettait un million de dollars à qui améliorerait d'au moins 10 % le RMSE (Root Mean Square Error) de Cinematch, le recommandeur de Netflix. Le jeu de données comptait environ 100 millions de notes, données par 480 189 utilisateurs à 17 770 films. L'équipe BellKor's Pragmatic Chaos l'emporte en 2009 avec 10,06 %. Entre ces deux dates, une famille de modèles s'impose, la matrix factorization (factorisation matricielle).</p><p>Simon Funk lance le mouvement sur son blog en décembre 2006, dans un billet intitulé « Netflix Update: Try This at Home ». Il y décrit une factorisation entraînée par descente de gradient sur les seules notes observées. Elle lègue à toute la famille un nom trompeur, « SVD ».</p><p>La SVD (Singular Value Decomposition, décomposition en valeurs singulières) classique exige une matrice complète. La matrice des notes est presque vide. Les modèles « SVD-like » du concours ajustent donc leurs facteurs uniquement sur les entrées observées, avec une régularisation. Le nom marque une parenté d'esprit avec l'algèbre linéaire, pas l'emploi de sa décomposition.</p><p>Koren, Bell et Volinsky (IEEE Computer, 2009) en donnent la formulation de référence. Chaque utilisateur u reçoit un vecteur de facteurs p<sub>u</sub>, et chaque item i un vecteur q<sub>i</sub>. Le score de base est leur produit scalaire q<sub>i</sub><sup>T</sup>p<sub>u</sub>. Le modèle complet lui ajoute des termes de biais et prédit r̂<sub>ui</sub> = μ + b<sub>u</sub> + b<sub>i</sub> + q<sub>i</sub><sup>T</sup>p<sub>u</sub>. Ici μ est la moyenne globale, b<sub>u</sub> l'écart propre à l'utilisateur et b<sub>i</sub> celui de l'item. Un utilisateur sévère porte un b<sub>u</sub> négatif, un film très apprécié un b<sub>i</sub> positif. Les facteurs n'ont plus qu'à expliquer l'interaction résiduelle, ce qui reste une fois ces tendances retirées. On retrouve, sous forme apprise, l'intuition qui motivait le cosinus ajusté.</p><p>Les paramètres s'apprennent en minimisant l'erreur quadratique sur les seules notes observées. Une pénalité L2 de poids λ s'y ajoute, sur les facteurs comme sur les biais. Sans elle, le modèle surapprendrait une matrice aussi creuse.</p><p>Deux optimiseurs se partagent le terrain. La SGD (Stochastic Gradient Descent, descente de gradient stochastique) parcourt les notes une à une et corrige à chaque pas les paramètres concernés. Elle est simple et rapide. ALS (Alternating Least Squares, moindres carrés alternés) procède autrement, en fixant tour à tour l'une des deux matrices de facteurs. Le problème devient alors un système de moindres carrés, avec une solution en forme close pour chaque ligne de l'autre matrice. Ces lignes se calculent indépendamment, donc en parallèle. Zhou, Wilkinson, Schreiber et Pan (AAIM 2008) l'appliquent au concours sous le nom d'ALS-WR. Leur régularisation, pondérée par le nombre de notes (weighted-λ), évite le surapprentissage quand le rang augmente. Koren, Bell et Volinsky jugent d'ailleurs ALS avantageux dans deux cas. Le premier est celui où l'on peut paralléliser, le second celui des données implicites, où la matrice à parcourir devient dense.</p><p>Koren (KDD 2008) enrichit encore le modèle avec une information implicite, dans la variante SVD++. Sur le Netflix Prize, SVD++ y devance le meilleur modèle de voisinage, alors que la factorisation simple ne fait guère mieux que lui. Koren en tire surtout un modèle intégré, qui combine voisinage et facteurs latents. Le produit scalaire s'installe ainsi comme fonction de score centrale. Des architectures plus riches chercheront à le remplacer, et il faudra mesurer ce qu'elles y gagnent. Mais une hypothèse du concours ne tient guère hors de lui : la plupart des systèmes ne reçoivent aucune note.</p>",
+   "claims": [
+    "claim:4",
+    "claim:5",
+    "claim:6"
+   ]
+  },
+  {
+   "type": "section",
+   "id": "feedback-implicite",
+   "heading": "Implicit feedback : séparer préférence et confiance",
+   "level": 3,
+   "prose": "<p>Hu, Koren et Volinsky (ICDM 2008) partent de cet écart. La recherche a surtout porté sur le feedback explicite, alors que beaucoup de systèmes ne collectent que de l'implicit feedback (feedback implicite). Ce sont des visionnages, des achats, des clics.</p><p>Ce signal a une première particularité, il ne contient aucun feedback négatif observé. L'absence d'action ne traduit pas un désintérêt. L'utilisateur peut ignorer l'existence de l'item, ou ne pas pouvoir le consommer. Il n'a pas regardé tel programme, peut-être parce qu'un autre passait au même moment. Seconde particularité : les valeurs observées sont des fréquences d'actions, pas des notes.</p><p>Le modèle sépare donc deux quantités que les notes confondaient. La préférence p<sub>ui</sub> est binaire, égale à 1 si r<sub>ui</sub> &gt; 0 et à 0 sinon. La confiance c<sub>ui</sub> dit à quel point on croit à cette préférence. Les auteurs proposent c<sub>ui</sub> = 1 + α·r<sub>ui</sub>. Chaque paire garde ainsi une confiance minimale de 1, qui croît avec la quantité d'observations. Dans leurs expériences, α = 40 donne de bons résultats. Une variante logarithmique, c<sub>ui</sub> = 1 + α·log(1 + r<sub>ui</sub>/ε), atténue l'effet des très grandes valeurs. Une cellule vide devient une préférence nulle de faible confiance, et non un refus. Les valeurs r<sub>ui</sub> observées expriment une confiance, jamais un niveau de préférence.</p><p>Le coût change de nature. Il porte sur toutes les paires utilisateur-item, et plus seulement sur les observées. Avec les notations de l'article, il somme c<sub>ui</sub>·(p<sub>ui</sub> − x<sub>u</sub><sup>T</sup>y<sub>i</sub>)² et y ajoute λ(Σ‖x<sub>u</sub>‖² + Σ‖y<sub>i</sub>‖²). Les vecteurs x<sub>u</sub> et y<sub>i</sub> jouent le rôle de p<sub>u</sub> et q<sub>i</sub> dans la factorisation du concours. Cette matrice dense à parcourir est précisément le cas où ALS prend l'avantage.</p><p>À facteurs items fixés, le coût est quadratique en x<sub>u</sub>. Il admet la solution fermée x<sub>u</sub> = (Y<sup>T</sup>C<sup>u</sup>Y + λI)<sup>−1</sup>Y<sup>T</sup>C<sup>u</sup>p(u). Calculé naïvement, le produit Y<sup>T</sup>C<sup>u</sup>Y coûterait O(f²n) par utilisateur, pour n items et f facteurs. L'astuce consiste à écrire Y<sup>T</sup>C<sup>u</sup>Y = Y<sup>T</sup>Y + Y<sup>T</sup>(C<sup>u</sup> − I)Y. Le terme Y<sup>T</sup>Y est commun à tous les utilisateurs et se précalcule une fois. Le second ne compte que n<sub>u</sub> entrées non nulles, celles des items que l'utilisateur a touchés. Une passe sur les m utilisateurs coûte alors O(f²N + f³m), où N désigne le nombre d'observations non nulles. La passe symétrique sur les items est du même ordre. Malgré une somme sur toutes les paires, la méthode reste linéaire en la taille des données.</p><p>L'article s'appuie sur des décodeurs TV, environ 300 000 boîtiers dont les changements de chaîne sont agrégés, pour chaque programme, en nombre de visionnages complets (0,7 pour 70 % d'une émission, 2 pour deux visionnages). Après agrégation des visionnages répétés, l'entraînement compte environ 32 millions de r<sub>ui</sub> non nuls ; le jeu de test, filtré des programmes déjà vus et des visionnages de moins d'une demi-émission, en garde environ 2 millions. Ce n'est pas un jeu de notes. L'évaluation retient l'expected percentile rank (rang percentile attendu), pondéré par la consommation. À 0 %, l'item consommé figure en tête de liste. À 50 %, le classement vaut un tirage aléatoire. Ce choix découle du signal lui-même, qui ne permet pas de mesurer sereinement la précision sur des items « non pertinents ». Les auteurs montrent aussi que le score prédit se décompose en contributions des items passés, pondérées par des similarités. Le modèle latent rejoint ainsi le voisinage item-item.</p><p>Ce modèle circule sous les noms de WRMF (Weighted Regularized Matrix Factorization) et d'implicit ALS, ou iALS. Il sert de référence dans la littérature ultérieure. Rendle, Krichene, Zhang et Koren (2021) le reprennent sur quatre benchmarks d'items où il passait pour dépassé. Correctement réglé, iALS reste compétitif avec des méthodes bien plus récentes.</p><p>On le présente parfois comme un modèle de ranking (classement). C'est inexact. Il minimise une erreur quadratique pointwise (point par point) sur des préférences binaires pondérées. Le classement n'intervient qu'à l'évaluation, par le rang percentile, puis au tri des scores prédits pour recommander. Optimiser directement l'ordre entre un item observé et un item non observé relève d'une autre idée, celle du pairwise ranking (classement par paires).</p>",
+   "claims": [
+    "claim:7",
+    "claim:8",
+    "claim:9",
+    "claim:10"
+   ]
+  },
+  {
+   "type": "widget",
+   "ref": "probe-implicit-confidence-preference"
+  },
+  {
+   "type": "section",
+   "id": "bpr-ranking-par-paires",
+   "heading": "Pairwise ranking : BPR et negative sampling",
+   "level": 3,
+   "prose": "<p>Même pondéré par la confiance, le modèle de Hu, Koren et Volinsky reste pointwise. Il ajuste chaque case de la matrice vers 0 ou 1, alors que le système doit au bout du compte produire une liste ordonnée. Rendle, Freudenthaler, Gantner et Schmidt-Thieme en font leur point de départ à UAI 2009. Leur constat est direct : la matrix factorization comme le kNN (k plus proches voisins) adaptatif ne sont pas optimisés directement pour le classement personnalisé. Le cadre visé est l'implicit feedback, clics ou achats, qui est aussi le scénario le plus courant.</p><p>Leur réponse s'appelle BPR (Bayesian Personalized Ranking). Son critère, BPR-Opt, est dérivé comme estimateur du maximum a posteriori d'une analyse bayésienne du ranking personnalisé. L'unité d'apprentissage n'est plus une case de la matrice mais un triplet (u, i, j). L'item i a été consommé par u, l'item j n'a pas été observé pour lui, et le modèle doit placer i devant j. Plutôt que de parcourir l'ensemble complet des paires, BPR tire ces triplets par bootstrap sampling (tirage avec remise). Il les optimise ensuite par SGD, un triplet à la fois.</p><p>Le critère ne dépend d'aucun modèle particulier. Ses auteurs l'appliquent à la matrix factorization, dont le score reste le produit scalaire q<sub>i</sub><sup>T</sup>p<sub>u</sub>, puis au kNN adaptatif. Sur leurs deux jeux, Rossmann et Netflix, la mesure retenue est l'AUC (Area Under the ROC Curve). Les deux modèles appris avec BPR y dépassent leurs versions apprises par SVD-MF, WR-MF ou similarité cosinus. Les auteurs l'attribuent à un défaut d'alignement des méthodes concurrentes, qui ne sont pas optimisées directement pour le ranking. La thèse est donc qu'un objectif d'ordre l'emporte sur un objectif de régression.</p><p>Ce résultat vaut dans son cadre d'origine. Dans le banc d'essai indépendant d'Anelli et al. (UMAP 2022), BPRMF finit derrière iALS sur deux des trois jeux. Une étude de réplicabilité de Milogradskii et al. (RecSys 2024) montre que les performances de BPR dépendent fortement de l'implémentation et du réglage. L'écart peut y atteindre 50 %. Ferrari Dacrema, Cremonesi et Jannach (RecSys 2019) tireront un constat plus large du même ordre : des baselines bien réglées restent compétitives, ce qui interdit de prêter à un objectif une supériorité générale.</p><p>Le triplet laisse aussi un héritage technique. Son item négatif est tiré parmi les items non observés pour l'utilisateur. C'est la première forme du negative sampling (échantillonnage de négatifs) : faute de signal négatif explicite, on fabrique des négatifs dans le non-observé. Ce geste reviendra au cœur du retrieval (recherche de candidats), avec ses propres biais. Reste la fonction de score elle-même, que BPR optimise mieux sans la remettre en cause. C'est elle que la génération suivante a voulu remplacer.</p>",
+   "claims": [
+    "claim:11",
+    "claim:12",
+    "claim:13"
+   ]
+  },
+  {
+   "type": "section",
+   "id": "ncf-contre-produit-scalaire",
+   "heading": "Neural Collaborative Filtering et sa remise en cause : le produit scalaire contre le MLP",
+   "level": 3,
+   "prose": "<p>En 2017, He, Liao, Zhang, Nie, Hu et Chua s'attaquent à ce que BPR laissait intact. Leur NCF (Neural Collaborative Filtering) remplace le produit scalaire par une fonction d'interaction apprise par un MLP (Multilayer Perceptron, perceptron multicouche), toujours sur implicit feedback. Les auteurs affirment que ce cadre peut exprimer et généraliser la matrix factorization. Ils ajoutent que des couches plus profondes améliorent les performances. La promesse implicite est qu'un produit scalaire n'est qu'une interaction parmi d'autres, qu'un réseau assez riche saurait dépasser.</p><p>Rendle, déjà auteur de BPR, reprend ces expériences en 2020 avec Krichene, Zhang et Anderson. Avec des hyperparamètres correctement réglés, un simple produit scalaire surpasse nettement les similarités apprises par MLP. Leur diagnostic vise la comparaison plus que l'architecture. Les résultats que NCF rapporte pour GMF (Generalized Matrix Factorization), sa variante qui généralise la matrix factorization, sont bien inférieurs à ceux de leur propre MF (matrix factorization). Ils pourraient, notent-ils, être améliorés « by a more careful setup ». Le constat ne repose pas sur eux seuls. Une réplication indépendante d'Anelli et al. (RecSys 2021) ré-entraîne la MF et NeuMF, le modèle hybride de NCF, et confirme que la MF l'emporte.</p><p>Le deuxième argument est théorique en apparence, empirique en réalité. Un MLP est un approximateur universel, mais apprendre un produit scalaire avec lui n'a rien de trivial. Selon Rendle et al., il y faut en pratique une grande capacité et beaucoup de données. Ce point reste discuté. Xu et al. (ICML 2021) contestent la portée générale de ce constat.</p><p>Le troisième argument pèse le plus lourd, car il touche au service. Un score par produit scalaire entre embeddings (plongements) se prête à un retrieval sous-linéaire. On l'obtient par MIPS (Maximum Inner Product Search) ou par ANN (Approximate Nearest Neighbor), sur un index de vecteurs d'items. Une similarité apprise par MLP doit, elle, être évaluée item par item. Le coût passe alors de O(dn) à O(d²n), pour n items et des embeddings de dimension d. Selon Rendle et al., aucune technique de retrieval sous-linéaire n'existait alors pour ces similarités apprises. Des travaux ultérieurs cherchent justement à combler ce manque, comme ceux de Ding et Zhai (WWW 2025) : ils rendent efficace le retrieval avec Mixture-of-Logits, une similarité apprise introduite par Zhai et al. en 2023.</p><p>La conclusion des auteurs reste mesurée. Elle ne déclare pas les MLP inutiles en recommandation. Elle fait du produit scalaire un meilleur choix par défaut pour combiner des embeddings, et demande d'employer les MLP avec précaution dans ce rôle de combineur. La contrainte de service commence ici à dicter l'architecture. Un modèle qui doit fouiller tout un catalogue à chaque requête garde un produit scalaire à son premier étage, et le MLP trouvera sa place là où il ne reste que quelques candidats. Une autre question restait pourtant ouverte, que la matrice ne voit pas : l'ordre dans lequel les interactions se produisent.</p>",
+   "claims": [
+    "claim:14",
+    "claim:15",
+    "claim:16"
+   ]
+  },
+  {
+   "type": "section",
+   "id": "modeles-sequentiels",
+   "heading": "Modèles séquentiels : SASRec, BERT4Rec et la recommandation par session",
+   "level": 3,
+   "prose": "<p>La matrice utilisateurs × items est une photographie. Elle sait qui a consommé quoi, pas dans quel ordre. GRU4Rec (Hidasi et al., ICLR 2016) ouvre la recommandation par session. Un réseau récurrent à GRU (Gated Recurrent Unit) y lit la séquence de clics d'une session anonyme, sans profil utilisateur, et prédit l'item suivant. La tâche change de nature : on ne complète plus une matrice, on prolonge une séquence.</p><p>SASRec (Kang et McAuley, ICDM 2018) transpose la self-attention (auto-attention) à la séquence d'actions d'un utilisateur. Cette attention est causale, chaque position ne regardant que les positions antérieures. Les auteurs situent le modèle entre deux familles. Les chaînes de Markov exploitent peu de contexte, mais cette parcimonie les rend performantes sur les données très creuses. Les réseaux récurrents ou convolutifs captent un contexte long, au prix d'une complexité qui ne paie que sur des données denses. SASRec apprend des embeddings positionnels et s'entraîne sur un objectif binaire. À chaque position, l'item suivant réel sert de positif et un seul item tiré au hasard de négatif, dans une entropie croisée binaire : on retrouve le negative sampling déjà rencontré avec BPR. Les auteurs rapportent un gain sur des jeux denses comme creux, avec une attention qui s'adapte à la densité des données.</p><p>BERT4Rec (Sun et al., CIKM 2019) juge l'ordre strict de gauche à droite trop rigide pour des comportements réels. Il emploie un encodeur bidirectionnel entraîné par une tâche Cloze (texte à trous). Des items de la séquence sont masqués au hasard, et le modèle les prédit depuis le contexte gauche et droit. Pour prédire le prochain item, on ajoute un jeton [mask] en fin de séquence et on lit la prédiction à cette position. L'entraînement et l'inférence ne posent donc pas tout à fait la même question. Cet écart est propre à l'approche et absent de SASRec.</p><p>Lequel des deux l'emporte ? La réponse a dépendu de la manière de les entraîner. Petrov et Macdonald (RecSys 2022) trouvent les résultats originaux de BERT4Rec difficiles à reproduire avec les implémentations courantes, le code original compris, dans leur configuration par défaut. Le modèle converge lentement et se retrouve souvent sous-entraîné. Avec un entraînement assez long, il dépasse SASRec dans leurs expériences. Klenitskiy et Vasilev (RecSys 2023) changent ensuite la perte de SASRec, en remplaçant l'objectif à un négatif par une entropie croisée sur tout le catalogue. Avec ce softmax complet, SASRec atteint ou dépasse BERT4Rec, pour un entraînement bien plus rapide. Une part de l'avantage prêté à BERT4Rec tenait donc à la perte et à la durée d'entraînement, pas seulement à l'attention bidirectionnelle. Le motif rappelle NCF : la comparaison d'architectures mesurait surtout un écart de réglage.</p><p>Deux familles voisines renoncent à l'ordre pour exploiter une autre structure. Mult-VAE (Liang et al., WWW 2018) est un variational autoencoder (autoencodeur variationnel) à vraisemblance multinomiale, conçu pour l'implicit feedback. Il traite chaque utilisateur comme un sac d'items sans ordre, là où GRU4Rec, SASRec et BERT4Rec modélisent explicitement la séquence. Son mécanisme relève du sujet des variational autoencoders. La recommandation par graphe s'appuie, elle, sur la structure du graphe d'interactions. PinSage (Ying et al., KDD 2018) applique des convolutions de graphe au graphe pins-tableaux de Pinterest. LightGCN (He et al., SIGIR 2020) simplifie la convolution de graphe pour le collaborative filtering, en ne gardant que l'agrégation de voisinage. Le mécanisme de ces modèles relève des graph neural networks.</p><p>Les encodeurs séquentiels finissent au même endroit que la matrix factorization. Ils produisent un vecteur d'utilisateur, comparé par produit scalaire aux embeddings d'items. C'est précisément la forme qu'exige le premier étage d'un système industriel.</p>",
+   "claims": [
+    "claim:17",
+    "claim:18",
+    "claim:19"
+   ]
+  },
+  {
+   "type": "section",
+   "id": "retrieval-two-tower",
+   "heading": "Retrieval two-tower : in-batch negatives, sampling bias et correction logQ",
+   "level": 3,
+   "prose": "<p>Un système industriel n'évalue pas tout son catalogue avec un modèle riche : il découpe le travail en deux étages. Le premier, le retrieval, doit extraire quelques centaines d'items d'un catalogue immense sous une contrainte de latence stricte. Sa forme canonique est le modèle two-tower (à deux tours). Un réseau encode l'utilisateur ou la requête, un second réseau, séparé, encode l'item. Le score du couple est le produit scalaire des deux embeddings.</p><p>Cette séparation fait tout l'intérêt de l'architecture. Les embeddings d'items ne dépendent pas de l'utilisateur, si bien qu'on les précalcule hors ligne et qu'on les range dans un index. À la requête, il ne reste qu'à encoder l'utilisateur puis à interroger cet index par MIPS. On retrouve le partage annoncé dès l'item-to-item d'Amazon : le calcul lourd hors ligne, une requête légère en ligne. La construction de l'index relève de la recherche ANN, sujet à part entière qui n'est pas refait ici.</p><p>Reste à entraîner les deux tours. L'objectif naturel serait un softmax complet, où l'item consommé doit l'emporter sur tous les autres. À l'échelle du web, ce dénominateur coûte trop cher à chaque pas d'optimisation. On le remplace par un sampled softmax (softmax échantillonné), qui ne somme que sur un sous-ensemble d'items. La variante la plus simple est celle des in-batch negatives (négatifs intra-batch). Les items positifs des autres exemples du batch servent de négatifs à chacun, sans tirage supplémentaire. Le negative sampling annoncé avec BPR prend ici sa forme industrielle, et ses biais avec lui.</p><p>Ce raccourci n'est pas neutre. Un item entre dans un batch d'autant plus souvent qu'il est fréquent dans les données. Les items populaires sont donc plus souvent tirés comme négatifs, et le modèle apprend à les pénaliser. Yi et al. (RecSys 2019, Google et YouTube) nomment ce phénomène sampling bias (biais d'échantillonnage). Avec une popularité distribuée en loi de puissance, ils jugent qu'il peut restreindre sévèrement la performance.</p><p>Leur remède, la logQ correction (correction logQ), est une simple soustraction. Avant le softmax, on retranche de chaque logit le logarithme de Q, la probabilité de l'item d'apparaître dans le batch. Un item souvent tiré voit son logit abaissé d'autant, ce qui compense sa surreprésentation parmi les négatifs. La difficulté se déplace alors vers l'estimation de Q.</p><p>Dans un flux de production, le catalogue change sans cesse et aucun vocabulaire d'items fixe n'existe. Yi et al. estiment donc les fréquences directement sur le flux. Un sketch (structure de comptage compacte) des occurrences, ajusté par descente de gradient, en tient lieu. Les estimations sont non biaisées, en théorie comme en simulation. Elles s'adaptent aussi aux changements de distribution. La méthode alimente Neural Deep Retrieval (NDR), le système de YouTube qui sélectionne des suggestions personnalisées dans un corpus de dizaines de millions de vidéos. Des expériences hors ligne sur deux jeux de données réels montrent le bénéfice de la correction. Des A/B tests (tests comparatifs sur trafic réel) en direct sur YouTube le confirment.</p><p>La correction standard n'est pourtant pas exacte. Khrylchenko, Baikalov, Makeev, Matveev et Liamaev (Yandex, RecSys 2025) en reprennent la dérivation. Celle-ci traite l'item positif comme s'il était tiré par Monte Carlo, à l'égal des négatifs. Or le positif figure toujours au dénominateur, avec une probabilité de 1. La logQ réduit donc le biais sans l'éliminer, et un biais résiduel subsiste.</p><p>Leur version raffinée traite le positif à part et le retire du dénominateur corrigé. Un poids par exemple apparaît alors dans la perte. Il vaut la probabilité que le modèle classe mal cet exemple, autrement dit son incertitude courante. Les auteurs rapportent des gains face à la logQ standard sur des jeux publics comme propriétaires, avec une exception : sur MovieLens en découpage temporel, leur variante reste légèrement en retrait.</p><p>Le premier étage livre ainsi quelques centaines de candidats, choisis par un produit scalaire corrigé de ses biais d'échantillonnage. Il faut encore les ordonner, et le budget de calcul par item n'a plus rien de commun avec celui du retrieval.</p>",
+   "claims": [
+    "claim:20",
+    "claim:21",
+    "claim:22"
+   ]
+  },
+  {
+   "type": "widget",
+   "ref": "probe-inbatch-logq-correction"
+  },
+  {
+   "type": "section",
+   "id": "ranking-industriel",
+   "heading": "Le second étage : ranking par YouTube DNN, Wide & Deep et DLRM",
+   "level": 3,
+   "prose": "<p>Une fois le catalogue réduit, la contrainte qui imposait le produit scalaire se relâche. Covington, Adams et Sargin (RecSys 2016) décrivent ce découpage chez YouTube. Un réseau de candidate generation (génération de candidats) réduit le catalogue à quelques centaines de vidéos. Un réseau de ranking leur réattribue ensuite un score avec des features (variables d'entrée) bien plus riches.</p><figure class='fig'><svg viewBox='0 0 900 400' role='img' aria-label='Architecture en deux étages : hors ligne, la tour item encode le catalogue de millions d items dans un index ANN ou MIPS ; en ligne, la tour utilisateur interroge cet index par produit scalaire et en tire quelques centaines de candidats, qu un ranker profond ordonne en liste finale.' font-family='inherit' font-size='12'><defs><marker id='arr-2etages' viewBox='0 0 10 10' refX='9' refY='5' markerWidth='7' markerHeight='7' orient='auto-start-reverse'><path d='M0,0 L10,5 L0,10 z' fill='var(--ink,#15202E)'/></marker></defs><rect x='8' y='20' width='884' height='110' rx='6' fill='var(--ink-faint,#7A889B)' fill-opacity='0.10'/><rect x='8' y='140' width='884' height='122' rx='6' fill='var(--blue,#23537F)' fill-opacity='0.07'/><line x1='8' y1='135' x2='892' y2='135' stroke='var(--ink-faint,#7A889B)' stroke-dasharray='5 4'/><text x='884' y='38' text-anchor='end' font-size='11' letter-spacing='1.5' fill='var(--ink-faint,#7A889B)' font-weight='700'>HORS LIGNE</text><text x='884' y='158' text-anchor='end' font-size='11' letter-spacing='1.5' fill='var(--blue,#23537F)' font-weight='700'>EN LIGNE</text><rect x='20' y='50' width='150' height='60' rx='5' fill='none' stroke='var(--ink,#15202E)'/><text x='95' y='75' text-anchor='middle' font-weight='700' fill='var(--ink,#15202E)'>Catalogue</text><text x='95' y='93' text-anchor='middle' fill='var(--ink,#15202E)'>des millions d'items</text><rect x='200' y='50' width='130' height='60' rx='5' fill='none' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='265' y='75' text-anchor='middle' font-weight='700' fill='var(--blue,#23537F)'>Tour item</text><text x='265' y='93' text-anchor='middle' fill='var(--ink,#15202E)'>vecteur v par item</text><rect x='360' y='50' width='170' height='60' rx='5' fill='none' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='445' y='70' text-anchor='middle' font-weight='700' fill='var(--blue,#23537F)'>Index ANN / MIPS</text><text x='445' y='86' text-anchor='middle' fill='var(--ink,#15202E)'>embeddings d'items</text><text x='445' y='101' text-anchor='middle' fill='var(--ink,#15202E)'>précalculés</text><line x1='170' y1='80' x2='198' y2='80' stroke='var(--ink,#15202E)' marker-end='url(#arr-2etages)'/><line x1='330' y1='80' x2='358' y2='80' stroke='var(--ink,#15202E)' marker-end='url(#arr-2etages)'/><rect x='20' y='190' width='150' height='50' rx='5' fill='none' stroke='var(--ink,#15202E)'/><text x='95' y='211' text-anchor='middle' font-weight='700' fill='var(--ink,#15202E)'>Utilisateur</text><text x='95' y='228' text-anchor='middle' fill='var(--ink,#15202E)'>historique, contexte</text><rect x='200' y='190' width='130' height='50' rx='5' fill='none' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='265' y='211' text-anchor='middle' font-weight='700' fill='var(--blue,#23537F)'>Tour utilisateur</text><text x='265' y='228' text-anchor='middle' fill='var(--ink,#15202E)'>vecteur u</text><line x1='170' y1='215' x2='198' y2='215' stroke='var(--ink,#15202E)' marker-end='url(#arr-2etages)'/><line x1='320' y1='190' x2='410' y2='112' stroke='var(--blue,#23537F)' stroke-width='1.5' marker-end='url(#arr-2etages)'/><text x='352' y='168' text-anchor='end' font-style='italic' fill='var(--blue,#23537F)'>requête u</text><line x1='490' y1='110' x2='490' y2='188' stroke='var(--blue,#23537F)' stroke-width='1.5' marker-end='url(#arr-2etages)'/><text x='497' y='160' fill='var(--blue,#23537F)' font-style='italic'>top-K de u·v</text><rect x='360' y='190' width='170' height='50' rx='5' fill='none' stroke='var(--blue,#23537F)' stroke-width='1.5'/><text x='445' y='211' text-anchor='middle' font-weight='700' fill='var(--ink,#15202E)'>Candidats</text><text x='445' y='228' text-anchor='middle' fill='var(--ink,#15202E)'>quelques centaines</text><line x1='530' y1='215' x2='558' y2='215' stroke='var(--ink,#15202E)' marker-end='url(#arr-2etages)'/><rect x='560' y='172' width='180' height='82' rx='5' fill='none' stroke='var(--bordeaux,#7C2A38)' stroke-width='1.8'/><text x='650' y='191' text-anchor='middle' font-weight='700' fill='var(--bordeaux,#7C2A38)'>Ranker profond</text><text x='650' y='208' text-anchor='middle' fill='var(--ink,#15202E)'>MLP sur features croisées</text><text x='650' y='227' text-anchor='middle' font-size='11' fill='var(--ink-faint,#7A889B)'>YouTube DNN · Wide &amp; Deep</text><text x='650' y='243' text-anchor='middle' font-size='11' fill='var(--ink-faint,#7A889B)'>DLRM</text><line x1='740' y1='215' x2='768' y2='215' stroke='var(--ink,#15202E)' marker-end='url(#arr-2etages)'/><rect x='770' y='190' width='110' height='50' rx='5' fill='none' stroke='var(--bordeaux,#7C2A38)'/><text x='825' y='211' text-anchor='middle' font-weight='700' fill='var(--ink,#15202E)'>Liste finale</text><text x='825' y='228' text-anchor='middle' fill='var(--ink,#15202E)'>ordonnée</text><polygon points='20,272 880,291 880,299 20,318' fill='var(--blue,#23537F)' fill-opacity='0.22'/><text x='24' y='300' fill='var(--ink,#15202E)' font-size='11'>millions</text><text x='445' y='290' text-anchor='middle' fill='var(--ink,#15202E)' font-size='11'>quelques centaines</text><text x='876' y='286' text-anchor='end' fill='var(--ink,#15202E)' font-size='11'>liste finale</text><line x1='200' y1='328' x2='530' y2='328' stroke='var(--blue,#23537F)' stroke-width='2'/><text x='200' y='346' font-weight='700' fill='var(--blue,#23537F)'>Étage 1 · retrieval</text><text x='200' y='364' fill='var(--ink,#15202E)'>produit scalaire, coût O(d) par item</text><text x='200' y='381' fill='var(--ink,#15202E)'>recherche sous-linéaire dans l'index</text><line x1='560' y1='328' x2='880' y2='328' stroke='var(--bordeaux,#7C2A38)' stroke-width='2'/><text x='560' y='346' font-weight='700' fill='var(--bordeaux,#7C2A38)'>Étage 2 · ranking</text><text x='560' y='364' fill='var(--ink,#15202E)'>coût O(d²) par candidat, acceptable</text><text x='560' y='381' fill='var(--ink,#15202E)'>sur quelques centaines, sans index</text></svg><figcaption><span class='fcap-k'></span>L'entonnoir en deux étages : la tour item indexe hors ligne tout le catalogue, la tour utilisateur en extrait en ligne quelques centaines de candidats par produit scalaire, et seul ce petit ensemble reçoit le ranker profond, plus coûteux.</figcaption></figure><p>Rendle et al. opposaient au MLP, en retrieval, un coût en O(d²) par item et l'absence de toute recherche sous-linéaire. Au ranking, ces obstacles tombent. Le coût se paie sur quelques centaines de candidats et non sur des millions, sans index à interroger. Chaque paire (utilisateur, item) peut donc recevoir un réseau profond et des features croisées. Covington et al. le disent eux-mêmes : le ranking peut s'offrir bien plus de features parce qu'il ne note que quelques centaines de vidéos. Le lien avec l'objection de Rendle et al. découle, lui, de l'architecture en deux étages.</p><p>Le ranker (modèle d'ordonnancement) de YouTube exploite cette latitude. Il combine des features sur l'item, sur l'utilisateur et sur leur interaction. Le nombre de vidéos déjà vues sur la même chaîne en est un exemple, le temps écoulé depuis la dernière vidéo vue du sujet en est un autre. Les features catégorielles passent par des embeddings, concaténés aux features continues. Le tout traverse un empilement de couches ReLU, une tour de type 1024-512-256 dans l'article.</p><p>Le choix le plus instructif porte sur la cible. Le réseau ne prédit pas la probabilité de clic, qui favoriserait les vidéos appâts. Il prédit le temps de visionnage espéré, par une régression logistique pondérée. Chaque impression (vidéo affichée à l'utilisateur) cliquée devient un positif pondéré par sa durée regardée. Les impressions non cliquées sont des négatifs de poids unitaire. Les cotes apprises approximent alors le temps de visionnage espéré, ce que le produit visait réellement.</p><p>Wide &amp; Deep (Cheng et al., Google, 2016) aborde une autre tension, entre mémorisation et généralisation. Sa partie large est un modèle linéaire sur des features creuses et leurs croisements. Elle mémorise les co-occurrences observées entre items et features. La partie profonde, nourrie d'embeddings denses, généralise à des combinaisons jamais vues. Les deux partagent une même sortie logistique et s'entraînent conjointement. Ce joint training (entraînement conjoint) se distingue d'un ensemble de modèles appris séparément.</p><p>Chaque partie garde son optimiseur. La partie large utilise FTRL (Follow-The-Regularized-Leader) avec régularisation L1, la partie profonde AdaGrad. Le modèle a été déployé comme ranker sur Google Play, derrière un premier étage de retrieval. Le magasin comptait alors plus d'un milliard d'utilisateurs actifs et plus d'un million d'applications.</p><p>DLRM (Deep Learning Recommendation Model ; Naumov et al., Facebook, aujourd'hui Meta, 2019) organise le ranking en quatre blocs. Les features denses traversent d'abord un bottom MLP. Les features catégorielles creuses, elles, sont lues dans des tables d'embeddings. Le cœur du modèle est une couche d'interaction qui calcule explicitement les produits scalaires deux à deux entre ces embeddings et la sortie du bottom MLP. Concaténés à cette sortie dense, ces produits alimentent un top MLP qui rend la probabilité de clic.</p><p>Ce choix rejoint la critique de Rendle et al. L'interaction multiplicative est fournie par construction au lieu d'être confiée à un MLP. Celui-ci ne traite qu'ensuite ces produits et les features denses. DLRM met aussi au jour le goulot système du ranking. Les tables d'embeddings dominent la mémoire et relèvent du parallélisme de modèle. Les MLP dominent le calcul et appellent un parallélisme de données. L'article propose un parallélisme hybride et publie une implémentation de référence ouverte.</p><p>Les fonctions de perte d'ordonnancement génériques relèvent du learning-to-rank (apprentissage de l'ordonnancement), sujet voisin qui n'est pas repris ici. Ces deux étages partagent cependant une hypothèse tacite. Chaque item et chaque utilisateur y possède un historique d'interactions, ou du moins un embedding appris sur elles.</p>",
+   "claims": [
+    "claim:23",
+    "claim:24",
+    "claim:25",
+    "claim:26"
+   ]
+  },
+  {
+   "type": "section",
+   "id": "cold-start",
+   "heading": "Cold start : contenu et side information",
+   "level": 3,
+   "prose": "<p>Que vaut cette machinerie pour une vidéo mise en ligne il y a une minute, ou pour un utilisateur qui vient de créer son compte ? Le cold start (démarrage à froid) est la limite structurelle du collaborative filtering. En matrix factorization, un utilisateur ou un item sans interaction n'a aucun facteur latent appris. Les méthodes à base de contenu traitent l'item neuf, mais elles ne transfèrent pas l'apprentissage d'un utilisateur à l'autre. Kula (Lyst, atelier CBRecSys 2015) part de ce double constat pour motiver un modèle hybride.</p><p>Dans ce modèle, utilisateurs et items ne sont pas représentés directement par un vecteur appris : chacun l'est par la somme des facteurs latents de ses features, l'identifiant lui-même pouvant figurer parmi elles comme feature indicatrice. Chacun est représenté par la somme des facteurs latents de ses features de contenu, c'est-à-dire de sa side information (informations annexes). Un item neuf obtient donc un vecteur dès que ses métadonnées existent. Il suffit par exemple de sommer les embeddings de ses tags. La bibliothèque LightFM implémente ce modèle, avec les pertes BPR et WARP (Weighted Approximate-Rank Pairwise).</p><p>Selon l'abstract de Kula, le modèle surpasse les approches collaboratives et à base de contenu en cold start ou sur données éparses, quand il exploite à la fois les métadonnées des utilisateurs et celles des items. Il égale la matrix factorization purement collaborative quand les interactions abondent. L'hybride ne coûte donc rien dans le régime où le collaborative filtering excelle. Les embeddings de features captent en outre une structure sémantique, que l'auteur illustre par des tags voisins et propose d'utiliser pour recommander des tags.</p><p>Le two-tower offre un point d'injection naturel pour ce contenu. Yi et al. encodent dans la tour item une large variété de features de contenu. Ils y voient un remède aux données éparses et à la popularité très asymétrique des items. Leur estimateur de fréquence en flux, qui fonctionne sans vocabulaire fixe d'items, va dans le même sens. L'article ne nomme le cold start qu'au passage, comme un problème connu qui oblige à mieux faire remonter le contenu frais. Une tour nourrie de contenu produit toujours un embedding comparé par produit scalaire, donc indexable pour l'ANN.</p><p>DropoutNet (Volkovs, Yu et Poutanen, Layer6, NeurIPS 2017) agit sur l'optimisation plutôt que sur l'objectif. Il se pose au-dessus de n'importe quel modèle latent existant, par exemple la WRMF de Hu, Koren et Volinsky, notée WMF dans l'article. Ses entrées sont de deux sortes. Le vecteur de préférence reprend les facteurs latents du modèle pré-entraîné, de rang 200 pour la WMF. Les features de contenu complètent l'entrée.</p><p>À chaque mini-batch, une fraction des utilisateurs et des items voit son vecteur de préférence mis à zéro. Le réseau doit alors reproduire les scores du modèle de départ à partir du contenu seul. Le taux de dropout retenu dans les deux expériences est de 0,5. Le même réseau apprend ainsi à servir les deux régimes, avec ou sans historique.</p><p>Les auteurs visent les hybrides antérieurs, dont les objectifs comptent jusqu'à quatre termes et trois poids à régler. Ces modèles traitent le plus souvent le seul cold start item, car couvrir l'utilisateur doublerait les paramètres. Leurs termes de contenu génératifs dépensent aussi de la capacité à expliquer le contenu plutôt qu'à recommander.</p><p>Les résultats sur CiteULike donnent la mesure du gain. Le jeu compte 5 551 utilisateurs et 16 980 articles, dont 3 396 retirés pour le test à froid. En cold start, le recall@100 (part des items pertinents retrouvés dans les 100 premiers) atteint 0,636 pour DropoutNet posé sur la WMF. Le meilleur concurrent, Deep Music, plafonne à 0,601. Le warm start (cas où l'historique existe) n'en souffre presque pas. Son recall@100 en warm start, de 0,593 au dropout retenu de 0,5, baisse de moins de 1 % tant que le dropout reste sous 0,7 environ.</p><p>Le cold start reste pourtant un régime dégradé. Sur les données XING du RecSys Challenge 2017, le recall@100 vaut 0,412 en warm start. Il tombe à 0,231 pour les utilisateurs neufs et à 0,265 pour les items neufs. Quelques interactions ajoutées, de zéro à cinq, améliorent le modèle sans réentraînement. Une relecture NeurIPS jugeait néanmoins la méthode peu nouvelle et doutait de la nécessité même du dropout.</p><p>Une autre voie existe, l'exploration, qui montre des items neufs pour apprendre leur valeur. Elle relève des multi-armed bandits (bandits à plusieurs bras), hors du périmètre de ce panorama. Toutes les méthodes vues jusqu'ici se départagent sur des chiffres comme ce recall@100. Encore faut-il que la mesure elle-même soit fiable.</p>",
+   "claims": [
+    "claim:27",
+    "claim:28",
+    "claim:29",
+    "claim:30"
+   ]
+  },
+  {
+   "type": "section",
+   "id": "evaluation-top-n-metriques-echantillonnees",
+   "heading": "Évaluation top-N : Recall@K, hit rate, MAP et le piège des sampled metrics",
+   "level": 3,
+   "prose": "<p>Toute la lignée qui précède a été jugée sur des classements top-N, et c'est sur ce terrain que commence la partie critique. Sous implicit feedback, il n'existe aucune note à prédire. On cache une partie des interactions observées, puis on regarde si le modèle les replace en tête de sa liste. Recall@K (rappel à K) mesure la part des items cachés d'un utilisateur qui figurent dans ses K premières recommandations. Plus grossier, le hit rate (taux de succès) compte une réussite dès qu'au moins un item caché apparaît dans ces K positions. MAP (Mean Average Precision) récompense en outre les items pertinents placés tôt, en moyennant sur les utilisateurs une précision calculée à chaque rang pertinent. Le NDCG (Normalized Discounted Cumulative Gain) obéit à la même logique de rang, et sa définition relève de l'évaluation en recherche d'information.</p><p>Le coût de ces métriques tient à la taille du catalogue. Pour les calculer exactement, il faut calculer un score pour chaque item et chaque utilisateur testé. D'où une pratique répandue, les sampled metrics (métriques échantillonnées). L'item pertinent n'y est plus classé contre tout le catalogue, mais contre un petit ensemble d'items tirés au hasard. Le protocole « 1 positif + 99 négatifs », popularisé par les articles de la lignée NCF, en est la forme la plus courante. Selon l'idée reçue, un tel échantillon serait un proxy bon marché et fidèle, qui préserverait au moins l'ordre des algorithmes en moyenne.</p><p>Rendle (2019), puis Krichene et Rendle (KDD 2020), ont démonté cette idée. Ils montrent qu'une métrique échantillonnée est incohérente avec sa version exacte. L'incohérence est forte : elle peut ne pas préserver l'énoncé « A est meilleur que B », même en espérance. Il ne s'agit donc pas d'un bruit d'échantillonnage, que l'on réduirait en répétant les tirages. Un recommandeur classé premier sur échantillon peut être le moins bon des deux sur le catalogue complet.</p><p>Le second résultat éclaire le mécanisme. Plus l'échantillon est petit, moins les métriques se distinguent entre elles. À la limite d'un seul négatif échantillonné, toute métrique qui distingue le premier rang du second, comme le NDCG ou l'AP, donne le même verdict que l'AUC, et un Recall@K avec K ≥ 2 devient constant. Pour des échantillons plus grands, les métriques ne font que s'en rapprocher. Or l'évaluation top-N existe justement pour privilégier la tête de liste. Une métrique conçue pour les premières places perd alors ce qui la distinguait.</p><p>Krichene et Rendle en tirent une recommandation nette : éviter l'échantillonnage pour calculer les métriques. Si une étude doit malgré tout échantillonner, ils proposent de corriger l'estimation. Une première correction minimise le biais, une seconde arbitre entre biais et variance. Ces corrections s'appliquent aussi à AP (l'average precision par utilisateur) et au NDCG. Elles améliorent les estimations sans les rendre exactes. Le biais ne disparaît qu'en renonçant à l'échantillonnage.</p><p>Ce pessimisme admet une nuance pour le hit rate. Li et al. (KDD 2020) construisent une fonction de correspondance entre le HR@k (hit rate à k positions) échantillonné et le HR global. Elle permet d'en approcher la valeur et de désigner les mêmes vainqueurs que l'évaluation complète. Le résultat ne vaut toutefois que pour cette métrique. Pour le reste, le constat oblige à relire une partie de la littérature : si l'instrument pouvait inverser les classements, les progrès qu'il a mesurés doivent être revérifiés.</p>",
+   "claims": [
+    "claim:31",
+    "claim:32",
+    "claim:33",
+    "claim:34"
+   ]
+  },
+  {
+   "type": "widget",
+   "ref": "probe-metriques-echantillonnees-inversion"
+  },
+  {
+   "type": "section",
+   "id": "reproductibilite-et-baselines",
+   "heading": "Phantom progress : baselines mal réglées, fuites temporelles et écart entre offline et online",
+   "level": 3,
+   "prose": "<p>Ferrari Dacrema, Cremonesi et Jannach ont mené cette revérification à grande échelle (RecSys 2019). Ils ont repris 18 algorithmes neuronaux de recommandation top-N publiés dans de grandes conférences. Seuls 7 ont pu être reproduits avec un effort raisonnable. Sur ces 7, 6 sont souvent battus par des méthodes comparativement simples : heuristiques de voisinage ou de graphe le plus souvent, mais aussi, pour NeuMF sur MovieLens, la méthode linéaire SLIM. Le dernier bat les baselines, mais pas de façon constante une méthode linéaire non neuronale bien réglée. Les voisinages du début de l'arc reviennent ainsi en adversaires redoutables.</p><p>Les auteurs n'en font pas un réquisitoire contre le neuronal. Ils y lisent un problème de pratique scientifique, fait de baselines faibles ou non optimisées et de résultats que personne ne peut rejouer. On parle de phantom progress (progrès fantôme) quand le gain tient au protocole plutôt qu'au modèle. Le cas NCF, vu plus haut, en donne la forme la plus nette. Un produit scalaire bien réglé y battait le MLP, chez Rendle et al. (2020) comme dans la réplication indépendante d'Anelli et al. (2021).</p><p>Le réglage des baselines pèse autant que leur choix. Rendle, Zhang et Koren l'avaient montré quelques mois plus tôt, dans « On the Difficulty of Evaluating Baselines » (2019). Sur MovieLens 10M, les baselines de nombreuses publications des cinq années précédentes étaient sous-optimales. Configurée avec soin, une matrix factorization classique battait les résultats publiés, y compris ceux des méthodes nouvellement proposées. Les auteurs rappellent l'effort communautaire qu'avait demandé le Netflix Prize pour tirer le meilleur de méthodes simples. Leur conclusion est sévère : hors des benchmarks standardisés dont la communauté a longuement réglé les baselines, les résultats empiriques restent douteux.</p><p>Le découpage des données ajoute un piège d'une autre nature. Un découpage aléatoire des interactions mélange passé et futur. Le modèle peut alors apprendre sur des interactions postérieures à celles qu'il doit prédire. Cette temporal leakage (fuite temporelle) lui donne une information qu'il n'aura jamais en production. Un découpage chronologique, qui teste sur les interactions les plus récentes, rapproche l'évaluation des conditions de service.</p><p>Un dernier écart sépare l'offline (hors ligne) de l'online (en ligne). Un gain mesuré sur un jeu figé ne garantit pas un gain dans un A/B test. En ligne, les recommandations modifient elles-mêmes ce que les utilisateurs voient et font. Chacun des pièges précédents peut creuser cet écart, et aucun ne l'épuise. La leçon méthodologique de l'arc est que le progrès apparent dépend d'abord de la rigueur de l'évaluation. Elle laisse pourtant de côté un problème plus profond, qui touche les données elles-mêmes.</p>",
+   "claims": [
+    "claim:35",
+    "claim:36"
+   ]
+  },
+  {
+   "type": "section",
+   "id": "biais-et-feedback-loops",
+   "heading": "Biais et feedback loops : popularity bias, position bias, exposure bias et débiaisement par IPS",
+   "level": 3,
+   "prose": "<p>Les jeux d'entraînement et d'évaluation ne sont pas des relevés neutres. Les interactions qui nourrissent un recommandeur sont observationnelles, pas expérimentales. Un utilisateur ne clique que sur ce qu'on lui a montré, et ce qu'on lui a montré dépend du système en place. Chen et al. en font le point de départ de leur survey (article de synthèse) « Bias and Debias in Recommender System », publié dans ACM TOIS en 2023. Ils recensent sept types de biais et proposent une taxonomie des méthodes de débiaisement. Ils notent aussi que la terminologie varie d'un article à l'autre. Ignorer ces biais peut, selon eux, creuser l'écart entre évaluation offline et résultats online.</p><p>Trois de ces biais structurent la boucle. Le popularity bias (biais de popularité) désigne la concentration des interactions sur les items déjà populaires. Avec le position bias (biais de position), les résultats du haut de liste sont davantage cliqués, indépendamment de leur pertinence. Quant à l'exposure bias (biais d'exposition), il vient de ce que l'utilisateur ne voit qu'une partie du catalogue. Saito et al. (WSDM 2020) en tirent la conséquence pour l'implicit feedback. L'absence de clic peut signifier un rejet, ou seulement que l'item n'a jamais été montré. Sans modèle d'exposition, les deux cas sont indiscernables.</p><p>Ces biais ne restent pas statiques, car le recommandeur n'est pas un simple observateur. Ses recommandations influencent les interactions qu'il observe ensuite, et ces interactions servent à le réentraîner. Cette feedback loop (boucle de rétroaction) peut homogénéiser les comportements et amplifier les biais. Jiang, Chiappa, Lattimore, György et Kohli (DeepMind, AIES 2019) modélisent l'intérêt de l'utilisateur comme un système dynamique. Les extrêmes de ce système sont des points de dégénérescence des intérêts. Les auteurs y rattachent les echo chambers (chambres d'écho) et les filter bubbles (bulles de filtre). Ils donnent des conditions suffisantes de dégénérescence, en dynamique déterministe comme stochastique.</p><p>Trois facteurs gouvernent la vitesse du phénomène. Le premier est la précision du modèle, et il agit à rebours de l'intuition : un modèle oracle mène souvent vite à la dégénérescence. Les deux autres sont la quantité d'exploration et le rythme de croissance du pool de candidats. Les meilleurs remèdes trouvés sont une exploration aléatoire continue et un pool croissant au moins linéairement. L'exploration n'est pourtant pas une garantie. Ajoutée à un modèle oracle, elle peut aussi accélérer la dégénérescence. Son cadre formel relève des multi-armed bandits, hors périmètre ici.</p><p>Le débiaisement le plus direct passe par l'IPS (Inverse Propensity Scoring, pondération par l'inverse des propensions). Chaque interaction observée est repondérée par l'inverse de sa probabilité d'être observée. Si ces propensions sont correctement spécifiées, l'estimateur de risque ou de performance devient non biaisé, même sur des données biaisées à l'observation. Schnabel, Swaminathan, Singh, Chandak et Joachims (ICML 2016) cadrent la recommandation comme un problème de données MNAR (Missing Not At Random, manquantes non au hasard). La sélection y vient du choix des utilisateurs de noter, ou des choix du recommandeur. Ils empruntent à l'inférence causale des estimateurs de performance non biaisés, puis une matrix factorization pondérée par les propensions.</p><p>Joachims, Swaminathan et Schnabel (WSDM 2017) appliquent le même principe au position bias. Un ranker entraîné directement sur les clics hérite de ce biais. Par un raisonnement contrefactuel, ils dérivent un Ranking SVM pondéré par l'inverse des propensions, où un modèle de clic sert d'estimateur de propension. Ce cadre fonctionne même quand les requêtes ne se répètent pas, contrairement au débiaisement par modèles de clic. Saito et al. transposent la pondération à l'exposure bias. Ils traitent le problème comme positive-unlabeled (positif-non-étiqueté), avec des variables d'exposition, plutôt que de rehausser uniformément le poids des positifs.</p><p>L'IPS ne suffit pourtant pas à corriger un recommandeur. Tout repose sur des propensions bien estimées. Mal spécifiées, elles laissent l'estimateur biaisé, et celui-ci souffre en outre d'une forte variance (Chen et al.). Joachims et al. rapportent une robustesse empirique au bruit et à une mauvaise spécification modérée. Leur résultat reste toutefois conditionné à des propensions raisonnables. D'où le recours à des méthodes complémentaires. Les estimateurs doubly robust (doublement robustes) en forment une famille. Le clipping (plafonnement) des poids en est une autre, et la collecte de données randomisées une troisième.</p><p>L'arc se referme ainsi sur une boucle. Un modèle bien réglé, évalué sur le catalogue complet et selon un découpage chronologique reste un modèle qui façonne ses propres données. Chaque génération de recommandeur apprend sur des traces produites par la précédente. Il faut enfin rassembler les outils qui permettent de mettre ces leçons en pratique.</p>",
+   "claims": [
+    "claim:37",
+    "claim:38",
+    "claim:39"
+   ]
+  },
+  {
+   "type": "widget",
+   "ref": "synopsis-boucle-retroaction-degenerescence"
+  },
+  {
+   "type": "section",
+   "id": "ecosysteme",
+   "heading": "Écosystème & pour aller plus loin",
+   "level": 3,
+   "prose": "<p>Les leçons de l'évaluation ne servent que si l'on peut les rejouer sur ses propres données, avec des baselines réglées et non reconstruites à la hâte. Pour l'implicit feedback, le point de départ le plus direct est la bibliothèque Python implicit, publiée sur GitHub sous le nom benfred/implicit. Distribuée sous licence MIT, elle reste maintenue : sa version 0.7.3 date de mai 2026. Son cœur est ALS selon Hu, Koren et Volinsky (2008), accompagné d'une variante par gradient conjugué. Elle propose aussi BPR et Logistic Matrix Factorization (factorisation matricielle logistique). S'y ajoutent des plus proches voisins item-item, dont la similarité se choisit entre cosinus, TF-IDF (Term Frequency–Inverse Document Frequency) et BM25 (pondération probabiliste issue de la recherche d'information).</p><p>Le passage à l'échelle est prévu. Des noyaux CUDA dédiés entraînent ALS et BPR sur GPU. Le README exige pour cela le CUDA Toolkit 13 et le paquet rmm. L'installation se fait par <code>pip install implicit</code>, avec des wheels précompilées pour Linux x86_64, Windows et macOS. Python 3.9 ou plus suffit, et le projet est testé de la version 3.9 à la 3.14.</p><p>Ce catalogue recoupe exactement les adversaires que la partie critique a rendus incontournables. Un iALS bien réglé et un kNN item-item, ces baselines qui ont si souvent tenu tête aux architectures neuronales, tiennent dans un seul paquet. Une comparaison honnête ne demande donc pas un chantier d'ingénierie, seulement le temps de régler les hyperparamètres.</p><p>Côté méthode, Ferrari Dacrema, Cremonesi et Jannach ont rendu publics le code et les résultats complets de leur étude de reproductibilité. Le dépôt GitHub MaurizioFD/RecSys2019_DeepLearning_Evaluation permet de rejouer leurs comparaisons plutôt que de les croire sur parole. Il fournit aussi un modèle de protocole : chaque méthode neuronale y affronte, dans les mêmes conditions, des heuristiques de voisinage et de graphe ainsi que des méthodes non neuronales réglées comme SLIM ou la factorisation matricielle.</p><p>Plusieurs mécanismes seulement cités ici sont traités à fond dans les monographies voisines du corpus. La recherche approximative de plus proches voisins détaille l'index du retrieval : HNSW (Hierarchical Navigable Small World), ScaNN et la MIPS comme primitive de la recommandation, ou encore l'index par graphe NSG employé chez Taobao. La monographie sur les text embeddings montre Annoy et Voyager servir chez Spotify des vecteurs issus de matrix factorization. Elle rappelle aussi, avec Levy et Goldberg, que SGNS (Skip-Gram with Negative Sampling) factorise implicitement une matrice de PMI (Pointwise Mutual Information) décalée d'une constante.</p><p>Pour l'ordonnancement supervisé générique, RankNet et LambdaRank compris, le renvoi va à learning-to-rank. La définition du NDCG relève de l'évaluation en recherche d'information et des jugements de pertinence. Le mécanisme de PinSage se trouve dans la monographie sur les graph neural networks, celui de Mult-VAE dans la monographie sur les variational autoencoders. Le graphe d'items de Taobao, dans la lignée de DeepWalk, apparaît enfin du côté des knowledge graph embeddings. La recommandation y figure chaque fois comme un cas d'application, le présent sujet en restant le centre de gravité.</p>",
+   "claims": [
+    "claim:40"
+   ]
+  },
+  {
+   "type": "exercise",
+   "part": "Feedback implicite et retrieval",
+   "question": "<p>Dans le modèle de Hu, Koren &amp; Volinsky (2008), comment une interaction implicite r<sub>ui</sub> est-elle traduite en signal d'apprentissage ? Et pourquoi un two-tower entraîné avec des négatifs in-batch pénalise-t-il les items populaires, que corrige la correction log Q ?</p>",
+   "answer": "<p>Hu et al. séparent une <strong>préférence</strong> binaire p<sub>ui</sub> (1 si r<sub>ui</sub> &gt; 0) d'une <strong>confiance</strong> c<sub>ui</sub> = 1 + α·r<sub>ui</sub>, et minimisent un coût quadratique pondéré par cette confiance sur toutes les paires utilisateur-item, résolu par ALS. Avec des négatifs in-batch, un item populaire apparaît plus souvent comme négatif et se trouve donc davantage pénalisé ; la correction log Q de Yi et al. (RecSys 2019) soustrait de chaque logit le log de la probabilité que l'item figure dans le batch, probabilité estimée en flux.</p>"
+  },
+  {
+   "type": "exercise",
+   "part": "Évaluation et baselines",
+   "question": "<p>Une équipe compare deux recommandeurs A et B en classant chaque item positif parmi 100 négatifs tirés au hasard, et conclut que A bat B. Que faut-il objecter ? Quelle leçon analogue tire-t-on de la comparaison NCF contre factorisation matricielle ?</p>",
+   "answer": "<p>Rendle (2019) et Krichene &amp; Rendle (KDD 2020) montrent que les métriques top-N échantillonnées sont incohérentes avec leurs versions exactes : elles peuvent inverser l'ordre de A et B, même en espérance, et plus l'échantillon rétrécit, plus elles se rapprochent de l'AUC, jusqu'à lui être équivalentes avec un seul négatif. La recommandation est d'éviter l'échantillonnage, ou à défaut d'appliquer une correction qui améliore l'estimation sans rétablir l'exactitude. De même, Rendle, Krichene, Zhang &amp; Anderson (2020) montrent qu'un produit scalaire bien réglé surpasse nettement les similarités apprises par MLP de NCF : un gain affiché ne vaut que contre une baseline correctement réglée et un protocole fidèle.</p>"
+  },
+  {
+   "type": "biblio",
+   "entries": [
+    {
+     "label": "Sarwar et al., Item-based collaborative filtering recommendation algorithms (WWW10, 2001) - PDF, iw3c2",
+     "href": "https://iw3c2.org/papers/2016-Collaborative.pdf"
+    },
+    {
+     "label": "Linden, Smith, York - Amazon.com Recommendations: Item-to-Item Collaborative Filtering (cite Sarwar et al. as ref 10)",
+     "href": "https://www.cs.umd.edu/~samir/498/Amazon-Recommendations.pdf"
+    },
+    {
+     "label": "Item-based collaborative filtering recommendation algorithms (WWW10 2001), record page",
+     "href": "https://experts.umn.edu/en/publications/item-based-collaborative-filtering-recommendation-algorithms/"
+    },
+    {
+     "label": "Almazro et al., A Survey Paper on Recommender Systems (arXiv 1006.5278)",
+     "href": "https://arxiv.org/pdf/1006.5278"
+    },
+    {
+     "label": "Ekstrand, Riedl & Konstan, Collaborative Filtering Recommender Systems (Foundations and Trends in HCI, 2011)",
+     "href": "https://files.grouplens.org/papers/FnT%20CF%20Recsys%20Survey.pdf"
+    },
+    {
+     "label": "Are We Really Making Much Progress? (Ferrari Dacrema et al.)",
+     "href": "https://arxiv.org/abs/1907.06902"
+    },
+    {
+     "label": "A Comparative Study of Collaborative Filtering Algorithms (Lee, Sun, Lebanon, 2012)",
+     "href": "https://arxiv.org/abs/1205.3193"
+    },
+    {
+     "label": "Koren, Bell, Volinsky - Matrix Factorization Techniques for Recommender Systems (IEEE Computer 2009)",
+     "href": "https://datajobs.com/data-science-repo/Recommender-Systems-%5BNetflix%5D.pdf"
+    },
+    {
+     "label": "Simon Funk - Netflix Update: Try This at Home",
+     "href": "https://sifter.org/~simon/journal/20061211.html"
+    },
+    {
+     "label": "Yu, Hsieh, Si & Dhillon, Parallel Matrix Factorization for Recommender Systems (KAIS)",
+     "href": "https://www.cs.utexas.edu/~inderjit/public_papers/kais-pmf.pdf"
+    },
+    {
+     "label": "Hu, Koren & Volinsky, Collaborative Filtering for Implicit Feedback Datasets (ICDM 2008)",
+     "href": "http://yifanhu.net/PUB/cf.pdf"
+    },
+    {
+     "label": "Nguyen, Aihara & Takasu, Collaborative Item Embedding Model for Implicit Feedback Data (arXiv 1805.05005)",
+     "href": "https://ar5iv.labs.arxiv.org/html/1805.05005"
+    },
+    {
+     "label": "He, Zhang, Kan & Chua, Fast Matrix Factorization for Online Recommendation with Implicit Feedback (SIGIR 2016, arXiv 1708.05024)",
+     "href": "https://ar5iv.labs.arxiv.org/html/1708.05024"
+    },
+    {
+     "label": "Rendle, Item Recommendation from Implicit Feedback (arXiv 2101.08769)",
+     "href": "https://ar5iv.labs.arxiv.org/html/2101.08769"
+    },
+    {
+     "label": "Johnson, Logistic Matrix Factorization for Implicit Feedback Data (NIPS 2014 workshop)",
+     "href": "https://web.stanford.edu/~rezab/nips2014workshop/submits/logmat.pdf"
+    },
+    {
+     "label": "BPR: Bayesian Personalized Ranking from Implicit Feedback (Rendle, Freudenthaler, Gantner & Schmidt-Thieme, UAI 2009)",
+     "href": "https://arxiv.org/abs/1205.2618"
+    },
+    {
+     "label": "Dive into Deep Learning (Zhang, Lipton, Li & Smola), §21.5 Personalized Ranking for Recommender Systems",
+     "href": "https://d2l.ai/chapter_recommender-systems/ranking.html"
+    },
+    {
+     "label": "Revisiting BPR: A Replicability Study of a Common Recommender System Baseline (Milogradskii et al., RecSys 2024)",
+     "href": "https://arxiv.org/abs/2409.14217"
+    },
+    {
+     "label": "Top-N Recommendation Algorithms: A Quest for the State-of-the-Art (Anelli, Bellogín, Di Noia, Jannach & Pomo, UMAP 2022)",
+     "href": "https://arxiv.org/abs/2203.01155"
+    },
+    {
+     "label": "Revisiting the Performance of iALS on Item Recommendation Benchmarks",
+     "href": "https://ar5iv.arxiv.org/html/2110.14037"
+    },
+    {
+     "label": "Neural Collaborative Filtering vs. Matrix Factorization Revisited (Rendle, Krichene, Zhang & Anderson, RecSys 2020)",
+     "href": "https://arxiv.org/abs/2005.09683"
+    },
+    {
+     "label": "Reenvisioning the comparison between Neural Collaborative Filtering and Matrix Factorization (Anelli, Bellogín, Di Noia & Pomo, RecSys 2021)",
+     "href": "https://arxiv.org/abs/2107.13472"
+    },
+    {
+     "label": "Retrieval with Learned Similarities (Ding & Zhai, WWW 2025)",
+     "href": "https://arxiv.org/abs/2407.15462"
+    },
+    {
+     "label": "Rethinking Neural vs. Matrix-Factorization Collaborative Filtering: the Theoretical Perspectives (Xu, Ruan, Korpeoglu, Kumar & Achan, ICML 2021)",
+     "href": "https://arxiv.org/abs/2110.12141"
+    },
+    {
+     "label": "Self-Attentive Sequential Recommendation (SASRec), PDF read: causality section forbids attention to future items",
+     "href": "https://arxiv.org/abs/1808.09781"
+    },
+    {
+     "label": "BERT4Rec: Sequential Recommendation with Bidirectional Encoder Representations from Transformer",
+     "href": "https://arxiv.org/abs/1904.06690"
+    },
+    {
+     "label": "Turning Dross Into Gold Loss: is BERT4Rec really better than SASRec?",
+     "href": "https://arxiv.org/abs/2309.07602"
+    },
+    {
+     "label": "A Systematic Review and Replicability Study of BERT4Rec for Sequential Recommendation",
+     "href": "https://arxiv.org/abs/2207.07483"
+    },
+    {
+     "label": "Variational Autoencoders for Collaborative Filtering (Mult-VAE), PDF read: x_u is a bag-of-words click-count vector",
+     "href": "https://arxiv.org/abs/1802.05814"
+    },
+    {
+     "label": "Session-based Recommendations with Recurrent Neural Networks (GRU4Rec)",
+     "href": "https://arxiv.org/abs/1511.06939"
+    },
+    {
+     "label": "Sampling-Bias-Corrected Neural Modeling for Large Corpus Item Recommendations (Yi et al., RecSys 2019)",
+     "href": "https://research.google/pubs/sampling-bias-corrected-neural-modeling-for-large-corpus-item-recommendations/"
+    },
+    {
+     "label": "Khrylchenko et al., logQ correction revisited (arXiv 2507.09331)",
+     "href": "https://arxiv.org/abs/2507.09331"
+    },
+    {
+     "label": "Deep Neural Networks for YouTube Recommendations (PDF, Covington et al. 2016)",
+     "href": "https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/45530.pdf"
+    },
+    {
+     "label": "Deconfounding Duration Bias in Watch-time Prediction for Video Recommendation (Zhan et al., Kuaishou, KDD 2022, arXiv 2206.06003)",
+     "href": "https://arxiv.org/abs/2206.06003"
+    },
+    {
+     "label": "Wide & Deep Learning for Recommender Systems (arXiv 1606.07792)",
+     "href": "https://arxiv.org/abs/1606.07792"
+    },
+    {
+     "label": "Deep Learning based Recommender System: A Survey and New Perspectives (Zhang, Yao, Sun, Tay, arXiv 1707.07435)",
+     "href": "https://arxiv.org/abs/1707.07435"
+    },
+    {
+     "label": "Deep Learning Recommendation Model for Personalization and Recommendation Systems (Naumov et al., arXiv 1906.00091)",
+     "href": "https://arxiv.org/abs/1906.00091"
+    },
+    {
+     "label": "Optimizing Deep Learning Recommender Systems' Training On CPU Cluster Architectures (Kalamkar et al., Intel, arXiv 2005.04680)",
+     "href": "https://arxiv.org/abs/2005.04680"
+    },
+    {
+     "label": "DropoutNet: Addressing Cold Start in Recommender Systems (NeurIPS 2017)",
+     "href": "https://proceedings.neurips.cc/paper/2017/file/dbd22ba3bd0df8f385bdac3e9f8be207-Paper.pdf"
+    },
+    {
+     "label": "Cold-Start Recommendation towards the Era of Large Language Models (LLMs): A Comprehensive Survey and Roadmap (Zhang, Bei, Yang et al., arXiv 2501.01945)",
+     "href": "https://arxiv.org/abs/2501.01945"
+    },
+    {
+     "label": "Metadata Embeddings for User and Item Cold-start Recommendations (Kula, arXiv 1507.08439)",
+     "href": "https://arxiv.org/abs/1507.08439"
+    },
+    {
+     "label": "Addressing Cold Start in Recommender Systems with Hierarchical Graph Neural Networks (Maksimov, Rivera-Castro, Burnaev, arXiv 2009.03455)",
+     "href": "https://arxiv.org/abs/2009.03455"
+    },
+    {
+     "label": "DropoutNet (NeurIPS 2017 full text)",
+     "href": "https://object.cloud.sdsc.edu/v1/AUTH_da4962d3368042ac8337e2dfdd3e7bf3/ml-papers-txt/NeurIPS/2017/dropoutnet_addressing_cold_start_in_recommender_systems__e121d7ba.txt"
+    },
+    {
+     "label": "Evaluation Metrics for Item Recommendation under Sampling (Rendle, 2019)",
+     "href": "https://arxiv.org/abs/1912.02263"
+    },
+    {
+     "label": "On Sampled Metrics for Item Recommendation (Krichene & Rendle, KDD 2020)",
+     "href": "https://research.google/pubs/on-sampled-metrics-for-item-recommendation/"
+    },
+    {
+     "label": "On Sampled Metrics for Item Recommendation — Extended Abstract (Krichene & Rendle, IJCAI 2021, Sister Conferences Best Papers ; version longue KDD 2020)",
+     "href": "https://www.ijcai.org/proceedings/2021/651"
+    },
+    {
+     "label": "On Sampling Top-K Recommendation Evaluation (Li, Jin, Gao & Liu, KDD 2020)",
+     "href": "https://arxiv.org/abs/2106.10621"
+    },
+    {
+     "label": "On the Difficulty of Evaluating Baselines (Rendle, Zhang, Koren)",
+     "href": "https://arxiv.org/abs/1905.01395"
+    },
+    {
+     "label": "Unbiased Learning-to-Rank with Biased Feedback (Joachims, Swaminathan, Schnabel)",
+     "href": "https://arxiv.org/pdf/1608.04468"
+    },
+    {
+     "label": "Bias and Debias in Recommender System: A Survey and Future Directions (Chen et al.)",
+     "href": "https://arxiv.org/pdf/2010.03240"
+    },
+    {
+     "label": "Unbiased Recommender Learning from Missing-Not-At-Random Implicit Feedback (Saito et al.)",
+     "href": "https://arxiv.org/abs/1909.03601"
+    },
+    {
+     "label": "Degenerate Feedback Loops in Recommender Systems (Jiang, Chiappa, Lattimore, György, Kohli, AIES 2019), texte intégral",
+     "href": "https://arxiv.org/abs/1902.10730"
+    },
+    {
+     "label": "How Algorithmic Confounding in Recommendation Systems Increases Homogeneity and Decreases Utility (Chaney, Stewart, Engelhardt, RecSys 2018)",
+     "href": "https://arxiv.org/abs/1710.11214"
+    },
+    {
+     "label": "Feedback Loop and Bias Amplification in Recommender Systems (Mansoury, Abdollahpouri, Pechenizkiy, Mobasher, Burke, CIKM 2020)",
+     "href": "https://arxiv.org/abs/2007.13019"
+    },
+    {
+     "label": "benfred/implicit (GitHub README)",
+     "href": "https://github.com/benfred/implicit"
+    },
+    {
+     "label": "Paterek, Improving regularized singular value decomposition for collaborative filtering (KDD Cup and Workshop 2007)",
+     "href": "https://www.cs.uic.edu/~liub/KDD-cup-2007/proceedings/Regular-Paterek.pdf"
+    },
+    {
+     "label": "Takács, Pilászy, Németh & Tikk, Scalable Collaborative Filtering Approaches for Large Recommender Systems (JMLR 10, 2009)",
+     "href": "https://www.jmlr.org/papers/volume10/takacs09a/takacs09a.pdf"
+    }
+   ]
+  },
+  {
+   "type": "pointers",
+   "title": "Pour aller plus loin",
+   "items": [
+    {
+     "name": "RecBole",
+     "url": "https://github.com/RUCAIBox/RecBole",
+     "kind": "library",
+     "blurb": "Bibliothèque unifiée PyTorch de recommandation (94 algorithmes, dont les modèles séquentiels et généraux comme GRU4Rec, SASRec, BERT4Rec, LightGCN et MultiVAE listés dans sa documentation) avec protocoles d'évaluation communs."
+    },
+    {
+     "name": "SASRec (implémentation TensorFlow de Kang & McAuley)",
+     "url": "https://github.com/kang205/SASRec",
+     "kind": "implementation",
+     "blurb": "Code TensorFlow de Self-Attentive Sequential Recommendation (ICDM'18), publié sous le compte de l'un des auteurs, licence Apache-2.0."
+    },
+    {
+     "name": "BERT4Rec (implémentation TensorFlow)",
+     "url": "https://github.com/FeiSun/BERT4Rec",
+     "kind": "implementation",
+     "blurb": "Implémentation TensorFlow de BERT4Rec (CIKM 2019, Sun et al.) avec scripts de génération de données et d'entraînement (ml-1m, ml-20m, Beauty, Steam)."
+    },
+    {
+     "name": "facebookresearch/dlrm",
+     "url": "https://github.com/facebookresearch/dlrm",
+     "kind": "implementation",
+     "blurb": "Implémentation de référence de DLRM (PyTorch et Caffe2) publiée par Facebook/Meta, avec scripts de benchmark, entraînement Criteo et exemples sur données générées aléatoirement."
+    },
+    {
+     "name": "TorchRec",
+     "url": "https://github.com/pytorch/torchrec",
+     "kind": "library",
+     "blurb": "Bibliothèque PyTorch pour modèles de recommandation à grandes tables d'embeddings, avec sharders (table-wise, row-wise, column-wise) et planificateur automatique de sharding."
+    },
+    {
+     "name": "TensorFlow Recommenders",
+     "url": "https://github.com/tensorflow/recommenders",
+     "kind": "library",
+     "blurb": "Bibliothèque TensorFlow/Keras couvrant le flux complet de construction de modèles de recommandation, avec tâches de retrieval (tfrs.tasks.Retrieval) et exemples sur MovieLens."
+    },
+    {
+     "name": "NVIDIA Merlin HugeCTR",
+     "url": "https://github.com/NVIDIA-Merlin/HugeCTR",
+     "kind": "library",
+     "blurb": "Framework GPU d'entraînement et d'inférence pour grands modèles de recommandation, avec parallélisme de modèle, multi-nœuds et précision mixte."
+    },
+    {
+     "name": "implicit (benfred/implicit)",
+     "url": "https://github.com/benfred/implicit",
+     "kind": "library",
+     "blurb": "Bibliothèque Python (licence MIT) de filtrage collaboratif sur feedback implicite : ALS, BPR, Logistic MF et kNN item-item, avec noyaux CUDA pour ALS et BPR."
+    },
+    {
+     "name": "RecSys2019_DeepLearning_Evaluation (Ferrari Dacrema et al.)",
+     "url": "https://github.com/MaurizioFD/RecSys2019_DeepLearning_Evaluation",
+     "kind": "implementation",
+     "blurb": "Dépôt public du code, du cadre d'évaluation commun et du réglage d'hyperparamètres de l'étude de reproductibilité des modèles neuronaux top-N (RecSys 2019), avec leurs baselines non neuronales."
+    },
+    {
+     "name": "Are We Really Making Much Progress? A Worrying Analysis of Recent Neural Recommendation Approaches",
+     "url": "https://arxiv.org/abs/1907.06902",
+     "kind": "reading",
+     "blurb": "Article de Ferrari Dacrema, Cremonesi et Jannach sur la reproductibilité des approches neuronales de recommandation et les baselines mal réglées."
+    },
+    {
+     "name": "Neural Collaborative Filtering vs. Matrix Factorization Revisited",
+     "url": "https://arxiv.org/abs/2005.09683",
+     "kind": "reading",
+     "blurb": "Article de Rendle, Krichene, Zhang et Anderson (2020) qui réexamine NCF face à la factorisation matricielle à produit scalaire."
+    },
+    {
+     "name": "Collaborative Filtering for Implicit Feedback Datasets (Hu, Koren & Volinsky)",
+     "url": "http://yifanhu.net/PUB/cf.pdf",
+     "kind": "reading",
+     "blurb": "Article fondateur de Hu, Koren et Volinsky sur l'ALS à confiance pondérée pour le feedback implicite."
+    }
+   ]
+  },
+  {
+   "type": "glossary"
+  }
+ ]
+}

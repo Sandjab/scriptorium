@@ -1,0 +1,188 @@
+<div class="widget pmei-root" id="pmei-root">
+  <style>
+    .pmei-root{--pmei-ink:var(--ink,#15202E);--pmei-soft:var(--ink-soft,#43536A);
+      --pmei-faint:var(--ink-faint,#7A889B);--pmei-card:var(--card,#fff);
+      --pmei-line:var(--line,#D7DFE9);--pmei-bright:var(--blue-bright,#2C77B6);
+      --pmei-a:#2C77B6;--pmei-b:#9B3443;--pmei-mark:#8A5E10;--pmei-onbright:#fff;
+      --pmei-wash:rgba(44,119,182,.08);
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--pmei-ink);
+      border:1px solid var(--pmei-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--pmei-card);max-width:780px}
+    .pmei-root *{box-sizing:border-box}
+    html[data-theme="dark"] .pmei-root{--pmei-onbright:#0B131C;--pmei-a:#6EAAE1;--pmei-b:#E66E7D;
+      --pmei-mark:#D9A441;--pmei-wash:rgba(120,170,220,.10)}
+    .pmei-k{font-size:.8rem;letter-spacing:.09em;text-transform:uppercase;color:var(--pmei-soft);font-weight:600;margin:0 0 2px}
+    .pmei-title{font-weight:700;font-size:1.05rem;margin:0 0 4px}
+    .pmei-sub{font-size:.88rem;color:var(--pmei-soft);margin:0 0 12px}
+    .pmei-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 10px;font-size:.88rem;color:var(--pmei-soft)}
+    .pmei-row button{font:inherit;font-size:.9rem;cursor:pointer;border:1px solid var(--pmei-line);
+      background:transparent;color:var(--pmei-ink);border-radius:999px;padding:4px 12px;min-width:44px}
+    .pmei-row button[aria-pressed="true"]{background:var(--pmei-bright);border-color:var(--pmei-bright);
+      color:var(--pmei-onbright);font-weight:600}
+    .pmei-ctrl{margin:0 0 10px}
+    .pmei-ctrl label{display:flex;justify-content:space-between;gap:8px;font-size:.88rem;font-weight:600;color:var(--pmei-soft)}
+    .pmei-ctrl output{font-variant-numeric:tabular-nums;color:var(--pmei-ink)}
+    .pmei-ctrl input[type=range]{width:100%;accent-color:var(--pmei-bright)}
+    .pmei-quick{font:inherit;font-size:.85rem;cursor:pointer;border:1px dashed var(--pmei-mark);color:var(--pmei-ink);
+      background:transparent;border-radius:999px;padding:3px 10px}
+    .pmei-svg{width:100%;height:auto;display:block;border:1px solid var(--pmei-line);border-radius:8px;margin:0 0 10px}
+    .pmei-svg text{font:12px system-ui,-apple-system,"Segoe UI",sans-serif;fill:var(--pmei-soft)}
+    .pmei-tbl{width:100%;border-collapse:collapse;font-size:.9rem;font-variant-numeric:tabular-nums;margin:0 0 10px}
+    .pmei-tbl th,.pmei-tbl td{border-bottom:1px solid var(--pmei-line);padding:5px 8px;text-align:right}
+    .pmei-tbl th:first-child,.pmei-tbl td:first-child{text-align:left}
+    .pmei-tbl th{font-weight:600;color:var(--pmei-soft);font-size:.82rem}
+    .pmei-sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:baseline}
+    .pmei-win{font-weight:700}
+    .pmei-msg{font-size:.9rem;background:var(--pmei-wash);border-radius:8px;padding:8px 10px;margin:0}
+    .pmei-msg strong{color:var(--pmei-ink)}
+  </style>
+
+  <p class="pmei-k">Mécanisme</p>
+  <p class="pmei-title">Métriques échantillonnées : le classement de A et B peut s’inverser</p>
+  <p class="pmei-sub">Catalogue de 10 000 items, un item caché par utilisateur. A le place souvent tout en haut, mais parfois très bas&nbsp;; B le place régulièrement dans les rangs moyens (30 à 400). On ne classe l’item caché que contre <em>m</em> négatifs tirés au hasard, puis on calcule l’espérance de la métrique.</p>
+
+  <div class="pmei-row" role="group" aria-label="Métrique">
+    <span>Métrique&nbsp;:</span>
+    <button type="button" data-pmei-metric="recall" aria-pressed="true">Recall@10</button>
+    <button type="button" data-pmei-metric="ndcg" aria-pressed="false">NDCG@10</button>
+    <button type="button" data-pmei-metric="auc" aria-pressed="false">AUC</button>
+  </div>
+
+  <div class="pmei-ctrl">
+    <label for="pmei-m">Négatifs échantillonnés <em>m</em> <output id="pmei-mout">99</output></label>
+    <input type="range" id="pmei-m" min="0" max="1000" step="1" value="0">
+  </div>
+  <div class="pmei-row">
+    <button type="button" class="pmei-quick" data-pmei-set="99">Protocole « 1 positif + 99 négatifs »</button>
+    <button type="button" class="pmei-quick" data-pmei-set="9999">Catalogue complet (métrique exacte)</button>
+  </div>
+
+  <svg class="pmei-svg" id="pmei-svg" viewBox="0 0 720 300" role="img" aria-label="Espérance de la métrique échantillonnée en fonction du nombre de négatifs, pour A et B"></svg>
+
+  <table class="pmei-tbl">
+    <thead><tr><th>Modèle</th><th>Métrique exacte (catalogue entier)</th><th id="pmei-thm">Espérance échantillonnée</th></tr></thead>
+    <tbody>
+      <tr><td><span class="pmei-sw" style="background:var(--pmei-a)"></span>A (haut ou très bas)</td><td id="pmei-ea"></td><td id="pmei-sa"></td></tr>
+      <tr><td><span class="pmei-sw" style="background:var(--pmei-b)"></span>B (rangs moyens)</td><td id="pmei-eb"></td><td id="pmei-sb"></td></tr>
+    </tbody>
+  </table>
+  <p class="pmei-msg" id="pmei-msg" aria-live="polite"></p>
+
+  <script>
+  (function(){
+    var root=document.getElementById('pmei-root'); if(!root) return;
+    var N=10000, M=N-1;                       // M négatifs possibles
+    // Distributions jouets du rang exact (1 = tout en haut) de l'item caché.
+    var A=[[1,.15],[2,.10],[3,.08],[5,.05],[8,.02]];          // 40 % dans le top 10
+    for(var i=0;i<30;i++) A.push([Math.round(2000+i*8000/29),.02]); // 60 % entre 2 000 et 10 000
+    var B=[];
+    for(var j=0;j<30;j++) B.push([Math.round(30*Math.pow(400/30,j/29)),1/30]); // rangs 30 à 400
+    // Table des log-factorielles pour la loi hypergéométrique.
+    var LF=new Float64Array(N+1); for(var n=1;n<=N;n++) LF[n]=LF[n-1]+Math.log(n);
+    function lC(a,b){ return (b<0||b>a)?-Infinity:LF[a]-LF[b]-LF[a-b]; }
+    // Loi du nombre X de négatifs mieux classés tirés parmi les K = r-1 au-dessus.
+    function pX(K,m,k){ var v=lC(K,k)+lC(M-K,m-k)-lC(M,m); return v===-Infinity?0:Math.exp(v); }
+    var gain=[]; for(var s=1;s<=10;s++) gain[s]=1/Math.log2(s+1);
+    function expected(dist,m,metric){
+      var tot=0;
+      for(var t=0;t<dist.length;t++){
+        var K=dist[t][0]-1, w=dist[t][1], v=0;
+        if(metric==='auc'){ v=1-K/M; }      // espérance identique à l'AUC exacte
+        else for(var k=0;k<=9;k++){ var p=pX(K,m,k); if(p) v+=p*(metric==='recall'?1:gain[k+1]); }
+        tot+=w*v;
+      }
+      return tot;
+    }
+    var LMIN=Math.log(10), LMAX=Math.log(M);
+    function sliderToM(x){ return Math.round(Math.exp(LMIN+(LMAX-LMIN)*x/1000)); }
+    function mToSlider(m){ return Math.round(1000*(Math.log(m)-LMIN)/(LMAX-LMIN)); }
+    var names={recall:'Recall@10',ndcg:'NDCG@10',auc:'AUC'};
+    var state={metric:'recall',m:99};
+    var svg=document.getElementById('pmei-svg'), NS='http://www.w3.org/2000/svg';
+    var X0=56,X1=700,Y0=262,Y1=18;
+    function px(m){ return X0+(X1-X0)*(Math.log(m)-LMIN)/(LMAX-LMIN); }
+    function py(v){ return Y0-(Y0-Y1)*v; }
+    function el(tag,at,txt){ var e=document.createElementNS(NS,tag); for(var a in at) e.setAttribute(a,at[a]); if(txt!=null) e.textContent=txt; svg.appendChild(e); return e; }
+    var grid=[]; for(var g=0;g<=80;g++) grid.push(Math.round(Math.exp(LMIN+(LMAX-LMIN)*g/80)));
+    var cache={};
+    function curve(dist,key,metric){
+      var ck=key+metric; if(cache[ck]) return cache[ck];
+      return cache[ck]=grid.map(function(m){ return [m,expected(dist,m,metric)]; });
+    }
+    function fmt(v){ return v.toFixed(3).replace('.',','); }
+    function fmtInt(m){ return m.toLocaleString('fr-FR'); }
+    function crossing(ca,cb){ // plus petit m de la grille où A repasse devant B
+      for(var q=0;q<ca.length;q++) if(ca[q][1]>cb[q][1]) return ca[q][0];
+      return null;
+    }
+    function draw(){
+      var met=state.metric, m=state.m;
+      while(svg.firstChild) svg.removeChild(svg.firstChild);
+      [0,.25,.5,.75,1].forEach(function(v){
+        el('line',{x1:X0,x2:X1,y1:py(v),y2:py(v),stroke:'var(--pmei-line)','stroke-width':1});
+        el('text',{x:X0-8,y:py(v)+4,'text-anchor':'end'},fmt(v).replace(/0+$/,'').replace(/,$/,''));
+      });
+      [10,100,1000,9999].forEach(function(t){
+        el('line',{x1:px(t),x2:px(t),y1:Y0,y2:Y0+5,stroke:'var(--pmei-faint)'});
+        el('text',{x:px(t),y:Y0+18,'text-anchor':'middle'},t===9999?'9 999 (tout)':fmtInt(t));
+      });
+      el('text',{x:(X0+X1)/2,y:296,'text-anchor':'middle'},'négatifs échantillonnés m (échelle logarithmique)');
+      // Repère du protocole 1 + 99.
+      el('line',{x1:px(99),x2:px(99),y1:Y1,y2:Y0,stroke:'var(--pmei-mark)','stroke-width':1.5,'stroke-dasharray':'5 4'});
+      el('text',{x:px(99)+5,y:Y1+12,style:'fill:var(--pmei-mark)'},'1 + 99');
+      var ca=curve(A,'A',met), cb=curve(B,'B',met);
+      [[ca,'var(--pmei-a)'],[cb,'var(--pmei-b)']].forEach(function(c){
+        var d=c[0].map(function(p,ix){ return (ix?'L':'M')+px(p[0]).toFixed(1)+' '+py(p[1]).toFixed(1); }).join(' ');
+        el('path',{d:d,fill:'none',stroke:c[1],'stroke-width':2.5});
+      });
+      var x=crossing(ca,cb);
+      if(x&&met!=='auc'){
+        el('line',{x1:px(x),x2:px(x),y1:Y1,y2:Y0,stroke:'var(--pmei-faint)','stroke-width':1,'stroke-dasharray':'2 3'});
+        el('text',{x:px(x)-5,y:Y0-8,'text-anchor':'end'},'A repasse devant');
+      }
+      var sa=expected(A,m,met), sb=expected(B,m,met);
+      el('line',{x1:px(m),x2:px(m),y1:Y1,y2:Y0,stroke:'var(--pmei-ink)','stroke-width':1});
+      el('circle',{cx:px(m),cy:py(sa),r:5,fill:'var(--pmei-a)',stroke:'var(--pmei-card)','stroke-width':1.5});
+      el('circle',{cx:px(m),cy:py(sb),r:5,fill:'var(--pmei-b)',stroke:'var(--pmei-card)','stroke-width':1.5});
+      el('text',{x:X1-4,y:py(ca[ca.length-1][1])-7,'text-anchor':'end',style:'fill:var(--pmei-a);font-weight:600'},'A');
+      el('text',{x:X1-4,y:py(cb[cb.length-1][1])-7,'text-anchor':'end',style:'fill:var(--pmei-b);font-weight:600'},'B');
+      var ea=expected(A,M,met), eb=expected(B,M,met);
+      document.getElementById('pmei-ea').textContent=fmt(ea);
+      document.getElementById('pmei-eb').textContent=fmt(eb);
+      var tdA=document.getElementById('pmei-sa'), tdB=document.getElementById('pmei-sb');
+      tdA.textContent=fmt(sa); tdB.textContent=fmt(sb);
+      tdA.className=sa>sb?'pmei-win':''; tdB.className=sb>sa?'pmei-win':'';
+      document.getElementById('pmei-ea').className=ea>eb?'pmei-win':'';
+      document.getElementById('pmei-eb').className=eb>ea?'pmei-win':'';
+      document.getElementById('pmei-thm').textContent='Espérance avec m = '+fmtInt(m);
+      document.getElementById('pmei-mout').textContent=fmtInt(m)+(m===M?' (catalogue complet)':'');
+      var aucA=expected(A,M,'auc'), aucB=expected(B,M,'auc');
+      var msg, exW=ea>eb?'A':'B', saW=sa>sb?'A':'B';
+      if(met==='auc'){
+        msg='L’espérance de l’AUC échantillonnée ne dépend pas de m : elle vaut toujours l’AUC exacte. Or l’AUC préfère <strong>B</strong> ('+fmt(aucB)+' contre '+fmt(aucA)+'), car elle pénalise les rangs très bas de A autant qu’elle récompense ses rangs de tête.';
+      } else if(m===M){
+        msg='Sur le catalogue complet, '+names[met]+' préfère <strong>'+exW+'</strong> : B ne place jamais l’item caché dans le top 10.';
+      } else if(saW!==exW){
+        msg='<strong>Inversion.</strong> Avec '+fmtInt(m)+' négatifs, l’espérance du '+names[met]+' échantillonné préfère <strong>'+saW+'</strong>, alors que la métrique exacte préfère <strong>'+exW+'</strong>. Ce n’est pas du bruit : sur peu de négatifs, un rang moyen devient un rang de tête, et la métrique classe les modèles comme l’AUC.';
+      } else {
+        msg='Avec '+fmtInt(m)+' négatifs, l’échantillonnage préserve l’ordre exact ('+exW+' devant). Diminuez m pour voir l’ordre basculer vers celui de l’AUC.';
+      }
+      document.getElementById('pmei-msg').innerHTML=msg;
+    }
+    var slider=document.getElementById('pmei-m');
+    slider.value=mToSlider(99);
+    slider.addEventListener('input',function(){ state.m=Math.min(M,Math.max(10,sliderToM(+slider.value))); draw(); });
+    root.querySelectorAll('[data-pmei-metric]').forEach(function(b){
+      b.addEventListener('click',function(){
+        state.metric=b.getAttribute('data-pmei-metric');
+        root.querySelectorAll('[data-pmei-metric]').forEach(function(o){ o.setAttribute('aria-pressed',o===b?'true':'false'); });
+        draw();
+      });
+    });
+    root.querySelectorAll('[data-pmei-set]').forEach(function(b){
+      b.addEventListener('click',function(){ state.m=+b.getAttribute('data-pmei-set'); slider.value=mToSlider(state.m); draw(); });
+    });
+    draw();
+  })();
+  </script>
+</div>

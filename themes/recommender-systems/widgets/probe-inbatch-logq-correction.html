@@ -1,0 +1,237 @@
+<div class="widget pilq-root" id="pilq-root">
+  <style>
+    .pilq-root{--pilq-ink:var(--ink,#15202E);--pilq-soft:var(--ink-soft,#43536A);
+      --pilq-faint:var(--ink-faint,#7A889B);--pilq-card:var(--card,#fff);
+      --pilq-line:var(--line,#D7DFE9);--pilq-bright:var(--blue-bright,#2C77B6);
+      --pilq-hot:var(--bordeaux-bright,#9B3443);--pilq-green:#3F7D4E;--pilq-gold:#8A5E10;
+      --pilq-onbright:#fff;--pilq-wash:rgba(44,119,182,.08);
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--pilq-ink);
+      border:1px solid var(--pilq-line);border-radius:12px;padding:18px 18px 16px;
+      background:var(--pilq-card);max-width:780px}
+    .pilq-root *{box-sizing:border-box}
+    html[data-theme="dark"] .pilq-root{--pilq-onbright:#0B131C;--pilq-gold:#D9A441;
+      --pilq-green:#7CC08C;--pilq-hot:#E66E7D;--pilq-bright:#6EAAE1;--pilq-wash:rgba(120,170,220,.10)}
+    .pilq-k{font-size:.8rem;letter-spacing:.09em;text-transform:uppercase;color:var(--pilq-soft);font-weight:600;margin:0 0 2px}
+    .pilq-title{font-weight:700;font-size:1.05rem;margin:0 0 4px}
+    .pilq-sub{font-size:.88rem;color:var(--pilq-soft);margin:0 0 12px}
+    .pilq-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 10px;font-size:.88rem;color:var(--pilq-soft)}
+    .pilq-row button{font:inherit;font-size:.9rem;cursor:pointer;border:1px solid var(--pilq-line);
+      background:transparent;color:var(--pilq-ink);border-radius:999px;padding:4px 12px;min-height:32px}
+    .pilq-row button[aria-pressed="true"]{background:var(--pilq-bright);border-color:var(--pilq-bright);
+      color:var(--pilq-onbright);font-weight:600}
+    .pilq-row button:disabled{opacity:.45;cursor:not-allowed}
+    .pilq-ctrls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px 16px;margin:0 0 10px}
+    .pilq-ctrl label{display:flex;justify-content:space-between;gap:8px;font-size:.88rem;font-weight:600;color:var(--pilq-soft)}
+    .pilq-ctrl output{font-variant-numeric:tabular-nums;color:var(--pilq-ink)}
+    .pilq-ctrl input[type=range]{width:100%;accent-color:var(--pilq-bright)}
+    .pilq-h{font-size:.9rem;font-weight:700;margin:12px 0 4px}
+    .pilq-svg{width:100%;height:auto;display:block;border:1px solid var(--pilq-line);border-radius:8px}
+    .pilq-svg text{font:12px system-ui,-apple-system,"Segoe UI",sans-serif;fill:var(--pilq-soft)}
+    .pilq-legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:.84rem;color:var(--pilq-soft);margin:6px 0 0}
+    .pilq-sw{display:inline-block;width:12px;height:12px;border-radius:2px;vertical-align:-1px;margin-right:5px}
+    .pilq-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin:10px 0 0}
+    .pilq-stat{background:var(--pilq-wash);border-radius:8px;padding:8px 10px;font-size:.84rem;color:var(--pilq-soft)}
+    .pilq-stat b{display:block;font-size:1.1rem;color:var(--pilq-ink);font-variant-numeric:tabular-nums}
+    .pilq-msg{font-size:.88rem;margin:10px 0 0;padding:8px 10px;border-left:3px solid var(--pilq-bright);background:var(--pilq-wash);border-radius:0 6px 6px 0}
+    .pilq-note{font-size:.82rem;color:var(--pilq-soft);margin:8px 0 0}
+  </style>
+
+  <p class="pilq-k">Sonde · retrieval two-tower</p>
+  <p class="pilq-title">Négatifs in-batch : la popularité pénalisée, puis corrigée par log Q</p>
+  <p class="pilq-sub">Catalogue jouet de 20 items à popularité en loi de puissance, 4 profils d’utilisateurs. Chaque ligne du batch prend pour négatifs les positifs des autres lignes : un item populaire sert donc souvent de négatif.</p>
+
+  <div class="pilq-ctrls">
+    <div class="pilq-ctrl"><label for="pilq-alpha">Exposant de popularité α <output id="pilq-alpha-o"></output></label>
+      <input type="range" id="pilq-alpha" min="0.4" max="1.6" step="0.1" value="1.0"></div>
+    <div class="pilq-ctrl"><label for="pilq-b">Taille du batch B <output id="pilq-b-o"></output></label>
+      <input type="range" id="pilq-b" min="0" max="4" step="1" value="2"></div>
+  </div>
+
+  <div class="pilq-row" role="group" aria-label="Fonction de perte">
+    <span>Entraînement :</span>
+    <button type="button" id="pilq-m0" aria-pressed="true">Sans correction</button>
+    <button type="button" id="pilq-m1" aria-pressed="false">logits − log Q</button>
+    <button type="button" id="pilq-m2" aria-pressed="false">log Q, positif traité à part</button>
+  </div>
+  <div class="pilq-row">
+    <button type="button" id="pilq-run">Tirer 3 000 batchs</button>
+    <button type="button" id="pilq-reset">Réinitialiser</button>
+    <span id="pilq-prog" aria-live="polite"></span>
+  </div>
+
+  <p class="pilq-h">1. Fréquence comme négatif et logit appris, item par item</p>
+  <svg class="pilq-svg" id="pilq-svg1" viewBox="0 0 720 300" role="img" aria-label="Q estimée et logit moyen appris par item"></svg>
+  <div class="pilq-legend">
+    <span><i class="pilq-sw" style="background:var(--pilq-gold)"></i>Q estimée (part des colonnes du batch)</span>
+    <span><i class="pilq-sw" style="background:var(--pilq-bright)"></i>logit moyen appris</span>
+    <span><i class="pilq-sw" style="background:var(--pilq-ink);height:3px;vertical-align:3px"></i>cible du softmax complet</span>
+  </div>
+  <div class="pilq-stats">
+    <div class="pilq-stat"><b id="pilq-s-gap"></b><span>écart de logit, item n° 1 − item n° 20 (appris / cible)</span></div>
+    <div class="pilq-stat"><b id="pilq-s-top"></b><span>erreur moyenne sur les 3 items les plus populaires</span></div>
+    <div class="pilq-stat"><b id="pilq-s-rms"></b><span>erreur quadratique moyenne sur les 20 items</span></div>
+  </div>
+
+  <p class="pilq-h">2. Poussée reçue par le positif, selon son rang de popularité</p>
+  <svg class="pilq-svg" id="pilq-svg2" viewBox="0 0 720 236" role="img" aria-label="Gradient sur le logit du positif, exact et estimé"></svg>
+  <div class="pilq-legend">
+    <span><i class="pilq-sw" style="background:var(--pilq-ink);height:3px;vertical-align:3px"></i>exacte : 1 − P(positif | profil), softmax complet</span>
+    <span><i class="pilq-sw" style="background:var(--pilq-hot)"></i>logQ standard</span>
+    <span><i class="pilq-sw" style="background:var(--pilq-green)"></i>positif traité à part</span>
+  </div>
+
+  <p class="pilq-msg" id="pilq-msg"></p>
+  <p class="pilq-note">Modèle jouet : un score libre par couple (profil, item), soit un two-tower de rang plein. Les logits sont centrés par profil puis moyennés sur les profils. Q est estimée en continu sur le flux de batchs, par simple comptage. La production utilise un sketch mis à jour par descente de gradient (Yi et al.). Le panneau 2 est évalué aux paramètres courants sur 150 batchs neufs. La variante « positif traité à part » suit Khrylchenko et al. (RecSys 2025) : le positif quitte le dénominateur, les négatifs sont corrigés par Q restreinte au reste du catalogue, et la perte est pondérée par 1 − P̂(positif), sans gradient à travers ce poids.</p>
+
+  <script>
+  (function(){
+    var N=20,K=4,BOOST=6,BS=[4,8,16,32,64],STEPS=3000,PER_FRAME=60;
+    var $=function(id){return document.getElementById(id);};
+    var st={alpha:1.0,B:16,mode:0,f:null,ema:null,cnt:null,tot:0,done:0,P:null,running:false,seed:12345};
+    function rnd(){st.seed=(st.seed+0x6D2B79F5)|0;var t=Math.imul(st.seed^(st.seed>>>15),1|st.seed);
+      t=(t+Math.imul(t^(t>>>7),61|t))^t;return((t^(t>>>14))>>>0)/4294967296;}
+    function build(){
+      var P=[],u,i;
+      for(u=0;u<K;u++){var row=[],s=0;for(i=0;i<N;i++){var v=Math.pow(i+1,-st.alpha)*(i%K===u?BOOST:1);row.push(v);s+=v;}
+        P.push(row.map(function(x){return x/s;}));}
+      st.P=P;st.f=[];st.ema=[];for(u=0;u<K;u++){st.f.push(new Array(N).fill(0));st.ema.push(new Array(N).fill(0));}
+      st.cnt=new Array(N).fill(1);st.tot=N;st.done=0;st.seed=12345;
+    }
+    function draw(row){var v=rnd(),c=0;for(var i=0;i<N;i++){c+=row[i];if(v<c)return i;}return N-1;}
+    function batch(){var us=[],it=[];for(var k=0;k<st.B;k++){var u=Math.floor(rnd()*K);us.push(u);it.push(draw(st.P[u]));}return{us:us,it:it};}
+    function Q(){var tot=st.tot;return st.cnt.map(function(x){return x/tot;});}
+    function softmax(s){var m=-Infinity,i;for(i=0;i<s.length;i++)if(s[i]>m)m=s[i];
+      var e=s.map(function(x){return Math.exp(x-m);}),Z=0;for(i=0;i<e.length;i++)Z+=e[i];return{e:e,Z:Z,m:m};}
+    /* gradient (ascension) d'une ligne pour un mode donné ; renvoie aussi la poussée reçue par le positif */
+    function rowGrad(mode,fu,it,row,q,g){
+      var pi=it[row],j,c;
+      if(mode<2){
+        var s=it.map(function(j){return mode===0?fu[j]:fu[j]-Math.log(q[j]);});
+        var sm=softmax(s);
+        if(g){g[pi]+=1;for(c=0;c<it.length;c++)g[it[c]]-=sm.e[c]/sm.Z;}
+        return 1-sm.e[row]/sm.Z;
+      }
+      var neg=[];for(c=0;c<it.length;c++)if(it[c]!==pi)neg.push(it[c]);
+      if(!neg.length)return null;
+      var qp=1-q[pi];
+      var s2=neg.map(function(j){return fu[j]-Math.log(q[j]/qp);});
+      var sm2=softmax(s2.concat([fu[pi]]));
+      var Zn=sm2.Z-sm2.e[neg.length],ep=sm2.e[neg.length];
+      var w=1-ep/(ep+Zn/neg.length);
+      if(g){g[pi]+=w;for(c=0;c<neg.length;c++)g[neg[c]]-=w*sm2.e[c]/Zn;}
+      return w;
+    }
+    function step(){
+      var b=batch(),i,u;
+      for(i=0;i<b.it.length;i++)st.cnt[b.it[i]]++;st.tot+=b.it.length;
+      var q=Q(),G=[];for(u=0;u<K;u++)G.push(new Array(N).fill(0));
+      for(var r=0;r<st.B;r++)rowGrad(st.mode,st.f[b.us[r]],b.it,r,q,G[b.us[r]]);
+      var lr=K/st.B,beta=st.done<200?0.9:0.99;
+      for(u=0;u<K;u++)for(i=0;i<N;i++){st.f[u][i]+=lr*G[u][i];st.ema[u][i]=beta*st.ema[u][i]+(1-beta)*st.f[u][i];}
+      st.done++;
+    }
+    function centeredMean(F){var out=new Array(N).fill(0);
+      for(var u=0;u<K;u++){var m=0,i;for(i=0;i<N;i++)m+=F[u][i];m/=N;for(i=0;i<N;i++)out[i]+=(F[u][i]-m)/K;}return out;}
+    function target(){return centeredMean(st.P.map(function(r){return r.map(Math.log);}));}
+    function probe(){ /* poussée moyenne sur le positif, conditionnée à l'item positif */
+      var saved=st.seed,q=Q(),S=[new Array(N).fill(0),new Array(N).fill(0),new Array(N).fill(0)],C=[new Array(N).fill(0),new Array(N).fill(0),new Array(N).fill(0)];
+      st.seed=777;
+      for(var t=0;t<150;t++){var b=batch();
+        for(var r=0;r<st.B;r++){var fu=st.f[b.us[r]],pi=b.it[r];
+          var sm=softmax(fu);S[0][pi]+=1-sm.e[pi]/sm.Z;C[0][pi]++;
+          var a=rowGrad(1,fu,b.it,r,q,null);S[1][pi]+=a;C[1][pi]++;
+          var c=rowGrad(2,fu,b.it,r,q,null);if(c!==null){S[2][pi]+=c;C[2][pi]++;}}}
+      st.seed=saved;
+      return S.map(function(s,k){return s.map(function(x,i){return C[k][i]?x/C[k][i]:null;});});
+    }
+    var NS='http://www.w3.org/2000/svg';
+    function el(tag,attrs,txt){var e=document.createElementNS(NS,tag);for(var k in attrs)e.setAttribute(k,attrs[k]);if(txt!=null)e.textContent=txt;return e;}
+    var X0=46,W=660,step_x=W/N;
+    function cx(i){return X0+step_x*(i+0.5);}
+    function render1(){
+      var svg=$('pilq-svg1');while(svg.firstChild)svg.removeChild(svg.firstChild);
+      var q=Q(),qmax=Math.max.apply(null,q),i;
+      var learned=centeredMean(st.ema),tg=target();
+      var lim=Math.max(1,Math.ceil(Math.max.apply(null,learned.concat(tg).map(Math.abs))));
+      /* bande Q */
+      var qy0=22,qh=52;
+      svg.appendChild(el('text',{x:4,y:qy0+10},'Q'));
+      svg.appendChild(el('text',{x:X0+W,y:qy0-2,'text-anchor':'end'},'Q max : '+(100*qmax).toFixed(1).replace('.',',')+' %'));
+      for(i=0;i<N;i++){var h=qh*q[i]/qmax;svg.appendChild(el('rect',{x:cx(i)-step_x*0.3,y:qy0+qh-h,width:step_x*0.6,height:h,fill:'var(--pilq-gold)',rx:2}));}
+      /* logits */
+      var y0=96,hh=170,mid=y0+hh/2,sc=(hh/2)/lim;
+      [-lim,0,lim].forEach(function(v){var y=mid-v*sc;
+        svg.appendChild(el('line',{x1:X0,x2:X0+W,y1:y,y2:y,stroke:'var(--pilq-line)','stroke-width':v===0?1.4:1}));
+        svg.appendChild(el('text',{x:X0-6,y:y+4,'text-anchor':'end'},(v>0?'+':v<0?'−':'')+Math.abs(v)));});
+      for(i=0;i<N;i++){var v=learned[i],y=v>=0?mid-v*sc:mid,hgt=Math.abs(v)*sc;
+        svg.appendChild(el('rect',{x:cx(i)-step_x*0.32,y:y,width:step_x*0.64,height:Math.max(hgt,0.5),fill:'var(--pilq-bright)',opacity:.85,rx:2}));
+        var ty=mid-tg[i]*sc;
+        svg.appendChild(el('line',{x1:cx(i)-step_x*0.45,x2:cx(i)+step_x*0.45,y1:ty,y2:ty,stroke:'var(--pilq-ink)','stroke-width':2.5}));
+        if(i===0||i===N-1||(i+1)%5===0)svg.appendChild(el('text',{x:cx(i),y:y0+hh+20,'text-anchor':'middle'},String(i+1)));}
+      svg.appendChild(el('text',{x:X0,y:y0-6},'logit'));
+      svg.appendChild(el('text',{x:X0+W,y:y0-6,'text-anchor':'end'},'rang de popularité (1 = le plus populaire) →'));
+      var gap=learned[0]-learned[N-1],tgap=tg[0]-tg[N-1],top=0,rms=0;
+      for(i=0;i<3;i++)top+=(learned[i]-tg[i])/3;
+      for(i=0;i<N;i++)rms+=Math.pow(learned[i]-tg[i],2)/N;
+      var f=function(x){return (x<0?'−':'+')+Math.abs(x).toFixed(2).replace('.',',');};
+      $('pilq-s-gap').textContent=f(gap)+' / '+f(tgap);
+      $('pilq-s-top').textContent=f(top);
+      $('pilq-s-rms').textContent=Math.sqrt(rms).toFixed(2).replace('.',',');
+      return {top:top,rms:Math.sqrt(rms)};
+    }
+    function render2(){
+      var svg=$('pilq-svg2');while(svg.firstChild)svg.removeChild(svg.firstChild);
+      var pr=probe(),i,k;
+      var all=[];pr.forEach(function(s){s.forEach(function(x){if(x!==null)all.push(x);});});
+      var lo=Math.floor(Math.min.apply(null,all)*10)/10,hi=Math.min(1,Math.ceil(Math.max.apply(null,all)*10)/10);
+      if(hi-lo<0.2)lo=hi-0.2;
+      var y0=16,hh=160,sc=hh/(hi-lo),Y=function(v){return y0+hh-(v-lo)*sc;};
+      [lo,(lo+hi)/2,hi].forEach(function(v){svg.appendChild(el('line',{x1:X0,x2:X0+W,y1:Y(v),y2:Y(v),stroke:'var(--pilq-line)'}));
+        svg.appendChild(el('text',{x:X0-6,y:Y(v)+4,'text-anchor':'end'},v.toFixed(2).replace('.',',')));});
+      for(i=0;i<N;i++){if(pr[0][i]!==null)svg.appendChild(el('line',{x1:cx(i)-step_x*0.42,x2:cx(i)+step_x*0.42,y1:Y(pr[0][i]),y2:Y(pr[0][i]),stroke:'var(--pilq-ink)','stroke-width':2.5}));
+        if(i===0||i===N-1||(i+1)%5===0)svg.appendChild(el('text',{x:cx(i),y:y0+hh+20,'text-anchor':'middle'},String(i+1)));}
+      [[1,'var(--pilq-hot)'],[2,'var(--pilq-green)']].forEach(function(p){var s=pr[p[0]],d='';
+        for(i=0;i<N;i++)if(s[i]!==null){d+=(d?'L':'M')+cx(i).toFixed(1)+' '+Y(s[i]).toFixed(1);
+          svg.appendChild(el('circle',{cx:cx(i),cy:Y(s[i]),r:3.2,fill:p[1]}));}
+        svg.appendChild(el('path',{d:d,fill:'none',stroke:p[1],'stroke-width':1.6}));});
+      svg.appendChild(el('text',{x:X0+W,y:y0+hh+38,'text-anchor':'end'},'rang de popularité de l’item positif →'));
+      var e1=0,e2=0,n=0;for(i=0;i<N;i++)if(pr[0][i]!==null&&pr[2][i]!==null){e1+=Math.abs(pr[1][i]-pr[0][i]);e2+=Math.abs(pr[2][i]-pr[0][i]);n++;}
+      return {e1:e1/n,e2:e2/n,head1:pr[1][0]-pr[0][0],tail1:pr[1][N-1]-pr[0][N-1]};
+    }
+    function message(r1,r2){
+      var p=function(x){return Math.abs(x).toFixed(2).replace('.',',');},t;
+      if(st.done===0){t='Lancez l’entraînement : les barres bleues partent de zéro et convergent vers un point d’équilibre propre à la perte choisie.';}
+      else if(st.mode===0){t='Sans correction, les trois items les plus populaires finissent '+p(r1.top)+' en dessous de leur cible en moyenne. Ils apparaissent si souvent au dénominateur que la perte les repousse : le modèle apprend à peu près log P(item | profil) − log Q(item), et la popularité disparaît en grande partie du score.';}
+      else if(st.mode===1){t='Soustraire log Q aux logits pendant l’entraînement annule ce surcroît d’exposition comme négatif : les items populaires retrouvent leur cible, à '+p(r1.top)+' près. Le panneau 2 montre ce qui subsiste. La logQ standard corrige aussi le positif, comme s’il avait été tiré avec la probabilité Q, alors qu’il est toujours là. Sa poussée s’aplatit : erreur moyenne de '+p(r2.e1)+', contre '+p(r2.e2)+' quand le positif est traité à part.';}
+      else{t='Le positif quitte le dénominateur et la perte est pondérée par 1 − P̂(positif) : la poussée reçue par chaque positif suit la courbe exacte du softmax complet (écart moyen '+p(r2.e2)+', contre '+p(r2.e1)+' en logQ standard). Dans ce modèle jouet de rang plein, les deux corrections visent le même point fixe ; c’est l’estimation du gradient qui diffère. Avec un batch de 4, les deux estimations restent bruitées.';}
+      $('pilq-msg').textContent=t;
+    }
+    function renderAll(){var r1=render1(),r2=render2();message(r1,r2);
+      $('pilq-prog').textContent=st.done?st.done.toLocaleString('fr-FR')+' batchs tirés':'';}
+    /* pendant un run, tous les réglages sont verrouillés : sinon α ou B changerait sans relance */
+    var LOCK=['pilq-run','pilq-reset','pilq-alpha','pilq-b','pilq-m0','pilq-m1','pilq-m2'];
+    function busy(on){LOCK.forEach(function(id){$(id).disabled=on;});}
+    function run(){
+      if(st.running)return;st.running=true;busy(true);var target=st.done+STEPS,frames=0;
+      (function tick(){
+        for(var k=0;k<PER_FRAME&&st.done<target;k++)step();
+        frames++;$('pilq-prog').textContent=st.done.toLocaleString('fr-FR')+' batchs tirés';
+        if(frames%6===0)render1();
+        if(st.done<target)requestAnimationFrame(tick);
+        else{st.running=false;busy(false);renderAll();}
+      })();
+    }
+    function sync(){$('pilq-alpha-o').textContent=st.alpha.toFixed(1).replace('.',',');$('pilq-b-o').textContent=String(st.B);
+      for(var m=0;m<3;m++)$('pilq-m'+m).setAttribute('aria-pressed',String(st.mode===m));}
+    function restart(){if(st.running)return;build();sync();renderAll();run();}
+    $('pilq-alpha').addEventListener('change',function(){st.alpha=+this.value;restart();});
+    $('pilq-alpha').addEventListener('input',function(){$('pilq-alpha-o').textContent=(+this.value).toFixed(1).replace('.',',');});
+    $('pilq-b').addEventListener('change',function(){st.B=BS[+this.value];restart();});
+    $('pilq-b').addEventListener('input',function(){$('pilq-b-o').textContent=String(BS[+this.value]);});
+    [0,1,2].forEach(function(m){$('pilq-m'+m).addEventListener('click',function(){if(st.running)return;st.mode=m;restart();});});
+    $('pilq-run').addEventListener('click',run);
+    $('pilq-reset').addEventListener('click',function(){if(st.running)return;build();sync();renderAll();});
+    build();sync();renderAll();run();
+  })();
+  </script>
+</div>
