@@ -452,7 +452,15 @@ sandbagging, monitorability, alignment faking, situational awareness, Greenblatt
 > `sycophancy-emergent-misalignment` (candidat) garde la GENÈSE du désalignement — ici,
 > l'observer et le contenir. Domaine : llm-agents-generation (à trancher par /arrange).
 
-### Transformers bouclés et profondeur récurrente — `looped-transformers-recurrent-depth` → `deep-learning-foundations`
+### ✅ FAIT — Transformers bouclés et profondeur récurrente — `looped-transformers-recurrent-depth` → `deep-learning-foundations`
+(**FAIT le 2026-10-17**, 82e run `/leanmonograph`, retiré du backlog. 9 sections sur 9, 26 claims (19 confirmés /
+3 corrigés / 4 rejetés), 17 sources, 3 widgets + 2 figures ; **≈ 7,4 M tok, 2 lancements utiles**. **Arrêt d'élagage
+au council** — ré-audit 4 agents : 9 réparés / 5 regrainés / 4 document-source / 4 rejets maintenus / 7 doublons
+retirés. Loi `N_once + r^0,46 N_rec` = Schwethelm et al. (arXiv 2604.21106), pas SMELT ; SMELT et Ouro ont des
+co-auteurs communs (non indépendants). `build.success=false` légitime : claim Astra sur LGC + blog Raschka, recentré
+en document-source sur le post X de Pachocki. « 12B » rejeté resté affirmé en « 12 Md » (lint aveugle à l'unité
+traduite). Backstop 3 agents, ~300 faits : 0 FAUX, 17 imprécis corrigés (KV du *dernier* pas, pas d'« un seul pas » :
+premier pas seul → GSM8K 18,73). Nanbeige4.2 non retenu.)
 **Verdict : gap réel** (passe du 2026-10-17). `recursive-language-models` (section
 « famille-modeles-recursifs ») couvre Universal Transformer, ACT, Coconut, HRM et TRM sur tâches
 dédiées ; `reasoning-test-time-compute` ne donne que la borne TC⁰ du passage unique ; `scaling-laws`
