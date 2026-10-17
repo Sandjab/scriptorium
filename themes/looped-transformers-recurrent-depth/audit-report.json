@@ -1,0 +1,982 @@
+{
+  "generator": "leanmonograph",
+  "theme": {
+    "slug": "looped-transformers-recurrent-depth",
+    "title": "Transformers bouclés et profondeur récurrente"
+  },
+  "summary": {
+    "sections_total": 9,
+    "sections_retained": 9,
+    "claims_total": 26,
+    "confirmed": 19,
+    "corrected": 3,
+    "rejected": 4,
+    "retained": 22
+  },
+  "claims": [
+    {
+      "id": "claim:1",
+      "section": "principe-poids-partages",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Réutiliser les mêmes poids sur T passes réduit les paramètres stockés, mais pas les FLOPs par token : un modèle récurrent a les mêmes FLOPs qu'un modèle non partagé de même profondeur. Le KV cache n'est pas réduit non plus par défaut, car chaque pas de boucle garde le sien. Les économies de KV cache viennent du routage par token (Mixture-of-Recursions) ou, au décodage, de la réutilisation des KV du dernier pas (chez Ouro, garder ceux du premier pas s'effondre).",
+      "original_statement": "Réutiliser les mêmes poids sur T passes réduit les paramètres stockés mais pas les FLOPs par token ni, par défaut, le KV cache : les économies de KV cache dans Mixture-of-Recursions viennent du routage par token (seuls les tokens actifs sont mis en cache) ou du partage des KV de la première récursion.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "The MoR abstract confirms that KV pairs are cached selectively for tokens still active at a given recursion depth, and that a KV-sharing variant reuses the first recursion's KV. The abstract does not state the weight-sharing/FLOPs-per-token point. That part follows from the architecture and is not contradicted."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "The abstract confirms the two KV savings mechanisms: selective caching of KV for active tokens only, and a variant reusing the first recursion's KV. The savings are tied to routing, not to weight sharing. The 'no FLOPs/KV reduction by default' part is a generic inference that the abstract does not contradict."
+        }
+      ],
+      "audit_note": "[RÉAUDIT-MANUEL-20261017] Ré-audit : repaired. Trois travaux sans auteur commun portent le fait, passages relus verbatim : MoR §2.1 (« the distinct KV caches are typically used for each depth. This design fails to reduce the cache sizes ») et annexe D (mêmes FLOPs), Ouro §5.4.2 (4× de mémoire KV), Looped Latent Attention (KV d'un décodeur de 96 couches pour T=4, D=24)."
+    },
+    {
+      "id": "claim:2",
+      "section": "principe-poids-partages",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Itérer un bloc de poids partagés permet de dépenser plus de calcul au test dans l'espace latent, sans générer plus de tokens. Ce calcul ne coûte aucun paramètre supplémentaire, mais il coûte des FLOPs.",
+      "original_statement": "Huginn, un modèle à récurrence de profondeur de 3,5 Md de paramètres entraîné sur 800 Md de tokens, peut améliorer ses résultats de raisonnement à une charge de calcul équivalente à celle d'un modèle de 50 Md de paramètres, en itérant un bloc récurrent dans l'espace latent plutôt qu'en générant plus de tokens.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "The abstract gives 3.5B parameters, 800B tokens, and a compute load equivalent to 50B parameters, reached by iterating a recurrent block in latent space. It does not name Huginn, but the paper's released model is huginn-0125."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "The abstract gives 3.5B parameters, 800B tokens, and 'up to' a computation load equivalent to 50B parameters. The claim drops the 'up to', which is a minor nuance. It is a compute-equivalence claim, not a 50B-parameter model."
+        }
+      ],
+      "audit_note": "[RÉAUDIT-MANUEL-20261017] Ré-audit : regrained. Les chiffres de Huginn (3,5 Md, 800 Md, 50 Md) ne sont mesurés que par Geiping et al. et descendent en exemple attribué. Le phénomène (profondeur itérée sans paramètres, mais avec FLOPs) est porté par trois travaux sans auteur commun, chacun sur son propre modèle : Huginn, Ouro, MoR (annexe D : mêmes FLOPs que le non partagé)."
+    },
+    {
+      "id": "claim:3",
+      "section": "huginn-recurrent-depth",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Selon ses auteurs, Huginn compte 3,5 Md de paramètres et a été entraîné sur 800 Md de tokens. Il se compose d'un prelude, d'un bloc récurrent (core) et d'un coda, de forme (2, 4, 2). À r = 32 itérations, il déroule 2 + 4×32 + 2 = 132 couches de profondeur effective.",
+      "original_statement": "Huginn (Geiping et al., 2025) est un modèle de 3,5B paramètres entraîné sur 800B tokens, organisé en prelude, bloc récurrent (core) et coda ; itérer le core 32 fois donne 132 couches de profondeur effective et un calcul au test comparable à celui d'un modèle de 50B paramètres.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Verified in the paper: 3.5B parameters, 800B tokens, prelude/core/coda with shape (2,4,2), effective depth 2+4r+2 = 132 at r=32, and the 50B-parameter compute equivalence. All of it comes from the primary paper alone."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Verified in the paper: 3.5B parameters, 800B tokens, (2,4,2) prelude/core/coda, 2+4r+2=132 layers at r=32, and the abstract's 'up to ... 50 billion parameters' compute load. The 50B figure is stated as an upper bound on test-time compute, so the claim is slightly firmer than the wording."
+        }
+      ],
+      "audit_note": "[RÉAUDIT-MANUEL-20261017] Ré-audit : document_source. L'énoncé décrit la spécification déclarée par les auteurs pour leur propre modèle (papier et fiche du modèle, mêmes auteurs, donc un seul travail). Source unique par nature (règle document-source) : on ne corrobore pas « ce document dit X » par un second document ; l'énoncé ne prétend pas 2 sources. L'équivalence « 50 Md » est un résultat de calcul, traitée ailleurs (limites-idees-recues)."
+    },
+    {
+      "id": "claim:4",
+      "section": "huginn-recurrent-depth",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Les auteurs de Huginn déclarent que leur modèle reste une preuve de concept. Ils déclarent aussi que le raisonnement latent n'exige ni données d'entraînement spécialisées, ni chaînes de pensée construites sur mesure.",
+      "original_statement": "Les auteurs déclarent eux-mêmes que Huginn reste une preuve de concept, et que le raisonnement latent ne requiert pas de données CoT dédiées à l'entraînement.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "The paper states the models are 'ultimately still a proof-of-concept' and that latent reasoning needs no specialized training data. The abstract says the same about CoT data."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "The conclusions say the model is 'ultimately still a proof-of-concept'. The abstract and Section 2 say latent reasoning needs no specialized or bespoke training data. This claim describes what the document says, so it is a document-source claim, but the paper has empirical content too. I vote false on document_source to be safe."
+        }
+      ],
+      "audit_note": "[RÉAUDIT-MANUEL-20261017] Ré-audit : document_source. L'énoncé décrit ce que le papier dit de lui-même (§10 : « still a proof-of-concept » ; résumé : « does not require any specialized training data »). Source unique par nature (règle document-source) : on ne corrobore pas « ce document dit X » par un second document ; l'énoncé ne prétend pas 2 sources. "
+    },
+    {
+      "id": "claim:5",
+      "section": "huginn-recurrent-depth",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "Il n'existe pas de plafond unique d'itérations. Les gains du calcul récurrent au test saturent à des profondeurs différentes selon la tâche, et la profondeur vue à l'entraînement compte. L'idée « les gains de Huginn plafonnent vers 64 itérations » est donc imprécise.",
+      "original_statement": "Idée reçue possiblement imprécise : « les gains de Huginn plafonnent vers 64 itérations ». L'article évalue jusqu'à r = 64 mais ne fixe pas de plafond unique ; la saturation dépend de la tâche (environ 8 itérations pour HellaSwag, 8 à 32 pour ARC-C selon le nombre d'exemples, davantage pour GSM8K).",
+      "corroborated": 2,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Evaluation goes up to r=64 (Figure 6; GSM8K 47.23% at r=64). Saturation is task-dependent: HellaSwag about 8, ARC-C about 8-12 at 0-shot, about 20 at 1-shot and about 32 at 25-50 shots, and GSM8K keeps improving. No single plateau is stated. The claim holds as phrased."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "corrected_statement": "Idée reçue imprécise : « les gains de Huginn plafonnent vers 64 itérations ». L'article évalue jusqu'à r = 64 mais n'indique pas de plafond unique : l'article dit que la saturation dépend fortement de la tâche (HellaSwag quasi saturé vers 8 itérations ; ARC-C vers 8-12 sans exemple, vers 20 avec un exemple, vers 32 avec 25-50 exemples), et les tâches plus difficiles comme GSM8K continuent de progresser avec le calcul.",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "The task-dependence, the HellaSwag figure of about 8 and the ARC-C figures are supported. The ARC-C range depends on the number of few-shot examples. I found no explicit saturation point for GSM8K, only that harder tasks keep improving, and GSM8K was evaluated at r=64. The HellaSwag figure came from a possibly garbled '88' in the page text. I did not read the last 59k characters of the page."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Le papier ne dit nulle part que les gains plafonnent à 64 ; il écrit que la saturation est « highly task-dependent ». ARC-C sature vers 8-12 itérations sans exemple, ~20 avec 1 exemple, ~32 avec 25-50 exemples ; GSM8K continue de progresser (47,23 % flex à r=64) sans point de saturation donné. Réserve : la légende de la Fig. 7 dit « 88 recurrences » pour HellaSwag, que j'ai lu comme probablement « 8 » (artefact d'extraction possible, non vérifié sur le PDF). Seule la version HTML a été lue, pas l'abs."
+        }
+      ],
+      "audit_note": "[RÉAUDIT-MANUEL-20261017] Ré-audit : regrained. Les seuils par tâche ne sont mesurés que par Geiping et al. (exemples attribués). Le phénomène (pas de profondeur optimale universelle, courbe dépendant de la tâche et de la profondeur d'entraînement) est vu aussi par Ouro, sans auteur commun, dans un autre régime (entraîné à T = 4)."
+    },
+    {
+      "id": "claim:6",
+      "section": "mixture-of-recursions",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Partager les poids entre récursions réduit les paramètres uniques, pas le KV cache : chaque profondeur garde son propre cache. Dans Mixture-of-Recursions (MoR), l'économie de KV vient du routage par token (seuls les tokens encore actifs à une profondeur y stockent leurs paires KV) et de la variante KV-sharing, qui ne met en cache que la première récursion.",
+      "original_statement": "Dans Mixture-of-Recursions, l'économie de mémoire KV vient du routage par token (seules les paires KV des tokens encore actifs à chaque récursion sont mises en cache) et de la variante KV-sharing, et non du simple partage de poids, qui laisse le KV cache inchangé.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Paper: only tokens routed to a recursion step store KV at that level; the recursive KV-sharing variant caches KV at the first recursion only; tied weights alone leave per-depth KV caches unreduced. Only the primary paper was opened (abs and html are the same document)."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Sec. 2.1 says shared weights keep distinct per-depth KV caches, which does not shrink the cache. Sec. 2.2.2 says only the tokens routed to a recursion store KV there, and the KV-sharing variant caches at the first recursion only."
+        }
+      ],
+      "audit_note": "[RÉAUDIT-MANUEL-20261017] Ré-audit : regrained. Le phénomène (partage de poids sans réduction du KV cache) est énoncé par MoR §2.1 et par SMELT, sans auteur commun, passages relus verbatim. Les mécanismes de réduction propres à MoR descendent en exemples attribués."
+    },
+    {
+      "id": "claim:7",
+      "section": "mixture-of-recursions",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "MoR itère une pile de couches partagée, et un routeur léger attribue à chaque token sa propre profondeur de récursion. Deux schémas existent. En expert-choice, chaque profondeur choisit ses top-k tokens : la charge est équilibrée, mais le top-k n'est pas causal et fuit de l'information vers le futur. En token-choice, chaque token choisit sa profondeur : pas de fuite, mais un déséquilibre de charge qui demande une perte d'équilibrage.",
+      "original_statement": "MoR utilise une pile de couches partagée et des routeurs légers qui attribuent à chaque token sa propre profondeur de récursion, selon deux schémas : expert-choice (chaque profondeur choisit ses top-k tokens, avec fuite d'information à l'entraînement) et token-choice (chaque token choisit sa profondeur, sans fuite mais avec déséquilibre de charge).",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Shared layer stack and lightweight routers are in the abstract. The paper says expert-choice suffers information leakage and guarantees perfect load balance. Token-choice is leakage-free but needs a balancing loss."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Expert-choice is described as suffering from information leakage (causality violation in training). Token-choice is described as having load-balancing challenges that need a balancing loss or loss-free algorithms."
+        }
+      ],
+      "audit_note": "[RÉAUDIT-MANUEL-20261017] Ré-audit : regrained. Le compromis expert-choice / token-choice est décrit, hors de MoR, par Mixture-of-Depths et par Zhou et al. (routage par experts), sans auteur commun ; l'application à une pile récursive est propre à MoR."
+    },
+    {
+      "id": "claim:8",
+      "section": "mixture-of-recursions",
+      "section_retained": true,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "Selon les auteurs de MoR, à FLOPs d'entraînement égaux, MoR améliore la perte de validation et la précision few-shot par rapport aux baselines vanilla et récursives, mais fait moins bien que le vanilla à 135M. Les tailles 135M à 1,7B sont celles des modèles vanilla de référence. Résultat mono-source, non re-mesuré.",
+      "original_statement": "MoR est évalué de 135M à 1,7B de paramètres, à FLOPs d'entraînement égaux, avec perplexité plus basse, meilleur few-shot et débit supérieur aux baselines vanilla et récursives ; l'abstract ne fournit aucun chiffre et les gains mesurés dans le corps sont modestes (par exemple 43,1 % contre 42,3 % de précision few-shot moyenne).",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "The abstract gives 135M to 1.7B, equal training FLOPs, and no numbers. The 43.1 vs 42.3 figures exist (Table 3), but compare a 167M MoR expert-choice recursion-wise-cache variant to the 315M vanilla, not the isoFLOP sweep. This is acceptable as an 'for example', though the MoR row labeled 'ours' scores 41.9."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "corrected_statement": "MoR est évalué de 135M à 1,7B de paramètres, à FLOPs d'entraînement égaux ; il réduit la perplexité de validation, améliore le few-shot et le débit par rapport aux baselines dans la plupart des configurations (mais sous-performe le vanilla à 135M) ; l'abstract ne donne aucun chiffre de résultat et les gains few-shot sont modestes (43,1 % contre 42,3 %).",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "The 135M to 1.7B range, the fixed FLOPs budget and the 43.1 vs 42.3 few-shot average are confirmed (Table 3). But Sec. 3.2 says MoR underperforms vanilla at 135M, so the claim over-generalises. The throughput gain is at most 2.06x at 360M. Table 3 reports validation NLL rather than perplexity."
+        }
+      ],
+      "audit_note": "[RÉAUDIT-MANUEL-20261017] Ré-audit : rejet maintenu. Résultat empirique mono-source : aucun travail indépendant ne re-mesure MoR (SMELT ne le cite qu'en travaux connexes). Statement corrigé (135M = taille vanilla ; sous-performance à 135M, §3.2)."
+    },
+    {
+      "id": "claim:9",
+      "section": "ouro-looplm",
+      "section_retained": true,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "Ouro 1.4B et 2.6B, entraînés sur 7,7T tokens avec une boucle de poids partagés dès le pre-training, sont annoncés par leurs auteurs comme égalant des LLM de l'état de l'art jusqu'à 12B sur une gamme de benchmarks.",
+      "original_statement": "Ouro 1.4B et 2.6B, entraînés sur 7,7T tokens avec une boucle de poids partagés dès le pre-training, sont annoncés par leurs auteurs comme égalant des LLM de l'état de l'art jusqu'à 12B sur une gamme de benchmarks.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "The abstract gives Ouro 1.4B and 2.6B, 7.7T tokens, and says they match SOTA LLMs up to 12B (authors' claim). The HF card confirms 7.7T but is from the same authors."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "Abstract: Ouro 1.4B and 2.6B, 7.7T tokens, 'match the results of up to 12B SOTA LLMs'. The claim correctly attributes it to the authors. The model card confirms 7.7T tokens."
+        }
+      ],
+      "audit_note": "[RÉAUDIT-MANUEL-20261017] Ré-audit : rejet. Les deux sources (papier arXiv et fiche Hugging Face) sont le MÊME travail, des mêmes auteurs : fausse indépendance. « Égale des modèles jusqu'à 12B » est un résultat empirique des auteurs, non re-mesuré ; l'introduction du papier dit « match 4B and 8B standard transformers on most benchmarks ». À traiter en prose avec la réserve « selon les auteurs, non re-mesuré »."
+    },
+    {
+      "id": "claim:10",
+      "section": "ouro-looplm",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Des expériences contrôlées sur tâches synthétiques attribuent le gain de la boucle à une meilleure manipulation des connaissances, pas à un stockage accru. À nombre de paramètres fixé, la capacité de connaissance reste quasi inchangée, et le raisonnement progresse.",
+      "original_statement": "Des expériences contrôlées du papier Ouro attribuent le gain à une meilleure manipulation des connaissances et non à un stockage accru : la boucle aide le raisonnement sans augmenter la capacité de connaissance.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "The abstract states that controlled experiments attribute the gains to better knowledge manipulation, not greater knowledge capacity. Only the authors' paper is available as a source."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Abstract: controlled experiments show the advantage comes from 'superior knowledge manipulation capabilities', not greater knowledge capacity. Only the abstract was read, not the full PDF."
+        }
+      ],
+      "audit_note": "[RÉAUDIT-MANUEL-20261017] Ré-audit : repaired. Ouro et VLD sont deux travaux sans auteur commun (listes d'auteurs relues), et chacun mesure le phénomène sur ses propres modèles, petits et sur tâches synthétiques."
+    },
+    {
+      "id": "claim:11",
+      "section": "ouro-looplm",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "L'avantage d'Ouro est une efficacité en paramètres stockés, pas en calcul. Avec 4 pas par défaut, chaque token traverse 4 fois la même pile, donc le coût en FLOPs par token n'est pas celui d'un modèle de 1,4 Md à un seul passage.",
+      "original_statement": "L'égalité d'Ouro avec des modèles jusqu'à 12B est une efficacité en paramètres stockés, non en calcul : avec 4 pas par défaut, chaque token traverse le même empilement 4 fois, donc le coût en FLOPs par token n'est pas celui d'un 1,4B à un passage.",
+      "corroborated": 3,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "The model card gives total_ut_steps=4 by default, with the same stack applied each step, so per-token FLOPs are about 4x a single pass. The claim is an arithmetic inference; the card itself says it matches 3-4B models, consistent with a parameter-efficiency framing."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "The model card gives total_ut_steps default 4, so each token passes through the same stack 4 times. The 12B parity is stated by the authors as parameter efficiency. The FLOPs inference follows from the architecture. The page does not state it in so many words."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 3,
+          "note": "The abstract says the 1.4B and 2.6B models match SOTA LLMs up to 12B. The paper frames the gain as parameter efficiency (1.4B and 2.6B match 4B and 8B transformers, a 2-3x gain). Both models are trained with 4 recurrent steps over the same weight-tied stack. The model card sets the default total_ut_steps to 4. The paper says the 4-step model has 4x KV-cache memory overhead and uses a FLOPs-equivalent baseline of \"24 layers, equivalent flops with the loop 4 transformers\". The per-token FLOPs conclusion is an arithmetic consequence of the 4 passes. The paper does not state it in those words, and its early-exit mechanism can reduce steps."
+        }
+      ],
+      "audit_note": "[RÉAUDIT-MANUEL-20261017] Ré-audit : fausse indépendance corrigée. La fiche Hugging Face est du même travail que le papier ; remplacée comme 2e source par MoR (annexe D : « Vanilla and Recursive Transformers have the same FLOPs »), sans auteur commun. SMELT écarté : co-auteurs communs avec Ouro. Mention « jusqu'à 12B » retirée (résultat rejeté, ouro-looplm#0)."
+    },
+    {
+      "id": "claim:12",
+      "section": "ouro-looplm",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Selon la fiche Hugging Face d'Ouro-1.4B, early_exit_threshold vaut 1,0 par défaut, ce qui signifie « toujours utiliser tous les pas ». La fiche précise que vLLM ne prend pas en charge la sortie adaptative et exécute toujours le nombre complet de total_ut_steps.",
+      "original_statement": "La sortie anticipée d'Ouro ne procure pas d'économie de calcul dans l'implémentation publiée : early_exit_threshold vaut 1,0 par défaut (tous les pas exécutés) et vLLM exécute toujours toutes les étapes.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "The card says early_exit_threshold defaults to 1.0 (all steps used) and that vLLM does not support adaptive exit and always runs the full total_ut_steps. This is the authors' own documentation."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "corrected_statement": "Dans la fiche du modèle, early_exit_threshold vaut 1,0 par défaut et vLLM ne prend pas en charge la sortie adaptative. Par défaut, les 4 pas sont donc exécutés, et sous vLLM la sortie anticipée n'est pas disponible. En revanche, le seuil est configurable dans l'implémentation Transformers.",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "The card says the threshold defaults to 1.0 and that vLLM 'does not currently support the adaptive exit feature'. 'Aucune économie dans l'implémentation publiée' over-generalizes, because the threshold is a user parameter. I did not check whether lowering it saves compute in the Transformers code, and the card says 'does not support', not 'always runs all steps'."
+        }
+      ],
+      "audit_note": "[RÉAUDIT-MANUEL-20261017] Ré-audit : document_source. L'énoncé décrit le contenu de la fiche du modèle. Source unique par nature (règle document-source) : on ne corrobore pas « ce document dit X » par un second document ; l'énoncé ne prétend pas 2 sources. Borné à ce que dit la fiche : la lecture du code livré par un agent n'a pas été reprise."
+    },
+    {
+      "id": "claim:13",
+      "section": "virtual-logical-depth",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "À nombre de paramètres fixé, réutiliser les poids n'augmente pas la capacité de connaissance, mais améliore le raisonnement. L'avantage vient de la manipulation des connaissances, pas de leur stockage. C'est une efficacité en paramètres : le calcul, lui, augmente.",
+      "original_statement": "Selon l'abstract de l'article arXiv 2506.18233, la VLD (réutilisation de poids à nombre de paramètres constant) laisse la capacité de connaissance quasi inchangée à paramètres fixés, tout en améliorant sensiblement le raisonnement, et ce quelles que soient l'architecture et la reuse schedule.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 0,
+          "note": "Abstract of 2506.18233 (read): at fixed parameter count VLD leaves knowledge capacity nearly unchanged while reasoning improves, across architectures and reuse schedules. Single primary document."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "The abstract states that at fixed parameter count VLD leaves knowledge capacity nearly unchanged and substantially improves reasoning, with gains persisting across architectures and reuse schedules. 'Quelles que soient' is slightly strong ('persist across'), but acceptable."
+        }
+      ],
+      "audit_note": "[RÉAUDIT-MANUEL-20261017] Ré-audit : repaired. VLD et Ouro sont deux travaux sans auteur commun (listes relues), qui mesurent chacun le phénomène. « Quelles que soient l'architecture et la reuse schedule » retiré : trop fort."
+    },
+    {
+      "id": "claim:14",
+      "section": "virtual-logical-depth",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Un modèle bouclé gagne en calcul en approfondissant son graphe de calcul interne, pas en allongeant la séquence générée, et il peut le faire dès l'entraînement. Le raisonnement par tokens (chaîne de pensée) agit, lui, en rallongeant la sortie.",
+      "original_statement": "La VLD modifie le graphe de calcul interne à l'entraînement comme à l'inférence, alors que le test-time scaling par token n'agit qu'à l'inférence en allongeant la séquence générée.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 0,
+          "note": "Abstract says VLD alters the internal computation graph during training and inference, contrasted with token-wise test-time scaling. Matches the claim; only the primary abstract was read."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "The abstract says VLD alters the internal computation graph during training and inference, and positions it against token-wise test-time methods. Saying the latter act only at inference by lengthening the sequence is a faithful gloss."
+        }
+      ],
+      "audit_note": "[RÉAUDIT-MANUEL-20261017] Ré-audit : repaired. Trois travaux sans auteur commun décrivent la même opposition. « N'agit qu'à l'inférence » retiré : non porté par les sources."
+    },
+    {
+      "id": "claim:15",
+      "section": "virtual-logical-depth",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "Idée reçue : puisque la VLD ajoute de la profondeur sans paramètres, elle serait aussi une économie de calcul. En réalité, réutiliser les poids augmente la profondeur de calcul effective, donc les FLOPs par token ; c'est un gain en paramètres, pas en calcul.",
+      "original_statement": "Idée reçue : puisque la VLD ajoute de la profondeur sans paramètres, elle serait aussi une économie de calcul. En réalité, réutiliser les poids augmente la profondeur de calcul effective, donc les FLOPs par token ; c'est un gain en paramètres, pas en calcul.",
+      "corroborated": 3,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "The VLD abstract never mentions FLOPs, so the FLOPs claim is an inference rather than a statement in that abstract. It is sound: Huginn's abstract says unrolling the recurrent block at test time reaches a compute load equivalent to 50B parameters from a 3.5B model, i.e. more compute with the same parameters. Framed as a parameter gain, not a compute saving."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "The VLD abstract says it increases effective depth by reusing weights at constant parameter count, so FLOPs per token rise. The abstract does not mention FLOPs, so this is a logical consequence rather than a stated result. I did not open the Huginn or MoR pages."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 3,
+          "note": "The abstracts support the core claim: VLD reuses weights to increase effective depth \"without changing parameter count\" (2506.18233). Recurrent depth adds test-time compute with each iteration, framed as a compute load \"equivalent to 50 billion parameters\" (2502.05171). Mixture-of-Recursions needs token routing to cut per-token compute and compares models at equal training FLOPs, which implies plain weight reuse does not save compute (2507.10524). I only read abstracts through WebFetch. None of them states the \"FLOPs per token rise\" point in those words, so it follows from how the architecture works rather than from a direct quotation."
+        }
+      ],
+      "audit_note": "Confirmé : 3/3 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:16",
+      "section": "smelt-moe-boucles",
+      "section_retained": true,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "SMELT (arXiv 2609.01343, preprint de septembre 2026, source unique non répliquée) boucle deux fois la moitié centrale des couches d'un MoE creux, à FLOPs par token, paramètres hors embeddings et KV cache appariés. Il annonce 6,8 à 18,0 % de FLOPs d'entraînement économisés sur la frontière compute-optimale, jusqu'à 54 Md de paramètres hors embeddings.",
+      "original_statement": "SMELT (arXiv 2609.01343, preprint de septembre 2026) boucle deux fois la moitié centrale des couches d'un MoE creux à FLOPs par token, paramètres non-embedding et KV cache appariés, et annonce 6,8 à 18,0 % de FLOPs d'entraînement économisés sur la frontière compute-optimal jusqu'à 54B paramètres.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 0,
+          "note": "Verified in the arXiv abstract and PDF: 2609.01343, submitted 1 Sep 2026, loops the middle half of layers twice in a sparse MoE with matched per-token FLOPs, non-embedding params and KV cache. It reports 6.8-18.0% training FLOPs saved, up to 54B. This is a single-source empirical preprint, with no independent corroboration found."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "The abstract confirms: submitted 1 Sep 2026, middle half of layers looped twice, per-token FLOPs, non-embedding params and KV cache matched, 6.8-18.0% training FLOPs saved on the compute-optimal frontier, up to 54B non-embedding params. Single source, the paper itself."
+        }
+      ],
+      "audit_note": "[RÉAUDIT-MANUEL-20261017] Ré-audit : rejet maintenu. Résultat empirique mono-source : texte intégral lu, chiffres exacts, aucune réplication ni contestation trouvée. À présenter en prose avec la réserve « source unique, non corroborée »."
+    },
+    {
+      "id": "claim:17",
+      "section": "smelt-moe-boucles",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Huginn boucle un seul bloc récurrent central (entre un prelude et un coda), alors qu'Ouro boucle toute la pile de couches ; les deux conceptions ne sont donc pas interchangeables.",
+      "original_statement": "Huginn boucle un seul bloc récurrent central (entre un prelude et un coda), alors qu'Ouro boucle toute la pile de couches ; les deux conceptions ne sont donc pas interchangeables.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "The Ouro PDF says the model applies a stack of N layers repeatedly (weight-tied). The Huginn abstract confirms iteration of a recurrent block. The prelude/coda layout (2-4-2 layers) is confirmed only by SMELT's related-work section, not read in the Huginn PDF itself. Note the Huginn recurrent block spans several layers."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "The SMELT Related Work describes Huginn as a prelude-recur-coda layout and Ouro as looping the entire stack. The Huginn and Ouro abstracts do not state the layer layout and I could not read the primary papers' architecture sections, so the layout rests on SMELT's description."
+        }
+      ],
+      "audit_note": "Confirmé : 2/2 jurés, 3 sources indépendantes."
+    },
+    {
+      "id": "claim:18",
+      "section": "smelt-moe-boucles",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "Les gains publiés de Huginn et d'Ouro s'obtiennent avec des FLOPs supplémentaires non contrôlés, puisque chaque récurrence ajoute du calcul. Dans une étude à profondeur égale, remplacer des blocs uniques par des récurrences partagées augmente la perte à calcul d'entraînement égal. L'effet du bouclage à budget conjoint (FLOPs et tokens) reste donc une question ouverte.",
+      "original_statement": "Selon SMELT, Huginn et Ouro souffrent de FLOPs supplémentaires non contrôlés, si bien que leurs gains ne seraient pas établis à compute égal.",
+      "corroborated": 3,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 0,
+          "note": "SMELT's comparison table marks both Huginn and Ouro 'extra FLOPs uncontrolled'. Its related work says gains in such papers conflate architecture with extra FLOPs and that matched-compute benefit 'remains open'. The statement is attributed to SMELT, so this holds; the only source is SMELT itself."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "SMELT's Table 1 marks both as not matching per-token FLOPs ('extra FLOPs uncontrolled'). It says reported gains conflate architecture with extra compute, and that the question under matched compute remains open. This is SMELT's characterization, not verified against the Huginn and Ouro papers, and the 'Selon SMELT' framing is accurate."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "SMELT's Table 1 marks Huginn and Ouro as FLOPs/token unmatched (✗) with the key finding 'extra FLOPs uncontrolled'. Its Related Work says that for most prior works the gains 'conflate architectural advantage with the extra FLOPs that repetition spends', and that whether looping helps under jointly matched compute 'remains open'. 'Gains not established at equal compute' is a faithful reading of that, though the paper words it as 'conflated / open' rather than 'not established'. Both Huginn and Ouro are cited as showing looped models match or exceed larger unlooped ones."
+        }
+      ],
+      "audit_note": "[RÉAUDIT-MANUEL-20261017] Ré-audit : repaired, avec correction d'attribution. La formule N_once + r^0,46 N_rec est de Schwethelm et al. (arXiv 2604.21106), que SMELT cite ; elle n'est pas de SMELT. Schwethelm (TUM) et SMELT n'ont aucun auteur commun ; Huginn reconnaît lui-même des FLOPs d'entraînement proches d'un 32B. Le résultat « perd à calcul égal » vaut pour le protocole à profondeur égale de Schwethelm."
+    },
+    {
+      "id": "claim:19",
+      "section": "raisonnement-cache-monitorabilite",
+      "section_retained": true,
+      "retained": false,
+      "audit": "rejected",
+      "kind": "established",
+      "statement": "Le lien entre transformers bouclés et perte de monitorabilité du CoT est supposé, non établi : il repose sur un billet LessWrong spéculatif non relu par des pairs, qui suggère que le partage de cache KV entre récurrences pourrait faire croître une profondeur sérielle opaque.",
+      "original_statement": "Le lien entre transformers bouclés et perte de monitorabilité du CoT est supposé, non établi : il repose sur un billet LessWrong spéculatif non relu par des pairs, qui suggère que le partage de cache KV entre récurrences pourrait faire croître une profondeur sérielle opaque.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "The post (MBaert, 9 Sep 2026) is an unreviewed speculative LessWrong post; it hedges (title says 'may') and argues cache sharing could let opaque serial depth grow with sequence length. No second independent source found. This is the origin of the claim itself."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "The post is a hedged, non-peer-reviewed argument that cross-depth KV-cache paths can make opaque serial depth grow with sequence length, challenging the CoT-monitorability premise. It is a single source by nature (a speculative post)."
+        }
+      ],
+      "audit_note": "[RÉAUDIT-MANUEL-20261017] Ré-audit : rejet maintenu. Seules sources : un billet LessWrong et un blog d'expert, de rang faible pour affirmer un fait. Le caractère non établi du lien est porté par raisonnement-cache-monitorabilite#2."
+    },
+    {
+      "id": "claim:20",
+      "section": "raisonnement-cache-monitorabilite",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Le résumé d'Ouro (LoopLM, arXiv 2510.25741) affirme que ses traces de raisonnement latent sont plus alignées avec les sorties finales que le CoT explicite, sans que le résumé précise la mesure.",
+      "original_statement": "Le résumé d'Ouro (LoopLM, arXiv 2510.25741) affirme que ses traces de raisonnement latent sont plus alignées avec les sorties finales que le CoT explicite, sans que le résumé précise la mesure.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "The abstract states 'LoopLM yields reasoning traces more aligned with final outputs than explicit CoT'. It names no metric or method and does not mention monitorability. The claim describes the content of this one document."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "The abstract says LoopLM yields reasoning traces more aligned with final outputs than explicit CoT, and gives no metric. Read directly on the abstract page."
+        }
+      ],
+      "audit_note": "Confirmé sur lecture directe (règle document-source) : 2/2 jurés. Ce claim décrit le contenu d'un document de référence — SA SOURCE EST UNIQUE PAR NATURE, le seuil ≥2 ne s'y applique pas."
+    },
+    {
+      "id": "claim:21",
+      "section": "raisonnement-cache-monitorabilite",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Jakub Pachocki, chef scientifique d'OpenAI, a écrit le 2 septembre 2026 sur X que la profondeur du graphe de calcul des modèles de pointe d'OpenAI, Astra compris, est celle de GPT-4 « à un facteur deux près ». La phrase ne confirme ni n'infirme un bouclage d'Astra.",
+      "original_statement": "Astra n'est pas confirmé comme modèle bouclé : l'hypothèse est une inférence d'un auteur de billet à partir de son propre benchmark, OpenAI ne l'a pas confirmée, et la déclaration citée de Pachocki sur la profondeur du graphe de calcul va dans le sens contraire.",
+      "corroborated": 2,
+      "refuted": 0,
+      "corrected": 0,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "The post does not establish that Astra is looped. It infers from the author's own LatentMathBench that public statements don't rule out unbounded depth. It quotes Pachocki saying graph depth is within a factor of two of GPT-4, which points against a deep looped model. I found no OpenAI confirmation, but I only checked this one page and did not search further."
+        },
+        {
+          "lens": "réfutation",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "The post infers the hypothesis from its own LatentMathBench results and quotes Pachocki saying graph depth is within a factor of two of GPT-4. The post itself argues this bound may not rule out cache sharing, so 'the opposite direction' is a fair reading of the quote against recurrence, though not a refutation. I could not check OpenAI's non-confirmation independently; the post only reports public reassurances."
+        }
+      ],
+      "audit_note": "[RÉAUDIT-MANUEL-20261017] Recentré après le Build : document_source. L'énoncé décrit le contenu d'une déclaration publique du chef scientifique d'OpenAI (post X, lu tel qu'intégré dans la page du Grand Continent ; Raschka le cite mot pour mot). Source unique par nature : on ne corrobore pas « Pachocki a écrit X » par un second document. La partie « The Information l'a rapporté sans confirmation d'OpenAI » est retirée de l'énoncé : un seul média de rang réel (Le Grand Continent) la porte, Raschka étant un blog. Le Grand Continent paraphrase la citation en « 2 fois supérieure », ce qui n'est pas fidèle."
+    },
+    {
+      "id": "claim:22",
+      "section": "limites-idees-recues",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "established",
+      "statement": "Dans un transformer bouclé standard, le partage de poids réduit le nombre de paramètres stockés, pas le calcul : chaque passe supplémentaire coûte des FLOPs. Au décodage, le KV cache est par défaut conservé pour chaque passe, et il croît donc avec le nombre de passes. Des variantes le réduisent (réutilisation, partage ou compression du cache), au prix de compromis.",
+      "original_statement": "Le partage de poids d'un transformer bouclé réduit le nombre de paramètres mais pas le coût de calcul ni le KV cache au décodage, qui reste proportionnel au nombre total de passes.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 3,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "Abstract of 2607.15456 states that weight tying reduces parameters but decoding still stores a separate K/V cache per recurrence step; the compute part is not in the abstract (follows from re-running the block). MoR shows the KV cache can be reduced by design, so the claim holds for the plain looped case only."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "corrected_statement": "Dans un transformer bouclé standard, le partage de poids réduit le nombre de paramètres mais pas le coût de calcul, et le KV cache au décodage reste stocké séparément pour chaque passe (sauf partage ou compression de cache dédiés, p. ex. certaines variantes de Mixture-of-Recursions ou Looped Latent Attention).",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "L'abstract de 2607.15456 confirme un K/V séparé par pas de récurrence pour les modèles bouclés à poids liés. Mais l'énoncé est trop absolu : le cache n'est pas inévitablement proportionnel au nombre de passes, puisque des variantes de MoR partagent le KV (non relu ici) et que LLA le compresse. L'abstract ne parle pas de FLOPs."
+        }
+      ],
+      "audit_note": "[RÉAUDIT-MANUEL-20261017] Ré-audit : repaired. Trois travaux sans auteur commun, passages relus : Looped Latent Attention (KV par passe), MoR §2.1 et annexe D, Ouro §5.4.2. Énoncé d'origine trop absolu, nuancé selon la correction du juré réfutation."
+    },
+    {
+      "id": "claim:23",
+      "section": "limites-idees-recues",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Pour Ouro, la boucle améliore le raisonnement non par une capacité de connaissance accrue mais par une meilleure manipulation des connaissances ; pour la profondeur logique virtuelle, à nombre de paramètres fixé, la capacité de connaissance reste quasi inchangée tandis que le raisonnement s'améliore nettement.",
+      "original_statement": "Pour Ouro et pour la profondeur logique virtuelle, la boucle améliore le raisonnement sans augmenter la capacité de connaissance stockée : le gain vient de la manipulation des connaissances, non de leur quantité.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "Ouro abstract: advantage stems not from increased knowledge capacity but from superior knowledge manipulation. VLD abstract: reasoning improves substantially while knowledge capacity stays nearly unchanged at fixed parameter count. Two distinct papers, same finding."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "corrected_statement": "Pour Ouro, la boucle améliore le raisonnement non par une capacité de connaissance accrue mais par une meilleure manipulation des connaissances ; pour la profondeur logique virtuelle, à nombre de paramètres fixé, la capacité de connaissance reste quasi inchangée tandis que le raisonnement s'améliore nettement.",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "L'abstract d'Ouro parle bien de « manipulation » contre « capacité ». Celui de la VLD dit seulement que la capacité de connaissance est « presque inchangée » et n'emploie pas « manipulation » ; l'attribution à la VLD est donc une extrapolation, et « nearly unchanged » n'est pas « zéro »."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « Pour Ouro et pour la profondeur logique virtuelle, la boucle améliore le raisonnement sans augmenter la capacité de connaissance stockée : le gain vient de la manipulation des connaissances, non de leur quantité. »"
+    },
+    {
+      "id": "claim:24",
+      "section": "limites-idees-recues",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "contestable",
+      "statement": "Huginn (3,5 Md de paramètres) annonce, en itérant son bloc récurrent à l'inférence, des budgets de calcul équivalents à ceux d'un transformer standard de 50 Md. C'est une équivalence de FLOPs, pas de capacité ni de coût. Un travail indépendant relève que les FLOPs supplémentaires de ces modèles ne sont pas contrôlés.",
+      "original_statement": "Un modèle bouclé « équivalent à 50B » (Huginn, 3,5 Md de paramètres) est aussi performant, en capacité et en coût d'inférence, qu'un modèle dense de 50 Md de paramètres.",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 3,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "corrected_statement": "Huginn (3,5 Md de paramètres) peut atteindre, en itérant son bloc récurrent à l'inférence, une charge de calcul équivalente à celle d'un modèle de 50 Md de paramètres ; cela décrit le calcul à l'inférence, pas une équivalence de capacité ni de coût avec un modèle dense de 50 Md.",
+          "search_exhausted": false,
+          "n_sources": 0,
+          "note": "The Huginn abstract says 'a computation load equivalent to 50 billion parameters', i.e. a compute equivalence, not capacity. The claim contradicts the paper and the stated parameter-vs-compute distinction: the model has 3.5B parameters and incurs the extra inference compute."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "corrected_statement": "Huginn (3,5 Md de paramètres) peut améliorer ses performances en raisonnement, parfois fortement, jusqu'à une charge de calcul au test équivalente à celle d'un modèle de 50 Md de paramètres ; cela ne prouve pas qu'il égale un modèle dense de 50 Md en capacité ni en coût d'inférence.",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "Le « 50B » désigne la charge de calcul équivalente au test, pas une équivalence de performance avec un dense de 50 Md. Il confond efficacité en paramètres et efficacité en calcul : le calcul à l'inférence est celui d'un 50 Md, donc non réduit."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "corrected_statement": "Huginn (3,5 Md de paramètres) peut, en augmentant le nombre d'itérations récurrentes au test, atteindre une charge de calcul « équivalente à 50 Md de paramètres » ; il s'agit d'une équivalence de calcul (FLOPs par token), pas d'une performance égale à un modèle dense de 50 Md, et le coût d'inférence en calcul est celui d'un modèle de 50 Md (seuls les paramètres à stocker restent à 3,5 Md).",
+          "search_exhausted": false,
+          "n_sources": 3,
+          "note": "Le résumé de l'article original dit que le raisonnement s'améliore « jusqu'à une charge de calcul équivalente à 50 milliards de paramètres » pour un modèle de 3,5 Md : c'est une équivalence de calcul, pas de capacité ni de performance. Le modèle est présenté comme une preuve de concept, et l'énoncé confond calcul et paramètres, et attribue à tort un coût d'inférence identique à un dense de 50 Md (même calcul, mais mémoire de poids et capacité de stockage de 3,5 Md). Lu uniquement via les résumés arXiv, pas le PDF complet."
+        }
+      ],
+      "audit_note": "[RÉAUDIT-MANUEL-20261017] Ré-audit : sources corrigées. Looped Latent Attention et Ouro ne portent pas le chiffre de 50 Md : retirés. Huginn §5.1 : « FLOP budgets equivalent to a standard 50B parameter fixed-depth transformer » ; SMELT, Tableau 1 : « extra FLOPs uncontrolled » (aucun auteur commun avec Huginn)."
+    },
+    {
+      "id": "claim:25",
+      "section": "ecosysteme",
+      "section_retained": true,
+      "retained": true,
+      "audit": "corrected",
+      "kind": "established",
+      "statement": "Le dépôt MoR est sous Apache-2.0, fige torch==2.6.0+cu124, flash_attn==2.7.4.post1 et transformers==4.52.4, et héberge ses checkpoints 360 M sur Google Drive ; le dépôt Huginn (recurrent-pretraining) publie le code d'entraînement, avec une licence Apache-2.0 affichée mais dont une partie du code relève de la licence Apache-2.0 de Lightning AI.",
+      "original_statement": "Les dépôts officiels de Huginn et de MoR sont sous licence Apache-2.0 et publient du code utilisable, mais MoR fige torch 2.6.0+cu124, flash_attn 2.7.4.post1 et transformers 4.52.4, et ses checkpoints de 360 M sont hébergés sur Google Drive.",
+      "corroborated": 1,
+      "refuted": 1,
+      "corrected": 1,
+      "n_sources": 2,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": true,
+          "corrected": false,
+          "corrected_statement": "",
+          "search_exhausted": false,
+          "n_sources": 0,
+          "note": "The MoR README shows Apache-2.0, the exact pins torch==2.6.0+cu124, flash_attn==2.7.4.post1 and transformers==4.52.4, and 360M checkpoints on Google Drive. The Huginn repo (seal-rg/recurrent-pretraining) is Apache-2.0 and ships training, inference and vLLM-plugin code. These are two separate repos, each the primary source for its own half of the claim."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "corrected_statement": "Le dépôt MoR est sous Apache-2.0, fige torch==2.6.0+cu124, flash_attn==2.7.4.post1 et transformers==4.52.4, et héberge ses checkpoints 360 M sur Google Drive ; le dépôt Huginn (recurrent-pretraining) publie le code d'entraînement, avec une licence Apache-2.0 affichée mais dont une partie du code relève de la licence Apache-2.0 de Lightning AI.",
+          "search_exhausted": false,
+          "n_sources": 2,
+          "note": "MoR details verified exactly. Huginn: Apache-2.0 shown in sidebar but README says only 'part of the code' is under Lightning AI's Apache-2.0; I could not read the LICENSE file, so 'sous licence Apache-2.0' for the whole repo is not fully verified. Also the repo is the training code, not necessarily 'code utilisable' for inference."
+        }
+      ],
+      "audit_note": "Énoncé d'origine imprécis, corrigé après vérification (2 sources indépendantes). Origine : « Les dépôts officiels de Huginn et de MoR sont sous licence Apache-2.0 et publient du code utilisable, mais MoR fige torch 2.6.0+cu124, flash_attn 2.7.4.post1 et transformers 4.52.4, et ses checkpoints de 360 M sont hébergés sur Google Drive. »"
+    },
+    {
+      "id": "claim:26",
+      "section": "ecosysteme",
+      "section_retained": true,
+      "retained": true,
+      "audit": "confirmed",
+      "kind": "contestable",
+      "statement": "Selon sa fiche Hugging Face, huginn-0125 compte environ 1,5 Md de paramètres non récurrents (prelude et coda), 0,5 Md d'embedding et 1,5 Md de paramètres récurrents. Les paramètres matérialisés valent environ num_steps × 1,5 Md + 2 Md. La fiche indique la stratégie de cache compress-s16, et latest-m4-compress-s16 avec le calcul adaptatif par token.",
+      "original_statement": "Huginn (huginn-0125) tient à environ 3,5 B de paramètres pour num_steps moyen, mais ses paramètres matérialisés croissent avec le nombre de pas (environ num_steps x 1,5 B + 2 B) : déployer plus de pas ne coûte pas de paramètres stockés en plus, mais coûte du calcul et du KV cache, que compress-s16 ne ramène qu'en partageant le cache entre itérations.",
+      "corroborated": 0,
+      "refuted": 3,
+      "corrected": 3,
+      "n_sources": 1,
+      "jurors": [
+        {
+          "lens": "soutien",
+          "holds": false,
+          "corrected": true,
+          "corrected_statement": "Huginn-0125 is presented as a 3.5B-parameter model (about 1.5B non-recurrent, 0.5B embedding, 1.5B recurrent). Its model card gives materialized parameters as num_steps x 1.5B + 2B, so more steps add no stored parameters but add compute and KV cache. The compress-s16 lookup strategy reduces KV-cache memory by having later iterations overwrite earlier caches.",
+          "search_exhausted": false,
+          "n_sources": 0,
+          "note": "The model card gives 3.5B and the num_steps x 1.5B + 2B formula. It does not tie 3.5B to a 'mean num_steps': by the formula 3.5B corresponds to the unique parameters (one pass), and 32 steps would materialize about 50B. The claim's 3.5B-at-mean-steps wording is unsupported, and the card never describes compress-s16 as sharing the cache across iterations in those terms."
+        },
+        {
+          "lens": "réfutation",
+          "holds": false,
+          "corrected": true,
+          "corrected_statement": "Huginn (huginn-0125) est présenté comme un modèle de 3,5 B paramètres ; la carte donne les paramètres matérialisés comme num_steps x 1,5 B + 2 B, donc plus de pas ne coûte pas de paramètres stockés mais du calcul ; le KV cache peut être réduit via lookup_strategy compress-s16 (la carte précise seulement que le dernier nombre fixe la taille du cache, et que les itérations tardives écrasent les caches précoces).",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "The card gives 3.5B and the materialized formula, but never ties 3.5B to a 'mean num_steps' (at num_steps=1 the formula gives 3.5B; 3.5B is the stored size). The card describes compress-s16 as sizing the cache, not as 'sharing cache between iterations'; the overwriting is a separate behavior of fewer-cache modes. Claim over-specifies."
+        },
+        {
+          "lens": "source-primaire",
+          "holds": false,
+          "corrected": true,
+          "corrected_statement": "Huginn (huginn-0125) stocke environ 3,5 B de paramètres (≈1,5 B en prélude+coda, 0,5 B d'embedding, 1,5 B de bloc récurrent), quel que soit num_steps. Le nombre de paramètres « matérialisés » (appliqués) vaut environ num_steps x 1,5 B + 2 B (3,5 B correspond donc à une seule itération, pas à un num_steps moyen) : plus de pas ne coûte aucun paramètre stocké en plus, mais plus de calcul et de KV cache. Pour réduire le KV cache, on peut utiliser lookup_strategy « compress-s16 » : le modèle tourne avec moins de caches, les itérations tardives écrasant les caches des plus anciennes (la taille du cache est donnée par le dernier nombre).",
+          "search_exhausted": false,
+          "n_sources": 1,
+          "note": "La fiche officielle donne 3,5 B de paramètres et la formule num_steps * 1,5B + 2B, mais 3,5 B correspond à num_steps=1, pas à un « num_steps moyen ». Elle décrit compress-s16 comme moins de caches avec écrasement par les itérations tardives, et non comme un partage de cache entre itérations. Le dépôt GitHub ne contient aucun de ces chiffres. Les « 2 B » sont ma lecture de la fiche (1,5 B prélude+coda + 0,5 B embedding)."
+        }
+      ],
+      "audit_note": "[RÉAUDIT-MANUEL-20261017] Ré-audit : document_source. L'énoncé décrit le contenu de la fiche du modèle, relue verbatim. Source unique par nature (règle document-source) : on ne corrobore pas « ce document dit X » par un second document ; l'énoncé ne prétend pas 2 sources. Correction : « 3,5 Md pour num_steps moyen » n'existe pas dans la fiche."
+    }
+  ]
+}
