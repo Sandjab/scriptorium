@@ -417,7 +417,17 @@ première mesure se soit révélée fausse** (hauteur/interligne compte le paddi
 la bonne mesure est `Range.getClientRects().length`), 8 cas réels ramenés à 1, le titre de charte.
 Lint contraste 0, lint.py 28 flags adjugés règle par règle, bijection biblio rétablie.
 
-### Surveillance de la chaîne de pensée, scheming et AI control — `cot-monitoring-scheming-ai-control` → `llm-agents-generation`
+### ✅ FAIT — Surveillance de la chaîne de pensée, scheming et AI control — `cot-monitoring-scheming-ai-control` → `llm-agents-generation`
+(**FAIT le 2026-10-17**, 81e run `/leanmonograph`, retiré du backlog. 10 sections sur 10, 45 claims (34 confirmés /
+5 corrigés / 6 rejetés dont 4 doublons), 32 sources, 2 widgets + 3 figures ; **≈ 8,5 M tok, 2 lancements utiles**. Gap
+pris tel que vérifié par lecture à la passe de veille du même jour (non re-vérifié avant lancement). **Arrêt
+d'élagage au council** : 27 rejets sur 40, tous `search_exhausted=false` — ré-audit 4 agents : 13 regrainés /
+11 document-source / 5 corrigés / 5 nouveaux (resampling Ctrl-Z et moniteurs action-only, omis par le plan) ;
+5 confirmés à fausse indépendance (arXiv + ICLR du même papier, page Apollo + son billet). Loader de reprise refusé
+2/2 (`reasoning_extraction`) → consigne corrigée (`3c43c0a`). Backstop 3 agents, 270 faits : 7 FAUX contre-lus en
+primaire (agent de Baker et al. dit « o3-mini », « monitorability tax » prise pour un surcoût de calcul, « Weasel »
+pris pour un nom de run, légende de Pareto démentie par le Tableau 7, sandbagging sans CoT), 23 imprécis corrigés.
+Rumeur « Astra » : rien affirmé.)
 **Verdict : gap réel** (passe du 2026-10-17). `reasoning-test-time-compute` traite la seule
 *fidélité* du CoT (« La faithfulness (fidélité) du chain-of-thought […] est une limite distincte,
 souvent sous-estimée ») ; `mechanistic-interpretability` §11 juge les circuits « inadaptées à la
