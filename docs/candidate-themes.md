@@ -1555,8 +1555,21 @@ ablation + obliteration.
 > mesures publiés, sans recette opératoire. Domaine : llm-agents-generation (voisin de
 > llm-safety-jailbreaks), à trancher par /arrange contre deep-learning-foundations.
 
-### Complaisance et désalignement émergent — `sycophancy-emergent-misalignment` → `llm-agents-generation`
-**Verdict : partiel** (passe du 2026-10-17). `rlhf-dpo` §10 : « La sycophancy (flatterie
+### ✅ FAIT — Complaisance et désalignement émergent — `sycophancy-emergent-misalignment` → `llm-agents-generation`
+(**FAIT le 2026-10-23**, 83e run `/leanmonograph`, retiré du backlog. 10 sections sur 10, 33 claims (2 confirmés / 31 corrigés /
+0 rejeté), 28 sources, 4 widgets + 1 figure ; ≈ 7,8 M tok workflow (3,98 + 3,80 en reprise) + ré-audit 4 agents + backstop 3 agents.
+**33e arrêt d'élagage, le plus massif : 31 rejets sur 39, dont 27 tenus par tous les jurés** — littérature mono-source par nature (cinq
+papiers primaires), aucun rejet confirmé : 22 regrains au phénomène + 3 réparations, 19 travaux indépendants ajoutés (Laban, Wei, Fanous,
+Shapira, Papadatos & Freedman, Dickson, Turner, Schreiber & Goldstein, Mishra, Li, Arnold & Lörch, Zhang, Soligo, Rao, Tagade, UK AISI,
+Dubiński, Tan, Taylor), 6 doublons inter-sections retirés. Indépendance tranchée en CODE par les listes d'auteurs (Semantic Scholar) :
+le cercle Betley/Taylor/Chua/Tan/Dubiński compte pour un travail. Backstop : 3 FAUX (« dix autres oscillent » → 3 instables et 6 jamais ;
+« helpful-only à 0 % » → 7 % avant fine-tuning, le 0 % est celui des modèles de reward hacking — faux venu de MON ré-audit ; Mia Taylor
+co-autrice de Betley → non) + 20 imprécisions (r = 0,90 médical vs 0,67 code, « 93 % » sans « 71 % des cas », 120-200 et non « quelques
+centaines », table 1 de Betley en écarts relatifs, Mishra 7/9 domaines évalués). Pilier 5 (arXiv 2606.09068 et 2606.08629) resté
+non vérifié, nommé en prose avec réserve. Divergences portées dans les énoncés : Starling-RM, biais pro-accord sur 30-40 % des prompts,
+protection éducative partielle chez Dickson, inoculation « not as clear » à l'AISI, ré-alignement rapide contesté.)
+
+**Verdict initial : partiel** (passe du 2026-10-17). `rlhf-dpo` §10 : « La sycophancy (flatterie
 systématique) en est l'exemple le mieux documenté […] Wen et al. (2024) » ; une feature de
 sycophancy dans `mechanistic-interpretability`. « Emergent misalignment » n'apparaît qu'en titres
 de bibliographie ; Betley : 0 occurrence. Absorbe le volet « reward hacking → désalignement
