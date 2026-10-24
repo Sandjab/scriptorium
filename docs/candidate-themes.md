@@ -483,8 +483,21 @@ d'un LLM pré-entraîné : 0 occurrence. Sujet d'actualité (rumeur Astra, The I
 > le routage par experts ; `cot-monitoring-scheming-ai-control` (candidat) garde la monitorabilité.
 > Domaine : deep-learning-foundations (ou llm-agents-generation, à trancher par /arrange).
 
-### Prévision météorologique par apprentissage — `weather-forecasting-ml` → domaine à trancher (`ai-for-science` ?)
-**Verdict : gap réel** (passe du 2026-10-17). Seulement des tangentes : DGMR (nowcasting radar,
+### ✅ FAIT — Prévision météorologique par apprentissage — `weather-forecasting-ml` → `ai-for-science` (domaine créé)
+(**FAIT le 2026-10-23**, 84e run `/leanmonograph`, retiré du backlog. 11 sections sur 11, 32 claims (29 confirmés / 2 corrigés /
+1 rejeté), 32 sources, 4 widgets + 3 figures ; ≈ 8,6 M tok workflow (4,4 + 4,2 en reprise) + ré-audit 5 agents + backstop 3 agents.
+**34e arrêt d'élagage : 19 rejets sur 42**, littérature à source unique (WeatherBench 2, Zhao et al.) : 13 regrains au phénomène sur
+des évaluations extérieures aux labos (Olivetti & Messori, Zhao, Radford, Rehman & Teferle, Zhang, Subich, Brenowitz, Bonavita),
+1 réparation (seuil d'ACC 0,6 : guide ECMWF + FuXi), 1 rejet confirmé (potential CRPS), 8 doublons retirés (dates d'AIFS dans 6
+sections). **~10 claims retenus à fausse indépendance** (préprint + version Nature sur PMC, papier + blog des auteurs, deux pages
+ECMWF) ; matrice de co-auteurs : WeatherBench 2 partage des auteurs avec GraphCast, GenCast et l'ECMWF. ~11 claims en
+document-source déclaré (communiqués ECMWF, protocole WB2, méthode décrite par son papier), jamais pour un score auto-déclaré.
+2 faux trouvés au ré-audit (FourCastNet « le premier » : Keisler le précède ; CRPS de WB2 = estimateur « fair »). Backstop : 3 FAUX
+(GenCast garde ses 1 320 cibles, c'est GraphCast qui passe de 2 760 à 1 380 ; vent de gradient conservé dans la version PNAS de Sun
+et al. ; légende « vérité ERA5 » de la figure ROCSS alors que Zhao vérifie l'IFS contre l'analyse HRES en température) + 25
+imprécisions, et un doublon bibliographique Olivetti & Messori fusionné.)
+
+**Verdict initial : gap réel** (passe du 2026-10-17). Seulement des tangentes : DGMR (nowcasting radar,
 `generative-adversarial-networks`), l'héritage du score de Brier (`calibration-classifieurs`), la
 météo comme variable exogène (`time-series-forecasting`). GraphCast, Pangu, FourCastNet, GenCast,
 AIFS, WeatherBench 2 : 0 occurrence.
