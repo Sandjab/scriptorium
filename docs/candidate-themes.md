@@ -1826,8 +1826,21 @@ de référence 2026 moindre.
 > centrer sur les architectures inversibles et l'estimation de densité exacte. Domaine :
 > deep-learning-foundations.
 
-### Routage multi-modèles & cascades — `model-routing-cascades` → `llm-agents-generation`
-**Verdict : gap réel mais ⚠️ frontière à caler (ajout 2026-07-17).** RouteLLM, FrugalGPT,
+### ✅ FAIT — Routage multi-modèles & cascades — `model-routing-cascades` → `llm-agents-generation`
+(**FAIT le 2026-10-24**, 85e run `/leanmonograph`, retiré du backlog ; classé 28e étape du parcours entre `llm-inference-serving`
+et `small-language-models-edge`. 11 sections sur 11, 38 claims (9 confirmés / 28 corrigés / 1 rejeté), 30 sources, 2 widgets +
+3 figures ; ≈ 9,5 M tok (workflow 4,5 + reprise 3,7 + ré-audit 4 agents 0,8 + backstop 3 agents 0,6). **35e arrêt d'élagage : 30 rejets
+sur 39**, tous `search_exhausted=false` (jurés au seul papier primaire) : 7 réparations, 26 regrains confrontant les économies
+auto-déclarées à des ré-évaluations indépendantes (LLMRouterBench, Zhang et al., Shafran et al., Kassem et al., Routing Plateau),
+1 rejet confirmé (inversion SW/MF entre paires, contredite par la Table 4 de RouteLLM), 5 doublons retirés. Règle appliquée : un
+chiffre auto-déclaré ne reste dans un énoncé qu'attribué ET porté par un second travail. Backstop : 5 FAUX (dont 2 venus du ré-audit :
+« comme les autres routeurs binaires » absent de LLMRouterBench, « ~4 % » d'une revue pour un 2,9-3,5 % primaire ; « 85 % » prêté au
+titre du billet LMSYS ; README RouteLLM mal lu ; acceptation ACL attribuée au résumé arXiv) + 18 imprécisions + 5 réserves.
+⚠️ Ce verdict d'origine était **périmé** : `llm-classifieur-decision-typee` (61e run) traitait déjà les cascades en un paragraphe
+de sa section « Seuil, abstention, routage » (report selon l'incertitude, Gupta et al., early abstention) et citait FrugalGPT en
+bibliographie — vérifié par lecture avant le lancement, délimitation posée dans le brief.)
+
+**Verdict initial : gap réel mais ⚠️ frontière à caler (ajout 2026-07-17).** RouteLLM, FrugalGPT,
 cascades = 0 occurrence ; MAIS `llm-inference-serving` (FAIT le 2026-07-18) traite déjà « le
 routage/autoscaling multi-modèles » côté infra (section routage-autoscaling-multimodeles :
 routage prefix-cache-aware et load-aware). Dépendance levée — caler la frontière sur l'arbitrage
