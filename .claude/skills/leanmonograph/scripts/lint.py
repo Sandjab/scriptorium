@@ -33,18 +33,29 @@ Vérifications :
      et au 46e run deux entrées `nootroo.com` (un vendeur de nootropiques) citées
      en bibliographie sur l'histoire d'un terme, plus l'exception `document-source`
      invoquée sur un miroir PR Newswire au lieu du document officiel.
+  5. shared_author_sources : claims RETENUS dont deux sources partagent un auteur
+     (Semantic Scholar, un appel groupé sur les identifiants arXiv/DOI/PMC/PubMed).
+     Le seuil ≥2 de docKeys ne voit ni un préprint et sa version publiée sous un autre
+     titre, ni deux articles de la même équipe (84e run : GenCast v1 + Nature,
+     GraphCast + GenCast). Une source sans identifiant compte comme un travail à part.
+     Réseau indisponible → statut dans `authors_check`, jamais de blocage.
 
 Sortie : JSON sur stdout. Exit 2 s'il existe ≥1 rejected_flag non hedgé, ≥1
 foreign_statement, ≥1 foreign_kept_statement (claim RETENU à l'énoncé non français, à
-traduire dans knowledge.json), OU ≥1 claim CONFIRMÉ sans deux sources de rang réel et sans
-exception document-source déclarée (tous exigent une adjudication), 0 sinon,
+traduire dans knowledge.json), ≥1 claim CONFIRMÉ sans deux sources de rang réel et sans
+exception document-source déclarée, OU ≥1 claim CONFIRMÉ dont les sources, regroupées par
+auteurs communs, ne forment plus deux travaux (tous exigent une adjudication), 0 sinon,
 1 sur erreur d'usage/fichier.
 """
 import json
+import os
 import pathlib
 import re
 import statistics
 import sys
+import time
+import unicodedata
+import urllib.request
 
 HEDGE_RE = re.compile(
     r"(source unique|auto-rapport|non corrobor|non reproduit|non v[ée]rifi"
@@ -112,6 +123,81 @@ def source_rank(url):
     if PRESS_PATH_RE.search(u) and not official:
         return "communiqué de presse (hors site de l'autorité qui l'émet)"
     return None
+
+
+# ── Co-auteurs des sources (check 5) ──────────────────────────────────────────────────────
+# `docKeys` reconnaît un même travail à un identifiant ou à un titre communs. Il ne peut pas
+# voir qu'un préprint arXiv et sa version publiée sur PMC sont un seul travail (titres
+# différents, et Semantic Scholar lui-même les tient pour deux articles), ni que deux
+# articles de la même équipe ne se corroborent pas. Ce qui les trahit, ce sont les AUTEURS
+# communs (84e run, weather-forecasting-ml : GenCast v1 + Nature, GraphCast + GenCast,
+# WeatherBench 2 co-signé avec DeepMind et l'ECMWF).
+S2_BATCH_URL = ("https://api.semanticscholar.org/graph/v1/paper/batch"
+                "?fields=authors.name,authors.authorId")
+ARXIV_ID_RE = re.compile(r"arxiv\.org/(?:abs|html|pdf)/(\d{4}\.\d{4,5})", re.I)
+PMC_ID_RE = re.compile(r"/(?:pmc/)?articles/PMC(\d+)", re.I)
+PUBMED_ID_RE = re.compile(r"pubmed\.ncbi\.nlm\.nih\.gov/(\d+)", re.I)
+DOI_IN_URL_RE = re.compile(r"(10\.\d{4,9}/[^\s?&#]+)")
+
+
+def source_s2_id(url):
+    """Identifiant Semantic Scholar d'une source, ou None si le code ne sait pas la résoudre."""
+    u = (url or "").strip()
+    for rx, prefix in ((ARXIV_ID_RE, "ArXiv:"), (PMC_ID_RE, "PMCID:"), (PUBMED_ID_RE, "PMID:")):
+        m = rx.search(u)
+        if m:
+            return prefix + m.group(1)
+    m = DOI_IN_URL_RE.search(u)
+    if m:
+        return "DOI:" + re.sub(r"\.(pdf|epub|full|html?|xml)$", "", m.group(1).rstrip("/"))
+    return None
+
+
+def author_identities(author):
+    """Clés d'identité d'un auteur : deux auteurs sont la même personne dès qu'ils en partagent
+    une. L'authorId Semantic Scholar, ET le nom complet (sans accents, casse ni trait d'union),
+    car Semantic Scholar scinde des profils (« Jia-Heng Liu » sous deux identifiants entre Ouro
+    et SMELT). Jamais « nom + initiale » : cette clé a confondu Rui-Jie Zhu (Ouro) et Ruike Zhu
+    (Virtual Logic Depth) et bloqué deux claims justes — un prénom réduit à une initiale ne
+    produit donc pas de clé de nom."""
+    keys = set()
+    if author.get("authorId"):
+        keys.add("id:" + str(author["authorId"]))
+    plain = unicodedata.normalize("NFKD", author.get("name") or "").encode("ascii", "ignore")
+    words = re.findall(r"[a-z0-9']+(?:-[a-z0-9']+)*\.?", plain.decode().lower())
+    if len(words) >= 2 and len(words[0].rstrip(".")) >= 2 and not words[0].endswith("."):
+        keys.add("name:" + " ".join(w.replace("-", "") for w in words))
+    return keys
+
+
+def fetch_authors(ids):
+    """{identifiant: [{name, authorId}]} pour les identifiants résolus, et un statut lisible.
+
+    LINT_AUTHORS_FIXTURE (chemin d'un JSON) remplace le réseau dans les tests ; une clé
+    "__error__" y simule une panne. Une panne réseau ne lève jamais : elle est DITE dans le
+    statut, et le contrôle ne bloque pas sur ce qu'il n'a pas pu voir."""
+    if not ids:
+        return {}, "ok"
+    fixture = os.environ.get("LINT_AUTHORS_FIXTURE")
+    if fixture:
+        data = json.loads(pathlib.Path(fixture).read_text(encoding="utf-8"))
+        if "__error__" in data:
+            return {}, f"indisponible : {data['__error__']}"
+        return {i: data[i] for i in ids if i in data}, "ok"
+    body = json.dumps({"ids": ids}).encode()
+    last = ""
+    for attempt in range(2):          # un seul nouvel essai : un 429 isolé passe souvent
+        try:
+            req = urllib.request.Request(S2_BATCH_URL, data=body,
+                                         headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=30) as r:
+                papers = json.loads(r.read())
+            return ({i: p.get("authors") or [] for i, p in zip(ids, papers) if p}, "ok")
+        except Exception as e:  # réseau, HTTP, JSON : tout se dit, rien ne lève
+            last = str(e)
+            if attempt == 0:
+                time.sleep(3)
+    return {}, f"indisponible : {last}"
 
 # Clés JSON dont la valeur n'est pas du texte visible (identifiants, liens, ancrages).
 NON_TEXT_KEYS = {"url", "href", "id", "ref", "slug", "kind", "type", "angle_key",
@@ -463,6 +549,68 @@ def main():
         })
     blocking = [f for f in low_rank if f["blocking"]]
 
+    # 5. Co-auteurs des sources des claims RETENUS. Deux travaux qui partagent un auteur ne se
+    # corroborent pas ; une source sans identifiant compte comme un travail à part (le code
+    # ne bloque pas sur ce qu'il ignore).
+    def entry_source(entry):
+        src = entry if isinstance(entry, dict) else by_id.get(entry, {})
+        sid = entry if isinstance(entry, str) else src.get("id", src.get("url", "?"))
+        return sid, src.get("url", "")
+    s2_of = {}
+    for c in kept:
+        for entry in c.get("sources", []):
+            sid, url = entry_source(entry)
+            s2_of[url] = source_s2_id(url)
+    ids = sorted({i for i in s2_of.values() if i})
+    authors, authors_check = fetch_authors(ids)
+    keys_of, name_of = {}, {}
+    for i, people in authors.items():
+        keys_of[i] = set()
+        for a in people:
+            for k in author_identities(a):
+                keys_of[i].add(k)
+                name_of.setdefault(k, a.get("name", k))
+    shared = []
+    for c in kept:
+        srcs = [entry_source(e) for e in c.get("sources", [])]
+        if len(srcs) < 2:
+            continue
+        pairs, parent = [], list(range(len(srcs)))
+        def root(i):
+            while parent[i] != i:
+                i = parent[i]
+            return i
+        for a in range(len(srcs)):
+            for b in range(a + 1, len(srcs)):
+                ka = keys_of.get(s2_of.get(srcs[a][1]), set())
+                kb_ = keys_of.get(s2_of.get(srcs[b][1]), set())
+                common = ka & kb_
+                if common:
+                    parent[root(b)] = root(a)
+                    pairs.append({"sources": [srcs[a][0], srcs[b][0]],
+                                  "shared_authors": sorted({name_of[k] for k in common})})
+        if not pairs:
+            continue
+        works = len({root(i) for i in range(len(srcs))})
+        declared = bool(DOC_SOURCE_RE.search(c.get("audit_note", "") or ""))
+        shared.append({
+            "claim": c.get("id"),
+            "audit": c.get("audit"),
+            "independent_works": works,
+            "document_source_declared": declared,
+            "blocking": c.get("audit") == "confirmed" and works < 2 and not declared,
+            "pairs": pairs,
+            "statement": (c.get("statement", "") or "")[:180],
+            "adjudication": "des sources co-signées ne se corroborent pas (préprint et version "
+                            "publiée, même équipe). Vérifier d'abord qu'il s'agit bien de la même "
+                            "personne (affiliation, sujet) : un nom complet très fréquent peut "
+                            "être un homonyme. Un claim CONFIRMÉ qui ne garde pas deux "
+                            "travaux indépendants doit être re-sourcé hors du cercle des auteurs, "
+                            "ou déclarer l'exception document-source s'il décrit le contenu d'un "
+                            "document de référence — jamais pour un résultat empirique",
+        })
+    shared_blocking = [f for f in shared if f["blocking"]]
+
     unhedged = [f for f in rejected_flags if not f["hedged"]]
     print(json.dumps({
         "mode": "pre" if pre else "post",
@@ -473,9 +621,12 @@ def main():
         "novel_numbers": novel,
         "low_rank_sources": low_rank,
         "low_rank_blocking": len(blocking),
+        "shared_author_sources": shared,
+        "shared_author_blocking": len(shared_blocking),
+        "authors_check": authors_check,
         "prose_style": prose_style(theme, pre),
     }, ensure_ascii=False, indent=1))
-    return 2 if (unhedged or foreign or foreign_kept or blocking) else 0
+    return 2 if (unhedged or foreign or foreign_kept or blocking or shared_blocking) else 0
 
 
 if __name__ == "__main__":

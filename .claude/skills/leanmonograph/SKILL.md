@@ -123,6 +123,22 @@ Frontière code/jugement : le **code détecte**, le **modèle adjuge**.
   l'émet (`fda.gov`, `ftc.gov`, ANSM, HAS) **est** le document officiel, donc recevable ; la même
   chose republiée ailleurs est une reprise. Bornes vérifiées par
   `.claude/skills/monograph/scripts/test_lint_source_rank.py`.
+- `shared_author_sources` : claims **retenus** dont deux sources partagent un auteur. `docKeys`
+  reconnaît un même travail à un identifiant ou à un titre communs ; il ne voit ni un préprint
+  et sa version publiée sous un autre titre (GenCast arXiv v1 contre « Probabilistic weather
+  forecasting… » dans Nature, lu sur PMC — Semantic Scholar lui-même en fait deux articles), ni
+  deux articles de la même équipe. Au 84e run, une dizaine de claims sont passés ainsi. Le lint
+  résout les identifiants arXiv/DOI/PMC/PubMed des sources par **un** appel groupé à Semantic
+  Scholar et regroupe les sources par auteur commun : `authorId`, **ou** nom complet sans
+  accents ni trait d'union (Semantic Scholar scinde des profils) — jamais « nom + initiale », qui
+  a confondu deux « Zhu R. » à la mise au point. On signale toute paire co-signée, on ne
+  **bloque** (exit 2) qu'un `confirmed` réduit à moins de deux travaux, hors `document-source`
+  déclaré. Une source sans identifiant (blog, page institutionnelle) compte comme un travail à
+  part : article + blog des mêmes auteurs reste un angle mort des jurés. Réseau indisponible →
+  statut dans `authors_check`, jamais de blocage. Mesure du 2026-10-24 sur 12 thèmes publiés :
+  20 signalements, 1 blocage réel (`computer-use-gui-agents` claim:10, Jianwei Yang co-signe
+  OmniParser et Set-of-Mark). Bornes vérifiées par
+  `.claude/skills/monograph/scripts/test_lint_shared_authors.py`.
 - `prose_style` : longueur des phrases de la prose rédigée, **par section** (médiane, moyenne,
   part de phrases > 45 mots, la plus longue), et la liste des sections au-dessus des seuils
   (médiane > 22 mots, ou > 8 % de phrases > 45). **Signale, ne bloque jamais** : la lisibilité
