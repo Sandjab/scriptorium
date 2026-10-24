@@ -1,0 +1,37 @@
+[
+  {
+    "term": "LLM router",
+    "definition": "LLM router (routeur de modèles de langage) : composant qui choisit, requête par requête et AVANT tout appel, quel modèle répondra, en général entre un modèle fort et coûteux et un modèle faible et bon marché ; un seul modèle fournit la réponse retenue, ce qui distingue le routage d'un ensemble où tous les modèles répondent. Dans RouteLLM, le routeur estime la probabilité que le modèle fort l'emporte, apprise sur des préférences (duels Chatbot Arena augmentés de comparaisons étiquetées par un juge GPT-4), et envoie la requête au modèle fort si cette probabilité atteint un seuil α ; relever α envoie davantage de requêtes au modèle faible. Hybrid LLM route de même selon la difficulté prédite de la requête. Le seuil se calibre sur une distribution de requêtes : hors de celle-ci, des évaluations indépendantes voient des routeurs envoyer des tâches entières d'un bloc au modèle fort, et sur RouterBench, selon le préprint de Lai et Ye, les routeurs tendent à sur-solliciter le modèle le plus fort quand le budget augmente (« routing collapse »). Le routage interne d'un mixture of experts (token vers expert) et le routage d'infrastructure vers une réplique sont d'autres objets.",
+    "see_also": "LLM cascade, cost-quality frontier, CPT (Call-Performance Threshold)"
+  },
+  {
+    "term": "LLM cascade",
+    "definition": "LLM cascade (cascade de modèles de langage) : stratégie qui interroge d'abord un modèle moins cher et n'escalade vers un modèle plus grand que si un signal de confiance sur la première réponse est jugé insuffisant ; la décision se prend APRÈS une première réponse, contrairement au routeur. FrugalGPT la formalise comme la maximisation de la qualité espérée sous un budget de coût moyen, avec pour variables la liste ordonnée d'API et un vecteur de seuils par étape, et un scorer (un DistilBERT dans ses expériences) qui décide de l'arrêt. Le prix caché tient en deux points : il faut des exemples étiquetés proches du trafic visé pour entraîner un scorer par palier, et l'avantage de la cascade se dégrade vite quand le juge qui décide l'escalade se trompe, en simulation sur RouterBench comme dans une étude indépendante à estimateurs bruités. Les cascades au niveau du token et la règle de rejet relèvent de la monographie sur le LLM classifieur, le speculative decoding (accélération à l'intérieur d'un même modèle) de celle sur le décodage.",
+    "see_also": "self-verification, LLM router"
+  },
+  {
+    "term": "self-verification",
+    "definition": "Self-verification (auto-vérification) : dans AutoMix, le petit modèle juge lui-même sa réponse, par un prompt few-shot qui évalue sa cohérence avec le contexte, cadré comme une tâche d'entailment (implication textuelle). Ce signal étant bruité, AutoMix ne l'applique pas tel quel : il confie la décision d'escalade à un routeur fondé sur un POMDP (Partially Observable Markov Decision Process, processus de décision markovien partiellement observable), préféré à une variante à simple seuil. Deux limites : la méthode vise des tâches contextuelles et non le QA (question answering) factuel ni le raisonnement de bon sens, et une ré-implémentation indépendante relève que la vérification, échantillonnée plusieurs fois à chaque palier, ajoute des appels d'API qui alourdissent nettement le coût d'usage.",
+    "see_also": "LLM cascade"
+  },
+  {
+    "term": "cost-quality frontier",
+    "definition": "Cost-quality frontier (frontière coût-qualité) : ensemble des compromis non dominés entre coût d'inférence et qualité, sur lequel se placent les modèles pris seuls et les routeurs. RouterBench le matérialise par l'enveloppe convexe non décroissante des points coût-qualité. Deux références l'encadrent : le routeur Zero, qui interpole entre les modèles seuls situés sur cette frontière et constitue la base à battre, et le routeur oracle, qui envoie chaque requête au meilleur modèle et sert de référence haute (il ne choisit que rarement GPT-4). Envoyer tout le trafic au modèle frontière revient à payer le point le plus cher de la courbe pour des requêtes qu'un modèle moins cher aurait servies. Deux évaluations indépendantes nuancent l'espoir placé dans les routeurs appris : sur RouterBench hors jeu RAG (Retrieval-Augmented Generation), aucun routeur prédictif ne dépasse nettement le routeur Zero, et LLMRouterBench trouve que plusieurs routeurs ne battent pas de façon fiable le meilleur modèle seul.",
+    "see_also": "AIQ (Average Improvement in Quality), LLM router"
+  },
+  {
+    "term": "PGR / APGR (Performance Gap Recovered / Average Performance Gap Recovered)",
+    "definition": "PGR (Performance Gap Recovered, part de l'écart de performance récupérée) : fraction de l'écart de qualité entre modèle faible et modèle fort que récupère un routeur à un niveau de coût donné. APGR (Average Performance Gap Recovered) intègre le PGR sur l'ensemble des niveaux de coût et résume donc toute la courbe d'un routeur en un nombre. Dans RouteLLM, ce coût n'est pas un montant en dollars mais la part de requêtes envoyées au modèle fort : APGR mesure un routeur pour une paire de modèles et un benchmark donnés, et ne se transpose ni à une autre paire ni à une facture.",
+    "see_also": "CPT (Call-Performance Threshold), AIQ (Average Improvement in Quality)"
+  },
+  {
+    "term": "CPT (Call-Performance Threshold)",
+    "definition": "CPT(x %) (Call-Performance Threshold, seuil appels-performance) : part minimale d'appels au modèle fort qui permet de récupérer x % de l'écart de qualité entre modèle faible et modèle fort. C'est de ce rapport que viennent les facteurs d'économie de RouteLLM : sur la paire gpt-4-1106-preview / Mixtral 8x7B et sur MT Bench, son meilleur routeur atteint CPT(50 %) avec 13,40 % d'appels à GPT-4 contre 49,03 % pour un routage aléatoire, d'où le facteur de 3,66, calculé contre le routage aléatoire et non contre l'usage exclusif de GPT-4. Une part d'appels au modèle fort reste un proxy : la facture dépend aussi des longueurs en tokens et des tarifs de la paire, et le gain monétaire exige une hypothèse de prix séparée.",
+    "see_also": "PGR / APGR (Performance Gap Recovered / Average Performance Gap Recovered)"
+  },
+  {
+    "term": "AIQ (Average Improvement in Quality)",
+    "definition": "AIQ (Average Improvement in Quality, amélioration moyenne de la qualité) : métrique de RouterBench qui résume un routeur par l'aire sous l'enveloppe convexe non décroissante de ses points coût-qualité, divisée par l'étendue de coût. Contrairement aux métriques de RouteLLM, le coût y est exprimé en dollars ; en revanche RouterBench n'évalue ni la latence ni le débit, que l'AIQ ne voit donc pas. Un AIQ se lit contre le routeur Zero et le routeur oracle du même benchmark, jamais contre le chiffre d'un autre benchmark.",
+    "see_also": "cost-quality frontier, PGR / APGR (Performance Gap Recovered / Average Performance Gap Recovered)"
+  }
+]
