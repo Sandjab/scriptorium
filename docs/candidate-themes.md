@@ -1087,8 +1087,19 @@ au même article que le texte.
 > de génération pour une autre question — qu'est-ce qui cloche, et où — : ici on tranche
 > synthétique ou non, sans diagnostiquer le défaut.
 
-### Diagnostic des défauts de la vidéo générée — `generated-video-artifact-detection` → domaine à trancher
-**Verdict : gap réel (ajout 2026-10-30, demande utilisateur).** Couverture vérifiée **par lecture**
+### ✅ FAIT — Diagnostic des défauts de la vidéo générée — `generated-video-artifact-detection` → `deep-learning-foundations`
+(**FAIT le 2026-10-30**, 87e run `/leanmonograph`, retiré du backlog ; classé 26e étape du parcours de `deep-learning-foundations`,
+entre `world-models` et `quantization`. 11 sections sur 11, 42 claims (20 confirmés / 22 corrigés / 0 rejeté), 33 sources,
+4 widgets + 3 figures ; ≈ 10,5 M tok (workflow 4,44 + reprise 4,51 + ré-audit 4 agents et backstop 3 agents ≈ 1,5, estimé).
+**37e arrêt d'élagage : 34 rejets sur 44**, tous au seul seuil de sources. Ré-audit : 14 en document-source déclaré (composition
+et protocole de BANCS — extension assumée de la règle, précédent du 85e run), 14 regrains, 6 réparations, 2 doublons retirés ;
+indépendance contrôlée en code (Semantic Scholar, 27 papiers, 11 paires co-signées). Erreurs de fond rattrapées en primaire :
+figer les vidéos fait MONTER le FVD (c'est le rééchantillonnage qui le fait baisser) ; le 39,6 % de VideoPhy porte sur 344
+légendes, pas 688 ; DeeptraceReward se contredit (explication pour 62,7 % des traces) ; Physics-IQ v1 24,1 % contre v3 29,5 %.
+Backstop (304 phrases) : 5 FAUX + ~24 imprécisions + 2 réserves, dont la trouvaille du run : VBench et VBench-2.0 disent
+« Spearman » mais publient des r de Pearson entre win ratios (recalcul exact ; Spearman 0,4 sur Human Anatomy).)
+
+**Verdict initial : gap réel (ajout 2026-10-30, demande utilisateur).** Couverture vérifiée **par lecture**
 des sections voisines : `world-models` (« Générer des mondes : de Sora à Genie 3 » et « Ce qu'un
 world model n'est pas ») cite Kang et al. (ICML 2025) — généralisation « case-based », indices
 superficiels hors distribution — mais c'est un résultat sur le GÉNÉRATEUR, jamais sur un modèle qui
