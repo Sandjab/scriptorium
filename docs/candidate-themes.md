@@ -1083,7 +1083,40 @@ au même article que le texte.
 > génération d'images ; `world-models` la simulation. L'angle propre : ce qui accompagne le
 > média, pas ce qui le produit. Domaine à trancher par /arrange — `llm-agents-generation` par
 > continuité avec le thème texte, ou `deep-learning-foundations` par continuité avec les modèles
-> génératifs d'image.
+> génératifs d'image. `generated-video-artifact-detection` (candidat) exploite les mêmes artefacts
+> de génération pour une autre question — qu'est-ce qui cloche, et où — : ici on tranche
+> synthétique ou non, sans diagnostiquer le défaut.
+
+### Diagnostic des défauts de la vidéo générée — `generated-video-artifact-detection` → domaine à trancher
+**Verdict : gap réel (ajout 2026-10-30, demande utilisateur).** Couverture vérifiée **par lecture**
+des sections voisines : `world-models` (« Générer des mondes : de Sora à Genie 3 » et « Ce qu'un
+world model n'est pas ») cite Kang et al. (ICML 2025) — généralisation « case-based », indices
+superficiels hors distribution — mais c'est un résultat sur le GÉNÉRATEUR, jamais sur un modèle qui
+examine la vidéo produite ; `diffusion-models` (« Au-delà de l'image : audio, vidéo et molécules »)
+ne traite que l'architecture (factorisation espace-temps, Imagen Video, DiT de Sora) ;
+`multimodal-vlm` et `llm-evaluation` posent le VLM et le juge, jamais sur de la vidéo générée.
+Aucune phrase du corpus sur le diagnostic d'une vidéo générée. ⚠️ Risque d'élagage élevé :
+littérature jeune, dominée par les préprints, mouvante — profil des arrêts d'élagage à rejets
+mono-source ; prévoir la réparation.
+
+> Diagnostiquer une vidéo générée : détecter, localiser et expliquer ses défauts. Couvrir la
+> typologie des défauts (anatomie et difformités, permanence et identité des objets, violations
+> physiques et mouvements irréalistes, scintillement temporel, texte), le passage du score global
+> (FVD) aux axes décomposés (VBench et ce que chaque axe mesure réellement), les bancs de
+> plausibilité physique (pistes à confirmer : VideoPhy, PhyGenBench, Physics-IQ), le VLM comme juge
+> de vidéo et sa question centrale — juge-t-il le mouvement ou des images isolées ? —, la
+> localisation spatio-temporelle des artefacts, l'accord de ces juges avec les annotateurs humains,
+> et leur usage comme récompense pour post-entraîner le générateur (modèles de récompense vidéo,
+> préférences, et l'effet Goodhart quand le générateur optimise le juge). Public : ingénieur ML.
+> ⚠️ Délimitations : `video-generation-models` (candidat) garde la fabrication de la vidéo et lui
+> laisse son évaluation — ne pas re-dériver l'architecture ; `media-provenance-c2pa` (candidat)
+> garde la détection synthétique/réel et la provenance — citer le recouvrement des signaux, pas le
+> refaire ; `world-models` garde la question « le générateur apprend-il la physique ? » (Kang et
+> al.) — en partir, la question ici est de savoir si un modèle VOIT la violation ; `llm-evaluation`
+> garde les biais du juge en général (verbosité, auto-préférence) — les citer, rester sur ce que la
+> vidéo ajoute. L'angle propre : le diagnostic d'une vidéo déjà produite. Domaine à trancher par
+> /arrange — `deep-learning-foundations` par continuité avec la génération vidéo, ou
+> `llm-agents-generation` par continuité avec `llm-evaluation`.
 
 ### ✅ FAIT — MinHash & déduplication — `minhash-dedup` → `probabilistic-structures-hashing`
 (**FAIT le 2026-09-19**, 59e run `/leanmonograph`, retiré du backlog — classé 5e du parcours de
@@ -1898,19 +1931,20 @@ sur la compression, pas sur le déploiement local. Priorité basse tout de même
 **Verdict : partiel, ⚠️ angle réduit (ajout 2026-08-06).** `diffusion-models` a une section
 « Au-delà de l'image : audio, vidéo » et couvre latent diffusion, DDIM/DPM-Solver, guidage,
 consistency models ; `world-models` traite « Générer des mondes : de Sora à Genie 3 » côté
-simulation. Reste l'angle proprement vidéo — tokenizer spatio-temporel, cohérence, audio joint,
-évaluation — mais il faut le tenir serré pour ne pas refaire les deux voisins.
+simulation. Reste l'angle proprement vidéo — tokenizer spatio-temporel, cohérence, audio joint —
+mais il faut le tenir serré pour ne pas refaire les deux voisins. (2026-10-30 : la puce
+« évaluation » est cédée à `generated-video-artifact-detection`.)
 
 > Modèles de génération vidéo : produire des séquences cohérentes dans le temps. Couvrir la
 > compression spatio-temporelle (VAE 3D, tokenisation en patches d'espace-temps) et pourquoi elle
 > commande tout le reste, l'architecture DiT appliquée à la vidéo, la cohérence temporelle et
 > l'identité des objets d'un plan à l'autre, le conditionnement (texte, image de départ, trajectoire
 > de caméra), la génération audio-vidéo synchronisée, le coût d'inférence et les stratégies
-> d'accélération, et l'évaluation (VBench et les axes qu'il décompose, ce que les préférences
-> humaines mesurent réellement). Public : ingénieur ML. ⚠️ Délimitations strictes :
+> d'accélération. Public : ingénieur ML. ⚠️ Délimitations strictes :
 > diffusion-models couvre le cadre diffusion complet, y compris sa section audio/vidéo — NE PAS le
 > re-dériver ; world-models couvre Sora et Genie 3 comme simulateurs de mondes et la physical AI ;
-> generative-adversarial-networks couvre la lignée GAN. L'angle propre : la vidéo comme problème de
+> generative-adversarial-networks couvre la lignée GAN ; generated-video-artifact-detection
+> (candidat) couvre l'évaluation (VBench, juges, défauts) — y renvoyer. L'angle propre : la vidéo comme problème de
 > représentation spatio-temporelle. Domaine : deep-learning-foundations.
 
 ### Sécurité des agents outillés — `agent-tool-security` → `llm-agents-generation`
