@@ -1989,8 +1989,22 @@ regrain d'une section de `decoding-sampling`** qui répare le renvoi à moindre 
 > `decoding-sampling` garde le spéculatif (accélérer un modèle autorégressif ≠ changer la
 > factorisation). Domaine : deep-learning-foundations, ou section ajoutée à decoding-sampling.
 
-### LLM multilingues et langues peu dotées — `llm-multilingue-basses-ressources` → domaine à trancher
-**Verdict : gap réel sur le cœur, périphérie déjà occupée (ajout 2026-09-01).** Fragments à citer :
+### ✅ FAIT — LLM multilingues et langues peu dotées — `llm-multilingue-basses-ressources` → `deep-learning-foundations`
+(**FAIT le 2026-10-30**, 86e run `/leanmonograph`, retiré du backlog ; classé 14e étape du parcours de `deep-learning-foundations`,
+entre `pretraining-data-curation` et `scaling-laws` (domaine tranché par l'utilisateur). 10 sections sur 10, 31 claims
+(4 confirmés / 25 corrigés / 2 rejetés), 28 sources, 1 widget ; ≈ 8,6 M tok (workflow 4,2 + reprise 3,2 + ré-audit 4 agents 0,65 +
+backstop 3 agents 0,6). **36e arrêt d'élagage : 35 rejets sur 39**, dont 28 au seul seuil de sources (`search_exhausted=false`,
+jurés à l'abstract), et 2 « confirmés » à fausse indépendance (XLM + XLM-R, Conneau commun). Ré-audit : 12 regrains (Ahia et al.,
+Arnett et al., mT5, XTREME, CamemBERT, VoCap, KMMLU, Plaza et al., MultiLoKo, Robinson et al., Swallow), 8 réparations, 8 en
+document-source déclaré, 1 rejet (arbitrage multilingue, papier incohérent : 56,5 % = moyenne sur tous les enseignants, 28,1 %
+face au meilleur), 9 doublons retirés (le plan répétait le « 15 fois » de Petrov dans 5 claims et le « 28 % » de Global MMLU
+dans 4). Erreurs de fond rattrapées, vérifiées en primaire : le +44 % de NLLB porte sur FLORES-101 devtest (§8.3.1, Table 30),
+pas FLORES-200 ; dans XLM, α = 0,5 sert au vocabulaire BPE et α = 0,7 au tirage des lots ; 11 notes d'Extract portaient ces
+erreurs. Backstop : 3 FAUX (mT5 reprend le 79,2 de XTREME, pas un 3e chiffre ; le shan figure bien chez Ahia et al. ; XSTS est
+déjà dans la préimpression NLLB) + 18 imprécisions + 11 réserves, dont 3 claims réalignés (un venu du ré-audit). Délimitation
+NOUVELLE posée au brief, vérifiée par LECTURE : `speech-recognition-asr` (78e run) tient le multilingue de la parole.)
+
+**Verdict initial : gap réel sur le cœur, périphérie déjà occupée (ajout 2026-09-01).** Fragments à citer :
 « surcoût d'API pour les langues non anglaises (plus de tokens par mot) » en une proposition de
 `text-embeddings`, jamais quantifiée ; le jailbreak par langues peu dotées traité à fond dans
 `llm-safety-jailbreaks` (« 79 % sur AdvBench […] culmine en zoulou ») ; l'identification de langue
